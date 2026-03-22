@@ -1,0 +1,128 @@
+# Futures — Potential Work Items and Directions
+
+## Near-Term (Polish the Prototype)
+
+### Interactive Area Mapper
+The area mapping SVG visualization currently displays static rectangles. Make them interactive:
+- Drag to reposition the tablet active area within the full tablet surface
+- Corner/edge handles to resize
+- Rotation handle (drag to rotate the tablet area)
+- Snap-to-center and snap-to-edges guides
+- Live coordinate readout during drag
+
+This is the single highest-impact feature for demonstrating the UX vision.
+
+### Settings Write-Back
+The UI currently reads settings from the daemon but doesn't write changes. Wire up the input fields and controls to call `SetSettings` via the bridge. This includes debouncing rapid changes and showing save/apply confirmation.
+
+### Bindings Page
+Implement the pen bindings configuration:
+- Visual representation of the pen (tip, eraser, barrel buttons)
+- Click-to-configure binding for each button
+- Dropdown or modal for selecting binding type (key press, mouse button, multi-key combo)
+- Pressure threshold sliders for tip and eraser activation
+
+### Filters Page
+Implement the filter pipeline view:
+- Ordered list of active filters (drag to reorder)
+- Enable/disable toggle per filter
+- Expandable settings panel per filter with its plugin-specific properties
+- Add/remove filters from available plugins
+
+### Console / Log Viewer
+Stream live logs from the daemon:
+- Auto-scrolling log list with level-colored entries (info, warning, error, debug)
+- Filter by log level
+- Search/filter by text
+- Pause/resume auto-scroll
+- Copy log entry to clipboard
+
+### Tablet Detection UX
+Add a "Detect Tablets" button that triggers re-detection. Show a brief scanning animation. Handle the case where detection finds a new tablet (auto-select it, load its profile).
+
+## Mid-Term (Deepen the Experience)
+
+### Preset System
+- Save/load area mapping presets (per-game or per-application profiles)
+- Quick-switch between presets via sidebar or keyboard shortcut
+- Import/export presets as JSON files
+
+### Multi-Monitor Support
+The area mapping visualization should show multiple display rectangles when the user has multiple monitors. The user picks which monitor (or region across monitors) to map the tablet to.
+
+### Pressure Curve Editor
+A bezier curve editor for customizing the pressure response:
+- Interactive curve with draggable control points
+- Presets (linear, soft, firm, S-curve)
+- Live pressure preview — draw on the tablet and see the mapped pressure in real time
+
+### Live Input Visualization
+Show real-time pen input data:
+- Position dot moving on the tablet area visualization
+- Pressure bar graph
+- Tilt angle indicator
+- Hover height indicator (for tablets that support it)
+- Useful for debugging and for users to verify their setup
+
+### Plugin Browser
+Browse, install, and manage OTD plugins:
+- Card grid of available plugins with descriptions
+- Install/uninstall with one click
+- Plugin settings inline
+
+### Animations and Micro-Interactions
+- Page transition animations (crossfade or slide)
+- Subtle hover animations on glass panels (parallax tilt, glow shift)
+- Loading skeletons while waiting for daemon data
+- Success/error toast notifications with smooth enter/exit
+- Sidebar collapse/expand animation
+
+## Long-Term (Distribution and Platform)
+
+### Packaging as a Standalone App
+Options for distributing as a single executable:
+- **Photino** (.NET wrapper around OS webview) — smallest output, native feel
+- **Tauri** (Rust + OS webview, .NET bridge as sidecar) — small, modern tooling
+- **Electron** — largest output but simplest packaging
+- **.NET self-hosted** (Kestrel serves built Svelte files, user opens browser) — zero extra dependencies
+
+Photino is the most interesting option: it produces a small native window wrapping the OS webview, the .NET bridge runs in-process, and the whole thing ships as a single executable.
+
+### Tray Icon and Background Mode
+Run the bridge + UI as a system tray application. Click the tray icon to open/close the configuration window. The bridge stays connected to the daemon in the background.
+
+### Auto-Start with Daemon
+Detect when the OTD daemon starts and auto-connect. Optionally, bundle the daemon and launch it as a child process (like the current OTD UX does with `DaemonWatchdog`).
+
+### Cross-Platform Verification
+The architecture is cross-platform by design (named pipes work on Windows/macOS/Linux in .NET, web UI is universal). However, testing on macOS and Linux is needed, particularly:
+- Named pipe paths on Unix (maps to Unix domain sockets)
+- Font rendering differences
+- Backdrop-filter support in various Linux browsers/webviews
+
+### Accessibility
+- Keyboard navigation for all controls (already partially works via semantic HTML)
+- Screen reader labels for interactive SVG elements in the area mapper
+- High contrast mode (a third theme or automatic adjustments)
+- Reduced motion mode (respect `prefers-reduced-motion`)
+
+### Localization
+- Extract all user-facing strings into a translation system
+- RTL layout support
+
+## Exploratory Ideas
+
+### AI-Assisted Configuration
+Use tablet usage patterns to suggest optimal area mappings and sensitivity settings. "Based on your drawing style, we recommend a 70% active area with soft pressure curve."
+
+### Community Presets
+A shared repository of community-contributed presets tagged by use case (osu!, digital art, note-taking, CAD). Browse and apply with one click.
+
+### Visual Tablet Skins
+Show an accurate visual representation of the user's specific tablet model (rendered from SVG templates per-model) instead of a generic rectangle. The active area overlay sits on top of the tablet image.
+
+### Split-Area Mapping
+Map different regions of the tablet to different monitors or applications. A creative use case for large tablets.
+
+### Gesture Zones
+Define zones on the tablet surface that trigger actions (e.g., tapping the top-left corner opens a color picker). Visual zone editor with drag-to-create rectangles.

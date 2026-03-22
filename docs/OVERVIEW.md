@@ -1,0 +1,37 @@
+# OpenTabletDriver UX Prototype — Overview
+
+## What Is This?
+
+This is a UX prototype for [OpenTabletDriver](https://github.com/OpenTabletDriver/OpenTabletDriver) (OTD), an open-source, cross-platform drawing tablet driver. The prototype explores what a next-generation configuration experience could look like — one that prioritizes visual beauty, clarity, and delight alongside functional completeness.
+
+This is not a fork of OpenTabletDriver. It is a standalone frontend that connects to the existing OTD daemon process and controls it remotely.
+
+## Why Does This Exist?
+
+OpenTabletDriver's current UI is functional but utilitarian. The OTD team is actively building a new UX using Avalonia. This prototype exists to explore an alternative direction — one rooted in modern web aesthetics — and to demonstrate what's possible when beauty is treated as a first-class requirement.
+
+Specific goals:
+
+- **Demonstrate a premium visual experience** for tablet driver configuration, using glassmorphism, smooth transitions, and a refined dark/light theme system.
+- **Iterate rapidly** on UI ideas using web technology (Svelte + Vite hot reload) rather than native UI frameworks with slower build cycles.
+- **Validate the architecture** of a web-based frontend communicating with the OTD daemon, proving that the daemon's JSON-RPC interface is flexible enough to support diverse UI approaches.
+- **Serve as a conversation piece** — a tangible artifact that the OTD community and team can react to, critique, and draw inspiration from.
+
+## What This Is Not
+
+- **Not a production-ready replacement.** This is a prototype. It does not implement every OTD feature, does not handle every edge case, and is not optimized for distribution.
+- **Not a criticism of the existing UX.** The current OTD interface serves its users well. This project explores a different aesthetic direction, not a correction.
+- **Not a permanent fork.** The goal is to produce ideas and demonstrate possibilities, not to maintain a parallel codebase indefinitely.
+
+## Design Philosophy
+
+1. **Beauty is the feature.** Every panel, every transition, every color choice is intentional. The UI should feel like a premium creative tool — because the people using it are creators.
+2. **Glass and light.** The glassmorphism design language (frosted glass panels, depth through blur, subtle borders) creates a sense of layered depth without visual heaviness.
+3. **Respect for both modes.** Dark and light themes are first-class citizens, each carefully tuned — not an afterthought toggle.
+4. **Fast feedback loops.** The web stack (Svelte 5 + Vite) enables sub-second hot reload, meaning design ideas can be tested and refined in real time.
+
+## Target Audience
+
+- OTD contributors and maintainers evaluating UX directions
+- UX designers exploring driver/configuration UI patterns
+- Developers interested in the architecture of bridging web UIs to native daemon processes
