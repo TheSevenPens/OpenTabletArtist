@@ -4,6 +4,7 @@
   import { tabletsStore } from '../stores/tablets.svelte';
   import { connectionStore } from '../stores/connection.svelte';
   import { settingsStore } from '../stores/settings.svelte';
+  import { vmultiStore } from '../stores/vmulti.svelte';
 
   // Detect Windows Ink plugin from the active profile's output mode.
   // The daemon's GetSettings() returns profile.OutputMode as a PluginSettingStore
@@ -70,7 +71,7 @@
     <!-- VMulti Driver Status -->
     <GlassPanel interactive>
       <div class="status-card">
-        <div class="status-icon vmulti-icon" class:active={false}>
+        <div class="status-icon" class:active={vmultiStore.isInstalled}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
@@ -78,10 +79,14 @@
         <div class="status-info">
           <h3 class="status-label">VMulti Driver</h3>
           <div class="status-row">
-            <div class="status-dot dot-disconnected"></div>
-            <span class="status-text">Not detected</span>
+            <div class="status-dot" class:dot-connected={vmultiStore.isInstalled} class:dot-disconnected={!vmultiStore.isInstalled}></div>
+            <span class="status-text" class:text-ok={vmultiStore.isInstalled}>
+              {vmultiStore.message}
+            </span>
           </div>
-          <span class="status-hint">Required for pressure &amp; tilt</span>
+          {#if !vmultiStore.isInstalled}
+            <span class="status-hint">Required for pressure &amp; tilt</span>
+          {/if}
         </div>
       </div>
     </GlassPanel>

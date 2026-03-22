@@ -55,6 +55,15 @@ The landing page. Shows four status cards in a vertical column, each reflecting 
 
 When a tablet is connected, additional cards appear below: tablet specifications, current output mode, and quick action links to Area Mapping and Bindings.
 
+### Profiles
+
+Lists all tablet profiles stored in the OTD daemon's settings. Each profile card shows:
+- Tablet name (e.g. "Wacom CTC-6110WL")
+- Active output mode (e.g. "WinInkAbsoluteMode")
+- Display and tablet area dimensions
+
+Profiles are created automatically by the daemon when a new tablet is connected. This page pulls live data from the daemon via the bridge.
+
 ### Area Mapping
 
 The core configuration view. Displays a side-by-side visualization of your display area and tablet area:

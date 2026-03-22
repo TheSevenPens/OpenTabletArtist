@@ -17,6 +17,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<DaemonClient>();
+builder.Services.AddSingleton<VMultiDetector>();
 
 var app = builder.Build();
 app.UseCors();
@@ -47,6 +48,18 @@ app.MapGet("/api/app-info", async (DaemonClient client) =>
 {
     var info = await client.GetAppInfoAsync();
     return Results.Content(info.ToString(), "application/json");
+});
+
+app.MapGet("/api/vmulti", (VMultiDetector detector) =>
+{
+    var status = detector.Detect();
+    return Results.Ok(status);
+});
+
+app.MapGet("/api/debug/hid-devices", (VMultiDetector detector) =>
+{
+    var devices = detector.ListAllHidDevices();
+    return Results.Ok(new { count = devices.Count, devices = devices.Take(50) });
 });
 
 // WebSocket endpoint for real-time events

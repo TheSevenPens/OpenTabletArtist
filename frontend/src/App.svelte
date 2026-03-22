@@ -6,11 +6,13 @@
   import Filters from './lib/pages/Filters.svelte';
   import Console from './lib/pages/Console.svelte';
   import About from './lib/pages/About.svelte';
+  import Profiles from './lib/pages/Profiles.svelte';
   import { themeStore } from './lib/stores/theme.svelte';
-  import { fetchTablets, fetchSettings } from './lib/services/api';
+  import { fetchTablets, fetchSettings, fetchVMultiStatus } from './lib/services/api';
   import { tabletsStore } from './lib/stores/tablets.svelte';
   import { settingsStore } from './lib/stores/settings.svelte';
   import { connectionStore } from './lib/stores/connection.svelte';
+  import { vmultiStore } from './lib/stores/vmulti.svelte';
 
   let hash = $state(location.hash || '#/');
 
@@ -24,12 +26,14 @@
   async function loadDaemonData() {
     try {
       connectionStore.set('connecting');
-      const [tablets, settings] = await Promise.all([
+      const [tablets, settings, vmulti] = await Promise.all([
         fetchTablets(),
         fetchSettings(),
+        fetchVMultiStatus(),
       ]);
       tabletsStore.set(tablets);
       settingsStore.set(settings);
+      vmultiStore.set(vmulti);
       connectionStore.set('connected');
     } catch {
       connectionStore.set('disconnected');
@@ -47,7 +51,9 @@
 </script>
 
 <Shell {currentRoute}>
-  {#if hash === '#/area'}
+  {#if hash === '#/profiles'}
+    <Profiles />
+  {:else if hash === '#/area'}
     <AreaMapping />
   {:else if hash === '#/bindings'}
     <Bindings />

@@ -5,6 +5,7 @@
 
   const navItems = [
     { label: 'Dashboard', href: '#/', icon: 'home' },
+    { label: 'Profiles', href: '#/profiles', icon: 'users' },
     { label: 'Area Mapping', href: '#/area', icon: 'map' },
     { label: 'Bindings', href: '#/bindings', icon: 'zap' },
     { label: 'Filters', href: '#/filters', icon: 'filter' },
@@ -37,6 +38,8 @@
         {#snippet icon()}
           {#if item.icon === 'home'}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          {:else if item.icon === 'users'}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           {:else if item.icon === 'map'}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="6" height="6" rx="1" opacity="0.6"/></svg>
           {:else if item.icon === 'zap'}

@@ -1,5 +1,6 @@
 import type { TabletInfo } from '../types/tablet';
 import type { Settings } from '../types/settings';
+import type { VMultiStatus } from '../stores/vmulti.svelte';
 
 const BASE = '/api';
 
@@ -46,4 +47,8 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 export async function fetchAppInfo(): Promise<Record<string, string>> {
   return request<Record<string, string>>('/app-info');
+}
+
+export async function fetchVMultiStatus(): Promise<VMultiStatus> {
+  return request<VMultiStatus>('/vmulti');
 }
