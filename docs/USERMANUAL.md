@@ -46,9 +46,14 @@ Open `http://localhost:5173` in your browser.
 
 ### Dashboard
 
-The landing page. Shows your connected tablet's name, specifications (active area dimensions, pressure levels, pen button count), and current output mode. If no tablet is connected, you'll see an empty state prompting you to connect one.
+The landing page. Shows four status cards in a vertical column, each reflecting live state from the OTD daemon:
 
-Quick action links at the bottom take you directly to Area Mapping or Bindings.
+- **OpenTabletDriver** — whether the bridge is connected to the daemon (green = running, gray = not connected)
+- **Tablet** — the detected tablet name, or "No tablet detected" if none is plugged in
+- **VMulti Driver** — whether the vmulti virtual HID driver is installed (required for pressure and tilt on Windows). Detection via HID enumeration is planned; currently static.
+- **Windows Ink** — whether the active output mode uses the Windows Ink plugin (detected from the profile's output mode path). Shows "Plugin active" when the profile uses `WinInkAbsoluteMode`.
+
+When a tablet is connected, additional cards appear below: tablet specifications, current output mode, and quick action links to Area Mapping and Bindings.
 
 ### Area Mapping
 
@@ -59,11 +64,11 @@ The core configuration view. Displays a side-by-side visualization of your displ
 - **Dashed outline**: The full tablet surface.
 - **Dashed arrow**: Indicates the mapping relationship between the two areas.
 
-The right panel shows numeric controls for each area (width, height, center X/Y, rotation) and toggle options:
+The right panel shows numeric controls for each area (width, height, center X/Y) and a toggle:
 
-- **Enable clipping**: Prevents the cursor from leaving the mapped display area.
-- **Limit to tablet area**: Constrains the active area to the tablet's physical boundaries.
-- **Lock aspect ratio**: Maintains proportional width/height when resizing.
+- **Force proportions**: Maintains proportional width/height when resizing (maps to OTD's "Lock aspect ratio" setting).
+
+Advanced settings (rotation, clipping, area limiting) are hidden from the default view to keep the experience clean. They remain enabled with sensible defaults in the underlying settings.
 
 ### Bindings (Placeholder)
 

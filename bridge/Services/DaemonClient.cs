@@ -1,5 +1,5 @@
 using System.IO.Pipes;
-using System.Text.Json;
+using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 
 namespace Bridge.Services;
@@ -11,10 +11,6 @@ public class DaemonClient : IDisposable
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
     private readonly ILogger<DaemonClient> _logger;
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
 
     public event Action<string>? OnDaemonEvent;
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
@@ -40,7 +36,8 @@ public class DaemonClient : IDisposable
                 );
 
                 await _pipe.ConnectAsync(5000, ct);
-                _rpc = new JsonRpc(new HeaderDelimitedMessageHandler(_pipe));
+                // OTD uses the default JsonRpc constructor which uses NewLineDelimited framing
+                _rpc = new JsonRpc(_pipe);
                 _rpc.Disconnected += (_, _) =>
                 {
                     _logger.LogWarning("Disconnected from OTD daemon");
@@ -64,28 +61,31 @@ public class DaemonClient : IDisposable
         }
     }
 
-    public async Task<JsonElement> GetTabletsAsync()
+    // StreamJsonRpc uses Newtonsoft.Json internally, so we must use JToken (not System.Text.Json)
+    // for passthrough. ASP.NET will serialize JToken to JSON automatically.
+
+    public async Task<JToken> GetTabletsAsync()
     {
-        if (_rpc == null) return JsonDocument.Parse("[]").RootElement;
-        return await _rpc.InvokeAsync<JsonElement>("GetTablets");
+        if (_rpc == null) return JToken.Parse("[]");
+        return await _rpc.InvokeAsync<JToken>("GetTablets");
     }
 
-    public async Task<JsonElement> GetSettingsAsync()
+    public async Task<JToken> GetSettingsAsync()
     {
-        if (_rpc == null) return JsonDocument.Parse("null").RootElement;
-        return await _rpc.InvokeAsync<JsonElement>("GetSettings");
+        if (_rpc == null) return JToken.Parse("null");
+        return await _rpc.InvokeAsync<JToken>("GetSettings");
     }
 
-    public async Task SetSettingsAsync(JsonElement settings)
+    public async Task SetSettingsAsync(JToken settings)
     {
         if (_rpc == null) return;
         await _rpc.InvokeAsync("SetSettings", settings);
     }
 
-    public async Task<JsonElement> GetAppInfoAsync()
+    public async Task<JToken> GetAppInfoAsync()
     {
-        if (_rpc == null) return JsonDocument.Parse("null").RootElement;
-        return await _rpc.InvokeAsync<JsonElement>("GetApplicationInfo");
+        if (_rpc == null) return JToken.Parse("null");
+        return await _rpc.InvokeAsync<JToken>("GetApplicationInfo");
     }
 
     public void Dispose()

@@ -1,6 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
+using Newtonsoft.Json.Linq;
 using Bridge.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,7 +9,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5188")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -22,27 +22,23 @@ var app = builder.Build();
 app.UseCors();
 app.UseWebSockets();
 
-var jsonOptions = new JsonSerializerOptions
-{
-    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    WriteIndented = false,
-};
-
-// REST endpoints
+// REST endpoints — JToken serializes directly to JSON via Newtonsoft
 app.MapGet("/api/tablets", async (DaemonClient client) =>
 {
     var tablets = await client.GetTabletsAsync();
-    return Results.Ok(tablets);
+    return Results.Content(tablets.ToString(), "application/json");
 });
 
 app.MapGet("/api/settings", async (DaemonClient client) =>
 {
     var settings = await client.GetSettingsAsync();
-    return Results.Ok(settings);
+    return Results.Content(settings.ToString(), "application/json");
 });
 
-app.MapPost("/api/settings", async (DaemonClient client, JsonElement body) =>
+app.MapPost("/api/settings", async (HttpContext context, DaemonClient client) =>
 {
+    using var reader = new StreamReader(context.Request.Body);
+    var body = JToken.Parse(await reader.ReadToEndAsync());
     await client.SetSettingsAsync(body);
     return Results.Ok();
 });
@@ -50,7 +46,7 @@ app.MapPost("/api/settings", async (DaemonClient client, JsonElement body) =>
 app.MapGet("/api/app-info", async (DaemonClient client) =>
 {
     var info = await client.GetAppInfoAsync();
-    return Results.Ok(info);
+    return Results.Content(info.ToString(), "application/json");
 });
 
 // WebSocket endpoint for real-time events

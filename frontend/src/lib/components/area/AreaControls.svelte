@@ -47,13 +47,6 @@
         <input type="number" class="field-input glass-subtle" value={area.y.toFixed(1)} step="0.1" />
       </label>
     </div>
-    <div class="field-row">
-      <label class="field field-full">
-        <span class="field-label">Rotation</span>
-        <input type="number" class="field-input glass-subtle" value={area.rotation.toFixed(1)} step="0.5" min="-180" max="180" />
-        <span class="field-unit">deg</span>
-      </label>
-    </div>
   </div>
 </GlassPanel>
 

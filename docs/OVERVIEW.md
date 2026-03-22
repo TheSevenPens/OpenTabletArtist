@@ -32,6 +32,11 @@ Specific goals:
 
 ## Target Audience
 
+The primary audience is **creatives** — digital artists, illustrators, and designers who use drawing tablets as their main input device. These users care about pressure sensitivity, tilt, and a configuration experience that doesn't feel like a developer tool. They are not gamers (osu! players) or technical power users — they want things to work without reading a terminal.
+
+Today, setting up OTD for creative work on Windows is an involved process: installing vmulti, adding the Windows Ink plugin, switching output modes, configuring the drawing app. See the [SevenPens OTD Windows install guide](https://docs.sevenpens.com/drawtab/guides/drivers/opentabletdriver/otd-windows-install) for what this currently looks like. This prototype aims to make that experience dramatically simpler.
+
+Secondary audiences:
 - OTD contributors and maintainers evaluating UX directions
 - UX designers exploring driver/configuration UI patterns
 - Developers interested in the architecture of bridging web UIs to native daemon processes

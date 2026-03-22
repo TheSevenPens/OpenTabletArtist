@@ -12,6 +12,19 @@ The area mapping SVG visualization currently displays static rectangles. Make th
 
 This is the single highest-impact feature for demonstrating the UX vision.
 
+### Guided Setup for Creatives (Windows)
+Setting up OTD for creative work on Windows currently requires multiple manual steps: installing vmulti, adding the Windows Ink plugin, switching the output mode to "Windows Ink Absolute Mode", and configuring the drawing app. Most artists don't know they need to do this. Build a first-run wizard or setup checklist that:
+- Detects whether vmulti is installed (check Windows device tree for the virtual HID device)
+- Checks if the Windows Ink plugin is present
+- Verifies the output mode is set correctly for pressure/tilt
+- Links to or automates vmulti installation
+- Recommends drawing app configuration (Krita, Photoshop, Clip Studio, etc.)
+
+Reference: [SevenPens OTD Windows install guide](https://docs.sevenpens.com/drawtab/guides/drivers/opentabletdriver/otd-windows-install)
+
+### Advanced Settings Toggle
+Several settings are hidden from the default UI to keep the experience clean for typical users: rotation (display and tablet areas), enable clipping, and area limiting. These remain active in the data model with sensible defaults. Add an "Advanced" toggle (or expandable section) that reveals these controls for power users.
+
 ### Settings Write-Back
 The UI currently reads settings from the daemon but doesn't write changes. Wire up the input fields and controls to call `SetSettings` via the bridge. This includes debouncing rapid changes and showing save/apply confirmation.
 

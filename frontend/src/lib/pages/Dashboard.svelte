@@ -2,7 +2,18 @@
   import GlassPanel from '../components/shared/GlassPanel.svelte';
   import TabletCard from '../components/tablet/TabletCard.svelte';
   import { tabletsStore } from '../stores/tablets.svelte';
+  import { connectionStore } from '../stores/connection.svelte';
   import { settingsStore } from '../stores/settings.svelte';
+
+  // Detect Windows Ink plugin from the active profile's output mode.
+  // The daemon's GetSettings() returns profile.OutputMode as a PluginSettingStore
+  // with a Path (e.g. "VoiDPlugins.OutputMode.WinInkAbsoluteMode") and Name
+  // (e.g. "Windows Ink Absolute Mode"). The IDriverDaemon interface doesn't expose
+  // a "list installed plugins" method, so we infer from the active output mode.
+  // Future: scan AppInfo.PluginDirectory for installed plugin DLLs via the bridge.
+  let hasWindowsInk = $derived(
+    settingsStore.activeProfile?.outputMode?.path?.toLowerCase().includes('winink') ?? false
+  );
 </script>
 
 <div class="dashboard">
@@ -11,6 +22,95 @@
     <p class="page-subtitle">Overview of your tablet configuration</p>
   </header>
 
+  <div class="status-cards">
+    <!-- OTD Daemon Status -->
+    <GlassPanel interactive>
+      <div class="status-card">
+        <div class="status-icon" class:active={connectionStore.isConnected}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+        </div>
+        <div class="status-info">
+          <h3 class="status-label">OpenTabletDriver</h3>
+          <div class="status-row">
+            <div class="status-dot" class:dot-connected={connectionStore.isConnected} class:dot-disconnected={!connectionStore.isConnected}></div>
+            <span class="status-text" class:text-ok={connectionStore.isConnected}>
+              {connectionStore.isConnected ? 'Daemon running' : 'Not connected'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </GlassPanel>
+
+    <!-- Tablet Status -->
+    <GlassPanel interactive>
+      <div class="status-card">
+        <div class="status-icon" class:active={tabletsStore.hasTablet}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+        </div>
+        <div class="status-info">
+          <h3 class="status-label">Tablet</h3>
+          <div class="status-row">
+            <div class="status-dot" class:dot-connected={tabletsStore.hasTablet} class:dot-disconnected={!tabletsStore.hasTablet}></div>
+            <span class="status-text" class:text-ok={tabletsStore.hasTablet}>
+              {tabletsStore.hasTablet ? tabletsStore.current?.name : 'No tablet detected'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </GlassPanel>
+
+    <!-- VMulti Driver Status -->
+    <GlassPanel interactive>
+      <div class="status-card">
+        <div class="status-icon vmulti-icon" class:active={false}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="status-info">
+          <h3 class="status-label">VMulti Driver</h3>
+          <div class="status-row">
+            <div class="status-dot dot-disconnected"></div>
+            <span class="status-text">Not detected</span>
+          </div>
+          <span class="status-hint">Required for pressure &amp; tilt</span>
+        </div>
+      </div>
+    </GlassPanel>
+
+    <!-- Windows Ink Plugin Status -->
+    <GlassPanel interactive>
+      <div class="status-card">
+        <div class="status-icon" class:active={hasWindowsInk}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+            <path d="m15 5 4 4"/>
+          </svg>
+        </div>
+        <div class="status-info">
+          <h3 class="status-label">Windows Ink</h3>
+          <div class="status-row">
+            <div class="status-dot" class:dot-connected={hasWindowsInk} class:dot-disconnected={!hasWindowsInk}></div>
+            <span class="status-text" class:text-ok={hasWindowsInk}>
+              {hasWindowsInk ? 'Plugin active' : 'Not configured'}
+            </span>
+          </div>
+          {#if !hasWindowsInk}
+            <span class="status-hint">Enables pressure in drawing apps</span>
+          {/if}
+        </div>
+      </div>
+    </GlassPanel>
+  </div>
+
   {#if tabletsStore.hasTablet && tabletsStore.current}
     <div class="dashboard-grid">
       <TabletCard tablet={tabletsStore.current} />
@@ -18,7 +118,7 @@
       <GlassPanel class="quick-info">
         <h4 class="info-title">Output Mode</h4>
         <div class="info-value">
-          {settingsStore.activeProfile?.outputMode?.name ?? 'Absolute Mode'}
+          {settingsStore.activeProfile?.outputMode?.path?.split('.').pop() ?? 'Absolute Mode'}
         </div>
         <div class="info-detail">
           Maps tablet area to a region of your display
@@ -36,22 +136,6 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Edit Bindings
           </a>
-        </div>
-      </GlassPanel>
-    </div>
-  {:else}
-    <div class="empty-state">
-      <GlassPanel padding="var(--space-10)">
-        <div class="empty-content">
-          <div class="empty-icon">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="2" width="16" height="20" rx="2"/>
-              <line x1="12" y1="18" x2="12.01" y2="18"/>
-            </svg>
-          </div>
-          <h2 class="empty-title">No Tablet Detected</h2>
-          <p class="empty-text">Connect a drawing tablet to get started. Make sure OpenTabletDriver daemon is running.</p>
-          <div class="empty-pulse"></div>
         </div>
       </GlassPanel>
     </div>
@@ -78,6 +162,92 @@
     font-size: var(--font-size-base);
     color: var(--text-secondary);
     margin: 0;
+  }
+
+  .status-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-7);
+  }
+
+  .status-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all var(--transition-smooth);
+  }
+
+  .status-icon.active {
+    background: var(--success-muted);
+    color: var(--success);
+  }
+
+  .status-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .status-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-connected {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+
+  .dot-disconnected {
+    background: var(--text-muted);
+  }
+
+  .status-text {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-text.text-ok {
+    color: var(--text-secondary);
+  }
+
+  .status-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: calc(-1 * var(--space-1));
   }
 
   .dashboard-grid {
@@ -127,56 +297,5 @@
     text-decoration: none;
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-  }
-
-  .empty-state {
-    display: flex;
-    justify-content: center;
-    padding-top: var(--space-10);
-  }
-
-  .empty-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: var(--space-4);
-  }
-
-  .empty-icon {
-    opacity: 0.5;
-    animation: float 3s ease-in-out infinite;
-  }
-
-  .empty-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .empty-text {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    max-width: 360px;
-    margin: 0;
-  }
-
-  .empty-pulse {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--warning);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--warning); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 8px transparent; }
   }
 </style>

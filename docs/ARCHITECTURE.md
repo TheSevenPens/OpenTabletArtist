@@ -65,6 +65,27 @@
 
 This component is not part of our codebase. It is the standard OTD daemon, running unmodified.
 
+### vmulti (Windows Virtual HID Driver)
+
+**What it is:** A virtual HID miniport driver (originally by Djpnewton) that creates virtual input devices at the Windows kernel level. It injects HID reports directly into the input stack as if they came from real hardware.
+
+**Why OTD needs it on Windows:** OTD's core input on Windows uses `SendInput()` for basic cursor positioning. However, `SendInput` cannot transmit pressure or tilt data. For artists who need pressure sensitivity and tilt in drawing applications, vmulti is **required**. It works alongside the Windows Ink plugin to create a virtual digitizer device that reports pressure and tilt through the Windows Ink API.
+
+**The full artist setup on Windows requires:**
+1. vmulti driver installed (enables the virtual HID device)
+2. Windows Ink plugin installed within OTD
+3. Output mode set to "Windows Ink Absolute Mode" (not the default "Absolute Mode")
+4. Drawing application configured to use Windows Ink input
+
+**Platform-specific input methods:**
+- **Windows:** `SendInput()` for basic cursor + vmulti/Windows Ink for pressure and tilt
+- **Linux:** libevdev/uinput — creates virtual devices named "OpenTabletDriver Virtual Tablet"
+- **macOS:** Platform-specific CoreGraphics implementation
+
+**Detecting vmulti:** The vmulti driver registers as a HID device with Vendor ID `0x00FF` (255) and Product ID `0xBACC` (47820). Detection is done by enumerating HID devices matching these IDs — if found, vmulti is installed. The VoiDPlugins source ([VMultiInstance.cs](https://github.com/X9VoiD/VoiDPlugins/blob/master/src/VoiDPlugins.Library/VMulti/VMultiInstance.cs)) shows the exact detection logic. The vmulti binary is distributed at [X9VoiD/vmulti-bin](https://github.com/X9VoiD/vmulti-bin/).
+
+**Relevance to our prototype:** Since our target audience is creatives (not gamers), pressure and tilt are essential. Our UX should guide users through the vmulti + Windows Ink setup and surface clear status about whether these components are properly configured. See the [SevenPens OTD Windows install guide](https://docs.sevenpens.com/drawtab/guides/drivers/opentabletdriver/otd-windows-install) for the full artist workflow.
+
 ## Key Design Decisions
 
 ### 1. Web frontend instead of native UI
@@ -107,7 +128,11 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Svelte 5 runes in module-level stores.** `$effect()` cannot be called outside of a component rendering context. Module-level `.svelte.ts` files that use `$state` are fine, but `$effect` at the top level throws `effect_orphan`. Solved by using imperative side effects (direct DOM/localStorage calls) in store mutation methods instead of reactive effects.
 
-**Named pipe client compatibility.** The OTD daemon uses `HeaderDelimitedMessageHandler` for its JSON-RPC framing (not the default `NewLineDelimited`). The bridge must use the same handler to be wire-compatible.
+**Named pipe message framing.** The OTD daemon uses the default `JsonRpc` constructor, which uses `NewLineDelimited` framing (not `HeaderDelimited`). The bridge must match this — using `new JsonRpc(stream)` directly.
+
+**Newtonsoft.Json vs System.Text.Json.** StreamJsonRpc uses Newtonsoft.Json internally. The bridge cannot use `System.Text.Json.JsonElement` as the RPC return type — it must use `Newtonsoft.Json.Linq.JToken` for JSON passthrough. Responses are serialized via `JToken.ToString()` into HTTP responses.
+
+**PascalCase to camelCase normalization.** The OTD daemon sends JSON with PascalCase property names (e.g. `Profiles`, `OutputMode`). The frontend API service normalizes keys to camelCase to match TypeScript conventions.
 
 **Cross-platform named pipes.** .NET's `NamedPipeClientStream` works on Windows, macOS, and Linux. The pipe name `"OpenTabletDriver.Daemon"` is consistent across platforms. On Unix systems, the pipe maps to a Unix domain socket.
 

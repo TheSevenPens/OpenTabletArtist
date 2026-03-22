@@ -8,7 +8,7 @@ export interface Profile {
   tablet: string;
   absoluteModeSettings: AbsoluteModeSettings;
   relativeModeSettings: RelativeModeSettings;
-  bindingSettings: BindingSettings;
+  bindings: BindingSettings;
   outputMode: PluginRef | null;
   filters: PluginRef[];
 }
@@ -33,7 +33,7 @@ export interface RelativeModeSettings {
   xSensitivity: number;
   ySensitivity: number;
   relativeRotation: number;
-  resetTime: number;
+  relativeResetDelay: string;
 }
 
 export interface BindingSettings {
@@ -47,6 +47,11 @@ export interface BindingSettings {
 
 export interface PluginRef {
   path: string;
-  name: string;
+  settings: PluginSetting[];
   enable: boolean;
+}
+
+export interface PluginSetting {
+  property: string;
+  value: unknown;
 }

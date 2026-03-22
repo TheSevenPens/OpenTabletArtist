@@ -51,19 +51,15 @@
       <GlassPanel padding="var(--space-4)">
         <div class="options">
           <label class="option">
-            <input type="checkbox" checked={absoluteMode.enableClipping} />
-            <span>Enable clipping</span>
-          </label>
-          <label class="option">
-            <input type="checkbox" checked={absoluteMode.enableAreaLimiting} />
-            <span>Limit to tablet area</span>
-          </label>
-          <label class="option">
             <input type="checkbox" checked={absoluteMode.lockAspectRatio} />
-            <span>Lock aspect ratio</span>
+            <span>Force proportions</span>
           </label>
         </div>
       </GlassPanel>
+
+      <!-- Advanced settings (clipping, area limiting, rotation) hidden from default view.
+           These remain enabled in the settings model but are not exposed to normal users.
+           TODO: Add an "Advanced" toggle to reveal these for power users. -->
     </div>
   </div>
 </div>
