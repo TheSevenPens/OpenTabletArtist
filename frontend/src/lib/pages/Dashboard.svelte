@@ -133,11 +133,11 @@
       <GlassPanel class="quick-info">
         <h4 class="info-title">Quick Actions</h4>
         <div class="actions">
-          <a href="#/area" class="action-link glass glass-interactive">
+          <a href="#/tablets/{encodeURIComponent(settingsStore.activeProfile?.tablet ?? '')}/area" class="action-link glass glass-interactive">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="6" height="6" rx="1" opacity="0.6"/></svg>
             Configure Area
           </a>
-          <a href="#/bindings" class="action-link glass glass-interactive">
+          <a href="#/tablets/{encodeURIComponent(settingsStore.activeProfile?.tablet ?? '')}/bindings" class="action-link glass glass-interactive">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Edit Bindings
           </a>

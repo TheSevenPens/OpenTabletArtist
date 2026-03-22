@@ -50,42 +50,30 @@ The landing page. Shows four status cards in a vertical column, each reflecting 
 
 - **OpenTabletDriver** — whether the bridge is connected to the daemon (green = running, gray = not connected)
 - **Tablet** — the detected tablet name, or "No tablet detected" if none is plugged in
-- **VMulti Driver** — whether the vmulti virtual HID driver is installed (required for pressure and tilt on Windows). Detection via HID enumeration is planned; currently static.
+- **VMulti Driver** — whether the vmulti virtual HID driver is installed (required for pressure and tilt on Windows). Detected via HID device enumeration (VID `0x00FF` / PID `0xBACC`).
 - **Windows Ink** — whether the active output mode uses the Windows Ink plugin (detected from the profile's output mode path). Shows "Plugin active" when the profile uses `WinInkAbsoluteMode`.
 
-When a tablet is connected, additional cards appear below: tablet specifications, current output mode, and quick action links to Area Mapping and Bindings.
+When a tablet is connected, additional cards appear below: tablet specifications, current output mode, and quick action links to the tablet's Area Mapping and Bindings pages.
 
-### Profiles
+### Tablet Settings
 
-Lists all tablet profiles stored in the OTD daemon's settings. Each profile card shows:
-- Tablet name (e.g. "Wacom CTC-6110WL")
-- Active output mode (e.g. "WinInkAbsoluteMode")
-- Display and tablet area dimensions
+Lists all tablet configurations stored in the OTD daemon's settings. Each card shows the tablet name, active output mode, and area dimensions. Clicking a card opens the tablet's detail view with three sub-tabs:
 
-Profiles are created automatically by the daemon when a new tablet is connected. This page pulls live data from the daemon via the bridge.
+- **Area Mapping** — Side-by-side visualization of display and tablet areas with numeric controls for width, height, X, Y. "Force proportions" toggle available. Advanced settings (rotation, clipping, area limiting) are hidden by default.
+- **Bindings** — Shows pen tip, eraser, pen buttons, and auxiliary button bindings with their assigned actions and activation thresholds. Data pulled live from the daemon.
+- **Filters** — Lists configured input filters (smoothing, anti-chatter, etc.) with enabled/disabled status. Shows empty state if no filters are configured.
 
-### Area Mapping
+A back button in the tablet detail header returns to the tablet list.
 
-The core configuration view. Displays a side-by-side visualization of your display area and tablet area:
+### Settings Snapshots
 
-- **Blue rectangle** (left): Your display area — the region of screen the tablet maps to.
-- **Green rectangle** (right): Your tablet's active area — the physical region of the tablet that is mapped.
-- **Dashed outline**: The full tablet surface.
-- **Dashed arrow**: Indicates the mapping relationship between the two areas.
+Snapshots are saved copies of your entire OTD configuration (all tablet settings, bindings, and filters). Each snapshot card shows the name and number of tablet profiles it contains, with three actions:
 
-The right panel shows numeric controls for each area (width, height, center X/Y) and a toggle:
+- **Load** — Applies the snapshot's settings to the daemon, replacing the current configuration.
+- **Open** — Opens a dialog with General and JSON tabs showing the snapshot's contents.
+- **Delete** — Removes the snapshot file (with confirmation).
 
-- **Force proportions**: Maintains proportional width/height when resizing (maps to OTD's "Lock aspect ratio" setting).
-
-Advanced settings (rotation, clipping, area limiting) are hidden from the default view to keep the experience clean. They remain enabled with sensible defaults in the underlying settings.
-
-### Bindings (Placeholder)
-
-Will display pen tip, eraser, barrel button, and auxiliary button configuration. Not yet implemented.
-
-### Filters (Placeholder)
-
-Will display the input processing pipeline — smoothing, anti-chatter, and other filter plugins. Not yet implemented.
+Use the **Save Snapshot** button to capture the current configuration. The **Open Folder** button opens the snapshots directory in your file manager.
 
 ### Console (Placeholder)
 

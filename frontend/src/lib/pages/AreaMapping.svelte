@@ -2,10 +2,10 @@
   import GlassPanel from '../components/shared/GlassPanel.svelte';
   import AreaMapper from '../components/area/AreaMapper.svelte';
   import AreaControls from '../components/area/AreaControls.svelte';
-  import { settingsStore } from '../stores/settings.svelte';
-  import { tabletsStore } from '../stores/tablets.svelte';
+  import type { Profile } from '../types/settings';
 
-  // Demo fallback data for when no daemon is connected
+  let { profile }: { profile: Profile } = $props();
+
   const demoAbsoluteMode = {
     display: { width: 1920, height: 1080, x: 960, y: 540, rotation: 0 },
     tablet: { width: 152.0, height: 95.0, x: 76.0, y: 47.5, rotation: 0 },
@@ -14,25 +14,13 @@
     lockAspectRatio: false,
   };
 
-  const demoDigitizer = { width: 152.0, height: 95.0, maxX: 32767, maxY: 32767 };
-
-  let absoluteMode = $derived(
-    settingsStore.activeProfile?.absoluteModeSettings ?? demoAbsoluteMode
-  );
-  let digitizer = $derived(
-    tabletsStore.current?.specifications.digitizer ?? demoDigitizer
-  );
+  let absoluteMode = $derived(profile.absoluteModeSettings ?? demoAbsoluteMode);
 </script>
 
 <div class="area-mapping">
-  <header class="page-header">
-    <h1 class="page-title">Area Mapping</h1>
-    <p class="page-subtitle">Configure how your tablet maps to your display</p>
-  </header>
-
   <div class="mapping-layout">
     <GlassPanel class="mapper-panel" heavy>
-      <AreaMapper {absoluteMode} {digitizer} />
+      <AreaMapper {absoluteMode} />
     </GlassPanel>
 
     <div class="controls-sidebar">
@@ -56,10 +44,6 @@
           </label>
         </div>
       </GlassPanel>
-
-      <!-- Advanced settings (clipping, area limiting, rotation) hidden from default view.
-           These remain enabled in the settings model but are not exposed to normal users.
-           TODO: Add an "Advanced" toggle to reveal these for power users. -->
     </div>
   </div>
 </div>
@@ -67,23 +51,6 @@
 <style>
   .area-mapping {
     max-width: 1200px;
-  }
-
-  .page-header {
-    margin-bottom: var(--space-7);
-  }
-
-  .page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin: 0 0 var(--space-1) 0;
-  }
-
-  .page-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    margin: 0;
   }
 
   .mapping-layout {

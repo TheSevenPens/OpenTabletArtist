@@ -52,3 +52,12 @@ export async function fetchAppInfo(): Promise<Record<string, string>> {
 export async function fetchVMultiStatus(): Promise<VMultiStatus> {
   return request<VMultiStatus>('/vmulti');
 }
+
+export async function openFolder(path: string): Promise<{ opened?: string; error?: string }> {
+  const res = await fetch(`${BASE}/open-folder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  return res.json();
+}

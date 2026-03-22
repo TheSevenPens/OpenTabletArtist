@@ -1,12 +1,11 @@
 <script lang="ts">
   import Shell from './lib/components/layout/Shell.svelte';
   import Dashboard from './lib/pages/Dashboard.svelte';
-  import AreaMapping from './lib/pages/AreaMapping.svelte';
-  import Bindings from './lib/pages/Bindings.svelte';
-  import Filters from './lib/pages/Filters.svelte';
+  import Profiles from './lib/pages/Profiles.svelte';
+  import TabletDetail from './lib/pages/TabletDetail.svelte';
+  import Presets from './lib/pages/Presets.svelte';
   import Console from './lib/pages/Console.svelte';
   import About from './lib/pages/About.svelte';
-  import Profiles from './lib/pages/Profiles.svelte';
   import { themeStore } from './lib/stores/theme.svelte';
   import { fetchTablets, fetchSettings, fetchVMultiStatus } from './lib/services/api';
   import { tabletsStore } from './lib/stores/tablets.svelte';
@@ -20,8 +19,17 @@
     hash = location.hash || '#/';
   }
 
-  // Derive the current route href for nav highlighting
   let currentRoute = $derived(hash || '#/');
+
+  // Parse tablet detail routes: #/tablets/{name}/{subTab}
+  let tabletRoute = $derived.by(() => {
+    const match = hash.match(/^#\/tablets\/([^/]+)\/?(area|bindings|filters)?$/);
+    if (!match) return null;
+    return {
+      tabletName: decodeURIComponent(match[1]),
+      subTab: match[2] || 'area',
+    };
+  });
 
   async function loadDaemonData() {
     try {
@@ -37,7 +45,6 @@
       connectionStore.set('connected');
     } catch {
       connectionStore.set('disconnected');
-      // Retry in 5s
       setTimeout(loadDaemonData, 5000);
     }
   }
@@ -51,14 +58,12 @@
 </script>
 
 <Shell {currentRoute}>
-  {#if hash === '#/profiles'}
+  {#if tabletRoute}
+    <TabletDetail tabletName={tabletRoute.tabletName} subTab={tabletRoute.subTab} />
+  {:else if hash === '#/tablets'}
     <Profiles />
-  {:else if hash === '#/area'}
-    <AreaMapping />
-  {:else if hash === '#/bindings'}
-    <Bindings />
-  {:else if hash === '#/filters'}
-    <Filters />
+  {:else if hash === '#/presets'}
+    <Presets />
   {:else if hash === '#/console'}
     <Console />
   {:else if hash === '#/about'}
