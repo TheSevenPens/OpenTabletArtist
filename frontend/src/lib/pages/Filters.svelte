@@ -1,6 +1,8 @@
 <script lang="ts">
   import GlassPanel from '../components/shared/GlassPanel.svelte';
+  import Placeholder from '../components/shared/Placeholder.svelte';
   import type { Profile } from '../types/settings';
+  import { getPluginShortName } from '../utils/plugin';
 
   let { profile }: { profile: Profile } = $props();
 
@@ -15,7 +17,7 @@
           <div class="filter-card">
             <div class="filter-index">{i + 1}</div>
             <div class="filter-info">
-              <span class="filter-name">{filter.path?.split('.').pop() ?? 'Unknown'}</span>
+              <span class="filter-name">{getPluginShortName(filter, 'Unknown')}</span>
               <span class="filter-path">{filter.path}</span>
             </div>
             <div class="filter-status" class:enabled={filter.enable} class:disabled={!filter.enable}>
@@ -26,15 +28,13 @@
       {/each}
     </div>
   {:else}
-    <GlassPanel>
-      <div class="placeholder">
+    <Placeholder title="No Filters" description="No input filters are configured for this tablet. Filters like smoothing and anti-chatter can be added through the OTD plugin system.">
+      {#snippet icon()}
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
         </svg>
-        <h3>No Filters</h3>
-        <p>No input filters are configured for this tablet. Filters like smoothing and anti-chatter can be added through the OTD plugin system.</p>
-      </div>
-    </GlassPanel>
+      {/snippet}
+    </Placeholder>
   {/if}
 </div>
 
@@ -105,7 +105,5 @@
     color: var(--text-muted);
   }
 
-  .placeholder { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-4); padding: var(--space-10) 0; }
-  .placeholder h3 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-secondary); margin: 0; }
-  .placeholder p { font-size: var(--font-size-sm); color: var(--text-muted); max-width: 320px; margin: 0; }
+
 </style>

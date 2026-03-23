@@ -1,6 +1,8 @@
 <script lang="ts">
   import GlassPanel from '../components/shared/GlassPanel.svelte';
+  import Placeholder from '../components/shared/Placeholder.svelte';
   import type { Profile } from '../types/settings';
+  import { getPluginDisplayName } from '../utils/plugin';
 
   let { profile }: { profile: Profile } = $props();
 
@@ -14,7 +16,7 @@
         <h4 class="section-title">Pen Tip</h4>
         <div class="binding-row">
           <span class="binding-label">Action</span>
-          <span class="binding-value">{bindings.tipButton?.settings?.find(s => s.property === 'button')?.value ?? bindings.tipButton?.path?.split('.').pop() ?? 'None'}</span>
+          <span class="binding-value">{getPluginDisplayName(bindings.tipButton)}</span>
         </div>
         <div class="binding-row">
           <span class="binding-label">Threshold</span>
@@ -26,7 +28,7 @@
         <h4 class="section-title">Eraser</h4>
         <div class="binding-row">
           <span class="binding-label">Action</span>
-          <span class="binding-value">{bindings.eraserButton?.settings?.find(s => s.property === 'button')?.value ?? bindings.eraserButton?.path?.split('.').pop() ?? 'None'}</span>
+          <span class="binding-value">{getPluginDisplayName(bindings.eraserButton)}</span>
         </div>
         <div class="binding-row">
           <span class="binding-label">Threshold</span>
@@ -40,7 +42,7 @@
           {#each bindings.penButtons as btn, i}
             <div class="binding-row">
               <span class="binding-label">Button {i + 1}</span>
-              <span class="binding-value">{btn.settings?.find(s => s.property === 'button')?.value ?? btn.path?.split('.').pop() ?? 'None'}</span>
+              <span class="binding-value">{getPluginDisplayName(btn)}</span>
             </div>
           {/each}
         </GlassPanel>
@@ -52,19 +54,14 @@
           {#each bindings.auxButtons as btn, i}
             <div class="binding-row">
               <span class="binding-label">Button {i + 1}</span>
-              <span class="binding-value">{btn.settings?.find(s => s.property === 'button')?.value ?? btn.path?.split('.').pop() ?? 'None'}</span>
+              <span class="binding-value">{getPluginDisplayName(btn)}</span>
             </div>
           {/each}
         </GlassPanel>
       {/if}
     </div>
   {:else}
-    <GlassPanel>
-      <div class="placeholder">
-        <h3>No Bindings</h3>
-        <p>No binding data available for this tablet.</p>
-      </div>
-    </GlassPanel>
+    <Placeholder title="No Bindings" description="No binding data available for this tablet." />
   {/if}
 </div>
 
@@ -96,19 +93,6 @@
 
   .binding-row:last-child { border-bottom: none; }
 
-  .binding-label {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-  }
-
-  .binding-value {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-  }
-
-  .placeholder { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-4); padding: var(--space-10) 0; }
-  .placeholder h3 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-secondary); margin: 0; }
-  .placeholder p { font-size: var(--font-size-sm); color: var(--text-muted); max-width: 320px; margin: 0; }
+  .binding-label { font-size: var(--font-size-sm); color: var(--text-secondary); }
+  .binding-value { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-primary); font-family: var(--font-mono); }
 </style>

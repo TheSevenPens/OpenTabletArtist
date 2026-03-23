@@ -1,12 +1,10 @@
 <script lang="ts">
   import GlassPanel from '../components/shared/GlassPanel.svelte';
+  import PageHeader from '../components/shared/PageHeader.svelte';
 </script>
 
 <div class="page">
-  <header class="page-header">
-    <h1 class="page-title">About</h1>
-    <p class="page-subtitle">OpenTabletDriver UX Prototype</p>
-  </header>
+  <PageHeader title="About" subtitle="OpenTabletDriver UX Prototype" />
 
   <div class="about-grid">
     <GlassPanel>
@@ -37,9 +35,6 @@
 
 <style>
   .page { max-width: 900px; }
-  .page-header { margin-bottom: var(--space-7); }
-  .page-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--text-primary); margin: 0 0 var(--space-1) 0; }
-  .page-subtitle { font-size: var(--font-size-base); color: var(--text-secondary); margin: 0; }
 
   .about-grid {
     display: grid;
@@ -61,25 +56,7 @@
     margin: 0;
   }
 
-  .arch-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .arch-item {
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-primary);
-    text-align: center;
-    width: 100%;
-  }
-
-  .arch-arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  .arch-stack { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .arch-item { padding: var(--space-2) var(--space-4); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-primary); text-align: center; width: 100%; }
+  .arch-arrow { display: flex; align-items: center; justify-content: center; }
 </style>

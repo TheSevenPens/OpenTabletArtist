@@ -1,27 +1,21 @@
 <script lang="ts">
   import GlassPanel from '../components/shared/GlassPanel.svelte';
+  import PageHeader from '../components/shared/PageHeader.svelte';
   import TabletCard from '../components/tablet/TabletCard.svelte';
   import { tabletsStore } from '../stores/tablets.svelte';
   import { connectionStore } from '../stores/connection.svelte';
   import { settingsStore } from '../stores/settings.svelte';
   import { vmultiStore } from '../stores/vmulti.svelte';
+  import { getPluginShortName } from '../utils/plugin';
 
-  // Detect Windows Ink plugin from the active profile's output mode.
-  // The daemon's GetSettings() returns profile.OutputMode as a PluginSettingStore
-  // with a Path (e.g. "VoiDPlugins.OutputMode.WinInkAbsoluteMode") and Name
-  // (e.g. "Windows Ink Absolute Mode"). The IDriverDaemon interface doesn't expose
-  // a "list installed plugins" method, so we infer from the active output mode.
-  // Future: scan AppInfo.PluginDirectory for installed plugin DLLs via the bridge.
+  // Detect Windows Ink from active output mode path
   let hasWindowsInk = $derived(
     settingsStore.activeProfile?.outputMode?.path?.toLowerCase().includes('winink') ?? false
   );
 </script>
 
 <div class="dashboard">
-  <header class="page-header">
-    <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">Overview of your tablet configuration</p>
-  </header>
+  <PageHeader title="Dashboard" subtitle="Overview of your tablet configuration" />
 
   <div class="status-cards">
     <!-- OTD Daemon Status -->
@@ -123,7 +117,7 @@
       <GlassPanel class="quick-info">
         <h4 class="info-title">Output Mode</h4>
         <div class="info-value">
-          {settingsStore.activeProfile?.outputMode?.path?.split('.').pop() ?? 'Absolute Mode'}
+          {getPluginShortName(settingsStore.activeProfile?.outputMode, 'Absolute Mode')}
         </div>
         <div class="info-detail">
           Maps tablet area to a region of your display
@@ -150,23 +144,6 @@
 <style>
   .dashboard {
     max-width: 900px;
-  }
-
-  .page-header {
-    margin-bottom: var(--space-7);
-  }
-
-  .page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin: 0 0 var(--space-1) 0;
-  }
-
-  .page-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    margin: 0;
   }
 
   .status-cards {
