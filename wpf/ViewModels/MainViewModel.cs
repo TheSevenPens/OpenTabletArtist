@@ -207,17 +207,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         catch { /* ignore version detection errors */ }
 
-        // Check for updates via daemon RPC
+        // Check for updates directly via GitHub API
+        // (the daemon's CheckForUpdates RPC may not be available in older OTD versions)
         try
         {
-            var updateInfo = await _daemon.CheckForUpdatesAsync();
-            if (updateInfo != null && updateInfo.Type != JTokenType.Null)
+            using var client = new System.Net.Http.HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+            var json = await client.GetStringAsync("https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest");
+            var release = JObject.Parse(json);
+            var tagName = release["tag_name"]?.ToString() ?? "";
+            if (tagName.StartsWith("v")) tagName = tagName[1..];
+
+            if (!string.IsNullOrEmpty(tagName) && !string.IsNullOrEmpty(CurrentOtdVersion))
             {
-                var version = updateInfo["Version"]?.ToString() ?? "";
-                if (!string.IsNullOrEmpty(version))
+                var latestVersion = new Version(tagName);
+                var currentVersion = new Version(CurrentOtdVersion);
+                if (latestVersion > currentVersion)
                 {
                     UpdateAvailable = true;
-                    UpdateVersion = version;
+                    UpdateVersion = tagName;
                 }
                 else
                 {
