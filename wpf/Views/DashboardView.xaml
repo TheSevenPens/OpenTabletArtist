@@ -65,6 +65,10 @@
                                        Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}">
                                 <Run Text="Update available: v" /><Run Text="{Binding UpdateVersion, Mode=OneWay}" />
                             </TextBlock>
+                            <!-- Update check status (rate limit, up to date, errors) -->
+                            <TextBlock Text="{Binding UpdateCheckStatus}" Margin="0,2,0,0" FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                       Visibility="{Binding UpdateCheckStatus, Converter={StaticResource NonEmptyToVis}}" />
                         </StackPanel>
                     </StackPanel>
 

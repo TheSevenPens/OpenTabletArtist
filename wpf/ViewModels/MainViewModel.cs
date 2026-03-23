@@ -36,9 +36,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _currentOtdVersion = "";
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
-    [ObservableProperty] private string _updateDownloadUrl = "";
+    [ObservableProperty] private string _updateCheckStatus = ""; // "", "Up to date", "Unable to check..."
     [ObservableProperty] private bool _updateDownloading;
     [ObservableProperty] private string _updateDownloadStatus = "";
+    private bool _updateChecked; // cache: only check once per session
 
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
@@ -207,39 +208,84 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         catch { /* ignore version detection errors */ }
 
-        // Check for updates directly via GitHub API
-        // (the daemon's CheckForUpdates RPC may not be available in older OTD versions)
+        // Only check for updates once per session
+        if (_updateChecked) return;
+        _updateChecked = true;
+        UpdateCheckStatus = "";
+
+        // Strategy 1: Ask the daemon via RPC (uses Octokit internally)
+        string? latestTag = null;
         try
         {
-            using var client = new System.Net.Http.HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
-            var json = await client.GetStringAsync("https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest");
-            var release = JObject.Parse(json);
-            var tagName = release["tag_name"]?.ToString() ?? "";
-            if (tagName.StartsWith("v")) tagName = tagName[1..];
-
-            if (!string.IsNullOrEmpty(tagName) && !string.IsNullOrEmpty(CurrentOtdVersion))
+            var updateInfo = await _daemon.CheckForUpdatesAsync();
+            if (updateInfo != null && updateInfo.Type != JTokenType.Null)
             {
-                var latestVersion = new Version(tagName);
+                latestTag = updateInfo["Version"]?.ToString();
+            }
+        }
+        catch { /* daemon RPC failed — try direct */ }
+
+        // Strategy 2: Fall back to direct GitHub API
+        if (string.IsNullOrEmpty(latestTag))
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+                var response = await client.GetAsync("https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest");
+
+                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                    response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    UpdateCheckStatus = "Unable to check for updates — GitHub rate limit reached. This resets automatically within the hour.";
+                    return;
+                }
+
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var release = JObject.Parse(json);
+                latestTag = release["tag_name"]?.ToString() ?? "";
+                if (latestTag.StartsWith("v")) latestTag = latestTag[1..];
+            }
+            catch (System.Net.Http.HttpRequestException)
+            {
+                UpdateCheckStatus = "Unable to check for updates — network error.";
+                return;
+            }
+            catch
+            {
+                UpdateCheckStatus = "Unable to check for updates.";
+                return;
+            }
+        }
+
+        // Compare versions
+        if (!string.IsNullOrEmpty(latestTag) && !string.IsNullOrEmpty(CurrentOtdVersion))
+        {
+            try
+            {
+                var latestVersion = new Version(latestTag);
                 var currentVersion = new Version(CurrentOtdVersion);
                 if (latestVersion > currentVersion)
                 {
                     UpdateAvailable = true;
-                    UpdateVersion = tagName;
+                    UpdateVersion = latestTag;
+                    UpdateCheckStatus = "";
                 }
                 else
                 {
                     UpdateAvailable = false;
+                    UpdateCheckStatus = "Up to date";
                 }
             }
-            else
+            catch
             {
-                UpdateAvailable = false;
+                UpdateCheckStatus = "Unable to compare versions.";
             }
         }
-        catch
+        else if (string.IsNullOrEmpty(CurrentOtdVersion))
         {
-            UpdateAvailable = false;
+            UpdateCheckStatus = "Set OTD install path to check for updates.";
         }
     }
 
