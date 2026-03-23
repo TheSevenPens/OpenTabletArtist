@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="wpf/TabletDriverUX.csproj" />
+  <Project Path="bridge/Bridge.csproj" />
+</Solution>
