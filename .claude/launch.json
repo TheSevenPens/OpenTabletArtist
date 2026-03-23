@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "C:\\Users\\TheSe\\miniconda3\\envs\\node1\\node.exe",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--host", "--port", "5188"],
+      "port": 5188,
+      "cwd": "frontend"
+    }
+  ]
+}
