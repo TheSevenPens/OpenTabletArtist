@@ -32,7 +32,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private JToken? _settingsJson;
     [ObservableProperty] private JToken? _tabletsJson;
 
-    // OTD Update
+    // OTD Version & Update
+    [ObservableProperty] private string _currentOtdVersion = "";
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
     [ObservableProperty] private string _updateDownloadUrl = "";
@@ -191,6 +192,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task CheckForOtdUpdatesAsync()
     {
+        // Get current version from daemon exe
+        try
+        {
+            if (!string.IsNullOrEmpty(OtdInstallPath))
+            {
+                var daemonPath = Path.Combine(OtdInstallPath, "OpenTabletDriver.Daemon.exe");
+                if (File.Exists(daemonPath))
+                {
+                    var fileInfo = FileVersionInfo.GetVersionInfo(daemonPath);
+                    CurrentOtdVersion = fileInfo.FileVersion ?? fileInfo.ProductVersion ?? "";
+                }
+            }
+        }
+        catch { /* ignore version detection errors */ }
+
+        // Check for updates via daemon RPC
         try
         {
             var updateInfo = await _daemon.CheckForUpdatesAsync();
@@ -201,7 +218,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 {
                     UpdateAvailable = true;
                     UpdateVersion = version;
-                    UpdateDownloadUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/tag/v{version}";
                 }
                 else
                 {
@@ -217,6 +233,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             UpdateAvailable = false;
         }
+    }
+
+    [RelayCommand]
+    private void OpenOtdReleases()
+    {
+        Process.Start(new ProcessStartInfo("https://github.com/OpenTabletDriver/OpenTabletDriver/releases") { UseShellExecute = true });
     }
 
     [RelayCommand]
