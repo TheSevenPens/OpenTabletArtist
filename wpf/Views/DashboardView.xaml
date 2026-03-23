@@ -184,63 +184,77 @@
 
             <!-- Tablet Status -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                                <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                            </Border.Style>
+                            <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="No tablet detected" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                                <Setter Property="Text" Value="{Binding TabletName}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasTablet}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="No tablet detected" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasTablet}" Value="True">
+                                                    <Setter Property="Text" Value="{Binding TabletName}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
-                </StackPanel>
+
+                    <Button Grid.Column="1" Content="Open"
+                            Command="{Binding OpenConnectedTabletSettingsCommand}"
+                            IsEnabled="{Binding HasTablet}"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource AccentButton}"
+                            Padding="12,6" FontSize="12" />
+                </Grid>
             </Border>
 
             <!-- VMulti Status -->

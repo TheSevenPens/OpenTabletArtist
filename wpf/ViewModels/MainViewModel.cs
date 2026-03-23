@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
@@ -319,6 +320,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (File.Exists(path)) File.Delete(path);
         await LoadPresetsAsync();
+    }
+
+    [RelayCommand]
+    private void OpenConnectedTabletSettings()
+    {
+        // Find the profile for the currently connected tablet
+        if (!HasTablet || string.IsNullOrEmpty(TabletName)) return;
+        var profile = Profiles.FirstOrDefault(p => p["Tablet"]?.ToString() == TabletName);
+        if (profile != null)
+            OpenTabletSettings(profile);
     }
 
     [RelayCommand]
