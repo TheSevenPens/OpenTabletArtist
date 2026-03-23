@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -295,15 +296,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Process.Start(new ProcessStartInfo("https://github.com/OpenTabletDriver/OpenTabletDriver/releases") { UseShellExecute = true });
     }
 
+    /// <summary>
+    /// Root folder for all OTD binary versions: %LocalAppData%\OpenTabletDriverBin
+    /// Each version lives in a subfolder: ...\OpenTabletDriverBin\0.6.6.2\
+    /// </summary>
+    public static string OtdBinRoot => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "OpenTabletDriverBin");
+
     [RelayCommand]
     private async Task DownloadOtdUpdateAsync()
     {
         if (string.IsNullOrEmpty(UpdateVersion) || UpdateDownloading) return;
 
         var zipUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/v{UpdateVersion}/OpenTabletDriver-{UpdateVersion}_win-x64.zip";
-        var downloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        var fileName = $"OpenTabletDriver-{UpdateVersion}_win-x64.zip";
-        var filePath = Path.Combine(downloadsFolder, fileName);
+        var versionDir = Path.Combine(OtdBinRoot, UpdateVersion);
+        var tempZip = Path.Combine(Path.GetTempPath(), $"OTD-{UpdateVersion}.zip");
 
         try
         {
@@ -316,30 +324,55 @@ public partial class MainViewModel : ObservableObject, IDisposable
             using var response = await client.GetAsync(zipUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
+            // Download to temp file
             var totalBytes = response.Content.Headers.ContentLength;
             await using var contentStream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-            var buffer = new byte[81920];
-            long totalRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+            await using (var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                totalRead += bytesRead;
-                if (totalBytes > 0)
+                var buffer = new byte[81920];
+                long totalRead = 0;
+                int bytesRead;
+
+                while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
                 {
-                    var pct = (int)(totalRead * 100 / totalBytes.Value);
-                    UpdateDownloadStatus = $"Downloading... {pct}%";
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    totalRead += bytesRead;
+                    if (totalBytes > 0)
+                    {
+                        var pct = (int)(totalRead * 100 / totalBytes.Value);
+                        UpdateDownloadStatus = $"Downloading... {pct}%";
+                    }
                 }
             }
 
-            UpdateDownloadStatus = "Download complete";
+            // Extract to version folder
+            UpdateDownloadStatus = "Extracting...";
+            if (Directory.Exists(versionDir))
+                Directory.Delete(versionDir, true);
+            Directory.CreateDirectory(versionDir);
+            System.IO.Compression.ZipFile.ExtractToDirectory(tempZip, versionDir);
+
+            // Clean up temp zip
+            try { File.Delete(tempZip); } catch { /* ignore */ }
+
+            UpdateDownloadStatus = $"Installed to {versionDir}";
             UpdateDownloading = false;
 
-            // Open File Explorer with the downloaded file selected
-            Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            // Auto-set OTD install path to the new version
+            OtdInstallPath = versionDir;
+            HasOtdInstallPath = true;
+            AppSettings.Set(OtdInstallPathKey, versionDir);
+
+            // Refresh version display
+            var daemonPath = Path.Combine(versionDir, "OpenTabletDriver.Daemon.exe");
+            if (File.Exists(daemonPath))
+            {
+                var fileInfo = FileVersionInfo.GetVersionInfo(daemonPath);
+                CurrentOtdVersion = fileInfo.FileVersion ?? fileInfo.ProductVersion ?? "";
+            }
+
+            // Open the version folder
+            Process.Start("explorer.exe", $"\"{versionDir}\"");
         }
         catch (Exception ex)
         {
