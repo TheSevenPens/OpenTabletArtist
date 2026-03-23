@@ -47,7 +47,13 @@
       "Bash(/tmp/test_vmulti.ps1:*)",
       "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File /tmp/test_vmulti.ps1)",
       "Bash(/tmp/test_hid.ps1:*)",
-      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File /tmp/test_hid.ps1)"
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File /tmp/test_hid.ps1)",
+      "Bash(cp -r frontend frontend_old)",
+      "Bash(rm -rf frontend/src frontend/node_modules frontend/package-lock.json)",
+      "Bash(PATH=\"/c/Users/TheSe/miniconda3/envs/node1:$PATH\" npm install)",
+      "Bash(cp -r frontend_old/src/lib frontend/src/lib)",
+      "Bash(cp frontend_old/src/app.css frontend/src/app.css)",
+      "Bash(dotnet add:*)"
     ]
   }
 }
