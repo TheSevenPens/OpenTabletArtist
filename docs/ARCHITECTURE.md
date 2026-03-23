@@ -3,48 +3,45 @@
 ## System Diagram
 
 ```
-┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────────┐
-│   Svelte 5 + Vite   │  HTTP   │   .NET 8 Bridge  │  Named  │   OTD Daemon        │
-│   Frontend           │◄──────►│   (Minimal API)  │◄──Pipe─►│ (OpenTabletDriver   │
-│   localhost:5173     │  + WS   │   localhost:5000  │  JSON   │  .Daemon.exe)       │
-└─────────────────────┘         └──────────────────┘  -RPC   └─────────────────────┘
-         ▲                                                              │
-         │                                                              │
-     Browser                                                     USB/HID
-    (user sees)                                               (tablet hardware)
+┌─────────────────────┐                    ┌─────────────────────┐
+│   WPF App (.NET 8)  │     Named Pipe     │   OTD Daemon        │
+│   TabletDriverUX    │◄───────────────────►│ (OpenTabletDriver   │
+│                     │    StreamJsonRpc    │  .Daemon.exe)       │
+└─────────────────────┘                    └─────────────────────┘
+         ▲                                          │
+         │                                          │
+    Desktop UI                                   USB/HID
+   (user sees)                              (tablet hardware)
 ```
+
+**Previous architecture:** The project originally used a Svelte 5 web frontend + .NET bridge process. This was replaced with a WPF app that connects directly to the OTD daemon, eliminating the bridge and solving persistent Svelte 5 client-side navigation bugs.
+
+The Svelte frontend code is preserved in `frontend/` for reference.
 
 ## Components
 
-### Frontend (`frontend/`)
+### WPF App (`wpf/`)
 
-**Role:** The user-facing interface. Renders all UI, handles user interaction, manages client-side state.
+**Role:** Single-process desktop application. Renders all UI, manages state, and communicates directly with the OTD daemon via named pipe.
 
-**Technology:** Svelte 5 with Vite for development tooling.
+**Technology:** .NET 8 WPF with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
-- `src/lib/theme/` — CSS custom property system for dark/light modes and glassmorphism
-- `src/lib/stores/` — Reactive state (Svelte 5 runes) for theme, connection, tablets, settings
-- `src/lib/services/` — REST and WebSocket clients that communicate with the bridge
-- `src/lib/components/` — Reusable UI components (layout shell, glass panels, tablet cards, area mapper)
-- `src/lib/pages/` — Route-level page components (Dashboard, Tablet Settings, Settings Snapshots, etc.)
-- `src/lib/types/` — TypeScript interfaces mirroring OTD data models
+- `Services/` — `DaemonClient.cs` (named pipe + StreamJsonRpc), `VMultiDetector.cs` (HID scanning)
+- `ViewModels/` — `MainViewModel.cs` (navigation, connection state, data loading)
+- `Views/` — XAML pages (Dashboard, TabletSettings, Presets, Console, About)
+- `Themes/` — Resource dictionaries for colors and styles (light mode, glassmorphism)
+- `Converters/` — WPF value converters
 
-**Dependencies:** Svelte 5, Vite 8, TypeScript. No other runtime dependencies — the UI is built entirely from scratch using CSS custom properties and native SVG.
+**Dependencies:**
+- `StreamJsonRpc` 2.22.23 — JSON-RPC client matching OTD daemon version
+- `HidSharp` 2.1.0 — HID device enumeration for vmulti detection
+- `Newtonsoft.Json` 13.0.3 — JSON handling (required by StreamJsonRpc)
+- `CommunityToolkit.Mvvm` 8.4.0 — MVVM infrastructure (`[ObservableProperty]`, `[RelayCommand]`)
 
-### Bridge (`bridge/`)
+### Bridge (`bridge/`) — Legacy
 
-**Role:** A thin translation layer. Connects to the OTD daemon's named pipe, then re-exposes the daemon's capabilities as HTTP REST endpoints and a WebSocket for real-time events. The frontend never touches the named pipe directly.
-
-**Technology:** .NET 8 minimal API with StreamJsonRpc.
-
-**Key files:**
-- `Program.cs` — HTTP server setup, endpoint routing, CORS, WebSocket handler
-- `Services/DaemonClient.cs` — Named pipe client with automatic reconnection
-
-**Dependencies:** StreamJsonRpc (v2.22.23, same version as the daemon).
-
-**Why .NET?** The OTD daemon speaks StreamJsonRpc, which is a .NET library. While JSON-RPC is a language-agnostic protocol, using the same library ensures perfect wire compatibility without reverse-engineering the message framing (header-delimited JSON-RPC).
+**Status:** No longer used at runtime. The WPF app connects directly to the daemon. Preserved as reference for the HTTP/WebSocket API pattern.
 
 ### OTD Daemon (external)
 
@@ -77,91 +74,71 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 3. Output mode set to "Windows Ink Absolute Mode" (not the default "Absolute Mode")
 4. Drawing application configured to use Windows Ink input
 
-**Platform-specific input methods:**
-- **Windows:** `SendInput()` for basic cursor + vmulti/Windows Ink for pressure and tilt
-- **Linux:** libevdev/uinput — creates virtual devices named "OpenTabletDriver Virtual Tablet"
-- **macOS:** Platform-specific CoreGraphics implementation
-
-**Detecting vmulti:** The vmulti driver registers as a HID device with Vendor ID `0x00FF` (255) and Product ID `0xBACC` (47820). Detection is done by enumerating HID devices matching these IDs — if found, vmulti is installed. The VoiDPlugins source ([VMultiInstance.cs](https://github.com/X9VoiD/VoiDPlugins/blob/master/src/VoiDPlugins.Library/VMulti/VMultiInstance.cs)) shows the exact detection logic. The vmulti binary is distributed at [X9VoiD/vmulti-bin](https://github.com/X9VoiD/vmulti-bin/).
+**Detecting vmulti:** The vmulti driver registers as a HID device with Vendor ID `0x00FF` (255) and Product ID `0xBACC` (47820). Detection is done by enumerating HID devices matching these IDs. The vmulti binary is distributed at [X9VoiD/vmulti-bin](https://github.com/X9VoiD/vmulti-bin/).
 
 **Relevance to our prototype:** Since our target audience is creatives (not gamers), pressure and tilt are essential. Our UX should guide users through the vmulti + Windows Ink setup and surface clear status about whether these components are properly configured. See the [SevenPens OTD Windows install guide](https://docs.sevenpens.com/drawtab/guides/drivers/opentabletdriver/otd-windows-install) for the full artist workflow.
 
 ## Key Design Decisions
 
-### 1. Web frontend instead of native UI
+### 1. WPF instead of web frontend
 
-**Decision:** Use Svelte + Vite rather than WinUI3, Avalonia, or another native framework.
+**Decision:** Use WPF (.NET 8) rather than Svelte/React/web tech.
 
-**Rationale:** The primary goal is fast iteration on visual design. Vite's hot module replacement gives sub-second feedback on CSS and component changes. The web platform's CSS capabilities (backdrop-filter, custom properties, transitions, SVG) provide the richest toolkit for the glassmorphism aesthetic. Native frameworks offer better system integration but slower build/reload cycles.
+**Rationale:** The original Svelte 5 frontend had a persistent navigation bug where client-side routing broke when navigating back to previously-visited pages. This was traced to a Svelte 5 rendering issue. WPF provides native navigation via simple property binding (`CurrentPage` → `ContentControl` with `DataTrigger`), direct named pipe access (no bridge needed), and eliminates an entire process from the architecture.
 
-**Trade-off:** Requires a bridge process. Cannot directly call .NET APIs from the browser.
+**Trade-off:** Windows-only (no cross-platform). No hot reload for XAML (though XAML Hot Reload in Visual Studio helps). Design iteration is slower than CSS but the app actually works reliably.
 
-### 2. Separate bridge process instead of referencing OTD projects
+### 2. Direct daemon connection instead of bridge
 
-**Decision:** The bridge defines its own slim DTO types and uses StreamJsonRpc as a generic JSON-RPC client. It does not reference `OpenTabletDriver.Desktop` or any other OTD project.
+**Decision:** The WPF app connects directly to the OTD daemon via named pipe, replacing the bridge + HTTP architecture.
 
-**Rationale:** Referencing `OpenTabletDriver.Desktop` would pull in transitive dependencies: `OpenTabletDriver.Native` (platform interop DLLs), `OpenTabletDriver.Configurations` (hundreds of tablet JSON files), the plugin system, Octokit, WaylandNET, and more. The bridge needs none of this — it only needs to call RPC methods and forward JSON. Keeping it decoupled makes the bridge tiny, fast to build, and free of native dependency issues.
+**Rationale:** Since WPF is .NET, it can use StreamJsonRpc directly — the same library the daemon uses. No HTTP translation layer needed. This eliminates a process, reduces latency, and simplifies deployment to a single .exe.
 
-**Trade-off:** DTO types must be kept in sync manually. If the daemon's data shapes change, the bridge DTOs need updating.
+### 3. MVVM with CommunityToolkit.Mvvm
 
-### 3. JSON passthrough in the bridge
+**Decision:** Use the MVVM pattern with source-generated properties and commands.
 
-**Decision:** The bridge uses `JsonElement` (opaque JSON) for most RPC return values rather than strongly-typed C# models.
+**Rationale:** `[ObservableProperty]` and `[RelayCommand]` attributes generate all the `INotifyPropertyChanged` boilerplate. Navigation is a simple `string CurrentPage` property that drives a `ContentControl` via `DataTrigger` — no routing framework needed.
 
-**Rationale:** The frontend (TypeScript) is the real consumer of the data shapes. Deserializing into C# models only to re-serialize into JSON for HTTP is unnecessary work. Passing JSON through keeps the bridge minimal and avoids double-maintenance of type definitions.
+### 4. JToken for data passthrough
 
-### 4. Hash-based routing
+**Decision:** Use `Newtonsoft.Json.Linq.JToken` for daemon data rather than strongly-typed C# models.
 
-**Decision:** Use `location.hash` for client-side routing (`#/`, `#/area`, `#/bindings`, etc.) with a simple `$state` variable, rather than a routing library.
-
-**Rationale:** This is a single-page prototype with six pages. A routing library adds dependency weight and API surface for no benefit. Hash routing requires zero server configuration and works with any static file server.
-
-### 5. CSS custom properties for theming
-
-**Decision:** All colors, spacing, blur values, and glassmorphism parameters are CSS custom properties scoped to `[data-theme="dark"]` and `[data-theme="light"]` selectors.
-
-**Rationale:** This allows instant theme switching with zero JavaScript re-rendering — only CSS values change. Components don't need to know which theme is active; they reference variables like `var(--glass-bg)` and the correct value resolves automatically.
+**Rationale:** Same rationale as the bridge — the daemon's data shapes are complex and evolving. JToken avoids maintaining parallel C# model classes. The XAML binds directly to JToken properties via indexer syntax (`{Binding [Name]}`).
 
 ## Technical Challenges
 
 ### Solved
 
-**Svelte 5 runes in module-level stores.** `$effect()` cannot be called outside of a component rendering context. Module-level `.svelte.ts` files that use `$state` are fine, but `$effect` at the top level throws `effect_orphan`. Solved by using imperative side effects (direct DOM/localStorage calls) in store mutation methods instead of reactive effects.
+**Named pipe message framing.** The OTD daemon uses the default `JsonRpc` constructor, which uses `NewLineDelimited` framing. Must use `new JsonRpc(stream)` directly.
 
-**Named pipe message framing.** The OTD daemon uses the default `JsonRpc` constructor, which uses `NewLineDelimited` framing (not `HeaderDelimited`). The bridge must match this — using `new JsonRpc(stream)` directly.
+**Newtonsoft.Json vs System.Text.Json.** StreamJsonRpc uses Newtonsoft.Json internally. Must use `JToken` not `JsonElement`.
 
-**Newtonsoft.Json vs System.Text.Json.** StreamJsonRpc uses Newtonsoft.Json internally. The bridge cannot use `System.Text.Json.JsonElement` as the RPC return type — it must use `Newtonsoft.Json.Linq.JToken` for JSON passthrough. Responses are serialized via `JToken.ToString()` into HTTP responses.
+**JValue to string in WPF commands.** WPF `CommandParameter` with JToken indexer (`{Binding [Name]}`) passes `JValue` objects, but `RelayCommand<string>` expects `string`. Fixed by binding to `[Name].Value` which unwraps to the primitive.
 
-**PascalCase to camelCase normalization.** The OTD daemon sends JSON with PascalCase property names (e.g. `Profiles`, `OutputMode`). The frontend API service normalizes keys to camelCase to match TypeScript conventions.
-
-**Cross-platform named pipes.** .NET's `NamedPipeClientStream` works on Windows, macOS, and Linux. The pipe name `"OpenTabletDriver.Daemon"` is consistent across platforms. On Unix systems, the pipe maps to a Unix domain socket.
+**Svelte 5 navigation bug (historical).** Svelte 5's `$state` reactivity failed to update `{#if}` template blocks when values returned to previously-rendered states. This affected both custom hash routing and SvelteKit's built-in router. Root cause was in Svelte 5's compiled template diffing. Resolved by switching to WPF.
 
 ### Remaining
 
-**Backdrop-filter performance.** Heavy `backdrop-filter: blur()` on multiple stacked glass panels can be GPU-intensive. Need to profile and potentially reduce blur layers or use static blurred backgrounds for deeply nested panels.
+**SVG area mapper.** The area mapping visualization needs to be recreated as a WPF Canvas with rectangles and coordinate transforms.
 
-**SVG area mapper interaction.** The area mapping visualization currently renders static rectangles. Drag-to-move and handle-to-resize require pointer event handling with SVG coordinate transforms (screen space to viewBox space). This is non-trivial, especially with rotation.
+**Settings write-back.** The UI can display settings but does not yet write changes back to the daemon.
 
-**Daemon event subscription.** StreamJsonRpc supports event forwarding, but the bridge currently uses a simplified approach. Full bidirectional event wiring (where the bridge subscribes to daemon events via the RPC proxy's C# events) needs testing with the actual daemon.
+**Dark mode.** Light mode colors are implemented. Dark mode requires a second `ResourceDictionary` with runtime switching.
 
-**Settings write-back.** The UI can display settings but does not yet write changes back to the daemon. The `SetSettings` endpoint exists but the frontend forms are read-only placeholders.
+**Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with drop shadows. True acrylic blur effects (via Windows Composition API) could be added for deeper visual fidelity.
 
 ## Dependency Graph
 
 ```
-Frontend (Svelte 5)
-  └── Vite 8 (dev tooling)
-  └── TypeScript
-  └── No runtime dependencies (pure CSS + SVG)
-
-Bridge (.NET 8)
+WPF App (.NET 8)
   └── StreamJsonRpc 2.22.23
-  └── ASP.NET Core (built into SDK)
+  └── HidSharp 2.1.0
+  └── Newtonsoft.Json 13.0.3
+  └── CommunityToolkit.Mvvm 8.4.0
 
 OTD Daemon (external, not modified)
   └── StreamJsonRpc 2.22.23
   └── OpenTabletDriver.Desktop
-  └── OpenTabletDriver.Plugin
-  └── OpenTabletDriver.Native
   └── (many more — not our concern)
 ```
