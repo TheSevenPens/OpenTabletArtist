@@ -108,7 +108,7 @@
                             </TextBlock>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="OpenTabletDriver" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="OpenTabletDriver Daemon" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
@@ -290,6 +290,12 @@
                             <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
+                            <Run Text="Setup API: " /><Run Text="{Binding VmultiSetupApiStatus, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="HID: " /><Run Text="{Binding VmultiHidStatus, Mode=OneWay}" />
+                        </TextBlock>
                         <TextBlock Text="Required for pressure &amp; tilt" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                    Margin="0,2,0,0"

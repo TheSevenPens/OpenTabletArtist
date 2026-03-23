@@ -22,6 +22,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _hasTablet;
     [ObservableProperty] private bool _vmultiInstalled;
     [ObservableProperty] private string _vmultiMessage = "Checking...";
+    [ObservableProperty] private string _vmultiHidStatus = "Checking...";
+    [ObservableProperty] private string _vmultiSetupApiStatus = "Checking...";
     [ObservableProperty] private bool _hasWindowsInk;
     [ObservableProperty] private JToken? _settingsJson;
     [ObservableProperty] private JToken? _tabletsJson;
@@ -74,10 +76,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task InitAsync()
     {
-        // Detect vmulti on background thread
-        var status = await Task.Run(() => _vmulti.Detect());
-        VmultiInstalled = status.Installed;
-        VmultiMessage = status.Message;
+        // Detect vmulti on background thread (both methods)
+        var (hidResult, setupResult) = await Task.Run(() =>
+            (_vmulti.DetectHid(), _vmulti.DetectSetupApi()));
+
+        VmultiHidStatus = hidResult.Message;
+        VmultiSetupApiStatus = setupResult.Message;
+
+        // Overall status: installed if either method sees it
+        VmultiInstalled = hidResult.Visible || setupResult.Installed;
+
+        if (hidResult.Functional)
+            VmultiMessage = "Installed & active";
+        else if (setupResult.Installed && !setupResult.Enabled)
+            VmultiMessage = "Installed but disabled";
+        else if (setupResult.Installed)
+            VmultiMessage = "Installed (not active in HID)";
+        else
+            VmultiMessage = "Not installed";
 
         // Connect to daemon
         ConnectionStatus = "Connecting...";
