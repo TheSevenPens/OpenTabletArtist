@@ -55,6 +55,15 @@ public class AllFalseToVisibilityConverter : IMultiValueConverter
         => throw new NotImplementedException();
 }
 
+public class InverseBoolConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? false : true;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? false : true;
+}
+
 public class NonEmptyToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

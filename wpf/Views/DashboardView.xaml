@@ -42,11 +42,31 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Button Grid.Column="1" Content="Download"
-                            Command="{Binding DownloadOtdUpdateCommand}"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource AccentButton}"
-                            Padding="16,8" FontSize="12" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <Button Command="{Binding DownloadOtdUpdateCommand}"
+                                IsEnabled="{Binding UpdateDownloading, Converter={StaticResource InvBool}}"
+                                Style="{StaticResource AccentButton}"
+                                Padding="16,8" FontSize="12">
+                            <Button.Content>
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Download" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding UpdateDownloading}" Value="True">
+                                                    <Setter Property="Text" Value="{Binding UpdateDownloadStatus}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Button.Content>
+                        </Button>
+                        <TextBlock Text="{Binding UpdateDownloadStatus}" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                   HorizontalAlignment="Center"
+                                   Visibility="{Binding UpdateDownloadStatus, Converter={StaticResource NonEmptyToVis}}" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

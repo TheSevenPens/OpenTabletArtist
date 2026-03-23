@@ -36,6 +36,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
     [ObservableProperty] private string _updateDownloadUrl = "";
+    [ObservableProperty] private bool _updateDownloading;
+    [ObservableProperty] private string _updateDownloadStatus = "";
 
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
@@ -218,11 +220,55 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void DownloadOtdUpdate()
+    private async Task DownloadOtdUpdateAsync()
     {
-        if (!string.IsNullOrEmpty(UpdateDownloadUrl))
+        if (string.IsNullOrEmpty(UpdateVersion) || UpdateDownloading) return;
+
+        var zipUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/v{UpdateVersion}/OpenTabletDriver.win-x64.zip";
+        var downloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        var fileName = $"OpenTabletDriver.win-x64.v{UpdateVersion}.zip";
+        var filePath = Path.Combine(downloadsFolder, fileName);
+
+        try
         {
-            Process.Start(new ProcessStartInfo(UpdateDownloadUrl) { UseShellExecute = true });
+            UpdateDownloading = true;
+            UpdateDownloadStatus = "Downloading...";
+
+            using var client = new System.Net.Http.HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+
+            using var response = await client.GetAsync(zipUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            var totalBytes = response.Content.Headers.ContentLength;
+            await using var contentStream = await response.Content.ReadAsStreamAsync();
+            await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+            var buffer = new byte[81920];
+            long totalRead = 0;
+            int bytesRead;
+
+            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                totalRead += bytesRead;
+                if (totalBytes > 0)
+                {
+                    var pct = (int)(totalRead * 100 / totalBytes.Value);
+                    UpdateDownloadStatus = $"Downloading... {pct}%";
+                }
+            }
+
+            UpdateDownloadStatus = "Download complete";
+            UpdateDownloading = false;
+
+            // Open File Explorer with the downloaded file selected
+            Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch (Exception ex)
+        {
+            UpdateDownloadStatus = $"Download failed: {ex.Message}";
+            UpdateDownloading = false;
         }
     }
 

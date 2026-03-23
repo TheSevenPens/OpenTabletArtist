@@ -14,6 +14,7 @@
             <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVis" />
             <conv:NotFirstAndSecondToVisibilityConverter x:Key="NotFirstAndSecondToVis" />
             <conv:AllFalseToVisibilityConverter x:Key="AllFalseToVis" />
+            <conv:InverseBoolConverter x:Key="InvBool" />
             <conv:NonEmptyToVisibilityConverter x:Key="NonEmptyToVis" />
             <conv:StringEqualsConverter x:Key="StrEquals" />
         </ResourceDictionary>
