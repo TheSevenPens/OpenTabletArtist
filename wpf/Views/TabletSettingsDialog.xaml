@@ -1,0 +1,139 @@
+<Window x:Class="TabletDriverUX.Views.TabletSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tablet Settings"
+        Width="700" Height="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBaseBrush}"
+        ResizeMode="CanResizeWithGrip">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,16" />
+
+        <!-- Tab buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <RadioButton Content="General" IsChecked="True" x:Name="GeneralTab"
+                         Style="{StaticResource TabRadioButton}" />
+            <RadioButton Content="JSON" x:Name="JsonTab"
+                         Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+        </StackPanel>
+
+        <!-- General tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsChecked, ElementName=GeneralTab, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <!-- Output Mode -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="OUTPUT MODE" Style="{StaticResource SectionLabel}" />
+                            <TextBlock Text="{Binding OutputModeShort}" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" />
+                            <TextBlock Text="{Binding OutputModePath}" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="Not using Windows Ink — pressure and tilt won't work in drawing apps"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding CanFixOutputMode, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix" Style="{StaticResource AccentButton}"
+                                Command="{Binding FixOutputModeCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                Visibility="{Binding CanFixOutputMode, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                </Border>
+
+                <!-- Area Mapping -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12"
+                        Visibility="{Binding HasAreaMapping, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="AREA MAPPING" Style="{StaticResource SectionLabel}" />
+
+                        <!-- Display selection as radio buttons -->
+                        <TextBlock Text="Map tablet to display" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,6" />
+                        <ListBox ItemsSource="{Binding Displays}"
+                                 SelectedItem="{Binding SelectedDisplay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Padding="0">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <RadioButton IsChecked="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}"
+                                                             Margin="0,3,0,3" Cursor="Hand"
+                                                             Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <TextBlock Text="{Binding Label}" FontSize="11" />
+                                                </RadioButton>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+
+                        <Button Content="Set to display" Style="{StaticResource AccentButton}"
+                                Command="{Binding SetToDisplayCommand}"
+                                Padding="12,6" FontSize="12" Margin="0,10,0,0"
+                                HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Bindings -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12"
+                        Visibility="{Binding HasBindings, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="BINDINGS" Style="{StaticResource SectionLabel}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
+                            <Run Text="Tip: " /><Run Text="{Binding TipBinding, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="Eraser: " /><Run Text="{Binding EraserBinding, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="Pen Buttons: " /><Run Text="{Binding PenButtonCount, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="Aux Buttons: " /><Run Text="{Binding AuxButtonCount, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Filters -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="FILTERS" Style="{StaticResource SectionLabel}" />
+                        <TextBlock Text="{Binding FiltersText}" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- JSON tab content -->
+        <Border Grid.Row="2" Style="{StaticResource GlassPanel}" Padding="16"
+                Visibility="{Binding IsChecked, ElementName=JsonTab, Converter={StaticResource BoolToVis}}">
+            <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
+                     FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11"
+                     Foreground="{DynamicResource TextSecondaryBrush}"
+                     Background="Transparent" BorderThickness="0"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     TextWrapping="NoWrap" />
+        </Border>
+    </Grid>
+</Window>

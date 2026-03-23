@@ -11,6 +11,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonClient _daemon = new();
     private readonly VMultiDetector _vmulti = new();
+    private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly CancellationTokenSource _cts = new();
 
     [ObservableProperty] private string _currentPage = "Dashboard";
@@ -24,6 +25,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _vmultiMessage = "Checking...";
     [ObservableProperty] private string _vmultiHidStatus = "Checking...";
     [ObservableProperty] private string _vmultiSetupApiStatus = "Checking...";
+    [ObservableProperty] private bool _vmultiInstalling;
+    [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _hasWindowsInk;
     [ObservableProperty] private JToken? _settingsJson;
     [ObservableProperty] private JToken? _tabletsJson;
@@ -319,10 +322,177 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void OpenTabletSettings(object profileToken)
+    {
+        if (profileToken is JToken profile)
+        {
+            var dialog = new Views.TabletSettingsDialog(profile, async updatedProfile =>
+            {
+                // Replace the matching profile in settings and push to daemon
+                if (SettingsJson is JObject settings)
+                {
+                    var profiles = settings["Profiles"] as JArray;
+                    if (profiles != null)
+                    {
+                        var tabletName = updatedProfile["Tablet"]?.ToString();
+                        for (int i = 0; i < profiles.Count; i++)
+                        {
+                            if (profiles[i]["Tablet"]?.ToString() == tabletName)
+                            {
+                                profiles[i] = updatedProfile.DeepClone();
+                                break;
+                            }
+                        }
+                        await _daemon.SetSettingsAsync(settings);
+                        await LoadDataAsync();
+                    }
+                }
+            })
+            {
+                Owner = App.Current.MainWindow
+            };
+            dialog.ShowDialog();
+        }
+    }
+
+    [RelayCommand]
     private void OpenFolder(string path)
     {
         if (Directory.Exists(path))
             System.Diagnostics.Process.Start("explorer.exe", path);
+    }
+
+    [RelayCommand]
+    private async Task InstallVmulti()
+    {
+        // Warn the user about reboot risk
+        var result = System.Windows.MessageBox.Show(
+            "VMulti driver installation may restart your computer.\n\n" +
+            "Please save all work in other applications before continuing.\n\n" +
+            "Do you want to proceed?",
+            "Install VMulti Driver",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+            return;
+
+        VmultiInstalling = true;
+        VmultiInstallStatus = "Starting...";
+
+        _vmultiInstaller.StatusChanged += status =>
+            App.Current.Dispatcher.Invoke(() => VmultiInstallStatus = status);
+
+        try
+        {
+            var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
+
+            VmultiInstallStatus = installResult.Message;
+
+            if (installResult.Success)
+            {
+                // Refresh detection
+                await RefreshVmultiDetection();
+
+                System.Windows.MessageBox.Show(
+                    installResult.Message,
+                    "VMulti Installation",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    installResult.Message,
+                    "VMulti Installation",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            VmultiInstallStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            VmultiInstalling = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallVmulti()
+    {
+        var result = System.Windows.MessageBox.Show(
+            "This will uninstall the VMulti virtual driver.\n\n" +
+            "Your computer may need to restart to complete the removal.\n" +
+            "Please save all work in other applications before continuing.\n\n" +
+            "Do you want to proceed?",
+            "Uninstall VMulti Driver",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+            return;
+
+        VmultiInstalling = true;
+        VmultiInstallStatus = "Starting uninstall...";
+
+        _vmultiInstaller.StatusChanged += status =>
+            App.Current.Dispatcher.Invoke(() => VmultiInstallStatus = status);
+
+        try
+        {
+            var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
+
+            VmultiInstallStatus = uninstallResult.Message;
+
+            if (uninstallResult.Success)
+            {
+                await RefreshVmultiDetection();
+
+                System.Windows.MessageBox.Show(
+                    uninstallResult.Message,
+                    "VMulti Uninstallation",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    uninstallResult.Message,
+                    "VMulti Uninstallation",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            VmultiInstallStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            VmultiInstalling = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshVmultiDetection()
+    {
+        var (hidResult, setupResult) = await Task.Run(() =>
+            (_vmulti.DetectHid(), _vmulti.DetectSetupApi()));
+
+        VmultiHidStatus = hidResult.Message;
+        VmultiSetupApiStatus = setupResult.Message;
+        VmultiInstalled = hidResult.Visible || setupResult.Installed;
+
+        if (hidResult.Functional)
+            VmultiMessage = "Installed & active";
+        else if (setupResult.Installed && !setupResult.Enabled)
+            VmultiMessage = "Installed but disabled";
+        else if (setupResult.Installed)
+            VmultiMessage = "Installed (not active in HID)";
+        else
+            VmultiMessage = "Not installed";
     }
 
     public void Dispose()

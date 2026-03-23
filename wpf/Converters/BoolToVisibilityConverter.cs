@@ -39,6 +39,22 @@ public class NotFirstAndSecondToVisibilityConverter : IMultiValueConverter
         => throw new NotImplementedException();
 }
 
+/// <summary>
+/// Visible when ALL values are false.
+/// </summary>
+public class AllFalseToVisibilityConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        foreach (var v in values)
+            if (v is true) return Visibility.Collapsed;
+        return Visibility.Visible;
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
 public class StringEqualsConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

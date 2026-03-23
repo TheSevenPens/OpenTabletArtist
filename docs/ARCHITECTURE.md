@@ -112,11 +112,19 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Svelte 5 navigation bug (historical).** Svelte 5's `$state` reactivity failed to update `{#if}` template blocks when values returned to previously-rendered states. This affected both custom hash routing and SvelteKit's built-in router. Root cause was in Svelte 5's compiled template diffing. Resolved by switching to WPF.
 
+**VMulti detection (dual method).** VMulti is detected via both HidSharp (HID enumeration — sees only active devices) and the Windows Setup API (`SetupDi*` — sees all devices including disabled ones). This distinguishes "not installed" from "installed but disabled."
+
+**VMulti install/uninstall.** The app can download the VMulti driver package from GitHub, extract it, and run the official `install_hiddriver.bat` / `remove_hiddriver.bat` scripts with admin elevation (UAC prompt).
+
+**Display enumeration.** System displays are enumerated using Win32 `EnumDisplayMonitors()` + `EnumDisplaySettings()` — the same APIs OTD uses internally. Tablet settings dialog shows displays as radio buttons with a "Set to display" action.
+
+**Aspect ratio lock.** When mapping a tablet to a display, the tablet area height is automatically adjusted to match the display's aspect ratio (`LockAspectRatio = true`), ensuring proportional 1:1 mapping with no distortion.
+
+**Settings write-back.** The tablet settings dialog can push changes back to the daemon via `SetSettings()`. Currently supports changing the output mode (Fix to WinInk) and display mapping.
+
 ### Remaining
 
-**SVG area mapper.** The area mapping visualization needs to be recreated as a WPF Canvas with rectangles and coordinate transforms.
-
-**Settings write-back.** The UI can display settings but does not yet write changes back to the daemon.
+**Area mapping visualization.** The area mapping visualization needs to be recreated as a WPF Canvas with rectangles and coordinate transforms.
 
 **Dark mode.** Light mode colors are implemented. Dark mode requires a second `ResourceDictionary` with runtime switching.
 
