@@ -224,9 +224,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(UpdateVersion) || UpdateDownloading) return;
 
-        var zipUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/v{UpdateVersion}/OpenTabletDriver.win-x64.zip";
+        var zipUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/v{UpdateVersion}/OpenTabletDriver-{UpdateVersion}_win-x64.zip";
         var downloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        var fileName = $"OpenTabletDriver.win-x64.v{UpdateVersion}.zip";
+        var fileName = $"OpenTabletDriver-{UpdateVersion}_win-x64.zip";
         var filePath = Path.Combine(downloadsFolder, fileName);
 
         try
