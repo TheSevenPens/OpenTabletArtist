@@ -53,7 +53,16 @@
       "Bash(PATH=\"/c/Users/TheSe/miniconda3/envs/node1:$PATH\" npm install)",
       "Bash(cp -r frontend_old/src/lib frontend/src/lib)",
       "Bash(cp frontend_old/src/app.css frontend/src/app.css)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(ls \"C:/Users/TheSe/Documents/GitHub/TabletDriverUXPrototype/\"*.csproj \"C:/Users/TheSe/Documents/GitHub/TabletDriverUXPrototype/\"*/*.csproj)",
+      "Bash(dotnet sln:*)",
+      "Bash(taskkill /f /im Bridge.exe)",
+      "Bash(rm -rf bridge)",
+      "Bash(tasklist)",
+      "Bash(taskkill /f /pid 16232)",
+      "Bash(taskkill /f /pid 29524)",
+      "Bash(cmd /c \"taskkill /f /pid 16232\")",
+      "Bash(cmd /c \"taskkill /f /pid 29524\")"
     ]
   }
 }

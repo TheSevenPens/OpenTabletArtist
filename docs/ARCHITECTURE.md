@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────┐                    ┌─────────────────────┐
-│   WPF App (.NET 8)  │     Named Pipe     │   OTD Daemon        │
+│   WPF App (.NET 10)  │     Named Pipe     │   OTD Daemon        │
 │   TabletDriverUX    │◄───────────────────►│ (OpenTabletDriver   │
 │                     │    StreamJsonRpc    │  .Daemon.exe)       │
 └─────────────────────┘                    └─────────────────────┘
@@ -14,9 +14,7 @@
    (user sees)                              (tablet hardware)
 ```
 
-**Previous architecture:** The project originally used a Svelte 5 web frontend + .NET bridge process. This was replaced with a WPF app that connects directly to the OTD daemon, eliminating the bridge and solving persistent Svelte 5 client-side navigation bugs.
-
-The Svelte frontend code is preserved in `frontend/` for reference.
+**Previous architecture:** The project originally used a Svelte 5 web frontend + .NET bridge process. This was replaced with a WPF app that connects directly to the OTD daemon, eliminating the bridge and solving persistent Svelte 5 client-side navigation bugs. The bridge and frontend have been removed.
 
 ## Components
 
@@ -24,7 +22,7 @@ The Svelte frontend code is preserved in `frontend/` for reference.
 
 **Role:** Single-process desktop application. Renders all UI, manages state, and communicates directly with the OTD daemon via named pipe.
 
-**Technology:** .NET 8 WPF with CommunityToolkit.Mvvm (MVVM pattern).
+**Technology:** .NET 10 WPF with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
 - `Services/` — `DaemonClient.cs` (named pipe + StreamJsonRpc), `VMultiDetector.cs` (HID scanning)
@@ -38,10 +36,6 @@ The Svelte frontend code is preserved in `frontend/` for reference.
 - `HidSharp` 2.1.0 — HID device enumeration for vmulti detection
 - `Newtonsoft.Json` 13.0.3 — JSON handling (required by StreamJsonRpc)
 - `CommunityToolkit.Mvvm` 8.4.0 — MVVM infrastructure (`[ObservableProperty]`, `[RelayCommand]`)
-
-### Bridge (`bridge/`) — Legacy
-
-**Status:** No longer used at runtime. The WPF app connects directly to the daemon. Preserved as reference for the HTTP/WebSocket API pattern.
 
 ### OTD Daemon (external)
 
@@ -82,7 +76,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 ### 1. WPF instead of web frontend
 
-**Decision:** Use WPF (.NET 8) rather than Svelte/React/web tech.
+**Decision:** Use WPF (.NET 10) rather than Svelte/React/web tech.
 
 **Rationale:** The original Svelte 5 frontend had a persistent navigation bug where client-side routing broke when navigating back to previously-visited pages. This was traced to a Svelte 5 rendering issue. WPF provides native navigation via simple property binding (`CurrentPage` → `ContentControl` with `DataTrigger`), direct named pipe access (no bridge needed), and eliminates an entire process from the architecture.
 
@@ -131,7 +125,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 ## Dependency Graph
 
 ```
-WPF App (.NET 8)
+WPF App (.NET 10)
   └── StreamJsonRpc 2.22.23
   └── HidSharp 2.1.0
   └── Newtonsoft.Json 13.0.3
