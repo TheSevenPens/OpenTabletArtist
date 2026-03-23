@@ -32,6 +32,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private JToken? _settingsJson;
     [ObservableProperty] private JToken? _tabletsJson;
 
+    // OTD Update
+    [ObservableProperty] private bool _updateAvailable;
+    [ObservableProperty] private string _updateVersion = "";
+    [ObservableProperty] private string _updateDownloadUrl = "";
+
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
     [ObservableProperty] private string _tabletPressure = "";
@@ -177,8 +182,48 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 PresetDirectory = info["PresetDirectory"]?.ToString() ?? "";
             }
             await LoadPresetsAsync();
+            await CheckForOtdUpdatesAsync();
         }
         catch { /* Data load failed — will retry on next connection */ }
+    }
+
+    private async Task CheckForOtdUpdatesAsync()
+    {
+        try
+        {
+            var updateInfo = await _daemon.CheckForUpdatesAsync();
+            if (updateInfo != null && updateInfo.Type != JTokenType.Null)
+            {
+                var version = updateInfo["Version"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(version))
+                {
+                    UpdateAvailable = true;
+                    UpdateVersion = version;
+                    UpdateDownloadUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/tag/v{version}";
+                }
+                else
+                {
+                    UpdateAvailable = false;
+                }
+            }
+            else
+            {
+                UpdateAvailable = false;
+            }
+        }
+        catch
+        {
+            UpdateAvailable = false;
+        }
+    }
+
+    [RelayCommand]
+    private void DownloadOtdUpdate()
+    {
+        if (!string.IsNullOrEmpty(UpdateDownloadUrl))
+        {
+            Process.Start(new ProcessStartInfo(UpdateDownloadUrl) { UseShellExecute = true });
+        }
     }
 
     private async Task LoadPresetsAsync()

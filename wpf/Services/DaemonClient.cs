@@ -75,6 +75,19 @@ public class DaemonClient : IDisposable
         return await _rpc.InvokeAsync<JToken>("GetApplicationInfo");
     }
 
+    public async Task<JToken?> CheckForUpdatesAsync()
+    {
+        if (_rpc == null) return null;
+        try
+        {
+            return await _rpc.InvokeAsync<JToken?>("CheckForUpdates");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public void Dispose()
     {
         _rpc?.Dispose();

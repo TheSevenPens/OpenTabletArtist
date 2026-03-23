@@ -9,6 +9,47 @@
 
         <!-- Status Cards -->
         <StackPanel>
+            <!-- OTD Update Available -->
+            <Border Margin="0,0,0,12" Padding="16" CornerRadius="12"
+                    Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}">
+                <Border.Background>
+                    <SolidColorBrush Color="#1a6366f1" />
+                </Border.Background>
+                <Border.BorderBrush>
+                    <SolidColorBrush Color="#336366f1" />
+                </Border.BorderBrush>
+                <Border.BorderThickness>1</Border.BorderThickness>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                                Background="#336366f1">
+                            <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="OTD Update Available" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Margin="0,4,0,0" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}">
+                                <Run Text="Version " /><Run Text="{Binding UpdateVersion, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" is available" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="Download"
+                            Command="{Binding DownloadOtdUpdateCommand}"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource AccentButton}"
+                            Padding="16,8" FontSize="12" />
+                </Grid>
+            </Border>
+
             <!-- OTD Install Location -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
                 <Grid>
