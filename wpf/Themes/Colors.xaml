@@ -1,0 +1,50 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Light Mode (default) -->
+    <Color x:Key="BgBase">#F0F0F6</Color>
+    <Color x:Key="BgElevated">#F7F7FC</Color>
+    <Color x:Key="BgSurface">#FFFFFF</Color>
+
+    <Color x:Key="GlassBg">#A6FFFFFF</Color>
+    <Color x:Key="GlassBgHover">#BFFFFFFF</Color>
+    <Color x:Key="GlassBorder">#33000000</Color>
+
+    <Color x:Key="TextPrimary">#DE000000</Color>
+    <Color x:Key="TextSecondary">#99000000</Color>
+    <Color x:Key="TextMuted">#66000000</Color>
+    <Color x:Key="TextInverse">#FFFFFF</Color>
+
+    <Color x:Key="Accent">#6366F1</Color>
+    <Color x:Key="AccentMuted">#1A6366F1</Color>
+    <Color x:Key="Success">#10B981</Color>
+    <Color x:Key="SuccessMuted">#1A10B981</Color>
+    <Color x:Key="Warning">#F59E0B</Color>
+    <Color x:Key="Error">#EF4444</Color>
+    <Color x:Key="ErrorMuted">#1AEF4444</Color>
+
+    <Color x:Key="Divider">#1A000000</Color>
+    <Color x:Key="NavActive">#1A6366F1</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+    <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+    <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+    <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+    <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+    <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+    <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+    <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
+    <SolidColorBrush x:Key="SuccessMutedBrush" Color="{StaticResource SuccessMuted}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
+    <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
+    <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+    <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+
+</ResourceDictionary>

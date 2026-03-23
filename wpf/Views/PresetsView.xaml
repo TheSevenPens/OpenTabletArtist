@@ -1,0 +1,69 @@
+<UserControl x:Class="TabletDriverUX.Views.PresetsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Style="{StaticResource PageTitle}" Text="Settings Snapshots" />
+        <TextBlock Style="{StaticResource PageSubtitle}" Text="Saved configuration snapshots" />
+
+        <ItemsControl ItemsSource="{Binding Presets}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
+                                    Background="{DynamicResource AccentMutedBrush}" Margin="0,0,16,0">
+                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18" Foreground="{DynamicResource AccentBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding [Name]}" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Load" Style="{StaticResource AccentButton}"
+                                        Command="{Binding DataContext.LoadPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding [Name].Value}"
+                                        Margin="0,0,8,0" Padding="12,6" FontSize="12" />
+                                <Button Content="Delete" Padding="12,6" FontSize="12"
+                                        Foreground="{DynamicResource ErrorBrush}" Cursor="Hand"
+                                        Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding [Name].Value}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="Transparent" CornerRadius="8"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1">
+                                                <ContentPresenter HorizontalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Style="{StaticResource GlassPanel}" Padding="32"
+                Visibility="{Binding HasTablet, Converter={StaticResource InvBoolToVis}}">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="No Snapshots" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Save your current settings as a snapshot"
+                           FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
