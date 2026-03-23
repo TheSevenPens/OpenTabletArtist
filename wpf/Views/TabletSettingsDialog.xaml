@@ -20,15 +20,17 @@
 
         <!-- Tab buttons -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
-            <RadioButton Content="General" IsChecked="True" x:Name="GeneralTab"
+            <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
                          Style="{StaticResource TabRadioButton}" />
+            <RadioButton Content="Filters" x:Name="FiltersTab"
+                         Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="JSON" x:Name="JsonTab"
                          Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
         </StackPanel>
 
-        <!-- General tab content -->
+        <!-- Screen Mapping tab content -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      Visibility="{Binding IsChecked, ElementName=GeneralTab, Converter={StaticResource BoolToVis}}">
+                      Visibility="{Binding IsChecked, ElementName=ScreenMappingTab, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <!-- Output Mode -->
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
@@ -112,8 +114,13 @@
                         </TextBlock>
                     </StackPanel>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
 
-                <!-- Filters -->
+        <!-- Filters tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsChecked, ElementName=FiltersTab, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="FILTERS" Style="{StaticResource SectionLabel}" />
