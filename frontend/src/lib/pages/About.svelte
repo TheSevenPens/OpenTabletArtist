@@ -4,43 +4,18 @@
 </script>
 
 <div class="page">
-  <PageHeader title="About" subtitle="OpenTabletDriver UX Prototype" />
+  <PageHeader title="About" subtitle="Driver UX Experiment" />
 
-  <div class="about-grid">
-    <GlassPanel>
-      <div class="about-section">
-        <h3>What is this?</h3>
-        <p>A UX prototype exploring a new visual experience for OpenTabletDriver — an open-source, cross-platform tablet driver.</p>
-      </div>
-    </GlassPanel>
-
-    <GlassPanel>
-      <div class="about-section">
-        <h3>Architecture</h3>
-        <div class="arch-stack">
-          <div class="arch-item glass-subtle">Svelte 5 + Vite</div>
-          <div class="arch-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-          </div>
-          <div class="arch-item glass-subtle">.NET Bridge (REST + WS)</div>
-          <div class="arch-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-          </div>
-          <div class="arch-item glass-subtle">OTD Daemon (Named Pipe)</div>
-        </div>
-      </div>
-    </GlassPanel>
-  </div>
+  <GlassPanel>
+    <div class="about-section">
+      <h3>What is this?</h3>
+      <p>A UX prototype exploring a ideas in simplifying the experience for Tablet drivers. Currently interfacing with OpenTabletDriver — an open-source, cross-platform tablet driver.</p>
+    </div>
+  </GlassPanel>
 </div>
 
 <style>
   .page { max-width: 900px; }
-
-  .about-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-5);
-  }
 
   .about-section h3 {
     font-size: var(--font-size-base);
@@ -55,8 +30,4 @@
     line-height: var(--line-height-normal);
     margin: 0;
   }
-
-  .arch-stack { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
-  .arch-item { padding: var(--space-2) var(--space-4); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-primary); text-align: center; width: 100%; }
-  .arch-arrow { display: flex; align-items: center; justify-content: center; }
 </style>

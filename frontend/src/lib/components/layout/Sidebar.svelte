@@ -21,8 +21,7 @@
       </svg>
     </div>
     <div class="brand">
-      <span class="brand-name">OpenTabletDriver</span>
-      <span class="brand-tag">UX Prototype</span>
+      <span class="brand-name">Driver UX Experiment</span>
     </div>
   </div>
 
