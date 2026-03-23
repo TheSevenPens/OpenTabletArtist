@@ -12,6 +12,7 @@
 
             <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
             <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVis" />
+            <conv:NotFirstAndSecondToVisibilityConverter x:Key="AllFalseToVis" />
             <conv:StringEqualsConverter x:Key="StrEquals" />
         </ResourceDictionary>
     </Application.Resources>

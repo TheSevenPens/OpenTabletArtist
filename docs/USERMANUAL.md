@@ -2,126 +2,67 @@
 
 ## Prerequisites
 
-- **Node.js** (v18+) — for running the frontend dev server
-- **.NET 8 SDK** — for building and running the bridge
-- **OpenTabletDriver** — the daemon must be installed and running
+- **.NET 10 SDK** — for building and running the app
+- **OpenTabletDriver** — installed on your system
 
 ## Quick Start
 
-### 1. Start the OTD Daemon
-
-Make sure `OpenTabletDriver.Daemon.exe` is running. If you use OTD normally, the daemon is likely already running in the background. If not, start it manually:
-
-```
-OpenTabletDriver.Daemon.exe
-```
-
-### 2. Start the Bridge
-
 ```bash
-cd bridge
+cd wpf
 dotnet run
 ```
 
-The bridge will connect to the OTD daemon via named pipe and start serving on `http://localhost:5000`. You should see:
-
-```
-Connecting to OTD daemon on pipe 'OpenTabletDriver.Daemon'...
-Connected to OTD daemon
-```
-
-If the daemon is not running, the bridge will retry every 3 seconds until it connects.
-
-### 3. Start the Frontend
-
-```bash
-cd frontend
-npm install    # first time only
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser.
+The app will launch and attempt to connect to the OTD daemon automatically.
 
 ## Using the Interface
 
 ### Dashboard
 
-The landing page. Shows four status cards in a vertical column, each reflecting live state from the OTD daemon:
+The landing page shows status cards:
 
-- **OpenTabletDriver** — whether the bridge is connected to the daemon (green = running, gray = not connected)
-- **Tablet** — the detected tablet name, or "No tablet detected" if none is plugged in
-- **VMulti Driver** — whether the vmulti virtual HID driver is installed (required for pressure and tilt on Windows). Detected via HID device enumeration (VID `0x00FF` / PID `0xBACC`).
-- **Windows Ink** — whether the active output mode uses the Windows Ink plugin (detected from the profile's output mode path). Shows "Plugin active" when the profile uses `WinInkAbsoluteMode`.
-
-When a tablet is connected, additional cards appear below: tablet specifications, current output mode, and quick action links to the tablet's Area Mapping and Bindings pages.
+- **OTD Install Location** — Set the path to your OpenTabletDriver installation. Click **Browse** to select the folder. This is persisted across sessions and used to start/restart the daemon.
+- **OpenTabletDriver** — Connection status to the daemon. Shows **Start** button when disconnected (if install path is set), **Restart** to restart the daemon, and a **Refresh** icon to manually check the connection.
+- **Tablet** — The detected tablet name, or "No tablet detected" if none is plugged in. Updates automatically when you plug in or unplug a tablet.
+- **VMulti Driver** — Whether the vmulti virtual HID driver is installed (required for pressure and tilt on Windows).
+- **Windows Ink** — Whether the active output mode uses the Windows Ink plugin.
 
 ### Tablet Settings
 
-Lists all tablet configurations stored in the OTD daemon's settings. Each card shows the tablet name and active output mode. A "Forget" button (✕) appears on hover in the top-right corner of each card — clicking it removes that tablet's settings from the daemon (with confirmation). Clicking a card opens the tablet's detail view with three sub-tabs:
-
-- **Area Mapping** — Side-by-side visualization of display and tablet areas with numeric controls for width, height, X, Y. "Force proportions" toggle available. Advanced settings (rotation, clipping, area limiting) are hidden by default.
-- **Bindings** — Shows pen tip, eraser, pen buttons, and auxiliary button bindings with their assigned actions and activation thresholds. Data pulled live from the daemon.
-- **Filters** — Lists configured input filters (smoothing, anti-chatter, etc.) with enabled/disabled status. Shows empty state if no filters are configured.
-
-A back button in the tablet detail header returns to the tablet list.
+Lists all tablet configurations stored in the OTD daemon's settings. Each card shows the tablet name and active output mode.
 
 ### Settings Snapshots
 
-Snapshots are saved copies of your entire OTD configuration (all tablet settings, bindings, and filters). Each snapshot card shows the name and number of tablet profiles it contains, with three actions:
+Snapshots are saved copies of your entire OTD configuration. Each snapshot card has:
 
-- **Load** — Applies the snapshot's settings to the daemon, replacing the current configuration.
-- **Open** — Opens a dialog with General and JSON tabs showing the snapshot's contents.
-- **Delete** — Removes the snapshot file (with confirmation).
-
-Use the **Save Snapshot** button to capture the current configuration. The **Open Folder** button opens the snapshots directory in your file manager.
+- **Load** — Applies the snapshot's settings to the daemon.
+- **Delete** — Removes the snapshot file.
 
 ### Console (Placeholder)
 
-Will show live log output streamed from the OTD daemon. Not yet implemented.
+Will show live log output from the OTD daemon. Not yet implemented.
 
 ### About
 
-Shows project information and the system architecture stack.
+Project information.
 
-### Theme Toggle
+## Navigation
 
-Click the sun/moon icon in the bottom-right corner of the status bar to switch between dark and light themes. Your preference is saved to localStorage and persists across sessions. On first visit, the app respects your system's color scheme preference.
-
-### Status Bar
-
-The bar at the bottom of the window shows:
-
-- **Left**: Connection status (green dot = connected to bridge, yellow pulsing = connecting, gray = disconnected)
-- **Center**: Name of the connected tablet, or "No tablet connected"
-- **Right**: Theme toggle button
+Click items in the sidebar to switch between pages. The active page is highlighted with an indigo accent bar.
 
 ## Troubleshooting
 
+### "Not connected" on the OpenTabletDriver card
+
+1. Set the OTD install path using the Browse button on the Install Location card.
+2. Click **Start** to launch the daemon.
+3. Click the refresh icon to check the connection.
+
 ### "No Tablet Detected" even though my tablet is plugged in
 
-1. Make sure `OpenTabletDriver.Daemon.exe` is running.
-2. Make sure the bridge (`dotnet run` in `bridge/`) is running and shows "Connected to OTD daemon."
-3. Check that the daemon detects your tablet — the OTD daemon logs will show tablet detection.
+1. Make sure `OpenTabletDriver.Daemon.exe` is running (check the OTD status card).
+2. Wait a few seconds — the app polls for changes every 3 seconds.
+3. Click the refresh icon on the OTD card to force an immediate check.
 
-### Bridge shows "OTD daemon not found, retrying..."
+### App shows "Unknown" for tablet name
 
-The daemon is not running or is not reachable. Start `OpenTabletDriver.Daemon.exe` and the bridge will auto-connect.
-
-### Blank page in the browser
-
-Check the browser console (F12 > Console) for JavaScript errors. Make sure you ran `npm install` in the `frontend/` directory before starting the dev server.
-
-### Theme doesn't apply on first load
-
-The app reads `localStorage` and `prefers-color-scheme` on startup. If neither is set, it defaults to light mode. Click the theme toggle to switch.
-
-## Development Workflow
-
-The frontend uses Vite's hot module replacement. When you edit any `.svelte`, `.ts`, or `.css` file in `frontend/src/`, the browser updates instantly without a full reload. This is the intended workflow for iterating on the UI.
-
-To test with real tablet data, run all three components:
-1. OTD Daemon
-2. Bridge (`dotnet run` in `bridge/`)
-3. Frontend (`npm run dev` in `frontend/`)
-
-To work on the UI without a daemon, just run the frontend alone — the Dashboard shows the empty state, and the Area Mapping page renders with demo data.
+This was a bug in earlier versions. Make sure you're running the latest build. The tablet name is read from the daemon's `Properties.Name` field.

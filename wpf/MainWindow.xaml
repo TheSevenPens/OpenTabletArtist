@@ -20,7 +20,6 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
-            <RowDefinition Height="36" />
         </Grid.RowDefinitions>
 
         <!-- SIDEBAR -->
@@ -119,45 +118,5 @@
             </Border>
         </ScrollViewer>
 
-        <!-- STATUS BAR -->
-        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1"
-                Background="{DynamicResource GlassBgBrush}"
-                BorderBrush="{DynamicResource GlassBorderBrush}"
-                BorderThickness="0,1,0,0">
-            <Grid Margin="16,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse Width="6" Height="6" Margin="0,0,8,0">
-                        <Ellipse.Style>
-                            <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Ellipse.Style>
-                    </Ellipse>
-                    <TextBlock Text="{Binding ConnectionStatus}" FontSize="11"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                               Visibility="{Binding HasTablet, Converter={StaticResource InvBoolToVis}}"
-                               Text="No tablet connected" FontStyle="Italic" />
-                    <TextBlock FontSize="11" FontWeight="Medium"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               Visibility="{Binding HasTablet, Converter={StaticResource BoolToVis}}"
-                               Text="{Binding TabletName}" />
-                </StackPanel>
-            </Grid>
-        </Border>
     </Grid>
 </Window>

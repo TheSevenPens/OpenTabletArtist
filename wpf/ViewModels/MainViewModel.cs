@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -38,8 +39,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private JArray _presets = new();
     [ObservableProperty] private string _presetDirectory = "";
 
+    // OTD install location
+    [ObservableProperty] private string _otdInstallPath = "";
+    [ObservableProperty] private bool _hasOtdInstallPath;
+
+    private const string OtdInstallPathKey = "OtdInstallPath";
+
     public MainViewModel()
     {
+        // Load saved OTD install path
+        var saved = AppSettings.Get(OtdInstallPathKey);
+        if (!string.IsNullOrEmpty(saved) && Directory.Exists(saved))
+        {
+            OtdInstallPath = saved;
+            HasOtdInstallPath = true;
+        }
+
         _daemon.Connected += () => App.Current.Dispatcher.Invoke(() =>
         {
             ConnectionStatus = "Connected";
@@ -67,6 +82,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Connect to daemon
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
+
+        // Poll for data changes (tablet connect/disconnect, settings changes)
+        _ = PollDataAsync();
+    }
+
+    private async Task PollDataAsync()
+    {
+        while (!_cts.Token.IsCancellationRequested)
+        {
+            await Task.Delay(3000, _cts.Token).ConfigureAwait(false);
+            if (IsConnected)
+            {
+                try
+                {
+                    await App.Current.Dispatcher.InvokeAsync(() => _ = LoadDataAsync());
+                }
+                catch { /* ignore polling errors */ }
+            }
+        }
     }
 
     private async Task LoadDataAsync()
@@ -79,15 +113,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (tablets is JArray arr && arr.Count > 0)
             {
                 var first = arr[0];
+                // OTD nests tablet info under "Properties"
+                var props = first["Properties"] ?? first;
                 HasTablet = true;
-                TabletName = first["Name"]?.ToString() ?? "Unknown";
+                TabletName = props["Name"]?.ToString() ?? "Unknown";
 
-                var specs = first["Specifications"];
+                var specs = props["Specifications"];
                 var digi = specs?["Digitizer"];
                 var pen = specs?["Pen"];
                 TabletArea = $"{digi?["Width"]} x {digi?["Height"]} mm";
                 TabletPressure = pen?["MaxPressure"]?.ToString() ?? "?";
                 TabletButtons = pen?["ButtonCount"]?.ToString() ?? "?";
+            }
+            else
+            {
+                HasTablet = false;
+                TabletName = "";
+                TabletArea = "";
+                TabletPressure = "";
+                TabletButtons = "";
             }
 
             var settings = await _daemon.GetSettingsAsync();
@@ -148,6 +192,86 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void Navigate(string page)
     {
         CurrentPage = page;
+    }
+
+    [RelayCommand]
+    private void BrowseOtdInstallPath()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select OpenTabletDriver install folder",
+            InitialDirectory = HasOtdInstallPath ? OtdInstallPath : Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            OtdInstallPath = dialog.FolderName;
+            HasOtdInstallPath = true;
+            AppSettings.Set(OtdInstallPathKey, dialog.FolderName);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshConnection()
+    {
+        if (IsConnected)
+        {
+            await LoadDataAsync();
+        }
+        else
+        {
+            // Try to connect (non-blocking single attempt)
+            ConnectionStatus = "Connecting...";
+            _ = _daemon.ConnectAsync(_cts.Token);
+        }
+    }
+
+    [RelayCommand]
+    private void StartDaemon()
+    {
+        if (!HasOtdInstallPath) return;
+        var daemonExe = Path.Combine(OtdInstallPath, "OpenTabletDriver.Daemon.exe");
+        if (File.Exists(daemonExe))
+        {
+            Process.Start(new ProcessStartInfo(daemonExe)
+            {
+                CreateNoWindow = true,
+                WorkingDirectory = OtdInstallPath,
+            });
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestartDaemon()
+    {
+        // Find the daemon exe path BEFORE killing it (connection still alive)
+        string? daemonPath = null;
+        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
+        {
+            try { daemonPath = proc.MainModule?.FileName; } catch { }
+            if (daemonPath != null) break;
+        }
+
+        // Kill all daemon processes
+        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
+        {
+            try { proc.Kill(); } catch { }
+        }
+
+        // Wait briefly for the process to exit
+        await Task.Delay(500);
+
+        // Relaunch if we found the path
+        if (daemonPath != null && File.Exists(daemonPath))
+        {
+            Process.Start(new ProcessStartInfo(daemonPath)
+            {
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
+            });
+        }
+
+        // DaemonClient's Disconnected event auto-reconnects
     }
 
     [RelayCommand]
