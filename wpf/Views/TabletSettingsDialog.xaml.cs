@@ -62,9 +62,23 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         if (bindings != null)
         {
             TipBinding = GetBindingName(bindings["TipButton"]);
+            TipPressure = bindings["TipActivationThreshold"]?.ToString() ?? "";
             EraserBinding = GetBindingName(bindings["EraserButton"]);
+            EraserPressure = bindings["EraserActivationThreshold"]?.ToString() ?? "";
             PenButtonCount = (bindings["PenButtons"] as JArray)?.Count.ToString() ?? "0";
             AuxButtonCount = (bindings["AuxButtons"] as JArray)?.Count.ToString() ?? "0";
+
+            // Build pen button details
+            if (bindings["PenButtons"] is JArray penBtns)
+            {
+                for (int i = 0; i < penBtns.Count; i++)
+                    PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(penBtns[i]) });
+            }
+            if (bindings["AuxButtons"] is JArray auxBtns)
+            {
+                for (int i = 0; i < auxBtns.Count; i++)
+                    AuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(auxBtns[i]) });
+            }
         }
 
         // Filters
@@ -245,9 +259,20 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public ObservableCollection<DisplayInfo> Displays { get; }
     public bool HasBindings { get; }
     public string TipBinding { get; } = "None";
+    public string TipPressure { get; } = "";
     public string EraserBinding { get; } = "None";
+    public string EraserPressure { get; } = "";
     public string PenButtonCount { get; } = "0";
     public string AuxButtonCount { get; } = "0";
+    public List<ButtonBinding> PenButtons { get; } = new();
+    public List<ButtonBinding> AuxButtons { get; } = new();
     public string FiltersText { get; }
     public string RawJson { get; }
+}
+
+public class ButtonBinding
+{
+    public int Index { get; set; }
+    public string Name { get; set; } = "None";
+    public string Label => $"Button {Index}";
 }

@@ -22,6 +22,10 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
             <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
                          Style="{StaticResource TabRadioButton}" />
+            <RadioButton Content="Pen Tip &amp; Eraser" x:Name="PenTipTab"
+                         Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+            <RadioButton Content="Pen Buttons" x:Name="PenButtonsTab"
+                         Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Filters" x:Name="FiltersTab"
                          Style="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="JSON" x:Name="JsonTab"
@@ -95,22 +99,105 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Bindings -->
-                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12"
-                        Visibility="{Binding HasBindings, Converter={StaticResource BoolToVis}}">
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pen Tip & Eraser tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsChecked, ElementName=PenTipTab, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <!-- Tip -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Text="BINDINGS" Style="{StaticResource SectionLabel}" />
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
-                            <Run Text="Tip: " /><Run Text="{Binding TipBinding, Mode=OneWay}" />
+                        <TextBlock Text="PEN TIP" Style="{StaticResource SectionLabel}" />
+                        <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                   FontWeight="SemiBold" Text="{Binding TipBinding}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                   Visibility="{Binding TipPressure, Converter={StaticResource NonEmptyToVis}}">
+                            <Run Text="Activation threshold: " /><Run Text="{Binding TipPressure, Mode=OneWay}" />
                         </TextBlock>
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                            <Run Text="Eraser: " /><Run Text="{Binding EraserBinding, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Eraser -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="ERASER" Style="{StaticResource SectionLabel}" />
+                        <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                   FontWeight="SemiBold" Text="{Binding EraserBinding}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                   Visibility="{Binding EraserPressure, Converter={StaticResource NonEmptyToVis}}">
+                            <Run Text="Activation threshold: " /><Run Text="{Binding EraserPressure, Mode=OneWay}" />
                         </TextBlock>
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                            <Run Text="Pen Buttons: " /><Run Text="{Binding PenButtonCount, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pen Buttons tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsChecked, ElementName=PenButtonsTab, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <!-- Pen Buttons -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="PEN BUTTONS" Style="{StaticResource SectionLabel}" />
+                        <ItemsControl ItemsSource="{Binding PenButtons}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
+                                        <TextBlock Text="{Binding Name}" FontSize="11"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PenButtons.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
                         </TextBlock>
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                            <Run Text="Aux Buttons: " /><Run Text="{Binding AuxButtonCount, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Aux Buttons -->
+                <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="AUXILIARY BUTTONS" Style="{StaticResource SectionLabel}" />
+                        <ItemsControl ItemsSource="{Binding AuxButtons}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
+                                        <TextBlock Text="{Binding Name}" FontSize="11"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="No auxiliary buttons configured" FontSize="11" FontStyle="Italic"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AuxButtons.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
                         </TextBlock>
                     </StackPanel>
                 </Border>
