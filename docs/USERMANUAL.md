@@ -57,7 +57,7 @@ When a tablet is connected, additional cards appear below: tablet specifications
 
 ### Tablet Settings
 
-Lists all tablet configurations stored in the OTD daemon's settings. Each card shows the tablet name, active output mode, and area dimensions. Clicking a card opens the tablet's detail view with three sub-tabs:
+Lists all tablet configurations stored in the OTD daemon's settings. Each card shows the tablet name and active output mode. A "Forget" button (✕) appears on hover in the top-right corner of each card — clicking it removes that tablet's settings from the daemon (with confirmation). Clicking a card opens the tablet's detail view with three sub-tabs:
 
 - **Area Mapping** — Side-by-side visualization of display and tablet areas with numeric controls for width, height, X, Y. "Force proportions" toggle available. Advanced settings (rotation, clipping, area limiting) are hidden by default.
 - **Bindings** — Shows pen tip, eraser, pen buttons, and auxiliary button bindings with their assigned actions and activation thresholds. Data pulled live from the daemon.
@@ -113,7 +113,7 @@ Check the browser console (F12 > Console) for JavaScript errors. Make sure you r
 
 ### Theme doesn't apply on first load
 
-The app reads `localStorage` and `prefers-color-scheme` on startup. If neither is set, it defaults to dark mode. Click the theme toggle to switch.
+The app reads `localStorage` and `prefers-color-scheme` on startup. If neither is set, it defaults to light mode. Click the theme toggle to switch.
 
 ## Development Workflow
 

@@ -1,10 +1,11 @@
 <script lang="ts">
-  import GlassPanel from '../components/shared/GlassPanel.svelte';
   import PageHeader from '../components/shared/PageHeader.svelte';
   import Placeholder from '../components/shared/Placeholder.svelte';
   import Dialog from '../components/shared/Dialog.svelte';
+  import TabletSettingsCard from '../components/tablet/TabletSettingsCard.svelte';
   import type { Profile } from '../types/settings';
   import { settingsStore } from '../stores/settings.svelte';
+  import { fetchSettings, saveSettings } from '../services/api';
   import { getPluginDisplayName, getPluginShortName } from '../utils/plugin';
 
   let dialogProfile = $state<Profile | null>(null);
@@ -14,6 +15,21 @@
     dialogProfile = profile;
     activeTab = 'general';
   }
+
+  async function forgetProfile(profile: Profile) {
+    if (!confirm(`Forget settings for "${profile.tablet}"? This will remove the saved configuration for this tablet.`)) return;
+
+    const current = settingsStore.current;
+    if (!current) return;
+
+    const updated = {
+      ...current,
+      profiles: current.profiles.filter(p => p.tablet !== profile.tablet),
+    };
+
+    await saveSettings(updated);
+    settingsStore.set(await fetchSettings());
+  }
 </script>
 
 <div class="page">
@@ -22,37 +38,7 @@
   {#if settingsStore.current?.profiles?.length}
     <div class="profiles-list">
       {#each settingsStore.current.profiles as profile}
-        <GlassPanel interactive>
-          <a href="#/tablets/{encodeURIComponent(profile.tablet)}/area" class="profile-card profile-link">
-            <div class="profile-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2"/>
-                <line x1="12" y1="18" x2="12.01" y2="18"/>
-              </svg>
-            </div>
-            <div class="profile-info">
-              <h3 class="profile-name">{profile.tablet}</h3>
-              <span class="profile-mode">{getPluginShortName(profile.outputMode, 'No output mode')}</span>
-            </div>
-            <div class="profile-details">
-              <div class="detail">
-                <span class="detail-label">Display</span>
-                <span class="detail-value">{profile.absoluteModeSettings?.display?.width?.toFixed(0)} x {profile.absoluteModeSettings?.display?.height?.toFixed(0)}</span>
-              </div>
-              <div class="detail">
-                <span class="detail-label">Tablet</span>
-                <span class="detail-value">{profile.absoluteModeSettings?.tablet?.width?.toFixed(1)} x {profile.absoluteModeSettings?.tablet?.height?.toFixed(1)} mm</span>
-              </div>
-            </div>
-            <button class="open-btn glass glass-interactive" onclick={(e) => { e.preventDefault(); e.stopPropagation(); openDialog(profile); }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-              Open
-            </button>
-          </a>
-        </GlassPanel>
+        <TabletSettingsCard {profile} onopen={openDialog} onforget={forgetProfile} />
       {/each}
     </div>
   {:else}
@@ -162,33 +148,6 @@
   .page { max-width: 900px; }
 
   .profiles-list { display: flex; flex-direction: column; gap: var(--space-4); }
-
-  .profile-card { display: flex; align-items: center; gap: var(--space-4); }
-  .profile-link { text-decoration: none; color: inherit; }
-
-  .profile-icon {
-    width: 48px; height: 48px;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--accent-muted); color: var(--accent);
-    border-radius: var(--radius-md); flex-shrink: 0;
-  }
-
-  .profile-info { flex: 1; min-width: 0; }
-  .profile-name { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--text-primary); margin: 0 0 var(--space-1) 0; }
-  .profile-mode { font-size: var(--font-size-xs); color: var(--text-muted); }
-
-  .profile-details { display: flex; gap: var(--space-6); flex-shrink: 0; }
-  .detail { display: flex; flex-direction: column; gap: var(--space-1); text-align: right; }
-  .detail-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .detail-value { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-secondary); font-family: var(--font-mono); }
-
-  .open-btn {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs); font-weight: var(--font-weight-medium);
-    color: var(--text-secondary); flex-shrink: 0;
-  }
-  .open-btn:hover { color: var(--text-primary); }
 
   /* Dialog content */
   .dialog-tabs { display: flex; gap: var(--space-1); padding: 0 var(--space-6); border-bottom: 1px solid var(--divider); }

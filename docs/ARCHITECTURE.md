@@ -26,8 +26,8 @@
 - `src/lib/theme/` — CSS custom property system for dark/light modes and glassmorphism
 - `src/lib/stores/` — Reactive state (Svelte 5 runes) for theme, connection, tablets, settings
 - `src/lib/services/` — REST and WebSocket clients that communicate with the bridge
-- `src/lib/components/` — Reusable UI components (layout shell, glass panels, area mapper)
-- `src/lib/pages/` — Route-level page components (Dashboard, AreaMapping, etc.)
+- `src/lib/components/` — Reusable UI components (layout shell, glass panels, tablet cards, area mapper)
+- `src/lib/pages/` — Route-level page components (Dashboard, Tablet Settings, Settings Snapshots, etc.)
 - `src/lib/types/` — TypeScript interfaces mirroring OTD data models
 
 **Dependencies:** Svelte 5, Vite 8, TypeScript. No other runtime dependencies — the UI is built entirely from scratch using CSS custom properties and native SVG.
