@@ -327,10 +327,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OpenTabletSettingsForProfile(Profile profile)
     {
-        var dialog = new Views.TabletSettingsDialog(profile, _settings, async updatedSettings =>
-        {
-            await ApplyAndSaveSettingsAsync(updatedSettings);
-        })
+        var tabletName = profile.Tablet;
+        var dialog = new Views.TabletSettingsDialog(
+            profile,
+            _settings,
+            async updatedSettings => await ApplyAndSaveSettingsAsync(updatedSettings),
+            async () =>
+            {
+                // Reload settings from daemon and return the updated profile
+                _settings = await _daemon.GetSettingsAsync();
+                if (_settings != null)
+                    return _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+                return null;
+            })
         {
             Owner = App.Current.MainWindow
         };

@@ -13,10 +13,12 @@ namespace TabletDriverUX.Views;
 
 public partial class TabletSettingsDialog : Window
 {
-    public TabletSettingsDialog(Profile profile, Settings? settings, Func<Settings, Task>? onApplyChanges = null)
+    public TabletSettingsDialog(Profile profile, Settings? settings,
+        Func<Settings, Task>? onApplyChanges = null,
+        Func<Task<Profile?>>? onRefresh = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh);
     }
 }
 
@@ -27,17 +29,21 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
     private const string AdaptiveBindingPath = "OpenTabletDriver.Desktop.Binding.AdaptiveBinding";
 
-    private readonly Profile _profile;
-    private readonly Settings? _settings;
+    private Profile _profile;
+    private Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
+    private readonly Func<Task<Profile?>>? _refreshAction;
 
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
 
-    public TabletSettingsDialogViewModel(Profile profile, Settings? settings, Func<Settings, Task>? applyAction = null)
+    public TabletSettingsDialogViewModel(Profile profile, Settings? settings,
+        Func<Settings, Task>? applyAction = null,
+        Func<Task<Profile?>>? refreshAction = null)
     {
         _profile = profile;
         _settings = settings;
         _applyAction = applyAction;
+        _refreshAction = refreshAction;
 
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
@@ -73,6 +79,18 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         else
             store.Settings.Add(new PluginSetting("Binding", value));
         return store;
+    }
+
+    [RelayCommand]
+    private async Task Refresh()
+    {
+        if (_refreshAction == null) return;
+        var updated = await _refreshAction();
+        if (updated != null)
+        {
+            _profile = updated;
+            RefreshFromProfile();
+        }
     }
 
     private async Task ApplySettingsChange(Action<Profile> modify)
