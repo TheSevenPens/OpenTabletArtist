@@ -16,7 +16,9 @@ public partial class TabletSettingsDialog : Window
     public TabletSettingsDialog(Profile profile, Settings? settings, Func<Settings, Task>? onApplyChanges = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
+        var vm = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
+        vm.CloseRequested += () => Close();
+        DataContext = vm;
     }
 }
 
@@ -30,6 +32,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private readonly Profile _profile;
     private readonly Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
+
+    public event Action? CloseRequested;
 
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
 
@@ -141,6 +145,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         if (_applyAction == null || _settings == null) return;
         modify(_profile);
         await _applyAction(_settings);
+        CloseRequested?.Invoke();
     }
 
     [RelayCommand]
