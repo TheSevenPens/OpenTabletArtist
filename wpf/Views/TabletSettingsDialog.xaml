@@ -108,28 +108,56 @@
             <StackPanel>
                 <!-- Tip -->
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="PEN TIP" Style="{StaticResource SectionLabel}" />
-                        <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
-                                   FontWeight="SemiBold" Text="{Binding TipBinding}" />
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
-                                   Visibility="{Binding TipPressure, Converter={StaticResource NonEmptyToVis}}">
-                            <Run Text="Activation threshold: " /><Run Text="{Binding TipPressure, Mode=OneWay}" />
-                        </TextBlock>
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="PEN TIP" Style="{StaticResource SectionLabel}" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                       FontWeight="SemiBold" Text="{Binding TipBinding}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                       Visibility="{Binding TipPressure, Converter={StaticResource NonEmptyToVis}}">
+                                <Run Text="Activation threshold: " /><Run Text="{Binding TipPressure, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding CanFixTip, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix" Style="{StaticResource AccentButton}"
+                                Command="{Binding FixTipBindingCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                Visibility="{Binding CanFixTip, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
                 </Border>
 
                 <!-- Eraser -->
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="ERASER" Style="{StaticResource SectionLabel}" />
-                        <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
-                                   FontWeight="SemiBold" Text="{Binding EraserBinding}" />
-                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
-                                   Visibility="{Binding EraserPressure, Converter={StaticResource NonEmptyToVis}}">
-                            <Run Text="Activation threshold: " /><Run Text="{Binding EraserPressure, Mode=OneWay}" />
-                        </TextBlock>
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ERASER" Style="{StaticResource SectionLabel}" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                       FontWeight="SemiBold" Text="{Binding EraserBinding}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                       Visibility="{Binding EraserPressure, Converter={StaticResource NonEmptyToVis}}">
+                                <Run Text="Activation threshold: " /><Run Text="{Binding EraserPressure, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock Text="Not using recommended Adaptive Binding"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding CanFixEraser, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix" Style="{StaticResource AccentButton}"
+                                Command="{Binding FixEraserBindingCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                Visibility="{Binding CanFixEraser, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
                 </Border>
             </StackPanel>
         </ScrollViewer>
@@ -140,34 +168,48 @@
             <StackPanel>
                 <!-- Pen Buttons -->
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="PEN BUTTONS" Style="{StaticResource SectionLabel}" />
-                        <ItemsControl ItemsSource="{Binding PenButtons}" Margin="0,8,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
-                                        <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
-                                        <TextBlock Text="{Binding Name}" FontSize="11"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding PenButtons.Count}" Value="0">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="PEN BUTTONS" Style="{StaticResource SectionLabel}" />
+                            <ItemsControl ItemsSource="{Binding PenButtons}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                                            <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
+                                            <TextBlock Text="{Binding Name}" FontSize="11"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding PenButtons.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="Not all pen buttons use recommended Adaptive Binding"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding CanFixPenButtons, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix All" Style="{StaticResource AccentButton}"
+                                Command="{Binding FixPenButtonsCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Top" Margin="12,0,0,0"
+                                Visibility="{Binding CanFixPenButtons, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
                 </Border>
 
                 <!-- Aux Buttons -->

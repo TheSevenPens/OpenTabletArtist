@@ -27,6 +27,7 @@ public record DisplayInfo(int Index, string Label, int Width, int Height, int X,
 public partial class TabletSettingsDialogViewModel : ObservableObject
 {
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
+    private const string AdaptiveBindingPath = "OpenTabletDriver.Desktop.Binding.AdaptiveBinding";
 
     private readonly JToken _profile;
     private readonly Func<JToken, Task>? _applyAction;
@@ -68,12 +69,26 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             PenButtonCount = (bindings["PenButtons"] as JArray)?.Count.ToString() ?? "0";
             AuxButtonCount = (bindings["AuxButtons"] as JArray)?.Count.ToString() ?? "0";
 
+            // Check if bindings are using recommended AdaptiveBinding
+            TipIsAdaptive = IsAdaptiveBinding(bindings["TipButton"]);
+            EraserIsAdaptive = IsAdaptiveBinding(bindings["EraserButton"]);
+            CanFixTip = !TipIsAdaptive && applyAction != null;
+            CanFixEraser = !EraserIsAdaptive && applyAction != null;
+
             // Build pen button details
-            if (bindings["PenButtons"] is JArray penBtns)
+            bool allPenButtonsAdaptive = true;
+            var penBtnsArr = bindings["PenButtons"] as JArray;
+            if (penBtnsArr != null)
             {
-                for (int i = 0; i < penBtns.Count; i++)
-                    PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(penBtns[i]) });
+                for (int i = 0; i < penBtnsArr.Count; i++)
+                {
+                    PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(penBtnsArr[i]) });
+                    if (!IsAdaptiveBinding(penBtnsArr[i])) allPenButtonsAdaptive = false;
+                }
             }
+            PenButtonsAllAdaptive = penBtnsArr == null || penBtnsArr.Count == 0 || allPenButtonsAdaptive;
+            CanFixPenButtons = !PenButtonsAllAdaptive && applyAction != null;
+
             if (bindings["AuxButtons"] is JArray auxBtns)
             {
                 for (int i = 0; i < auxBtns.Count; i++)
@@ -167,7 +182,66 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         if (binding == null) return "None";
         var path = binding["Path"]?.ToString();
         if (string.IsNullOrEmpty(path)) return "None";
+        // For AdaptiveBinding, show the bound action (e.g., "Adaptive Binding (Tip)")
+        if (path == AdaptiveBindingPath)
+        {
+            var settings = binding["Settings"] as JArray;
+            var value = settings?.FirstOrDefault()?["Value"]?.ToString();
+            return string.IsNullOrEmpty(value) ? "Adaptive Binding" : $"Adaptive Binding ({value})";
+        }
         return path.Split('.').LastOrDefault() ?? path;
+    }
+
+    private static bool IsAdaptiveBinding(JToken? binding)
+    {
+        if (binding == null) return false;
+        return binding["Path"]?.ToString() == AdaptiveBindingPath;
+    }
+
+    private static JObject MakeAdaptiveBinding(string value) => new()
+    {
+        ["Path"] = AdaptiveBindingPath,
+        ["Settings"] = new JArray
+        {
+            new JObject
+            {
+                ["Property"] = "Binding",
+                ["Value"] = value
+            }
+        },
+        ["Enable"] = true
+    };
+
+    [RelayCommand]
+    private async Task FixTipBinding()
+    {
+        if (_applyAction == null) return;
+        var updated = _profile.DeepClone();
+        updated["BindingSettings"]!["TipButton"] = MakeAdaptiveBinding("Tip");
+        await _applyAction(updated);
+    }
+
+    [RelayCommand]
+    private async Task FixEraserBinding()
+    {
+        if (_applyAction == null) return;
+        var updated = _profile.DeepClone();
+        updated["BindingSettings"]!["EraserButton"] = MakeAdaptiveBinding("Eraser");
+        await _applyAction(updated);
+    }
+
+    [RelayCommand]
+    private async Task FixPenButtons()
+    {
+        if (_applyAction == null) return;
+        var updated = _profile.DeepClone();
+        var bindings = updated["BindingSettings"]!;
+        var penButtons = bindings["PenButtons"] as JArray ?? new JArray();
+        var fixedButtons = new JArray();
+        for (int i = 0; i < penButtons.Count; i++)
+            fixedButtons.Add(MakeAdaptiveBinding($"Button {i + 1}"));
+        bindings["PenButtons"] = fixedButtons;
+        await _applyAction(updated);
     }
 
     private static ObservableCollection<DisplayInfo> EnumerateDisplays()
@@ -260,10 +334,16 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public bool HasBindings { get; }
     public string TipBinding { get; } = "None";
     public string TipPressure { get; } = "";
+    public bool TipIsAdaptive { get; }
+    public bool CanFixTip { get; }
     public string EraserBinding { get; } = "None";
     public string EraserPressure { get; } = "";
+    public bool EraserIsAdaptive { get; }
+    public bool CanFixEraser { get; }
     public string PenButtonCount { get; } = "0";
     public string AuxButtonCount { get; } = "0";
+    public bool PenButtonsAllAdaptive { get; } = true;
+    public bool CanFixPenButtons { get; }
     public List<ButtonBinding> PenButtons { get; } = new();
     public List<ButtonBinding> AuxButtons { get; } = new();
     public string FiltersText { get; }
