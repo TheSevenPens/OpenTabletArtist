@@ -121,6 +121,10 @@
                                 Command="{Binding RestartDaemonCommand}"
                                 Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
                                 Padding="12,6" FontSize="12" />
+                        <!-- Launch OTD's own UX for comparison/testing -->
+                        <Button Content="OTD UX" Style="{StaticResource GhostButton}"
+                                Command="{Binding LaunchOtdUxCommand}"
+                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
                     </StackPanel>
                 </Grid>
             </Border>

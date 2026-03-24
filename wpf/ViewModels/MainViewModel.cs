@@ -236,6 +236,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void LaunchOtdUx()
+    {
+        // Launch the OTD WPF UX from the submodule via dotnet run
+        var otdUxProject = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..",
+            "external", "OpenTabletDriver", "OpenTabletDriver.UX.Wpf"));
+
+        if (Directory.Exists(otdUxProject))
+        {
+            Process.Start(new ProcessStartInfo("dotnet", $"run --project \"{otdUxProject}\"")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+            });
+        }
+    }
+
+    [RelayCommand]
     private async Task RestartDaemon()
     {
         string? daemonPath = null;
