@@ -58,28 +58,26 @@
             <StackPanel>
                 <!-- Output Mode -->
                 <Border Style="{StaticResource GlassPanel}" Padding="16" Margin="0,0,0,12">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="OUTPUT MODE" Style="{StaticResource SectionLabel}" />
-                            <TextBlock Text="{Binding OutputModeShort}" FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" />
-                            <TextBlock Text="{Binding OutputModePath}" FontSize="11"
-                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"
-                                       TextWrapping="Wrap" />
-                            <TextBlock Text="Not using Windows Ink — pressure and tilt won't work in drawing apps"
-                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
-                                       TextWrapping="Wrap"
-                                       Visibility="{Binding CanFixOutputMode, Converter={StaticResource BoolToVis}}" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Content="Fix" Style="{StaticResource AccentButton}"
+                    <StackPanel>
+                        <TextBlock Text="OUTPUT MODE" Style="{StaticResource SectionLabel}" />
+                        <RadioButton Content="Windows Ink Absolute Mode"
+                                     IsChecked="{Binding IsWinInkAbsolute}"
+                                     Style="{StaticResource TabRadioButton}"
+                                     Margin="0,8,0,0" />
+                        <RadioButton Content="Windows Ink Relative Mode"
+                                     IsChecked="{Binding IsWinInkRelative}"
+                                     Style="{StaticResource TabRadioButton}"
+                                     Margin="0,4,0,0" />
+                        <TextBlock Text="Not using Windows Ink — pressure and tilt won't work in drawing apps"
+                                   FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding CanFixOutputMode, Converter={StaticResource BoolToVis}}" />
+                        <Button Content="Switch to Windows Ink Absolute" Style="{StaticResource AccentButton}"
                                 Command="{Binding FixOutputModeCommand}"
-                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                Padding="12,6" FontSize="11" Margin="0,6,0,0"
+                                HorizontalAlignment="Left"
                                 Visibility="{Binding CanFixOutputMode, Converter={StaticResource BoolToVis}}" />
-                    </Grid>
+                    </StackPanel>
                 </Border>
 
                 <!-- Area Mapping -->

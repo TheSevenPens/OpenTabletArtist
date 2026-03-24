@@ -28,6 +28,7 @@ public record DisplayInfo(int Index, string Label, int Width, int Height, int X,
 public partial class TabletSettingsDialogViewModel : ObservableObject
 {
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
+    private const string WinInkRelativeModePath = "VoiDPlugins.OutputMode.WinInkRelativeMode";
     private const string AdaptiveBindingPath = "OpenTabletDriver.Desktop.Binding.AdaptiveBinding";
 
     private Profile _profile;
@@ -43,6 +44,27 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         if (!_skipDisplayChange && value != null)
             _ = SetToDisplay();
+    }
+
+    partial void OnIsWinInkAbsoluteChanged(bool value)
+    {
+        if (!_skipOutputModeChange && value)
+            _ = SetOutputMode(WinInkAbsoluteModePath);
+    }
+
+    partial void OnIsWinInkRelativeChanged(bool value)
+    {
+        if (!_skipOutputModeChange && value)
+            _ = SetOutputMode(WinInkRelativeModePath);
+    }
+
+    private async Task SetOutputMode(string path)
+    {
+        await ApplySettingsChange(p =>
+        {
+            p.OutputMode ??= new PluginSettingStore(path, true);
+            p.OutputMode.Path = path;
+        });
     }
 
     public TabletSettingsDialogViewModel(Profile profile, Settings? settings,
@@ -119,8 +141,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         // Output mode
         OutputModePath = _profile.OutputMode?.Path ?? "Not set";
         OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
-        var isNotWinInk = !OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
-        CanFixOutputMode = isNotWinInk && _applyAction != null;
+
+        _skipOutputModeChange = true;
+        IsWinInkAbsolute = OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
+        IsWinInkRelative = OutputModePath.Equals(WinInkRelativeModePath, StringComparison.OrdinalIgnoreCase);
+        _skipOutputModeChange = false;
+
+        var isWinInk = IsWinInkAbsolute || IsWinInkRelative;
+        CanFixOutputMode = !isWinInk && _applyAction != null;
 
         // Bindings
         var bindings = _profile.BindingSettings;
@@ -172,23 +200,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [RelayCommand]
     private async Task FixOutputMode()
     {
-        var result = MessageBox.Show(
-            $"This will change the output mode from:\n\n" +
-            $"  {OutputModeShort}\n\nto:\n\n" +
-            $"  WinInkAbsoluteMode\n\n" +
-            "This enables pressure and tilt support in drawing apps.\n\n" +
-            "Proceed?",
-            "Change Output Mode",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (result != MessageBoxResult.Yes) return;
-
-        await ApplySettingsChange(p =>
-        {
-            p.OutputMode ??= new PluginSettingStore(WinInkAbsoluteModePath, true);
-            p.OutputMode.Path = WinInkAbsoluteModePath;
-        });
+        await SetOutputMode(WinInkAbsoluteModePath);
     }
 
     [RelayCommand]
@@ -363,6 +375,9 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private string _outputModeShort = "";
     [ObservableProperty] private string _outputModePath = "";
     [ObservableProperty] private bool _canFixOutputMode;
+    [ObservableProperty] private bool _isWinInkAbsolute;
+    [ObservableProperty] private bool _isWinInkRelative;
+    private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
     public ObservableCollection<DisplayInfo> Displays { get; }
     [ObservableProperty] private string _tipBinding = "None";
