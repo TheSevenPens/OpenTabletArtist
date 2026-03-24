@@ -130,17 +130,20 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with drop shadows. True acrylic blur effects (via Windows Composition API) could be added for deeper visual fidelity.
 
+**OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.6.2. The WPF app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
+
 ## Dependency Graph
 
 ```
 WPF App (.NET 10)
+  └── OpenTabletDriver.Desktop (project ref from submodule)
+  └── OpenTabletDriver (project ref from submodule)
+  └── OpenTabletDriver.Plugin (project ref from submodule)
   └── StreamJsonRpc 2.22.23
   └── HidSharp 2.1.0
-  └── Newtonsoft.Json 13.0.3
   └── CommunityToolkit.Mvvm 8.4.0
 
-OTD Daemon (external, not modified)
-  └── StreamJsonRpc 2.22.23
+OTD Daemon (built from submodule, .NET 8)
   └── OpenTabletDriver.Desktop
   └── (many more — not our concern)
 ```
