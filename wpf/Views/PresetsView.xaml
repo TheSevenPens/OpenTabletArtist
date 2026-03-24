@@ -3,21 +3,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <Grid Margin="0,0,0,4">
-            <TextBlock Style="{StaticResource PageTitle}" Text="Settings Snapshots" VerticalAlignment="Center" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBox x:Name="SnapshotNameBox" Width="200" Padding="8,6" FontSize="13"
-                         Background="{DynamicResource GlassBgBrush}"
-                         BorderBrush="{DynamicResource GlassBorderBrush}"
-                         Foreground="{DynamicResource TextPrimaryBrush}"
-                         VerticalContentAlignment="Center" />
-                <Button Content="Save Snapshot" Style="{StaticResource AccentButton}"
-                        Padding="14,7" FontSize="13" Margin="8,0,0,0"
-                        Command="{Binding SavePresetCommand}"
-                        CommandParameter="{Binding Text, ElementName=SnapshotNameBox}" />
-            </StackPanel>
-        </Grid>
+        <TextBlock Style="{StaticResource PageTitle}" Text="Settings Snapshots" />
         <TextBlock Style="{StaticResource PageSubtitle}" Text="Saved configuration snapshots" />
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBox x:Name="SnapshotNameBox" Width="250" Padding="8,6" FontSize="13"
+                     Background="{DynamicResource GlassBgBrush}"
+                     BorderBrush="{DynamicResource GlassBorderBrush}"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     VerticalContentAlignment="Center" />
+            <Button Content="Save Snapshot" Style="{StaticResource AccentButton}"
+                    Padding="14,7" FontSize="13" Margin="8,0,0,0"
+                    Command="{Binding SavePresetCommand}"
+                    CommandParameter="{Binding Text, ElementName=SnapshotNameBox}" />
+        </StackPanel>
 
         <ItemsControl ItemsSource="{Binding Presets}">
             <ItemsControl.ItemTemplate>
