@@ -39,6 +39,31 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // OTD Version (from referenced assembly)
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
+    // Daemon path — built from submodule
+    private static string? FindDaemonExe()
+    {
+        // Look relative to our exe: up to repo root, then into the daemon build output
+        var baseDir = AppContext.BaseDirectory;
+        // Try the daemon's build output (Debug and Release)
+        foreach (var config in new[] { "Debug", "Release" })
+        {
+            var candidate = Path.GetFullPath(Path.Combine(
+                baseDir, "..", "..", "..", "..",
+                "external", "OpenTabletDriver", "OpenTabletDriver.Daemon",
+                "bin", config, "net8.0", "OpenTabletDriver.Daemon.exe"));
+            if (File.Exists(candidate)) return candidate;
+        }
+        // Fallback: check if it's running and get path from process
+        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
+        {
+            try { var p = proc.MainModule?.FileName; if (p != null) return p; } catch { }
+        }
+        return null;
+    }
+
+    public bool CanStartDaemon => !IsConnected && FindDaemonExe() != null;
+    [ObservableProperty] private bool _isDaemonRunning;
+
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
     [ObservableProperty] private string _tabletPressure = "";
@@ -62,12 +87,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             ConnectionStatus = "Connected";
             IsConnected = true;
+            IsDaemonRunning = true;
+            OnPropertyChanged(nameof(CanStartDaemon));
             _ = LoadDataAsync();
         });
         _daemon.Disconnected += () => App.Current.Dispatcher.Invoke(() =>
         {
             ConnectionStatus = "Disconnected";
             IsConnected = false;
+            IsDaemonRunning = false;
+            OnPropertyChanged(nameof(CanStartDaemon));
             HasTablet = false;
             TabletName = "";
         });
@@ -92,6 +121,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             VmultiMessage = "Installed (not active in HID)";
         else
             VmultiMessage = "Not installed";
+
+        // Auto-start daemon if not running
+        IsDaemonRunning = Process.GetProcessesByName("OpenTabletDriver.Daemon").Length > 0;
+        if (!IsDaemonRunning && FindDaemonExe() != null)
+        {
+            LaunchDaemonProcess();
+            await Task.Delay(1000);
+        }
 
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
@@ -253,30 +290,49 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void LaunchDaemonProcess()
+    {
+        var daemonPath = FindDaemonExe();
+        if (daemonPath != null)
+        {
+            Process.Start(new ProcessStartInfo(daemonPath)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
+            });
+        }
+    }
+
+    [RelayCommand]
+    private async Task StartDaemon()
+    {
+        LaunchDaemonProcess();
+        await Task.Delay(1000);
+        OnPropertyChanged(nameof(CanStartDaemon));
+        if (!IsConnected)
+        {
+            ConnectionStatus = "Connecting...";
+            await _daemon.ConnectAsync(_cts.Token);
+        }
+    }
+
     [RelayCommand]
     private async Task RestartDaemon()
     {
-        string? daemonPath = null;
-        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
-        {
-            try { daemonPath = proc.MainModule?.FileName; } catch { }
-            if (daemonPath != null) break;
-        }
-
         foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
         {
             try { proc.Kill(); } catch { }
         }
 
         await Task.Delay(500);
+        LaunchDaemonProcess();
+        await Task.Delay(1000);
 
-        if (daemonPath != null && File.Exists(daemonPath))
+        if (!IsConnected)
         {
-            Process.Start(new ProcessStartInfo(daemonPath)
-            {
-                CreateNoWindow = true,
-                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
-            });
+            ConnectionStatus = "Connecting...";
+            await _daemon.ConnectAsync(_cts.Token);
         }
     }
 
