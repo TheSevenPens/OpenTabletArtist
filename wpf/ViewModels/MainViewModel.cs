@@ -373,22 +373,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(oldPath)) return;
 
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            InitialDirectory = PresetDirectory,
-            FileName = name,
-            DefaultExt = ".json",
-            Filter = "JSON files (*.json)|*.json",
-            Title = "Rename Snapshot",
-        };
+        var newName = Microsoft.VisualBasic.Interaction.InputBox(
+            "Enter a new name for this snapshot:", "Rename Snapshot", name);
 
-        if (dialog.ShowDialog() == true)
+        if (!string.IsNullOrWhiteSpace(newName) && newName != name)
         {
-            var newPath = dialog.FileName;
-            if (newPath != oldPath)
+            var newPath = Path.Combine(PresetDirectory, $"{newName}.json");
+            if (!File.Exists(newPath))
             {
                 File.Move(oldPath, newPath);
                 await LoadPresetsAsync();
+            }
+            else
+            {
+                System.Windows.MessageBox.Show($"A snapshot named \"{newName}\" already exists.",
+                    "Rename", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
     }
