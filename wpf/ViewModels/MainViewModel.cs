@@ -5,6 +5,8 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
+using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Profiles;
 using TabletDriverUX.Services;
 
 namespace TabletDriverUX.ViewModels;
@@ -30,17 +32,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _vmultiInstalling;
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _hasWindowsInk;
-    [ObservableProperty] private JToken? _settingsJson;
-    [ObservableProperty] private JToken? _tabletsJson;
+
+    // Typed OTD data
+    private Settings? _settings;
+    [ObservableProperty] private JToken? _tabletsJson; // tablets remain JToken (complex runtime type)
 
     // OTD Version & Update
     [ObservableProperty] private string _currentOtdVersion = "";
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
-    [ObservableProperty] private string _updateCheckStatus = ""; // "", "Up to date", "Unable to check..."
+    [ObservableProperty] private string _updateCheckStatus = "";
     [ObservableProperty] private bool _updateDownloading;
     [ObservableProperty] private string _updateDownloadStatus = "";
-    private bool _updateChecked; // cache: only check once per session
+    private bool _updateChecked;
 
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
@@ -48,12 +52,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _tabletButtons = "";
     [ObservableProperty] private string _outputMode = "";
 
-    // Profiles
-    [ObservableProperty] private JArray _profiles = new();
+    // Profiles — typed
+    [ObservableProperty] private List<Profile> _profiles = [];
 
     // Presets
-    [ObservableProperty] private JArray _presets = new();
+    [ObservableProperty] private JArray _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
+    [ObservableProperty] private string _settingsFilePath = "";
 
     // OTD install location
     [ObservableProperty] private string _otdInstallPath = "";
@@ -61,9 +66,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private const string OtdInstallPathKey = "OtdInstallPath";
 
+    /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
+    public Settings? CurrentSettings => _settings;
+
     public MainViewModel()
     {
-        // Load saved OTD install path
         var saved = AppSettings.Get(OtdInstallPathKey);
         if (!string.IsNullOrEmpty(saved) && Directory.Exists(saved))
         {
@@ -90,14 +97,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task InitAsync()
     {
-        // Detect vmulti on background thread (both methods)
         var (hidResult, setupResult) = await Task.Run(() =>
             (_vmulti.DetectHid(), _vmulti.DetectSetupApi()));
 
         VmultiHidStatus = hidResult.Message;
         VmultiSetupApiStatus = setupResult.Message;
-
-        // Overall status: installed if either method sees it
         VmultiInstalled = hidResult.Visible || setupResult.Installed;
 
         if (hidResult.Functional)
@@ -109,11 +113,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else
             VmultiMessage = "Not installed";
 
-        // Connect to daemon
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
-
-        // Poll for data changes (tablet connect/disconnect, settings changes)
         _ = PollDataAsync();
     }
 
@@ -128,7 +129,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 {
                     await App.Current.Dispatcher.InvokeAsync(() => _ = LoadDataAsync());
                 }
-                catch { /* ignore polling errors */ }
+                catch { }
             }
         }
     }
@@ -137,13 +138,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
+            // Load tablets (JToken — complex runtime type)
             var tablets = await _daemon.GetTabletsAsync();
             TabletsJson = tablets;
 
-            if (tablets is JArray arr && arr.Count > 0)
+            if (tablets.Count > 0)
             {
-                var first = arr[0];
-                // OTD nests tablet info under "Properties"
+                var first = tablets[0];
                 var props = first["Properties"] ?? first;
                 HasTablet = true;
                 TabletName = props["Name"]?.ToString() ?? "Unknown";
@@ -164,27 +165,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 TabletButtons = "";
             }
 
-            var settings = await _daemon.GetSettingsAsync();
-            SettingsJson = settings;
+            // Load settings — TYPED
+            _settings = await _daemon.GetSettingsAsync();
 
-            if (settings is JObject settingsObj)
+            if (_settings != null)
             {
-                var profiles = settingsObj["Profiles"] as JArray ?? new JArray();
-                Profiles = profiles;
+                Profiles = _settings.Profiles.ToList();
 
-                if (profiles.Count > 0)
+                if (Profiles.Count > 0)
                 {
-                    var mode = profiles[0]?["OutputMode"]?["Path"]?.ToString();
+                    var mode = Profiles[0].OutputMode?.Path;
                     OutputMode = mode?.Split('.').LastOrDefault() ?? "Unknown";
-                    HasWindowsInk = mode?.ToLower().Contains("winink") ?? false;
+                    HasWindowsInk = mode?.Contains("WinInk", StringComparison.OrdinalIgnoreCase) ?? false;
                 }
             }
 
-            // Load presets
+            // Load app info — TYPED
             var appInfo = await _daemon.GetAppInfoAsync();
-            if (appInfo is JObject info)
+            if (appInfo != null)
             {
-                PresetDirectory = info["PresetDirectory"]?.ToString() ?? "";
+                PresetDirectory = appInfo.PresetDirectory ?? "";
+                SettingsFilePath = appInfo.SettingsFile ?? "";
             }
             await LoadPresetsAsync();
             await CheckForOtdUpdatesAsync();
@@ -192,9 +193,29 @@ public partial class MainViewModel : ObservableObject, IDisposable
         catch { /* Data load failed — will retry on next connection */ }
     }
 
+    /// <summary>
+    /// Apply settings to the daemon AND save to disk (like OTD's own Save + Apply).
+    /// </summary>
+    public async Task ApplyAndSaveSettingsAsync(Settings settings)
+    {
+        _settings = settings;
+        await _daemon.SetSettingsAsync(settings);
+
+        // Persist to disk (same as OTD's own UX Save button)
+        if (!string.IsNullOrEmpty(SettingsFilePath))
+        {
+            try
+            {
+                settings.Serialize(new FileInfo(SettingsFilePath));
+            }
+            catch { /* ignore save errors */ }
+        }
+
+        await LoadDataAsync();
+    }
+
     private async Task CheckForOtdUpdatesAsync()
     {
-        // Get current version from daemon exe
         try
         {
             if (!string.IsNullOrEmpty(OtdInstallPath))
@@ -207,26 +228,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
         }
-        catch { /* ignore version detection errors */ }
+        catch { }
 
-        // Only check for updates once per session
         if (_updateChecked) return;
         _updateChecked = true;
         UpdateCheckStatus = "";
 
-        // Strategy 1: Ask the daemon via RPC (uses Octokit internally)
+        // Strategy 1: daemon RPC
         string? latestTag = null;
         try
         {
             var updateInfo = await _daemon.CheckForUpdatesAsync();
-            if (updateInfo != null && updateInfo.Type != JTokenType.Null)
+            if (updateInfo != null)
             {
-                latestTag = updateInfo["Version"]?.ToString();
+                latestTag = updateInfo.Version?.ToString();
             }
         }
-        catch { /* daemon RPC failed — try direct */ }
+        catch { }
 
-        // Strategy 2: Fall back to direct GitHub API
+        // Strategy 2: direct GitHub API
         if (string.IsNullOrEmpty(latestTag))
         {
             try
@@ -260,7 +280,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
         }
 
-        // Compare versions
         if (!string.IsNullOrEmpty(latestTag) && !string.IsNullOrEmpty(CurrentOtdVersion))
         {
             try
@@ -296,10 +315,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Process.Start(new ProcessStartInfo("https://github.com/OpenTabletDriver/OpenTabletDriver/releases") { UseShellExecute = true });
     }
 
-    /// <summary>
-    /// Root folder for all OTD binary versions: %LocalAppData%\OpenTabletDriverBin
-    /// Each version lives in a subfolder: ...\OpenTabletDriverBin\0.6.6.2\
-    /// </summary>
     public static string OtdBinRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "OpenTabletDriverBin");
@@ -324,7 +339,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             using var response = await client.GetAsync(zipUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
-            // Download to temp file
             var totalBytes = response.Content.Headers.ContentLength;
             await using var contentStream = await response.Content.ReadAsStreamAsync();
             await using (var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
@@ -345,25 +359,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
-            // Extract to version folder
             UpdateDownloadStatus = "Extracting...";
             if (Directory.Exists(versionDir))
                 Directory.Delete(versionDir, true);
             Directory.CreateDirectory(versionDir);
-            System.IO.Compression.ZipFile.ExtractToDirectory(tempZip, versionDir);
+            ZipFile.ExtractToDirectory(tempZip, versionDir);
 
-            // Clean up temp zip
-            try { File.Delete(tempZip); } catch { /* ignore */ }
+            try { File.Delete(tempZip); } catch { }
 
             UpdateDownloadStatus = $"Installed to {versionDir}";
             UpdateDownloading = false;
 
-            // Auto-set OTD install path to the new version
             OtdInstallPath = versionDir;
             HasOtdInstallPath = true;
             AppSettings.Set(OtdInstallPathKey, versionDir);
 
-            // Refresh version display
             var daemonPath = Path.Combine(versionDir, "OpenTabletDriver.Daemon.exe");
             if (File.Exists(daemonPath))
             {
@@ -371,7 +381,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 CurrentOtdVersion = fileInfo.FileVersion ?? fileInfo.ProductVersion ?? "";
             }
 
-            // Open the version folder
             Process.Start("explorer.exe", $"\"{versionDir}\"");
         }
         catch (Exception ex)
@@ -385,7 +394,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(PresetDirectory) || !Directory.Exists(PresetDirectory))
         {
-            Presets = new JArray();
+            Presets = [];
             return;
         }
 
@@ -403,16 +412,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 };
                 presetList.Add(obj);
             }
-            catch { /* skip unreadable files */ }
+            catch { }
         }
         Presets = presetList;
     }
 
     [RelayCommand]
-    private void Navigate(string page)
-    {
-        CurrentPage = page;
-    }
+    private void Navigate(string page) => CurrentPage = page;
 
     [RelayCommand]
     private void BrowseOtdInstallPath()
@@ -435,12 +441,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async Task RefreshConnection()
     {
         if (IsConnected)
-        {
             await LoadDataAsync();
-        }
         else
         {
-            // Try to connect (non-blocking single attempt)
             ConnectionStatus = "Connecting...";
             _ = _daemon.ConnectAsync(_cts.Token);
         }
@@ -464,7 +467,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RestartDaemon()
     {
-        // Find the daemon exe path BEFORE killing it (connection still alive)
         string? daemonPath = null;
         foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
         {
@@ -472,16 +474,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (daemonPath != null) break;
         }
 
-        // Kill all daemon processes
         foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
         {
             try { proc.Kill(); } catch { }
         }
 
-        // Wait briefly for the process to exit
         await Task.Delay(500);
 
-        // Relaunch if we found the path
         if (daemonPath != null && File.Exists(daemonPath))
         {
             Process.Start(new ProcessStartInfo(daemonPath)
@@ -490,16 +489,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
             });
         }
-
-        // DaemonClient's Disconnected event auto-reconnects
     }
 
     [RelayCommand]
     private async Task SavePreset(string name)
     {
-        if (string.IsNullOrWhiteSpace(name) || SettingsJson == null) return;
+        if (string.IsNullOrWhiteSpace(name) || _settings == null) return;
         var path = Path.Combine(PresetDirectory, $"{name}.json");
-        await File.WriteAllTextAsync(path, SettingsJson.ToString());
+        _settings.Serialize(new FileInfo(path));
         await LoadPresetsAsync();
     }
 
@@ -508,10 +505,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(path)) return;
-        var json = await File.ReadAllTextAsync(path);
-        var settings = JToken.Parse(json);
-        await _daemon.SetSettingsAsync(settings);
-        await LoadDataAsync();
+        if (Settings.TryDeserialize(new FileInfo(path), out var settings))
+        {
+            await ApplyAndSaveSettingsAsync(settings);
+        }
     }
 
     [RelayCommand]
@@ -525,58 +522,42 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenConnectedTabletSettings()
     {
-        // Find the profile for the currently connected tablet
-        if (!HasTablet || string.IsNullOrEmpty(TabletName)) return;
-        var profile = Profiles.FirstOrDefault(p => p["Tablet"]?.ToString() == TabletName);
+        if (!HasTablet || string.IsNullOrEmpty(TabletName) || _settings == null) return;
+        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == TabletName);
         if (profile != null)
-            OpenTabletSettings(profile);
+            OpenTabletSettingsForProfile(profile);
     }
 
     [RelayCommand]
-    private void OpenTabletSettings(object profileToken)
+    private void OpenTabletSettings(object profileObj)
     {
-        if (profileToken is JToken profile)
+        // Called from XAML with a Profile binding
+        if (profileObj is Profile profile)
+            OpenTabletSettingsForProfile(profile);
+    }
+
+    private void OpenTabletSettingsForProfile(Profile profile)
+    {
+        var dialog = new Views.TabletSettingsDialog(profile, _settings, async updatedSettings =>
         {
-            var dialog = new Views.TabletSettingsDialog(profile, async updatedProfile =>
-            {
-                // Replace the matching profile in settings and push to daemon
-                if (SettingsJson is JObject settings)
-                {
-                    var profiles = settings["Profiles"] as JArray;
-                    if (profiles != null)
-                    {
-                        var tabletName = updatedProfile["Tablet"]?.ToString();
-                        for (int i = 0; i < profiles.Count; i++)
-                        {
-                            if (profiles[i]["Tablet"]?.ToString() == tabletName)
-                            {
-                                profiles[i] = updatedProfile.DeepClone();
-                                break;
-                            }
-                        }
-                        await _daemon.SetSettingsAsync(settings);
-                        await LoadDataAsync();
-                    }
-                }
-            })
-            {
-                Owner = App.Current.MainWindow
-            };
-            dialog.ShowDialog();
-        }
+            await ApplyAndSaveSettingsAsync(updatedSettings);
+        })
+        {
+            Owner = App.Current.MainWindow
+        };
+        dialog.ShowDialog();
     }
 
     [RelayCommand]
     private void OpenFolder(string path)
     {
         if (Directory.Exists(path))
-            System.Diagnostics.Process.Start("explorer.exe", path);
+            Process.Start("explorer.exe", path);
     }
 
     [RelayCommand]
     private async Task InstallVmulti()
     {
-        // Warn the user about reboot risk
         var result = System.Windows.MessageBox.Show(
             "VMulti driver installation may restart your computer.\n\n" +
             "Please save all work in other applications before continuing.\n\n" +
@@ -597,27 +578,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
-
             VmultiInstallStatus = installResult.Message;
 
             if (installResult.Success)
             {
-                // Refresh detection
                 await RefreshVmultiDetection();
-
-                System.Windows.MessageBox.Show(
-                    installResult.Message,
-                    "VMulti Installation",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(installResult.Message, "VMulti Installation",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
             else
             {
-                System.Windows.MessageBox.Show(
-                    installResult.Message,
-                    "VMulti Installation",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(installResult.Message, "VMulti Installation",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
@@ -654,26 +626,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
-
             VmultiInstallStatus = uninstallResult.Message;
 
             if (uninstallResult.Success)
             {
                 await RefreshVmultiDetection();
-
-                System.Windows.MessageBox.Show(
-                    uninstallResult.Message,
-                    "VMulti Uninstallation",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(uninstallResult.Message, "VMulti Uninstallation",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
             else
             {
-                System.Windows.MessageBox.Show(
-                    uninstallResult.Message,
-                    "VMulti Uninstallation",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(uninstallResult.Message, "VMulti Uninstallation",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)

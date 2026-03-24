@@ -29,10 +29,10 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding [Tablet]}" FontSize="14" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                                    <Run Text="{Binding [OutputMode][Path], Mode=OneWay}" />
+                                    <Run Text="{Binding OutputMode.Path, Mode=OneWay}" />
                                 </TextBlock>
                             </StackPanel>
                             <Button Grid.Column="2" Content="Open" Style="{StaticResource AccentButton}"

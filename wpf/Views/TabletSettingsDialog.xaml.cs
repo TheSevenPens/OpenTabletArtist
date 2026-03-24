@@ -3,22 +3,20 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Binding;
+using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection;
 
 namespace TabletDriverUX.Views;
 
 public partial class TabletSettingsDialog : Window
 {
-    public TabletSettingsDialog(JToken profile, Func<JToken, Task>? onApplyChanges = null)
+    public TabletSettingsDialog(Profile profile, Settings? settings, Func<Settings, Task>? onApplyChanges = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, async updatedProfile =>
-        {
-            if (onApplyChanges != null)
-            {
-                await onApplyChanges(updatedProfile);
-            }
-        });
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
     }
 }
 
@@ -29,82 +27,75 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
     private const string AdaptiveBindingPath = "OpenTabletDriver.Desktop.Binding.AdaptiveBinding";
 
-    private readonly JToken _profile;
-    private readonly Func<JToken, Task>? _applyAction;
+    private readonly Profile _profile;
+    private readonly Settings? _settings;
+    private readonly Func<Settings, Task>? _applyAction;
 
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
 
-    public TabletSettingsDialogViewModel(JToken profile, Func<JToken, Task>? applyAction = null)
+    public TabletSettingsDialogViewModel(Profile profile, Settings? settings, Func<Settings, Task>? applyAction = null)
     {
         _profile = profile;
+        _settings = settings;
         _applyAction = applyAction;
 
-        TabletName = profile["Tablet"]?.ToString() ?? "Unknown Tablet";
+        TabletName = profile.Tablet ?? "Unknown Tablet";
 
         // Output mode
-        var outputMode = profile["OutputMode"];
-        OutputModePath = outputMode?["Path"]?.ToString() ?? "Not set";
+        OutputModePath = profile.OutputMode?.Path ?? "Not set";
         OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
 
         IsNotWinInk = !OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
         CanFixOutputMode = IsNotWinInk && applyAction != null;
 
         // Area mapping
-        var abs = profile["AbsoluteModeSettings"];
-        HasAreaMapping = abs != null;
+        HasAreaMapping = profile.AbsoluteModeSettings != null;
 
         // Enumerate displays and select primary
         Displays = EnumerateDisplays();
         SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
 
         // Bindings
-        var bindings = profile["BindingSettings"];
-        HasBindings = bindings != null;
-        if (bindings != null)
+        var bindings = profile.BindingSettings;
+        HasBindings = true;
+
+        TipBinding = GetBindingName(bindings.TipButton);
+        TipPressure = bindings.TipActivationThreshold.ToString("F1");
+        EraserBinding = GetBindingName(bindings.EraserButton);
+        EraserPressure = bindings.EraserActivationThreshold.ToString("F1");
+        PenButtonCount = bindings.PenButtons.Count.ToString();
+        AuxButtonCount = bindings.AuxButtons.Count.ToString();
+
+        // Check if bindings use recommended AdaptiveBinding
+        TipIsAdaptive = IsAdaptive(bindings.TipButton);
+        EraserIsAdaptive = IsAdaptive(bindings.EraserButton);
+        CanFixTip = !TipIsAdaptive && applyAction != null;
+        CanFixEraser = !EraserIsAdaptive && applyAction != null;
+
+        // Pen buttons
+        bool allPenButtonsAdaptive = true;
+        for (int i = 0; i < bindings.PenButtons.Count; i++)
         {
-            TipBinding = GetBindingName(bindings["TipButton"]);
-            TipPressure = bindings["TipActivationThreshold"]?.ToString() ?? "";
-            EraserBinding = GetBindingName(bindings["EraserButton"]);
-            EraserPressure = bindings["EraserActivationThreshold"]?.ToString() ?? "";
-            PenButtonCount = (bindings["PenButtons"] as JArray)?.Count.ToString() ?? "0";
-            AuxButtonCount = (bindings["AuxButtons"] as JArray)?.Count.ToString() ?? "0";
+            var btn = bindings.PenButtons[i];
+            PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(btn) });
+            if (!IsAdaptive(btn)) allPenButtonsAdaptive = false;
+        }
+        PenButtonsAllAdaptive = bindings.PenButtons.Count == 0 || allPenButtonsAdaptive;
+        CanFixPenButtons = !PenButtonsAllAdaptive && applyAction != null;
 
-            // Check if bindings are using recommended AdaptiveBinding
-            TipIsAdaptive = IsAdaptiveBinding(bindings["TipButton"]);
-            EraserIsAdaptive = IsAdaptiveBinding(bindings["EraserButton"]);
-            CanFixTip = !TipIsAdaptive && applyAction != null;
-            CanFixEraser = !EraserIsAdaptive && applyAction != null;
-
-            // Build pen button details
-            bool allPenButtonsAdaptive = true;
-            var penBtnsArr = bindings["PenButtons"] as JArray;
-            if (penBtnsArr != null)
-            {
-                for (int i = 0; i < penBtnsArr.Count; i++)
-                {
-                    PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(penBtnsArr[i]) });
-                    if (!IsAdaptiveBinding(penBtnsArr[i])) allPenButtonsAdaptive = false;
-                }
-            }
-            PenButtonsAllAdaptive = penBtnsArr == null || penBtnsArr.Count == 0 || allPenButtonsAdaptive;
-            CanFixPenButtons = !PenButtonsAllAdaptive && applyAction != null;
-
-            if (bindings["AuxButtons"] is JArray auxBtns)
-            {
-                for (int i = 0; i < auxBtns.Count; i++)
-                    AuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(auxBtns[i]) });
-            }
+        for (int i = 0; i < bindings.AuxButtons.Count; i++)
+        {
+            var btn = bindings.AuxButtons[i];
+            AuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(btn) });
         }
 
         // Filters
-        var filters = profile["Filters"] as JArray;
-        if (filters != null && filters.Count > 0)
+        if (profile.Filters.Count > 0)
         {
-            var filterNames = filters.Select(f =>
+            var filterNames = profile.Filters.Select(f =>
             {
-                var path = f["Path"]?.ToString() ?? "Unknown";
-                var name = path.Split('.').LastOrDefault() ?? path;
-                var enabled = f["Enable"]?.Value<bool>() ?? true;
+                var name = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
+                var enabled = f?.Enable ?? true;
                 return enabled ? name : $"{name} (disabled)";
             });
             FiltersText = string.Join("\n", filterNames);
@@ -114,14 +105,47 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             FiltersText = "No filters configured";
         }
 
-        RawJson = _profile.ToString(Newtonsoft.Json.Formatting.Indented);
+        // Raw JSON via Newtonsoft serialization
+        RawJson = JsonConvert.SerializeObject(profile, Formatting.Indented);
+    }
+
+    private static string GetBindingName(PluginSettingStore? store)
+    {
+        if (store?.Path == null) return "None";
+        if (store.Path == AdaptiveBindingPath)
+        {
+            var bindingSetting = store.Settings.FirstOrDefault(s => s.Property == "Binding");
+            var value = bindingSetting?.Value?.ToString();
+            return string.IsNullOrEmpty(value) ? "Adaptive Binding" : $"Adaptive Binding ({value})";
+        }
+        return store.Path.Split('.').LastOrDefault() ?? store.Path;
+    }
+
+    private static bool IsAdaptive(PluginSettingStore? store)
+        => store?.Path == AdaptiveBindingPath;
+
+    private static PluginSettingStore MakeAdaptiveBinding(string value)
+    {
+        var store = new PluginSettingStore(typeof(AdaptiveBinding), true);
+        // Set the "Binding" property to the desired value
+        var bindingSetting = store.Settings.FirstOrDefault(s => s.Property == "Binding");
+        if (bindingSetting != null)
+            bindingSetting.SetValue(value);
+        else
+            store.Settings.Add(new PluginSetting("Binding", value));
+        return store;
+    }
+
+    private async Task ApplySettingsChange(Action<Profile> modify)
+    {
+        if (_applyAction == null || _settings == null) return;
+        modify(_profile);
+        await _applyAction(_settings);
     }
 
     [RelayCommand]
     private async Task FixOutputMode()
     {
-        if (_applyAction == null) return;
-
         var result = MessageBox.Show(
             $"This will change the output mode from:\n\n" +
             $"  {OutputModeShort}\n\nto:\n\n" +
@@ -134,114 +158,57 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
         if (result != MessageBoxResult.Yes) return;
 
-        var updated = _profile.DeepClone();
-        updated["OutputMode"]!["Path"] = WinInkAbsoluteModePath;
-        await _applyAction(updated);
+        await ApplySettingsChange(p =>
+        {
+            p.OutputMode ??= new PluginSettingStore(WinInkAbsoluteModePath, true);
+            p.OutputMode.Path = WinInkAbsoluteModePath;
+        });
     }
 
     [RelayCommand]
     private async Task SetToDisplay()
     {
-        if (_applyAction == null || SelectedDisplay == null) return;
+        if (_applyAction == null || _settings == null || SelectedDisplay == null) return;
 
         var display = SelectedDisplay;
-        var updated = _profile.DeepClone();
-        var abs = updated["AbsoluteModeSettings"];
-        if (abs == null) return;
-
-        // Set the display area to match the selected monitor
-        var displayArea = abs["Display"];
-        if (displayArea != null)
+        await ApplySettingsChange(p =>
         {
-            displayArea["Width"] = display.Width;
-            displayArea["Height"] = display.Height;
-            displayArea["X"] = display.X + display.Width / 2.0;
-            displayArea["Y"] = display.Y + display.Height / 2.0;
-        }
+            var abs = p.AbsoluteModeSettings;
+            if (abs == null) return;
 
-        // Always enforce aspect ratio lock: adjust tablet area to match display aspect ratio
-        var tabletArea = abs["Tablet"];
-        if (tabletArea != null)
-        {
-            double tabletWidth = tabletArea["Width"]?.Value<double>() ?? 0;
+            // Set display area
+            abs.Display.Width = display.Width;
+            abs.Display.Height = display.Height;
+            abs.Display.X = display.X + display.Width / 2f;
+            abs.Display.Y = display.Y + display.Height / 2f;
+
+            // Enforce aspect ratio lock
             double displayAspect = (double)display.Width / display.Height;
-
-            // Scale tablet height to match display aspect ratio, keeping tablet width
-            double scaledHeight = tabletWidth / displayAspect;
-            tabletArea["Height"] = scaledHeight;
-        }
-
-        // Set the LockAspectRatio flag
-        abs["LockAspectRatio"] = true;
-
-        await _applyAction(updated);
+            abs.Tablet.Height = (float)(abs.Tablet.Width / displayAspect);
+            abs.LockAspectRatio = true;
+        });
     }
-
-    private static string GetBindingName(JToken? binding)
-    {
-        if (binding == null) return "None";
-        var path = binding["Path"]?.ToString();
-        if (string.IsNullOrEmpty(path)) return "None";
-        // For AdaptiveBinding, show the bound action (e.g., "Adaptive Binding (Tip)")
-        if (path == AdaptiveBindingPath)
-        {
-            var settings = binding["Settings"] as JArray;
-            var value = settings?.FirstOrDefault()?["Value"]?.ToString();
-            return string.IsNullOrEmpty(value) ? "Adaptive Binding" : $"Adaptive Binding ({value})";
-        }
-        return path.Split('.').LastOrDefault() ?? path;
-    }
-
-    private static bool IsAdaptiveBinding(JToken? binding)
-    {
-        if (binding == null) return false;
-        return binding["Path"]?.ToString() == AdaptiveBindingPath;
-    }
-
-    private static JObject MakeAdaptiveBinding(string value) => new()
-    {
-        ["Path"] = AdaptiveBindingPath,
-        ["Settings"] = new JArray
-        {
-            new JObject
-            {
-                ["Property"] = "Binding",
-                ["Value"] = value
-            }
-        },
-        ["Enable"] = true
-    };
 
     [RelayCommand]
     private async Task FixTipBinding()
     {
-        if (_applyAction == null) return;
-        var updated = _profile.DeepClone();
-        updated["BindingSettings"]!["TipButton"] = MakeAdaptiveBinding("Tip");
-        await _applyAction(updated);
+        await ApplySettingsChange(p => p.BindingSettings.TipButton = MakeAdaptiveBinding("Tip"));
     }
 
     [RelayCommand]
     private async Task FixEraserBinding()
     {
-        if (_applyAction == null) return;
-        var updated = _profile.DeepClone();
-        updated["BindingSettings"]!["EraserButton"] = MakeAdaptiveBinding("Eraser");
-        await _applyAction(updated);
+        await ApplySettingsChange(p => p.BindingSettings.EraserButton = MakeAdaptiveBinding("Eraser"));
     }
 
     [RelayCommand]
     private async Task FixPenButtons()
     {
-        if (_applyAction == null) return;
-        var updated = _profile.DeepClone();
-        var bindings = updated["BindingSettings"]!;
-        var penButtons = bindings["PenButtons"] as JArray ?? new JArray();
-        var fixedButtons = new JArray();
-        for (int i = 0; i < penButtons.Count; i++)
-            fixedButtons.Add(MakeAdaptiveBinding($"Button {i + 1}"));
-        bindings["PenButtons"] = fixedButtons;
-        await _applyAction(updated);
+        await ApplySettingsChange(p =>
+        {
+            for (int i = 0; i < p.BindingSettings.PenButtons.Count; i++)
+                p.BindingSettings.PenButtons[i] = MakeAdaptiveBinding($"Button {i + 1}");
+        });
     }
 
     private static ObservableCollection<DisplayInfo> EnumerateDisplays()
@@ -344,8 +311,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public string AuxButtonCount { get; } = "0";
     public bool PenButtonsAllAdaptive { get; } = true;
     public bool CanFixPenButtons { get; }
-    public List<ButtonBinding> PenButtons { get; } = new();
-    public List<ButtonBinding> AuxButtons { get; } = new();
+    public List<ButtonBinding> PenButtons { get; } = [];
+    public List<ButtonBinding> AuxButtons { get; } = [];
     public string FiltersText { get; }
     public string RawJson { get; }
 }

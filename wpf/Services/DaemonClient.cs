@@ -1,5 +1,7 @@
 using System.IO.Pipes;
 using Newtonsoft.Json.Linq;
+using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Updater;
 using StreamJsonRpc;
 
 namespace TabletDriverUX.Services;
@@ -51,41 +53,45 @@ public class DaemonClient : IDisposable
         }
     }
 
-    public async Task<JToken> GetTabletsAsync()
+    // --- Typed API using OTD types ---
+
+    public async Task<Settings?> GetSettingsAsync()
     {
-        if (_rpc == null) return JToken.Parse("[]");
-        return await _rpc.InvokeAsync<JToken>("GetTablets");
+        if (_rpc == null) return null;
+        return await _rpc.InvokeAsync<Settings>("GetSettings");
     }
 
-    public async Task<JToken> GetSettingsAsync()
-    {
-        if (_rpc == null) return JToken.Parse("null");
-        return await _rpc.InvokeAsync<JToken>("GetSettings");
-    }
-
-    public async Task SetSettingsAsync(JToken settings)
+    public async Task SetSettingsAsync(Settings settings)
     {
         if (_rpc == null) return;
         await _rpc.InvokeAsync("SetSettings", settings);
     }
 
-    public async Task<JToken> GetAppInfoAsync()
+    public async Task<AppInfo?> GetAppInfoAsync()
     {
-        if (_rpc == null) return JToken.Parse("null");
-        return await _rpc.InvokeAsync<JToken>("GetApplicationInfo");
+        if (_rpc == null) return null;
+        return await _rpc.InvokeAsync<AppInfo>("GetApplicationInfo");
     }
 
-    public async Task<JToken?> CheckForUpdatesAsync()
+    public async Task<SerializedUpdateInfo?> CheckForUpdatesAsync()
     {
         if (_rpc == null) return null;
         try
         {
-            return await _rpc.InvokeAsync<JToken?>("CheckForUpdates");
+            return await _rpc.InvokeAsync<SerializedUpdateInfo?>("CheckForUpdates");
         }
         catch
         {
             return null;
         }
+    }
+
+    // Tablets are returned as JToken because the daemon returns TabletReference[]
+    // which includes complex runtime state. We parse what we need.
+    public async Task<JArray> GetTabletsAsync()
+    {
+        if (_rpc == null) return [];
+        return await _rpc.InvokeAsync<JArray>("GetTablets");
     }
 
     public void Dispose()
