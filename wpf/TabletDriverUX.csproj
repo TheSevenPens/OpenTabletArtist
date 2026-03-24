@@ -11,9 +11,16 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="HidSharp" Version="2.1.0" />
+    <!-- HidSharp removed — OTD brings HidSharpCore via its project references -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="StreamJsonRpc" Version="2.22.23" />
+  </ItemGroup>
+
+  <!-- OTD library references (via git submodule at external/OpenTabletDriver) -->
+  <ItemGroup>
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver\OpenTabletDriver.csproj" />
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Plugin\OpenTabletDriver.Plugin.csproj" />
   </ItemGroup>
 
 </Project>
