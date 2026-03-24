@@ -119,7 +119,7 @@
                         <!-- Start button: show when NOT connected -->
                         <Button Content="Start" Style="{StaticResource AccentButton}"
                                 Command="{Binding StartDaemonCommand}"
-                                Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
+                                Visibility="{Binding IsConnected, Converter={StaticResource InvBoolToVis}}"
                                 Padding="12,6" FontSize="12" />
                         <!-- Restart button: show when connected -->
                         <Button Content="Restart" Style="{StaticResource AccentButton}"
