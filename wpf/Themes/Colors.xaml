@@ -10,9 +10,9 @@
     <Color x:Key="GlassBgHover">#BFFFFFFF</Color>
     <Color x:Key="GlassBorder">#33000000</Color>
 
-    <Color x:Key="TextPrimary">#DE000000</Color>
-    <Color x:Key="TextSecondary">#99000000</Color>
-    <Color x:Key="TextMuted">#66000000</Color>
+    <Color x:Key="TextPrimary">#F0000000</Color>
+    <Color x:Key="TextSecondary">#CC000000</Color>
+    <Color x:Key="TextMuted">#99000000</Color>
     <Color x:Key="TextInverse">#FFFFFF</Color>
 
     <Color x:Key="Accent">#6366F1</Color>
