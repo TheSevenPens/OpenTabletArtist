@@ -16,9 +16,7 @@ public partial class TabletSettingsDialog : Window
     public TabletSettingsDialog(Profile profile, Settings? settings, Func<Settings, Task>? onApplyChanges = null)
     {
         InitializeComponent();
-        var vm = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
-        vm.CloseRequested += () => Close();
-        DataContext = vm;
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges);
     }
 }
 
@@ -33,8 +31,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private readonly Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
 
-    public event Action? CloseRequested;
-
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
 
     public TabletSettingsDialogViewModel(Profile profile, Settings? settings, Func<Settings, Task>? applyAction = null)
@@ -44,73 +40,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _applyAction = applyAction;
 
         TabletName = profile.Tablet ?? "Unknown Tablet";
-
-        // Output mode
-        OutputModePath = profile.OutputMode?.Path ?? "Not set";
-        OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
-
-        IsNotWinInk = !OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
-        CanFixOutputMode = IsNotWinInk && applyAction != null;
-
-        // Area mapping
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
-        // Enumerate displays and select primary
         Displays = EnumerateDisplays();
         SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
 
-        // Bindings
-        var bindings = profile.BindingSettings;
-        HasBindings = true;
-
-        TipBinding = GetBindingName(bindings.TipButton);
-        TipPressure = bindings.TipActivationThreshold.ToString("F1");
-        EraserBinding = GetBindingName(bindings.EraserButton);
-        EraserPressure = bindings.EraserActivationThreshold.ToString("F1");
-        PenButtonCount = bindings.PenButtons.Count.ToString();
-        AuxButtonCount = bindings.AuxButtons.Count.ToString();
-
-        // Check if bindings use recommended AdaptiveBinding
-        TipIsAdaptive = IsAdaptive(bindings.TipButton);
-        EraserIsAdaptive = IsAdaptive(bindings.EraserButton);
-        CanFixTip = !TipIsAdaptive && applyAction != null;
-        CanFixEraser = !EraserIsAdaptive && applyAction != null;
-
-        // Pen buttons
-        bool allPenButtonsAdaptive = true;
-        for (int i = 0; i < bindings.PenButtons.Count; i++)
-        {
-            var btn = bindings.PenButtons[i];
-            PenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(btn) });
-            if (!IsAdaptive(btn)) allPenButtonsAdaptive = false;
-        }
-        PenButtonsAllAdaptive = bindings.PenButtons.Count == 0 || allPenButtonsAdaptive;
-        CanFixPenButtons = !PenButtonsAllAdaptive && applyAction != null;
-
-        for (int i = 0; i < bindings.AuxButtons.Count; i++)
-        {
-            var btn = bindings.AuxButtons[i];
-            AuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(btn) });
-        }
-
-        // Filters
-        if (profile.Filters.Count > 0)
-        {
-            var filterNames = profile.Filters.Select(f =>
-            {
-                var name = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
-                var enabled = f?.Enable ?? true;
-                return enabled ? name : $"{name} (disabled)";
-            });
-            FiltersText = string.Join("\n", filterNames);
-        }
-        else
-        {
-            FiltersText = "No filters configured";
-        }
-
-        // Raw JSON via Newtonsoft serialization
-        RawJson = JsonConvert.SerializeObject(profile, Formatting.Indented);
+        RefreshFromProfile();
     }
 
     private static string GetBindingName(PluginSettingStore? store)
@@ -145,7 +80,62 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         if (_applyAction == null || _settings == null) return;
         modify(_profile);
         await _applyAction(_settings);
-        CloseRequested?.Invoke();
+        RefreshFromProfile();
+    }
+
+    private void RefreshFromProfile()
+    {
+        // Output mode
+        OutputModePath = _profile.OutputMode?.Path ?? "Not set";
+        OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
+        var isNotWinInk = !OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
+        CanFixOutputMode = isNotWinInk && _applyAction != null;
+
+        // Bindings
+        var bindings = _profile.BindingSettings;
+        TipBinding = GetBindingName(bindings.TipButton);
+        TipPressure = bindings.TipActivationThreshold.ToString("F1");
+        EraserBinding = GetBindingName(bindings.EraserButton);
+        EraserPressure = bindings.EraserActivationThreshold.ToString("F1");
+        CanFixTip = !IsAdaptive(bindings.TipButton) && _applyAction != null;
+        CanFixEraser = !IsAdaptive(bindings.EraserButton) && _applyAction != null;
+
+        // Pen buttons
+        PenButtonCount = bindings.PenButtons.Count.ToString();
+        AuxButtonCount = bindings.AuxButtons.Count.ToString();
+        bool allAdaptive = true;
+        var newPenButtons = new List<ButtonBinding>();
+        for (int i = 0; i < bindings.PenButtons.Count; i++)
+        {
+            newPenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.PenButtons[i]) });
+            if (!IsAdaptive(bindings.PenButtons[i])) allAdaptive = false;
+        }
+        PenButtons = newPenButtons;
+        CanFixPenButtons = !(bindings.PenButtons.Count == 0 || allAdaptive) && _applyAction != null;
+
+        var newAuxButtons = new List<ButtonBinding>();
+        for (int i = 0; i < bindings.AuxButtons.Count; i++)
+            newAuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.AuxButtons[i]) });
+        AuxButtons = newAuxButtons;
+
+        // Filters
+        if (_profile.Filters.Count > 0)
+        {
+            var filterNames = _profile.Filters.Select(f =>
+            {
+                var name = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
+                var enabled = f?.Enable ?? true;
+                return enabled ? name : $"{name} (disabled)";
+            });
+            FiltersText = string.Join("\n", filterNames);
+        }
+        else
+        {
+            FiltersText = "No filters configured";
+        }
+
+        // Raw JSON
+        RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
     }
 
     [RelayCommand]
@@ -297,29 +287,24 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     #endregion
 
     public string TabletName { get; }
-    public string OutputModeShort { get; }
-    public string OutputModePath { get; }
-    public bool IsNotWinInk { get; }
-    public bool CanFixOutputMode { get; }
+    [ObservableProperty] private string _outputModeShort = "";
+    [ObservableProperty] private string _outputModePath = "";
+    [ObservableProperty] private bool _canFixOutputMode;
     public bool HasAreaMapping { get; }
     public ObservableCollection<DisplayInfo> Displays { get; }
-    public bool HasBindings { get; }
-    public string TipBinding { get; } = "None";
-    public string TipPressure { get; } = "";
-    public bool TipIsAdaptive { get; }
-    public bool CanFixTip { get; }
-    public string EraserBinding { get; } = "None";
-    public string EraserPressure { get; } = "";
-    public bool EraserIsAdaptive { get; }
-    public bool CanFixEraser { get; }
-    public string PenButtonCount { get; } = "0";
-    public string AuxButtonCount { get; } = "0";
-    public bool PenButtonsAllAdaptive { get; } = true;
-    public bool CanFixPenButtons { get; }
-    public List<ButtonBinding> PenButtons { get; } = [];
-    public List<ButtonBinding> AuxButtons { get; } = [];
-    public string FiltersText { get; }
-    public string RawJson { get; }
+    [ObservableProperty] private string _tipBinding = "None";
+    [ObservableProperty] private string _tipPressure = "";
+    [ObservableProperty] private bool _canFixTip;
+    [ObservableProperty] private string _eraserBinding = "None";
+    [ObservableProperty] private string _eraserPressure = "";
+    [ObservableProperty] private bool _canFixEraser;
+    [ObservableProperty] private string _penButtonCount = "0";
+    [ObservableProperty] private string _auxButtonCount = "0";
+    [ObservableProperty] private bool _canFixPenButtons;
+    [ObservableProperty] private List<ButtonBinding> _penButtons = [];
+    [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
+    [ObservableProperty] private string _filtersText = "";
+    [ObservableProperty] private string _rawJson = "";
 }
 
 public class ButtonBinding
