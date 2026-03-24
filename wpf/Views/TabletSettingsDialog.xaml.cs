@@ -254,7 +254,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     private static ObservableCollection<DisplayInfo> EnumerateDisplays()
     {
-        var displays = new ObservableCollection<DisplayInfo>();
+        var monitors = new List<DisplayInfo>();
         int index = 0;
 
         MonitorEnumProc callback = (nint hMonitor, nint hdcMonitor, ref RECT lprcMonitor, nint dwData) =>
@@ -279,11 +279,29 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
                     ? $"Display {index} (Primary) — {w}x{h}"
                     : $"Display {index} — {w}x{h}";
 
-                displays.Add(new DisplayInfo(index, label, w, h, x, y, isPrimary));
+                monitors.Add(new DisplayInfo(index, label, w, h, x, y, isPrimary));
             }
             return true;
         };
         EnumDisplayMonitors(nint.Zero, nint.Zero, callback, nint.Zero);
+
+        var displays = new ObservableCollection<DisplayInfo>();
+
+        // Add "All displays" — bounding box spanning all monitors
+        if (monitors.Count > 1)
+        {
+            int minX = monitors.Min(m => m.X);
+            int minY = monitors.Min(m => m.Y);
+            int maxRight = monitors.Max(m => m.X + m.Width);
+            int maxBottom = monitors.Max(m => m.Y + m.Height);
+            int totalW = maxRight - minX;
+            int totalH = maxBottom - minY;
+
+            displays.Add(new DisplayInfo(0, $"All displays — {totalW}x{totalH}", totalW, totalH, minX, minY, false));
+        }
+
+        foreach (var m in monitors)
+            displays.Add(m);
 
         return displays;
     }
