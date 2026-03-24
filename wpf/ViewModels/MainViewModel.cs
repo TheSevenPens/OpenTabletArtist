@@ -381,21 +381,42 @@ public partial class MainViewModel : ObservableObject, IDisposable
             OpenTabletSettingsForProfile(profile);
     }
 
+    private (float Width, float Height)? GetTabletDigitizer(string tabletName)
+    {
+        if (TabletsJson is not JArray tablets) return null;
+        foreach (var t in tablets)
+        {
+            var props = t["Properties"] ?? t;
+            if (props["Name"]?.ToString() == tabletName)
+            {
+                var digi = props["Specifications"]?["Digitizer"];
+                if (digi != null)
+                {
+                    var w = digi["Width"]?.Value<float>() ?? 0;
+                    var h = digi["Height"]?.Value<float>() ?? 0;
+                    if (w > 0 && h > 0) return (w, h);
+                }
+            }
+        }
+        return null;
+    }
+
     private void OpenTabletSettingsForProfile(Profile profile)
     {
         var tabletName = profile.Tablet;
+        var digitizer = GetTabletDigitizer(tabletName);
         var dialog = new Views.TabletSettingsDialog(
             profile,
             _settings,
             async updatedSettings => await ApplyAndSaveSettingsAsync(updatedSettings),
             async () =>
             {
-                // Reload settings from daemon and return the updated profile
                 _settings = await _daemon.GetSettingsAsync();
                 if (_settings != null)
                     return _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
                 return null;
-            })
+            },
+            digitizer)
         {
             Owner = App.Current.MainWindow
         };

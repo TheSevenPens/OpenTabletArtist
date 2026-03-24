@@ -15,10 +15,11 @@ public partial class TabletSettingsDialog : Window
 {
     public TabletSettingsDialog(Profile profile, Settings? settings,
         Func<Settings, Task>? onApplyChanges = null,
-        Func<Task<Profile?>>? onRefresh = null)
+        Func<Task<Profile?>>? onRefresh = null,
+        (float Width, float Height)? tabletDigitizer = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh);
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer);
     }
 }
 
@@ -33,17 +34,20 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
     private readonly Func<Task<Profile?>>? _refreshAction;
+    private readonly (float Width, float Height)? _tabletDigitizer;
 
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
 
     public TabletSettingsDialogViewModel(Profile profile, Settings? settings,
         Func<Settings, Task>? applyAction = null,
-        Func<Task<Profile?>>? refreshAction = null)
+        Func<Task<Profile?>>? refreshAction = null,
+        (float Width, float Height)? tabletDigitizer = null)
     {
         _profile = profile;
         _settings = settings;
         _applyAction = applyAction;
         _refreshAction = refreshAction;
+        _tabletDigitizer = tabletDigitizer;
 
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
@@ -189,15 +193,39 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             var abs = p.AbsoluteModeSettings;
             if (abs == null) return;
 
-            // Set display area
+            // Set display area to the full selected monitor
             abs.Display.Width = display.Width;
             abs.Display.Height = display.Height;
             abs.Display.X = display.X + display.Width / 2f;
             abs.Display.Y = display.Y + display.Height / 2f;
 
-            // Enforce aspect ratio lock
+            // Start from the FULL tablet digitizer area
+            float fullWidth = _tabletDigitizer?.Width ?? abs.Tablet.Width;
+            float fullHeight = _tabletDigitizer?.Height ?? abs.Tablet.Height;
+
+            // Calculate the largest sub-area that matches the display's aspect ratio
             double displayAspect = (double)display.Width / display.Height;
-            abs.Tablet.Height = (float)(abs.Tablet.Width / displayAspect);
+            double tabletAspect = (double)fullWidth / fullHeight;
+
+            float tabletWidth, tabletHeight;
+            if (displayAspect > tabletAspect)
+            {
+                // Display is wider than tablet — use full tablet width, reduce height
+                tabletWidth = fullWidth;
+                tabletHeight = (float)(fullWidth / displayAspect);
+            }
+            else
+            {
+                // Display is taller than tablet — use full tablet height, reduce width
+                tabletHeight = fullHeight;
+                tabletWidth = (float)(fullHeight * displayAspect);
+            }
+
+            abs.Tablet.Width = tabletWidth;
+            abs.Tablet.Height = tabletHeight;
+            // Center the tablet area on the digitizer
+            abs.Tablet.X = fullWidth / 2f;
+            abs.Tablet.Y = fullHeight / 2f;
             abs.LockAspectRatio = true;
         });
     }
