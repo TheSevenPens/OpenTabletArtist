@@ -9,68 +9,22 @@
 
         <!-- Status Cards -->
         <StackPanel>
-            <!-- OTD Install Location -->
+            <!-- OpenTabletDriver Version -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="OTD Install Location" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="500">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Not set" />
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                        <Setter Property="FontStyle" Value="Italic" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                                <Setter Property="Text" Value="{Binding OtdInstallPath}" />
-                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                                <Setter Property="FontStyle" Value="Normal" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            Background="{DynamicResource GlassBgBrush}">
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-
-                    <Button Grid.Column="1" Content="Browse"
-                            Command="{Binding BrowseOtdInstallPathCommand}"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource AccentButton}"
-                            Padding="12,6" FontSize="12" />
-                </Grid>
+                </StackPanel>
             </Border>
 
             <!-- OTD Status -->
@@ -108,7 +62,7 @@
                             </TextBlock>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="OpenTabletDriver" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="OpenTabletDriver Daemon" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
@@ -162,91 +116,104 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <!-- Start button: show when disconnected AND we have the install path -->
-                        <Button Content="Start" Style="{StaticResource AccentButton}"
-                                Command="{Binding StartDaemonCommand}"
-                                Padding="12,6" FontSize="12">
-                            <Button.Visibility>
-                                <MultiBinding Converter="{StaticResource AllFalseToVis}">
-                                    <Binding Path="IsConnected" />
-                                    <Binding Path="HasOtdInstallPath" />
-                                </MultiBinding>
-                            </Button.Visibility>
-                        </Button>
                         <!-- Restart button: show when connected -->
                         <Button Content="Restart" Style="{StaticResource AccentButton}"
                                 Command="{Binding RestartDaemonCommand}"
                                 Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
                                 Padding="12,6" FontSize="12" />
+                        <!-- Launch OTD's own UX for comparison/testing -->
+                        <Button Content="OTD UX" Style="{StaticResource GhostButton}"
+                                Command="{Binding LaunchOtdUxCommand}"
+                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
                     </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Tablet Status -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                                <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                            </Border.Style>
+                            <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="No tablet detected" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasTablet}" Value="True">
-                                                <Setter Property="Text" Value="{Binding TabletName}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasTablet}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="No tablet detected" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasTablet}" Value="True">
+                                                    <Setter Property="Text" Value="{Binding TabletName}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
-                </StackPanel>
+
+                    <Button Grid.Column="1" Content="Open"
+                            Command="{Binding OpenConnectedTabletSettingsCommand}"
+                            IsEnabled="{Binding HasTablet}"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource AccentButton}"
+                            Padding="12,6" FontSize="12" />
+                </Grid>
             </Border>
 
             <!-- VMulti Status -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
@@ -271,9 +238,28 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="VMulti Driver" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="VMulti Driver" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Command="{Binding RefreshVmultiDetectionCommand}" Cursor="Hand"
+                                    Width="20" Height="20" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="Refresh VMulti status">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <TextBlock x:Name="Icon" Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center">
                                 <Ellipse.Style>
@@ -290,12 +276,64 @@
                             <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
+                            <Run Text="Setup API: " /><Run Text="{Binding VmultiSetupApiStatus, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="HID: " /><Run Text="{Binding VmultiHidStatus, Mode=OneWay}" />
+                        </TextBlock>
+                        <!-- Install status text (shown during installation) -->
+                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="10"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"
+                                   Visibility="{Binding VmultiInstalling, Converter={StaticResource BoolToVis}}" />
                         <TextBlock Text="Required for pressure &amp; tilt" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                    Margin="0,2,0,0"
                                    Visibility="{Binding VmultiInstalled, Converter={StaticResource InvBoolToVis}}" />
                     </StackPanel>
-                </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Browse button (always visible) -->
+                        <Button Content="Browse" Style="{StaticResource AccentButton}"
+                                Command="{Binding OpenFolderCommand}"
+                                CommandParameter="C:\Program Files\VMulti"
+                                Padding="12,6" FontSize="12" Margin="0,0,8,0" />
+                        <!-- Install button (shown when not installed and not busy) -->
+                        <Button Content="Install" Style="{StaticResource AccentButton}"
+                                Command="{Binding InstallVmultiCommand}"
+                                Padding="12,6" FontSize="12" Margin="0,0,8,0">
+                            <Button.Visibility>
+                                <MultiBinding Converter="{StaticResource AllFalseToVis}">
+                                    <Binding Path="VmultiInstalled" />
+                                    <Binding Path="VmultiInstalling" />
+                                </MultiBinding>
+                            </Button.Visibility>
+                        </Button>
+                        <!-- Uninstall button (shown when installed and not busy) -->
+                        <Button Content="Uninstall"
+                                Command="{Binding UninstallVmultiCommand}"
+                                Padding="12,6" FontSize="12">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource AccentButton}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding VmultiInstalled}" Value="True" />
+                                                <Condition Binding="{Binding VmultiInstalling}" Value="False" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <!-- Progress indicator -->
+                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="11"
+                                   Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
+                                   Visibility="{Binding VmultiInstalling, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
+                </Grid>
             </Border>
 
             <!-- Windows Ink Status -->

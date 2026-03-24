@@ -1,0 +1,3 @@
+[submodule "external/OpenTabletDriver"]
+	path = external/OpenTabletDriver
+	url = https://github.com/OpenTabletDriver/OpenTabletDriver.git
