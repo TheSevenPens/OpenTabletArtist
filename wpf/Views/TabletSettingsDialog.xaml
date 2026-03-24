@@ -112,10 +112,6 @@
                             </ListBox.ItemContainerStyle>
                         </ListBox>
 
-                        <Button Content="Set to display" Style="{StaticResource AccentButton}"
-                                Command="{Binding SetToDisplayCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,10,0,0"
-                                HorizontalAlignment="Left" />
                     </StackPanel>
                 </Border>
 

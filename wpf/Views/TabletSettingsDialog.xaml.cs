@@ -37,6 +37,13 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private readonly (float Width, float Height)? _tabletDigitizer;
 
     [ObservableProperty] private DisplayInfo? _selectedDisplay;
+    private bool _skipDisplayChange;
+
+    partial void OnSelectedDisplayChanged(DisplayInfo? value)
+    {
+        if (!_skipDisplayChange && value != null)
+            _ = SetToDisplay();
+    }
 
     public TabletSettingsDialogViewModel(Profile profile, Settings? settings,
         Func<Settings, Task>? applyAction = null,
@@ -53,9 +60,11 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
         Displays = EnumerateDisplays();
-        SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
-
         RefreshFromProfile();
+        // Set initial selection AFTER RefreshFromProfile so the change handler can fire
+        _skipDisplayChange = true;
+        SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
+        _skipDisplayChange = false;
     }
 
     private static string GetBindingName(PluginSettingStore? store)
