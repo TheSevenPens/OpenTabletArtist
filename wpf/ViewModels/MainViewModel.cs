@@ -337,10 +337,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task SavePreset(string name)
+    private async Task SavePreset()
     {
-        if (string.IsNullOrWhiteSpace(name) || _settings == null) return;
+        if (_settings == null) return;
+        var name = DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss");
         var path = Path.Combine(PresetDirectory, $"{name}.json");
+        if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
         _settings.Serialize(new FileInfo(path));
         await LoadPresetsAsync();
     }
@@ -353,6 +355,41 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (Settings.TryDeserialize(new FileInfo(path), out var settings))
         {
             await ApplyAndSaveSettingsAsync(settings);
+        }
+    }
+
+    [RelayCommand]
+    private async Task UpdatePreset(string name)
+    {
+        if (_settings == null) return;
+        var path = Path.Combine(PresetDirectory, $"{name}.json");
+        _settings.Serialize(new FileInfo(path));
+        await LoadPresetsAsync();
+    }
+
+    [RelayCommand]
+    private async Task RenamePreset(string name)
+    {
+        var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
+        if (!File.Exists(oldPath)) return;
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            InitialDirectory = PresetDirectory,
+            FileName = name,
+            DefaultExt = ".json",
+            Filter = "JSON files (*.json)|*.json",
+            Title = "Rename Snapshot",
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var newPath = dialog.FileName;
+            if (newPath != oldPath)
+            {
+                File.Move(oldPath, newPath);
+                await LoadPresetsAsync();
+            }
         }
     }
 

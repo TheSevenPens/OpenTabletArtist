@@ -7,15 +7,9 @@
         <TextBlock Style="{StaticResource PageSubtitle}" Text="Saved configuration snapshots" />
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <TextBox x:Name="SnapshotNameBox" Width="250" Padding="8,6" FontSize="13"
-                     Background="{DynamicResource GlassBgBrush}"
-                     BorderBrush="{DynamicResource GlassBorderBrush}"
-                     Foreground="{DynamicResource TextPrimaryBrush}"
-                     VerticalContentAlignment="Center" />
             <Button Content="Save Snapshot" Style="{StaticResource AccentButton}"
-                    Padding="14,7" FontSize="13" Margin="8,0,0,0"
-                    Command="{Binding SavePresetCommand}"
-                    CommandParameter="{Binding Text, ElementName=SnapshotNameBox}" />
+                    Padding="14,7" FontSize="13"
+                    Command="{Binding SavePresetCommand}" />
             <Button Content="Browse" Style="{StaticResource GhostButton}"
                     Padding="14,7" FontSize="13" Margin="8,0,0,0"
                     Command="{Binding OpenFolderCommand}"
@@ -49,7 +43,15 @@
                                 <Button Content="Load" Style="{StaticResource AccentButton}"
                                         Command="{Binding DataContext.LoadPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         CommandParameter="{Binding [Name].Value}"
-                                        Margin="0,0,8,0" Padding="12,6" FontSize="12" />
+                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
+                                <Button Content="Update" Style="{StaticResource GhostButton}"
+                                        Command="{Binding DataContext.UpdatePresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding [Name].Value}"
+                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
+                                <Button Content="Rename" Style="{StaticResource GhostButton}"
+                                        Command="{Binding DataContext.RenamePresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding [Name].Value}"
+                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Delete" Padding="12,6" FontSize="12"
                                         Foreground="{DynamicResource ErrorBrush}" Cursor="Hand"
                                         Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
