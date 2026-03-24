@@ -11,159 +11,20 @@
         <StackPanel>
             <!-- OpenTabletDriver Version -->
             <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding UpdateAvailable}" Value="True">
-                                            <Setter Property="Background" Value="#336366f1" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding UpdateAvailable}" Value="True">
-                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock Margin="0,4,0,0" FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="{Binding CurrentOtdVersion}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CurrentOtdVersion}" Value="">
-                                                <Setter Property="Text" Value="Version unknown" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            <!-- Update notice -->
-                            <TextBlock Margin="0,2,0,0" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}">
-                                <Run Text="Update available: v" /><Run Text="{Binding UpdateVersion, Mode=OneWay}" />
-                            </TextBlock>
-                            <!-- Update check status (rate limit, up to date, errors) -->
-                            <TextBlock Text="{Binding UpdateCheckStatus}" Margin="0,2,0,0" FontSize="10"
-                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                       Visibility="{Binding UpdateCheckStatus, Converter={StaticResource NonEmptyToVis}}" />
-                        </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            Background="{DynamicResource GlassBgBrush}">
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
-                        <!-- Download update button (only when update available) -->
-                        <Button Command="{Binding DownloadOtdUpdateCommand}"
-                                IsEnabled="{Binding UpdateDownloading, Converter={StaticResource InvBool}}"
-                                Style="{StaticResource AccentButton}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,0"
-                                Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}">
-                            <Button.Content>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="Download" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding UpdateDownloading}" Value="True">
-                                                    <Setter Property="Text" Value="{Binding UpdateDownloadStatus}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Button.Content>
-                        </Button>
-                        <!-- Releases button (always visible) -->
-                        <Button Content="Releases" Command="{Binding OpenOtdReleasesCommand}"
-                                Padding="12,6" FontSize="12"
-                                Style="{StaticResource GhostButton}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- OTD Install Location -->
-            <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="OTD Install Location" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <TextBlock FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="500">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Not set" />
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                        <Setter Property="FontStyle" Value="Italic" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasOtdInstallPath}" Value="True">
-                                                <Setter Property="Text" Value="{Binding OtdInstallPath}" />
-                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                                <Setter Property="FontStyle" Value="Normal" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <Button Grid.Column="1" Content="Browse"
-                            Command="{Binding BrowseOtdInstallPathCommand}"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource AccentButton}"
-                            Padding="12,6" FontSize="12" />
-                </Grid>
+                </StackPanel>
             </Border>
 
             <!-- OTD Status -->
@@ -254,17 +115,6 @@
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Button.Template>
-                        </Button>
-                        <!-- Start button: show when disconnected AND we have the install path -->
-                        <Button Content="Start" Style="{StaticResource AccentButton}"
-                                Command="{Binding StartDaemonCommand}"
-                                Padding="12,6" FontSize="12">
-                            <Button.Visibility>
-                                <MultiBinding Converter="{StaticResource NotFirstAndSecondToVis}">
-                                    <Binding Path="IsConnected" />
-                                    <Binding Path="HasOtdInstallPath" />
-                                </MultiBinding>
-                            </Button.Visibility>
                         </Button>
                         <!-- Restart button: show when connected -->
                         <Button Content="Restart" Style="{StaticResource AccentButton}"

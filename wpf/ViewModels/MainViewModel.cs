@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -37,14 +36,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private Settings? _settings;
     [ObservableProperty] private JToken? _tabletsJson; // tablets remain JToken (complex runtime type)
 
-    // OTD Version & Update
-    [ObservableProperty] private string _currentOtdVersion = "";
-    [ObservableProperty] private bool _updateAvailable;
-    [ObservableProperty] private string _updateVersion = "";
-    [ObservableProperty] private string _updateCheckStatus = "";
-    [ObservableProperty] private bool _updateDownloading;
-    [ObservableProperty] private string _updateDownloadStatus = "";
-    private bool _updateChecked;
+    // OTD Version (from referenced assembly)
+    public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
@@ -60,24 +53,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
 
-    // OTD install location
-    [ObservableProperty] private string _otdInstallPath = "";
-    [ObservableProperty] private bool _hasOtdInstallPath;
-
-    private const string OtdInstallPathKey = "OtdInstallPath";
-
     /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
     public Settings? CurrentSettings => _settings;
 
     public MainViewModel()
     {
-        var saved = AppSettings.Get(OtdInstallPathKey);
-        if (!string.IsNullOrEmpty(saved) && Directory.Exists(saved))
-        {
-            OtdInstallPath = saved;
-            HasOtdInstallPath = true;
-        }
-
         _daemon.Connected += () => App.Current.Dispatcher.Invoke(() =>
         {
             ConnectionStatus = "Connected";
@@ -188,7 +168,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 SettingsFilePath = appInfo.SettingsFile ?? "";
             }
             await LoadPresetsAsync();
-            await CheckForOtdUpdatesAsync();
         }
         catch { /* Data load failed — will retry on next connection */ }
     }
@@ -212,182 +191,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await LoadDataAsync();
-    }
-
-    private async Task CheckForOtdUpdatesAsync()
-    {
-        try
-        {
-            if (!string.IsNullOrEmpty(OtdInstallPath))
-            {
-                var daemonPath = Path.Combine(OtdInstallPath, "OpenTabletDriver.Daemon.exe");
-                if (File.Exists(daemonPath))
-                {
-                    var fileInfo = FileVersionInfo.GetVersionInfo(daemonPath);
-                    CurrentOtdVersion = fileInfo.FileVersion ?? fileInfo.ProductVersion ?? "";
-                }
-            }
-        }
-        catch { }
-
-        if (_updateChecked) return;
-        _updateChecked = true;
-        UpdateCheckStatus = "";
-
-        // Strategy 1: daemon RPC
-        string? latestTag = null;
-        try
-        {
-            var updateInfo = await _daemon.CheckForUpdatesAsync();
-            if (updateInfo != null)
-            {
-                latestTag = updateInfo.Version?.ToString();
-            }
-        }
-        catch { }
-
-        // Strategy 2: direct GitHub API
-        if (string.IsNullOrEmpty(latestTag))
-        {
-            try
-            {
-                using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
-                var response = await client.GetAsync("https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest");
-
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
-                    response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    UpdateCheckStatus = "Unable to check for updates — GitHub rate limit reached. This resets automatically within the hour.";
-                    return;
-                }
-
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                var release = JObject.Parse(json);
-                latestTag = release["tag_name"]?.ToString() ?? "";
-                if (latestTag.StartsWith("v")) latestTag = latestTag[1..];
-            }
-            catch (System.Net.Http.HttpRequestException)
-            {
-                UpdateCheckStatus = "Unable to check for updates — network error.";
-                return;
-            }
-            catch
-            {
-                UpdateCheckStatus = "Unable to check for updates.";
-                return;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(latestTag) && !string.IsNullOrEmpty(CurrentOtdVersion))
-        {
-            try
-            {
-                var latestVersion = new Version(latestTag);
-                var currentVersion = new Version(CurrentOtdVersion);
-                if (latestVersion > currentVersion)
-                {
-                    UpdateAvailable = true;
-                    UpdateVersion = latestTag;
-                    UpdateCheckStatus = "";
-                }
-                else
-                {
-                    UpdateAvailable = false;
-                    UpdateCheckStatus = "Up to date";
-                }
-            }
-            catch
-            {
-                UpdateCheckStatus = "Unable to compare versions.";
-            }
-        }
-        else if (string.IsNullOrEmpty(CurrentOtdVersion))
-        {
-            UpdateCheckStatus = "Set OTD install path to check for updates.";
-        }
-    }
-
-    [RelayCommand]
-    private void OpenOtdReleases()
-    {
-        Process.Start(new ProcessStartInfo("https://github.com/OpenTabletDriver/OpenTabletDriver/releases") { UseShellExecute = true });
-    }
-
-    public static string OtdBinRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OpenTabletDriverBin");
-
-    [RelayCommand]
-    private async Task DownloadOtdUpdateAsync()
-    {
-        if (string.IsNullOrEmpty(UpdateVersion) || UpdateDownloading) return;
-
-        var zipUrl = $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/v{UpdateVersion}/OpenTabletDriver-{UpdateVersion}_win-x64.zip";
-        var versionDir = Path.Combine(OtdBinRoot, UpdateVersion);
-        var tempZip = Path.Combine(Path.GetTempPath(), $"OTD-{UpdateVersion}.zip");
-
-        try
-        {
-            UpdateDownloading = true;
-            UpdateDownloadStatus = "Downloading...";
-
-            using var client = new System.Net.Http.HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
-
-            using var response = await client.GetAsync(zipUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-
-            var totalBytes = response.Content.Headers.ContentLength;
-            await using var contentStream = await response.Content.ReadAsStreamAsync();
-            await using (var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
-            {
-                var buffer = new byte[81920];
-                long totalRead = 0;
-                int bytesRead;
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    totalRead += bytesRead;
-                    if (totalBytes > 0)
-                    {
-                        var pct = (int)(totalRead * 100 / totalBytes.Value);
-                        UpdateDownloadStatus = $"Downloading... {pct}%";
-                    }
-                }
-            }
-
-            UpdateDownloadStatus = "Extracting...";
-            if (Directory.Exists(versionDir))
-                Directory.Delete(versionDir, true);
-            Directory.CreateDirectory(versionDir);
-            ZipFile.ExtractToDirectory(tempZip, versionDir);
-
-            try { File.Delete(tempZip); } catch { }
-
-            UpdateDownloadStatus = $"Installed to {versionDir}";
-            UpdateDownloading = false;
-
-            OtdInstallPath = versionDir;
-            HasOtdInstallPath = true;
-            AppSettings.Set(OtdInstallPathKey, versionDir);
-
-            var daemonPath = Path.Combine(versionDir, "OpenTabletDriver.Daemon.exe");
-            if (File.Exists(daemonPath))
-            {
-                var fileInfo = FileVersionInfo.GetVersionInfo(daemonPath);
-                CurrentOtdVersion = fileInfo.FileVersion ?? fileInfo.ProductVersion ?? "";
-            }
-
-            Process.Start("explorer.exe", $"\"{versionDir}\"");
-        }
-        catch (Exception ex)
-        {
-            UpdateDownloadStatus = $"Download failed: {ex.Message}";
-            UpdateDownloading = false;
-        }
     }
 
     private async Task LoadPresetsAsync()
@@ -421,23 +224,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void Navigate(string page) => CurrentPage = page;
 
     [RelayCommand]
-    private void BrowseOtdInstallPath()
-    {
-        var dialog = new Microsoft.Win32.OpenFolderDialog
-        {
-            Title = "Select OpenTabletDriver install folder",
-            InitialDirectory = HasOtdInstallPath ? OtdInstallPath : Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            OtdInstallPath = dialog.FolderName;
-            HasOtdInstallPath = true;
-            AppSettings.Set(OtdInstallPathKey, dialog.FolderName);
-        }
-    }
-
-    [RelayCommand]
     private async Task RefreshConnection()
     {
         if (IsConnected)
@@ -446,21 +232,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             ConnectionStatus = "Connecting...";
             _ = _daemon.ConnectAsync(_cts.Token);
-        }
-    }
-
-    [RelayCommand]
-    private void StartDaemon()
-    {
-        if (!HasOtdInstallPath) return;
-        var daemonExe = Path.Combine(OtdInstallPath, "OpenTabletDriver.Daemon.exe");
-        if (File.Exists(daemonExe))
-        {
-            Process.Start(new ProcessStartInfo(daemonExe)
-            {
-                CreateNoWindow = true,
-                WorkingDirectory = OtdInstallPath,
-            });
         }
     }
 
