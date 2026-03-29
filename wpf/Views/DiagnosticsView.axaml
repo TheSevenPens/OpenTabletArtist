@@ -95,9 +95,12 @@
                     <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,0">
                         <TextBlock Text="PRESSURE" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPressurePercent, StringFormat='{}{0:F1}%'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" />
                         <TextBlock Text="{Binding DebugPenPressure, StringFormat='{}{0:F0}'}" FontSize="12"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
                         <TextBlock Text="{Binding DebugMaxPressure, StringFormat='Max: {0:F0}'}" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
                     </StackPanel>
@@ -105,15 +108,37 @@
                     <StackPanel Grid.Column="2" Grid.Row="0">
                         <TextBlock Text="TILT" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}°'}" FontSize="12"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}°'}" FontSize="12"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding DebugTiltAzimuth, StringFormat='Az: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding DebugTiltAltitude, StringFormat='Alt: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <!-- Proximity -->
+                    <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,12,12,0">
+                        <TextBlock Text="PROXIMITY" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugNearProximity}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <!-- Hover Distance -->
+                    <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,12,12,0">
+                        <TextBlock Text="HOVER DISTANCE" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugHoverDistance}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <!-- Buttons -->
-                    <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Margin="0,12,0,0">
+                    <StackPanel Grid.Column="2" Grid.Row="1" Margin="0,12,0,0">
                         <TextBlock Text="PEN BUTTONS" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
                         <TextBlock Text="{Binding DebugPenButtons}" FontSize="12"

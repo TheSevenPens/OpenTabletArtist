@@ -42,7 +42,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _debugHasPosition;
     [ObservableProperty] private double _debugTiltX;
     [ObservableProperty] private double _debugTiltY;
+    [ObservableProperty] private double _debugPressurePercent;
+    [ObservableProperty] private double _debugTiltAzimuth;
+    [ObservableProperty] private double _debugTiltAltitude;
     [ObservableProperty] private string _debugPenButtons = "";
+    [ObservableProperty] private string _debugNearProximity = "";
+    [ObservableProperty] private string _debugHoverDistance = "";
     private double _reportPeriodEma;
     private DateTime _lastReportTime;
 
@@ -366,12 +371,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         DebugReportRate = "";
         DebugTabletName = "";
         DebugReportType = "";
-        DebugPenX = 0; DebugPenY = 0; DebugPenPressure = 0;
+        DebugPenX = 0; DebugPenY = 0; DebugPenPressure = 0; DebugPressurePercent = 0;
         DebugMaxX = 0; DebugMaxY = 0; DebugMaxPressure = 0;
         DebugDigitizerWidth = 0; DebugDigitizerHeight = 0;
         DebugHasPosition = false;
-        DebugTiltX = 0; DebugTiltY = 0;
-        DebugPenButtons = "";
+        DebugTiltX = 0; DebugTiltY = 0; DebugTiltAzimuth = 0; DebugTiltAltitude = 0;
+        DebugPenButtons = ""; DebugNearProximity = ""; DebugHoverDistance = "";
         _reportPeriodEma = 0;
         _lastReportTime = DateTime.MinValue;
     }
@@ -461,7 +466,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Pressure
             var pressure = reportData["Pressure"];
             if (pressure != null)
+            {
                 DebugPenPressure = pressure.Value<double>();
+                DebugPressurePercent = DebugMaxPressure > 0 ? (DebugPenPressure / DebugMaxPressure) * 100.0 : 0;
+            }
 
             // Tilt
             var tilt = reportData["Tilt"];
@@ -469,6 +477,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
                 DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
+                DebugTiltAzimuth = Math.Atan2(DebugTiltX, DebugTiltY) * (180.0 / Math.PI);
+                if (DebugTiltAzimuth < 0) DebugTiltAzimuth += 360;
+                DebugTiltAltitude = 90.0 - Math.Sqrt(DebugTiltX * DebugTiltX + DebugTiltY * DebugTiltY);
             }
 
             // Pen buttons
@@ -481,13 +492,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
             if (pressure != null) lines.Add($"Pressure: {pressure}");
             if (buttons != null) lines.Add($"PenButtons: {buttons}");
-            if (tilt != null) lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
+            if (tilt != null)
+            {
+                lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
+                lines.Add($"Azimuth: {DebugTiltAzimuth:F1}°  Altitude: {DebugTiltAltitude:F1}°");
+            }
             var aux = reportData["AuxButtons"];
             if (aux != null) lines.Add($"AuxButtons: {aux}");
             var proximity = reportData["NearProximity"];
-            if (proximity != null) lines.Add($"NearProximity: {proximity}");
+            if (proximity != null)
+            {
+                DebugNearProximity = proximity.Value<bool>() ? "Yes" : "No";
+                lines.Add($"NearProximity: {proximity}");
+            }
             var hover = reportData["HoverDistance"];
-            if (hover != null) lines.Add($"HoverDistance: {hover}");
+            if (hover != null)
+            {
+                DebugHoverDistance = hover.ToString();
+                lines.Add($"HoverDistance: {hover}");
+            }
 
             LastReportFormatted = string.Join("\n", lines);
         });
