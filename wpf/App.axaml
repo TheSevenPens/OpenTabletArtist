@@ -1,0 +1,25 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:TabletDriverUX.Converters"
+             x:Class="TabletDriverUX.App">
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://TabletDriverUX/Themes/Styles.axaml" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://TabletDriverUX/Themes/Colors.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:InverseBoolConverter x:Key="InvBool" />
+            <conv:StringEqualsConverter x:Key="StrEquals" />
+            <conv:NonEmptyToBoolConverter x:Key="NonEmptyToBool" />
+            <conv:AllFalseBoolConverter x:Key="AllFalseBool" />
+            <conv:NotFirstAndSecondBoolConverter x:Key="NotFirstAndSecondBool" />
+            <conv:PageToViewConverter x:Key="PageToView" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

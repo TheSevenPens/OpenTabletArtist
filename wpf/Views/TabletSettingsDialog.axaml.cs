@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
-using System.Windows;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json;
@@ -21,6 +21,9 @@ public partial class TabletSettingsDialog : Window
         InitializeComponent();
         DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer);
     }
+
+    // Parameterless constructor required by Avalonia XAML loader
+    public TabletSettingsDialog() { InitializeComponent(); }
 }
 
 public record DisplayInfo(int Index, string Label, int Width, int Height, int X, int Y, bool IsPrimary);
@@ -87,6 +90,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _skipDisplayChange = true;
         SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
         _skipDisplayChange = false;
+    }
+
+    // Parameterless constructor for design-time
+    public TabletSettingsDialogViewModel()
+    {
+        _profile = new Profile();
+        TabletName = "Design Tablet";
+        Displays = new ObservableCollection<DisplayInfo>();
     }
 
     private static string GetBindingName(PluginSettingStore? store)
@@ -170,12 +181,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             if (!IsAdaptive(bindings.PenButtons[i])) allAdaptive = false;
         }
         PenButtons = newPenButtons;
+        NoPenButtons = newPenButtons.Count == 0;
         CanFixPenButtons = !(bindings.PenButtons.Count == 0 || allAdaptive) && _applyAction != null;
 
         var newAuxButtons = new List<ButtonBinding>();
         for (int i = 0; i < bindings.AuxButtons.Count; i++)
             newAuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.AuxButtons[i]) });
         AuxButtons = newAuxButtons;
+        NoAuxButtons = newAuxButtons.Count == 0;
 
         // Filters
         if (_profile.Filters.Count > 0)
@@ -389,6 +402,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private string _penButtonCount = "0";
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _canFixPenButtons;
+    [ObservableProperty] private bool _noPenButtons;
+    [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _penButtons = [];
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
     [ObservableProperty] private string _filtersText = "";

@@ -1,0 +1,285 @@
+<UserControl x:Class="TabletDriverUX.Views.DashboardView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <!-- Page Header -->
+        <TextBlock Classes="PageTitle" Text="Dashboard" />
+        <TextBlock Classes="PageSubtitle" Text="Overview of your tablet configuration" />
+
+        <StackPanel>
+            <!-- OpenTabletDriver Version -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            Background="{DynamicResource GlassBgBrush}">
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- OTD Status -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                                Background="{DynamicResource GlassBgBrush}"
+                                Classes.active="{Binding IsConnected}">
+                            <Border.Styles>
+                                <Style Selector="Border.active">
+                                    <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                                </Style>
+                            </Border.Styles>
+                            <TextBlock Text="&#xE839;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Classes.active="{Binding IsConnected}">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock.active">
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="OpenTabletDriver Daemon" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                         Fill="{DynamicResource TextMutedBrush}"
+                                         Classes.active="{Binding IsConnected}">
+                                    <Ellipse.Styles>
+                                        <Style Selector="Ellipse.active">
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                        </Style>
+                                    </Ellipse.Styles>
+                                </Ellipse>
+                                <TextBlock Text="{Binding DaemonStatusText}" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Refresh button -->
+                        <Button Command="{Binding RefreshConnectionCommand}"
+                                ToolTip.Tip="Check daemon status"
+                                Theme="{StaticResource IconButton}" Margin="0,0,6,0">
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </Button>
+                        <!-- Start button: show when NOT connected -->
+                        <Button Content="Start" Theme="{StaticResource AccentButton}"
+                                Command="{Binding StartDaemonCommand}"
+                                IsVisible="{Binding !IsConnected}"
+                                Padding="12,6" FontSize="12" />
+                        <!-- Restart button: show when connected -->
+                        <Button Content="Restart" Theme="{StaticResource AccentButton}"
+                                Command="{Binding RestartDaemonCommand}"
+                                IsVisible="{Binding IsConnected}"
+                                Padding="12,6" FontSize="12" />
+                        <!-- Launch OTD's own UX -->
+                        <Button Content="OTD UX" Theme="{StaticResource GhostButton}"
+                                Command="{Binding LaunchOtdUxCommand}"
+                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Tablet Status -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                                Background="{DynamicResource GlassBgBrush}"
+                                Classes.active="{Binding HasTablet}">
+                            <Border.Styles>
+                                <Style Selector="Border.active">
+                                    <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                                </Style>
+                            </Border.Styles>
+                            <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Classes.active="{Binding HasTablet}">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock.active">
+                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                         Fill="{DynamicResource TextMutedBrush}"
+                                         Classes.active="{Binding HasTablet}">
+                                    <Ellipse.Styles>
+                                        <Style Selector="Ellipse.active">
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                        </Style>
+                                    </Ellipse.Styles>
+                                </Ellipse>
+                                <TextBlock Text="{Binding TabletStatusText}" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="Open"
+                            Command="{Binding OpenConnectedTabletSettingsCommand}"
+                            IsEnabled="{Binding HasTablet}"
+                            VerticalAlignment="Center"
+                            Theme="{StaticResource AccentButton}"
+                            Padding="12,6" FontSize="12" />
+                </Grid>
+            </Border>
+
+            <!-- VMulti Status -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            Background="{DynamicResource GlassBgBrush}"
+                            Classes.active="{Binding VmultiInstalled}">
+                        <Border.Styles>
+                            <Style Selector="Border.active">
+                                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                            </Style>
+                        </Border.Styles>
+                        <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Classes.active="{Binding VmultiInstalled}">
+                            <TextBlock.Styles>
+                                <Style Selector="TextBlock.active">
+                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                </Style>
+                            </TextBlock.Styles>
+                        </TextBlock>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="VMulti Driver" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Command="{Binding RefreshVmultiDetectionCommand}" Cursor="Hand"
+                                    Width="20" Height="20" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    ToolTip.Tip="Refresh VMulti status"
+                                    Background="Transparent" BorderThickness="0" Padding="0">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                     Fill="{DynamicResource TextMutedBrush}"
+                                     Classes.active="{Binding VmultiInstalled}">
+                                <Ellipse.Styles>
+                                    <Style Selector="Ellipse.active">
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                    </Style>
+                                </Ellipse.Styles>
+                            </Ellipse>
+                            <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
+                            <Run Text="Setup API: " /><Run Text="{Binding VmultiSetupApiStatus}" />
+                        </TextBlock>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                            <Run Text="HID: " /><Run Text="{Binding VmultiHidStatus}" />
+                        </TextBlock>
+                        <!-- Install status text (shown during installation) -->
+                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="10"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"
+                                   IsVisible="{Binding VmultiInstalling}" />
+                        <TextBlock Text="Required for pressure &amp; tilt" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
+                                   Margin="0,2,0,0"
+                                   IsVisible="{Binding !VmultiInstalled}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Browse button -->
+                        <Button Content="Browse" Theme="{StaticResource AccentButton}"
+                                Command="{Binding OpenFolderCommand}"
+                                CommandParameter="C:\Program Files\VMulti"
+                                Padding="12,6" FontSize="12" Margin="0,0,8,0" />
+                        <!-- Install button -->
+                        <Button Content="Install" Theme="{StaticResource AccentButton}"
+                                Command="{Binding InstallVmultiCommand}"
+                                Padding="12,6" FontSize="12" Margin="0,0,8,0"
+                                IsVisible="{Binding ShowInstallButton}" />
+                        <!-- Uninstall button -->
+                        <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
+                                Command="{Binding UninstallVmultiCommand}"
+                                Padding="12,6" FontSize="12"
+                                IsVisible="{Binding ShowUninstallButton}" />
+                        <!-- Progress indicator -->
+                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="11"
+                                   Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
+                                   IsVisible="{Binding VmultiInstalling}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Windows Ink Status -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            Background="{DynamicResource GlassBgBrush}"
+                            Classes.active="{Binding HasWindowsInk}">
+                        <Border.Styles>
+                            <Style Selector="Border.active">
+                                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                            </Style>
+                        </Border.Styles>
+                        <TextBlock Text="&#xEDC6;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Classes.active="{Binding HasWindowsInk}">
+                            <TextBlock.Styles>
+                                <Style Selector="TextBlock.active">
+                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                </Style>
+                            </TextBlock.Styles>
+                        </TextBlock>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Windows Ink" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                     Fill="{DynamicResource TextMutedBrush}"
+                                     Classes.active="{Binding HasWindowsInk}">
+                                <Ellipse.Styles>
+                                    <Style Selector="Ellipse.active">
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                    </Style>
+                                </Ellipse.Styles>
+                            </Ellipse>
+                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="Enables pressure in drawing apps" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
+                                   Margin="0,2,0,0"
+                                   IsVisible="{Binding !HasWindowsInk}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </StackPanel>
+</UserControl>

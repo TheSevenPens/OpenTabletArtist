@@ -1,12 +1,12 @@
 <UserControl x:Class="TabletDriverUX.Views.AboutView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Style="{StaticResource PageTitle}" Text="About" />
-        <TextBlock Style="{StaticResource PageSubtitle}" Text="Driver UX Experiment" />
+        <TextBlock Classes="PageTitle" Text="About" />
+        <TextBlock Classes="PageSubtitle" Text="Driver UX Experiment" />
 
-        <Border Style="{StaticResource GlassPanel}">
+        <Border Classes="GlassPanel">
             <StackPanel>
                 <TextBlock Text="What is this?" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />

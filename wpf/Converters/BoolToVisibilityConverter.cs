@@ -1,83 +1,91 @@
+using System.Collections.Generic;
 using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
+using Avalonia.Data.Converters;
+using Avalonia.Controls;
+using TabletDriverUX.Views;
 
 namespace TabletDriverUX.Converters;
 
-public class BoolToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is true ? Visibility.Visible : Visibility.Collapsed;
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is Visibility.Visible;
-}
-
-public class InverseBoolToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is true ? Visibility.Collapsed : Visibility.Visible;
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is Visibility.Collapsed;
-}
-
-/// <summary>
-/// Visible when: first value is false AND second value is true.
-/// Used for "show Start button when not connected AND has install path".
-/// </summary>
-public class NotFirstAndSecondToVisibilityConverter : IMultiValueConverter
-{
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (values.Length >= 2 && values[0] is bool first && values[1] is bool second)
-            return !first && second ? Visibility.Visible : Visibility.Collapsed;
-        return Visibility.Collapsed;
-    }
-
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-        => throw new NotImplementedException();
-}
-
-/// <summary>
-/// Visible when ALL values are false.
-/// </summary>
-public class AllFalseToVisibilityConverter : IMultiValueConverter
-{
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-    {
-        foreach (var v in values)
-            if (v is true) return Visibility.Collapsed;
-        return Visibility.Visible;
-    }
-
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-        => throw new NotImplementedException();
-}
-
 public class InverseBoolConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is true ? false : true;
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is true ? false : true;
-}
-
-public class NonEmptyToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => !string.IsNullOrEmpty(value?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        => throw new NotImplementedException();
 }
 
 public class StringEqualsConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value?.ToString() == parameter?.ToString();
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class NonEmptyToBoolConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => !string.IsNullOrEmpty(value?.ToString());
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Returns true when ALL values are false.
+/// </summary>
+public class AllFalseBoolConverter : IMultiValueConverter
+{
+    public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        foreach (var v in values)
+            if (v is true) return false;
+        return true;
+    }
+}
+
+/// <summary>
+/// Returns true when: first value is false AND second value is true.
+/// </summary>
+public class NotFirstAndSecondBoolConverter : IMultiValueConverter
+{
+    public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Count >= 2 && values[0] is bool first && values[1] is bool second)
+            return !first && second;
+        return false;
+    }
+}
+
+/// <summary>
+/// Converts a page name string to the corresponding UserControl view.
+/// Caches views so they are only created once.
+/// </summary>
+public class PageToViewConverter : IValueConverter
+{
+    private readonly Dictionary<string, UserControl> _views = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string page) return null;
+        if (!_views.TryGetValue(page, out var view))
+        {
+            view = page switch
+            {
+                "Dashboard" => new DashboardView(),
+                "TabletSettings" => new TabletSettingsView(),
+                "Presets" => new PresetsView(),
+                "Console" => new ConsoleView(),
+                "About" => new AboutView(),
+                _ => new DashboardView()
+            };
+            _views[page] = view;
+        }
+        return view;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }
