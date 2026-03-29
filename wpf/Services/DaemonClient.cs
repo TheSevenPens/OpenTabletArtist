@@ -94,6 +94,12 @@ public class DaemonClient : IDisposable
         return await _rpc.InvokeAsync<JArray>("GetTablets");
     }
 
+    public async Task SetTabletDebugAsync(bool enabled)
+    {
+        if (_rpc == null) return;
+        await _rpc.InvokeAsync("SetTabletDebug", enabled);
+    }
+
     public void Dispose()
     {
         _rpc?.Dispose();
