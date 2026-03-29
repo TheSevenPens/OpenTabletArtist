@@ -28,6 +28,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _lastReportRaw = "";
     [ObservableProperty] private string _lastReportFormatted = "";
     [ObservableProperty] private int _reportCount;
+    [ObservableProperty] private string _debugReportRate = "";
+    [ObservableProperty] private string _debugTabletName = "";
+    [ObservableProperty] private string _debugReportType = "";
+    [ObservableProperty] private double _debugPenX;
+    [ObservableProperty] private double _debugPenY;
+    [ObservableProperty] private double _debugPenPressure;
+    [ObservableProperty] private double _debugMaxX;
+    [ObservableProperty] private double _debugMaxY;
+    [ObservableProperty] private double _debugMaxPressure;
+    [ObservableProperty] private double _debugDigitizerWidth;
+    [ObservableProperty] private double _debugDigitizerHeight;
+    [ObservableProperty] private bool _debugHasPosition;
+    private double _reportPeriodEma;
+    private DateTime _lastReportTime;
 
     // Dashboard data
     [ObservableProperty] private string _tabletName = "";
@@ -346,6 +360,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ReportCount = 0;
         LastReportRaw = "";
         LastReportFormatted = "";
+        DebugReportRate = "";
+        DebugTabletName = "";
+        DebugReportType = "";
+        DebugPenX = 0; DebugPenY = 0; DebugPenPressure = 0;
+        DebugMaxX = 0; DebugMaxY = 0; DebugMaxPressure = 0;
+        DebugDigitizerWidth = 0; DebugDigitizerHeight = 0;
+        DebugHasPosition = false;
+        _reportPeriodEma = 0;
+        _lastReportTime = DateTime.MinValue;
     }
 
     private async Task StopDebuggingAsync()
@@ -362,6 +385,50 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             ReportCount++;
 
+            // Report rate (EMA)
+            var now = DateTime.UtcNow;
+            if (_lastReportTime != DateTime.MinValue)
+            {
+                var deltaMs = (now - _lastReportTime).TotalMilliseconds;
+                if (_reportPeriodEma == 0)
+                    _reportPeriodEma = deltaMs;
+                else
+                    _reportPeriodEma += (deltaMs - _reportPeriodEma) * 0.05;
+                if (_reportPeriodEma > 0)
+                    DebugReportRate = $"{Math.Round(1000.0 / _reportPeriodEma)} Hz";
+            }
+            _lastReportTime = now;
+
+            // Tablet name
+            var tabletName = data["Tablet"]?["Properties"]?["Name"]?.ToString();
+            if (tabletName != null) DebugTabletName = tabletName;
+
+            // Report type
+            var path = data["Path"]?.ToString();
+            if (path != null) DebugReportType = path.Split('.').LastOrDefault() ?? path;
+
+            // Digitizer specs (for visualizer scaling)
+            var digi = data["Tablet"]?["Properties"]?["Specifications"]?["Digitizer"];
+            if (digi != null)
+            {
+                var maxX = digi["MaxX"]?.Value<double>() ?? 0;
+                var maxY = digi["MaxY"]?.Value<double>() ?? 0;
+                var digiW = digi["Width"]?.Value<double>() ?? 0;
+                var digiH = digi["Height"]?.Value<double>() ?? 0;
+                if (maxX > 0) DebugMaxX = maxX;
+                if (maxY > 0) DebugMaxY = maxY;
+                if (digiW > 0) DebugDigitizerWidth = digiW;
+                if (digiH > 0) DebugDigitizerHeight = digiH;
+            }
+
+            // Max pressure from pen specs
+            var pen = data["Tablet"]?["Properties"]?["Specifications"]?["Pen"];
+            if (pen != null)
+            {
+                var maxP = pen["MaxPressure"]?.Value<double>() ?? 0;
+                if (maxP > 0) DebugMaxPressure = maxP;
+            }
+
             var reportData = data["Data"];
             if (reportData == null) return;
 
@@ -377,11 +444,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 catch { LastReportRaw = rawBase64; }
             }
 
+            // Position for visualizer
+            var pos = reportData["Position"];
+            if (pos != null)
+            {
+                DebugPenX = pos["X"]?.Value<double>() ?? 0;
+                DebugPenY = pos["Y"]?.Value<double>() ?? 0;
+                DebugHasPosition = true;
+            }
+
+            // Pressure
+            var pressure = reportData["Pressure"];
+            if (pressure != null)
+                DebugPenPressure = pressure.Value<double>();
+
             // Formatted fields
             var lines = new List<string>();
-            var pos = reportData["Position"];
             if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
-            var pressure = reportData["Pressure"];
             if (pressure != null) lines.Add($"Pressure: {pressure}");
             var buttons = reportData["PenButtons"];
             if (buttons != null) lines.Add($"PenButtons: {buttons}");
@@ -393,8 +472,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (proximity != null) lines.Add($"NearProximity: {proximity}");
             var hover = reportData["HoverDistance"];
             if (hover != null) lines.Add($"HoverDistance: {hover}");
-            var path = data["Path"]?.ToString();
-            if (path != null) lines.Add($"Type: {path.Split('.').LastOrDefault() ?? path}");
 
             LastReportFormatted = string.Join("\n", lines);
         });
