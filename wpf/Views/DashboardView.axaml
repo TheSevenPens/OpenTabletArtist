@@ -86,6 +86,11 @@
                                 Command="{Binding RestartDaemonCommand}"
                                 IsVisible="{Binding IsConnected}"
                                 Padding="12,6" FontSize="12" />
+                        <!-- Stop button: show when connected -->
+                        <Button Content="Stop" Theme="{StaticResource DeleteButton}"
+                                Command="{Binding StopDaemonCommand}"
+                                IsVisible="{Binding IsConnected}"
+                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
                         <!-- Launch OTD's own UX -->
                         <Button Content="OTD UX" Theme="{StaticResource GhostButton}"
                                 Command="{Binding LaunchOtdUxCommand}"

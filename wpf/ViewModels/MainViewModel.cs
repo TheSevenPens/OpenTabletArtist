@@ -370,6 +370,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void StopDaemon()
+    {
+        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
+        {
+            try { proc.Kill(); } catch { }
+        }
+    }
+
+    [RelayCommand]
     private async Task StartDaemon()
     {
         LaunchDaemonProcess();

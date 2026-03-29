@@ -15,6 +15,7 @@ public class DaemonClient : IDisposable
 
     public event Action? Connected;
     public event Action? Disconnected;
+    public event Action<JObject>? DeviceReport;
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     public async Task ConnectAsync(CancellationToken ct = default)
@@ -37,6 +38,7 @@ public class DaemonClient : IDisposable
                     Disconnected?.Invoke();
                     _ = Task.Run(() => ConnectAsync(ct), ct);
                 };
+                _rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
                 _rpc.StartListening();
                 Connected?.Invoke();
                 return;
@@ -92,6 +94,11 @@ public class DaemonClient : IDisposable
     {
         if (_rpc == null) return [];
         return await _rpc.InvokeAsync<JArray>("GetTablets");
+    }
+
+    private void OnDeviceReport(JObject data)
+    {
+        DeviceReport?.Invoke(data);
     }
 
     public async Task SetTabletDebugAsync(bool enabled)
