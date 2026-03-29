@@ -40,6 +40,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _debugDigitizerWidth;
     [ObservableProperty] private double _debugDigitizerHeight;
     [ObservableProperty] private bool _debugHasPosition;
+    [ObservableProperty] private double _debugTiltX;
+    [ObservableProperty] private double _debugTiltY;
+    [ObservableProperty] private string _debugPenButtons = "";
     private double _reportPeriodEma;
     private DateTime _lastReportTime;
 
@@ -367,6 +370,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         DebugMaxX = 0; DebugMaxY = 0; DebugMaxPressure = 0;
         DebugDigitizerWidth = 0; DebugDigitizerHeight = 0;
         DebugHasPosition = false;
+        DebugTiltX = 0; DebugTiltY = 0;
+        DebugPenButtons = "";
         _reportPeriodEma = 0;
         _lastReportTime = DateTime.MinValue;
     }
@@ -458,13 +463,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (pressure != null)
                 DebugPenPressure = pressure.Value<double>();
 
+            // Tilt
+            var tilt = reportData["Tilt"];
+            if (tilt != null)
+            {
+                DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
+                DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
+            }
+
+            // Pen buttons
+            var buttons = reportData["PenButtons"];
+            if (buttons is JArray btnArr)
+                DebugPenButtons = string.Join("  ", btnArr.Select((b, i) => $"{i + 1}: {b}"));
+
             // Formatted fields
             var lines = new List<string>();
             if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
             if (pressure != null) lines.Add($"Pressure: {pressure}");
-            var buttons = reportData["PenButtons"];
             if (buttons != null) lines.Add($"PenButtons: {buttons}");
-            var tilt = reportData["Tilt"];
             if (tilt != null) lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
             var aux = reportData["AuxButtons"];
             if (aux != null) lines.Add($"AuxButtons: {aux}");

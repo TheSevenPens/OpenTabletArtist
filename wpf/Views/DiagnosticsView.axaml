@@ -51,50 +51,126 @@
             </Grid>
         </Border>
 
-        <!-- Tablet Visualizer -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
-                IsVisible="{Binding IsDebugging}">
-            <c:TabletVisualizer Height="200"
-                                PenX="{Binding DebugPenX}"
-                                PenY="{Binding DebugPenY}"
-                                MaxX="{Binding DebugMaxX}"
-                                MaxY="{Binding DebugMaxY}"
-                                DigitizerWidth="{Binding DebugDigitizerWidth}"
-                                DigitizerHeight="{Binding DebugDigitizerHeight}"
-                                Pressure="{Binding DebugPenPressure}"
-                                MaxPressure="{Binding DebugMaxPressure}"
-                                HasPosition="{Binding DebugHasPosition}" />
-        </Border>
+        <!-- Tab buttons -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <RadioButton Content="Basic" IsChecked="True" x:Name="BasicTab"
+                         Theme="{StaticResource TabRadioButton}" />
+            <RadioButton Content="Advanced" x:Name="AdvancedTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+        </StackPanel>
 
-        <!-- Report Data -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
-                IsVisible="{Binding IsDebugging}">
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                <!-- Left: parsed report -->
-                <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="Parsed Report" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
-                        <TextBlock Text=" — " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
-                        <TextBlock Text="{Binding DebugReportType}" FontSize="11"
-                                   Foreground="{DynamicResource AccentBrush}" />
+        <!-- Basic tab content -->
+        <StackPanel IsVisible="{Binding #BasicTab.IsChecked}">
+            <!-- Tablet Visualizer -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
+                    IsVisible="{Binding IsDebugging}">
+                <c:TabletVisualizer Height="200"
+                                    PenX="{Binding DebugPenX}"
+                                    PenY="{Binding DebugPenY}"
+                                    MaxX="{Binding DebugMaxX}"
+                                    MaxY="{Binding DebugMaxY}"
+                                    DigitizerWidth="{Binding DebugDigitizerWidth}"
+                                    DigitizerHeight="{Binding DebugDigitizerHeight}"
+                                    Pressure="{Binding DebugPenPressure}"
+                                    MaxPressure="{Binding DebugMaxPressure}"
+                                    HasPosition="{Binding DebugHasPosition}" />
+            </Border>
+
+            <!-- Stylus Info -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                    IsVisible="{Binding IsDebugging}">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+                    <!-- Position -->
+                    <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,12,0">
+                        <TextBlock Text="POSITION" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPenX, StringFormat='X: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DebugPenY, StringFormat='Y: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
                     </StackPanel>
-                    <TextBlock Text="{Binding LastReportFormatted}" FontSize="11"
-                               FontFamily="Cascadia Mono,Consolas,monospace"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-                <!-- Right: raw bytes -->
-                <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                    <TextBlock Text="Raw Data" FontSize="11" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                    <TextBlock Text="{Binding LastReportRaw}" FontSize="11"
-                               FontFamily="Cascadia Mono,Consolas,monospace"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Grid>
-        </Border>
+                    <!-- Pressure -->
+                    <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,0">
+                        <TextBlock Text="PRESSURE" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPenPressure, StringFormat='{}{0:F0}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DebugMaxPressure, StringFormat='Max: {0:F0}'}" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <!-- Tilt -->
+                    <StackPanel Grid.Column="2" Grid.Row="0">
+                        <TextBlock Text="TILT" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <!-- Buttons -->
+                    <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Margin="0,12,0,0">
+                        <TextBlock Text="PEN BUTTONS" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPenButtons}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- Advanced tab content -->
+        <StackPanel IsVisible="{Binding #AdvancedTab.IsChecked}">
+            <!-- Tablet Visualizer -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
+                    IsVisible="{Binding IsDebugging}">
+                <c:TabletVisualizer Height="200"
+                                    PenX="{Binding DebugPenX}"
+                                    PenY="{Binding DebugPenY}"
+                                    MaxX="{Binding DebugMaxX}"
+                                    MaxY="{Binding DebugMaxY}"
+                                    DigitizerWidth="{Binding DebugDigitizerWidth}"
+                                    DigitizerHeight="{Binding DebugDigitizerHeight}"
+                                    Pressure="{Binding DebugPenPressure}"
+                                    MaxPressure="{Binding DebugMaxPressure}"
+                                    HasPosition="{Binding DebugHasPosition}" />
+            </Border>
+
+            <!-- Report Data -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                    IsVisible="{Binding IsDebugging}">
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                    <!-- Left: parsed report -->
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Parsed Report" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text=" — " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding DebugReportType}" FontSize="11"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding LastReportFormatted}" FontSize="11"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <!-- Right: raw bytes -->
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Raw Data" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding LastReportRaw}" FontSize="11"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <!-- Not connected warning -->
         <Border Classes="GlassPanel" Padding="16"
