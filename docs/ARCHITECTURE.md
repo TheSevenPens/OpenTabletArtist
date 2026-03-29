@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────┐                    ┌─────────────────────┐
-│   WPF App (.NET 10)  │     Named Pipe     │   OTD Daemon        │
+│  Avalonia App (.NET 10)│     Named Pipe     │   OTD Daemon        │
 │   TabletDriverUX    │◄───────────────────►│ (OpenTabletDriver   │
 │                     │    StreamJsonRpc    │  .Daemon.exe)       │
 └─────────────────────┘                    └─────────────────────┘
@@ -14,26 +14,30 @@
    (user sees)                              (tablet hardware)
 ```
 
-**Previous architecture:** The project originally used a Svelte 5 web frontend + .NET bridge process. This was replaced with a WPF app that connects directly to the OTD daemon, eliminating the bridge and solving persistent Svelte 5 client-side navigation bugs. The bridge and frontend have been removed.
+**Previous architecture:** The project originally used a Svelte 5 web frontend + .NET bridge process. This was replaced with a WPF app, then converted to Avalonia UI for cross-platform potential. The app connects directly to the OTD daemon, eliminating the bridge. The bridge and frontend have been removed.
 
 ## Components
 
-### WPF App (`wpf/`)
+### Avalonia App (`wpf/`)
 
 **Role:** Single-process desktop application. Renders all UI, manages state, and communicates directly with the OTD daemon via named pipe.
 
-**Technology:** .NET 10 WPF with CommunityToolkit.Mvvm (MVVM pattern).
+**Technology:** .NET 10 Avalonia UI with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
 - `Services/` — `DaemonClient.cs` (named pipe + StreamJsonRpc), `VMultiDetector.cs` (HID scanning)
 - `ViewModels/` — `MainViewModel.cs` (navigation, connection state, data loading)
 - `Views/` — XAML pages (Dashboard, TabletSettings, Presets, Console, About)
 - `Themes/` — Resource dictionaries for colors and styles (light mode, glassmorphism)
-- `Converters/` — WPF value converters
+- `Converters/` — Avalonia value converters
+- `Helpers/` — Dialog helpers (MessageBox, InputBox replacements)
 
 **Dependencies:**
 - `StreamJsonRpc` 2.22.23 — JSON-RPC client matching OTD daemon version
-- `HidSharp` 2.1.0 — HID device enumeration for vmulti detection
+- `Avalonia` 11.2.7 — Cross-platform UI framework
+- `Avalonia.Desktop` 11.2.7 — Desktop platform support
+- `Avalonia.Themes.Fluent` 11.2.7 — Base Fluent theme
+- `HidSharp` 2.1.0 — HID device enumeration for vmulti detection (via OTD)
 - `Newtonsoft.Json` 13.0.3 — JSON handling (required by StreamJsonRpc)
 - `CommunityToolkit.Mvvm` 8.4.0 — MVVM infrastructure (`[ObservableProperty]`, `[RelayCommand]`)
 
@@ -74,31 +78,31 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 ## Key Design Decisions
 
-### 1. WPF instead of web frontend
+### 1. Avalonia UI instead of web frontend
 
-**Decision:** Use WPF (.NET 10) rather than Svelte/React/web tech.
+**Decision:** Use Avalonia UI (.NET 10) rather than Svelte/React/web tech.
 
-**Rationale:** The original Svelte 5 frontend had a persistent navigation bug where client-side routing broke when navigating back to previously-visited pages. This was traced to a Svelte 5 rendering issue. WPF provides native navigation via simple property binding (`CurrentPage` → `ContentControl` with `DataTrigger`), direct named pipe access (no bridge needed), and eliminates an entire process from the architecture.
+**Rationale:** The original Svelte 5 frontend had a persistent navigation bug where client-side routing broke when navigating back to previously-visited pages. This was traced to a Svelte 5 rendering issue. The app was first rebuilt as WPF (Windows-only), then converted to Avalonia UI for cross-platform potential. Avalonia provides native navigation via simple property binding (`CurrentPage` → `ContentControl` with converter), direct named pipe access (no bridge needed), and eliminates an entire process from the architecture.
 
-**Trade-off:** Windows-only (no cross-platform). No hot reload for XAML (though XAML Hot Reload in Visual Studio helps). Design iteration is slower than CSS but the app actually works reliably.
+**Trade-off:** Avalonia is cross-platform capable but Windows-specific features (P/Invoke for display enumeration, vmulti detection) currently limit portability. The glassmorphism design language translates well to Avalonia's styling system.
 
 ### 2. Direct daemon connection instead of bridge
 
-**Decision:** The WPF app connects directly to the OTD daemon via named pipe, replacing the bridge + HTTP architecture.
+**Decision:** The Avalonia app connects directly to the OTD daemon via named pipe, replacing the bridge + HTTP architecture.
 
-**Rationale:** Since WPF is .NET, it can use StreamJsonRpc directly — the same library the daemon uses. No HTTP translation layer needed. This eliminates a process, reduces latency, and simplifies deployment to a single .exe.
+**Rationale:** Since Avalonia is .NET, it can use StreamJsonRpc directly — the same library the daemon uses. No HTTP translation layer needed. This eliminates a process, reduces latency, and simplifies deployment to a single .exe.
 
 ### 3. MVVM with CommunityToolkit.Mvvm
 
 **Decision:** Use the MVVM pattern with source-generated properties and commands.
 
-**Rationale:** `[ObservableProperty]` and `[RelayCommand]` attributes generate all the `INotifyPropertyChanged` boilerplate. Navigation is a simple `string CurrentPage` property that drives a `ContentControl` via `DataTrigger` — no routing framework needed.
+**Rationale:** `[ObservableProperty]` and `[RelayCommand]` attributes generate all the `INotifyPropertyChanged` boilerplate. Navigation is a simple `string CurrentPage` property that drives a `ContentControl` via a `PageToViewConverter` — no routing framework needed.
 
 ### 4. JToken for data passthrough
 
 **Decision:** Use `Newtonsoft.Json.Linq.JToken` for daemon data rather than strongly-typed C# models.
 
-**Rationale:** Same rationale as the bridge — the daemon's data shapes are complex and evolving. JToken avoids maintaining parallel C# model classes. The XAML binds directly to JToken properties via indexer syntax (`{Binding [Name]}`).
+**Rationale:** Same rationale as the bridge — the daemon's data shapes are complex and evolving. JToken avoids maintaining parallel C# model classes. The AXAML binds directly to JToken properties via indexer syntax (`{Binding [Name]}`).
 
 ## Technical Challenges
 
@@ -108,9 +112,9 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Newtonsoft.Json vs System.Text.Json.** StreamJsonRpc uses Newtonsoft.Json internally. Must use `JToken` not `JsonElement`.
 
-**JValue to string in WPF commands.** WPF `CommandParameter` with JToken indexer (`{Binding [Name]}`) passes `JValue` objects, but `RelayCommand<string>` expects `string`. Fixed by binding to `[Name].Value` which unwraps to the primitive.
+**JValue to string in commands.** `CommandParameter` with JToken indexer (`{Binding [Name]}`) passes `JValue` objects, but `RelayCommand<string>` expects `string`. Fixed by binding to `[Name].Value` which unwraps to the primitive.
 
-**Svelte 5 navigation bug (historical).** Svelte 5's `$state` reactivity failed to update `{#if}` template blocks when values returned to previously-rendered states. This affected both custom hash routing and SvelteKit's built-in router. Root cause was in Svelte 5's compiled template diffing. Resolved by switching to WPF.
+**Svelte 5 navigation bug (historical).** Svelte 5's `$state` reactivity failed to update `{#if}` template blocks when values returned to previously-rendered states. This affected both custom hash routing and SvelteKit's built-in router. Root cause was in Svelte 5's compiled template diffing. Resolved by switching to WPF, later converted to Avalonia.
 
 **VMulti detection (dual method).** VMulti is detected via both HidSharp (HID enumeration — sees only active devices) and the Windows Setup API (`SetupDi*` — sees all devices including disabled ones). This distinguishes "not installed" from "installed but disabled."
 
@@ -128,19 +132,22 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Dark mode.** Light mode colors are implemented. Dark mode requires a second `ResourceDictionary` with runtime switching.
 
-**Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with drop shadows. True acrylic blur effects (via Windows Composition API) could be added for deeper visual fidelity.
+**Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with box shadows. True acrylic blur effects could be added for deeper visual fidelity.
 
 **OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.6.2. The WPF app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
 
 ## Dependency Graph
 
 ```
-WPF App (.NET 10)
+Avalonia App (.NET 10)
+  └── Avalonia 11.2.7
+  └── Avalonia.Desktop 11.2.7
+  └── Avalonia.Themes.Fluent 11.2.7
   └── OpenTabletDriver.Desktop (project ref from submodule)
   └── OpenTabletDriver (project ref from submodule)
   └── OpenTabletDriver.Plugin (project ref from submodule)
   └── StreamJsonRpc 2.22.23
-  └── HidSharp 2.1.0
+  └── HidSharp 2.1.0 (via OTD)
   └── CommunityToolkit.Mvvm 8.4.0
 
 OTD Daemon (built from submodule, .NET 8)

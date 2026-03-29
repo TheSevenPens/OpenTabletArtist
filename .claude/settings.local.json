@@ -62,7 +62,9 @@
       "Bash(taskkill /f /pid 16232)",
       "Bash(taskkill /f /pid 29524)",
       "Bash(cmd /c \"taskkill /f /pid 16232\")",
-      "Bash(cmd /c \"taskkill /f /pid 29524\")"
+      "Bash(cmd /c \"taskkill /f /pid 29524\")",
+      "Bash(cd:*)",
+      "Bash(find C:UsersTheSeDocumentsGitHubTabletDriverUXPrototypeexternalOpenTabletDriver -name *.json -path */Settings* -o -name *Profile*settings* -type f)"
     ]
   }
 }

@@ -1,27 +1,18 @@
 <UserControl x:Class="TabletDriverUX.Views.TabletSettingsView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Style="{StaticResource PageTitle}" Text="Tablet Settings" />
-        <TextBlock Style="{StaticResource PageSubtitle}" Text="Manage per-tablet configurations" />
+        <TextBlock Classes="PageTitle" Text="Tablet Settings" />
+        <TextBlock Classes="PageSubtitle" Text="Manage per-tablet configurations" />
 
         <ItemsControl ItemsSource="{Binding Profiles}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource GlassPanel}" Margin="0,0,0,12" Padding="16"
-                            Cursor="Hand">
-                        <Border.InputBindings>
-                            <MouseBinding MouseAction="LeftDoubleClick"
-                                          Command="{Binding DataContext.OpenTabletSettingsCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                          CommandParameter="{Binding}" />
-                        </Border.InputBindings>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                    <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                            Cursor="Hand"
+                            DoubleTapped="ProfileCard_DoubleTapped">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
                                     Background="{DynamicResource AccentMutedBrush}" Margin="0,0,16,0">
                                 <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets"
@@ -31,12 +22,9 @@
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                                    <Run Text="{Binding OutputMode.Path, Mode=OneWay}" />
-                                </TextBlock>
                             </StackPanel>
-                            <Button Grid.Column="2" Content="Open" Style="{StaticResource AccentButton}"
-                                    Command="{Binding DataContext.OpenTabletSettingsCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            <Button Grid.Column="2" Content="Open" Theme="{StaticResource AccentButton}"
+                                    Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
                                     CommandParameter="{Binding}"
                                     Padding="12,6" FontSize="12" VerticalAlignment="Center" />
                         </Grid>
@@ -45,8 +33,8 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Style="{StaticResource GlassPanel}" Padding="32"
-                Visibility="{Binding HasTablet, Converter={StaticResource InvBoolToVis}}">
+        <Border Classes="GlassPanel" Padding="32"
+                IsVisible="{Binding !HasTablet}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No Tablets Configured" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />

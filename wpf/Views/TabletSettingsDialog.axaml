@@ -1,0 +1,226 @@
+<Window x:Class="TabletDriverUX.Views.TabletSettingsDialog"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tablet Settings"
+        Width="700" Height="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBaseBrush}"
+        CanResize="True">
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*">
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            <Button Command="{Binding RefreshCommand}" HorizontalAlignment="Right"
+                    ToolTip.Tip="Reload settings from daemon"
+                    Theme="{StaticResource IconButton}">
+                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+            </Button>
+        </Grid>
+
+        <!-- Tab buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
+                         Theme="{StaticResource TabRadioButton}" />
+            <RadioButton Content="Pen Tip &amp; Eraser" x:Name="PenTipTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+            <RadioButton Content="Pen Buttons" x:Name="PenButtonsTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+            <RadioButton Content="Filters" x:Name="FiltersTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+            <RadioButton Content="JSON" x:Name="JsonTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+        </StackPanel>
+
+        <!-- Screen Mapping tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ScreenMappingTab.IsChecked}">
+            <StackPanel>
+                <!-- Output Mode -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="OUTPUT MODE" Classes="SectionLabel" />
+                        <RadioButton Content="Windows Ink Absolute Mode"
+                                     IsChecked="{Binding IsWinInkAbsolute}"
+                                     Theme="{StaticResource TabRadioButton}"
+                                     Margin="0,8,0,0" />
+                        <RadioButton Content="Windows Ink Relative Mode"
+                                     IsChecked="{Binding IsWinInkRelative}"
+                                     Theme="{StaticResource TabRadioButton}"
+                                     Margin="0,4,0,0" />
+                        <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
+                                   FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CanFixOutputMode}" />
+                        <Button Content="Fix" Theme="{StaticResource AccentButton}"
+                                Command="{Binding FixOutputModeCommand}"
+                                Padding="12,6" FontSize="11" Margin="0,6,0,0"
+                                HorizontalAlignment="Left"
+                                IsVisible="{Binding CanFixOutputMode}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Area Mapping -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
+                        IsVisible="{Binding HasAreaMapping}">
+                    <StackPanel>
+                        <TextBlock Text="AREA MAPPING" Classes="SectionLabel" />
+                        <TextBlock Text="Map tablet to display" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,6" />
+                        <ListBox ItemsSource="{Binding Displays}"
+                                 SelectedItem="{Binding SelectedDisplay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Padding="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Label}" FontSize="11"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pen Tip & Eraser tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenTipTab.IsChecked}">
+            <StackPanel>
+                <!-- Tip -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="PEN TIP" Classes="SectionLabel" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                       FontWeight="SemiBold" Text="{Binding TipBinding}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                       IsVisible="{Binding TipPressure, Converter={StaticResource NonEmptyToBool}}">
+                                <Run Text="Activation threshold: " /><Run Text="{Binding TipPressure}" />
+                            </TextBlock>
+                            <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding CanFixTip}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix" Theme="{StaticResource AccentButton}"
+                                Command="{Binding FixTipBindingCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                IsVisible="{Binding CanFixTip}" />
+                    </Grid>
+                </Border>
+
+                <!-- Eraser -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="ERASER" Classes="SectionLabel" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
+                                       FontWeight="SemiBold" Text="{Binding EraserBinding}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                       IsVisible="{Binding EraserPressure, Converter={StaticResource NonEmptyToBool}}">
+                                <Run Text="Activation threshold: " /><Run Text="{Binding EraserPressure}" />
+                            </TextBlock>
+                            <TextBlock Text="Not using recommended Adaptive Binding"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding CanFixEraser}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix" Theme="{StaticResource AccentButton}"
+                                Command="{Binding FixEraserBindingCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
+                                IsVisible="{Binding CanFixEraser}" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pen Buttons tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
+            <StackPanel>
+                <!-- Pen Buttons -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="PEN BUTTONS" Classes="SectionLabel" />
+                            <ItemsControl ItemsSource="{Binding PenButtons}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                                            <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
+                                            <TextBlock Text="{Binding Name}" FontSize="11"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
+                                       IsVisible="{Binding NoPenButtons}" />
+                            <TextBlock Text="Not all pen buttons use recommended Adaptive Binding"
+                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding CanFixPenButtons}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Fix All" Theme="{StaticResource AccentButton}"
+                                Command="{Binding FixPenButtonsCommand}"
+                                Padding="16,8" FontSize="12" VerticalAlignment="Top" Margin="12,0,0,0"
+                                IsVisible="{Binding CanFixPenButtons}" />
+                    </Grid>
+                </Border>
+
+                <!-- Aux Buttons -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="AUXILIARY BUTTONS" Classes="SectionLabel" />
+                        <ItemsControl ItemsSource="{Binding AuxButtons}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
+                                        <TextBlock Text="{Binding Name}" FontSize="11"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="No auxiliary buttons configured" FontSize="11" FontStyle="Italic"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
+                                   IsVisible="{Binding NoAuxButtons}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Filters tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #FiltersTab.IsChecked}">
+            <StackPanel>
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="FILTERS" Classes="SectionLabel" />
+                        <TextBlock Text="{Binding FiltersText}" FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- JSON tab content -->
+        <Border Grid.Row="2" Classes="GlassPanel" Padding="16"
+                IsVisible="{Binding #JsonTab.IsChecked}">
+            <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
+                     FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11"
+                     Foreground="{DynamicResource TextSecondaryBrush}"
+                     Background="Transparent" BorderThickness="0"
+                     TextWrapping="NoWrap"
+                     AcceptsReturn="True" />
+        </Border>
+    </Grid>
+</Window>

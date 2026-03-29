@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using TabletDriverUX.Helpers;
 using TabletDriverUX.Services;
 
 namespace TabletDriverUX.ViewModels;
@@ -31,6 +33,46 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _vmultiInstalling;
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _hasWindowsInk;
+
+    // Computed properties for Avalonia bindings (replacing DataTriggers)
+    [ObservableProperty] private string _daemonStatusText = "Not connected";
+    [ObservableProperty] private string _tabletStatusText = "No tablet detected";
+    [ObservableProperty] private string _windowsInkStatusText = "Not configured";
+    [ObservableProperty] private bool _showInstallButton;
+    [ObservableProperty] private bool _showUninstallButton;
+
+    partial void OnIsConnectedChanged(bool value)
+    {
+        DaemonStatusText = value ? "Daemon running" : "Not connected";
+        OnPropertyChanged(nameof(CanStartDaemon));
+    }
+
+    partial void OnHasTabletChanged(bool value)
+    {
+        TabletStatusText = value ? TabletName : "No tablet detected";
+    }
+
+    partial void OnTabletNameChanged(string value)
+    {
+        if (HasTablet) TabletStatusText = value;
+    }
+
+    partial void OnHasWindowsInkChanged(bool value)
+    {
+        WindowsInkStatusText = value ? "Plugin active" : "Not configured";
+    }
+
+    partial void OnVmultiInstalledChanged(bool value)
+    {
+        ShowInstallButton = !value && !VmultiInstalling;
+        ShowUninstallButton = value && !VmultiInstalling;
+    }
+
+    partial void OnVmultiInstallingChanged(bool value)
+    {
+        ShowInstallButton = !VmultiInstalled && !value;
+        ShowUninstallButton = VmultiInstalled && !value;
+    }
 
     // Typed OTD data
     private Settings? _settings;
@@ -83,20 +125,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
-        _daemon.Connected += () => App.Current.Dispatcher.Invoke(() =>
+        _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
-            OnPropertyChanged(nameof(CanStartDaemon));
             _ = LoadDataAsync();
         });
-        _daemon.Disconnected += () => App.Current.Dispatcher.Invoke(() =>
+        _daemon.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             ConnectionStatus = "Disconnected";
             IsConnected = false;
             IsDaemonRunning = false;
-            OnPropertyChanged(nameof(CanStartDaemon));
             HasTablet = false;
             TabletName = "";
         });
@@ -144,7 +184,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 try
                 {
-                    await App.Current.Dispatcher.InvokeAsync(() => _ = LoadDataAsync());
+                    await Dispatcher.UIThread.InvokeAsync(() => _ = LoadDataAsync());
                 }
                 catch { }
             }
@@ -373,8 +413,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(oldPath)) return;
 
-        var newName = Microsoft.VisualBasic.Interaction.InputBox(
-            "Enter a new name for this snapshot:", "Rename Snapshot", name);
+        var newName = await Dialogs.ShowInputAsync(
+            "Rename Snapshot",
+            "Enter a new name for this snapshot:",
+            name);
 
         if (!string.IsNullOrWhiteSpace(newName) && newName != name)
         {
@@ -386,8 +428,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
             else
             {
-                System.Windows.MessageBox.Show($"A snapshot named \"{newName}\" already exists.",
-                    "Rename", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                await Dialogs.ShowMessageAsync("Rename",
+                    $"A snapshot named \"{newName}\" already exists.");
             }
         }
     }
@@ -401,20 +443,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenConnectedTabletSettings()
+    private async Task OpenConnectedTabletSettings()
     {
         if (!HasTablet || string.IsNullOrEmpty(TabletName) || _settings == null) return;
         var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == TabletName);
         if (profile != null)
-            OpenTabletSettingsForProfile(profile);
+            await OpenTabletSettingsForProfile(profile);
     }
 
     [RelayCommand]
-    private void OpenTabletSettings(object profileObj)
+    private async Task OpenTabletSettings(object profileObj)
     {
         // Called from XAML with a Profile binding
         if (profileObj is Profile profile)
-            OpenTabletSettingsForProfile(profile);
+            await OpenTabletSettingsForProfile(profile);
     }
 
     private (float Width, float Height)? GetTabletDigitizer(string tabletName)
@@ -437,7 +479,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    private void OpenTabletSettingsForProfile(Profile profile)
+    private async Task OpenTabletSettingsForProfile(Profile profile)
     {
         var tabletName = profile.Tablet;
         var digitizer = GetTabletDigitizer(tabletName);
@@ -452,11 +494,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     return _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
                 return null;
             },
-            digitizer)
-        {
-            Owner = App.Current.MainWindow
-        };
-        dialog.ShowDialog();
+            digitizer);
+
+        var mainWindow = Dialogs.GetMainWindow();
+        if (mainWindow != null)
+            await dialog.ShowDialog(mainWindow);
     }
 
     [RelayCommand]
@@ -469,22 +511,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task InstallVmulti()
     {
-        var result = System.Windows.MessageBox.Show(
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Install VMulti Driver",
             "VMulti driver installation may restart your computer.\n\n" +
             "Please save all work in other applications before continuing.\n\n" +
-            "Do you want to proceed?",
-            "Install VMulti Driver",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
+            "Do you want to proceed?");
 
-        if (result != System.Windows.MessageBoxResult.Yes)
+        if (!confirmed)
             return;
 
         VmultiInstalling = true;
         VmultiInstallStatus = "Starting...";
 
         _vmultiInstaller.StatusChanged += status =>
-            App.Current.Dispatcher.Invoke(() => VmultiInstallStatus = status);
+            Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
 
         try
         {
@@ -494,13 +534,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (installResult.Success)
             {
                 await RefreshVmultiDetection();
-                System.Windows.MessageBox.Show(installResult.Message, "VMulti Installation",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                await Dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
             }
             else
             {
-                System.Windows.MessageBox.Show(installResult.Message, "VMulti Installation",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                await Dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
             }
         }
         catch (Exception ex)
@@ -516,23 +554,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task UninstallVmulti()
     {
-        var result = System.Windows.MessageBox.Show(
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Uninstall VMulti Driver",
             "This will uninstall the VMulti virtual driver.\n\n" +
             "Your computer may need to restart to complete the removal.\n" +
             "Please save all work in other applications before continuing.\n\n" +
-            "Do you want to proceed?",
-            "Uninstall VMulti Driver",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
+            "Do you want to proceed?");
 
-        if (result != System.Windows.MessageBoxResult.Yes)
+        if (!confirmed)
             return;
 
         VmultiInstalling = true;
         VmultiInstallStatus = "Starting uninstall...";
 
         _vmultiInstaller.StatusChanged += status =>
-            App.Current.Dispatcher.Invoke(() => VmultiInstallStatus = status);
+            Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
 
         try
         {
@@ -542,13 +578,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (uninstallResult.Success)
             {
                 await RefreshVmultiDetection();
-                System.Windows.MessageBox.Show(uninstallResult.Message, "VMulti Uninstallation",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                await Dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
             }
             else
             {
-                System.Windows.MessageBox.Show(uninstallResult.Message, "VMulti Uninstallation",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                await Dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
             }
         }
         catch (Exception ex)

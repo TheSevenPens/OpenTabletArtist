@@ -1,8 +1,7 @@
 <Window x:Class="TabletDriverUX.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="clr-namespace:TabletDriverUX.ViewModels"
-        xmlns:views="clr-namespace:TabletDriverUX.Views"
+        xmlns:vm="using:TabletDriverUX.ViewModels"
         Title="Driver UX Experiment"
         Width="1100" Height="720"
         MinWidth="800" MinHeight="500"
@@ -13,17 +12,9 @@
         <vm:MainViewModel />
     </Window.DataContext>
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
+    <Grid ColumnDefinitions="260,*">
         <!-- SIDEBAR -->
-        <Border Grid.Column="0" Grid.Row="0"
+        <Border Grid.Column="0"
                 Background="{DynamicResource GlassBgBrush}"
                 BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="0,0,1,0">
@@ -54,22 +45,22 @@
 
                 <!-- Nav Items -->
                 <StackPanel Margin="8,0,8,0">
-                    <RadioButton Style="{StaticResource NavButton}" Content="Dashboard"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Dashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Dashboard" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="Tablet Settings"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Tablet Settings"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=TabletSettings, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="TabletSettings"
                                  Margin="0,2,0,0" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="Settings Snapshots"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Settings Snapshots"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Presets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Presets"
                                  Margin="0,2,0,0" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="Console"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Console"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Console, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Console"
                                  Margin="0,2,0,0" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="About"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="About"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=About, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="About"
                                  Margin="0,2,0,0" />
@@ -78,45 +69,12 @@
         </Border>
 
         <!-- CONTENT AREA -->
-        <ScrollViewer Grid.Column="1" Grid.Row="0"
+        <ScrollViewer Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <Border Padding="28">
-                <ContentControl>
-                    <ContentControl.Style>
-                        <Style TargetType="ContentControl">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding CurrentPage}" Value="Dashboard">
-                                    <Setter Property="Content">
-                                        <Setter.Value><views:DashboardView /></Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding CurrentPage}" Value="TabletSettings">
-                                    <Setter Property="Content">
-                                        <Setter.Value><views:TabletSettingsView /></Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding CurrentPage}" Value="Presets">
-                                    <Setter Property="Content">
-                                        <Setter.Value><views:PresetsView /></Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding CurrentPage}" Value="Console">
-                                    <Setter Property="Content">
-                                        <Setter.Value><views:ConsoleView /></Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding CurrentPage}" Value="About">
-                                    <Setter Property="Content">
-                                        <Setter.Value><views:AboutView /></Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ContentControl.Style>
-                </ContentControl>
+                <ContentControl Content="{Binding CurrentPage, Converter={StaticResource PageToView}}" />
             </Border>
         </ScrollViewer>
-
     </Grid>
 </Window>
