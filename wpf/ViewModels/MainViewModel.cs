@@ -23,6 +23,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
 
+    // Diagnostics
+    [ObservableProperty] private bool _isDebugging;
+    [ObservableProperty] private string _lastReportRaw = "";
+    [ObservableProperty] private string _lastReportFormatted = "";
+    [ObservableProperty] private int _reportCount;
+
     // Dashboard data
     [ObservableProperty] private string _tabletName = "";
     [ObservableProperty] private bool _hasTablet;
@@ -324,6 +330,84 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void Navigate(string page) => CurrentPage = page;
+
+    partial void OnCurrentPageChanged(string? oldValue, string newValue)
+    {
+        if (oldValue == "Diagnostics" && newValue != "Diagnostics")
+            _ = StopDebuggingAsync();
+    }
+
+    private async Task StartDebuggingAsync()
+    {
+        if (IsDebugging || !IsConnected) return;
+        _daemon.DeviceReport += OnDeviceReport;
+        await _daemon.SetTabletDebugAsync(true);
+        IsDebugging = true;
+        ReportCount = 0;
+        LastReportRaw = "";
+        LastReportFormatted = "";
+    }
+
+    private async Task StopDebuggingAsync()
+    {
+        if (!IsDebugging) return;
+        _daemon.DeviceReport -= OnDeviceReport;
+        IsDebugging = false;
+        try { await _daemon.SetTabletDebugAsync(false); } catch { }
+    }
+
+    private void OnDeviceReport(JObject data)
+    {
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ReportCount++;
+
+            var reportData = data["Data"];
+            if (reportData == null) return;
+
+            // Raw bytes
+            var rawBase64 = reportData["Raw"]?.ToString();
+            if (rawBase64 != null)
+            {
+                try
+                {
+                    var bytes = Convert.FromBase64String(rawBase64);
+                    LastReportRaw = BitConverter.ToString(bytes).Replace('-', ' ');
+                }
+                catch { LastReportRaw = rawBase64; }
+            }
+
+            // Formatted fields
+            var lines = new List<string>();
+            var pos = reportData["Position"];
+            if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
+            var pressure = reportData["Pressure"];
+            if (pressure != null) lines.Add($"Pressure: {pressure}");
+            var buttons = reportData["PenButtons"];
+            if (buttons != null) lines.Add($"PenButtons: {buttons}");
+            var tilt = reportData["Tilt"];
+            if (tilt != null) lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
+            var aux = reportData["AuxButtons"];
+            if (aux != null) lines.Add($"AuxButtons: {aux}");
+            var proximity = reportData["NearProximity"];
+            if (proximity != null) lines.Add($"NearProximity: {proximity}");
+            var hover = reportData["HoverDistance"];
+            if (hover != null) lines.Add($"HoverDistance: {hover}");
+            var path = data["Path"]?.ToString();
+            if (path != null) lines.Add($"Type: {path.Split('.').LastOrDefault() ?? path}");
+
+            LastReportFormatted = string.Join("\n", lines);
+        });
+    }
+
+    [RelayCommand]
+    private async Task ToggleDebugging()
+    {
+        if (IsDebugging)
+            await StopDebuggingAsync();
+        else
+            await StartDebuggingAsync();
+    }
 
     [RelayCommand]
     private async Task RefreshConnection()
@@ -664,6 +748,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (IsDebugging)
+        {
+            _daemon.DeviceReport -= OnDeviceReport;
+            try { _daemon.SetTabletDebugAsync(false).Wait(2000); } catch { }
+        }
         _cts.Cancel();
         _daemon.Dispose();
     }

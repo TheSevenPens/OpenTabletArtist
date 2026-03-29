@@ -4,20 +4,70 @@
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="Diagnostics" />
-        <TextBlock Classes="PageSubtitle" Text="System and driver diagnostics" />
+        <TextBlock Classes="PageSubtitle" Text="Live tablet debug data from the daemon" />
 
-        <Border Classes="GlassPanel" Padding="40">
-            <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="40"
-                           Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"
-                           Opacity="0.5" Margin="0,0,0,16" />
-                <TextBlock Text="Diagnostics" FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="System diagnostics and troubleshooting information will appear here."
-                           FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
-                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
-                           MaxWidth="320" Margin="0,8,0,0" />
+        <!-- Controls -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Tablet Debugger" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                 Fill="{DynamicResource TextMutedBrush}"
+                                 Classes.active="{Binding IsDebugging}">
+                            <Ellipse.Styles>
+                                <Style Selector="Ellipse.active">
+                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                </Style>
+                            </Ellipse.Styles>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ReportCount, StringFormat='Reports: {0}'}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Start button -->
+                    <Button Content="Start" Command="{Binding ToggleDebuggingCommand}"
+                            IsEnabled="{Binding IsConnected}"
+                            IsVisible="{Binding !IsDebugging}"
+                            Theme="{StaticResource AccentButton}"
+                            Padding="12,6" FontSize="12" />
+                    <!-- Stop button -->
+                    <Button Content="Stop" Command="{Binding ToggleDebuggingCommand}"
+                            IsVisible="{Binding IsDebugging}"
+                            Theme="{StaticResource DeleteButton}"
+                            Padding="12,6" FontSize="12" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Report Data -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                IsVisible="{Binding IsDebugging}">
+            <StackPanel>
+                <TextBlock Text="Raw Data" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding LastReportRaw}" FontSize="11"
+                           FontFamily="Cascadia Mono,Consolas,monospace"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" />
+
+                <TextBlock Text="Parsed Report" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,12,0,4" />
+                <TextBlock Text="{Binding LastReportFormatted}" FontSize="11"
+                           FontFamily="Cascadia Mono,Consolas,monospace"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" />
             </StackPanel>
+        </Border>
+
+        <!-- Not connected warning -->
+        <Border Classes="GlassPanel" Padding="16"
+                IsVisible="{Binding !IsConnected}">
+            <TextBlock Text="Daemon not connected. Connect first from the Dashboard."
+                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                       HorizontalAlignment="Center" />
         </Border>
     </StackPanel>
 </UserControl>
