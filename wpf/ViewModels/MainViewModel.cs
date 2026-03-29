@@ -112,8 +112,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _tabletButtons = "";
     [ObservableProperty] private string _outputMode = "";
 
-    // Profiles — typed
-    [ObservableProperty] private List<Profile> _profiles = [];
+    // Profiles — wrapped with detection status
+    [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     // Presets
     [ObservableProperty] private JArray _presets = [];
@@ -199,14 +199,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var tablets = await _daemon.GetTabletsAsync();
             TabletsJson = tablets;
 
+            // Build set of detected tablet names and record last-seen timestamps
+            var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (tablets.Count > 0)
             {
-                var first = tablets[0];
-                var props = first["Properties"] ?? first;
-                HasTablet = true;
-                TabletName = props["Name"]?.ToString() ?? "Unknown";
+                foreach (var t in tablets)
+                {
+                    var props = t["Properties"] ?? t;
+                    var name = props["Name"]?.ToString();
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        detectedNames.Add(name);
+                        AppSettings.Set($"LastSeen:{name}", DateTime.Now.ToString("o"));
+                    }
+                }
 
-                var specs = props["Specifications"];
+                var first = tablets[0];
+                var firstProps = first["Properties"] ?? first;
+                HasTablet = true;
+                TabletName = firstProps["Name"]?.ToString() ?? "Unknown";
+
+                var specs = firstProps["Specifications"];
                 var digi = specs?["Digitizer"];
                 var pen = specs?["Pen"];
                 TabletArea = $"{digi?["Width"]} x {digi?["Height"]} mm";
@@ -227,11 +240,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (_settings != null)
             {
-                Profiles = _settings.Profiles.ToList();
+                Profiles = _settings.Profiles
+                    .Select(p =>
+                    {
+                        bool detected = detectedNames.Contains(p.Tablet);
+                        DateTime? lastSeen = null;
+                        var stored = AppSettings.Get($"LastSeen:{p.Tablet}");
+                        if (stored != null && DateTime.TryParse(stored, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+                            lastSeen = dt;
+                        if (detected)
+                            lastSeen = DateTime.Now;
+                        return new ProfileItem(p, detected, lastSeen);
+                    })
+                    .ToList();
 
                 if (Profiles.Count > 0)
                 {
-                    var mode = Profiles[0].OutputMode?.Path;
+                    var mode = Profiles[0].Profile.OutputMode?.Path;
                     OutputMode = mode?.Split('.').LastOrDefault() ?? "Unknown";
                     HasWindowsInk = mode?.Contains("WinInk", StringComparison.OrdinalIgnoreCase) ?? false;
                 }
@@ -454,9 +479,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenTabletSettings(object profileObj)
     {
-        // Called from XAML with a Profile binding
-        if (profileObj is Profile profile)
+        // Called from XAML — may receive ProfileItem or Profile
+        if (profileObj is ProfileItem item)
+            await OpenTabletSettingsForProfile(item.Profile);
+        else if (profileObj is Profile profile)
             await OpenTabletSettingsForProfile(profile);
+    }
+
+    [RelayCommand]
+    private async Task ForgetProfile(string tabletName)
+    {
+        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile == null) return;
+
+        _settings.Profiles.Remove(profile);
+        await ApplyAndSaveSettingsAsync(_settings);
     }
 
     private (float Width, float Height)? GetTabletDigitizer(string tabletName)
@@ -619,5 +657,42 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _cts.Cancel();
         _daemon.Dispose();
+    }
+}
+
+public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
+{
+    public string Tablet => Profile.Tablet;
+
+    public string StatusText
+    {
+        get
+        {
+            if (IsDetected) return "Detected";
+            if (LastSeen == null) return "Not detected";
+            return $"Not detected — {FormatRelativeTime(LastSeen.Value)}";
+        }
+    }
+
+    public string? LastSeenDetail
+    {
+        get
+        {
+            if (IsDetected || LastSeen == null) return null;
+            return $"Last seen {LastSeen.Value:yyyy-MM-dd} at {LastSeen.Value:h:mm tt}";
+        }
+    }
+
+    private static string FormatRelativeTime(DateTime lastSeen)
+    {
+        var elapsed = DateTime.Now - lastSeen;
+
+        if (elapsed.TotalMinutes < 1) return "seen just now";
+        if (elapsed.TotalMinutes < 60) return $"seen {(int)elapsed.TotalMinutes}m ago";
+        if (elapsed.TotalHours < 24) return $"seen {(int)elapsed.TotalHours}h ago";
+        if (elapsed.TotalDays < 2) return "seen yesterday";
+        if (elapsed.TotalDays < 7) return $"seen {(int)elapsed.TotalDays} days ago";
+        if (elapsed.TotalDays < 30) return $"seen {(int)(elapsed.TotalDays / 7)} weeks ago";
+        return "seen a long time ago";
     }
 }

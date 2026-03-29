@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Tablet Settings" />
+        <TextBlock Classes="PageTitle" Text="Tablets" />
         <TextBlock Classes="PageSubtitle" Text="Manage per-tablet configurations" />
 
         <ItemsControl ItemsSource="{Binding Profiles}">
@@ -13,20 +13,65 @@
                             Cursor="Hand"
                             DoubleTapped="ProfileCard_DoubleTapped">
                         <Grid ColumnDefinitions="Auto,*,Auto">
+                            <!-- Icon: green when detected, muted when not -->
                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
-                                    Background="{DynamicResource AccentMutedBrush}" Margin="0,0,16,0">
+                                    Margin="0,0,16,0"
+                                    Background="{DynamicResource AccentMutedBrush}"
+                                    Classes.active="{Binding IsDetected}">
+                                <Border.Styles>
+                                    <Style Selector="Border.active">
+                                        <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                                    </Style>
+                                </Border.Styles>
                                 <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets"
                                            FontSize="18" Foreground="{DynamicResource AccentBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Classes.active="{Binding IsDetected}">
+                                    <TextBlock.Styles>
+                                        <Style Selector="TextBlock.active">
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        </Style>
+                                    </TextBlock.Styles>
+                                </TextBlock>
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
+                                             Fill="{DynamicResource TextMutedBrush}"
+                                             Classes.active="{Binding IsDetected}">
+                                        <Ellipse.Styles>
+                                            <Style Selector="Ellipse.active">
+                                                <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                            </Style>
+                                        </Ellipse.Styles>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding StatusText}" FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Classes.active="{Binding IsDetected}">
+                                        <TextBlock.Styles>
+                                            <Style Selector="TextBlock.active">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                            </Style>
+                                        </TextBlock.Styles>
+                                    </TextBlock>
+                                </StackPanel>
+                                <TextBlock Text="{Binding LastSeenDetail}" FontSize="10"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           FontStyle="Italic" Margin="0,2,0,0"
+                                           IsVisible="{Binding LastSeenDetail, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
-                            <Button Grid.Column="2" Content="Open" Theme="{StaticResource AccentButton}"
-                                    Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
-                                    CommandParameter="{Binding}"
-                                    Padding="12,6" FontSize="12" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                                <Button Content="Open" Theme="{StaticResource AccentButton}"
+                                        Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
+                                        CommandParameter="{Binding}"
+                                        Padding="12,6" FontSize="12" />
+                                <Button Content="Forget" Theme="{StaticResource DeleteButton}"
+                                        Command="{Binding $parent[ItemsControl].DataContext.ForgetProfileCommand}"
+                                        CommandParameter="{Binding Tablet}"
+                                        Padding="12,6" FontSize="12" />
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </DataTemplate>

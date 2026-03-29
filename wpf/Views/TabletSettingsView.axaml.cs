@@ -14,11 +14,11 @@ public partial class TabletSettingsView : UserControl
 
     private void ProfileCard_DoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Border border && border.DataContext is { } profile)
+        if (sender is Border border && border.DataContext is { } profileItem)
         {
             var itemsControl = border.FindAncestorOfType<ItemsControl>();
             var vm = itemsControl?.DataContext as MainViewModel;
-            vm?.OpenTabletSettingsCommand.Execute(profile);
+            vm?.OpenTabletSettingsCommand.Execute(profileItem);
         }
     }
 }

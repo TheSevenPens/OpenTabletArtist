@@ -48,11 +48,11 @@
                     <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Dashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Dashboard" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Tablet Settings"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Tablets"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=TabletSettings, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="TabletSettings"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Settings Snapshots"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Saved Settings"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Presets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Presets"
                                  Margin="0,2,0,0" />
