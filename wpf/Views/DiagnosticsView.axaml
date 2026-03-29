@@ -1,0 +1,23 @@
+<UserControl x:Class="TabletDriverUX.Views.DiagnosticsView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="Diagnostics" />
+        <TextBlock Classes="PageSubtitle" Text="System and driver diagnostics" />
+
+        <Border Classes="GlassPanel" Padding="40">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="40"
+                           Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"
+                           Opacity="0.5" Margin="0,0,0,16" />
+                <TextBlock Text="Diagnostics" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="System diagnostics and troubleshooting information will appear here."
+                           FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                           MaxWidth="320" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

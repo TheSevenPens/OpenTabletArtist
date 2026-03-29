@@ -56,6 +56,10 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Presets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Presets"
                                  Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Diagnostics"
+                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Diagnostics, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="Diagnostics"
+                                 Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Console"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Console, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Console"
