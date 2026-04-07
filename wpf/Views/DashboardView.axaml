@@ -285,6 +285,84 @@
                 </StackPanel>
             </Border>
 
+            <!-- Tablet Configurations -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                <StackPanel>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                                Background="{DynamicResource GlassBgBrush}">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Tablet Configurations" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding ConfigurationsDirectory}" FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Command="{Binding RefreshConfigurationsCommand}"
+                                    ToolTip.Tip="Reload list"
+                                    Theme="{StaticResource IconButton}" Margin="0,0,6,0">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </Button>
+                            <Button Content="Open Folder" Theme="{StaticResource GhostButton}"
+                                    Command="{Binding OpenConfigurationsFolderCommand}"
+                                    Padding="12,6" FontSize="12" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Empty state -->
+                    <TextBlock Text="No configurations in this folder."
+                               FontSize="11" FontStyle="Italic"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Margin="0,12,0,0"
+                               IsVisible="{Binding !HasConfigurations}" />
+
+                    <!-- Configurations list -->
+                    <ItemsControl ItemsSource="{Binding Configurations}"
+                                  Margin="0,12,0,0"
+                                  IsVisible="{Binding HasConfigurations}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource GlassBgBrush}"
+                                        CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock Text="{Binding FileName}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="  •  " FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding SizeText}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="View"
+                                                    Theme="{StaticResource GhostButton}"
+                                                    Command="{Binding $parent[ItemsControl].DataContext.ViewConfigurationCommand}"
+                                                    CommandParameter="{Binding Path}"
+                                                    Padding="10,4" FontSize="11" Margin="0,0,6,0" />
+                                            <Button Content="Delete"
+                                                    Theme="{StaticResource DeleteButton}"
+                                                    Command="{Binding $parent[ItemsControl].DataContext.DeleteConfigurationCommand}"
+                                                    CommandParameter="{Binding Path}"
+                                                    Padding="10,4" FontSize="11" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </StackPanel>
 </UserControl>
