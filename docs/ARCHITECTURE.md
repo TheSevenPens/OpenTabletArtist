@@ -120,6 +120,8 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **VMulti install/uninstall.** The app can download the VMulti driver package from GitHub, extract it, and run the official `install_hiddriver.bat` / `remove_hiddriver.bat` scripts with admin elevation (UAC prompt).
 
+**TabletDriverCleanup integration.** The app can download and run [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) (the official OTD-team driver cleanup tool) via a Dashboard card. Uses the same pattern as VMulti install — downloads ZIP from GitHub, extracts to temp, launches the exe as admin. Unlike VMulti install, the terminal window is left visible (no `CreateNoWindow`) so the user can read the cleanup results directly, matching the usage described in the SevenPens documentation.
+
 **Display enumeration.** System displays are enumerated using Win32 `EnumDisplayMonitors()` + `EnumDisplaySettings()` — the same APIs OTD uses internally. Tablet settings dialog shows displays as radio buttons with a "Set to display" action.
 
 **Aspect ratio lock.** When mapping a tablet to a display, the tablet area height is automatically adjusted to match the display's aspect ratio (`LockAspectRatio = true`), ensuring proportional 1:1 mapping with no distortion.
