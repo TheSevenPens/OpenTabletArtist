@@ -7,14 +7,21 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- Avalonia 12 made compiled bindings the default. For this migration we
+         keep the 11.x behaviour (reflection-based bindings with no x:DataType
+         required). Revisit later to opt back in per-view for compile-time
+         type checking. -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.7" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.7" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.7" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.7" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.7" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="Avalonia" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.1" />
+    <!-- Avalonia.Diagnostics not yet published for 12.x — re-add when available.
+         As of 2026-04: latest Diagnostics is 11.3.14, while Avalonia core is 12.0.1. -->
+    <!-- <PackageReference Include="Avalonia.Diagnostics" Version="12.0.1" Condition="'$(Configuration)' == 'Debug'" /> -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <!-- HidSharp removed — OTD brings HidSharpCore via its project references -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
