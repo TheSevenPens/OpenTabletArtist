@@ -2,7 +2,7 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TabletDriverUX.ViewModels"
-        Title="Driver UX Experiment"
+        Title="Tablet Driver"
         Width="1100" Height="720"
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen"
@@ -28,7 +28,7 @@
                                    Foreground="White" FontSize="14"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <TextBlock Text="Driver UX Experiment"
+                    <TextBlock Text="Tablet Driver"
                                FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center" Margin="12,0,0,0" />
@@ -59,10 +59,6 @@
                     <RadioButton Theme="{StaticResource NavButton}" Content="Diagnostics"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Diagnostics, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="Diagnostics"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Console"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Console, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="Console"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="About"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=About, Mode=OneWay}"
