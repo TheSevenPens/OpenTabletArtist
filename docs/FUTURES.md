@@ -2,6 +2,40 @@
 
 ## Near-Term (Polish the Prototype)
 
+### Daemon Visibility & Control From Outside the App
+Today, when our app is closed there is no obvious affordance for the user to
+know that `OpenTabletDriver.Daemon.exe` is still running, or to stop it.
+Options to address this:
+
+1. **System tray icon in our own app** (recommended). Avalonia 12 has built-in
+   `TrayIcon` support. Closing the window would minimize to tray instead of
+   exiting; the tray icon would reflect daemon status (green/gray) and offer
+   right-click actions: Show Window, Restart Daemon, Stop Daemon, Quit. The
+   limitation is that the tray icon disappears if the user fully quits us.
+2. **Tiny separate "tray controller" process**. A headless app whose only job
+   is to live in the tray and surface daemon status / start-stop controls,
+   independent of the main UX. Costs an extra binary to ship.
+3. **Run the daemon as a Windows Service**. Manageable from `services.msc`.
+   Requires admin to install and changes the daemon's lifecycle model — likely
+   too invasive for a prototype.
+4. **Document the OTD UX as a fallback** (interim). The official
+   `OpenTabletDriver.UX.Wpf.exe` (which we already build from our submodule
+   and surface via the dashboard's "Launch OTD UX" button) has its own tray
+   icon. This works today with no code changes.
+
+### Investigate App Shutdown Cleanliness
+When the main window is closed, the app's `MainViewModel.Dispose()` is called via
+the `Closed` event. We've observed the `TabletDriverUX.exe` file remaining locked
+for a few seconds after window close, blocking subsequent rebuilds. Audit:
+- Whether `_cts` (CancellationTokenSource) is being signalled in `Dispose()`
+- Whether all background polling timers, HTTP requests, and async loops actually
+  honor cancellation and exit promptly
+- Whether StreamJsonRpc connections are cleanly disposed
+- Whether the auto-launched OTD daemon child process behaviour (intentionally
+  kept alive across UI sessions) interferes with our own process exit
+Goal: window close should result in process exit within ~500ms with no lingering
+file locks.
+
 ### Interactive Area Mapper
 The area mapping SVG visualization currently displays static rectangles. Make them interactive:
 - Drag to reposition the tablet active area within the full tablet surface
