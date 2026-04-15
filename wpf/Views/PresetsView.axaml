@@ -61,7 +61,7 @@
         </ItemsControl>
 
         <Border Classes="GlassPanel" Padding="32"
-                IsVisible="{Binding !HasTablet}">
+                IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No Snapshots" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
