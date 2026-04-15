@@ -1,10 +1,15 @@
-# Driver UX Experiment — Overview
+# Tablet Driver — Overview
 
 ## What Is This?
 
 A UX experiment exploring ideas in simplifying the experience for tablet drivers. Currently interfacing with [OpenTabletDriver](https://github.com/OpenTabletDriver/OpenTabletDriver) (OTD), an open-source, cross-platform drawing tablet driver. The prototype explores what a next-generation configuration experience could look like — one that prioritizes visual beauty, clarity, and delight alongside functional completeness.
 
-This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI, .NET 10) that connects to the existing OTD daemon process via named pipe and controls it remotely.
+This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI 12, .NET 10) that:
+
+- References OTD as a git submodule pinned to a specific version (currently `v0.6.6.2`)
+- Builds the OTD daemon from that submodule and auto-starts it
+- Communicates with the daemon via named pipe (StreamJsonRpc)
+- Uses OTD's typed models (`Settings`, `Profile`, `BindingSettings`) directly for type-safe writes
 
 ## Why Does This Exist?
 
@@ -13,7 +18,7 @@ OpenTabletDriver's current UI is functional but utilitarian. The OTD team is act
 Specific goals:
 
 - **Demonstrate a premium visual experience** for tablet driver configuration, using glassmorphism, smooth transitions, and a refined dark/light theme system.
-- **Iterate rapidly** on UI ideas. Originally built with Svelte + Vite, then rebuilt as WPF, now converted to Avalonia UI for cross-platform potential.
+- **Iterate rapidly** on UI ideas. Originally built with Svelte + Vite, then rebuilt as WPF, then converted to Avalonia UI for cross-platform potential, and most recently upgraded to Avalonia 12.
 - **Validate the architecture** of a standalone app communicating with the OTD daemon, proving that the daemon's JSON-RPC interface is flexible enough to support diverse UI approaches.
 - **Serve as a conversation piece** — a tangible artifact that the OTD community and team can react to, critique, and draw inspiration from.
 
@@ -39,4 +44,4 @@ Today, setting up OTD for creative work on Windows is an involved process: insta
 Secondary audiences:
 - OTD contributors and maintainers evaluating UX directions
 - UX designers exploring driver/configuration UI patterns
-- Developers interested in the architecture of bridging web UIs to native daemon processes
+- Developers interested in building Avalonia desktop apps that integrate with an existing daemon process and its native types

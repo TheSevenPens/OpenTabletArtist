@@ -29,27 +29,30 @@
                             </Border>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding [Name]}" FontSize="14" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="{Binding LastModified}" FontSize="11"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,2,0,0" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Content="Load" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.LoadPresetCommand}"
-                                        CommandParameter="{Binding [Name].Value}"
+                                        CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Update" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
-                                        CommandParameter="{Binding [Name].Value}"
+                                        CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Rename" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
-                                        CommandParameter="{Binding [Name].Value}"
+                                        CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Delete" Padding="12,6" FontSize="12"
                                         Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
-                                        CommandParameter="{Binding [Name].Value}" />
+                                        CommandParameter="{Binding Name}" />
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -58,7 +61,7 @@
         </ItemsControl>
 
         <Border Classes="GlassPanel" Padding="32"
-                IsVisible="{Binding !HasTablet}">
+                IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No Snapshots" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />

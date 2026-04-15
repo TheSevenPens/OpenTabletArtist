@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace TabletDriverUX.Views;
 
-public partial class ConsoleView : UserControl
+public partial class UtilitiesView : UserControl
 {
-    public ConsoleView()
+    public UtilitiesView()
     {
         InitializeComponent();
     }

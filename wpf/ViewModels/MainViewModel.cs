@@ -150,10 +150,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // Profiles — wrapped with detection status
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
+    public bool HasProfiles => Profiles.Count > 0;
+    partial void OnProfilesChanged(List<ProfileItem> value) => OnPropertyChanged(nameof(HasProfiles));
+
     // Presets
-    [ObservableProperty] private JArray _presets = [];
+    [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
+
+    public bool HasPresets => Presets.Count > 0;
+    partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
     // Tablet Configurations (folder peer of OpenTabletDriver.Daemon.exe)
     [ObservableProperty] private string _configurationsDirectory = "";
@@ -351,19 +357,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var presetList = new JArray();
-        foreach (var file in Directory.GetFiles(PresetDirectory, "*.json"))
+        var presetList = new List<PresetInfo>();
+        // Sort newest first by file last-write time so the most recent
+        // snapshot appears at the top of the list.
+        var files = Directory.GetFiles(PresetDirectory, "*.json")
+            .OrderByDescending(File.GetLastWriteTime);
+        foreach (var file in files)
         {
             try
             {
                 var content = await File.ReadAllTextAsync(file);
-                var obj = new JObject
-                {
-                    ["Name"] = Path.GetFileNameWithoutExtension(file),
-                    ["Path"] = file,
-                    ["Content"] = content
-                };
-                presetList.Add(obj);
+                var lastWrite = File.GetLastWriteTime(file);
+                presetList.Add(new PresetInfo(
+                    Name: Path.GetFileNameWithoutExtension(file),
+                    Path: file,
+                    Content: content,
+                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
             }
             catch { }
         }
@@ -799,9 +808,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async Task SavePreset()
     {
         if (_settings == null) return;
-        var name = DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss");
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
+
+        // Pick the lowest "Snapshot N" name not already taken.
+        // First save is "Snapshot", subsequent ones are "Snapshot 2", "Snapshot 3"...
+        // Date/time is shown separately on each card from the file's last-write time.
+        var name = "Snapshot";
+        var n = 2;
+        while (File.Exists(Path.Combine(PresetDirectory, $"{name}.json")))
+        {
+            name = $"Snapshot {n}";
+            n++;
+        }
+
+        var path = Path.Combine(PresetDirectory, $"{name}.json");
         _settings.Serialize(new FileInfo(path));
         await LoadPresetsAsync();
     }
@@ -857,7 +877,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async Task DeletePreset(string name)
     {
         var path = Path.Combine(PresetDirectory, $"{name}.json");
-        if (File.Exists(path)) File.Delete(path);
+        if (!File.Exists(path)) return;
+
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Delete Snapshot",
+            $"Delete the snapshot \"{name}\"?\n\nThis cannot be undone.");
+
+        if (!confirmed) return;
+
+        File.Delete(path);
         await LoadPresetsAsync();
     }
 
@@ -1191,3 +1219,10 @@ public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
         return "seen a long time ago";
     }
 }
+
+/// <summary>
+/// View-model record for a settings snapshot file shown in the Saved Settings list.
+/// Plain-property record so Avalonia bindings can resolve Name/LastModified directly
+/// (JObject indexer bindings stopped rendering for TextBlock.Text in Avalonia 12).
+/// </summary>
+public record PresetInfo(string Name, string Path, string Content, string LastModified);

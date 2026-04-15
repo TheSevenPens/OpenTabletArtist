@@ -25,21 +25,25 @@
 **Technology:** .NET 10 Avalonia UI with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
-- `Services/` — `DaemonClient.cs` (named pipe + StreamJsonRpc), `VMultiDetector.cs` (HID scanning)
+- `Services/` — `DaemonClient.cs` (named pipe + StreamJsonRpc), `VMultiDetector.cs` (HID + Setup API scanning), `VMultiInstaller.cs`, `TabletDriverCleanupRunner.cs`
 - `ViewModels/` — `MainViewModel.cs` (navigation, connection state, data loading)
-- `Views/` — XAML pages (Dashboard, TabletSettings, Presets, Console, About)
+- `Views/` — Avalonia AXAML pages (Dashboard, TabletSettings, Presets, Diagnostics, About) and the per-tablet `TabletSettingsDialog`
 - `Themes/` — Resource dictionaries for colors and styles (light mode, glassmorphism)
-- `Converters/` — Avalonia value converters
-- `Helpers/` — Dialog helpers (MessageBox, InputBox replacements)
+- `Converters/` — Avalonia value converters (incl. `PageToView` for navigation)
+- `Helpers/` — Dialog helpers (MessageBox / InputBox replacements via `Dialogs.ShowConfirmAsync`, etc.)
 
-**Dependencies:**
+**Dependencies (Avalonia 12.0.1):**
+- `Avalonia` 12.0.1 — Cross-platform UI framework
+- `Avalonia.Desktop` 12.0.1 — Desktop platform support
+- `Avalonia.Themes.Fluent` 12.0.1 — Base Fluent theme
+- `Avalonia.Fonts.Inter` 12.0.1 — Bundled Inter font for cross-machine consistency
 - `StreamJsonRpc` 2.22.23 — JSON-RPC client matching OTD daemon version
-- `Avalonia` 11.2.7 — Cross-platform UI framework
-- `Avalonia.Desktop` 11.2.7 — Desktop platform support
-- `Avalonia.Themes.Fluent` 11.2.7 — Base Fluent theme
-- `HidSharp` 2.1.0 — HID device enumeration for vmulti detection (via OTD)
 - `Newtonsoft.Json` 13.0.3 — JSON handling (required by StreamJsonRpc)
 - `CommunityToolkit.Mvvm` 8.4.0 — MVVM infrastructure (`[ObservableProperty]`, `[RelayCommand]`)
+- `HidSharp` — HID device enumeration for vmulti detection (transitively via OTD)
+- `OpenTabletDriver.Desktop`, `OpenTabletDriver`, `OpenTabletDriver.Plugin` — project refs from submodule
+
+**Note on `Avalonia.Diagnostics`:** Temporarily disabled because no 12.x version is published (latest is 11.3.14). Mixing major versions causes runtime issues since Diagnostics uses Avalonia internals. Re-enable when a 12.x release lands.
 
 ### OTD Daemon (external)
 
@@ -98,11 +102,17 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Rationale:** `[ObservableProperty]` and `[RelayCommand]` attributes generate all the `INotifyPropertyChanged` boilerplate. Navigation is a simple `string CurrentPage` property that drives a `ContentControl` via a `PageToViewConverter` — no routing framework needed.
 
-### 4. JToken for data passthrough
+### 4. Typed OTD models where possible, JToken for everything else
 
-**Decision:** Use `Newtonsoft.Json.Linq.JToken` for daemon data rather than strongly-typed C# models.
+**Decision:** Reference the OTD library projects (`OpenTabletDriver.Desktop`, etc.) from the submodule and use the typed models (`Settings`, `Profile`, `BindingSettings`, `PluginSettingStore`) directly. Use `Newtonsoft.Json.Linq.JToken` only for data we don't yet have a typed model for, or local view-model records (e.g. `PresetInfo`).
 
-**Rationale:** Same rationale as the bridge — the daemon's data shapes are complex and evolving. JToken avoids maintaining parallel C# model classes. The AXAML binds directly to JToken properties via indexer syntax (`{Binding [Name]}`).
+**Rationale:** Strong typing eliminates a class of binding bugs and refactoring risks. Typed models also let us call OTD's own serializer (`Settings.Serialize()`) for write-back, ensuring round-tripping is identical to OTD's own UX.
+
+### 5. Avalonia 12 with reflection bindings (compiled bindings opt-out)
+
+**Decision:** On the Avalonia 12 upgrade, opt out of the new compiled-bindings-by-default behaviour via `<AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>` in the csproj.
+
+**Rationale:** Compiled bindings require an explicit `x:DataType` directive on every view and inner DataTemplate. Adding those across the codebase is a separate refactor with no behavioural payoff for this prototype. Reflection bindings preserve the existing 11.x behaviour. A future cleanup could opt back in per-view to gain compile-time type checking and a small perf win.
 
 ## Technical Challenges
 
@@ -113,6 +123,8 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 **Newtonsoft.Json vs System.Text.Json.** StreamJsonRpc uses Newtonsoft.Json internally. Must use `JToken` not `JsonElement`.
 
 **JValue to string in commands.** `CommandParameter` with JToken indexer (`{Binding [Name]}`) passes `JValue` objects, but `RelayCommand<string>` expects `string`. Fixed by binding to `[Name].Value` which unwraps to the primitive.
+
+**Avalonia 12 + JObject indexer text bindings.** In Avalonia 12, `{Binding [Name]}` and `{Binding [Name].Value}` against a `JObject` no longer render to `TextBlock.Text` (the cell is blank). The fix is to switch the underlying collection to a typed record (`PresetInfo`) and bind to plain properties (`{Binding Name}`). This pattern was applied to the Saved Settings (Presets) list in PresetsView.
 
 **Svelte 5 navigation bug (historical).** Svelte 5's `$state` reactivity failed to update `{#if}` template blocks when values returned to previously-rendered states. This affected both custom hash routing and SvelteKit's built-in router. Root cause was in Svelte 5's compiled template diffing. Resolved by switching to WPF, later converted to Avalonia.
 
@@ -142,17 +154,29 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 ```
 Avalonia App (.NET 10)
-  └── Avalonia 11.2.7
-  └── Avalonia.Desktop 11.2.7
-  └── Avalonia.Themes.Fluent 11.2.7
-  └── OpenTabletDriver.Desktop (project ref from submodule)
-  └── OpenTabletDriver (project ref from submodule)
-  └── OpenTabletDriver.Plugin (project ref from submodule)
-  └── StreamJsonRpc 2.22.23
-  └── HidSharp 2.1.0 (via OTD)
-  └── CommunityToolkit.Mvvm 8.4.0
+  ├── Avalonia 12.0.1
+  ├── Avalonia.Desktop 12.0.1
+  ├── Avalonia.Themes.Fluent 12.0.1
+  ├── Avalonia.Fonts.Inter 12.0.1
+  ├── OpenTabletDriver.Desktop (project ref from submodule)
+  ├── OpenTabletDriver (project ref from submodule)
+  ├── OpenTabletDriver.Plugin (project ref from submodule)
+  ├── StreamJsonRpc 2.22.23
+  ├── Newtonsoft.Json 13.0.3
+  ├── CommunityToolkit.Mvvm 8.4.0
+  └── HidSharp (transitively via OTD)
 
 OTD Daemon (built from submodule, .NET 8)
-  └── OpenTabletDriver.Desktop
+  ├── OpenTabletDriver.Desktop
   └── (many more — not our concern)
 ```
+
+## Solution Layout
+
+```
+TabletDriverUXPrototype.slnx
+  ├── wpf/TabletDriverUX.csproj                                  (this app)
+  └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
+```
+
+The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.

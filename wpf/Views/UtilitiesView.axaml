@@ -1,0 +1,77 @@
+<UserControl x:Class="TabletDriverUX.Views.UtilitiesView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="Utilities" />
+        <TextBlock Classes="PageSubtitle"
+                   Text="Helpful tools for diagnosing and fixing tablet driver problems" />
+
+        <!-- TabletDriverCleanup -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                        Background="{DynamicResource GlassBgBrush}"
+                        Classes.active="{Binding CleanupInstalled}">
+                    <Border.Styles>
+                        <Style Selector="Border.active">
+                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+                        </Style>
+                    </Border.Styles>
+                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Classes.active="{Binding CleanupInstalled}">
+                        <TextBlock.Styles>
+                            <Style Selector="TextBlock.active">
+                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                            </Style>
+                        </TextBlock.Styles>
+                    </TextBlock>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="TabletDriverCleanup" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Removes leftover bits from previous tablet drivers"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0"
+                               IsVisible="{Binding !CleanupInstalled}" />
+                    <TextBlock Text="{Binding CleanupInstallPath}" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0"
+                               IsVisible="{Binding CleanupInstalled}" />
+                    <TextBlock Text="{Binding CleanupStatus}" FontSize="10"
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"
+                               IsVisible="{Binding CleanupBusy}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- When not installed: just an Install button -->
+                    <Button Content="Install" Theme="{StaticResource AccentButton}"
+                            Command="{Binding InstallCleanupCommand}"
+                            Padding="12,6" FontSize="12"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding !CleanupInstalled}" />
+
+                    <!-- When installed: Browse, Run, Uninstall -->
+                    <Button Content="Browse" Theme="{StaticResource AccentButton}"
+                            Command="{Binding OpenFolderCommand}"
+                            CommandParameter="{Binding CleanupInstallPath}"
+                            Padding="12,6" FontSize="12" Margin="0,0,8,0"
+                            IsVisible="{Binding CleanupInstalled}" />
+                    <Button Content="Run" Theme="{StaticResource AccentButton}"
+                            Command="{Binding RunCleanupCommand}"
+                            Padding="12,6" FontSize="12" Margin="0,0,8,0"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding CleanupInstalled}" />
+                    <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
+                            Command="{Binding UninstallCleanupCommand}"
+                            Padding="12,6" FontSize="12"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding CleanupInstalled}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>
