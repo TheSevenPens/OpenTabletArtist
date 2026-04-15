@@ -3,8 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Tablets" />
-        <TextBlock Classes="PageSubtitle" Text="Manage per-tablet configurations" />
+        <TextBlock Classes="PageTitle" Text="Paired Tablets" />
+        <TextBlock Classes="PageSubtitle" Text="Tablets that have been detected" />
 
         <ItemsControl ItemsSource="{Binding Profiles}">
             <ItemsControl.ItemTemplate>

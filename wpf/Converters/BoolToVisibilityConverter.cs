@@ -77,6 +77,8 @@ public class PageToViewConverter : IValueConverter
                 "Dashboard" => new DashboardView(),
                 "TabletSettings" => new TabletSettingsView(),
                 "Presets" => new PresetsView(),
+                "CustomTabletConfigs" => new CustomTabletConfigsView(),
+                "Utilities" => new UtilitiesView(),
                 "Diagnostics" => new DiagnosticsView(),
                 "About" => new AboutView(),
                 _ => new DashboardView()
