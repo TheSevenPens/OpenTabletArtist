@@ -25,7 +25,9 @@ The landing page shows status cards:
 - **OpenTabletDriver Daemon** — Connection status. Shows **Start** button when disconnected, **Restart** to restart the daemon, **Refresh** icon to check status, and **OTD UX** to launch the original OTD interface for comparison.
 - **Tablet** — Detected tablet name, or "No tablet detected." Has an **Open** button to jump to the tablet's settings dialog. Updates automatically via polling.
 - **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder.
+- **Clean Up Old Drivers** — Runs [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup), an official OTD-team tool that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). Downloads the latest release from GitHub, runs it as admin with a visible terminal so you can read the results. A restart may be needed afterward.
 - **Windows Ink** — Whether the active output mode uses the Windows Ink plugin.
+- **Tablet Configurations** — Lists tablet config JSON files in `%AppData%\OpenTabletDriver\Configurations\` (the folder is created on app startup if missing). Each row shows the tablet's friendly name (read from the JSON `Name` field, falling back to a manufacturer-folder + filename combo). Per-row **View** opens the formatted JSON in a read-only viewer; **Delete** removes the file after a confirmation prompt. The panel header has a **Refresh** icon to rescan and an **Open Folder** button.
 
 ### Tablet Settings
 

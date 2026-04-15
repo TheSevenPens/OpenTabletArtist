@@ -17,11 +17,40 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DaemonClient _daemon = new();
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
+    private readonly TabletDriverCleanupRunner _cleanupRunner = new();
     private readonly CancellationTokenSource _cts = new();
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
+
+    // Diagnostics
+    [ObservableProperty] private bool _isDebugging;
+    [ObservableProperty] private string _lastReportRaw = "";
+    [ObservableProperty] private string _lastReportFormatted = "";
+    [ObservableProperty] private int _reportCount;
+    [ObservableProperty] private string _debugReportRate = "";
+    [ObservableProperty] private string _debugTabletName = "";
+    [ObservableProperty] private string _debugReportType = "";
+    [ObservableProperty] private double _debugPenX;
+    [ObservableProperty] private double _debugPenY;
+    [ObservableProperty] private double _debugPenPressure;
+    [ObservableProperty] private double _debugMaxX;
+    [ObservableProperty] private double _debugMaxY;
+    [ObservableProperty] private double _debugMaxPressure;
+    [ObservableProperty] private double _debugDigitizerWidth;
+    [ObservableProperty] private double _debugDigitizerHeight;
+    [ObservableProperty] private bool _debugHasPosition;
+    [ObservableProperty] private double _debugTiltX;
+    [ObservableProperty] private double _debugTiltY;
+    [ObservableProperty] private double _debugPressurePercent;
+    [ObservableProperty] private double _debugTiltAzimuth;
+    [ObservableProperty] private double _debugTiltAltitude;
+    [ObservableProperty] private string _debugPenButtons = "";
+    [ObservableProperty] private string _debugNearProximity = "";
+    [ObservableProperty] private string _debugHoverDistance = "";
+    private double _reportPeriodEma;
+    private DateTime _lastReportTime;
 
     // Dashboard data
     [ObservableProperty] private string _tabletName = "";
@@ -33,6 +62,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _vmultiInstalling;
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _hasWindowsInk;
+
+    // Driver cleanup tool
+    [ObservableProperty] private bool _cleanupInstalled;
+    [ObservableProperty] private bool _cleanupBusy;
+    [ObservableProperty] private string _cleanupStatus = "";
+    public string CleanupInstallPath => TabletDriverCleanupRunner.InstallDir;
 
     // Computed properties for Avalonia bindings (replacing DataTriggers)
     [ObservableProperty] private string _daemonStatusText = "Not connected";
@@ -120,6 +155,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
 
+    // Tablet Configurations (folder peer of OpenTabletDriver.Daemon.exe)
+    [ObservableProperty] private string _configurationsDirectory = "";
+    [ObservableProperty] private List<ConfigurationItem> _configurations = [];
+    [ObservableProperty] private bool _hasConfigurations;
+
     /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
     public Settings? CurrentSettings => _settings;
 
@@ -161,6 +201,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             VmultiMessage = "Installed (not active in HID)";
         else
             VmultiMessage = "Not installed";
+
+        // Check whether TabletDriverCleanup has been installed by the user.
+        CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
+
+        // Ensure the tablet Configurations folder exists next to the daemon exe,
+        // and load the current list for the dashboard.
+        InitializeConfigurationsFolder();
+        LoadConfigurations();
 
         // Auto-start daemon if not running
         IsDaemonRunning = Process.GetProcessesByName("OpenTabletDriver.Daemon").Length > 0;
@@ -322,8 +370,345 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Presets = presetList;
     }
 
+    private void InitializeConfigurationsFolder()
+    {
+        // OTD reads tablet configs from %AppData%\OpenTabletDriver\Configurations
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (string.IsNullOrEmpty(appData)) { ConfigurationsDirectory = ""; return; }
+        var configDir = Path.Combine(appData, "OpenTabletDriver", "Configurations");
+        try
+        {
+            if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
+        }
+        catch { }
+        ConfigurationsDirectory = configDir;
+    }
+
+    private void LoadConfigurations()
+    {
+        var dir = ConfigurationsDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            Configurations = [];
+            HasConfigurations = false;
+            return;
+        }
+
+        var items = new List<ConfigurationItem>();
+        foreach (var file in Directory.EnumerateFiles(dir, "*.json", SearchOption.AllDirectories)
+                                       .OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var info = new FileInfo(file);
+
+                // Friendly name: prefer the JSON "Name" field (e.g. "Huion H640P"),
+                // then a "Manufacturer Model" combo, then the parent-folder + filename,
+                // and finally the bare filename.
+                string displayName = Path.GetFileNameWithoutExtension(file);
+                try
+                {
+                    var raw = File.ReadAllText(file).TrimStart('\uFEFF');
+                    var token = JToken.Parse(raw);
+                    var jsonName = token["Name"]?.ToString();
+                    var manufacturer = token["Manufacturer"]?.ToString()
+                                       ?? token["Vendor"]?.ToString();
+                    var model = token["Model"]?.ToString();
+
+                    if (!string.IsNullOrWhiteSpace(jsonName))
+                        displayName = jsonName!;
+                    else if (!string.IsNullOrWhiteSpace(manufacturer) && !string.IsNullOrWhiteSpace(model))
+                        displayName = $"{manufacturer} {model}";
+                    else
+                    {
+                        // Fall back to "<parent folder> <filename>" so files placed in
+                        // manufacturer subfolders still get a vendor prefix.
+                        var parent = Path.GetFileName(Path.GetDirectoryName(file));
+                        var stem = Path.GetFileNameWithoutExtension(file);
+                        if (!string.IsNullOrEmpty(parent) &&
+                            !string.Equals(parent, "Configurations", StringComparison.OrdinalIgnoreCase))
+                            displayName = $"{parent} {stem}";
+                    }
+                }
+                catch { }
+
+                items.Add(new ConfigurationItem(
+                    displayName,
+                    Path.GetFileName(file),
+                    file,
+                    $"{info.Length:N0} bytes"));
+            }
+            catch { }
+        }
+        Configurations = items;
+        HasConfigurations = items.Count > 0;
+    }
+
+    [RelayCommand]
+    private void RefreshConfigurations() => LoadConfigurations();
+
+    [RelayCommand]
+    private void OpenConfigurationsFolder()
+    {
+        if (!string.IsNullOrEmpty(ConfigurationsDirectory) && Directory.Exists(ConfigurationsDirectory))
+            Process.Start("explorer.exe", ConfigurationsDirectory);
+    }
+
+    [RelayCommand]
+    private async Task ViewConfiguration(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+        string content;
+        try
+        {
+            var raw = await File.ReadAllTextAsync(path);
+            try { content = JToken.Parse(raw).ToString(Newtonsoft.Json.Formatting.Indented); }
+            catch { content = raw; }
+        }
+        catch (Exception ex) { content = $"Failed to read file:\n{ex.Message}"; }
+
+        await ShowConfigurationDetailsDialogAsync(Path.GetFileName(path), content);
+    }
+
+    [RelayCommand]
+    private async Task DeleteConfiguration(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Delete Configuration",
+            $"Delete \"{Path.GetFileName(path)}\"?\n\nThis cannot be undone.");
+        if (!confirmed) return;
+        try { File.Delete(path); } catch { }
+        LoadConfigurations();
+    }
+
+    private static async Task ShowConfigurationDetailsDialogAsync(string title, string content)
+    {
+        var parent = Dialogs.GetMainWindow();
+        if (parent == null) return;
+
+        var textBox = new Avalonia.Controls.TextBox
+        {
+            Text = content,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = Avalonia.Media.TextWrapping.NoWrap,
+            FontFamily = new Avalonia.Media.FontFamily("Consolas, Courier New, monospace"),
+            FontSize = 12,
+        };
+
+        var scroll = new Avalonia.Controls.ScrollViewer
+        {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = textBox,
+        };
+
+        var closeBtn = new Avalonia.Controls.Button
+        {
+            Content = "Close",
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Padding = new Avalonia.Thickness(24, 8),
+            FontSize = 13,
+            Margin = new Avalonia.Thickness(0, 12, 0, 0),
+        };
+
+        var grid = new Avalonia.Controls.Grid
+        {
+            Margin = new Avalonia.Thickness(20),
+            RowDefinitions = new Avalonia.Controls.RowDefinitions("*,Auto"),
+        };
+        Avalonia.Controls.Grid.SetRow(scroll, 0);
+        Avalonia.Controls.Grid.SetRow(closeBtn, 1);
+        grid.Children.Add(scroll);
+        grid.Children.Add(closeBtn);
+
+        var dialog = new Avalonia.Controls.Window
+        {
+            Title = title,
+            Width = 720,
+            Height = 600,
+            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner,
+            Content = grid,
+        };
+        closeBtn.Click += (_, _) => dialog.Close();
+        await dialog.ShowDialog(parent);
+    }
+
     [RelayCommand]
     private void Navigate(string page) => CurrentPage = page;
+
+    partial void OnCurrentPageChanged(string? oldValue, string newValue)
+    {
+        if (oldValue == "Diagnostics" && newValue != "Diagnostics")
+            _ = StopDebuggingAsync();
+    }
+
+    private async Task StartDebuggingAsync()
+    {
+        if (IsDebugging || !IsConnected) return;
+        _daemon.DeviceReport += OnDeviceReport;
+        await _daemon.SetTabletDebugAsync(true);
+        IsDebugging = true;
+        ReportCount = 0;
+        LastReportRaw = "";
+        LastReportFormatted = "";
+        DebugReportRate = "";
+        DebugTabletName = "";
+        DebugReportType = "";
+        DebugPenX = 0; DebugPenY = 0; DebugPenPressure = 0; DebugPressurePercent = 0;
+        DebugMaxX = 0; DebugMaxY = 0; DebugMaxPressure = 0;
+        DebugDigitizerWidth = 0; DebugDigitizerHeight = 0;
+        DebugHasPosition = false;
+        DebugTiltX = 0; DebugTiltY = 0; DebugTiltAzimuth = 0; DebugTiltAltitude = 0;
+        DebugPenButtons = ""; DebugNearProximity = ""; DebugHoverDistance = "";
+        _reportPeriodEma = 0;
+        _lastReportTime = DateTime.MinValue;
+    }
+
+    private async Task StopDebuggingAsync()
+    {
+        if (!IsDebugging) return;
+        _daemon.DeviceReport -= OnDeviceReport;
+        IsDebugging = false;
+        try { await _daemon.SetTabletDebugAsync(false); } catch { }
+    }
+
+    private void OnDeviceReport(JObject data)
+    {
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ReportCount++;
+
+            // Report rate (EMA)
+            var now = DateTime.UtcNow;
+            if (_lastReportTime != DateTime.MinValue)
+            {
+                var deltaMs = (now - _lastReportTime).TotalMilliseconds;
+                if (_reportPeriodEma == 0)
+                    _reportPeriodEma = deltaMs;
+                else
+                    _reportPeriodEma += (deltaMs - _reportPeriodEma) * 0.05;
+                if (_reportPeriodEma > 0)
+                    DebugReportRate = $"{Math.Round(1000.0 / _reportPeriodEma)} Hz";
+            }
+            _lastReportTime = now;
+
+            // Tablet name
+            var tabletName = data["Tablet"]?["Properties"]?["Name"]?.ToString();
+            if (tabletName != null) DebugTabletName = tabletName;
+
+            // Report type
+            var path = data["Path"]?.ToString();
+            if (path != null) DebugReportType = path.Split('.').LastOrDefault() ?? path;
+
+            // Digitizer specs (for visualizer scaling)
+            var digi = data["Tablet"]?["Properties"]?["Specifications"]?["Digitizer"];
+            if (digi != null)
+            {
+                var maxX = digi["MaxX"]?.Value<double>() ?? 0;
+                var maxY = digi["MaxY"]?.Value<double>() ?? 0;
+                var digiW = digi["Width"]?.Value<double>() ?? 0;
+                var digiH = digi["Height"]?.Value<double>() ?? 0;
+                if (maxX > 0) DebugMaxX = maxX;
+                if (maxY > 0) DebugMaxY = maxY;
+                if (digiW > 0) DebugDigitizerWidth = digiW;
+                if (digiH > 0) DebugDigitizerHeight = digiH;
+            }
+
+            // Max pressure from pen specs
+            var pen = data["Tablet"]?["Properties"]?["Specifications"]?["Pen"];
+            if (pen != null)
+            {
+                var maxP = pen["MaxPressure"]?.Value<double>() ?? 0;
+                if (maxP > 0) DebugMaxPressure = maxP;
+            }
+
+            var reportData = data["Data"];
+            if (reportData == null) return;
+
+            // Raw bytes
+            var rawBase64 = reportData["Raw"]?.ToString();
+            if (rawBase64 != null)
+            {
+                try
+                {
+                    var bytes = Convert.FromBase64String(rawBase64);
+                    LastReportRaw = BitConverter.ToString(bytes).Replace('-', ' ');
+                }
+                catch { LastReportRaw = rawBase64; }
+            }
+
+            // Position for visualizer
+            var pos = reportData["Position"];
+            if (pos != null)
+            {
+                DebugPenX = pos["X"]?.Value<double>() ?? 0;
+                DebugPenY = pos["Y"]?.Value<double>() ?? 0;
+                DebugHasPosition = true;
+            }
+
+            // Pressure
+            var pressure = reportData["Pressure"];
+            if (pressure != null)
+            {
+                DebugPenPressure = pressure.Value<double>();
+                DebugPressurePercent = DebugMaxPressure > 0 ? (DebugPenPressure / DebugMaxPressure) * 100.0 : 0;
+            }
+
+            // Tilt
+            var tilt = reportData["Tilt"];
+            if (tilt != null)
+            {
+                DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
+                DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
+                DebugTiltAzimuth = Math.Atan2(DebugTiltX, DebugTiltY) * (180.0 / Math.PI);
+                if (DebugTiltAzimuth < 0) DebugTiltAzimuth += 360;
+                DebugTiltAltitude = 90.0 - Math.Sqrt(DebugTiltX * DebugTiltX + DebugTiltY * DebugTiltY);
+            }
+
+            // Pen buttons
+            var buttons = reportData["PenButtons"];
+            if (buttons is JArray btnArr)
+                DebugPenButtons = string.Join("  ", btnArr.Select((b, i) => $"{i + 1}: {b}"));
+
+            // Formatted fields
+            var lines = new List<string>();
+            if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
+            if (pressure != null) lines.Add($"Pressure: {pressure}");
+            if (buttons != null) lines.Add($"PenButtons: {buttons}");
+            if (tilt != null)
+            {
+                lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
+                lines.Add($"Azimuth: {DebugTiltAzimuth:F1}°  Altitude: {DebugTiltAltitude:F1}°");
+            }
+            var aux = reportData["AuxButtons"];
+            if (aux != null) lines.Add($"AuxButtons: {aux}");
+            var proximity = reportData["NearProximity"];
+            if (proximity != null)
+            {
+                DebugNearProximity = proximity.Value<bool>() ? "Yes" : "No";
+                lines.Add($"NearProximity: {proximity}");
+            }
+            var hover = reportData["HoverDistance"];
+            if (hover != null)
+            {
+                DebugHoverDistance = hover.ToString();
+                lines.Add($"HoverDistance: {hover}");
+            }
+
+            LastReportFormatted = string.Join("\n", lines);
+        });
+    }
+
+    [RelayCommand]
+    private async Task ToggleDebugging()
+    {
+        if (IsDebugging)
+            await StopDebuggingAsync();
+        else
+            await StartDebuggingAsync();
+    }
 
     [RelayCommand]
     private async Task RefreshConnection()
@@ -366,6 +751,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 UseShellExecute = false,
                 WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
             });
+        }
+    }
+
+    [RelayCommand]
+    private void StopDaemon()
+    {
+        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
+        {
+            try { proc.Kill(); } catch { }
         }
     }
 
@@ -634,6 +1028,100 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private async Task InstallCleanup()
+    {
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Install TabletDriverCleanup",
+            "This will download TabletDriverCleanup — a tool by the OpenTabletDriver " +
+            "team that removes leftover bits of manufacturer tablet drivers " +
+            "(Wacom, Huion, XP-Pen, etc.) — and install it to:\n\n" +
+            CleanupInstallPath + "\n\n" +
+            "No admin permission is required for installation. " +
+            "Admin will be required later when you run the tool.\n\n" +
+            "Do you want to proceed?");
+
+        if (!confirmed)
+            return;
+
+        CleanupBusy = true;
+        CleanupStatus = "Starting...";
+
+        _cleanupRunner.StatusChanged += status =>
+            Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
+
+        try
+        {
+            var result = await Task.Run(() => _cleanupRunner.InstallAsync(_cts.Token));
+            CleanupStatus = result.Message;
+            CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
+            await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
+        }
+        catch (Exception ex)
+        {
+            CleanupStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            CleanupBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RunCleanup()
+    {
+        if (!TabletDriverCleanupRunner.IsInstalled())
+            return;
+
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Run Driver Cleanup",
+            "TabletDriverCleanup will open a terminal window and scan for leftover " +
+            "manufacturer tablet drivers.\n\n" +
+            "You'll be asked for admin permission. A restart may be needed afterward.\n\n" +
+            "Do you want to proceed?");
+
+        if (!confirmed)
+            return;
+
+        CleanupBusy = true;
+        CleanupStatus = "Running...";
+
+        _cleanupRunner.StatusChanged += status =>
+            Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
+
+        try
+        {
+            var result = await Task.Run(() => _cleanupRunner.RunAsync(_cts.Token));
+            CleanupStatus = result.Message;
+            await Dialogs.ShowMessageAsync("Driver Cleanup", result.Message);
+        }
+        catch (Exception ex)
+        {
+            CleanupStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            CleanupBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallCleanup()
+    {
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Uninstall TabletDriverCleanup",
+            $"This will remove the TabletDriverCleanup tool from:\n\n{CleanupInstallPath}\n\n" +
+            "Do you want to proceed?");
+
+        if (!confirmed)
+            return;
+
+        var result = _cleanupRunner.Uninstall();
+        CleanupStatus = result.Message;
+        CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
+        await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
+    }
+
+    [RelayCommand]
     private async Task RefreshVmultiDetection()
     {
         var (hidResult, setupResult) = await Task.Run(() =>
@@ -655,10 +1143,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (IsDebugging)
+        {
+            _daemon.DeviceReport -= OnDeviceReport;
+            try { _daemon.SetTabletDebugAsync(false).Wait(2000); } catch { }
+        }
         _cts.Cancel();
         _daemon.Dispose();
     }
 }
+
+public record ConfigurationItem(string Name, string FileName, string Path, string SizeText);
 
 public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
 {
