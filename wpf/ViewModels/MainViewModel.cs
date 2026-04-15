@@ -151,7 +151,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     // Presets
-    [ObservableProperty] private JArray _presets = [];
+    [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
 
@@ -351,19 +351,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var presetList = new JArray();
-        foreach (var file in Directory.GetFiles(PresetDirectory, "*.json"))
+        var presetList = new List<PresetInfo>();
+        // Sort newest first by file last-write time so the most recent
+        // snapshot appears at the top of the list.
+        var files = Directory.GetFiles(PresetDirectory, "*.json")
+            .OrderByDescending(File.GetLastWriteTime);
+        foreach (var file in files)
         {
             try
             {
                 var content = await File.ReadAllTextAsync(file);
-                var obj = new JObject
-                {
-                    ["Name"] = Path.GetFileNameWithoutExtension(file),
-                    ["Path"] = file,
-                    ["Content"] = content
-                };
-                presetList.Add(obj);
+                var lastWrite = File.GetLastWriteTime(file);
+                presetList.Add(new PresetInfo(
+                    Name: Path.GetFileNameWithoutExtension(file),
+                    Path: file,
+                    Content: content,
+                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
             }
             catch { }
         }
@@ -1191,3 +1194,10 @@ public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
         return "seen a long time ago";
     }
 }
+
+/// <summary>
+/// View-model record for a settings snapshot file shown in the Saved Settings list.
+/// Plain-property record so Avalonia bindings can resolve Name/LastModified directly
+/// (JObject indexer bindings stopped rendering for TextBlock.Text in Avalonia 12).
+/// </summary>
+public record PresetInfo(string Name, string Path, string Content, string LastModified);
