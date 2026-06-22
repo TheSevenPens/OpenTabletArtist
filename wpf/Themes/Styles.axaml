@@ -162,13 +162,15 @@
         <ControlTheme x:Key="DeleteButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="16,8" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="Transparent" CornerRadius="8"
                             Padding="{TemplateBinding Padding}"
                             BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1">
                         <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalContentAlignment="Center" />
+                                          HorizontalContentAlignment="Center"
+                                          VerticalContentAlignment="Center" />
                     </Border>
                 </ControlTemplate>
             </Setter>

@@ -8,22 +8,30 @@
         <TextBlock Classes="PageSubtitle" Text="Overview of your tablet configuration" />
 
         <StackPanel>
-            <!-- OpenTabletDriver Version -->
+            <!-- Embedded OpenTabletDriver Version -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                            Background="{DynamicResource GlassBgBrush}">
-                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                        <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                                Background="{DynamicResource GlassBgBrush}">
+                            <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Embedded OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+
+                    <!-- Launch OTD's own UX -->
+                    <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
+                            Command="{Binding LaunchOtdUxCommand}"
+                            VerticalAlignment="Center"
+                            Padding="12,6" FontSize="12" />
+                </Grid>
             </Border>
 
             <!-- OTD Status -->
@@ -113,10 +121,6 @@
                         <Button Content="Stop" Theme="{StaticResource DeleteButton}"
                                 Command="{Binding StopDaemonCommand}"
                                 IsVisible="{Binding IsConnected}"
-                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
-                        <!-- Launch OTD's own UX -->
-                        <Button Content="OTD UX" Theme="{StaticResource GhostButton}"
-                                Command="{Binding LaunchOtdUxCommand}"
                                 Padding="12,6" FontSize="12" Margin="6,0,0,0" />
                     </StackPanel>
                 </Grid>
@@ -275,34 +279,23 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <!-- Title + installed plugin version -->
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Kuuube's Windows Ink plugin" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                            <Border Margin="8,0,0,0" CornerRadius="4" Padding="6,1"
-                                    VerticalAlignment="Center"
-                                    Background="{DynamicResource GlassBgBrush}"
-                                    IsVisible="{Binding WinInkInstalled}">
-                                <TextBlock Text="{Binding WinInkPluginVersion, StringFormat='v{0}'}"
-                                           FontSize="10" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </Border>
-                        </StackPanel>
+                        <!-- Title -->
+                        <TextBlock Text="Kuuube's Windows Ink plugin" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
 
-                        <!-- Install status -->
+                        <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Classes="statusMarkWarn" Classes.success="{Binding WinInkInstalled}" />
                             <TextBlock Text="{Binding WinInkInstallStatusText}" FontSize="11" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
 
-                        <!-- Output-mode usage (only meaningful when installed) -->
+                        <!-- Active status: whether the active profile actually uses Windows Ink output mode -->
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                     IsVisible="{Binding WinInkInstalled}">
-                            <TextBlock Text="Output mode:" FontSize="10"
-                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" />
-                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="10"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding HasWindowsInk}" />
+                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
 
                         <!-- Supported driver version vs running OTD version -->

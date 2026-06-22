@@ -155,17 +155,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnHasTabletChanged(bool value)
     {
-        TabletStatusText = value ? TabletName : "No tablet detected";
+        TabletStatusText = value ? $"{TabletName} detected" : "No tablet detected";
     }
 
     partial void OnTabletNameChanged(string value)
     {
-        if (HasTablet) TabletStatusText = value;
+        if (HasTablet) TabletStatusText = $"{value} detected";
     }
 
     partial void OnHasWindowsInkChanged(bool value)
     {
-        WindowsInkStatusText = value ? "Plugin active" : "Not configured";
+        WindowsInkStatusText = value ? "Plugin active" : "Plugin not active in current profile";
     }
 
     private string? WinInkPluginParentDirectory =>
@@ -192,8 +192,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         WinInkInstalled = true;
-        WinInkInstallStatusText = "Installed";
         WinInkPluginVersion = installed.PluginVersion?.ToString() ?? "?";
+        WinInkInstallStatusText = $"v{WinInkPluginVersion} installed";
         WinInkSupportedDriverVersion = installed.SupportedDriverVersion?.ToString() ?? "?";
         // "Mismatch" = the installed plugin does not declare support for the running
         // OTD version (OTD's own IsSupportedBy compatibility rule).
@@ -1333,6 +1333,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (Directory.Exists(path))
             Process.Start("explorer.exe", path);
+    }
+
+    /// <summary>This project's GitHub repository.</summary>
+    public string RepoUrl => "https://github.com/TheSevenPens/OTDWindowsHelper";
+
+    /// <summary>Opens a URL in the user's default browser.</summary>
+    [RelayCommand]
+    private void OpenUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch { }
     }
 
     [RelayCommand]
