@@ -162,13 +162,15 @@
         <ControlTheme x:Key="DeleteButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="16,8" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="Transparent" CornerRadius="8"
                             Padding="{TemplateBinding Padding}"
                             BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1">
                         <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalContentAlignment="Center" />
+                                          HorizontalContentAlignment="Center"
+                                          VerticalContentAlignment="Center" />
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -205,6 +207,61 @@
         <Setter Property="FontSize" Value="10" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    </Style>
+
+    <!-- ===== Status marks ===========================================================
+         Standardized status iconography (Segoe MDL2 Assets):
+           success  → green check  (E73E)
+           warning  → amber warning (E7BA)   problem needing attention
+           neutral  → muted dash   (E738)    normal off / idle / not applicable
+           error    → red X        (EB90)    hard failure (available if needed)
+
+         Two bool-driven base classes for the common "success vs not" indicator.
+         Apply Classes.success="{Binding ...}" to toggle the success state:
+           statusMark      → not-success shows the NEUTRAL dash  (off/idle is normal)
+           statusMarkWarn  → not-success shows the WARNING mark   (off is a problem)
+
+         For multi-state rows, use a literal class (success/warning/neutral/error). -->
+    <Style Selector="TextBlock.statusMark, TextBlock.statusMarkWarn,
+                     TextBlock.success, TextBlock.warning, TextBlock.neutral, TextBlock.error">
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+    </Style>
+
+    <!-- Base appearance: neutral off-state -->
+    <Style Selector="TextBlock.statusMark">
+        <Setter Property="Text" Value="&#xE738;" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    </Style>
+    <!-- Base appearance: warning off-state -->
+    <Style Selector="TextBlock.statusMarkWarn">
+        <Setter Property="Text" Value="&#xE7BA;" />
+        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+    </Style>
+    <!-- Success override for either base -->
+    <Style Selector="TextBlock.statusMark.success, TextBlock.statusMarkWarn.success">
+        <Setter Property="Text" Value="&#xE73E;" />
+        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+    </Style>
+
+    <!-- Literal single-state marks (for multi-state rows) -->
+    <Style Selector="TextBlock.success">
+        <Setter Property="Text" Value="&#xE73E;" />
+        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+    </Style>
+    <Style Selector="TextBlock.warning">
+        <Setter Property="Text" Value="&#xE7BA;" />
+        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+    </Style>
+    <Style Selector="TextBlock.neutral">
+        <Setter Property="Text" Value="&#xE738;" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.error">
+        <Setter Property="Text" Value="&#xEB90;" />
+        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
     </Style>
 
 </Styles>

@@ -1,4 +1,6 @@
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
@@ -101,6 +103,28 @@ public class DaemonClient : IDisposable
     {
         DeviceReport?.Invoke(data);
     }
+
+    /// <summary>
+    /// Returns the process ID of the daemon on the other end of the named pipe we're
+    /// connected to, or null if not connected / the OS couldn't report it. Used to
+    /// verify we're talking to this project's daemon and not a separate OTD instance.
+    /// </summary>
+    public int? GetServerProcessId()
+    {
+        var pipe = _pipe;
+        if (pipe == null || !pipe.IsConnected) return null;
+        try
+        {
+            if (GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint pid))
+                return (int)pid;
+        }
+        catch { }
+        return null;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetNamedPipeServerProcessId(SafePipeHandle Pipe, out uint ServerProcessId);
 
     public async Task SetTabletDebugAsync(bool enabled)
     {

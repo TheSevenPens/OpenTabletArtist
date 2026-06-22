@@ -24,7 +24,12 @@ The sidebar shows: **Dashboard**, **Tablet Settings**, **Saved Settings**, **Dia
 The landing page shows status cards:
 
 - **OpenTabletDriver Version** — Shows the OTD version from the referenced assembly.
-- **OpenTabletDriver Daemon** — Connection status. Shows **Start** button when disconnected, **Restart** to restart the daemon, **Refresh** icon to check status, and **OTD UX** to launch the original OTD interface for comparison.
+- **OpenTabletDriver Daemon** — Connection status. Shows **Start** button when disconnected, **Restart** to restart the daemon, **Refresh** icon to check status, and **OTD UX** to launch the original OTD interface for comparison. Below the "Daemon running" line, a **daemon ownership indicator** shows which daemon the app is actually connected to (one of three states):
+  - **App-owned daemon** (green check) — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
+  - **External daemon (not app-owned)** (amber warning) — connected to a different OTD instance, e.g. a separately-installed daemon the user already had running. Hint text suggests clicking **Restart**, which kills any running daemon and relaunches this project's build.
+  - **Daemon source unknown** (grey) — connected, but the daemon's exe path couldn't be read (e.g. it's running elevated). The app reports this honestly rather than guessing.
+
+  Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The actual daemon exe path is shown on hover (app-owned / external states).
 - **Tablet** — Detected tablet name, or "No tablet detected." Has an **Open** button to jump to the tablet's settings dialog. Updates automatically via polling.
 - **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder.
 - **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). User explicitly installs the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.

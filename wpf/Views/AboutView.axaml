@@ -4,7 +4,6 @@
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="About" />
-        <TextBlock Classes="PageSubtitle" Text="Driver UX Experiment" />
 
         <Border Classes="GlassPanel">
             <StackPanel>
@@ -12,9 +11,29 @@
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
-                    A UX experiment exploring ideas in simplifying the experience for tablet drivers.
-                    Currently interfacing with OpenTabletDriver &#x2014; an open-source, cross-platform tablet driver.
+                    A simpler way of using OpenTabletDriver on Windows.
                 </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="GlassPanel" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock Text="Source code" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+                <!-- Clickable link: opens the GitHub repo in the default browser -->
+                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
+                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        HorizontalAlignment="Left"
+                        ToolTip.Tip="{Binding RepoUrl}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding RepoUrl}" FontSize="13"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
     </StackPanel>
