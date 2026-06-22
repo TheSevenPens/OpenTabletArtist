@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection.Metadata;
 using TabletDriverUX.Helpers;
 using TabletDriverUX.Services;
 
@@ -18,6 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
+    private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
 
     [ObservableProperty] private string _currentPage = "Dashboard";
@@ -63,6 +65,50 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _hasWindowsInk;
 
+    // Windows Ink plugin (Kuuube's Windows Ink plugin) — install state & versions
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkInstall))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkUninstall))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
+    private bool _winInkInstalled;
+    [ObservableProperty] private string _winInkInstallStatusText = "Checking...";
+    [ObservableProperty] private string _winInkPluginVersion = "";
+    [ObservableProperty] private string _winInkSupportedDriverVersion = "";
+    [ObservableProperty] private bool _winInkVersionMismatch;
+    // True once an update check found a newer plugin version in the repository.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
+    private bool _winInkUpdateAvailable;
+    [ObservableProperty] private string _winInkLatestVersion = "";
+    // Short result line shown after a check ("Up to date", etc.).
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasWinInkUpdateCheckStatus))]
+    private string _winInkUpdateCheckStatus = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkInstall))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkUninstall))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowWinInkRefresh))]
+    private bool _winInkBusy;
+    [ObservableProperty] private string _winInkBusyStatus = "";
+
+    // Cached latest-available metadata (for install/update) and the plugin's
+    // full directory path on disk (for uninstall).
+    private PluginMetadata? _winInkLatest;
+    private string _winInkPluginDirectory = "";
+
+    public bool ShowWinInkInstall => !WinInkInstalled && !WinInkBusy;
+    public bool ShowWinInkUninstall => WinInkInstalled && !WinInkBusy;
+    // When installed, the update button has two states: "Check for Update" until a
+    // check finds a newer version, then "Install Update".
+    public bool ShowWinInkCheckUpdate => WinInkInstalled && !WinInkUpdateAvailable && !WinInkBusy;
+    public bool ShowWinInkInstallUpdate => WinInkInstalled && WinInkUpdateAvailable && !WinInkBusy;
+    public bool ShowWinInkRefresh => !WinInkBusy;
+    public bool HasWinInkUpdateCheckStatus => !string.IsNullOrEmpty(WinInkUpdateCheckStatus);
+
     // Driver cleanup tool
     [ObservableProperty] private bool _cleanupInstalled;
     [ObservableProperty] private bool _cleanupBusy;
@@ -95,6 +141,241 @@ public partial class MainViewModel : ObservableObject, IDisposable
     partial void OnHasWindowsInkChanged(bool value)
     {
         WindowsInkStatusText = value ? "Plugin active" : "Not configured";
+    }
+
+    private string? WinInkPluginParentDirectory =>
+        string.IsNullOrEmpty(_winInkPluginDirectory) ? null : Path.GetDirectoryName(_winInkPluginDirectory);
+
+    /// <summary>
+    /// Reads the installed Windows Ink plugin's metadata from disk (cheap, no network)
+    /// and updates the install status, displayed versions, and compatibility indicator.
+    /// </summary>
+    private void RefreshWindowsInkInstalledStatus()
+    {
+        var installed = _winInk.ReadInstalled(WinInkPluginParentDirectory);
+
+        if (installed == null)
+        {
+            WinInkInstalled = false;
+            WinInkInstallStatusText = "Not installed";
+            WinInkPluginVersion = "";
+            WinInkSupportedDriverVersion = "";
+            WinInkVersionMismatch = false;
+            WinInkUpdateAvailable = false;
+            WinInkUpdateCheckStatus = "";
+            return;
+        }
+
+        WinInkInstalled = true;
+        WinInkInstallStatusText = "Installed";
+        WinInkPluginVersion = installed.PluginVersion?.ToString() ?? "?";
+        WinInkSupportedDriverVersion = installed.SupportedDriverVersion?.ToString() ?? "?";
+        // "Mismatch" = the installed plugin does not declare support for the running
+        // OTD version (OTD's own IsSupportedBy compatibility rule).
+        WinInkVersionMismatch = !WindowsInkPluginService.IsCompatible(installed);
+
+        RecomputeWinInkUpdate();
+    }
+
+    /// <summary>
+    /// Queries the repository for the newest available release and caches it, then
+    /// recomputes whether a newer plugin version exists. Network call.
+    /// </summary>
+    private async Task FetchLatestWindowsInkAsync()
+    {
+        _winInkLatest = await _winInk.GetLatestCompatibleAsync();
+        WinInkLatestVersion = _winInkLatest?.PluginVersion?.ToString() ?? "";
+        RecomputeWinInkUpdate();
+    }
+
+    /// <summary>
+    /// An update is available when the latest release in the repository has a higher
+    /// plugin version than the one currently installed.
+    /// </summary>
+    private void RecomputeWinInkUpdate()
+    {
+        if (!WinInkInstalled || _winInkLatest?.PluginVersion == null)
+        {
+            WinInkUpdateAvailable = false;
+            return;
+        }
+
+        var installed = _winInk.ReadInstalled(WinInkPluginParentDirectory);
+        WinInkUpdateAvailable = installed?.PluginVersion != null
+            && _winInkLatest.PluginVersion > installed.PluginVersion;
+    }
+
+    /// <summary>
+    /// Explicit "Check for Update" action: fetches the latest release and reports
+    /// whether a newer version is available.
+    /// </summary>
+    [RelayCommand]
+    private async Task CheckForWindowsInkUpdate()
+    {
+        if (WinInkBusy) return;
+        WinInkBusy = true;
+        WinInkBusyStatus = "Checking for updates...";
+        WinInkUpdateCheckStatus = "";
+        try
+        {
+            await FetchLatestWindowsInkAsync();
+            WinInkUpdateCheckStatus = WinInkUpdateAvailable
+                ? ""
+                : _winInkLatest == null
+                    ? "Couldn't reach the plugin repository"
+                    : $"Up to date (v{WinInkPluginVersion})";
+        }
+        finally
+        {
+            WinInkBusy = false;
+            WinInkBusyStatus = "";
+        }
+    }
+
+    /// <summary>
+    /// Refreshes everything shown on the Windows Ink card: re-reads the installed
+    /// plugin from disk and re-checks the repository for the latest release.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshWindowsInk()
+    {
+        if (WinInkBusy) return;
+        WinInkBusy = true;
+        WinInkBusyStatus = "Refreshing...";
+        WinInkUpdateCheckStatus = "";
+        try
+        {
+            RefreshWindowsInkInstalledStatus();
+            await FetchLatestWindowsInkAsync();
+        }
+        finally
+        {
+            WinInkBusy = false;
+            WinInkBusyStatus = "";
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallWindowsInk() => await InstallOrUpgradeWindowsInkAsync(isUpgrade: false);
+
+    [RelayCommand]
+    private async Task InstallWindowsInkUpdate() => await InstallOrUpgradeWindowsInkAsync(isUpgrade: true);
+
+    private async Task InstallOrUpgradeWindowsInkAsync(bool isUpgrade)
+    {
+        if (WinInkBusy) return;
+        if (!IsConnected)
+        {
+            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+                "The OpenTabletDriver daemon isn't connected. Start it first, then try again.");
+            return;
+        }
+
+        WinInkBusy = true;
+        WinInkBusyStatus = isUpgrade ? "Finding latest version..." : "Finding plugin...";
+        WinInkUpdateCheckStatus = "";
+        try
+        {
+            // Ensure we have the latest available metadata (re-fetch if a check
+            // hasn't run yet).
+            _winInkLatest ??= await _winInk.GetLatestCompatibleAsync();
+            if (_winInkLatest == null)
+            {
+                await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+                    $"Couldn't find a Windows Ink release compatible with OpenTabletDriver v{CurrentOtdVersion}.\n\n" +
+                    "Check your internet connection and try again.");
+                return;
+            }
+
+            WinInkBusyStatus = isUpgrade
+                ? $"Installing update v{_winInkLatest.PluginVersion}..."
+                : $"Installing v{_winInkLatest.PluginVersion}...";
+
+            var ok = await _daemon.DownloadPluginAsync(_winInkLatest);
+            await _daemon.LoadPluginsAsync();
+
+            RefreshWindowsInkInstalledStatus();
+            await FetchLatestWindowsInkAsync();
+
+            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+                ok
+                    ? $"Windows Ink plugin v{WinInkPluginVersion} is now installed.\n\n" +
+                      "Set a tablet's output mode to \"Windows Ink\" to enable pressure and tilt."
+                    : "The plugin download did not complete successfully. Check the daemon log for details.");
+        }
+        catch (Exception ex)
+        {
+            await Dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            WinInkBusy = false;
+            WinInkBusyStatus = "";
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallWindowsInk()
+    {
+        if (WinInkBusy) return;
+
+        var confirmed = await Dialogs.ShowConfirmAsync(
+            "Uninstall Windows Ink Plugin",
+            "This removes Kuuube's Windows Ink plugin from OpenTabletDriver.\n\n" +
+            "Any tablet using a Windows Ink output mode will fall back to a standard " +
+            "pointer mode, and pen pressure/tilt will stop working until you reinstall it.\n\n" +
+            "Do you want to proceed?");
+        if (!confirmed)
+            return;
+
+        WinInkBusy = true;
+        WinInkBusyStatus = "Uninstalling...";
+        try
+        {
+            bool ok;
+            try
+            {
+                ok = await _daemon.UninstallPluginAsync(_winInkPluginDirectory);
+            }
+            catch
+            {
+                // The daemon only uninstalls plugins it currently has loaded. If the
+                // plugin is installed on disk but failed to load (e.g. incompatible),
+                // remove the directory directly so the user isn't stuck.
+                ok = TryDeletePluginDirectory(_winInkPluginDirectory);
+            }
+
+            await _daemon.LoadPluginsAsync();
+            RefreshWindowsInkInstalledStatus();
+
+            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+                ok && !WinInkInstalled
+                    ? "The Windows Ink plugin has been uninstalled."
+                    : "The plugin could not be fully removed. Check the daemon log for details.");
+        }
+        catch (Exception ex)
+        {
+            await Dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            WinInkBusy = false;
+            WinInkBusyStatus = "";
+        }
+    }
+
+    private static bool TryDeletePluginDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     partial void OnVmultiInstalledChanged(bool value)
@@ -322,6 +603,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 PresetDirectory = appInfo.PresetDirectory ?? "";
                 SettingsFilePath = appInfo.SettingsFile ?? "";
+                _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(appInfo.PluginDirectory);
+                RefreshWindowsInkInstalledStatus();
             }
             await LoadPresetsAsync();
         }

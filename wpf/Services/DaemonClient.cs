@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Desktop.Updater;
 using StreamJsonRpc;
 
@@ -105,6 +106,34 @@ public class DaemonClient : IDisposable
     {
         if (_rpc == null) return;
         await _rpc.InvokeAsync("SetTabletDebug", enabled);
+    }
+
+    // --- Plugin management ---
+
+    /// <summary>
+    /// Downloads and installs (or upgrades) a plugin from its metadata. The daemon
+    /// verifies the SHA256, extracts it into the plugin directory, and loads it.
+    /// </summary>
+    public async Task<bool> DownloadPluginAsync(PluginMetadata metadata)
+    {
+        if (_rpc == null) return false;
+        return await _rpc.InvokeAsync<bool>("DownloadPlugin", metadata);
+    }
+
+    /// <summary>
+    /// Uninstalls a loaded plugin. Despite the interface naming "friendlyName",
+    /// the daemon matches on the plugin's full directory path.
+    /// </summary>
+    public async Task<bool> UninstallPluginAsync(string directoryPath)
+    {
+        if (_rpc == null) return false;
+        return await _rpc.InvokeAsync<bool>("UninstallPlugin", directoryPath);
+    }
+
+    public async Task LoadPluginsAsync()
+    {
+        if (_rpc == null) return;
+        await _rpc.InvokeAsync("LoadPlugins");
     }
 
     public void Dispose()

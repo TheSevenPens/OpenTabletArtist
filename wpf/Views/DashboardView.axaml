@@ -241,48 +241,138 @@
 
             <!-- Windows Ink Status -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <StackPanel Orientation="Horizontal">
-                    <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                            Background="{DynamicResource GlassBgBrush}"
-                            Classes.active="{Binding HasWindowsInk}">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
+                            VerticalAlignment="Top"
+                            Classes.active="{Binding WinInkInstalled}">
                         <Border.Styles>
+                            <Style Selector="Border">
+                                <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
+                            </Style>
                             <Style Selector="Border.active">
                                 <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
                             </Style>
                         </Border.Styles>
                         <TextBlock Text="&#xEDC6;" FontFamily="Segoe MDL2 Assets" FontSize="20"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   Classes.active="{Binding HasWindowsInk}">
+                                   Classes.active="{Binding WinInkInstalled}">
                             <TextBlock.Styles>
+                                <Style Selector="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                </Style>
                                 <Style Selector="TextBlock.active">
                                     <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
                                 </Style>
                             </TextBlock.Styles>
                         </TextBlock>
                     </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Windows Ink" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <!-- Title + installed plugin version -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Kuuube's Windows Ink plugin" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                            <Border Margin="8,0,0,0" CornerRadius="4" Padding="6,1"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource GlassBgBrush}"
+                                    IsVisible="{Binding WinInkInstalled}">
+                                <TextBlock Text="{Binding WinInkPluginVersion, StringFormat='v{0}'}"
+                                           FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Install status -->
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
-                                     Fill="{DynamicResource TextMutedBrush}"
-                                     Classes.active="{Binding HasWindowsInk}">
+                                     Classes.active="{Binding WinInkInstalled}">
                                 <Ellipse.Styles>
+                                    <Style Selector="Ellipse">
+                                        <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+                                    </Style>
                                     <Style Selector="Ellipse.active">
                                         <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
                                     </Style>
                                 </Ellipse.Styles>
                             </Ellipse>
-                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="11"
+                            <TextBlock Text="{Binding WinInkInstallStatusText}" FontSize="11" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
-                        <TextBlock Text="Enables pressure in drawing apps" FontSize="10"
-                                   Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
-                                   Margin="0,2,0,0"
-                                   IsVisible="{Binding !HasWindowsInk}" />
+
+                        <!-- Output-mode usage (only meaningful when installed) -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                    IsVisible="{Binding WinInkInstalled}">
+                            <TextBlock Text="Output mode:" FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,6,0" />
+                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+
+                        <!-- Supported driver version vs running OTD version -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                    IsVisible="{Binding WinInkInstalled}">
+                            <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                       Text="{Binding WinInkSupportedDriverVersion, StringFormat='Supported driver: v{0}'}" />
+                            <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0"
+                                       Text="{Binding CurrentOtdVersion, StringFormat='· OTD: v{0}'}" />
+                        </StackPanel>
+
+                        <!-- Compatibility mismatch warning -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding WinInkVersionMismatch}">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                       Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WarningBrush}"
+                                       Text="{Binding CurrentOtdVersion, StringFormat='May be incompatible with OpenTabletDriver v{0}'}" />
+                        </StackPanel>
+
+                        <!-- Not-installed hint -->
+                        <TextBlock Text="Install to enable pressure &amp; tilt in drawing apps"
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,4,0,0"
+                                   IsVisible="{Binding !WinInkInstalled}" />
+
+                        <!-- Update-check result -->
+                        <TextBlock Text="{Binding WinInkUpdateCheckStatus}" FontSize="10" FontStyle="Italic"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
+                                   IsVisible="{Binding HasWinInkUpdateCheckStatus}" />
+
+                        <!-- Action buttons -->
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0" Spacing="8">
+                            <Button Content="Install" Theme="{StaticResource AccentButton}"
+                                    Command="{Binding InstallWindowsInkCommand}"
+                                    IsVisible="{Binding ShowWinInkInstall}" />
+                            <Button Content="Check for Update" Theme="{StaticResource GhostButton}"
+                                    Command="{Binding CheckForWindowsInkUpdateCommand}"
+                                    IsVisible="{Binding ShowWinInkCheckUpdate}" />
+                            <Button Content="{Binding WinInkLatestVersion, StringFormat='Install Update (v{0})'}"
+                                    Theme="{StaticResource AccentButton}"
+                                    Command="{Binding InstallWindowsInkUpdateCommand}"
+                                    IsVisible="{Binding ShowWinInkInstallUpdate}" />
+                            <Button Content="Uninstall" Theme="{StaticResource DeleteButton}"
+                                    Command="{Binding UninstallWindowsInkCommand}"
+                                    IsVisible="{Binding ShowWinInkUninstall}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                        IsVisible="{Binding WinInkBusy}">
+                                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding WinInkBusyStatus}" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+
+                    <!-- Refresh plugin info -->
+                    <Button Grid.Column="2" VerticalAlignment="Top"
+                            Command="{Binding RefreshWindowsInkCommand}"
+                            IsVisible="{Binding ShowWinInkRefresh}"
+                            ToolTip.Tip="Refresh plugin info"
+                            Theme="{StaticResource IconButton}">
+                        <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Button>
+                </Grid>
             </Border>
 
         </StackPanel>
