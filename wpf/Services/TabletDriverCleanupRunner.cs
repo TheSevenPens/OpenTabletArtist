@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 /// <summary>
 /// Manages the TabletDriverCleanup tool from
@@ -56,7 +56,7 @@ public class TabletDriverCleanupRunner
 
             using (var http = new HttpClient())
             {
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("OtdWindowsHelper/1.0");
                 using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
 

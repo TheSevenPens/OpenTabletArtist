@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using HidSharp;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 public class VMultiDetector
 {

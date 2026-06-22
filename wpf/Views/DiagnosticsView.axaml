@@ -1,7 +1,7 @@
-<UserControl x:Class="TabletDriverUX.Views.DiagnosticsView"
+<UserControl x:Class="OtdWindowsHelper.Views.DiagnosticsView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:TabletDriverUX.Controls"
+             xmlns:c="using:OtdWindowsHelper.Controls"
 >
 
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">

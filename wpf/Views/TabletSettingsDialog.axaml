@@ -1,4 +1,4 @@
-<Window x:Class="TabletDriverUX.Views.TabletSettingsDialog"
+<Window x:Class="OtdWindowsHelper.Views.TabletSettingsDialog"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Tablet Settings"

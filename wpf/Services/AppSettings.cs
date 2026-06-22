@@ -1,7 +1,7 @@
 using System.IO;
 using Newtonsoft.Json.Linq;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 /// <summary>
 /// Simple JSON file-based settings persistence.
@@ -11,7 +11,7 @@ public static class AppSettings
 {
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "TabletDriverUX",
+        "OtdWindowsHelper",
         "settings.json"
     );
 

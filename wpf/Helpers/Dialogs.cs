@@ -4,7 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace TabletDriverUX.Helpers;
+namespace OtdWindowsHelper.Helpers;
 
 public static class Dialogs
 {

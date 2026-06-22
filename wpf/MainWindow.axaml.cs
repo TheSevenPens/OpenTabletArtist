@@ -1,7 +1,7 @@
 using Avalonia.Controls;
-using TabletDriverUX.ViewModels;
+using OtdWindowsHelper.ViewModels;
 
-namespace TabletDriverUX;
+namespace OtdWindowsHelper;
 
 public partial class MainWindow : Window
 {

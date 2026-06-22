@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using TabletDriverUX.ViewModels;
+using OtdWindowsHelper.ViewModels;
 
-namespace TabletDriverUX.Views;
+namespace OtdWindowsHelper.Views;
 
 public partial class TabletSettingsView : UserControl
 {

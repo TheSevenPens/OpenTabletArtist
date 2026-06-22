@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace TabletDriverUX.Views;
+namespace OtdWindowsHelper.Views;
 
 public partial class CustomTabletConfigsView : UserControl
 {

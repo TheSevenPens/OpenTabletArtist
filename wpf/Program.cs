@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace TabletDriverUX;
+namespace OtdWindowsHelper;
 
 class Program
 {
