@@ -25,7 +25,7 @@ Options to address this:
 
 ### Investigate App Shutdown Cleanliness
 When the main window is closed, the app's `MainViewModel.Dispose()` is called via
-the `Closed` event. We've observed the `TabletDriverUX.exe` file remaining locked
+the `Closed` event. We've observed the `OtdWindowsHelper.exe` file remaining locked
 for a few seconds after window close, blocking subsequent rebuilds. Audit:
 - Whether `_cts` (CancellationTokenSource) is being signalled in `Dispose()`
 - Whether all background polling timers, HTTP requests, and async loops actually

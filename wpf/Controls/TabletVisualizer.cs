@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-namespace TabletDriverUX.Controls;
+namespace OtdWindowsHelper.Controls;
 
 /// <summary>
 /// Draws a scaled tablet area with a pen position dot.

@@ -102,6 +102,6 @@ A future improvement may add a system tray icon to our own app — see `docs/FUT
 2. Wait a few seconds — the app polls for changes every 3 seconds.
 3. Click the refresh icon to force an immediate check.
 
-### Build fails with "file is locked by TabletDriverUX"
+### Build fails with "file is locked by OtdWindowsHelper"
 
 Close the running app first. If a previous instance hasn't fully exited, it may still hold the .exe. We have an open investigation item in `docs/FUTURES.md` to make shutdown cleaner.

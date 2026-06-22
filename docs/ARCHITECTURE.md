@@ -5,7 +5,7 @@
 ```
 ┌─────────────────────┐                    ┌─────────────────────┐
 │  Avalonia App (.NET 10)│     Named Pipe     │   OTD Daemon        │
-│   TabletDriverUX    │◄───────────────────►│ (OpenTabletDriver   │
+│  OtdWindowsHelper   │◄───────────────────►│ (OpenTabletDriver   │
 │                     │    StreamJsonRpc    │  .Daemon.exe)       │
 └─────────────────────┘                    └─────────────────────┘
          ▲                                          │
@@ -175,7 +175,7 @@ OTD Daemon (built from submodule, .NET 8)
 
 ```
 TabletDriverUXPrototype.slnx
-  ├── wpf/TabletDriverUX.csproj                                  (this app)
+  ├── wpf/OtdWindowsHelper.csproj                                (this app)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
 

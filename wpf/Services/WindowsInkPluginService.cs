@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 /// <summary>
 /// Reads the locally installed "Windows Ink" plugin metadata and queries the

@@ -8,10 +8,10 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
-using TabletDriverUX.Helpers;
-using TabletDriverUX.Services;
+using OtdWindowsHelper.Helpers;
+using OtdWindowsHelper.Services;
 
-namespace TabletDriverUX.ViewModels;
+namespace OtdWindowsHelper.ViewModels;
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {

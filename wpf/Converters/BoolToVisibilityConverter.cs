@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Controls;
-using TabletDriverUX.Views;
+using OtdWindowsHelper.Views;
 
-namespace TabletDriverUX.Converters;
+namespace OtdWindowsHelper.Converters;
 
 public class InverseBoolConverter : IValueConverter
 {

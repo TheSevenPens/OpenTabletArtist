@@ -5,7 +5,7 @@ using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Desktop.Updater;
 using StreamJsonRpc;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 public class DaemonClient : IDisposable
 {

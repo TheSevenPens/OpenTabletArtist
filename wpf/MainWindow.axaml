@@ -1,8 +1,8 @@
-<Window x:Class="TabletDriverUX.MainWindow"
+<Window x:Class="OtdWindowsHelper.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:TabletDriverUX.ViewModels"
-        Title="Tablet Driver"
+        xmlns:vm="using:OtdWindowsHelper.ViewModels"
+        Title="OTD Windows Helper"
         Width="1100" Height="720"
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen"
@@ -28,7 +28,7 @@
                                    Foreground="White" FontSize="14"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <TextBlock Text="Tablet Driver"
+                    <TextBlock Text="OTD Windows Helper"
                                FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center" Margin="12,0,0,0" />

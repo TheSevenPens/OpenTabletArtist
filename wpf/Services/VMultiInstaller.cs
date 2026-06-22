@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 
-namespace TabletDriverUX.Services;
+namespace OtdWindowsHelper.Services;
 
 public class VMultiInstaller
 {
@@ -32,7 +32,7 @@ public class VMultiInstaller
             ProgressChanged?.Invoke(10);
 
             using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("OtdWindowsHelper/1.0");
 
             using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
@@ -123,7 +123,7 @@ public class VMultiInstaller
             ProgressChanged?.Invoke(10);
 
             using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDriverUX/1.0");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("OtdWindowsHelper/1.0");
 
             using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();

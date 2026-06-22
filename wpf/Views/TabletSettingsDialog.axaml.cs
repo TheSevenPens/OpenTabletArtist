@@ -9,7 +9,7 @@ using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 
-namespace TabletDriverUX.Views;
+namespace OtdWindowsHelper.Views;
 
 public partial class TabletSettingsDialog : Window
 {

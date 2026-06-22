@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 
-namespace TabletDriverUX.Controls;
+namespace OtdWindowsHelper.Controls;
 
 /// <summary>
 /// Converts a percentage (0-100) and a parent width into a pixel width.
