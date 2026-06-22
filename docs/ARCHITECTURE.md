@@ -174,7 +174,7 @@ OTD Daemon (built from submodule, .NET 8)
 ## Solution Layout
 
 ```
-TabletDriverUXPrototype.slnx
+OTDWindowsHelper.slnx
   ├── wpf/OtdWindowsHelper.csproj                                (this app)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
