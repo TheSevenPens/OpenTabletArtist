@@ -6,7 +6,7 @@ A UX experiment exploring ideas in simplifying the experience for tablet drivers
 
 This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI 12, .NET 10) that:
 
-- References OTD as a git submodule pinned to a specific version (currently `v0.6.6.2`)
+- References OTD as a git submodule pinned to a specific version (currently `v0.6.7`)
 - Builds the OTD daemon from that submodule and auto-starts it
 - Communicates with the daemon via named pipe (StreamJsonRpc)
 - Uses OTD's typed models (`Settings`, `Profile`, `BindingSettings`) directly for type-safe writes
