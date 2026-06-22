@@ -140,6 +140,8 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Settings write-back.** The tablet settings dialog can push changes back to the daemon via `SetSettings()`. Currently supports changing the output mode (Fix to WinInk) and display mapping.
 
+**Daemon identity verification.** Because the daemon pipe name (`OpenTabletDriver.Daemon`) is global, the app can connect to a separately-installed OTD instance the user already had running instead of the one it builds from the submodule. After connecting, `DaemonClient.GetServerProcessId()` calls the Win32 `GetNamedPipeServerProcessId` on the client pipe handle to identify the process on the other end; `MainViewModel.UpdateDaemonSource()` compares that process's exe path to the project's build output (`ExpectedDaemonExePath()`). The result drives a three-state ownership indicator on the dashboard daemon card: `IsAppOwnedDaemon` (paths match → green "App-owned daemon"), `IsForeignDaemon` (paths differ or our build is missing → amber warning), or — when connected but the server process path can't be read (e.g. elevation) — neither flag is set and the card shows a grey "Daemon source unknown". The check is conservative: it never guesses ownership when it can't positively read the path, so it won't show a false positive in either direction.
+
 ### Remaining
 
 **Area mapping visualization.** The area mapping visualization needs to be recreated as a WPF Canvas with rectangles and coordinate transforms.

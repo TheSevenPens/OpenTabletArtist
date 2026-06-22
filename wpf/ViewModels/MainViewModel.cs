@@ -26,6 +26,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
 
+    // Daemon ownership: which daemon we're actually connected to.
+    //   IsAppOwnedDaemon — positively verified as this project's build
+    //   IsForeignDaemon  — positively verified as a different OTD instance
+    //   neither (when connected) — source unknown (e.g. server process path unreadable)
+    [ObservableProperty] private bool _isAppOwnedDaemon;
+    [ObservableProperty] private bool _isForeignDaemon;
+    [ObservableProperty] private string _daemonSourcePath = "";
+
+    // Dashboard indicator visibility (mutually exclusive while connected)
+    public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
+    public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
+    public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
+
+    private void NotifyDaemonOwnership()
+    {
+        OnPropertyChanged(nameof(ShowAppOwnedDaemon));
+        OnPropertyChanged(nameof(ShowForeignDaemonWarning));
+        OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
+    }
+
+    partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyDaemonOwnership();
+
     // Diagnostics
     [ObservableProperty] private bool _isDebugging;
     [ObservableProperty] private string _lastReportRaw = "";
@@ -126,7 +148,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         DaemonStatusText = value ? "Daemon running" : "Not connected";
         OnPropertyChanged(nameof(CanStartDaemon));
+        NotifyDaemonOwnership();
     }
+
+    partial void OnIsForeignDaemonChanged(bool value) => NotifyDaemonOwnership();
 
     partial void OnHasTabletChanged(bool value)
     {
@@ -397,8 +422,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // OTD Version (from referenced assembly)
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
-    // Daemon path — built from submodule
-    private static string? FindDaemonExe()
+    // The daemon exe this project builds from the submodule (build output only).
+    // Returns null if it hasn't been built yet.
+    private static string? ExpectedDaemonExePath()
     {
         // Look relative to our exe: up to repo root, then into the daemon build output
         var baseDir = AppContext.BaseDirectory;
@@ -411,12 +437,66 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 "bin", config, "net8.0", "OpenTabletDriver.Daemon.exe"));
             if (File.Exists(candidate)) return candidate;
         }
+        return null;
+    }
+
+    // Daemon path — built from submodule, with a fallback to a running instance.
+    private static string? FindDaemonExe()
+    {
+        var expected = ExpectedDaemonExePath();
+        if (expected != null) return expected;
         // Fallback: check if it's running and get path from process
         foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
         {
             try { var p = proc.MainModule?.FileName; if (p != null) return p; } catch { }
         }
         return null;
+    }
+
+    // Determine whether the daemon we're connected to is this project's build.
+    // Sets IsForeignDaemon / DaemonSourcePath. Conservative: only flags "foreign"
+    // when we can positively read the server process path and it differs.
+    private void UpdateDaemonSource()
+    {
+        if (!IsConnected)
+        {
+            IsAppOwnedDaemon = false;
+            IsForeignDaemon = false;
+            DaemonSourcePath = "";
+            return;
+        }
+
+        var actual = GetConnectedDaemonPath();
+        DaemonSourcePath = actual ?? "";
+
+        if (actual == null)
+        {
+            // Couldn't read the server process (e.g. it's elevated) — source unknown,
+            // so we positively assert neither owned nor foreign rather than guess.
+            IsAppOwnedDaemon = false;
+            IsForeignDaemon = false;
+            return;
+        }
+
+        var expected = ExpectedDaemonExePath();
+        var owned = expected != null
+            && string.Equals(Path.GetFullPath(actual), Path.GetFullPath(expected),
+                             StringComparison.OrdinalIgnoreCase);
+        IsAppOwnedDaemon = owned;
+        IsForeignDaemon = !owned;
+    }
+
+    // Full path of the daemon process on the other end of the pipe, or null if unknown.
+    private string? GetConnectedDaemonPath()
+    {
+        var pid = _daemon.GetServerProcessId();
+        if (pid == null) return null;
+        try
+        {
+            using var proc = Process.GetProcessById(pid.Value);
+            return proc.MainModule?.FileName;
+        }
+        catch { return null; }
     }
 
     public bool CanStartDaemon => !IsConnected && FindDaemonExe() != null;
@@ -457,6 +537,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
+            UpdateDaemonSource();
             _ = LoadDataAsync();
         });
         _daemon.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
@@ -464,6 +545,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ConnectionStatus = "Disconnected";
             IsConnected = false;
             IsDaemonRunning = false;
+            IsAppOwnedDaemon = false;
+            IsForeignDaemon = false;
+            DaemonSourcePath = "";
             HasTablet = false;
             TabletName = "";
         });

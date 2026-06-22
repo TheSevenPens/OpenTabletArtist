@@ -14,15 +14,7 @@
                     <TextBlock Text="Current Tablet" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <Ellipse Width="6" Height="6" Margin="0,0,6,0" VerticalAlignment="Center"
-                                 Fill="{DynamicResource TextMutedBrush}"
-                                 Classes.active="{Binding IsDebugging}">
-                            <Ellipse.Styles>
-                                <Style Selector="Ellipse.active">
-                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-                                </Style>
-                            </Ellipse.Styles>
-                        </Ellipse>
+                        <TextBlock Classes="statusMark" Classes.success="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
                         <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
