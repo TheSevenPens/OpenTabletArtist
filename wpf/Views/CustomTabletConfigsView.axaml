@@ -2,7 +2,9 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- DataContext re-pointed to the dedicated CustomTabletConfigsViewModel (page-VM split, #14 phase 2). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left"
+                DataContext="{Binding Configs}">
         <TextBlock Classes="PageTitle" Text="Custom Tablet Configs" />
         <TextBlock Classes="PageSubtitle"
                    Text="Tablet config JSON files in OpenTabletDriver's Configurations folder" />
