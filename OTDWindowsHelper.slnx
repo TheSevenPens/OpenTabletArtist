@@ -5,5 +5,5 @@
   <Folder Name="/tests/">
     <Project Path="tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj" />
   </Folder>
-  <Project Path="wpf/OtdWindowsHelper.csproj" />
+  <Project Path="OTDWindowsHelper/OtdWindowsHelper.csproj" />
 </Solution>

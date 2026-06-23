@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\wpf\OtdWindowsHelper.csproj" />
+    <ProjectReference Include="..\..\OTDWindowsHelper\OtdWindowsHelper.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,10 +11,10 @@
 git clone --recursive https://github.com/TheSevenPens/OTDWindowsHelper.git
 cd OTDWindowsHelper
 dotnet build OTDWindowsHelper.slnx   # builds the app AND the OTD daemon from the submodule
-dotnet run --project wpf
+dotnet run --project OTDWindowsHelper
 ```
 
-> Build the **solution** (`.slnx`), not just `wpf/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
+> Build the **solution** (`.slnx`), not just `OTDWindowsHelper/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
 
 On launch the app auto-starts the daemon if it isn't already running, then connects.
 
