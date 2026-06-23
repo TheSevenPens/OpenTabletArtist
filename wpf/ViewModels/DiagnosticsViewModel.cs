@@ -66,8 +66,23 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     private async Task StartDebuggingAsync()
     {
         if (IsDebugging || !IsConnected) return;
+
+        // Enable the daemon stream first; only subscribe if it succeeds. If the RPC throws
+        // or the daemon disconnects, a subscribe-before-enable would leak the handler (with
+        // IsDebugging still false), and a later Start would double-subscribe. (#39)
+        try
+        {
+            await _daemon.SetTabletDebugAsync(true);
+        }
+        catch
+        {
+            return;
+        }
+
+        // Idempotent subscribe: removing a non-subscribed handler is a no-op, so this
+        // guarantees exactly one subscription even if something slips past the guards.
+        _daemon.DeviceReport -= OnDeviceReport;
         _daemon.DeviceReport += OnDeviceReport;
-        await _daemon.SetTabletDebugAsync(true);
         IsDebugging = true;
         ReportCount = 0;
         LastReportRaw = "";

@@ -11,10 +11,31 @@ public class DiagnosticsViewModelTests
 {
     private sealed class FakeDebugSession : IDaemonDebugSession
     {
-        public event Action<JObject>? DeviceReport;
+        private readonly List<Action<JObject>> _subs = new();
+
+        /// <summary>Number of live DeviceReport subscriptions (tracks the leak edge in #39).
+        /// Counts actual subscriptions, so a no-op `-=` on an unsubscribed handler doesn't skew it.</summary>
+        public int SubscriberCount => _subs.Count;
+
+        public event Action<JObject>? DeviceReport
+        {
+            add { if (value != null) _subs.Add(value); }
+            remove { if (value != null) _subs.Remove(value); }
+        }
+
         public List<bool> DebugCalls { get; } = new();
-        public Task SetTabletDebugAsync(bool enabled) { DebugCalls.Add(enabled); return Task.CompletedTask; }
-        public void Raise(JObject data) => DeviceReport?.Invoke(data);
+
+        /// <summary>When true, enabling (SetTabletDebugAsync(true)) throws.</summary>
+        public bool FailEnable { get; set; }
+
+        public Task SetTabletDebugAsync(bool enabled)
+        {
+            DebugCalls.Add(enabled);
+            if (enabled && FailEnable) throw new InvalidOperationException("enable failed");
+            return Task.CompletedTask;
+        }
+
+        public void Raise(JObject data) { foreach (var h in _subs.ToArray()) h(data); }
     }
 
     [Fact]
@@ -64,6 +85,45 @@ public class DiagnosticsViewModelTests
 
         Assert.False(vm.IsDebugging);
         Assert.Empty(fake.DebugCalls);
+    }
+
+    [Fact]
+    public async Task Start_SubscribesExactlyOnce_StopUnsubscribes()
+    {
+        var fake = new FakeDebugSession();
+        var vm = new DiagnosticsViewModel(fake) { IsConnected = true };
+
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // start
+        Assert.Equal(1, fake.SubscriberCount);
+
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // stop
+        Assert.Equal(0, fake.SubscriberCount);
+    }
+
+    [Fact]
+    public async Task FailedEnable_LeavesNoSubscriptionAndStaysStopped()
+    {
+        var fake = new FakeDebugSession { FailEnable = true };
+        var vm = new DiagnosticsViewModel(fake) { IsConnected = true };
+
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // enable throws
+
+        Assert.False(vm.IsDebugging);
+        Assert.Equal(0, fake.SubscriberCount); // no leaked handler (the #39 fix)
+    }
+
+    [Fact]
+    public async Task FailedEnable_ThenSuccessfulStart_DoesNotDoubleSubscribe()
+    {
+        var fake = new FakeDebugSession { FailEnable = true };
+        var vm = new DiagnosticsViewModel(fake) { IsConnected = true };
+
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // fails, must not leak
+        fake.FailEnable = false;
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // succeeds
+
+        Assert.True(vm.IsDebugging);
+        Assert.Equal(1, fake.SubscriberCount); // exactly one, not two
     }
 
     [Fact]
