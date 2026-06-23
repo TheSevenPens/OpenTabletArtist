@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
 
@@ -478,10 +479,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var expected = ExpectedDaemonExePath();
-        var owned = expected != null
-            && string.Equals(Path.GetFullPath(actual), Path.GetFullPath(expected),
-                             StringComparison.OrdinalIgnoreCase);
+        var owned = ExecutablePath.SameFile(actual, ExpectedDaemonExePath());
         IsAppOwnedDaemon = owned;
         IsForeignDaemon = !owned;
     }
@@ -778,35 +776,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 var info = new FileInfo(file);
 
-                // Friendly name: prefer the JSON "Name" field (e.g. "Huion H640P"),
-                // then a "Manufacturer Model" combo, then the parent-folder + filename,
-                // and finally the bare filename.
-                string displayName = Path.GetFileNameWithoutExtension(file);
-                try
-                {
-                    var raw = File.ReadAllText(file).TrimStart('\uFEFF');
-                    var token = JToken.Parse(raw);
-                    var jsonName = token["Name"]?.ToString();
-                    var manufacturer = token["Manufacturer"]?.ToString()
-                                       ?? token["Vendor"]?.ToString();
-                    var model = token["Model"]?.ToString();
-
-                    if (!string.IsNullOrWhiteSpace(jsonName))
-                        displayName = jsonName!;
-                    else if (!string.IsNullOrWhiteSpace(manufacturer) && !string.IsNullOrWhiteSpace(model))
-                        displayName = $"{manufacturer} {model}";
-                    else
-                    {
-                        // Fall back to "<parent folder> <filename>" so files placed in
-                        // manufacturer subfolders still get a vendor prefix.
-                        var parent = Path.GetFileName(Path.GetDirectoryName(file));
-                        var stem = Path.GetFileNameWithoutExtension(file);
-                        if (!string.IsNullOrEmpty(parent) &&
-                            !string.Equals(parent, "Configurations", StringComparison.OrdinalIgnoreCase))
-                            displayName = $"{parent} {stem}";
-                    }
-                }
-                catch { }
+                // Friendly name derived from the JSON contents, with filename/folder fallbacks.
+                string? raw = null;
+                try { raw = File.ReadAllText(file); } catch { }
+                string displayName = TabletConfigNaming.FriendlyName(file, raw);
 
                 items.Add(new ConfigurationItem(
                     displayName,
@@ -1177,16 +1150,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_settings == null) return;
         if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
 
-        // Pick the lowest "Snapshot N" name not already taken.
-        // First save is "Snapshot", subsequent ones are "Snapshot 2", "Snapshot 3"...
+        // Pick the lowest "Snapshot N" name not already taken (lowest gap is reused).
         // Date/time is shown separately on each card from the file's last-write time.
-        var name = "Snapshot";
-        var n = 2;
-        while (File.Exists(Path.Combine(PresetDirectory, $"{name}.json")))
-        {
-            name = $"Snapshot {n}";
-            n++;
-        }
+        var existing = Directory.EnumerateFiles(PresetDirectory, "*.json")
+                                .Select(Path.GetFileNameWithoutExtension)
+                                .Where(s => s != null)!
+                                .Cast<string>();
+        var name = PresetNaming.NextSnapshotName(existing);
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _settings.Serialize(new FileInfo(path));
