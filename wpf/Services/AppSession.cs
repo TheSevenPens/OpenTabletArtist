@@ -198,7 +198,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // --- Data load (IDeviceData) + settings apply (ISettingsCoordinator) ---
 
     /// <summary>Reloads device data + settings from the daemon. UI-thread only.</summary>
-    public Task ReloadAsync() => LoadDataAsync();
+    public Task ReloadAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        return LoadDataAsync();
+    }
 
     // Coalesced entry point: only the most recently requested load applies its results.
     private Task LoadDataAsync() => _loadGate.RunAsync(LoadDataCoreAsync);
@@ -306,6 +310,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Applies settings to the daemon, persists to disk (best-effort), and reloads. UI-thread only.</summary>
     public async Task ApplyAndSaveSettingsAsync(Settings settings)
     {
+        // Verify up front so an off-thread caller fails before any side effects (daemon write,
+        // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
+        Dispatcher.UIThread.VerifyAccess();
         _settings = settings;
         await _daemon.SetSettingsAsync(settings);
 

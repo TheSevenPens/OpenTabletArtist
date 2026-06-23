@@ -418,9 +418,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         TabletSettings.Profiles = _session.Profiles;
         Presets.PresetDirectory = _session.PresetDirectory;
-        _ = Presets.LoadAsync();
+        _ = LoadPresetsSafelyAsync();
         _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(_session.PluginDirectory);
         RefreshWindowsInkInstalledStatus();
+    }
+
+    // Fire-and-forget preset refresh after a data load. The old code awaited this inside the
+    // load's try/catch; keep that swallow semantics so an enumeration/ordering failure here
+    // can't surface as an unobserved exception. (Codex #43.)
+    private async Task LoadPresetsSafelyAsync()
+    {
+        try { await Presets.LoadAsync(); }
+        catch { /* preset refresh failure must not surface */ }
     }
 
     private async Task InitAsync()
@@ -497,8 +506,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             async updatedSettings => await _session.ApplyAndSaveSettingsAsync(updatedSettings),
             async () =>
             {
-                var settings = await _session.Daemon.GetSettingsAsync();
-                return settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+                // Authoritative refresh through the session so its CurrentSettings cache stays
+                // coherent (and the rest of the UI updates too). (Codex #43.)
+                await _session.ReloadAsync();
+                return _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
             },
             digitizer);
 
