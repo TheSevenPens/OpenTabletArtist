@@ -36,8 +36,16 @@ public interface IConnectionState : INotifyPropertyChanged
     bool CanStartDaemon { get; }
     string DaemonStatusText { get; }
 
+    /// <summary>True while a Start/Stop/Restart is in progress (drives the busy indicator).</summary>
+    bool IsDaemonBusy { get; }
+    /// <summary>Current phase of the running lifecycle op, e.g. "Stopping…", "Connecting…".</summary>
+    string DaemonOperationStatus { get; }
+    /// <summary>Set when a lifecycle op times out or fails; empty otherwise.</summary>
+    string DaemonOperationError { get; }
+    bool HasDaemonOperationError { get; }
+
     IAsyncRelayCommand StartDaemonCommand { get; }
-    IRelayCommand StopDaemonCommand { get; }
+    IAsyncRelayCommand StopDaemonCommand { get; }
     IAsyncRelayCommand RestartDaemonCommand { get; }
     IRelayCommand LaunchOtdUxCommand { get; }
 }
@@ -98,6 +106,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
     [ObservableProperty] private string _daemonStatusText = "Not connected";
+
+    // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
+    [ObservableProperty] private bool _isDaemonBusy;
+    [ObservableProperty] private string _daemonOperationStatus = "";
+    [ObservableProperty] private string _daemonOperationError = "";
+    public bool HasDaemonOperationError => !string.IsNullOrEmpty(DaemonOperationError);
+    partial void OnDaemonOperationErrorChanged(string value) => OnPropertyChanged(nameof(HasDaemonOperationError));
+
+    /// <summary>
+    /// How long a Start/Restart waits for the connection to come up (and Stop waits for it to
+    /// drop) before treating the operation as failed. Settable so tests don't wait the full
+    /// wall-clock timeout.
+    /// </summary>
+    public TimeSpan DaemonOperationTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
@@ -346,41 +368,103 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [RelayCommand]
     private async Task StartDaemon()
     {
-        _daemon.AutoReconnect = true;
-        _daemonLifecycle.Launch();
-        await Task.Delay(1000);
-        OnPropertyChanged(nameof(CanStartDaemon));
-        if (!IsConnected)
+        if (IsDaemonBusy) return;
+        IsDaemonBusy = true;
+        DaemonOperationError = "";
+        try
         {
+            DaemonOperationStatus = "Starting daemon…";
+            _daemon.AutoReconnect = true;
+            _daemonLifecycle.Launch();
+            OnPropertyChanged(nameof(CanStartDaemon));
+
+            DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
             await _daemon.ConnectAsync(_cts.Token);
+
+            if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+                DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+        }
+        finally
+        {
+            DaemonOperationStatus = "";
+            IsDaemonBusy = false;
         }
     }
 
     [RelayCommand]
-    private void StopDaemon()
+    private async Task StopDaemon()
     {
-        // User-initiated stop: suppress auto-reconnect so the client doesn't immediately spin
-        // trying to reconnect to the daemon we're about to kill (which races a later Start).
-        _daemon.AutoReconnect = false;
-        _daemonLifecycle.StopAll();
+        if (IsDaemonBusy) return;
+        IsDaemonBusy = true;
+        DaemonOperationError = "";
+        try
+        {
+            DaemonOperationStatus = "Stopping daemon…";
+            // User-initiated stop: suppress auto-reconnect so the client doesn't immediately spin
+            // trying to reconnect to the daemon we're about to kill (which races a later Start).
+            _daemon.AutoReconnect = false;
+            _daemonLifecycle.StopAll();
+
+            if (!await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout))
+                DaemonOperationError = "The daemon didn't stop within 30 seconds.";
+        }
+        finally
+        {
+            DaemonOperationStatus = "";
+            IsDaemonBusy = false;
+        }
     }
 
     [RelayCommand]
     private async Task RestartDaemon()
     {
-        _daemon.AutoReconnect = true;
-        _daemonLifecycle.StopAll();
-
-        await Task.Delay(500);
-        _daemonLifecycle.Launch();
-        await Task.Delay(1000);
-
-        if (!IsConnected)
+        if (IsDaemonBusy) return;
+        IsDaemonBusy = true;
+        DaemonOperationError = "";
+        try
         {
+            // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
+            DaemonOperationStatus = "Stopping daemon…";
+            _daemon.AutoReconnect = false;
+            _daemonLifecycle.StopAll();
+            await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout);
+
+            // Start phase: relaunch and connect to the fresh instance.
+            DaemonOperationStatus = "Starting daemon…";
+            _daemon.AutoReconnect = true;
+            _daemonLifecycle.Launch();
+
+            DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
             await _daemon.ConnectAsync(_cts.Token);
+
+            if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+                DaemonOperationError = "The daemon didn't come online within 30 seconds.";
         }
+        finally
+        {
+            DaemonOperationStatus = "";
+            IsDaemonBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Awaits until <see cref="IsConnected"/> reaches <paramref name="connected"/> or the timeout
+    /// elapses. The daemon's Connected/Disconnected callbacks flip IsConnected on the UI thread;
+    /// this polls that state (the commands run on the UI thread, so continuations resume there).
+    /// Returns true if the target state was reached, false on timeout.
+    /// </summary>
+    private async Task<bool> WaitForConnectionStateAsync(bool connected, TimeSpan timeout)
+    {
+        var sw = Stopwatch.StartNew();
+        while (IsConnected != connected)
+        {
+            if (sw.Elapsed >= timeout) return false;
+            try { await Task.Delay(100, _cts.Token); }
+            catch (OperationCanceledException) { return IsConnected == connected; }
+        }
+        return true;
     }
 
     [RelayCommand]
