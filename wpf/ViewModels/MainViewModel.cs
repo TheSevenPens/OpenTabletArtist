@@ -27,7 +27,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public TabletSettingsViewModel TabletSettings { get; }
     public DashboardViewModel Dashboard { get; }
 
-    [ObservableProperty] private string _currentPage = "Dashboard";
+    // The active page is the VM instance itself (typed navigation, #15). The content host
+    // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
+    // no view-lookup converter, and no per-view DataContext re-point.
+    [ObservableProperty] private ObservableObject? _currentPage;
+
+    // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
+    public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
+    public bool IsTabletSettings => ReferenceEquals(CurrentPage, TabletSettings);
+    public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
+    public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
+    public bool IsUtilities => ReferenceEquals(CurrentPage, Utilities);
+    public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
+    public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
     {
@@ -38,6 +50,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon);
         TabletSettings = new TabletSettingsViewModel(_session, OpenTabletSettingsForProfile);
         Dashboard = new DashboardViewModel(_session, OpenTabletSettingsForProfile);
+
+        CurrentPage = Dashboard;
 
         // Keep the Diagnostics connection gate in sync (Diagnostics still takes a pushed
         // IsConnected; re-plumbing it onto IConnectionState is a later cleanup).
@@ -76,12 +90,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void Navigate(string page) => CurrentPage = page;
+    private void Navigate(object page) => CurrentPage = page as ObservableObject;
 
-    partial void OnCurrentPageChanged(string? oldValue, string newValue)
+    partial void OnCurrentPageChanged(ObservableObject? oldValue, ObservableObject? newValue)
     {
-        if (oldValue == "Diagnostics" && newValue != "Diagnostics")
+        // Stop the debug stream when leaving the Diagnostics page.
+        if (ReferenceEquals(oldValue, Diagnostics) && !ReferenceEquals(newValue, Diagnostics))
             _ = Diagnostics.StopDebuggingAsync();
+
+        // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
+        OnPropertyChanged(nameof(IsDashboard));
+        OnPropertyChanged(nameof(IsTabletSettings));
+        OnPropertyChanged(nameof(IsPresets));
+        OnPropertyChanged(nameof(IsConfigs));
+        OnPropertyChanged(nameof(IsUtilities));
+        OnPropertyChanged(nameof(IsDiagnostics));
+        OnPropertyChanged(nameof(IsAbout));
     }
 
     // Opens the per-tablet settings dialog. Shared by the Tablet Settings page and the

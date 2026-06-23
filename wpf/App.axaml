@@ -1,6 +1,8 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:OtdWindowsHelper.Converters"
+             xmlns:vm="using:OtdWindowsHelper.ViewModels"
+             xmlns:views="using:OtdWindowsHelper.Views"
              x:Class="OtdWindowsHelper.App">
 
     <Application.Styles>
@@ -15,11 +17,22 @@
             </ResourceDictionary.MergedDictionaries>
 
             <conv:InverseBoolConverter x:Key="InvBool" />
-            <conv:StringEqualsConverter x:Key="StrEquals" />
             <conv:NonEmptyToBoolConverter x:Key="NonEmptyToBool" />
             <conv:AllFalseBoolConverter x:Key="AllFalseBool" />
             <conv:NotFirstAndSecondBoolConverter x:Key="NotFirstAndSecondBool" />
-            <conv:PageToViewConverter x:Key="PageToView" />
         </ResourceDictionary>
     </Application.Resources>
+
+    <!-- Typed navigation (#15): the content host maps each page VM to its view by type.
+         This replaces the page-name string + PageToViewConverter, and lets each view inherit
+         its VM as DataContext directly (no per-view DataContext re-point). -->
+    <Application.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TabletSettingsViewModel}"><views:TabletSettingsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PresetsViewModel}"><views:PresetsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CustomTabletConfigsViewModel}"><views:CustomTabletConfigsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:UtilitiesViewModel}"><views:UtilitiesView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
+    </Application.DataTemplates>
 </Application>

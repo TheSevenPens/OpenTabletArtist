@@ -4,9 +4,8 @@
              xmlns:c="using:OtdWindowsHelper.Controls"
 >
 
-    <!-- DataContext re-pointed to the dedicated DiagnosticsViewModel (page-VM split, #14 phase 2). -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left"
-                DataContext="{Binding Diagnostics}">
+    <!-- DataContext is the DiagnosticsViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="Diagnostics" />
         <TextBlock Classes="PageSubtitle" Text="Live pen data" />
         <!-- Controls -->

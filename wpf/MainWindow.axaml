@@ -46,31 +46,31 @@
                 <!-- Nav Items -->
                 <StackPanel Margin="8,0,8,0">
                     <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Dashboard, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="Dashboard" />
+                                 IsChecked="{Binding IsDashboard, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Paired Tablets"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=TabletSettings, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="TabletSettings"
+                                 IsChecked="{Binding IsTabletSettings, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletSettings}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Saved Settings"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Presets, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="Presets"
+                                 IsChecked="{Binding IsPresets, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Custom Tablet Configs"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=CustomTabletConfigs, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="CustomTabletConfigs"
+                                 IsChecked="{Binding IsConfigs, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Utilities"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Utilities, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="Utilities"
+                                 IsChecked="{Binding IsUtilities, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="Diagnostics"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=Diagnostics, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="Diagnostics"
+                                 IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="About"
-                                 IsChecked="{Binding CurrentPage, Converter={StaticResource StrEquals}, ConverterParameter=About, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="About"
+                                 IsChecked="{Binding IsAbout, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
                                  Margin="0,2,0,0" />
                 </StackPanel>
             </DockPanel>
@@ -81,7 +81,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <Border Padding="28">
-                <ContentControl Content="{Binding CurrentPage, Converter={StaticResource PageToView}}" />
+                <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
     </Grid>
