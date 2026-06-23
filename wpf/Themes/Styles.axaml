@@ -1,7 +1,32 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:OtdWindowsHelper.Controls">
 
     <Styles.Resources>
+        <!-- Card-header icon box: rounded 48x48 with a centered Segoe MDL2 glyph (#24).
+             Default ControlTheme (type-keyed → auto-applied). IsActive=True → green. -->
+        <ControlTheme x:Key="{x:Type c:IconBox}" TargetType="c:IconBox">
+            <Setter Property="Width" Value="48" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="PART_Box" CornerRadius="12"
+                            Background="{DynamicResource GlassBgBrush}">
+                        <TextBlock x:Name="PART_Glyph" Text="{TemplateBinding Glyph}"
+                                   FontFamily="Segoe MDL2 Assets" FontSize="{TemplateBinding GlyphSize}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[IsActive=True] /template/ Border#PART_Box">
+                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+            </Style>
+            <Style Selector="^[IsActive=True] /template/ TextBlock#PART_Glyph">
+                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+            </Style>
+        </ControlTheme>
+
         <!-- Nav Item Button -->
         <ControlTheme x:Key="NavButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
