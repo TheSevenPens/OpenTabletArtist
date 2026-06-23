@@ -9,11 +9,10 @@ namespace OtdWindowsHelper.ViewModels;
 
 /// <summary>
 /// View model for the Paired Tablets (Tablet Settings) page. Page-VM split (#14 phase 2).
-/// The profile list is derived from shell state (settings + live tablet detection), so the
-/// shell computes it and pushes it via <see cref="Profiles"/>. Opening the per-tablet
-/// settings dialog and forgetting a profile both touch shared shell state (and the dialog
-/// is also opened from the Dashboard's "Open"), so they're provided as delegates rather
-/// than duplicated here.
+/// The profile list is derived from shared state (settings + live tablet detection) and
+/// pushed in via <see cref="Profiles"/>. Forgetting a profile is a settings mutation done
+/// through <see cref="ISettingsCoordinator"/>; opening the per-tablet dialog is UI
+/// orchestration shared with the Dashboard's "Open", so it stays a delegate (#37).
 /// </summary>
 public partial class TabletSettingsViewModel : ObservableObject
 {
