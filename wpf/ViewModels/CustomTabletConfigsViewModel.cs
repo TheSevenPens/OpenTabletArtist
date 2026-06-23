@@ -13,7 +13,8 @@ namespace OtdWindowsHelper.ViewModels;
 /// View model for the Custom Tablet Configs page — lists/views/deletes the tablet config
 /// JSON files in OpenTabletDriver's Configurations folder. Page-VM split (#14 phase 2):
 /// self-contained (filesystem only, no daemon), so it scans the folder in its constructor.
-/// View/delete confirmations go through <see cref="IDialogService"/> (#37).
+/// The folder location comes from <see cref="IConfigurationsDirectoryProvider"/> (so tests can
+/// point at a temp dir); view/delete confirmations go through <see cref="IDialogService"/> (#37).
 /// </summary>
 public partial class CustomTabletConfigsViewModel : ObservableObject
 {
@@ -23,25 +24,11 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
     [ObservableProperty] private List<ConfigurationItem> _configurations = [];
     [ObservableProperty] private bool _hasConfigurations;
 
-    public CustomTabletConfigsViewModel(IDialogService dialogs)
+    public CustomTabletConfigsViewModel(IDialogService dialogs, IConfigurationsDirectoryProvider directory)
     {
         _dialogs = dialogs;
-        InitializeConfigurationsFolder();
+        ConfigurationsDirectory = directory.GetOrCreate();
         LoadConfigurations();
-    }
-
-    private void InitializeConfigurationsFolder()
-    {
-        // OTD reads tablet configs from %AppData%\OpenTabletDriver\Configurations
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (string.IsNullOrEmpty(appData)) { ConfigurationsDirectory = ""; return; }
-        var configDir = Path.Combine(appData, "OpenTabletDriver", "Configurations");
-        try
-        {
-            if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
-        }
-        catch { }
-        ConfigurationsDirectory = configDir;
     }
 
     private void LoadConfigurations()
