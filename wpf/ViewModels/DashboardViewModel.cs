@@ -53,8 +53,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public bool HasTablet => _session.HasTablet;
     public bool HasWindowsInk => _session.HasWindowsInk;
 
+    // Lifecycle-operation feedback, forwarded from the session (mirrored via PropertyChanged).
+    public bool IsDaemonBusy => _session.IsDaemonBusy;
+    public string DaemonOperationStatus => _session.DaemonOperationStatus;
+    public string DaemonOperationError => _session.DaemonOperationError;
+    public bool HasDaemonOperationError => _session.HasDaemonOperationError;
+
     public IAsyncRelayCommand StartDaemonCommand => _session.StartDaemonCommand;
-    public IRelayCommand StopDaemonCommand => _session.StopDaemonCommand;
+    public IAsyncRelayCommand StopDaemonCommand => _session.StopDaemonCommand;
     public IAsyncRelayCommand RestartDaemonCommand => _session.RestartDaemonCommand;
     public IRelayCommand LaunchOtdUxCommand => _session.LaunchOtdUxCommand;
 
