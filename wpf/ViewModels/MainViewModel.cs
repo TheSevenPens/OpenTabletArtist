@@ -222,15 +222,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void RecomputeWinInkUpdate()
     {
-        if (!WinInkInstalled || _winInkLatest?.PluginVersion == null)
+        if (!WinInkInstalled)
         {
             WinInkUpdateAvailable = false;
             return;
         }
 
         var installed = _winInk.ReadInstalled(WinInkPluginParentDirectory);
-        WinInkUpdateAvailable = installed?.PluginVersion != null
-            && _winInkLatest.PluginVersion > installed.PluginVersion;
+        WinInkUpdateAvailable = WinInkUpdateState.IsUpdateAvailable(
+            installed?.PluginVersion, _winInkLatest?.PluginVersion);
     }
 
     /// <summary>
