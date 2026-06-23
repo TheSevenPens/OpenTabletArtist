@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OtdWindowsHelper.Concurrency;
 using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
@@ -24,6 +25,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
     private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
+    // Ensures only the latest data load applies (Connected handler, 3s poll, Refresh). See #19.
+    private readonly LatestOnlyGate _loadGate = new();
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
@@ -566,14 +569,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 try
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() => _ = LoadDataAsync());
+                    await Dispatcher.UIThread.InvokeAsync(LoadDataAsync);
                 }
                 catch { }
             }
         }
     }
 
-    private async Task LoadDataAsync()
+    // Coalesced entry point: only the most recently requested load applies its results.
+    private Task LoadDataAsync() => _loadGate.RunAsync(LoadDataCoreAsync);
+
+    private async Task LoadDataCoreAsync()
     {
         try
         {
@@ -1463,6 +1469,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         _cts.Cancel();
         _daemon.Dispose();
+        _loadGate.Dispose();
     }
 }
 

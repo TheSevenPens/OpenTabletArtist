@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Desktop.Updater;
+using OtdWindowsHelper.Concurrency;
 using StreamJsonRpc;
 
 namespace OtdWindowsHelper.Services;
@@ -15,14 +16,31 @@ public class DaemonClient : IDisposable
 
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
+    // Single-flight reconnect coordinator: only one connect loop runs at a time, and a
+    // reconnect requested while one is running (e.g. an immediate disconnect during connect)
+    // is honored once the current loop exits — closing the dropped-reconnect race (#33).
+    private readonly CoalescingSingleFlight _connectFlight = new();
 
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action<JObject>? DeviceReport;
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
-    public async Task ConnectAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Requests a connection. Fire-and-forget: returns immediately and connects in the
+    /// background via the single-flight coordinator. The <see cref="Connected"/> event
+    /// fires once established. Safe to call repeatedly (e.g. from the disconnect handler
+    /// and UI commands) — extra requests coalesce.
+    /// </summary>
+    public Task ConnectAsync(CancellationToken ct = default)
     {
+        _connectFlight.Trigger(() => ConnectLoopAsync(ct));
+        return Task.CompletedTask;
+    }
+
+    private async Task ConnectLoopAsync(CancellationToken ct)
+    {
+        if (IsConnected) return; // a prior loop already (re)connected; nothing to do
         while (!ct.IsCancellationRequested)
         {
             try
@@ -39,7 +57,9 @@ public class DaemonClient : IDisposable
                 _rpc.Disconnected += (_, _) =>
                 {
                     Disconnected?.Invoke();
-                    _ = Task.Run(() => ConnectAsync(ct), ct);
+                    // Trigger a reconnect. If this fires during the current connect's release
+                    // window, the coordinator still honors it (coalesced rerun) — no drop.
+                    ConnectAsync(ct);
                 };
                 _rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
                 _rpc.StartListening();
