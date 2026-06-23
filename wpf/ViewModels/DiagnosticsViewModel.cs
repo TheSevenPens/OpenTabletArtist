@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,17 +12,20 @@ namespace OtdWindowsHelper.ViewModels;
 /// <summary>
 /// View model for the Diagnostics page (live pen data). Page-VM split (#14 phase 2):
 /// owns the debug-report subscription lifecycle. Depends on <see cref="IDaemonDebugSession"/>
-/// (the report stream + debug toggle) rather than the whole shell; the shell keeps
-/// <see cref="IsConnected"/> in sync and calls <see cref="StopDebuggingAsync"/> when the
-/// user navigates away (#19 page-leave cleanup), with <see cref="Dispose"/> as a backstop.
+/// (the report stream + debug toggle) and, optionally, on <see cref="IConnectionState"/> to
+/// self-sync <see cref="IsConnected"/> (gates Start; drives the not-connected warning). The
+/// shell calls <see cref="StopDebuggingAsync"/> on page-leave (#19), with <see cref="Dispose"/>
+/// as a backstop.
 /// </summary>
 public partial class DiagnosticsViewModel : ObservableObject, IDisposable
 {
     private readonly IDaemonDebugSession _daemon;
+    private readonly IConnectionState? _connection;
     private double _reportPeriodEma;
     private DateTime _lastReportTime;
 
-    // Kept in sync by the shell (gates Start; drives the not-connected warning).
+    // Synced from the session's IConnectionState when provided (gates Start; drives the
+    // not-connected warning). Stays settable so tests can simulate connection state directly.
     [ObservableProperty] private bool _isConnected;
 
     [ObservableProperty] private bool _isDebugging;
@@ -49,9 +53,21 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _debugNearProximity = "";
     [ObservableProperty] private string _debugHoverDistance = "";
 
-    public DiagnosticsViewModel(IDaemonDebugSession daemon)
+    public DiagnosticsViewModel(IDaemonDebugSession daemon, IConnectionState? connection = null)
     {
         _daemon = daemon;
+        _connection = connection;
+        if (_connection != null)
+        {
+            IsConnected = _connection.IsConnected;
+            _connection.PropertyChanged += OnConnectionChanged;
+        }
+    }
+
+    private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IConnectionState.IsConnected))
+            IsConnected = _connection!.IsConnected;
     }
 
     [RelayCommand]
@@ -227,6 +243,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (_connection != null)
+            _connection.PropertyChanged -= OnConnectionChanged;
         if (IsDebugging)
         {
             _daemon.DeviceReport -= OnDeviceReport;

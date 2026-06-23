@@ -25,16 +25,16 @@ namespace OtdWindowsHelper.ViewModels;
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly AppSession _session;
-    private readonly Func<Profile, Task> _openConnectedTablet;
+    private readonly IDialogService _dialogs;
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
 
-    public DashboardViewModel(AppSession session, Func<Profile, Task> openConnectedTablet)
+    public DashboardViewModel(AppSession session, IDialogService dialogs)
     {
         _session = session;
-        _openConnectedTablet = openConnectedTablet;
+        _dialogs = dialogs;
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
@@ -99,7 +99,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         if (!_session.HasTablet || string.IsNullOrEmpty(_session.TabletName) || settings == null) return;
         var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == _session.TabletName);
         if (profile != null)
-            await _openConnectedTablet(profile);
+            await _dialogs.ShowTabletSettingsAsync(profile);
     }
 
     // --- VMulti driver card ---
