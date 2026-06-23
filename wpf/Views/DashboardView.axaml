@@ -1,6 +1,7 @@
 <UserControl x:Class="OtdWindowsHelper.Views.DashboardView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OtdWindowsHelper.Controls">
 
     <!-- DataContext is the DashboardViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
@@ -13,12 +14,7 @@
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                                Background="{DynamicResource GlassBgBrush}">
-                            <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
-                        </Border>
+                        <c:IconBox Glyph="&#xE895;" Margin="0,0,16,0" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Embedded OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -40,25 +36,7 @@
                 <StackPanel>
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                                Background="{DynamicResource GlassBgBrush}"
-                                Classes.active="{Binding IsConnected}">
-                            <Border.Styles>
-                                <Style Selector="Border.active">
-                                    <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                </Style>
-                            </Border.Styles>
-                            <TextBlock Text="&#xE839;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       Classes.active="{Binding IsConnected}">
-                                <TextBlock.Styles>
-                                    <Style Selector="TextBlock.active">
-                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                    </Style>
-                                </TextBlock.Styles>
-                            </TextBlock>
-                        </Border>
+                        <c:IconBox Glyph="&#xE839;" Margin="0,0,16,0" IsActive="{Binding IsConnected}" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="OpenTabletDriver Daemon" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -153,25 +131,7 @@
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                                Background="{DynamicResource GlassBgBrush}"
-                                Classes.active="{Binding HasTablet}">
-                            <Border.Styles>
-                                <Style Selector="Border.active">
-                                    <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                </Style>
-                            </Border.Styles>
-                            <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       Classes.active="{Binding HasTablet}">
-                                <TextBlock.Styles>
-                                    <Style Selector="TextBlock.active">
-                                        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                    </Style>
-                                </TextBlock.Styles>
-                            </TextBlock>
-                        </Border>
+                        <c:IconBox Glyph="&#xE70A;" Margin="0,0,16,0" IsActive="{Binding HasTablet}" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -195,25 +155,8 @@
             <!-- VMulti Status -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                            Background="{DynamicResource GlassBgBrush}"
-                            Classes.active="{Binding VmultiInstalled}">
-                        <Border.Styles>
-                            <Style Selector="Border.active">
-                                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                            </Style>
-                        </Border.Styles>
-                        <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   Classes.active="{Binding VmultiInstalled}">
-                            <TextBlock.Styles>
-                                <Style Selector="TextBlock.active">
-                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                </Style>
-                            </TextBlock.Styles>
-                        </TextBlock>
-                    </Border>
+                    <c:IconBox Grid.Column="0" Glyph="&#xE72E;" Margin="0,0,16,0"
+                               IsActive="{Binding VmultiInstalled}" />
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
@@ -276,30 +219,8 @@
             <!-- Windows Ink Status -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                            VerticalAlignment="Top"
-                            Classes.active="{Binding WinInkInstalled}">
-                        <Border.Styles>
-                            <Style Selector="Border">
-                                <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-                            </Style>
-                            <Style Selector="Border.active">
-                                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                            </Style>
-                        </Border.Styles>
-                        <TextBlock Text="&#xEDC6;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Classes.active="{Binding WinInkInstalled}">
-                            <TextBlock.Styles>
-                                <Style Selector="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-                                </Style>
-                                <Style Selector="TextBlock.active">
-                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                </Style>
-                            </TextBlock.Styles>
-                        </TextBlock>
-                    </Border>
+                    <c:IconBox Grid.Column="0" Glyph="&#xEDC6;" Margin="0,0,16,0" VerticalAlignment="Top"
+                               IsActive="{Binding WinInkInstalled}" />
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <!-- Title -->

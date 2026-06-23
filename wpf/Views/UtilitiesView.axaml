@@ -1,6 +1,7 @@
 <UserControl x:Class="OtdWindowsHelper.Views.UtilitiesView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OtdWindowsHelper.Controls">
 
     <!-- DataContext is the UtilitiesViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
@@ -11,25 +12,8 @@
         <!-- TabletDriverCleanup -->
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0"
-                        Background="{DynamicResource GlassBgBrush}"
-                        Classes.active="{Binding CleanupInstalled}">
-                    <Border.Styles>
-                        <Style Selector="Border.active">
-                            <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                        </Style>
-                    </Border.Styles>
-                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               Classes.active="{Binding CleanupInstalled}">
-                        <TextBlock.Styles>
-                            <Style Selector="TextBlock.active">
-                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                            </Style>
-                        </TextBlock.Styles>
-                    </TextBlock>
-                </Border>
+                <c:IconBox Grid.Column="0" Glyph="&#xE74D;" Margin="0,0,16,0"
+                           IsActive="{Binding CleanupInstalled}" />
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="TabletDriverCleanup" FontSize="13" FontWeight="SemiBold"
