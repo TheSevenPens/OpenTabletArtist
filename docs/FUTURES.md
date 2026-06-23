@@ -1,5 +1,18 @@
 # Futures — Potential Work Items and Directions
 
+## Recently Completed
+
+Several items once listed here have shipped and are no longer "future":
+
+- **Auto-start with the daemon** — the app locates and launches the submodule's `OpenTabletDriver.Daemon.exe` (and verifies it's the app-owned instance).
+- **Saved Settings (preset snapshots)** — save / load / rename / delete configuration snapshots (the *Saved Settings* page).
+- **Live input visualization** — the *Diagnostics* page streams pen position (area + dot), pressure, and tilt via `Controls/TabletVisualizer`.
+- **Settings write-back (initial)** — the per-tablet dialog writes output mode and display mapping back to the daemon via `SetSettings`.
+- **Windows Ink + VMulti management** — detect, install, update, and uninstall both from the Dashboard.
+- **Daemon lifecycle UX** — Start / Stop / Restart with reliable reconnect and progress feedback.
+
+The items below are still open.
+
 ## Near-Term (Polish the Prototype)
 
 ### Daemon Visibility & Control From Outside the App
@@ -59,8 +72,8 @@ Reference: [SevenPens OTD Windows install guide](https://docs.sevenpens.com/draw
 ### Advanced Settings Toggle
 Several settings are hidden from the default UI to keep the experience clean for typical users: rotation (display and tablet areas), enable clipping, and area limiting. These remain active in the data model with sensible defaults. Add an "Advanced" toggle (or expandable section) that reveals these controls for power users.
 
-### Settings Write-Back
-The UI currently reads settings from the daemon but doesn't write changes. Wire up the input fields and controls to call `SetSettings` via the bridge. This includes debouncing rapid changes and showing save/apply confirmation.
+### Broader Settings Write-Back
+The per-tablet dialog already writes output mode and display mapping back to the daemon via `SetSettings`. Extend write-back to the remaining fields (bindings, filters, per-profile tweaks), with debouncing of rapid changes and save/apply confirmation.
 
 ### Bindings Page
 Implement the pen bindings configuration:
@@ -127,29 +140,25 @@ Browse, install, and manage OTD plugins:
 ## Long-Term (Distribution and Platform)
 
 ### Packaging as a Standalone App
-Options for distributing as a single executable:
-- **Photino** (.NET wrapper around OS webview) — smallest output, native feel
-- **Tauri** (Rust + OS webview, .NET bridge as sidecar) — small, modern tooling
-- **Electron** — largest output but simplest packaging
-- **.NET self-hosted** (Kestrel serves built Svelte files, user opens browser) — zero extra dependencies
+The app is a single .NET 10 Avalonia process, so distribution is mostly a publish-and-bundle problem:
+- **Self-contained single-file publish** (`dotnet publish -p:PublishSingleFile=true --self-contained`) — one exe, no .NET install required on the target machine.
+- **Framework-dependent publish** — much smaller, but requires the .NET runtime present.
+- **Installer / MSIX** — for Start-menu integration, file associations, and auto-update.
 
-Photino is the most interesting option: it produces a small native window wrapping the OS webview, the .NET bridge runs in-process, and the whole thing ships as a single executable.
+Open question: how to ship the OTD daemon alongside the app (bundle the built daemon vs. depend on an installed OTD).
 
 ### Tray Icon and Background Mode
-Run the bridge + UI as a system tray application. Click the tray icon to open/close the configuration window. The bridge stays connected to the daemon in the background.
-
-### Auto-Start with Daemon
-Detect when the OTD daemon starts and auto-connect. Optionally, bundle the daemon and launch it as a child process (like the current OTD UX does with `DaemonWatchdog`).
+Run the UI as a system tray application (Avalonia 12 has built-in `TrayIcon`). Closing the window minimizes to tray instead of exiting; the tray reflects daemon status and offers Show / Restart Daemon / Stop Daemon / Quit. See also *Daemon Visibility & Control From Outside the App* above.
 
 ### Cross-Platform Verification
-The architecture is cross-platform by design (named pipes work on Windows/macOS/Linux in .NET, web UI is universal). However, testing on macOS and Linux is needed, particularly:
+Avalonia and .NET named pipes both run on Windows/macOS/Linux, so the core is portable — but Windows-specific code (P/Invoke display enumeration, vmulti detection, the VMulti/Windows Ink install flows) gates it today. Testing on macOS and Linux is needed, particularly:
 - Named pipe paths on Unix (maps to Unix domain sockets)
 - Font rendering differences
-- Backdrop-filter support in various Linux browsers/webviews
+- Replacing or guarding the Windows-only P/Invoke and driver-management paths
 
 ### Accessibility
-- Keyboard navigation for all controls (already partially works via semantic HTML)
-- Screen reader labels for interactive SVG elements in the area mapper
+- Keyboard navigation for all controls (Avalonia provides tab/focus handling; verify and fill gaps)
+- Screen reader / automation-peer labels for the interactive area mapper and custom controls
 - High contrast mode (a third theme or automatic adjustments)
 - Reduced motion mode (respect `prefers-reduced-motion`)
 
