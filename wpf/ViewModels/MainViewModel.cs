@@ -31,6 +31,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public AboutViewModel About { get; } = new();
     public UtilitiesViewModel Utilities { get; } = new();
     public CustomTabletConfigsViewModel Configs { get; } = new();
+    public PresetsViewModel Presets { get; }
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
@@ -478,20 +479,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool HasProfiles => Profiles.Count > 0;
     partial void OnProfilesChanged(List<ProfileItem> value) => OnPropertyChanged(nameof(HasProfiles));
 
-    // Presets
-    [ObservableProperty] private List<PresetInfo> _presets = [];
-    [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
-
-    public bool HasPresets => Presets.Count > 0;
-    partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
-
 
     /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
     public Settings? CurrentSettings => _settings;
 
     public MainViewModel()
     {
+        // Presets is coupled to the shell's current settings + apply path, so it receives
+        // those as delegates rather than owning daemon/settings state itself.
+        Presets = new PresetsViewModel(_settingsStore, () => _settings, ApplyAndSaveSettingsAsync);
+
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             ConnectionStatus = "Connected";
@@ -640,12 +638,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var appInfo = await _daemon.GetAppInfoAsync();
             if (appInfo != null)
             {
-                PresetDirectory = appInfo.PresetDirectory ?? "";
+                Presets.PresetDirectory = appInfo.PresetDirectory ?? "";
                 SettingsFilePath = appInfo.SettingsFile ?? "";
                 _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(appInfo.PluginDirectory);
                 RefreshWindowsInkInstalledStatus();
             }
-            await LoadPresetsAsync();
+            await Presets.LoadAsync();
         }
         catch { /* Data load failed — will retry on next connection */ }
     }
@@ -664,36 +662,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _settingsStore.TrySave(settings, SettingsFilePath);
 
         await LoadDataAsync();
-    }
-
-    private async Task LoadPresetsAsync()
-    {
-        if (string.IsNullOrEmpty(PresetDirectory) || !Directory.Exists(PresetDirectory))
-        {
-            Presets = [];
-            return;
-        }
-
-        var presetList = new List<PresetInfo>();
-        // Sort newest first by file last-write time so the most recent
-        // snapshot appears at the top of the list.
-        var files = Directory.GetFiles(PresetDirectory, "*.json")
-            .OrderByDescending(File.GetLastWriteTime);
-        foreach (var file in files)
-        {
-            try
-            {
-                var content = await File.ReadAllTextAsync(file);
-                var lastWrite = File.GetLastWriteTime(file);
-                presetList.Add(new PresetInfo(
-                    Name: Path.GetFileNameWithoutExtension(file),
-                    Path: file,
-                    Content: content,
-                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
-            }
-            catch { }
-        }
-        Presets = presetList;
     }
 
     [RelayCommand]
@@ -922,86 +890,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task SavePreset()
-    {
-        if (_settings == null) return;
-        if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
-
-        // Pick the lowest "Snapshot N" name not already taken (lowest gap is reused).
-        // Date/time is shown separately on each card from the file's last-write time.
-        var existing = Directory.EnumerateFiles(PresetDirectory, "*.json")
-                                .Select(Path.GetFileNameWithoutExtension)
-                                .Where(s => s != null)!
-                                .Cast<string>();
-        var name = PresetNaming.NextSnapshotName(existing);
-
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
-        _settingsStore.Save(_settings, path);
-        await LoadPresetsAsync();
-    }
-
-    [RelayCommand]
-    private async Task LoadPreset(string name)
-    {
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
-        if (_settingsStore.TryLoad(path, out var settings) && settings != null)
-        {
-            await ApplyAndSaveSettingsAsync(settings);
-        }
-    }
-
-    [RelayCommand]
-    private async Task UpdatePreset(string name)
-    {
-        if (_settings == null) return;
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
-        _settingsStore.Save(_settings, path);
-        await LoadPresetsAsync();
-    }
-
-    [RelayCommand]
-    private async Task RenamePreset(string name)
-    {
-        var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
-        if (!File.Exists(oldPath)) return;
-
-        var newName = await Dialogs.ShowInputAsync(
-            "Rename Snapshot",
-            "Enter a new name for this snapshot:",
-            name);
-
-        if (!string.IsNullOrWhiteSpace(newName) && newName != name)
-        {
-            var newPath = Path.Combine(PresetDirectory, $"{newName}.json");
-            if (!File.Exists(newPath))
-            {
-                File.Move(oldPath, newPath);
-                await LoadPresetsAsync();
-            }
-            else
-            {
-                await Dialogs.ShowMessageAsync("Rename",
-                    $"A snapshot named \"{newName}\" already exists.");
-            }
-        }
-    }
-
-    [RelayCommand]
-    private async Task DeletePreset(string name)
-    {
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
-        if (!File.Exists(path)) return;
-
-        var confirmed = await Dialogs.ShowConfirmAsync(
-            "Delete Snapshot",
-            $"Delete the snapshot \"{name}\"?\n\nThis cannot be undone.");
-
-        if (!confirmed) return;
-
-        File.Delete(path);
-        await LoadPresetsAsync();
-    }
 
     [RelayCommand]
     private async Task OpenConnectedTabletSettings()
