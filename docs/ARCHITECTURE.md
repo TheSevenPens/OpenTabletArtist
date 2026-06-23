@@ -25,7 +25,7 @@
 **Technology:** .NET 10 Avalonia UI with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
-- `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
+- `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `DialogService.cs` (the `IDialogService` seam — all app dialogs), `ConfigurationsDirectoryProvider.cs` (locates the OTD configs folder), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
 - `ViewModels/` — `MainViewModel.cs` (the shell: navigation + composition only) plus one VM per page: `DashboardViewModel`, `TabletSettingsViewModel`, `PresetsViewModel`, `CustomTabletConfigsViewModel`, `UtilitiesViewModel`, `DiagnosticsViewModel`, `AboutViewModel`
 - `Views/` — Avalonia AXAML pages (Dashboard, Paired Tablets, Saved Settings, Custom Tablet Configs, Utilities, Diagnostics, About) and the per-tablet `TabletSettingsDialog`
 - `Domain/` — pure, UI-free logic, unit-tested directly: `AreaMappingCalculator`, `PresetNaming`, `TabletConfigNaming`, `ExecutablePath`, `WinInkUpdateState`, `DiagnosticsMath`, `ProfileItem`
@@ -62,6 +62,10 @@ A page VM takes only the slice of the session it actually needs, via a narrow **
 | `IDaemonDebugSession` | The live debug-report subscription used by Diagnostics |
 
 `AppSession` mutates its observable state only on the UI thread — the daemon's Connected/Disconnected callbacks marshal via the dispatcher, and `Dispatcher.UIThread.VerifyAccess()` guards the data-load and settings-mutation entry points so an off-thread caller fails loudly instead of corrupting bindings.
+
+**Pages pull, the shell doesn't push.** Page VMs that show live data self-subscribe to the session — `IDeviceData.DataLoaded` (Paired Tablets and Saved Settings refresh themselves; the Dashboard refreshes its Windows Ink card) and `IConnectionState` (Diagnostics self-syncs its connected state). The shell pushes nothing into them; it only composes and disposes.
+
+**Dialogs are abstracted** behind `IDialogService` (`Services/DialogService.cs`, #37). Every dialog flow — the per-tablet settings dialog, message/confirm/input, and the read-only config viewer — goes through it, so no page VM constructs a `Window` or calls a static dialog helper, and the flows are fakeable in tests. Likewise the Custom Tablet Configs folder comes from `IConfigurationsDirectoryProvider`, so that page is testable against a temp directory.
 
 **Navigation is typed.** `MainViewModel.CurrentPage` is the page VM instance itself (an `ObservableObject`), and the content host resolves it to a view through App-level `DataTemplate`s keyed by VM type (`App.axaml`). There is no page-name string, no view-lookup converter, and no per-view `DataContext` re-point — each view inherits its VM as `DataContext` from the template. The sidebar highlight binds to converter-free `IsXxx` getters derived from `CurrentPage`.
 
@@ -144,7 +148,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Rationale:** The shell had grown into a god-object holding connection state, settings, device data, and every page's logic. Splitting it lets each page state its real dependency surface, makes the page VMs unit-testable with small fakes, and keeps UI-thread affinity in one place. Pure logic was pulled out to `Domain/` (calculators, naming, version math) and async coordination to `Concurrency/`, both covered directly by tests.
 
-**Trade-off:** More types and a little forwarding (the shell still pushes a few loaded values into pages that don't yet self-subscribe to `IDeviceData`). The clarity and testability are worth it.
+**Trade-off:** More types and a little wiring at the composition root (the shell hands each page the role interfaces / services it needs). The clarity and testability are worth it — and with the page VMs now self-subscribing to `IDeviceData` / `IConnectionState` and going through `IDialogService`, the shell holds no feature state and pushes nothing into the pages.
 
 ## Technical Challenges
 
