@@ -50,7 +50,9 @@
 
 #### Internal structure
 
-The shell `MainViewModel` owns navigation and composes one view model per page; it holds no feature state of its own. Shared daemon/session state lives in a single **`AppSession`** (`Services/AppSession.cs`) that owns the `DaemonClient`, the daemon lifecycle, the loaded `Settings`, and the device data. Page VMs depend on `AppSession` through narrow **role interfaces** rather than the whole object:
+The shell `MainViewModel` owns navigation and composes one view model per page; it holds no feature state of its own. Shared daemon/session state lives in a single **`AppSession`** (`Services/AppSession.cs`) that owns the `DaemonClient`, the daemon lifecycle, the loaded `Settings`, and the device data.
+
+A page VM takes only the slice of the session it actually needs, via a narrow **role interface** — not the whole object. Some pages (`About`, `Utilities`, `CustomTabletConfigs`) don't depend on the session at all. `DashboardViewModel` is the deliberate exception: it surfaces connection + device + settings together, so it takes the concrete `AppSession` rather than a single role interface. The role interfaces are:
 
 | Interface | Responsibility |
 |---|---|
@@ -162,7 +164,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **VMulti install/uninstall.** The app can download the VMulti driver package from GitHub, extract it, and run the official `install_hiddriver.bat` / `remove_hiddriver.bat` scripts with admin elevation (UAC prompt).
 
-**TabletDriverCleanup integration.** The app can download and run [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) (the official OTD-team driver cleanup tool) via a Dashboard card. Uses the same pattern as VMulti install — downloads ZIP from GitHub, extracts to temp, launches the exe as admin. Unlike VMulti install, the terminal window is left visible (no `CreateNoWindow`) so the user can read the cleanup results directly, matching the usage described in the SevenPens documentation.
+**TabletDriverCleanup integration.** The app can download and run [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) (the official OTD-team driver cleanup tool) from the Utilities page. Uses the same pattern as VMulti install — downloads ZIP from GitHub, extracts to temp, launches the exe as admin. Unlike VMulti install, the terminal window is left visible (no `CreateNoWindow`) so the user can read the cleanup results directly, matching the usage described in the SevenPens documentation.
 
 **Display enumeration.** System displays are enumerated using Win32 `EnumDisplayMonitors()` + `EnumDisplaySettings()` — the same APIs OTD uses internally. Tablet settings dialog shows displays as radio buttons with a "Set to display" action.
 
