@@ -17,8 +17,8 @@ namespace OtdWindowsHelper.ViewModels;
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly DaemonClient _daemon = new();
-    private readonly IDaemonLifecycleService _daemonLifecycle = new DaemonLifecycleService();
+    // Shared application session — owns the daemon connection + lifecycle (Option C, #41).
+    private readonly AppSession _session = new(new DaemonClient(), new DaemonLifecycleService());
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
@@ -36,30 +36,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public TabletSettingsViewModel TabletSettings { get; }
 
     [ObservableProperty] private string _currentPage = "Dashboard";
-    [ObservableProperty] private string _connectionStatus = "Disconnected";
-    [ObservableProperty] private bool _isConnected;
 
-    // Daemon ownership: which daemon we're actually connected to.
-    //   IsAppOwnedDaemon — positively verified as this project's build
-    //   IsForeignDaemon  — positively verified as a different OTD instance
-    //   neither (when connected) — source unknown (e.g. server process path unreadable)
-    [ObservableProperty] private bool _isAppOwnedDaemon;
-    [ObservableProperty] private bool _isForeignDaemon;
-    [ObservableProperty] private string _daemonSourcePath = "";
+    // Connection state forwards to the shared AppSession (Option C, #41). The Dashboard and
+    // Diagnostics views still bind these names on the shell; the shell mirrors the session's
+    // PropertyChanged (see ctor) so those bindings update.
+    public IConnectionState Connection => _session;
+    public bool IsConnected => _session.IsConnected;
+    public string ConnectionStatus => _session.ConnectionStatus;
+    public bool IsDaemonRunning => _session.IsDaemonRunning;
+    public bool IsAppOwnedDaemon => _session.IsAppOwnedDaemon;
+    public bool IsForeignDaemon => _session.IsForeignDaemon;
+    public string DaemonSourcePath => _session.DaemonSourcePath;
+    public bool ShowAppOwnedDaemon => _session.ShowAppOwnedDaemon;
+    public bool ShowForeignDaemonWarning => _session.ShowForeignDaemonWarning;
+    public bool ShowDaemonSourceUnknown => _session.ShowDaemonSourceUnknown;
+    public bool CanStartDaemon => _session.CanStartDaemon;
+    public string DaemonStatusText => _session.DaemonStatusText;
 
-    // Dashboard indicator visibility (mutually exclusive while connected)
-    public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
-    public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
-    public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
-
-    private void NotifyDaemonOwnership()
-    {
-        OnPropertyChanged(nameof(ShowAppOwnedDaemon));
-        OnPropertyChanged(nameof(ShowForeignDaemonWarning));
-        OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
-    }
-
-    partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyDaemonOwnership();
+    // Daemon lifecycle commands live on the session; forward for the (still shell-bound) Dashboard.
+    public IAsyncRelayCommand StartDaemonCommand => _session.StartDaemonCommand;
+    public IRelayCommand StopDaemonCommand => _session.StopDaemonCommand;
+    public IAsyncRelayCommand RestartDaemonCommand => _session.RestartDaemonCommand;
+    public IRelayCommand LaunchOtdUxCommand => _session.LaunchOtdUxCommand;
 
 
     // Dashboard data
@@ -118,21 +116,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool HasWinInkUpdateCheckStatus => !string.IsNullOrEmpty(WinInkUpdateCheckStatus);
 
     // Computed properties for Avalonia bindings (replacing DataTriggers)
-    [ObservableProperty] private string _daemonStatusText = "Not connected";
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
     [ObservableProperty] private string _windowsInkStatusText = "Not configured";
     [ObservableProperty] private bool _showInstallButton;
     [ObservableProperty] private bool _showUninstallButton;
-
-    partial void OnIsConnectedChanged(bool value)
-    {
-        DaemonStatusText = value ? "Daemon running" : "Not connected";
-        OnPropertyChanged(nameof(CanStartDaemon));
-        NotifyDaemonOwnership();
-        Diagnostics.IsConnected = value; // keep the page VM's connection gate in sync
-    }
-
-    partial void OnIsForeignDaemonChanged(bool value) => NotifyDaemonOwnership();
 
     partial void OnHasTabletChanged(bool value)
     {
@@ -297,8 +284,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 ? $"Installing update v{_winInkLatest.PluginVersion}..."
                 : $"Installing v{_winInkLatest.PluginVersion}...";
 
-            var ok = await _daemon.DownloadPluginAsync(_winInkLatest);
-            await _daemon.LoadPluginsAsync();
+            var ok = await _session.Daemon.DownloadPluginAsync(_winInkLatest);
+            await _session.Daemon.LoadPluginsAsync();
 
             RefreshWindowsInkInstalledStatus();
             await FetchLatestWindowsInkAsync();
@@ -341,7 +328,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             bool ok;
             try
             {
-                ok = await _daemon.UninstallPluginAsync(_winInkPluginDirectory);
+                ok = await _session.Daemon.UninstallPluginAsync(_winInkPluginDirectory);
             }
             catch
             {
@@ -351,7 +338,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 ok = TryDeletePluginDirectory(_winInkPluginDirectory);
             }
 
-            await _daemon.LoadPluginsAsync();
+            await _session.Daemon.LoadPluginsAsync();
             RefreshWindowsInkInstalledStatus();
 
             await Dialogs.ShowMessageAsync("Windows Ink Plugin",
@@ -403,45 +390,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // OTD Version (from referenced assembly)
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
-    // Determine whether the daemon we're connected to is this project's build.
-    // Sets IsForeignDaemon / DaemonSourcePath. Conservative: only flags "foreign"
-    // when we can positively read the server process path and it differs.
-    private void UpdateDaemonSource()
-    {
-        if (!IsConnected)
-        {
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
-            DaemonSourcePath = "";
-            return;
-        }
-
-        var actual = GetConnectedDaemonPath();
-        DaemonSourcePath = actual ?? "";
-
-        if (actual == null)
-        {
-            // Couldn't read the server process (e.g. it's elevated) — source unknown,
-            // so we positively assert neither owned nor foreign rather than guess.
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
-            return;
-        }
-
-        var owned = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
-        IsAppOwnedDaemon = owned;
-        IsForeignDaemon = !owned;
-    }
-
-    // Full path of the daemon process on the other end of the pipe, or null if unknown.
-    private string? GetConnectedDaemonPath()
-    {
-        var pid = _daemon.GetServerProcessId();
-        return pid == null ? null : _daemonLifecycle.GetProcessPath(pid.Value);
-    }
-
-    public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
-    [ObservableProperty] private bool _isDaemonRunning;
 
     // Tablet specs
     [ObservableProperty] private string _tabletArea = "";
@@ -461,30 +409,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Presets = new PresetsViewModel(_settingsStore, () => _settings, ApplyAndSaveSettingsAsync);
         // Diagnostics owns the debug-report subscription; the shell keeps its IsConnected
         // in sync and stops it on page-leave/dispose.
-        Diagnostics = new DiagnosticsViewModel(_daemon);
+        Diagnostics = new DiagnosticsViewModel(_session.Daemon);
         // Tablet Settings: the shell pushes the derived profile list and provides the shared
         // dialog-open + forget logic (also used by the Dashboard's "Open").
         TabletSettings = new TabletSettingsViewModel(OpenTabletSettingsForProfile, ForgetProfileCore);
 
-        _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
+        // Mirror the session's connection-state changes as our own so the Dashboard/Diagnostics
+        // bindings on the shell update, and keep the Diagnostics connection gate in sync.
+        _session.PropertyChanged += (_, e) =>
         {
-            ConnectionStatus = "Connected";
-            IsConnected = true;
-            IsDaemonRunning = true;
-            UpdateDaemonSource();
-            _ = LoadDataAsync();
-        });
-        _daemon.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            ConnectionStatus = "Disconnected";
-            IsConnected = false;
-            IsDaemonRunning = false;
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
-            DaemonSourcePath = "";
-            HasTablet = false;
-            TabletName = "";
-        });
+            if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
+            if (e.PropertyName == nameof(IConnectionState.IsConnected))
+                Diagnostics.IsConnected = _session.IsConnected;
+        };
+        // The session drives connection; the shell reacts to do the data load + tablet reset
+        // (data-load moves into the session in #41 PR 2).
+        _session.Connected += () => _ = LoadDataAsync();
+        _session.Disconnected += () => { HasTablet = false; TabletName = ""; };
 
         _ = InitAsync();
     }
@@ -507,16 +448,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else
             VmultiMessage = "Not installed";
 
-        // Auto-start daemon if not running
-        IsDaemonRunning = _daemonLifecycle.IsRunning();
-        if (!IsDaemonRunning && _daemonLifecycle.FindExe() != null)
-        {
-            _daemonLifecycle.Launch();
-            await Task.Delay(1000);
-        }
-
-        ConnectionStatus = "Connecting...";
-        await _daemon.ConnectAsync(_cts.Token);
+        // Auto-start the daemon if needed and begin connecting (session owns this now).
+        await _session.StartAndConnectAsync();
         _ = PollDataAsync();
     }
 
@@ -544,7 +477,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             // Load tablets (JToken — complex runtime type)
-            var tablets = await _daemon.GetTabletsAsync();
+            var tablets = await _session.Daemon.GetTabletsAsync();
             TabletsJson = tablets;
 
             // Build set of detected tablet names and record last-seen timestamps
@@ -584,7 +517,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
 
             // Load settings — TYPED
-            _settings = await _daemon.GetSettingsAsync();
+            _settings = await _session.Daemon.GetSettingsAsync();
 
             if (_settings != null)
             {
@@ -612,7 +545,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
 
             // Load app info — TYPED
-            var appInfo = await _daemon.GetAppInfoAsync();
+            var appInfo = await _session.Daemon.GetAppInfoAsync();
             if (appInfo != null)
             {
                 Presets.PresetDirectory = appInfo.PresetDirectory ?? "";
@@ -631,7 +564,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public async Task ApplyAndSaveSettingsAsync(Settings settings)
     {
         _settings = settings;
-        await _daemon.SetSettingsAsync(settings);
+        await _session.Daemon.SetSettingsAsync(settings);
 
         // Persist to disk (same as OTD's own UX Save button).
         // TODO(#21): surface the failure instead of ignoring TrySave's result.
@@ -653,63 +586,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshConnection()
     {
-        if (IsConnected)
+        // When connected, "refresh" reloads data (still shell-owned until #41 PR 2);
+        // when disconnected, ask the session to (re)connect.
+        if (_session.IsConnected)
             await LoadDataAsync();
         else
-        {
-            ConnectionStatus = "Connecting...";
-            _ = _daemon.ConnectAsync(_cts.Token);
-        }
-    }
-
-    [RelayCommand]
-    private void LaunchOtdUx()
-    {
-        // Launch the OTD WPF UX from the submodule via dotnet run
-        var otdUxProject = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..",
-            "external", "OpenTabletDriver", "OpenTabletDriver.UX.Wpf"));
-
-        if (Directory.Exists(otdUxProject))
-        {
-            Process.Start(new ProcessStartInfo("dotnet", $"run --project \"{otdUxProject}\"")
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-            });
-        }
-    }
-
-    [RelayCommand]
-    private void StopDaemon() => _daemonLifecycle.StopAll();
-
-    [RelayCommand]
-    private async Task StartDaemon()
-    {
-        _daemonLifecycle.Launch();
-        await Task.Delay(1000);
-        OnPropertyChanged(nameof(CanStartDaemon));
-        if (!IsConnected)
-        {
-            ConnectionStatus = "Connecting...";
-            await _daemon.ConnectAsync(_cts.Token);
-        }
-    }
-
-    [RelayCommand]
-    private async Task RestartDaemon()
-    {
-        _daemonLifecycle.StopAll();
-
-        await Task.Delay(500);
-        _daemonLifecycle.Launch();
-        await Task.Delay(1000);
-
-        if (!IsConnected)
-        {
-            ConnectionStatus = "Connecting...";
-            await _daemon.ConnectAsync(_cts.Token);
-        }
+            await _session.ConnectAsync();
     }
 
 
@@ -763,7 +645,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             async updatedSettings => await ApplyAndSaveSettingsAsync(updatedSettings),
             async () =>
             {
-                _settings = await _daemon.GetSettingsAsync();
+                _settings = await _session.Daemon.GetSettingsAsync();
                 if (_settings != null)
                     return _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
                 return null;
@@ -898,7 +780,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         Diagnostics.Dispose(); // stops debugging + disables the daemon debug stream if active
         _cts.Cancel();
-        _daemon.Dispose();
+        _session.Dispose();    // cancels the connect loop + disposes the daemon client
         _loadGate.Dispose();
         Utilities.Dispose();
     }
