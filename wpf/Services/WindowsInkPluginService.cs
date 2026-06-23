@@ -2,6 +2,7 @@ using System.Reflection;
 using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OtdWindowsHelper.Domain;
 
 namespace OtdWindowsHelper.Services;
 
@@ -60,10 +61,7 @@ public class WindowsInkPluginService
         try
         {
             var all = await PluginMetadataCollection.DownloadAsync();
-            return all
-                .Where(m => m.Name == PluginName && m.IsSupportedBy(OtdVersion))
-                .OrderByDescending(m => m.PluginVersion)
-                .FirstOrDefault();
+            return WinInkUpdateState.SelectNewestCompatible(all, OtdVersion, PluginName);
         }
         catch
         {
