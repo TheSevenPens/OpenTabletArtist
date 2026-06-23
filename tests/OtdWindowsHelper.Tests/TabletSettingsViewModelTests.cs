@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop.Profiles;
+using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.ViewModels;
 using Xunit;
 

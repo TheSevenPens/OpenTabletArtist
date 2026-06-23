@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop.Profiles;
+using OtdWindowsHelper.Domain;
 
 namespace OtdWindowsHelper.ViewModels;
 

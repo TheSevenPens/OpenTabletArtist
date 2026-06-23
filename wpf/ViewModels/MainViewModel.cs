@@ -17,15 +17,13 @@ namespace OtdWindowsHelper.ViewModels;
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    // Shared application session — owns the daemon connection + lifecycle (Option C, #41).
-    private readonly AppSession _session = new(new DaemonClient(), new DaemonLifecycleService());
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
+    // Shared application session — owns the daemon connection, settings, and data load (Option C, #41).
+    private readonly AppSession _session;
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly WindowsInkPluginService _winInk = new();
-    private readonly CancellationTokenSource _cts = new();
-    // Ensures only the latest data load applies (Connected handler, 3s poll, Refresh). See #19.
-    private readonly LatestOnlyGate _loadGate = new();
+    private readonly CancellationTokenSource _cts = new(); // for VMulti install/uninstall (shell-owned for now)
 
     /// <summary>Page view models composed by this shell (page-VM split, #14 phase 2).</summary>
     public AboutViewModel About { get; } = new();
@@ -59,17 +57,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public IAsyncRelayCommand RestartDaemonCommand => _session.RestartDaemonCommand;
     public IRelayCommand LaunchOtdUxCommand => _session.LaunchOtdUxCommand;
 
+    // Device data also forwards to the session (#41 PR 2); mirrored via the session PropertyChanged.
+    public bool HasTablet => _session.HasTablet;
+    public string TabletName => _session.TabletName;
+    public string TabletArea => _session.TabletArea;
+    public string TabletPressure => _session.TabletPressure;
+    public string TabletButtons => _session.TabletButtons;
+    public string OutputMode => _session.OutputMode;
+    public bool HasWindowsInk => _session.HasWindowsInk;
+    public Settings? CurrentSettings => _session.CurrentSettings;
 
     // Dashboard data
-    [ObservableProperty] private string _tabletName = "";
-    [ObservableProperty] private bool _hasTablet;
     [ObservableProperty] private bool _vmultiInstalled;
     [ObservableProperty] private string _vmultiMessage = "Checking...";
     [ObservableProperty] private string _vmultiHidStatus = "Checking...";
     [ObservableProperty] private string _vmultiSetupApiStatus = "Checking...";
     [ObservableProperty] private bool _vmultiInstalling;
     [ObservableProperty] private string _vmultiInstallStatus = "";
-    [ObservableProperty] private bool _hasWindowsInk;
 
     // Windows Ink plugin (Kuuube's Windows Ink plugin) — install state & versions
     [ObservableProperty]
@@ -121,20 +125,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _showInstallButton;
     [ObservableProperty] private bool _showUninstallButton;
 
-    partial void OnHasTabletChanged(bool value)
-    {
-        TabletStatusText = value ? $"{TabletName} detected" : "No tablet detected";
-    }
-
-    partial void OnTabletNameChanged(string value)
-    {
-        if (HasTablet) TabletStatusText = $"{value} detected";
-    }
-
-    partial void OnHasWindowsInkChanged(bool value)
-    {
-        WindowsInkStatusText = value ? "Plugin active" : "Plugin not active in current profile";
-    }
+    // TabletStatusText / WindowsInkStatusText are recomputed from the session's device data
+    // in the PropertyChanged mirror (see ctor), since HasTablet/TabletName/HasWindowsInk now
+    // live on the session.
 
     private string? WinInkPluginParentDirectory =>
         string.IsNullOrEmpty(_winInkPluginDirectory) ? null : Path.GetDirectoryName(_winInkPluginDirectory);
@@ -383,30 +376,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ShowUninstallButton = VmultiInstalled && !value;
     }
 
-    // Typed OTD data
-    private Settings? _settings;
-    [ObservableProperty] private JToken? _tabletsJson; // tablets remain JToken (complex runtime type)
-
     // OTD Version (from referenced assembly)
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
-
-    // Tablet specs
-    [ObservableProperty] private string _tabletArea = "";
-    [ObservableProperty] private string _tabletPressure = "";
-    [ObservableProperty] private string _tabletButtons = "";
-    [ObservableProperty] private string _outputMode = "";
-
-    [ObservableProperty] private string _settingsFilePath = "";
-
-    /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
-    public Settings? CurrentSettings => _settings;
-
     public MainViewModel()
     {
-        // Presets is coupled to the shell's current settings + apply path, so it receives
-        // those as delegates rather than owning daemon/settings state itself.
-        Presets = new PresetsViewModel(_settingsStore, () => _settings, ApplyAndSaveSettingsAsync);
+        // The session owns the daemon connection, settings, and data load.
+        _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
+
+        // Presets reads the session's current settings + apply path via delegates.
+        Presets = new PresetsViewModel(_settingsStore, () => _session.CurrentSettings, _session.ApplyAndSaveSettingsAsync);
         // Diagnostics owns the debug-report subscription; the shell keeps its IsConnected
         // in sync and stops it on page-leave/dispose.
         Diagnostics = new DiagnosticsViewModel(_session.Daemon);
@@ -414,20 +393,34 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // dialog-open + forget logic (also used by the Dashboard's "Open").
         TabletSettings = new TabletSettingsViewModel(OpenTabletSettingsForProfile, ForgetProfileCore);
 
-        // Mirror the session's connection-state changes as our own so the Dashboard/Diagnostics
-        // bindings on the shell update, and keep the Diagnostics connection gate in sync.
+        // Mirror the session's property changes as our own so the Dashboard/Diagnostics
+        // bindings on the shell update, and recompute the derived status texts + gate.
         _session.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
+            if (e.PropertyName is nameof(IDeviceData.HasTablet) or nameof(IDeviceData.TabletName))
+                TabletStatusText = _session.HasTablet ? $"{_session.TabletName} detected" : "No tablet detected";
+            if (e.PropertyName == nameof(IDeviceData.HasWindowsInk))
+                WindowsInkStatusText = _session.HasWindowsInk ? "Plugin active" : "Plugin not active in current profile";
             if (e.PropertyName == nameof(IConnectionState.IsConnected))
                 Diagnostics.IsConnected = _session.IsConnected;
         };
         // The session drives connection; the shell reacts to do the data load + tablet reset
         // (data-load moves into the session in #41 PR 2).
-        _session.Connected += () => _ = LoadDataAsync();
-        _session.Disconnected += () => { HasTablet = false; TabletName = ""; };
+        // The session does the load + tablet reset itself; the shell reacts to push data into
+        // the pages and refresh the Windows Ink card (those move into their VMs in #41 PR 3-4).
+        _session.DataLoaded += OnSessionDataLoaded;
 
         _ = InitAsync();
+    }
+
+    private void OnSessionDataLoaded()
+    {
+        TabletSettings.Profiles = _session.Profiles;
+        Presets.PresetDirectory = _session.PresetDirectory;
+        _ = Presets.LoadAsync();
+        _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(_session.PluginDirectory);
+        RefreshWindowsInkInstalledStatus();
     }
 
     private async Task InitAsync()
@@ -448,130 +441,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else
             VmultiMessage = "Not installed";
 
-        // Auto-start the daemon if needed and begin connecting (session owns this now).
+        // Auto-start the daemon if needed and begin connecting (session owns this + polling now).
         await _session.StartAndConnectAsync();
-        _ = PollDataAsync();
-    }
-
-    private async Task PollDataAsync()
-    {
-        while (!_cts.Token.IsCancellationRequested)
-        {
-            await Task.Delay(3000, _cts.Token).ConfigureAwait(false);
-            if (IsConnected)
-            {
-                try
-                {
-                    await Dispatcher.UIThread.InvokeAsync(LoadDataAsync);
-                }
-                catch { }
-            }
-        }
-    }
-
-    // Coalesced entry point: only the most recently requested load applies its results.
-    private Task LoadDataAsync() => _loadGate.RunAsync(LoadDataCoreAsync);
-
-    private async Task LoadDataCoreAsync()
-    {
-        try
-        {
-            // Load tablets (JToken — complex runtime type)
-            var tablets = await _session.Daemon.GetTabletsAsync();
-            TabletsJson = tablets;
-
-            // Build set of detected tablet names and record last-seen timestamps
-            var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (tablets.Count > 0)
-            {
-                foreach (var t in tablets)
-                {
-                    var props = t["Properties"] ?? t;
-                    var name = props["Name"]?.ToString();
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        detectedNames.Add(name);
-                        AppSettings.Set($"LastSeen:{name}", DateTime.Now.ToString("o"));
-                    }
-                }
-
-                var first = tablets[0];
-                var firstProps = first["Properties"] ?? first;
-                HasTablet = true;
-                TabletName = firstProps["Name"]?.ToString() ?? "Unknown";
-
-                var specs = firstProps["Specifications"];
-                var digi = specs?["Digitizer"];
-                var pen = specs?["Pen"];
-                TabletArea = $"{digi?["Width"]} x {digi?["Height"]} mm";
-                TabletPressure = pen?["MaxPressure"]?.ToString() ?? "?";
-                TabletButtons = pen?["ButtonCount"]?.ToString() ?? "?";
-            }
-            else
-            {
-                HasTablet = false;
-                TabletName = "";
-                TabletArea = "";
-                TabletPressure = "";
-                TabletButtons = "";
-            }
-
-            // Load settings — TYPED
-            _settings = await _session.Daemon.GetSettingsAsync();
-
-            if (_settings != null)
-            {
-                var profileItems = _settings.Profiles
-                    .Select(p =>
-                    {
-                        bool detected = detectedNames.Contains(p.Tablet);
-                        DateTime? lastSeen = null;
-                        var stored = AppSettings.Get($"LastSeen:{p.Tablet}");
-                        if (stored != null && DateTime.TryParse(stored, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
-                            lastSeen = dt;
-                        if (detected)
-                            lastSeen = DateTime.Now;
-                        return new ProfileItem(p, detected, lastSeen);
-                    })
-                    .ToList();
-                TabletSettings.Profiles = profileItems;
-
-                if (profileItems.Count > 0)
-                {
-                    var mode = profileItems[0].Profile.OutputMode?.Path;
-                    OutputMode = mode?.Split('.').LastOrDefault() ?? "Unknown";
-                    HasWindowsInk = mode?.Contains("WinInk", StringComparison.OrdinalIgnoreCase) ?? false;
-                }
-            }
-
-            // Load app info — TYPED
-            var appInfo = await _session.Daemon.GetAppInfoAsync();
-            if (appInfo != null)
-            {
-                Presets.PresetDirectory = appInfo.PresetDirectory ?? "";
-                SettingsFilePath = appInfo.SettingsFile ?? "";
-                _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(appInfo.PluginDirectory);
-                RefreshWindowsInkInstalledStatus();
-            }
-            await Presets.LoadAsync();
-        }
-        catch { /* Data load failed — will retry on next connection */ }
-    }
-
-    /// <summary>
-    /// Apply settings to the daemon AND save to disk (like OTD's own Save + Apply).
-    /// </summary>
-    public async Task ApplyAndSaveSettingsAsync(Settings settings)
-    {
-        _settings = settings;
-        await _session.Daemon.SetSettingsAsync(settings);
-
-        // Persist to disk (same as OTD's own UX Save button).
-        // TODO(#21): surface the failure instead of ignoring TrySave's result.
-        if (!string.IsNullOrEmpty(SettingsFilePath))
-            _settingsStore.TrySave(settings, SettingsFilePath);
-
-        await LoadDataAsync();
     }
 
     [RelayCommand]
@@ -586,10 +457,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshConnection()
     {
-        // When connected, "refresh" reloads data (still shell-owned until #41 PR 2);
-        // when disconnected, ask the session to (re)connect.
+        // When connected, "refresh" reloads data; when disconnected, ask the session to (re)connect.
         if (_session.IsConnected)
-            await LoadDataAsync();
+            await _session.ReloadAsync();
         else
             await _session.ConnectAsync();
     }
@@ -598,8 +468,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenConnectedTabletSettings()
     {
-        if (!HasTablet || string.IsNullOrEmpty(TabletName) || _settings == null) return;
-        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == TabletName);
+        var settings = _session.CurrentSettings;
+        if (!_session.HasTablet || string.IsNullOrEmpty(_session.TabletName) || settings == null) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == _session.TabletName);
         if (profile != null)
             await OpenTabletSettingsForProfile(profile);
     }
@@ -607,48 +478,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // Shared by the Tablet Settings page (via delegate) — removes a profile and re-applies.
     private async Task ForgetProfileCore(string tabletName)
     {
-        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
-        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        var settings = _session.CurrentSettings;
+        if (settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile == null) return;
 
-        _settings.Profiles.Remove(profile);
-        await ApplyAndSaveSettingsAsync(_settings);
-    }
-
-    private (float Width, float Height)? GetTabletDigitizer(string tabletName)
-    {
-        if (TabletsJson is not JArray tablets) return null;
-        foreach (var t in tablets)
-        {
-            var props = t["Properties"] ?? t;
-            if (props["Name"]?.ToString() == tabletName)
-            {
-                var digi = props["Specifications"]?["Digitizer"];
-                if (digi != null)
-                {
-                    var w = digi["Width"]?.Value<float>() ?? 0;
-                    var h = digi["Height"]?.Value<float>() ?? 0;
-                    if (w > 0 && h > 0) return (w, h);
-                }
-            }
-        }
-        return null;
+        settings.Profiles.Remove(profile);
+        await _session.ApplyAndSaveSettingsAsync(settings);
     }
 
     private async Task OpenTabletSettingsForProfile(Profile profile)
     {
         var tabletName = profile.Tablet;
-        var digitizer = GetTabletDigitizer(tabletName);
+        var digitizer = _session.GetTabletDigitizer(tabletName);
         var dialog = new Views.TabletSettingsDialog(
             profile,
-            _settings,
-            async updatedSettings => await ApplyAndSaveSettingsAsync(updatedSettings),
+            _session.CurrentSettings,
+            async updatedSettings => await _session.ApplyAndSaveSettingsAsync(updatedSettings),
             async () =>
             {
-                _settings = await _session.Daemon.GetSettingsAsync();
-                if (_settings != null)
-                    return _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
-                return null;
+                var settings = await _session.Daemon.GetSettingsAsync();
+                return settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
             },
             digitizer);
 
@@ -780,50 +630,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         Diagnostics.Dispose(); // stops debugging + disables the daemon debug stream if active
         _cts.Cancel();
-        _session.Dispose();    // cancels the connect loop + disposes the daemon client
-        _loadGate.Dispose();
+        _session.Dispose();    // cancels the connect/poll loops, disposes the daemon client + load gate
         Utilities.Dispose();
     }
 }
 
 public record ConfigurationItem(string Name, string FileName, string Path, string SizeText);
-
-public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
-{
-    public string Tablet => Profile.Tablet;
-
-    public string StatusText
-    {
-        get
-        {
-            if (IsDetected) return "Detected";
-            if (LastSeen == null) return "Not detected";
-            return $"Not detected — {FormatRelativeTime(LastSeen.Value)}";
-        }
-    }
-
-    public string? LastSeenDetail
-    {
-        get
-        {
-            if (IsDetected || LastSeen == null) return null;
-            return $"Last seen {LastSeen.Value:yyyy-MM-dd} at {LastSeen.Value:h:mm tt}";
-        }
-    }
-
-    private static string FormatRelativeTime(DateTime lastSeen)
-    {
-        var elapsed = DateTime.Now - lastSeen;
-
-        if (elapsed.TotalMinutes < 1) return "seen just now";
-        if (elapsed.TotalMinutes < 60) return $"seen {(int)elapsed.TotalMinutes}m ago";
-        if (elapsed.TotalHours < 24) return $"seen {(int)elapsed.TotalHours}h ago";
-        if (elapsed.TotalDays < 2) return "seen yesterday";
-        if (elapsed.TotalDays < 7) return $"seen {(int)elapsed.TotalDays} days ago";
-        if (elapsed.TotalDays < 30) return $"seen {(int)(elapsed.TotalDays / 7)} weeks ago";
-        return "seen a long time ago";
-    }
-}
 
 /// <summary>
 /// View-model record for a settings snapshot file shown in the Saved Settings list.
