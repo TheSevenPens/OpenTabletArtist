@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    Disable Avalonia's build-time telemetry "stats" target.
+
+    AvaloniaStats (from the Avalonia.BuildServices package) runs before CoreCompile and writes
+    to %LocalAppData%\AvaloniaUI\BuildServices\buildtasks.log. In sandboxed / CI / restricted-
+    profile environments that path isn't writable, so the build (and `dotnet test`) fails —
+    which has repeatedly blocked reviewers and agents from running the suite. (#26, see also #23)
+
+    Redefining the target as empty here overrides the package's version (Directory.Build.targets
+    is imported after package targets, so the last definition wins). It only suppresses anonymous
+    build stats, so this is safe; the app still builds and runs identically.
+  -->
+  <Target Name="AvaloniaStats" />
+
+</Project>
