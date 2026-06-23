@@ -110,7 +110,10 @@ public partial class AppSession : ObservableObject, IConnectionState, IDisposabl
     partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();
     partial void OnIsForeignDaemonChanged(bool value) => NotifyOwnership();
 
-    /// <summary>Auto-starts the daemon if not running, then begins connecting. Called once at startup.</summary>
+    /// <summary>
+    /// Auto-starts the daemon if not running, then begins connecting. Called once at startup.
+    /// </summary>
+    /// <remarks>UI-thread only — it mutates observable connection state directly.</remarks>
     public async Task StartAndConnectAsync()
     {
         IsDaemonRunning = _daemonLifecycle.IsRunning();
@@ -125,6 +128,9 @@ public partial class AppSession : ObservableObject, IConnectionState, IDisposabl
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
+    /// <remarks>UI-thread only — it mutates observable connection state directly. The lifecycle
+    /// commands below have the same contract (invoked from UI command paths). When data-load
+    /// moves in (#41 PR 2), a UI-thread marshalling helper will make this rule mechanical.</remarks>
     public Task ConnectAsync()
     {
         ConnectionStatus = "Connecting...";
