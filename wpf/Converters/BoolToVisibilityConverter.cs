@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
-using Avalonia.Controls;
-using OtdWindowsHelper.Views;
 
 namespace OtdWindowsHelper.Converters;
 
@@ -13,15 +11,6 @@ public class InverseBoolConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is true ? false : true;
-}
-
-public class StringEqualsConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value?.ToString() == parameter?.ToString();
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
 }
 
 public class NonEmptyToBoolConverter : IValueConverter
@@ -57,37 +46,4 @@ public class NotFirstAndSecondBoolConverter : IMultiValueConverter
             return !first && second;
         return false;
     }
-}
-
-/// <summary>
-/// Converts a page name string to the corresponding UserControl view.
-/// Caches views so they are only created once.
-/// </summary>
-public class PageToViewConverter : IValueConverter
-{
-    private readonly Dictionary<string, UserControl> _views = new();
-
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is not string page) return null;
-        if (!_views.TryGetValue(page, out var view))
-        {
-            view = page switch
-            {
-                "Dashboard" => new DashboardView(),
-                "TabletSettings" => new TabletSettingsView(),
-                "Presets" => new PresetsView(),
-                "CustomTabletConfigs" => new CustomTabletConfigsView(),
-                "Utilities" => new UtilitiesView(),
-                "Diagnostics" => new DiagnosticsView(),
-                "About" => new AboutView(),
-                _ => new DashboardView()
-            };
-            _views[page] = view;
-        }
-        return view;
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
 }
