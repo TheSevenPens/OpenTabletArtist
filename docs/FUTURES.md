@@ -48,3 +48,15 @@ Several items once listed here have shipped and are no longer "future":
 - **Visual Tablet Skins** — Render the user's actual tablet model from per-model SVGs with the active area overlaid. ([#78](https://github.com/TheSevenPens/OTDWindowsHelper/issues/78))
 - **Split-Area Mapping** — Map different tablet regions to different monitors/apps. ([#79](https://github.com/TheSevenPens/OTDWindowsHelper/issues/79))
 - **Gesture Zones** — Define tablet-surface zones that trigger actions, via a visual zone editor. ([#80](https://github.com/TheSevenPens/OTDWindowsHelper/issues/80))
+
+## Community Suggestions
+
+User-submitted feature ideas from GitHub issues (labeled `suggestion`):
+
+- **Special handling for ultrawide** — better area-mapping for ultrawide displays. ([#3](https://github.com/TheSevenPens/OTDWindowsHelper/issues/3))
+- **Map active area to a specific application** — per-application active-area mappings. ([#4](https://github.com/TheSevenPens/OTDWindowsHelper/issues/4))
+- **Hotkey to switch between mappings** — global hotkey to cycle/switch saved mappings. ([#5](https://github.com/TheSevenPens/OTDWindowsHelper/issues/5))
+- **Implement smoothing** — an input smoothing filter. ([#6](https://github.com/TheSevenPens/OTDWindowsHelper/issues/6))
+- **On-Screen-Menu for shortcuts** — a Wacom-style on-screen radial/menu for shortcuts. ([#7](https://github.com/TheSevenPens/OTDWindowsHelper/issues/7))
+- **Per-application settings** — distinct settings/profiles auto-applied per foreground app. ([#8](https://github.com/TheSevenPens/OTDWindowsHelper/issues/8))
+- **Pressure curve calibrator** — auto-calibrate the curve from sampled presses (perceptual → linear feel); complements the manual editor in [#68](https://github.com/TheSevenPens/OTDWindowsHelper/issues/68). ([#9](https://github.com/TheSevenPens/OTDWindowsHelper/issues/9))
