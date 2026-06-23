@@ -28,6 +28,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // Ensures only the latest data load applies (Connected handler, 3s poll, Refresh). See #19.
     private readonly LatestOnlyGate _loadGate = new();
 
+    /// <summary>Page view models composed by this shell (page-VM split, #14 phase 2).</summary>
+    public AboutViewModel About { get; } = new();
+
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
@@ -1234,21 +1237,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (Directory.Exists(path))
             Process.Start("explorer.exe", path);
-    }
-
-    /// <summary>This project's GitHub repository.</summary>
-    public string RepoUrl => "https://github.com/TheSevenPens/OTDWindowsHelper";
-
-    /// <summary>Opens a URL in the user's default browser.</summary>
-    [RelayCommand]
-    private void OpenUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return;
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch { }
     }
 
     [RelayCommand]
