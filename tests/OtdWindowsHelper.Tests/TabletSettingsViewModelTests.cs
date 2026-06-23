@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -17,28 +18,34 @@ public class TabletSettingsViewModelTests
         public Task ApplyAndSaveSettingsAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
     }
 
+    private static TabletSettingsViewModel NewVm(
+        FakeSettingsCoordinator? coordinator = null,
+        FakeDeviceData? device = null,
+        FakeDialogService? dialogs = null)
+        => new(coordinator ?? new FakeSettingsCoordinator(), device ?? new FakeDeviceData(), dialogs ?? new FakeDialogService());
+
     [Fact]
-    public async Task OpenTabletSettings_WithProfileItem_InvokesOpenDelegate()
+    public async Task OpenTabletSettings_WithProfileItem_OpensDialog()
     {
-        Profile? opened = null;
-        var vm = new TabletSettingsViewModel(new FakeSettingsCoordinator(), p => { opened = p; return Task.CompletedTask; });
+        var dialogs = new FakeDialogService();
+        var vm = NewVm(dialogs: dialogs);
         var profile = new Profile();
 
         await vm.OpenTabletSettingsCommand.ExecuteAsync(new ProfileItem(profile, true, null));
 
-        Assert.Same(profile, opened);
+        Assert.Same(profile, dialogs.ShownProfile);
     }
 
     [Fact]
-    public async Task OpenTabletSettings_WithProfile_InvokesOpenDelegate()
+    public async Task OpenTabletSettings_WithProfile_OpensDialog()
     {
-        Profile? opened = null;
-        var vm = new TabletSettingsViewModel(new FakeSettingsCoordinator(), p => { opened = p; return Task.CompletedTask; });
+        var dialogs = new FakeDialogService();
+        var vm = NewVm(dialogs: dialogs);
         var profile = new Profile();
 
         await vm.OpenTabletSettingsCommand.ExecuteAsync(profile);
 
-        Assert.Same(profile, opened);
+        Assert.Same(profile, dialogs.ShownProfile);
     }
 
     [Fact]
@@ -47,7 +54,7 @@ public class TabletSettingsViewModelTests
         var profile = new Profile { Tablet = "Wacom CTL-672" };
         var settings = new Settings { Profiles = new ProfileCollection { profile } };
         var coordinator = new FakeSettingsCoordinator { CurrentSettings = settings };
-        var vm = new TabletSettingsViewModel(coordinator, _ => Task.CompletedTask);
+        var vm = NewVm(coordinator);
 
         await vm.ForgetProfileCommand.ExecuteAsync("Wacom CTL-672");
 
@@ -59,7 +66,7 @@ public class TabletSettingsViewModelTests
     public async Task ForgetProfile_WhenNoCurrentSettings_IsNoOp()
     {
         var coordinator = new FakeSettingsCoordinator();
-        var vm = new TabletSettingsViewModel(coordinator, _ => Task.CompletedTask);
+        var vm = NewVm(coordinator);
 
         await vm.ForgetProfileCommand.ExecuteAsync("anything");
 
@@ -69,11 +76,25 @@ public class TabletSettingsViewModelTests
     [Fact]
     public void HasProfiles_ReflectsList()
     {
-        var vm = new TabletSettingsViewModel(new FakeSettingsCoordinator(), _ => Task.CompletedTask);
+        var vm = NewVm();
         Assert.False(vm.HasProfiles);
 
         vm.Profiles = new() { new ProfileItem(new Profile(), false, null) };
 
         Assert.True(vm.HasProfiles);
+    }
+
+    [Fact]
+    public void DataLoaded_RefreshesProfilesFromSession()
+    {
+        var device = new FakeDeviceData();
+        var vm = NewVm(device: device);
+        Assert.False(vm.HasProfiles);
+
+        device.Profiles = new List<ProfileItem> { new(new Profile { Tablet = "Wacom" }, true, null) };
+        device.RaiseDataLoaded();
+
+        Assert.True(vm.HasProfiles);
+        Assert.Equal("Wacom", vm.Profiles[0].Profile.Tablet);
     }
 }

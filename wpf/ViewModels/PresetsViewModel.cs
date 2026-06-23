@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop;
 using OtdWindowsHelper.Domain;
-using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
@@ -13,13 +12,15 @@ namespace OtdWindowsHelper.ViewModels;
 /// <summary>
 /// View model for the Saved Settings (snapshots) page. Page-VM split (#14 phase 2).
 /// Reads/applies live settings through the shared <see cref="ISettingsCoordinator"/> (Option C,
-/// #41 PR 3) rather than ad-hoc delegates. The shell sets <see cref="PresetDirectory"/> and
-/// calls <see cref="LoadAsync"/> once the daemon's app info is available.
+/// #41 PR 3). Picks up the preset directory and rescans by self-subscribing to the session's
+/// <see cref="IDeviceData.DataLoaded"/> event rather than being pushed to by the shell.
 /// </summary>
-public partial class PresetsViewModel : ObservableObject
+public partial class PresetsViewModel : ObservableObject, IDisposable
 {
     private readonly ISettingsFileStore _store;
     private readonly ISettingsCoordinator _settings;
+    private readonly IDeviceData _deviceData;
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
@@ -27,10 +28,27 @@ public partial class PresetsViewModel : ObservableObject
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
-    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings)
+    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData, IDialogService dialogs)
     {
         _store = store;
         _settings = settings;
+        _deviceData = deviceData;
+        _dialogs = dialogs;
+        _deviceData.DataLoaded += OnDataLoaded;
+    }
+
+    private void OnDataLoaded()
+    {
+        PresetDirectory = _deviceData.PresetDirectory;
+        // Fire-and-forget rescan; swallow so an enumeration/ordering failure can't surface as
+        // an unobserved exception (the old shell wrapped LoadAsync the same way, Codex #43).
+        _ = LoadSafelyAsync();
+    }
+
+    private async Task LoadSafelyAsync()
+    {
+        try { await LoadAsync(); }
+        catch { /* preset refresh failure must not surface */ }
     }
 
     /// <summary>Rescans the preset directory, newest first. Called by the shell after connect.</summary>
@@ -117,7 +135,7 @@ public partial class PresetsViewModel : ObservableObject
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(oldPath)) return;
 
-        var newName = await Dialogs.ShowInputAsync(
+        var newName = await _dialogs.ShowInputAsync(
             "Rename Snapshot",
             "Enter a new name for this snapshot:",
             name);
@@ -132,7 +150,7 @@ public partial class PresetsViewModel : ObservableObject
             }
             else
             {
-                await Dialogs.ShowMessageAsync("Rename",
+                await _dialogs.ShowMessageAsync("Rename",
                     $"A snapshot named \"{newName}\" already exists.");
             }
         }
@@ -144,7 +162,7 @@ public partial class PresetsViewModel : ObservableObject
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(path)) return;
 
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Delete Snapshot",
             $"Delete the snapshot \"{name}\"?\n\nThis cannot be undone.");
 
@@ -153,4 +171,6 @@ public partial class PresetsViewModel : ObservableObject
         File.Delete(path);
         await LoadAsync();
     }
+
+    public void Dispose() => _deviceData.DataLoaded -= OnDataLoaded;
 }

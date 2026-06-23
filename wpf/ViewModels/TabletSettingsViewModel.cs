@@ -9,37 +9,43 @@ namespace OtdWindowsHelper.ViewModels;
 
 /// <summary>
 /// View model for the Paired Tablets (Tablet Settings) page. Page-VM split (#14 phase 2).
-/// The profile list is derived from shared state (settings + live tablet detection) and
-/// pushed in via <see cref="Profiles"/>. Forgetting a profile is a settings mutation done
-/// through <see cref="ISettingsCoordinator"/>; opening the per-tablet dialog is UI
-/// orchestration shared with the Dashboard's "Open", so it stays a delegate (#37).
+/// The profile list is derived from shared state and refreshed by self-subscribing to the
+/// session's <see cref="IDeviceData.DataLoaded"/> event. Forgetting a profile is a settings
+/// mutation done through <see cref="ISettingsCoordinator"/>; opening the per-tablet dialog
+/// goes through <see cref="IDialogService"/> (also used by the Dashboard's "Open", #37).
 /// </summary>
-public partial class TabletSettingsViewModel : ObservableObject
+public partial class TabletSettingsViewModel : ObservableObject, IDisposable
 {
     private readonly ISettingsCoordinator _settings;
-    private readonly Func<Profile, Task> _openSettings;
+    private readonly IDeviceData _deviceData;
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     public bool HasProfiles => Profiles.Count > 0;
     partial void OnProfilesChanged(List<ProfileItem> value) => OnPropertyChanged(nameof(HasProfiles));
 
-    // Forget is a settings mutation, so it uses the shared coordinator. Opening the per-tablet
-    // dialog is UI orchestration shared with the Dashboard "Open", so it stays a delegate (#37).
-    public TabletSettingsViewModel(ISettingsCoordinator settings, Func<Profile, Task> openSettings)
+    public TabletSettingsViewModel(ISettingsCoordinator settings, IDeviceData deviceData, IDialogService dialogs)
     {
         _settings = settings;
-        _openSettings = openSettings;
+        _deviceData = deviceData;
+        _dialogs = dialogs;
+
+        // Self-subscribe to the session's data load instead of being pushed to by the shell.
+        _deviceData.DataLoaded += OnDataLoaded;
+        Profiles = _deviceData.Profiles.ToList();
     }
+
+    private void OnDataLoaded() => Profiles = _deviceData.Profiles.ToList();
 
     [RelayCommand]
     private async Task OpenTabletSettings(object profileObj)
     {
         // Called from XAML (button + double-tap) — may receive a ProfileItem or a Profile.
         if (profileObj is ProfileItem item)
-            await _openSettings(item.Profile);
+            await _dialogs.ShowTabletSettingsAsync(item.Profile);
         else if (profileObj is Profile profile)
-            await _openSettings(profile);
+            await _dialogs.ShowTabletSettingsAsync(profile);
     }
 
     [RelayCommand]
@@ -53,4 +59,6 @@ public partial class TabletSettingsViewModel : ObservableObject
         settings.Profiles.Remove(profile);
         await _settings.ApplyAndSaveSettingsAsync(settings);
     }
+
+    public void Dispose() => _deviceData.DataLoaded -= OnDataLoaded;
 }

@@ -137,4 +137,28 @@ public class DiagnosticsViewModelTests
 
         Assert.Contains(false, fake.DebugCalls);
     }
+
+    [Fact]
+    public void IsConnected_SyncsFromConnectionState()
+    {
+        var conn = new FakeConnectionState { IsConnected = true };
+        var vm = new DiagnosticsViewModel(new FakeDebugSession(), conn);
+
+        Assert.True(vm.IsConnected); // initial value taken from the connection
+
+        conn.IsConnected = false;    // change propagates via PropertyChanged
+        Assert.False(vm.IsConnected);
+    }
+
+    [Fact]
+    public void Dispose_UnsubscribesFromConnectionState()
+    {
+        var conn = new FakeConnectionState { IsConnected = true };
+        var vm = new DiagnosticsViewModel(new FakeDebugSession(), conn);
+
+        vm.Dispose();
+        conn.IsConnected = false; // must not throw or update after dispose
+
+        Assert.True(vm.IsConnected); // stayed at the pre-dispose value
+    }
 }
