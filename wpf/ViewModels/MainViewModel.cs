@@ -1365,8 +1365,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         VmultiInstalling = true;
         VmultiInstallStatus = "Starting...";
 
-        _vmultiInstaller.StatusChanged += status =>
+        Action<string> onStatus = status =>
             Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
+        _vmultiInstaller.StatusChanged += onStatus;
 
         try
         {
@@ -1389,6 +1390,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            _vmultiInstaller.StatusChanged -= onStatus;
             VmultiInstalling = false;
         }
     }
@@ -1409,8 +1411,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         VmultiInstalling = true;
         VmultiInstallStatus = "Starting uninstall...";
 
-        _vmultiInstaller.StatusChanged += status =>
+        Action<string> onStatus = status =>
             Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
+        _vmultiInstaller.StatusChanged += onStatus;
 
         try
         {
@@ -1433,6 +1436,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            _vmultiInstaller.StatusChanged -= onStatus;
             VmultiInstalling = false;
         }
     }
@@ -1456,8 +1460,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CleanupBusy = true;
         CleanupStatus = "Starting...";
 
-        _cleanupRunner.StatusChanged += status =>
+        Action<string> onStatus = status =>
             Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
+        _cleanupRunner.StatusChanged += onStatus;
 
         try
         {
@@ -1472,6 +1477,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            _cleanupRunner.StatusChanged -= onStatus;
             CleanupBusy = false;
         }
     }
@@ -1495,8 +1501,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CleanupBusy = true;
         CleanupStatus = "Running...";
 
-        _cleanupRunner.StatusChanged += status =>
+        Action<string> onStatus = status =>
             Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
+        _cleanupRunner.StatusChanged += onStatus;
 
         try
         {
@@ -1510,6 +1517,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            _cleanupRunner.StatusChanged -= onStatus;
             CleanupBusy = false;
         }
     }
