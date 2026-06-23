@@ -33,6 +33,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public CustomTabletConfigsViewModel Configs { get; } = new();
     public PresetsViewModel Presets { get; }
     public DiagnosticsViewModel Diagnostics { get; }
+    public TabletSettingsViewModel TabletSettings { get; }
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
@@ -448,12 +449,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _tabletButtons = "";
     [ObservableProperty] private string _outputMode = "";
 
-    // Profiles — wrapped with detection status
-    [ObservableProperty] private List<ProfileItem> _profiles = [];
-
-    public bool HasProfiles => Profiles.Count > 0;
-    partial void OnProfilesChanged(List<ProfileItem> value) => OnPropertyChanged(nameof(HasProfiles));
-
     [ObservableProperty] private string _settingsFilePath = "";
 
     /// <summary>Current OTD Settings object (typed). Use for reads and modifications.</summary>
@@ -467,6 +462,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Diagnostics owns the debug-report subscription; the shell keeps its IsConnected
         // in sync and stops it on page-leave/dispose.
         Diagnostics = new DiagnosticsViewModel(_daemon);
+        // Tablet Settings: the shell pushes the derived profile list and provides the shared
+        // dialog-open + forget logic (also used by the Dashboard's "Open").
+        TabletSettings = new TabletSettingsViewModel(OpenTabletSettingsForProfile, ForgetProfileCore);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -590,7 +588,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (_settings != null)
             {
-                Profiles = _settings.Profiles
+                var profileItems = _settings.Profiles
                     .Select(p =>
                     {
                         bool detected = detectedNames.Contains(p.Tablet);
@@ -603,10 +601,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
                         return new ProfileItem(p, detected, lastSeen);
                     })
                     .ToList();
+                TabletSettings.Profiles = profileItems;
 
-                if (Profiles.Count > 0)
+                if (profileItems.Count > 0)
                 {
-                    var mode = Profiles[0].Profile.OutputMode?.Path;
+                    var mode = profileItems[0].Profile.OutputMode?.Path;
                     OutputMode = mode?.Split('.').LastOrDefault() ?? "Unknown";
                     HasWindowsInk = mode?.Contains("WinInk", StringComparison.OrdinalIgnoreCase) ?? false;
                 }
@@ -723,18 +722,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             await OpenTabletSettingsForProfile(profile);
     }
 
-    [RelayCommand]
-    private async Task OpenTabletSettings(object profileObj)
-    {
-        // Called from XAML — may receive ProfileItem or Profile
-        if (profileObj is ProfileItem item)
-            await OpenTabletSettingsForProfile(item.Profile);
-        else if (profileObj is Profile profile)
-            await OpenTabletSettingsForProfile(profile);
-    }
-
-    [RelayCommand]
-    private async Task ForgetProfile(string tabletName)
+    // Shared by the Tablet Settings page (via delegate) — removes a profile and re-applies.
+    private async Task ForgetProfileCore(string tabletName)
     {
         if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
         var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);

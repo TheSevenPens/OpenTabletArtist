@@ -2,7 +2,9 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- DataContext re-pointed to the dedicated TabletSettingsViewModel (page-VM split, #14 phase 2). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left"
+                DataContext="{Binding TabletSettings}">
         <TextBlock Classes="PageTitle" Text="Paired Tablets" />
         <TextBlock Classes="PageSubtitle" Text="Tablets that have been detected" />
 
