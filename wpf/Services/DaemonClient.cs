@@ -27,6 +27,14 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     /// <summary>
+    /// When true (the default), an unexpected transport drop schedules an automatic reconnect.
+    /// Callers set this to false around a <em>user-initiated</em> stop so the client doesn't
+    /// immediately try to reconnect to the daemon the user just killed (which otherwise spins
+    /// and races the subsequent Start). Any explicit connect re-enables it.
+    /// </summary>
+    public bool AutoReconnect { get; set; } = true;
+
+    /// <summary>
     /// Requests a connection. Fire-and-forget: returns immediately and connects in the
     /// background via the single-flight coordinator. The <see cref="Connected"/> event
     /// fires once established. Safe to call repeatedly (e.g. from the disconnect handler
@@ -34,6 +42,8 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     /// </summary>
     public Task ConnectAsync(CancellationToken ct = default)
     {
+        // An explicit connect request always re-enables auto-reconnect for later drops.
+        AutoReconnect = true;
         _connectFlight.Trigger(() => ConnectLoopAsync(ct));
         return Task.CompletedTask;
     }
@@ -53,16 +63,23 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
                 );
 
                 await _pipe.ConnectAsync(5000, ct);
-                _rpc = new JsonRpc(_pipe);
-                _rpc.Disconnected += (_, _) =>
+                var rpc = new JsonRpc(_pipe);
+                _rpc = rpc;
+                rpc.Disconnected += (_, _) =>
                 {
+                    // Drop the dead instance so IsConnected reads false immediately (its
+                    // IsDisposed flips asynchronously). Guard against a late drop from a
+                    // superseded connection clobbering a newer one.
+                    if (ReferenceEquals(_rpc, rpc)) _rpc = null;
                     Disconnected?.Invoke();
-                    // Trigger a reconnect. If this fires during the current connect's release
-                    // window, the coordinator still honors it (coalesced rerun) — no drop.
-                    ConnectAsync(ct);
+                    // Reconnect only on an UNEXPECTED drop — not a user-initiated Stop. If this
+                    // fires during the current connect's release window, the coordinator still
+                    // honors it (coalesced rerun) — no drop.
+                    if (AutoReconnect)
+                        ConnectAsync(ct);
                 };
-                _rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
-                _rpc.StartListening();
+                rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
+                rpc.StartListening();
                 Connected?.Invoke();
                 return;
             }
