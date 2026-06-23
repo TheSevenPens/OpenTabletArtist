@@ -22,7 +22,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
-    private readonly TabletDriverCleanupRunner _cleanupRunner = new();
     private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
     // Ensures only the latest data load applies (Connected handler, 3s poll, Refresh). See #19.
@@ -30,6 +29,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Page view models composed by this shell (page-VM split, #14 phase 2).</summary>
     public AboutViewModel About { get; } = new();
+    public UtilitiesViewModel Utilities { get; } = new();
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
@@ -139,12 +139,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool ShowWinInkInstallUpdate => WinInkInstalled && WinInkUpdateAvailable && !WinInkBusy;
     public bool ShowWinInkRefresh => !WinInkBusy;
     public bool HasWinInkUpdateCheckStatus => !string.IsNullOrEmpty(WinInkUpdateCheckStatus);
-
-    // Driver cleanup tool
-    [ObservableProperty] private bool _cleanupInstalled;
-    [ObservableProperty] private bool _cleanupBusy;
-    [ObservableProperty] private string _cleanupStatus = "";
-    public string CleanupInstallPath => TabletDriverCleanupRunner.InstallDir;
 
     // Computed properties for Avalonia bindings (replacing DataTriggers)
     [ObservableProperty] private string _daemonStatusText = "Not connected";
@@ -541,9 +535,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             VmultiMessage = "Installed (not active in HID)";
         else
             VmultiMessage = "Not installed";
-
-        // Check whether TabletDriverCleanup has been installed by the user.
-        CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
 
         // Ensure the tablet Configurations folder exists next to the daemon exe,
         // and load the current list for the dashboard.
@@ -1330,103 +1321,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task InstallCleanup()
-    {
-        var confirmed = await Dialogs.ShowConfirmAsync(
-            "Install TabletDriverCleanup",
-            "This will download TabletDriverCleanup — a tool by the OpenTabletDriver " +
-            "team that removes leftover bits of manufacturer tablet drivers " +
-            "(Wacom, Huion, XP-Pen, etc.) — and install it to:\n\n" +
-            CleanupInstallPath + "\n\n" +
-            "No admin permission is required for installation. " +
-            "Admin will be required later when you run the tool.\n\n" +
-            "Do you want to proceed?");
-
-        if (!confirmed)
-            return;
-
-        CleanupBusy = true;
-        CleanupStatus = "Starting...";
-
-        Action<string> onStatus = status =>
-            Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
-        _cleanupRunner.StatusChanged += onStatus;
-
-        try
-        {
-            var result = await Task.Run(() => _cleanupRunner.InstallAsync(_cts.Token));
-            CleanupStatus = result.Message;
-            CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
-            await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
-        }
-        catch (Exception ex)
-        {
-            CleanupStatus = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _cleanupRunner.StatusChanged -= onStatus;
-            CleanupBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task RunCleanup()
-    {
-        if (!TabletDriverCleanupRunner.IsInstalled())
-            return;
-
-        var confirmed = await Dialogs.ShowConfirmAsync(
-            "Run Driver Cleanup",
-            "TabletDriverCleanup will open a terminal window and scan for leftover " +
-            "manufacturer tablet drivers.\n\n" +
-            "You'll be asked for admin permission. A restart may be needed afterward.\n\n" +
-            "Do you want to proceed?");
-
-        if (!confirmed)
-            return;
-
-        CleanupBusy = true;
-        CleanupStatus = "Running...";
-
-        Action<string> onStatus = status =>
-            Dispatcher.UIThread.InvokeAsync(() => CleanupStatus = status);
-        _cleanupRunner.StatusChanged += onStatus;
-
-        try
-        {
-            var result = await Task.Run(() => _cleanupRunner.RunAsync(_cts.Token));
-            CleanupStatus = result.Message;
-            await Dialogs.ShowMessageAsync("Driver Cleanup", result.Message);
-        }
-        catch (Exception ex)
-        {
-            CleanupStatus = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _cleanupRunner.StatusChanged -= onStatus;
-            CleanupBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task UninstallCleanup()
-    {
-        var confirmed = await Dialogs.ShowConfirmAsync(
-            "Uninstall TabletDriverCleanup",
-            $"This will remove the TabletDriverCleanup tool from:\n\n{CleanupInstallPath}\n\n" +
-            "Do you want to proceed?");
-
-        if (!confirmed)
-            return;
-
-        var result = _cleanupRunner.Uninstall();
-        CleanupStatus = result.Message;
-        CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
-        await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
-    }
 
     [RelayCommand]
     private async Task RefreshVmultiDetection()
@@ -1458,6 +1352,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _cts.Cancel();
         _daemon.Dispose();
         _loadGate.Dispose();
+        Utilities.Dispose();
     }
 }
 

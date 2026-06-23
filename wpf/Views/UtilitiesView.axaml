@@ -2,7 +2,9 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- DataContext re-pointed to the dedicated UtilitiesViewModel (page-VM split, #14 phase 2). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left"
+                DataContext="{Binding Utilities}">
         <TextBlock Classes="PageTitle" Text="Utilities" />
         <TextBlock Classes="PageSubtitle"
                    Text="Helpful tools for diagnosing and fixing tablet driver problems" />
