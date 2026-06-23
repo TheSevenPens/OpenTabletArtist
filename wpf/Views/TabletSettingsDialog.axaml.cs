@@ -8,6 +8,7 @@ using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
+using OtdWindowsHelper.Domain;
 
 namespace OtdWindowsHelper.Views;
 
@@ -237,29 +238,16 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             float fullWidth = _tabletDigitizer?.Width ?? abs.Tablet.Width;
             float fullHeight = _tabletDigitizer?.Height ?? abs.Tablet.Height;
 
-            // Calculate the largest sub-area that matches the display's aspect ratio
-            double displayAspect = (double)display.Width / display.Height;
-            double tabletAspect = (double)fullWidth / fullHeight;
+            // Guard against degenerate dimensions (the inline math used to divide by these).
+            if (fullWidth <= 0 || fullHeight <= 0 || display.Width <= 0 || display.Height <= 0)
+                return;
 
-            float tabletWidth, tabletHeight;
-            if (displayAspect > tabletAspect)
-            {
-                // Display is wider than tablet — use full tablet width, reduce height
-                tabletWidth = fullWidth;
-                tabletHeight = (float)(fullWidth / displayAspect);
-            }
-            else
-            {
-                // Display is taller than tablet — use full tablet height, reduce width
-                tabletHeight = fullHeight;
-                tabletWidth = (float)(fullHeight * displayAspect);
-            }
-
-            abs.Tablet.Width = tabletWidth;
-            abs.Tablet.Height = tabletHeight;
-            // Center the tablet area on the digitizer
-            abs.Tablet.X = fullWidth / 2f;
-            abs.Tablet.Y = fullHeight / 2f;
+            // Largest centered sub-area of the digitizer that matches the display's aspect ratio.
+            var area = AreaMappingCalculator.FitToDisplayAspect(fullWidth, fullHeight, display.Width, display.Height);
+            abs.Tablet.Width = area.Width;
+            abs.Tablet.Height = area.Height;
+            abs.Tablet.X = area.X;
+            abs.Tablet.Y = area.Y;
             abs.LockAspectRatio = true;
         });
     }
