@@ -8,16 +8,19 @@
 ## Quick Start
 
 ```bash
-git clone --recursive https://github.com/TheSevenPens/TabletDriverUXPrototype.git
-cd TabletDriverUXPrototype/wpf
-dotnet run
+git clone --recursive https://github.com/TheSevenPens/OTDWindowsHelper.git
+cd OTDWindowsHelper
+dotnet build OTDWindowsHelper.slnx   # builds the app AND the OTD daemon from the submodule
+dotnet run --project wpf
 ```
 
-The app will build the OTD daemon from the submodule, auto-start it if not running, and connect.
+> Build the **solution** (`.slnx`), not just `wpf/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
+
+On launch the app auto-starts the daemon if it isn't already running, then connects.
 
 ## Using the Interface
 
-The sidebar shows: **Dashboard**, **Tablet Settings**, **Saved Settings**, **Diagnostics**, **About**.
+The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **About**.
 
 ### Dashboard
 
@@ -32,15 +35,15 @@ The landing page shows status cards:
   Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The actual daemon exe path is shown on hover (app-owned / external states).
 - **Tablet** — Detected tablet name, or "No tablet detected." Has an **Open** button to jump to the tablet's settings dialog. Updates automatically via polling.
 - **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder.
-- **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). User explicitly installs the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.
 - **Kuuube's Windows Ink plugin** — Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins). Shows:
   - **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
   - **Output mode** — whether the active profile actually uses a Windows Ink mode ("Plugin active" / "Not configured").
   - **Supported driver vs OTD** — the plugin's declared supported driver version alongside the running OTD version. A warning indicator appears if the installed plugin doesn't declare support for the current OTD version (per OTD's own compatibility rule).
   - **Buttons** — **Install** (when not installed); **Check for Update** (when installed) which queries the official OTD Plugin-Repository — if a newer plugin version is found the button becomes **Install Update (vX)**, otherwise it reports "Up to date"; **Uninstall**; and a **Refresh** icon (top-right) that re-reads the installed plugin and re-checks the repository in one step. Install/update/uninstall are driven through the daemon's plugin RPC; the card updates its status as soon as each operation completes.
-- **Tablet Configurations** — Lists tablet config JSON files in `%AppData%\OpenTabletDriver\Configurations\` (the folder is created on app startup if missing). Each row shows the tablet's friendly name (read from the JSON `Name` field, falling back to a manufacturer-folder + filename combo). Per-row **View** opens the formatted JSON in a read-only viewer; **Delete** removes the file after a confirmation prompt. The panel header has a **Refresh** icon to rescan and an **Open Folder** button.
 
-### Tablet Settings
+The **Start / Stop / Restart** daemon actions show an inline progress bar with live phase text (Stopping… → Starting… → Connecting…) while they run, and report a clear error if the daemon doesn't come online within 30 seconds.
+
+### Paired Tablets
 
 Lists all tablet profiles. Click **Open** or double-click a card to open the settings dialog.
 
@@ -71,6 +74,16 @@ Each snapshot card has:
 - **Delete** — Removes the snapshot file after a confirmation prompt.
 
 The "No Snapshots" empty state appears only when the snapshots folder is actually empty.
+
+### Custom Tablet Configs
+
+Lists tablet config JSON files in `%AppData%\OpenTabletDriver\Configurations\` (the folder is created on app startup if missing). Each row shows the tablet's friendly name (read from the JSON `Name` field, falling back to a manufacturer-folder + filename combo). Per-row **View** opens the formatted JSON in a read-only viewer; **Delete** removes the file after a confirmation prompt. The panel header has a **Refresh** icon to rescan and an **Open Folder** button.
+
+### Utilities
+
+Helper tools for diagnosing and fixing tablet-driver problems.
+
+- **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). Install the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.
 
 ### Diagnostics
 
