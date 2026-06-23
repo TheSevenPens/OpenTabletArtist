@@ -16,8 +16,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppSession _session;
 
     public AboutViewModel About { get; } = new();
-    public UtilitiesViewModel Utilities { get; } = new();
-    public CustomTabletConfigsViewModel Configs { get; } = new();
+    public UtilitiesViewModel Utilities { get; }
+    public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public TabletSettingsViewModel TabletSettings { get; }
@@ -42,9 +42,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
         var dialogs = new DialogService(_session);
 
-        // Page VMs depend on the session through its role interfaces (and the dialog service),
+        // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
-        Presets = new PresetsViewModel(_settingsStore, _session, _session);
+        Utilities = new UtilitiesViewModel(dialogs);
+        Configs = new CustomTabletConfigsViewModel(dialogs);
+        Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);

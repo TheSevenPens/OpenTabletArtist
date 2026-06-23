@@ -30,7 +30,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService())
             { PresetDirectory = dir };
 
             await vm.LoadAsync();
@@ -47,7 +47,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData(), new FakeDialogService())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -66,7 +66,7 @@ public class PresetsViewModelTests
         try
         {
             var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
-            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData()) { PresetDirectory = dir };
+            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData(), new FakeDialogService()) { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);   // writes Snapshot.json
             await vm.LoadPresetCommand.ExecuteAsync("Snapshot");
@@ -82,7 +82,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -96,7 +96,7 @@ public class PresetsViewModelTests
     public void DataLoaded_PicksUpDirectoryFromSession()
     {
         var device = new FakeDeviceData { PresetDirectory = @"C:\some\presets" };
-        var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), device);
+        var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), device, new FakeDialogService());
         Assert.Equal("", vm.PresetDirectory);
 
         device.RaiseDataLoaded(); // handler sets PresetDirectory synchronously, then rescans (fire-and-forget)

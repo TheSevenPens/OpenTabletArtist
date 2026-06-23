@@ -3,7 +3,6 @@ using System.IO;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
@@ -12,12 +11,13 @@ namespace OtdWindowsHelper.ViewModels;
 /// View model for the Utilities page (the TabletDriverCleanup tool). Page-VM split
 /// (#14 phase 2): owns its own <see cref="TabletDriverCleanupRunner"/> and cancellation
 /// source rather than borrowing the shell's, so the page is self-contained and its
-/// lifetime is explicit.
+/// lifetime is explicit. Confirm/message flows go through <see cref="IDialogService"/> (#37).
 /// </summary>
 public partial class UtilitiesViewModel : ObservableObject, IDisposable
 {
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private bool _cleanupInstalled;
     [ObservableProperty] private bool _cleanupBusy;
@@ -25,8 +25,9 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
 
     public string CleanupInstallPath => TabletDriverCleanupRunner.InstallDir;
 
-    public UtilitiesViewModel()
+    public UtilitiesViewModel(IDialogService dialogs)
     {
+        _dialogs = dialogs;
         CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
     }
 
@@ -40,7 +41,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task InstallCleanup()
     {
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Install TabletDriverCleanup",
             "This will download TabletDriverCleanup — a tool by the OpenTabletDriver " +
             "team that removes leftover bits of manufacturer tablet drivers " +
@@ -65,7 +66,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
             var result = await Task.Run(() => _cleanupRunner.InstallAsync(_cts.Token));
             CleanupStatus = result.Message;
             CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
-            await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
+            await _dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
         }
         catch (Exception ex)
         {
@@ -84,7 +85,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
         if (!TabletDriverCleanupRunner.IsInstalled())
             return;
 
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Run Driver Cleanup",
             "TabletDriverCleanup will open a terminal window and scan for leftover " +
             "manufacturer tablet drivers.\n\n" +
@@ -105,7 +106,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
         {
             var result = await Task.Run(() => _cleanupRunner.RunAsync(_cts.Token));
             CleanupStatus = result.Message;
-            await Dialogs.ShowMessageAsync("Driver Cleanup", result.Message);
+            await _dialogs.ShowMessageAsync("Driver Cleanup", result.Message);
         }
         catch (Exception ex)
         {
@@ -121,7 +122,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task UninstallCleanup()
     {
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Uninstall TabletDriverCleanup",
             $"This will remove the TabletDriverCleanup tool from:\n\n{CleanupInstallPath}\n\n" +
             "Do you want to proceed?");
@@ -132,7 +133,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
         var result = _cleanupRunner.Uninstall();
         CleanupStatus = result.Message;
         CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
-        await Dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
+        await _dialogs.ShowMessageAsync("TabletDriverCleanup", result.Message);
     }
 
     public void Dispose()

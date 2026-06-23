@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop;
 using OtdWindowsHelper.Domain;
-using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
@@ -21,6 +20,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     private readonly ISettingsFileStore _store;
     private readonly ISettingsCoordinator _settings;
     private readonly IDeviceData _deviceData;
+    private readonly IDialogService _dialogs;
 
     [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
@@ -28,11 +28,12 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
-    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData)
+    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData, IDialogService dialogs)
     {
         _store = store;
         _settings = settings;
         _deviceData = deviceData;
+        _dialogs = dialogs;
         _deviceData.DataLoaded += OnDataLoaded;
     }
 
@@ -134,7 +135,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(oldPath)) return;
 
-        var newName = await Dialogs.ShowInputAsync(
+        var newName = await _dialogs.ShowInputAsync(
             "Rename Snapshot",
             "Enter a new name for this snapshot:",
             name);
@@ -149,7 +150,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                await Dialogs.ShowMessageAsync("Rename",
+                await _dialogs.ShowMessageAsync("Rename",
                     $"A snapshot named \"{newName}\" already exists.");
             }
         }
@@ -161,7 +162,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (!File.Exists(path)) return;
 
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Delete Snapshot",
             $"Delete the snapshot \"{name}\"?\n\nThis cannot be undone.");
 

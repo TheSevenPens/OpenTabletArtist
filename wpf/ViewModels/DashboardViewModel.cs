@@ -9,7 +9,6 @@ using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OtdWindowsHelper.Domain;
-using OtdWindowsHelper.Helpers;
 using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
@@ -156,7 +155,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task InstallVmulti()
     {
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Install VMulti Driver",
             "VMulti driver installation may restart your computer.\n\n" +
             "Please save all work in other applications before continuing.\n\n" +
@@ -177,7 +176,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
             VmultiInstallStatus = installResult.Message;
             await RefreshVmultiDetection();
-            await Dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
+            await _dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
         }
         catch (Exception ex)
         {
@@ -193,7 +192,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task UninstallVmulti()
     {
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Uninstall VMulti Driver",
             "This will uninstall the VMulti virtual driver.\n\n" +
             "Your computer may need to restart to complete the removal.\n" +
@@ -215,7 +214,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
             VmultiInstallStatus = uninstallResult.Message;
             await RefreshVmultiDetection();
-            await Dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
+            await _dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
         }
         catch (Exception ex)
         {
@@ -367,7 +366,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         if (WinInkBusy) return;
         if (!_session.IsConnected)
         {
-            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
                 "The OpenTabletDriver daemon isn't connected. Start it first, then try again.");
             return;
         }
@@ -380,7 +379,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             _winInkLatest ??= await _winInk.GetLatestCompatibleAsync();
             if (_winInkLatest == null)
             {
-                await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+                await _dialogs.ShowMessageAsync("Windows Ink Plugin",
                     $"Couldn't find a Windows Ink release compatible with OpenTabletDriver v{CurrentOtdVersion}.\n\n" +
                     "Check your internet connection and try again.");
                 return;
@@ -396,7 +395,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             RefreshWindowsInkInstalledStatus();
             await FetchLatestWindowsInkAsync();
 
-            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
                 ok
                     ? $"Windows Ink plugin v{WinInkPluginVersion} is now installed.\n\n" +
                       "Set a tablet's output mode to \"Windows Ink\" to enable pressure and tilt."
@@ -404,7 +403,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            await Dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
+            await _dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
         }
         finally
         {
@@ -418,7 +417,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     {
         if (WinInkBusy) return;
 
-        var confirmed = await Dialogs.ShowConfirmAsync(
+        var confirmed = await _dialogs.ShowConfirmAsync(
             "Uninstall Windows Ink Plugin",
             "This removes Kuuube's Windows Ink plugin from OpenTabletDriver.\n\n" +
             "Any tablet using a Windows Ink output mode will fall back to a standard " +
@@ -444,14 +443,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             await _session.Daemon.LoadPluginsAsync();
             RefreshWindowsInkInstalledStatus();
 
-            await Dialogs.ShowMessageAsync("Windows Ink Plugin",
+            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
                 ok && !WinInkInstalled
                     ? "The Windows Ink plugin has been uninstalled."
                     : "The plugin could not be fully removed. Check the daemon log for details.");
         }
         catch (Exception ex)
         {
-            await Dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
+            await _dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
         }
         finally
         {

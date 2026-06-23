@@ -10,16 +10,40 @@ using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.Tests;
 
-/// <summary>Records the last profile a VM asked to open the tablet-settings dialog for.</summary>
+/// <summary>Records dialog requests and lets tests script confirm/input results.</summary>
 internal sealed class FakeDialogService : IDialogService
 {
     public Profile? ShownProfile { get; private set; }
     public int ShowCount { get; private set; }
+    public List<string> Messages { get; } = new();
+    public (string Title, string Content)? LastTextViewer { get; private set; }
+
+    /// <summary>Result returned by <see cref="ShowConfirmAsync"/> (default false).</summary>
+    public bool ConfirmResult { get; set; }
+    /// <summary>Result returned by <see cref="ShowInputAsync"/> (default null = cancelled).</summary>
+    public string? InputResult { get; set; }
 
     public Task ShowTabletSettingsAsync(Profile profile)
     {
         ShownProfile = profile;
         ShowCount++;
+        return Task.CompletedTask;
+    }
+
+    public Task ShowMessageAsync(string title, string message)
+    {
+        Messages.Add($"{title}: {message}");
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ShowConfirmAsync(string title, string message) => Task.FromResult(ConfirmResult);
+
+    public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
+        => Task.FromResult(InputResult);
+
+    public Task ShowTextViewerAsync(string title, string content)
+    {
+        LastTextViewer = (title, content);
         return Task.CompletedTask;
     }
 }
