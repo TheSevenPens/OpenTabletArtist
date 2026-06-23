@@ -18,7 +18,7 @@
 
 ## Components
 
-### Avalonia App (`wpf/`)
+### Avalonia App (`OTDWindowsHelper/`)
 
 **Role:** Single-process desktop application. Renders all UI, manages state, and communicates directly with the OTD daemon via named pipe.
 
@@ -213,14 +213,14 @@ OTD Daemon (built from submodule, .NET 8)
 
 ```
 OTDWindowsHelper.slnx
-  ├── wpf/OtdWindowsHelper.csproj                                (this app)
+  ├── OTDWindowsHelper/OtdWindowsHelper.csproj                   (this app)
   ├── tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj (xUnit tests)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
 
 The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.
 
-> **Build the solution, not just the app project.** A common failure mode ("Disconnected" / "No tablet detected") is building only `wpf/OtdWindowsHelper.csproj`, which leaves the daemon exe missing. Build `OTDWindowsHelper.slnx` so the daemon is produced too.
+> **Build the solution, not just the app project.** A common failure mode ("Disconnected" / "No tablet detected") is building only `OTDWindowsHelper/OtdWindowsHelper.csproj`, which leaves the daemon exe missing. Build `OTDWindowsHelper.slnx` so the daemon is produced too.
 
 ## Testing & CI
 
