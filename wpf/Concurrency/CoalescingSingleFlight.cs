@@ -17,6 +17,7 @@ public sealed class CoalescingSingleFlight
     private readonly object _lock = new();
     private bool _running;
     private bool _pending;
+    private Func<Task>? _pendingOperation;
 
     /// <summary>
     /// Ensures <paramref name="operation"/> runs. If one is already running, records that
@@ -24,6 +25,10 @@ public sealed class CoalescingSingleFlight
     /// run completes. Fire-and-forget. Exceptions from <paramref name="operation"/> are
     /// swallowed so one failed run can't tear down the coordinator.
     /// </summary>
+    /// <remarks>
+    /// If multiple triggers arrive during an active run they coalesce into a single rerun
+    /// that uses the <em>most recently</em> supplied operation (latest-wins).
+    /// </remarks>
     public void Trigger(Func<Task> operation)
     {
         lock (_lock)
@@ -31,6 +36,7 @@ public sealed class CoalescingSingleFlight
             if (_running)
             {
                 _pending = true;
+                _pendingOperation = operation; // latest wins for the coalesced rerun
                 return;
             }
             _running = true;
@@ -41,11 +47,12 @@ public sealed class CoalescingSingleFlight
 
     private async Task RunLoopAsync(Func<Task> operation)
     {
+        var current = operation;
         while (true)
         {
             try
             {
-                await operation().ConfigureAwait(false);
+                await current().ConfigureAwait(false);
             }
             catch
             {
@@ -57,9 +64,12 @@ public sealed class CoalescingSingleFlight
                 if (!_pending)
                 {
                     _running = false;
+                    _pendingOperation = null;
                     return;
                 }
                 _pending = false; // consume one coalesced request and run again
+                current = _pendingOperation ?? current;
+                _pendingOperation = null;
             }
         }
     }

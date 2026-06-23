@@ -58,6 +58,31 @@ public class CoalescingSingleFlightTests
     }
 
     [Fact]
+    public async Task CoalescedRerun_UsesMostRecentOperation()
+    {
+        var sf = new CoalescingSingleFlight();
+        var firstEntered = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+        var ranB = new TaskCompletionSource();
+        var aReran = false;
+
+        Func<Task> a1 = async () => { firstEntered.SetResult(); await release.Task; };
+        Func<Task> aRerun = () => { aReran = true; return Task.CompletedTask; };
+        Func<Task> b = () => { ranB.SetResult(); return Task.CompletedTask; };
+
+        sf.Trigger(a1);
+        await firstEntered.Task;     // a1 holds the slot
+
+        sf.Trigger(aRerun);          // pending = aRerun
+        sf.Trigger(b);               // pending replaced by b (latest wins)
+
+        release.SetResult();
+        await ranB.Task;             // the rerun executed b, not aRerun
+
+        Assert.False(aReran);
+    }
+
+    [Fact]
     public async Task Trigger_AfterCompletion_RunsAgain()
     {
         var sf = new CoalescingSingleFlight();
