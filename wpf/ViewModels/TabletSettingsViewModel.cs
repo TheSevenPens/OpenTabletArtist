@@ -1,7 +1,9 @@
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdWindowsHelper.Domain;
+using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
 
@@ -15,18 +17,20 @@ namespace OtdWindowsHelper.ViewModels;
 /// </summary>
 public partial class TabletSettingsViewModel : ObservableObject
 {
+    private readonly ISettingsCoordinator _settings;
     private readonly Func<Profile, Task> _openSettings;
-    private readonly Func<string, Task> _forgetProfile;
 
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     public bool HasProfiles => Profiles.Count > 0;
     partial void OnProfilesChanged(List<ProfileItem> value) => OnPropertyChanged(nameof(HasProfiles));
 
-    public TabletSettingsViewModel(Func<Profile, Task> openSettings, Func<string, Task> forgetProfile)
+    // Forget is a settings mutation, so it uses the shared coordinator. Opening the per-tablet
+    // dialog is UI orchestration shared with the Dashboard "Open", so it stays a delegate (#37).
+    public TabletSettingsViewModel(ISettingsCoordinator settings, Func<Profile, Task> openSettings)
     {
+        _settings = settings;
         _openSettings = openSettings;
-        _forgetProfile = forgetProfile;
     }
 
     [RelayCommand]
@@ -40,5 +44,14 @@ public partial class TabletSettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task ForgetProfile(string tabletName) => _forgetProfile(tabletName);
+    private async Task ForgetProfile(string tabletName)
+    {
+        var settings = _settings.CurrentSettings;
+        if (settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile == null) return;
+
+        settings.Profiles.Remove(profile);
+        await _settings.ApplyAndSaveSettingsAsync(settings);
+    }
 }

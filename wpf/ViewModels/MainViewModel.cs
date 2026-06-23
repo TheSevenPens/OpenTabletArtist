@@ -384,14 +384,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The session owns the daemon connection, settings, and data load.
         _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
 
-        // Presets reads the session's current settings + apply path via delegates.
-        Presets = new PresetsViewModel(_settingsStore, () => _session.CurrentSettings, _session.ApplyAndSaveSettingsAsync);
+        // Page VMs read shared state through the session's role interfaces (Option C, #41).
+        Presets = new PresetsViewModel(_settingsStore, _session);
         // Diagnostics owns the debug-report subscription; the shell keeps its IsConnected
         // in sync and stops it on page-leave/dispose.
         Diagnostics = new DiagnosticsViewModel(_session.Daemon);
-        // Tablet Settings: the shell pushes the derived profile list and provides the shared
-        // dialog-open + forget logic (also used by the Dashboard's "Open").
-        TabletSettings = new TabletSettingsViewModel(OpenTabletSettingsForProfile, ForgetProfileCore);
+        // Tablet Settings forgets via the settings coordinator; the shell still provides the
+        // shared dialog-open (also used by the Dashboard's "Open").
+        TabletSettings = new TabletSettingsViewModel(_session, OpenTabletSettingsForProfile);
 
         // Mirror the session's property changes as our own so the Dashboard/Diagnostics
         // bindings on the shell update, and recompute the derived status texts + gate.
@@ -482,18 +482,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == _session.TabletName);
         if (profile != null)
             await OpenTabletSettingsForProfile(profile);
-    }
-
-    // Shared by the Tablet Settings page (via delegate) — removes a profile and re-applies.
-    private async Task ForgetProfileCore(string tabletName)
-    {
-        var settings = _session.CurrentSettings;
-        if (settings == null || string.IsNullOrEmpty(tabletName)) return;
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
-        if (profile == null) return;
-
-        settings.Profiles.Remove(profile);
-        await _session.ApplyAndSaveSettingsAsync(settings);
     }
 
     private async Task OpenTabletSettingsForProfile(Profile profile)

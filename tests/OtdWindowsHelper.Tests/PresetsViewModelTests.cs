@@ -10,6 +10,13 @@ namespace OtdWindowsHelper.Tests;
 
 public class PresetsViewModelTests
 {
+    private sealed class FakeSettingsCoordinator : ISettingsCoordinator
+    {
+        public Settings? CurrentSettings { get; set; }
+        public Settings? Applied { get; private set; }
+        public Task ApplyAndSaveSettingsAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
+    }
+
     private static string TempDir()
     {
         var d = Path.Combine(Path.GetTempPath(), $"otdpresets_{Guid.NewGuid():N}");
@@ -23,7 +30,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), () => null, _ => Task.CompletedTask)
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator())
             { PresetDirectory = dir };
 
             await vm.LoadAsync();
@@ -40,7 +47,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), () => new Settings(), _ => Task.CompletedTask)
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() })
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -58,17 +65,13 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            Settings? applied = null;
-            var vm = new PresetsViewModel(
-                new SettingsFileStore(),
-                () => new Settings { LockUsableAreaTablet = true },
-                s => { applied = s; return Task.CompletedTask; })
-            { PresetDirectory = dir };
+            var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
+            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator) { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);   // writes Snapshot.json
             await vm.LoadPresetCommand.ExecuteAsync("Snapshot");
 
-            Assert.NotNull(applied);
+            Assert.NotNull(coordinator.Applied);
         }
         finally { Directory.Delete(dir, true); }
     }
@@ -79,7 +82,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), () => null, _ => Task.CompletedTask)
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
