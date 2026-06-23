@@ -2,7 +2,8 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- Bound to the shell's DashboardViewModel (Option C, #41 PR 4). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left" DataContext="{Binding Dashboard}">
         <!-- Page Header -->
         <TextBlock Classes="PageTitle" Text="Dashboard" />
         <TextBlock Classes="PageSubtitle" Text="Overview of your tablet configuration" />
