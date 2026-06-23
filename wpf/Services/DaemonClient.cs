@@ -15,6 +15,9 @@ public class DaemonClient : IDisposable
 
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
+    // 0 = no connect loop active, 1 = a connect loop is running. Keeps reconnect single-flight
+    // so the disconnect handler and UI-triggered connects can't spawn overlapping loops (#19).
+    private int _connecting;
 
     public event Action? Connected;
     public event Action? Disconnected;
@@ -22,6 +25,23 @@ public class DaemonClient : IDisposable
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     public async Task ConnectAsync(CancellationToken ct = default)
+    {
+        if (IsConnected) return;
+        // Single-flight: if a connect loop is already running, don't start another.
+        if (Interlocked.CompareExchange(ref _connecting, 1, 0) != 0)
+            return;
+
+        try
+        {
+            await ConnectLoopAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            Volatile.Write(ref _connecting, 0);
+        }
+    }
+
+    private async Task ConnectLoopAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
