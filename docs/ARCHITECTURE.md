@@ -231,4 +231,6 @@ Logic that doesn't need a UI is unit-tested with **xUnit** in `tests/OtdWindowsH
 
 GitHub Actions (`.github/workflows/build.yml`) checks out the submodule recursively, sets up the .NET 8 + .NET 10 SDKs, and runs `dotnet build OTDWindowsHelper.slnx` + `dotnet test` on `windows-latest` for every push and PR.
 
+**Releases.** `.github/workflows/release.yml` publishes a downloadable Windows build when a `v*` tag is pushed (or via manual dispatch). It runs the tests, then `dotnet publish`es the app **self-contained for `win-x64`** (no .NET runtime needed on the user's machine) and the OTD daemon into a `Daemon/` subfolder next to the app, zips the result, and attaches it to a GitHub Release with generated notes. The bundled `Daemon/` path is what `Domain/DaemonExePaths` checks first, so the daemon auto-starts from the release layout exactly as in dev. To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
+
 `Directory.Build.targets` at the repo root neutralizes Avalonia's build-time telemetry target (`AvaloniaStats`), which writes under `%LocalAppData%` and fails in sandboxed/CI/restricted profiles — this had repeatedly blocked reviewers and agents from running the suite.
