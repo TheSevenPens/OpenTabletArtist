@@ -10,7 +10,7 @@ using StreamJsonRpc;
 
 namespace OtdWindowsHelper.Services;
 
-public class DaemonClient : IDisposable
+public class DaemonClient : IDisposable, IDaemonDebugSession
 {
     private const string PipeName = "OpenTabletDriver.Daemon";
 

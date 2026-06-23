@@ -32,6 +32,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public UtilitiesViewModel Utilities { get; } = new();
     public CustomTabletConfigsViewModel Configs { get; } = new();
     public PresetsViewModel Presets { get; }
+    public DiagnosticsViewModel Diagnostics { get; }
 
     [ObservableProperty] private string _currentPage = "Dashboard";
     [ObservableProperty] private string _connectionStatus = "Disconnected";
@@ -59,33 +60,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyDaemonOwnership();
 
-    // Diagnostics
-    [ObservableProperty] private bool _isDebugging;
-    [ObservableProperty] private string _lastReportRaw = "";
-    [ObservableProperty] private string _lastReportFormatted = "";
-    [ObservableProperty] private int _reportCount;
-    [ObservableProperty] private string _debugReportRate = "";
-    [ObservableProperty] private string _debugTabletName = "";
-    [ObservableProperty] private string _debugReportType = "";
-    [ObservableProperty] private double _debugPenX;
-    [ObservableProperty] private double _debugPenY;
-    [ObservableProperty] private double _debugPenPressure;
-    [ObservableProperty] private double _debugMaxX;
-    [ObservableProperty] private double _debugMaxY;
-    [ObservableProperty] private double _debugMaxPressure;
-    [ObservableProperty] private double _debugDigitizerWidth;
-    [ObservableProperty] private double _debugDigitizerHeight;
-    [ObservableProperty] private bool _debugHasPosition;
-    [ObservableProperty] private double _debugTiltX;
-    [ObservableProperty] private double _debugTiltY;
-    [ObservableProperty] private double _debugPressurePercent;
-    [ObservableProperty] private double _debugTiltAzimuth;
-    [ObservableProperty] private double _debugTiltAltitude;
-    [ObservableProperty] private string _debugPenButtons = "";
-    [ObservableProperty] private string _debugNearProximity = "";
-    [ObservableProperty] private string _debugHoverDistance = "";
-    private double _reportPeriodEma;
-    private DateTime _lastReportTime;
 
     // Dashboard data
     [ObservableProperty] private string _tabletName = "";
@@ -154,6 +128,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         DaemonStatusText = value ? "Daemon running" : "Not connected";
         OnPropertyChanged(nameof(CanStartDaemon));
         NotifyDaemonOwnership();
+        Diagnostics.IsConnected = value; // keep the page VM's connection gate in sync
     }
 
     partial void OnIsForeignDaemonChanged(bool value) => NotifyDaemonOwnership();
@@ -489,6 +464,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Presets is coupled to the shell's current settings + apply path, so it receives
         // those as delegates rather than owning daemon/settings state itself.
         Presets = new PresetsViewModel(_settingsStore, () => _settings, ApplyAndSaveSettingsAsync);
+        // Diagnostics owns the debug-report subscription; the shell keeps its IsConnected
+        // in sync and stops it on page-leave/dispose.
+        Diagnostics = new DiagnosticsViewModel(_daemon);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -670,162 +648,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     partial void OnCurrentPageChanged(string? oldValue, string newValue)
     {
         if (oldValue == "Diagnostics" && newValue != "Diagnostics")
-            _ = StopDebuggingAsync();
-    }
-
-    private async Task StartDebuggingAsync()
-    {
-        if (IsDebugging || !IsConnected) return;
-        _daemon.DeviceReport += OnDeviceReport;
-        await _daemon.SetTabletDebugAsync(true);
-        IsDebugging = true;
-        ReportCount = 0;
-        LastReportRaw = "";
-        LastReportFormatted = "";
-        DebugReportRate = "";
-        DebugTabletName = "";
-        DebugReportType = "";
-        DebugPenX = 0; DebugPenY = 0; DebugPenPressure = 0; DebugPressurePercent = 0;
-        DebugMaxX = 0; DebugMaxY = 0; DebugMaxPressure = 0;
-        DebugDigitizerWidth = 0; DebugDigitizerHeight = 0;
-        DebugHasPosition = false;
-        DebugTiltX = 0; DebugTiltY = 0; DebugTiltAzimuth = 0; DebugTiltAltitude = 0;
-        DebugPenButtons = ""; DebugNearProximity = ""; DebugHoverDistance = "";
-        _reportPeriodEma = 0;
-        _lastReportTime = DateTime.MinValue;
-    }
-
-    private async Task StopDebuggingAsync()
-    {
-        if (!IsDebugging) return;
-        _daemon.DeviceReport -= OnDeviceReport;
-        IsDebugging = false;
-        try { await _daemon.SetTabletDebugAsync(false); } catch { }
-    }
-
-    private void OnDeviceReport(JObject data)
-    {
-        Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            ReportCount++;
-
-            // Report rate (EMA)
-            var now = DateTime.UtcNow;
-            if (_lastReportTime != DateTime.MinValue)
-            {
-                var deltaMs = (now - _lastReportTime).TotalMilliseconds;
-                _reportPeriodEma = DiagnosticsMath.UpdateReportPeriodEma(_reportPeriodEma, deltaMs);
-                var hz = DiagnosticsMath.ReportRateHz(_reportPeriodEma);
-                if (hz > 0) DebugReportRate = $"{hz} Hz";
-            }
-            _lastReportTime = now;
-
-            // Tablet name
-            var tabletName = data["Tablet"]?["Properties"]?["Name"]?.ToString();
-            if (tabletName != null) DebugTabletName = tabletName;
-
-            // Report type
-            var path = data["Path"]?.ToString();
-            if (path != null) DebugReportType = path.Split('.').LastOrDefault() ?? path;
-
-            // Digitizer specs (for visualizer scaling)
-            var digi = data["Tablet"]?["Properties"]?["Specifications"]?["Digitizer"];
-            if (digi != null)
-            {
-                var maxX = digi["MaxX"]?.Value<double>() ?? 0;
-                var maxY = digi["MaxY"]?.Value<double>() ?? 0;
-                var digiW = digi["Width"]?.Value<double>() ?? 0;
-                var digiH = digi["Height"]?.Value<double>() ?? 0;
-                if (maxX > 0) DebugMaxX = maxX;
-                if (maxY > 0) DebugMaxY = maxY;
-                if (digiW > 0) DebugDigitizerWidth = digiW;
-                if (digiH > 0) DebugDigitizerHeight = digiH;
-            }
-
-            // Max pressure from pen specs
-            var pen = data["Tablet"]?["Properties"]?["Specifications"]?["Pen"];
-            if (pen != null)
-            {
-                var maxP = pen["MaxPressure"]?.Value<double>() ?? 0;
-                if (maxP > 0) DebugMaxPressure = maxP;
-            }
-
-            var reportData = data["Data"];
-            if (reportData == null) return;
-
-            // Raw bytes
-            var rawBase64 = reportData["Raw"]?.ToString();
-            if (rawBase64 != null)
-                LastReportRaw = DiagnosticsMath.FormatRawHex(rawBase64);
-
-            // Position for visualizer
-            var pos = reportData["Position"];
-            if (pos != null)
-            {
-                DebugPenX = pos["X"]?.Value<double>() ?? 0;
-                DebugPenY = pos["Y"]?.Value<double>() ?? 0;
-                DebugHasPosition = true;
-            }
-
-            // Pressure
-            var pressure = reportData["Pressure"];
-            if (pressure != null)
-            {
-                DebugPenPressure = pressure.Value<double>();
-                DebugPressurePercent = DiagnosticsMath.PressurePercent(DebugPenPressure, DebugMaxPressure);
-            }
-
-            // Tilt
-            var tilt = reportData["Tilt"];
-            if (tilt != null)
-            {
-                DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
-                DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
-                DebugTiltAzimuth = DiagnosticsMath.TiltAzimuthDegrees(DebugTiltX, DebugTiltY);
-                DebugTiltAltitude = DiagnosticsMath.TiltAltitudeDegrees(DebugTiltX, DebugTiltY);
-            }
-
-            // Pen buttons
-            var buttons = reportData["PenButtons"];
-            if (buttons is JArray btnArr)
-                DebugPenButtons = string.Join("  ", btnArr.Select((b, i) => $"{i + 1}: {b}"));
-
-            // Formatted fields
-            var lines = new List<string>();
-            if (pos != null) lines.Add($"Position: [{pos["X"]}, {pos["Y"]}]");
-            if (pressure != null) lines.Add($"Pressure: {pressure}");
-            if (buttons != null) lines.Add($"PenButtons: {buttons}");
-            if (tilt != null)
-            {
-                lines.Add($"Tilt: [{tilt["X"]}, {tilt["Y"]}]");
-                lines.Add($"Azimuth: {DebugTiltAzimuth:F1}°  Altitude: {DebugTiltAltitude:F1}°");
-            }
-            var aux = reportData["AuxButtons"];
-            if (aux != null) lines.Add($"AuxButtons: {aux}");
-            var proximity = reportData["NearProximity"];
-            if (proximity != null)
-            {
-                DebugNearProximity = proximity.Value<bool>() ? "Yes" : "No";
-                lines.Add($"NearProximity: {proximity}");
-            }
-            var hover = reportData["HoverDistance"];
-            if (hover != null)
-            {
-                DebugHoverDistance = hover.ToString();
-                lines.Add($"HoverDistance: {hover}");
-            }
-
-            LastReportFormatted = string.Join("\n", lines);
-        });
-    }
-
-    [RelayCommand]
-    private async Task ToggleDebugging()
-    {
-        if (IsDebugging)
-            await StopDebuggingAsync();
-        else
-            await StartDebuggingAsync();
+            _ = Diagnostics.StopDebuggingAsync();
     }
 
     [RelayCommand]
@@ -1084,11 +907,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        if (IsDebugging)
-        {
-            _daemon.DeviceReport -= OnDeviceReport;
-            try { _daemon.SetTabletDebugAsync(false).Wait(2000); } catch { }
-        }
+        Diagnostics.Dispose(); // stops debugging + disables the daemon debug stream if active
         _cts.Cancel();
         _daemon.Dispose();
         _loadGate.Dispose();
