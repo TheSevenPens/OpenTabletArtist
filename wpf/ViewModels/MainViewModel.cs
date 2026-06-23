@@ -894,12 +894,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (_lastReportTime != DateTime.MinValue)
             {
                 var deltaMs = (now - _lastReportTime).TotalMilliseconds;
-                if (_reportPeriodEma == 0)
-                    _reportPeriodEma = deltaMs;
-                else
-                    _reportPeriodEma += (deltaMs - _reportPeriodEma) * 0.05;
-                if (_reportPeriodEma > 0)
-                    DebugReportRate = $"{Math.Round(1000.0 / _reportPeriodEma)} Hz";
+                _reportPeriodEma = DiagnosticsMath.UpdateReportPeriodEma(_reportPeriodEma, deltaMs);
+                var hz = DiagnosticsMath.ReportRateHz(_reportPeriodEma);
+                if (hz > 0) DebugReportRate = $"{hz} Hz";
             }
             _lastReportTime = now;
 
@@ -939,14 +936,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Raw bytes
             var rawBase64 = reportData["Raw"]?.ToString();
             if (rawBase64 != null)
-            {
-                try
-                {
-                    var bytes = Convert.FromBase64String(rawBase64);
-                    LastReportRaw = BitConverter.ToString(bytes).Replace('-', ' ');
-                }
-                catch { LastReportRaw = rawBase64; }
-            }
+                LastReportRaw = DiagnosticsMath.FormatRawHex(rawBase64);
 
             // Position for visualizer
             var pos = reportData["Position"];
@@ -962,7 +952,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (pressure != null)
             {
                 DebugPenPressure = pressure.Value<double>();
-                DebugPressurePercent = DebugMaxPressure > 0 ? (DebugPenPressure / DebugMaxPressure) * 100.0 : 0;
+                DebugPressurePercent = DiagnosticsMath.PressurePercent(DebugPenPressure, DebugMaxPressure);
             }
 
             // Tilt
@@ -971,9 +961,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 DebugTiltX = tilt["X"]?.Value<double>() ?? 0;
                 DebugTiltY = tilt["Y"]?.Value<double>() ?? 0;
-                DebugTiltAzimuth = Math.Atan2(DebugTiltX, DebugTiltY) * (180.0 / Math.PI);
-                if (DebugTiltAzimuth < 0) DebugTiltAzimuth += 360;
-                DebugTiltAltitude = 90.0 - Math.Sqrt(DebugTiltX * DebugTiltX + DebugTiltY * DebugTiltY);
+                DebugTiltAzimuth = DiagnosticsMath.TiltAzimuthDegrees(DebugTiltX, DebugTiltY);
+                DebugTiltAltitude = DiagnosticsMath.TiltAltitudeDegrees(DebugTiltX, DebugTiltY);
             }
 
             // Pen buttons
