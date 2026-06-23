@@ -346,6 +346,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [RelayCommand]
     private async Task StartDaemon()
     {
+        _daemon.AutoReconnect = true;
         _daemonLifecycle.Launch();
         await Task.Delay(1000);
         OnPropertyChanged(nameof(CanStartDaemon));
@@ -357,11 +358,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     }
 
     [RelayCommand]
-    private void StopDaemon() => _daemonLifecycle.StopAll();
+    private void StopDaemon()
+    {
+        // User-initiated stop: suppress auto-reconnect so the client doesn't immediately spin
+        // trying to reconnect to the daemon we're about to kill (which races a later Start).
+        _daemon.AutoReconnect = false;
+        _daemonLifecycle.StopAll();
+    }
 
     [RelayCommand]
     private async Task RestartDaemon()
     {
+        _daemon.AutoReconnect = true;
         _daemonLifecycle.StopAll();
 
         await Task.Delay(500);
