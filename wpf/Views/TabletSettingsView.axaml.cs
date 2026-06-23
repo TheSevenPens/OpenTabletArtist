@@ -17,7 +17,7 @@ public partial class TabletSettingsView : UserControl
         if (sender is Border border && border.DataContext is { } profileItem)
         {
             var itemsControl = border.FindAncestorOfType<ItemsControl>();
-            var vm = itemsControl?.DataContext as MainViewModel;
+            var vm = itemsControl?.DataContext as TabletSettingsViewModel;
             vm?.OpenTabletSettingsCommand.Execute(profileItem);
         }
     }
