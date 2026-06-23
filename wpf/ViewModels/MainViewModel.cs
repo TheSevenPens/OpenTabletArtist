@@ -45,7 +45,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         Utilities = new UtilitiesViewModel(dialogs);
-        Configs = new CustomTabletConfigsViewModel(dialogs);
+        Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);

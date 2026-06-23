@@ -73,6 +73,14 @@ internal sealed class FakeDeviceData : IDeviceData
 #pragma warning restore CS0067
 }
 
+/// <summary>Points the Custom Tablet Configs page at a test-controlled directory.</summary>
+internal sealed class FakeConfigurationsDirectoryProvider : IConfigurationsDirectoryProvider
+{
+    private readonly string _dir;
+    public FakeConfigurationsDirectoryProvider(string dir) => _dir = dir;
+    public string GetOrCreate() => _dir;
+}
+
 /// <summary>Minimal <see cref="IConnectionState"/>; only IsConnected is interesting (raises PropertyChanged).</summary>
 internal sealed class FakeConnectionState : IConnectionState
 {
