@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using OtdWindowsHelper.Domain;
 
 namespace OtdWindowsHelper.Services;
 
@@ -11,7 +13,8 @@ namespace OtdWindowsHelper.Services;
 /// </summary>
 public interface IDaemonLifecycleService
 {
-    /// <summary>The daemon exe this project builds from the submodule (build output only), or null if not built.</summary>
+    /// <summary>The daemon exe shipped with / built by this project — the bundled copy next to a
+    /// published app, or the submodule build output in dev. Null if none is present.</summary>
     string? ExpectedExePath();
 
     /// <summary>Daemon exe to launch: the expected build, falling back to a running instance's path. Null if none found.</summary>
@@ -35,20 +38,9 @@ public class DaemonLifecycleService : IDaemonLifecycleService
 {
     private const string ProcessName = "OpenTabletDriver.Daemon";
 
-    public string? ExpectedExePath()
-    {
-        // Look relative to our exe: up to repo root, then into the daemon build output.
-        var baseDir = AppContext.BaseDirectory;
-        foreach (var config in new[] { "Debug", "Release" })
-        {
-            var candidate = Path.GetFullPath(Path.Combine(
-                baseDir, "..", "..", "..", "..",
-                "external", "OpenTabletDriver", "OpenTabletDriver.Daemon",
-                "bin", config, "net8.0", "OpenTabletDriver.Daemon.exe"));
-            if (File.Exists(candidate)) return candidate;
-        }
-        return null;
-    }
+    public string? ExpectedExePath() =>
+        // Bundled-next-to-app (release) first, then the dev build tree. See DaemonExePaths.
+        DaemonExePaths.Candidates(AppContext.BaseDirectory).FirstOrDefault(File.Exists);
 
     public string? FindExe()
     {
