@@ -18,6 +18,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonClient _daemon = new();
     private readonly IDaemonLifecycleService _daemonLifecycle = new DaemonLifecycleService();
+    private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
@@ -665,15 +666,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _settings = settings;
         await _daemon.SetSettingsAsync(settings);
 
-        // Persist to disk (same as OTD's own UX Save button)
+        // Persist to disk (same as OTD's own UX Save button).
+        // TODO(#21): surface the failure instead of ignoring TrySave's result.
         if (!string.IsNullOrEmpty(SettingsFilePath))
-        {
-            try
-            {
-                settings.Serialize(new FileInfo(SettingsFilePath));
-            }
-            catch { /* ignore save errors */ }
-        }
+            _settingsStore.TrySave(settings, SettingsFilePath);
 
         await LoadDataAsync();
     }
@@ -1100,7 +1096,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var name = PresetNaming.NextSnapshotName(existing);
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
-        _settings.Serialize(new FileInfo(path));
+        _settingsStore.Save(_settings, path);
         await LoadPresetsAsync();
     }
 
@@ -1108,8 +1104,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async Task LoadPreset(string name)
     {
         var path = Path.Combine(PresetDirectory, $"{name}.json");
-        if (!File.Exists(path)) return;
-        if (Settings.TryDeserialize(new FileInfo(path), out var settings))
+        if (_settingsStore.TryLoad(path, out var settings) && settings != null)
         {
             await ApplyAndSaveSettingsAsync(settings);
         }
@@ -1120,7 +1115,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_settings == null) return;
         var path = Path.Combine(PresetDirectory, $"{name}.json");
-        _settings.Serialize(new FileInfo(path));
+        _settingsStore.Save(_settings, path);
         await LoadPresetsAsync();
     }
 
