@@ -17,6 +17,7 @@ namespace OtdWindowsHelper.ViewModels;
 public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonClient _daemon = new();
+    private readonly IDaemonLifecycleService _daemonLifecycle = new DaemonLifecycleService();
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
@@ -423,37 +424,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // OTD Version (from referenced assembly)
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
-    // The daemon exe this project builds from the submodule (build output only).
-    // Returns null if it hasn't been built yet.
-    private static string? ExpectedDaemonExePath()
-    {
-        // Look relative to our exe: up to repo root, then into the daemon build output
-        var baseDir = AppContext.BaseDirectory;
-        // Try the daemon's build output (Debug and Release)
-        foreach (var config in new[] { "Debug", "Release" })
-        {
-            var candidate = Path.GetFullPath(Path.Combine(
-                baseDir, "..", "..", "..", "..",
-                "external", "OpenTabletDriver", "OpenTabletDriver.Daemon",
-                "bin", config, "net8.0", "OpenTabletDriver.Daemon.exe"));
-            if (File.Exists(candidate)) return candidate;
-        }
-        return null;
-    }
-
-    // Daemon path — built from submodule, with a fallback to a running instance.
-    private static string? FindDaemonExe()
-    {
-        var expected = ExpectedDaemonExePath();
-        if (expected != null) return expected;
-        // Fallback: check if it's running and get path from process
-        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
-        {
-            try { var p = proc.MainModule?.FileName; if (p != null) return p; } catch { }
-        }
-        return null;
-    }
-
     // Determine whether the daemon we're connected to is this project's build.
     // Sets IsForeignDaemon / DaemonSourcePath. Conservative: only flags "foreign"
     // when we can positively read the server process path and it differs.
@@ -479,7 +449,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var owned = ExecutablePath.SameFile(actual, ExpectedDaemonExePath());
+        var owned = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
         IsAppOwnedDaemon = owned;
         IsForeignDaemon = !owned;
     }
@@ -488,16 +458,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string? GetConnectedDaemonPath()
     {
         var pid = _daemon.GetServerProcessId();
-        if (pid == null) return null;
-        try
-        {
-            using var proc = Process.GetProcessById(pid.Value);
-            return proc.MainModule?.FileName;
-        }
-        catch { return null; }
+        return pid == null ? null : _daemonLifecycle.GetProcessPath(pid.Value);
     }
 
-    public bool CanStartDaemon => !IsConnected && FindDaemonExe() != null;
+    public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
     [ObservableProperty] private bool _isDaemonRunning;
 
     // Tablet specs
@@ -580,10 +544,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         LoadConfigurations();
 
         // Auto-start daemon if not running
-        IsDaemonRunning = Process.GetProcessesByName("OpenTabletDriver.Daemon").Length > 0;
-        if (!IsDaemonRunning && FindDaemonExe() != null)
+        IsDaemonRunning = _daemonLifecycle.IsRunning();
+        if (!IsDaemonRunning && _daemonLifecycle.FindExe() != null)
         {
-            LaunchDaemonProcess();
+            _daemonLifecycle.Launch();
             await Task.Delay(1000);
         }
 
@@ -1089,33 +1053,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void LaunchDaemonProcess()
-    {
-        var daemonPath = FindDaemonExe();
-        if (daemonPath != null)
-        {
-            Process.Start(new ProcessStartInfo(daemonPath)
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
-            });
-        }
-    }
-
     [RelayCommand]
-    private void StopDaemon()
-    {
-        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
-        {
-            try { proc.Kill(); } catch { }
-        }
-    }
+    private void StopDaemon() => _daemonLifecycle.StopAll();
 
     [RelayCommand]
     private async Task StartDaemon()
     {
-        LaunchDaemonProcess();
+        _daemonLifecycle.Launch();
         await Task.Delay(1000);
         OnPropertyChanged(nameof(CanStartDaemon));
         if (!IsConnected)
@@ -1128,13 +1072,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RestartDaemon()
     {
-        foreach (var proc in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
-        {
-            try { proc.Kill(); } catch { }
-        }
+        _daemonLifecycle.StopAll();
 
         await Task.Delay(500);
-        LaunchDaemonProcess();
+        _daemonLifecycle.Launch();
         await Task.Delay(1000);
 
         if (!IsConnected)
