@@ -2,5 +2,8 @@
   <Folder Name="/external/">
     <Project Path="external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj" />
+  </Folder>
   <Project Path="wpf/OtdWindowsHelper.csproj" />
 </Solution>
