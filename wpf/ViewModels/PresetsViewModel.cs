@@ -12,18 +12,14 @@ namespace OtdWindowsHelper.ViewModels;
 
 /// <summary>
 /// View model for the Saved Settings (snapshots) page. Page-VM split (#14 phase 2).
-/// Unlike the fully-isolated pages, this one is coupled to the shell's current settings
-/// and apply path, so those are injected as delegates rather than reaching back into the
-/// shell: <paramref name="getCurrentSettings"/> reads the live settings to snapshot, and
-/// <paramref name="applySettings"/> applies a loaded snapshot (push to daemon + persist).
-/// The shell sets <see cref="PresetDirectory"/> and calls <see cref="LoadAsync"/> once the
-/// daemon's app info is available.
+/// Reads/applies live settings through the shared <see cref="ISettingsCoordinator"/> (Option C,
+/// #41 PR 3) rather than ad-hoc delegates. The shell sets <see cref="PresetDirectory"/> and
+/// calls <see cref="LoadAsync"/> once the daemon's app info is available.
 /// </summary>
 public partial class PresetsViewModel : ObservableObject
 {
     private readonly ISettingsFileStore _store;
-    private readonly Func<Settings?> _getCurrentSettings;
-    private readonly Func<Settings, Task> _applySettings;
+    private readonly ISettingsCoordinator _settings;
 
     [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
@@ -31,14 +27,10 @@ public partial class PresetsViewModel : ObservableObject
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
-    public PresetsViewModel(
-        ISettingsFileStore store,
-        Func<Settings?> getCurrentSettings,
-        Func<Settings, Task> applySettings)
+    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings)
     {
         _store = store;
-        _getCurrentSettings = getCurrentSettings;
-        _applySettings = applySettings;
+        _settings = settings;
     }
 
     /// <summary>Rescans the preset directory, newest first. Called by the shell after connect.</summary>
@@ -82,7 +74,7 @@ public partial class PresetsViewModel : ObservableObject
     [RelayCommand]
     private async Task SavePreset()
     {
-        var settings = _getCurrentSettings();
+        var settings = _settings.CurrentSettings;
         if (settings == null) return;
         if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
 
@@ -105,14 +97,14 @@ public partial class PresetsViewModel : ObservableObject
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         if (_store.TryLoad(path, out var settings) && settings != null)
         {
-            await _applySettings(settings);
+            await _settings.ApplyAndSaveSettingsAsync(settings);
         }
     }
 
     [RelayCommand]
     private async Task UpdatePreset(string name)
     {
-        var settings = _getCurrentSettings();
+        var settings = _settings.CurrentSettings;
         if (settings == null) return;
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);
