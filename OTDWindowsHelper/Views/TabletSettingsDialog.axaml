@@ -224,13 +224,10 @@
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
-                                <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                                           Margin="0,6,0,0" TextWrapping="Wrap"
-                                           Text="Remaps pen pressure for every app (Krita, CSP, …) via the OTD Windows Helper filter. Drag the pink (min) and cyan (max) nodes; tune the bend with Softness." />
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="PEN DYNAMICS" Classes="SectionLabel" />
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Top"
+                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="On" OffContent="Off"
                                           IsChecked="{Binding PressureCurveEnabled}" />
                         </Grid>
