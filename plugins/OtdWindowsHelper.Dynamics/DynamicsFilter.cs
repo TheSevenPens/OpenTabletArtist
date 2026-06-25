@@ -74,18 +74,20 @@ public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
         if (value is IProximityReport { NearProximity: false })
             _processor.Reset();
 
-        if (value is ITabletReport report)
+        // Skip entirely when MaxPressure is unknown (some custom configs) — normalizing needs it, and
+        // we must not zero pressure just because we can't process it (Codex #106). Pass through.
+        if (value is ITabletReport report && (Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0) > 0)
         {
-            var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
+            var max = Tablet!.Properties!.Specifications!.Pen!.MaxPressure;
             var settings = _processor.Settings;
-            double norm = max > 0 ? report.Pressure / (double)max : 0;
+            double norm = report.Pressure / (double)max;
 
             // "Drawing" means the curve actually emits pressure. Both hover (raw 0) and the Cut/Clamp
             // dead zone (raw > 0 but mapped to 0) count as not-drawing: zero the output and reset
             // smoothing so the first real sample starts crisp — no lag/fly-in carried over from the
             // pre-stroke approach (Codex #106). Position is smoothed only while drawing, so a pen-out
             // coordinate is never folded into the next stroke either.
-            bool drawing = max > 0 && report.Pressure > 0
+            bool drawing = report.Pressure > 0
                            && Domain.PressureCurve.Apply(norm, settings.Curve) > 0;
 
             if (!drawing)
