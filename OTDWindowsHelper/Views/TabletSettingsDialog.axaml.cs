@@ -447,8 +447,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         }
     }
 
-    public string CurveMinText => $"in {Curve.InputMinimum:0.00}  →  out {Curve.Minimum:0.00}";
-    public string CurveMaxText => $"in {Curve.InputMaximum:0.00}  →  out {Curve.Maximum:0.00}";
     public string SoftnessText => Curve.Softness.ToString("0.00");
 
     // Numeric entry for the node values (#103). Setters keep input/output min &lt; max and clamp 0..1.
@@ -479,8 +477,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
-        OnPropertyChanged(nameof(CurveMinText));
-        OnPropertyChanged(nameof(CurveMaxText));
         OnPropertyChanged(nameof(SoftnessText));
         OnPropertyChanged(nameof(InputMinimum));
         OnPropertyChanged(nameof(InputMaximum));
