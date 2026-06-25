@@ -18,16 +18,17 @@ public static class PressureCurveProfile
     /// <summary>Full type name of the filter in the plugin assembly (must match the daemon's view).</summary>
     public const string FilterTypeName = "OtdWindowsHelper.PressureCurve.PressureCurveFilter";
 
-    /// <summary>The current curve + enabled state for a tablet's profile, or null if not present.</summary>
-    public static (PressureCurveSettings Curve, bool Enabled)? Read(Settings? settings, string tabletName)
+    /// <summary>The current dynamics (curve + smoothing) + enabled state for a tablet's profile,
+    /// or null if not present.</summary>
+    public static (PenDynamicsSettings Dynamics, bool Enabled)? Read(Settings? settings, string tabletName)
     {
         var store = FindStore(settings, tabletName);
         if (store == null) return null;
 
         float Get(string name, float fallback) =>
             store.Settings?.FirstOrDefault(s => s.Property == name) is { HasValue: true } s ? s.GetValue<float>() : fallback;
-        bool GetBool(string name) =>
-            store.Settings?.FirstOrDefault(s => s.Property == name) is { HasValue: true } s && s.GetValue<bool>();
+        bool GetBool(string name, bool fallback) =>
+            store.Settings?.FirstOrDefault(s => s.Property == name) is { HasValue: true } s ? s.GetValue<bool>() : fallback;
 
         var curve = new PressureCurveSettings(
             Softness: Get(nameof(PressureCurveSettings.Softness), 0),
@@ -35,13 +36,18 @@ public static class PressureCurveProfile
             InputMaximum: Get(nameof(PressureCurveSettings.InputMaximum), 1),
             Minimum: Get(nameof(PressureCurveSettings.Minimum), 0),
             Maximum: Get(nameof(PressureCurveSettings.Maximum), 1),
-            MinApproach: GetBool("CutBelowMinimum") ? PressureMinApproach.Cut : PressureMinApproach.Clamp);
-        return (curve, store.Enable);
+            MinApproach: GetBool("CutBelowMinimum", false) ? PressureMinApproach.Cut : PressureMinApproach.Clamp);
+        var dynamics = new PenDynamicsSettings(
+            curve,
+            PressureSmoothing: Get("PressureSmoothing", 0),
+            PositionSmoothing: Get("PositionSmoothing", 0),
+            SmoothAfterCurve: GetBool("SmoothAfterCurve", true));
+        return (dynamics, store.Enable);
     }
 
-    /// <summary>Writes (and enables/disables) the curve filter on the tablet's profile. Mutates
+    /// <summary>Writes (and enables/disables) the filter on the tablet's profile. Mutates
     /// <paramref name="settings"/>. No-op if the profile isn't found.</summary>
-    public static void Write(Settings? settings, string tabletName, PressureCurveSettings curve, bool enable)
+    public static void Write(Settings? settings, string tabletName, PenDynamicsSettings dynamics, bool enable)
     {
         var profile = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile == null) return;
@@ -53,6 +59,7 @@ public static class PressureCurveProfile
             profile.Filters?.Add(store);
         }
 
+        var curve = dynamics.Curve;
         store.Enable = enable;
         store.Settings = new ObservableCollection<PluginSetting>
         {
@@ -62,6 +69,9 @@ public static class PressureCurveProfile
             new(nameof(PressureCurveSettings.Minimum), (float)curve.Minimum),
             new(nameof(PressureCurveSettings.Maximum), (float)curve.Maximum),
             new("CutBelowMinimum", curve.MinApproach == PressureMinApproach.Cut),
+            new("PressureSmoothing", (float)dynamics.PressureSmoothing),
+            new("PositionSmoothing", (float)dynamics.PositionSmoothing),
+            new("SmoothAfterCurve", dynamics.SmoothAfterCurve),
         };
     }
 

@@ -266,6 +266,45 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                <!-- Smoothing -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel" />
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,8" TextWrapping="Wrap"
+                                   Text="EMA smoothing trades a little lag for steadier output. Position smoothing steadies wobbly lines; pressure smoothing evens out pressure jitter." />
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="Position" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="0.99"
+                                    Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding PositionSmoothingText}" FontSize="12"
+                                       FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
+                                       Width="44" TextAlignment="Right"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="Pressure" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="0.99"
+                                    Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding PressureSmoothingText}" FontSize="12"
+                                       FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
+                                       Width="44" TextAlignment="Right"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" Text="Order" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding SmoothAfterCurve}"
+                                          OnContent="Curve → Smooth" OffContent="Smooth → Curve" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

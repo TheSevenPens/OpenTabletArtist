@@ -16,9 +16,11 @@
                       Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 
-  <!-- Single source of truth for the curve math, shared with the app + its tests. -->
+  <!-- Single source of truth for the curve + smoothing math, shared with the app + its tests. -->
   <ItemGroup>
     <Compile Include="..\..\OTDWindowsHelper\Domain\PressureCurve.cs" Link="PressureCurve.cs" />
+    <Compile Include="..\..\OTDWindowsHelper\Domain\PenSmoothing.cs" Link="PenSmoothing.cs" />
+    <Compile Include="..\..\OTDWindowsHelper\Domain\PenDynamicsProcessor.cs" Link="PenDynamicsProcessor.cs" />
   </ItemGroup>
 
 </Project>

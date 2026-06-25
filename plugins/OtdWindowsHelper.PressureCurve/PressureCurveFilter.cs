@@ -1,3 +1,4 @@
+using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
@@ -6,14 +7,15 @@ using OtdWindowsHelper.Domain;
 namespace OtdWindowsHelper.PressureCurve;
 
 /// <summary>
-/// OpenTabletDriver filter that remaps pen pressure through the "Extended" curve (#92). Because it
-/// runs in the daemon's pipeline, drawing apps (Krita, CSP, …) see the remapped pressure.
+/// OpenTabletDriver filter implementing the OTD Windows Helper pen dynamics (#92): the "Extended"
+/// pressure curve plus EMA pressure/position smoothing. Because it runs in the daemon's pipeline,
+/// drawing apps (Krita, CSP, …) see the remapped, smoothed input.
 ///
-/// The actual math lives in <see cref="Domain.PressureCurve"/> (source-shared with the app, so the
-/// editor preview matches exactly). Stateless for now; a smoothing stage can be added after the
-/// curve later (curve-then-smooth).
+/// The math lives in <see cref="Domain.PressureCurve"/> + <see cref="PenDynamicsProcessor"/>
+/// (source-shared with the app, so the editor preview matches and the logic is unit-tested there).
+/// The type name is kept stable so existing profiles keep resolving.
 /// </summary>
-[PluginName("OTD Windows Helper - Pressure Curve")]
+[PluginName("OTD Windows Helper - Pen Dynamics")]
 public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
 {
     [Property("Softness"), DefaultPropertyValue(0f),
@@ -40,6 +42,18 @@ public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
      ToolTip("When on, pressure below Input Minimum produces zero output (a dead zone) instead of holding at Output Minimum.")]
     public bool CutBelowMinimum { get; set; }
 
+    [Property("Pressure Smoothing"), DefaultPropertyValue(0f),
+     ToolTip("EMA smoothing of pressure (0 = off, up to 0.99 = heavy). Reduces pressure jitter at the cost of lag.")]
+    public float PressureSmoothing { get; set; }
+
+    [Property("Position Smoothing"), DefaultPropertyValue(0f),
+     ToolTip("EMA smoothing of the pen position (0 = off, up to 0.99 = heavy). Steadies wobbly lines at the cost of lag.")]
+    public float PositionSmoothing { get; set; }
+
+    [Property("Smooth after curve"), DefaultPropertyValue(true),
+     ToolTip("On: apply the curve, then smooth (default). Off: smooth the raw pressure, then apply the curve.")]
+    public bool SmoothAfterCurve { get; set; } = true;
+
     [TabletReference]
     public TabletReference? Tablet { get; set; }
 
@@ -47,22 +61,46 @@ public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
 
     public event Action<IDeviceReport>? Emit;
 
+    private readonly PenDynamicsProcessor _processor = new();
+
     public void Consume(IDeviceReport value)
     {
-        // Leave a raw zero (hover / no contact) untouched — an Output Minimum > 0 must only apply
-        // once the pen is actually down, or downstream output/bindings would read hover as a press.
-        if (value is ITabletReport report && report.Pressure > 0)
+        _processor.Settings = new PenDynamicsSettings(
+            new PressureCurveSettings(
+                Softness, InputMinimum, InputMaximum, Minimum, Maximum,
+                CutBelowMinimum ? PressureMinApproach.Cut : PressureMinApproach.Clamp),
+            PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
+
+        // Pen left the sensor — reset smoothing so the next stroke doesn't lerp in from here.
+        if (value is IProximityReport { NearProximity: false })
+            _processor.Reset();
+
+        // Position smoothing (hover or contact). Skip the no-op when off so we don't disturb reports.
+        if (PositionSmoothing > 0 && value is IAbsolutePositionReport posReport)
         {
-            var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
-            if (max > 0)
+            var (x, y) = _processor.ProcessPosition(posReport.Position.X, posReport.Position.Y);
+            posReport.Position = new Vector2((float)x, (float)y);
+        }
+
+        if (value is ITabletReport report)
+        {
+            // Leave a raw zero (hover / no contact) untouched — an Output Minimum > 0 must only apply
+            // once the pen is down — and reset pressure smoothing so the next press starts crisp.
+            if (report.Pressure == 0)
             {
-                var settings = new PressureCurveSettings(
-                    Softness, InputMinimum, InputMaximum, Minimum, Maximum,
-                    CutBelowMinimum ? PressureMinApproach.Cut : PressureMinApproach.Clamp);
-                var y = Domain.PressureCurve.Apply(report.Pressure / (double)max, settings);
-                report.Pressure = (uint)Math.Round(y * max);
+                _processor.ResetPressure();
+            }
+            else
+            {
+                var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
+                if (max > 0)
+                {
+                    var y = _processor.ProcessPressure(report.Pressure / (double)max);
+                    report.Pressure = (uint)Math.Round(y * max);
+                }
             }
         }
+
         Emit?.Invoke(value);
     }
 }
