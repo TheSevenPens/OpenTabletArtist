@@ -465,12 +465,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public double OutputMinimum
     {
         get => Curve.Minimum;
-        set { var v = Clamp01(value); if (Curve.Minimum != v) Curve = Curve with { Minimum = v }; }
+        set { var v = Math.Min(Clamp01(value), Curve.Maximum); if (Curve.Minimum != v) Curve = Curve with { Minimum = v }; }
     }
     public double OutputMaximum
     {
         get => Curve.Maximum;
-        set { var v = Clamp01(value); if (Curve.Maximum != v) Curve = Curve with { Maximum = v }; }
+        set { var v = Math.Max(Clamp01(value), Curve.Minimum); if (Curve.Maximum != v) Curve = Curve with { Maximum = v }; }
     }
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
