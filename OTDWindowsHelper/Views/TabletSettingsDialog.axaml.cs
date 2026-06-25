@@ -1,5 +1,6 @@
-using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
+using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -31,9 +32,24 @@ public partial class TabletSettingsDialog : Window
 
     // Parameterless constructor required by Avalonia XAML loader
     public TabletSettingsDialog() { InitializeComponent(); }
-}
 
-public record DisplayInfo(int Index, string Label, int Width, int Height, int X, int Y, bool IsPrimary);
+    // Live-refresh the display list when a monitor is added/removed/rearranged while the dialog is
+    // open (#95 follow-up). Scoped to the dialog's lifetime — no lingering hooks.
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (Screens != null) Screens.Changed += OnScreensChanged;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        if (Screens != null) Screens.Changed -= OnScreensChanged;
+    }
+
+    private void OnScreensChanged(object? sender, EventArgs e) =>
+        (DataContext as TabletSettingsDialogViewModel)?.RefreshDisplaysCommand.Execute(null);
+}
 
 public partial class TabletSettingsDialogViewModel : ObservableObject
 {
@@ -47,17 +63,21 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private readonly Func<Task<Profile?>>? _refreshAction;
     private readonly (float Width, float Height)? _tabletDigitizer;
 
-    [ObservableProperty] private DisplayInfo? _selectedDisplay;
-    private bool _skipDisplayChange;
+    [ObservableProperty] private IReadOnlyList<DisplayInfo> _displays = [];
+    [ObservableProperty] private int? _selectedDisplayNumber;
 
-    partial void OnSelectedDisplayChanged(DisplayInfo? value)
+    /// <summary>A display is selected, so "Apply" can map to it.</summary>
+    public bool CanApplyDisplay => SelectedDisplayNumber != null && _applyAction != null;
+
+    partial void OnSelectedDisplayNumberChanged(int? value)
     {
-        if (!_skipDisplayChange && value != null)
-            _ = SetToDisplay();
+        OnPropertyChanged(nameof(CanApplyDisplay));
+        ApplyDisplayCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsWinInkAbsoluteChanged(bool value)
     {
+        OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkAbsoluteModePath);
     }
@@ -66,6 +86,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkRelativeModePath);
+    }
+
+    /// <summary>The Output Mode toggle: on = Windows Ink Absolute, off = Windows Ink Relative.
+    /// Setting it switches the mode (also fixing a non-Windows-Ink mode to Windows Ink).</summary>
+    public bool IsAbsoluteMode
+    {
+        get => IsWinInkAbsolute;
+        set => _ = SetOutputMode(value ? WinInkAbsoluteModePath : WinInkRelativeModePath);
     }
 
     private async Task SetOutputMode(string path)
@@ -91,12 +119,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
-        Displays = EnumerateDisplays();
+        Displays = DisplayEnumerator.Enumerate();
         RefreshFromProfile();
-        // Set initial selection AFTER RefreshFromProfile so the change handler can fire
-        _skipDisplayChange = true;
-        SelectedDisplay = Displays.FirstOrDefault(d => d.IsPrimary) ?? Displays.FirstOrDefault();
-        _skipDisplayChange = false;
+        // Highlight the display the tablet is currently mapped to (else the primary).
+        SelectedDisplayNumber = CurrentlyMappedNumber()
+            ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
+            ?? Displays.FirstOrDefault()?.Number;
     }
 
     // Parameterless constructor for design-time
@@ -104,7 +132,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         _profile = new Profile();
         TabletName = "Design Tablet";
-        Displays = new ObservableCollection<DisplayInfo>();
+        Displays = [];
     }
 
     private static string GetBindingName(PluginSettingStore? store)
@@ -233,12 +261,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         await SetOutputMode(WinInkAbsoluteModePath);
     }
 
-    [RelayCommand]
-    private async Task SetToDisplay()
+    [RelayCommand(CanExecute = nameof(CanApplyDisplay))]
+    private async Task ApplyDisplay()
     {
-        if (_applyAction == null || _settings == null || SelectedDisplay == null) return;
+        var display = Displays.FirstOrDefault(d => d.Number == SelectedDisplayNumber);
+        if (_applyAction == null || _settings == null || display == null) return;
 
-        var display = SelectedDisplay;
         await ApplySettingsChange(p =>
         {
             var abs = p.AbsoluteModeSettings;
@@ -268,6 +296,41 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         });
     }
 
+    /// <summary>Re-read the connected monitors from Windows (manual Refresh or a live display change).</summary>
+    [RelayCommand]
+    private void RefreshDisplays()
+    {
+        var keep = SelectedDisplayNumber;
+        Displays = DisplayEnumerator.Enumerate();
+        SelectedDisplayNumber =
+            (keep != null && Displays.Any(d => d.Number == keep)) ? keep
+            : CurrentlyMappedNumber()
+              ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
+              ?? Displays.FirstOrDefault()?.Number;
+    }
+
+    [RelayCommand]
+    private void OpenDisplaySettings()
+    {
+        try { Process.Start(new ProcessStartInfo("ms-settings:display") { UseShellExecute = true }); }
+        catch { /* best-effort */ }
+    }
+
+    /// <summary>The display the profile is currently mapped to (full-monitor match), or null.</summary>
+    private int? CurrentlyMappedNumber()
+    {
+        var disp = _profile.AbsoluteModeSettings?.Display;
+        if (disp == null) return null;
+        foreach (var d in Displays)
+            // ApplyDisplay stores the display area as centre = monitor centre, size = monitor size.
+            if (Approx(disp.Width, d.Width) && Approx(disp.Height, d.Height)
+                && Approx(disp.X, d.X + d.Width / 2f) && Approx(disp.Y, d.Y + d.Height / 2f))
+                return d.Number;
+        return null;
+    }
+
+    private static bool Approx(float a, float b) => Math.Abs(a - b) <= 1.5f;
+
     [RelayCommand]
     private async Task FixTipBinding()
     {
@@ -290,103 +353,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         });
     }
 
-    private static ObservableCollection<DisplayInfo> EnumerateDisplays()
-    {
-        var monitors = new List<DisplayInfo>();
-        int index = 0;
-
-        MonitorEnumProc callback = (nint hMonitor, nint hdcMonitor, ref RECT lprcMonitor, nint dwData) =>
-        {
-            var info = new MONITORINFOEX();
-            info.cbSize = (uint)Marshal.SizeOf(info);
-
-            if (GetMonitorInfo(hMonitor, ref info))
-            {
-                var devMode = new DEVMODE();
-                devMode.dmSize = (short)Marshal.SizeOf(devMode);
-                EnumDisplaySettings(info.szDevice, -1, ref devMode);
-
-                int w = devMode.dmPelsWidth;
-                int h = devMode.dmPelsHeight;
-                int x = devMode.dmPositionX;
-                int y = devMode.dmPositionY;
-                bool isPrimary = (info.dwFlags & 1) != 0;
-                index++;
-
-                string label = isPrimary
-                    ? $"Display {index} (Primary) — {w}x{h}"
-                    : $"Display {index} — {w}x{h}";
-
-                monitors.Add(new DisplayInfo(index, label, w, h, x, y, isPrimary));
-            }
-            return true;
-        };
-        EnumDisplayMonitors(nint.Zero, nint.Zero, callback, nint.Zero);
-
-        var displays = new ObservableCollection<DisplayInfo>();
-
-        // Add "All displays" — bounding box spanning all monitors
-        if (monitors.Count > 1)
-        {
-            int minX = monitors.Min(m => m.X);
-            int minY = monitors.Min(m => m.Y);
-            int maxRight = monitors.Max(m => m.X + m.Width);
-            int maxBottom = monitors.Max(m => m.Y + m.Height);
-            int totalW = maxRight - minX;
-            int totalH = maxBottom - minY;
-
-            displays.Add(new DisplayInfo(0, $"All displays — {totalW}x{totalH}", totalW, totalH, minX, minY, false));
-        }
-
-        foreach (var m in monitors)
-            displays.Add(m);
-
-        return displays;
-    }
-
-    #region Win32 P/Invoke
-
-    private delegate bool MonitorEnumProc(nint hMonitor, nint hdcMonitor, ref RECT lprcMonitor, nint dwData);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumDisplayMonitors(nint hdc, nint lprcClip, MonitorEnumProc lpfnEnum, nint dwData);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool GetMonitorInfo(nint hMonitor, ref MONITORINFOEX lpmi);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int left, top, right, bottom; }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct MONITORINFOEX
-    {
-        public uint cbSize;
-        public RECT rcMonitor, rcWork;
-        public uint dwFlags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string szDevice;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct DEVMODE
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmDeviceName;
-        public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra;
-        public int dmFields, dmPositionX, dmPositionY, dmDisplayOrientation, dmDisplayFixedOutput;
-        public short dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmFormName;
-        public short dmLogPixels;
-        public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency;
-        public int dmICMMethod, dmICMIntent, dmMediaType, dmDitherType;
-        public int dmReserved1, dmReserved2, dmPanningWidth, dmPanningHeight;
-    }
-
-    #endregion
 
     public string TabletName { get; }
     [ObservableProperty] private string _outputModeShort = "";
@@ -396,7 +362,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private bool _isWinInkRelative;
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
-    public ObservableCollection<DisplayInfo> Displays { get; }
     [ObservableProperty] private string _tipBinding = "None";
     [ObservableProperty] private bool _canFixTip;
     [ObservableProperty] private string _eraserBinding = "None";

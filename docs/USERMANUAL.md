@@ -49,7 +49,7 @@ Lists all tablet profiles. Click **Open** or double-click a card to open the set
 
 The settings dialog has six tabs:
 
-- **Screen Mapping** — Output mode selection (Windows Ink Absolute / Relative via radio buttons, with warning + Fix if using a non-Windows Ink mode). Display selection as radio buttons including "All displays" for multi-monitor setups. Selecting a display immediately maps the tablet to it with aspect ratio lock enforced.
+- **Screen Mapping** — Output mode selection (Windows Ink Absolute / Relative via radio buttons, with warning + Fix if using a non-Windows Ink mode). **Area Mapping** shows a graphical layout of your monitors (like Windows Display Settings) — each drawn to scale and position with its number, name, and resolution. Click a monitor to select it (the one the tablet is currently mapped to starts highlighted), then **Apply mapping** to map the tablet to that whole display with aspect-ratio lock enforced. You map to **one** display at a time (no "all displays" span). The card also has **Display Settings** (opens Windows Display Settings) and a **Refresh** icon (re-reads monitors); the layout also updates automatically if you add or remove a display while the dialog is open.
 - **Pen Tip & Eraser** — Current tip and eraser bindings with Fix buttons to set Adaptive Binding (recommended for creatives).
 - **Pen Buttons** — Pen and auxiliary button bindings with Fix button to set all to Adaptive Binding.
 - **Dynamics** — An interactive pressure-curve editor **plus smoothing**. Toggle it on to apply custom pen dynamics to this tablet's profile; they're enforced by the bundled *OTD Windows Helper – Pen Dynamics* filter, so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one.
