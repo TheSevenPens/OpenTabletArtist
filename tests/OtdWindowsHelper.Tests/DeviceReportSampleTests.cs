@@ -27,6 +27,8 @@ public class DeviceReportSampleTests
 
         Assert.Equal(0.5, s.X, 3);
         Assert.Equal(0.5, s.Y, 3);
+        Assert.Equal(500, s.RawX, 3);   // raw, pre-normalization
+        Assert.Equal(250, s.RawY, 3);
         Assert.Equal(0.5, s.Pressure, 3);
         Assert.Equal(10, s.TiltX, 3);
         Assert.Equal(20, s.TiltY, 3);
@@ -41,7 +43,8 @@ public class DeviceReportSampleTests
         r["Data"]!["Pressure"] = 99999;      // beyond MaxPressure
 
         Assert.True(DeviceReportSample.TryParse(r, out var s));
-        Assert.Equal(1.0, s.X, 3);
+        Assert.Equal(1.0, s.X, 3);          // normalized X clamped to 1
+        Assert.Equal(5000, s.RawX, 3);      // raw X left unclamped for debugging
         Assert.Equal(1.0, s.Pressure, 3);
     }
 

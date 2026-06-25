@@ -37,6 +37,8 @@ public static class DeviceReportSample
         sample = new PenSample(
             X: Clamp01(x / maxX),
             Y: Clamp01(y / maxY),
+            RawX: x,
+            RawY: y,
             Pressure: Clamp01(pressure),
             TiltX: tiltX,
             TiltY: tiltY,

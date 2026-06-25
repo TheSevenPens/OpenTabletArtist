@@ -3,11 +3,15 @@ namespace OtdWindowsHelper.Domain;
 /// <summary>
 /// One pen reading fed to the Test canvas, normalized so the canvas doesn't care which source
 /// produced it. <see cref="X"/>/<see cref="Y"/> are 0..1 across the drawing surface;
-/// <see cref="Pressure"/> is 0..1; tilt/twist are in degrees.
+/// <see cref="Pressure"/> is 0..1; tilt/twist are in degrees. <see cref="RawX"/>/<see cref="RawY"/>
+/// carry the source's pre-normalization coordinates (tablet units for Driver input, control DIPs
+/// for App input) — shown in the readouts to help debug coordinate mapping.
 /// </summary>
 public readonly record struct PenSample(
     double X,
     double Y,
+    double RawX,
+    double RawY,
     double Pressure,
     double TiltX,
     double TiltY,

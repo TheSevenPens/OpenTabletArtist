@@ -24,38 +24,46 @@
                         Theme="{StaticResource GhostButton}" Padding="14,6" />
             </WrapPanel>
 
-            <!-- Live readouts -->
-            <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Pressure: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding PressureText}" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}" />
+            <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
+                 shift the row; monospace values keep the digits from jittering. -->
+            <UniformGrid Columns="4" Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Pressure:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding PressureText}" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Tilt X: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TiltXText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Raw X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding RawXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Tilt Y: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TiltYText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Raw Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding RawYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Azimuth: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding AzimuthText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Twist:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding TwistText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Altitude: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding AltitudeText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Tilt X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding TiltXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Twist: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TwistText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Tilt Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding TiltYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
-            </WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Azimuth:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding AzimuthText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Altitude:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding AltitudeText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                </StackPanel>
+            </UniformGrid>
         </StackPanel>
 
-        <!-- Paint surface fills the rest -->
-        <Border Classes="GlassPanel" Padding="0" ClipToBounds="True" MinHeight="320">
+        <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
+        <Border Classes="GlassPanel" CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <c:PenTestCanvas x:Name="PaintCanvas"
                              BrushMode="{Binding BrushMode}"
                              AcceptPointerInput="{Binding !UseDriverInput}" />

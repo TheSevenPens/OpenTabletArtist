@@ -32,6 +32,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
 
+    [ObservableProperty] private string _rawXText = "—";
+    [ObservableProperty] private string _rawYText = "—";
     [ObservableProperty] private string _pressureText = "—";
     [ObservableProperty] private string _tiltXText = "—";
     [ObservableProperty] private string _tiltYText = "—";
@@ -50,6 +52,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Update the live readouts from any sample (app pointer or driver).</summary>
     public void UpdateReadout(PenSample s)
     {
+        RawXText = s.RawX.ToString("0.#");
+        RawYText = s.RawY.ToString("0.#");
         PressureText = s.Pressure.ToString("0.000");
         TiltXText = s.TiltX.ToString("0.0") + "°";
         TiltYText = s.TiltY.ToString("0.0") + "°";
