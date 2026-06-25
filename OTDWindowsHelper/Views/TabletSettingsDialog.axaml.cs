@@ -479,6 +479,9 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
+    [RelayCommand]
+    private void ResetSoftness() => Softness = PressureCurveSettings.Default.Softness;
+
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()
     {

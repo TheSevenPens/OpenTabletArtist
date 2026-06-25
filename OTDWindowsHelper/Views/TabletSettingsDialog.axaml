@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="using:OtdWindowsHelper.Controls"
         Title="Tablet Settings"
-        Width="700" Height="550"
+        Width="700" Height="640"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BgBaseBrush}"
         CanResize="True">
@@ -29,7 +29,7 @@
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Pen Buttons" x:Name="PenButtonsTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="Pressure" x:Name="PressureTab"
+            <RadioButton Content="Dynamics" x:Name="DynamicsTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Filters" x:Name="FiltersTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
@@ -200,9 +200,9 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pressure tab content -->
+        <!-- Dynamics tab content -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PressureTab.IsChecked}">
+                      IsVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <!-- Enable + intro -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
@@ -221,15 +221,16 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Chart -->
+                <!-- Chart (1:1 square plot — width drives the square, so cap + center it) -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}" Height="230" />
+                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
+                                             Width="300" HorizontalAlignment="Center" />
                 </Border>
 
                 <!-- Controls -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
-                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,4">
                             <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
                             <Slider Grid.Column="1" Minimum="-0.95" Maximum="0.95"
@@ -238,6 +239,12 @@
                                        FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
                                        Width="44" TextAlignment="Right"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Grid.Column="3" Command="{Binding ResetSoftnessCommand}"
+                                    Theme="{StaticResource IconButton}" Margin="4,0,0,0"
+                                    ToolTip.Tip="Reset softness to 0 (linear)">
+                                <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </Button>
                         </Grid>
                         <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="90,0,0,8"
