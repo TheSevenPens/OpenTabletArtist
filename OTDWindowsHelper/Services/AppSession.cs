@@ -169,6 +169,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonSourcePath = "";
             HasTablet = false;
             TabletName = "";
+            _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
         });
     }
@@ -312,8 +313,36 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
 
             DataLoaded?.Invoke();
+
+            // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
+            // connection). Fire-and-forget so it can't stall the load.
+            _ = EnsurePressurePluginAsync();
         }
         catch { /* Data load failed — will retry on next connection/poll */ }
+    }
+
+    private readonly PressurePluginInstaller _pluginInstaller = new();
+    private bool _pluginEnsured;
+
+    private async Task EnsurePressurePluginAsync()
+    {
+        if (_pluginEnsured || !IsAppOwnedDaemon || string.IsNullOrEmpty(PluginDirectory)) return;
+        _pluginEnsured = true;
+        var dir = PluginDirectory;
+        var outcome = await Task.Run(() => _pluginInstaller.EnsureInstalled(dir));
+        switch (outcome)
+        {
+            case PluginInstallOutcome.Installed:
+                // Fresh directory the daemon hadn't loaded at startup — a load imports it.
+                await _daemon.LoadPluginsAsync();
+                break;
+            case PluginInstallOutcome.Updated:
+                // The daemon already loaded the old assembly at startup, and LoadPlugins won't
+                // replace an already-loaded directory, so restart it to pick up the new DLL
+                // (Codex #98). On reconnect the plugin is up to date, so this can't loop.
+                await RestartDaemon();
+                break;
+        }
     }
 
     private async Task PollDataAsync()
