@@ -33,11 +33,14 @@ public partial class TestView : UserControl
         }
     }
 
-    // The canvas always draws from the pointer; its samples update the readouts only in App mode
-    // (in Driver mode the daemon stream drives the readouts instead).
+    // The canvas always draws from the pointer. Its samples drive the Canvas X/Y readout in both
+    // modes (that's where the stroke lands); the source-dependent readouts come from the canvas
+    // sample only in App mode — in Driver mode the daemon stream drives them.
     private void OnCanvasSample(PenSample s)
     {
-        if (_vm is { UseDriverInput: false }) _vm.UpdateReadout(s);
+        if (_vm is null) return;
+        _vm.UpdateCanvasPosition(s.RawX, s.RawY); // RawX/RawY of a pointer sample = canvas DIPs
+        if (!_vm.UseDriverInput) _vm.UpdateReadout(s);
     }
 
     // Driver stream: update the readouts and feed the canvas the daemon's pressure/tilt so the

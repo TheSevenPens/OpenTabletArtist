@@ -32,6 +32,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
 
+    [ObservableProperty] private string _canvasXText = "—";
+    [ObservableProperty] private string _canvasYText = "—";
     [ObservableProperty] private string _rawXText = "—";
     [ObservableProperty] private string _rawYText = "—";
     [ObservableProperty] private string _pressureText = "—";
@@ -49,7 +51,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Clear() => ClearRequested?.Invoke();
 
-    /// <summary>Update the live readouts from any sample (app pointer or driver).</summary>
+    /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).</summary>
+    public void UpdateCanvasPosition(double x, double y)
+    {
+        CanvasXText = x.ToString("0.#");
+        CanvasYText = y.ToString("0.#");
+    }
+
+    /// <summary>Update the source-dependent readouts (raw coords, pressure, tilt) from a sample.</summary>
     public void UpdateReadout(PenSample s)
     {
         RawXText = s.RawX.ToString("0.#");
