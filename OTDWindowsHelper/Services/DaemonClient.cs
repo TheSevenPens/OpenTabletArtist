@@ -183,8 +183,21 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
             send = enabled ? ++_debugRefCount == 1
                            : _debugRefCount > 0 && --_debugRefCount == 0;
 
-        if (send)
+        if (!send) return;
+
+        try
+        {
             await _rpc.InvokeAsync("SetTabletDebug", enabled);
+        }
+        catch
+        {
+            // The enable didn't take, so undo the acquire — otherwise the count stays >0 and a later
+            // acquire would suppress the enable RPC, leaving consumers "active" with no stream.
+            // (A failed disable is fine to leave at 0: the next enable re-asserts it.) (Codex #119)
+            if (enabled)
+                lock (_debugLock) { if (_debugRefCount > 0) _debugRefCount--; }
+            throw; // callers already catch and treat as a failed start/stop
+        }
     }
 
     // --- Plugin management ---
