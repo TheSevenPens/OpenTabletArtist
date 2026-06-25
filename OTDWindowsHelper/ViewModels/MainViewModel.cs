@@ -52,7 +52,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
-        Test = new TestViewModel(_session.Daemon);
+        Test = new TestViewModel(_session.Daemon, _session, dialogs);
 
         CurrentPage = Dashboard;
 

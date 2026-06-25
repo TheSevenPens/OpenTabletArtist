@@ -1,6 +1,7 @@
 <Window x:Class="OtdWindowsHelper.Views.TabletSettingsDialog"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="using:OtdWindowsHelper.Controls"
         Title="Tablet Settings"
         Width="700" Height="550"
         WindowStartupLocation="CenterOwner"
@@ -27,6 +28,8 @@
             <RadioButton Content="Pen Tip &amp; Eraser" x:Name="PenTipTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Pen Buttons" x:Name="PenButtonsTab"
+                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+            <RadioButton Content="Pressure" x:Name="PressureTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Filters" x:Name="FiltersTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
@@ -192,6 +195,75 @@
                         <TextBlock Text="No auxiliary buttons configured" FontSize="11" FontStyle="Italic"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
                                    IsVisible="{Binding NoAuxButtons}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pressure tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PressureTab.IsChecked}">
+            <StackPanel IsEnabled="{Binding CanEditPressure}">
+                <!-- Enable + intro -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
+                                <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Text="Remaps pen pressure for every app (Krita, CSP, …) via the OTD Windows Helper filter. Drag the pink (min) and cyan (max) nodes; tune the bend with Softness." />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Top"
+                                          OnContent="On" OffContent="Off"
+                                          IsChecked="{Binding PressureCurveEnabled}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Chart -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}" Height="230" />
+                </Border>
+
+                <!-- Controls -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <Slider Grid.Column="1" Minimum="-0.95" Maximum="0.95"
+                                    Value="{Binding Softness, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding SoftnessText}" FontSize="12"
+                                       FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
+                                       Width="44" TextAlignment="Right"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </Grid>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="90,0,0,8"
+                                   Text="Positive = lighter touch (concave) · Negative = firmer (convex)" />
+
+                        <CheckBox Content="Cut below input minimum (dead zone instead of a pressure floor)"
+                                  IsChecked="{Binding CutBelowMinimum}" FontSize="12" Margin="0,0,0,8"
+                                  Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="MIN NODE" Classes="SectionLabel" />
+                                <TextBlock Text="{Binding CurveMinText}" FontSize="11"
+                                           FontFamily="Consolas, Cascadia Code" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="MAX NODE" Classes="SectionLabel" />
+                                <TextBlock Text="{Binding CurveMaxText}" FontSize="11"
+                                           FontFamily="Consolas, Cascadia Code" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Content="Reset" Theme="{StaticResource GhostButton}"
+                                    Command="{Binding ResetCurveCommand}" Padding="12,6" FontSize="11"
+                                    VerticalAlignment="Bottom" />
+                        </Grid>
                     </StackPanel>
                 </Border>
             </StackPanel>

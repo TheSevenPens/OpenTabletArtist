@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OtdWindowsHelper.Domain;
@@ -18,12 +19,27 @@ namespace OtdWindowsHelper.ViewModels;
 public partial class TestViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonPenInputSource _driver;
+    private readonly IDeviceData _deviceData;
+    private readonly IDialogService _dialogs;
     private bool _active;
 
-    public TestViewModel(IDaemonDebugSession daemon)
+    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData, IDialogService dialogs)
     {
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
+        _deviceData = deviceData;
+        _dialogs = dialogs;
+    }
+
+    /// <summary>Open the per-tablet settings dialog (e.g. the Pressure tab) without leaving Test —
+    /// targets the detected tablet, falling back to the first known profile.</summary>
+    [RelayCommand]
+    private async Task OpenTabletSettings()
+    {
+        var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
+                       ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
+        if (profile != null)
+            await _dialogs.ShowTabletSettingsAsync(profile);
     }
 
     /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>
