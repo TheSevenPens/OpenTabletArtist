@@ -126,6 +126,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
     public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
 
+    /// <summary>A connect attempt is in flight (e.g. the ~5s initial auto-connect at startup) but the
+    /// daemon hasn't answered yet — used to show a "Connecting…" indicator instead of a bare
+    /// "Not connected".</summary>
+    public bool IsConnecting => !IsConnected && ConnectionStatus == "Connecting...";
+
+    /// <summary>Show the indeterminate activity indicator for either a lifecycle op or the initial connect.</summary>
+    public bool ShowDaemonActivity => IsDaemonBusy || IsConnecting;
+
+    /// <summary>Phase text for the activity indicator.</summary>
+    public string DaemonActivityText => IsDaemonBusy ? DaemonOperationStatus : "Connecting…";
+
+    /// <summary>Offer "Start" only when not connected and not already mid-connect.</summary>
+    public bool ShowStartButton => !IsConnected && !IsConnecting;
+
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
     [ObservableProperty] private bool _hasTablet;
@@ -183,9 +197,23 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     partial void OnIsConnectedChanged(bool value)
     {
-        DaemonStatusText = value ? "Daemon running" : "Not connected";
         OnPropertyChanged(nameof(CanStartDaemon));
         NotifyOwnership();
+        UpdateDaemonActivity();
+    }
+
+    partial void OnConnectionStatusChanged(string value) => UpdateDaemonActivity();
+    partial void OnIsDaemonBusyChanged(bool value) => UpdateDaemonActivity();
+    partial void OnDaemonOperationStatusChanged(string value) => UpdateDaemonActivity();
+
+    /// <summary>Recompute the daemon status text + activity indicators from the connect/op state.</summary>
+    private void UpdateDaemonActivity()
+    {
+        DaemonStatusText = IsConnected ? "Daemon running" : IsConnecting ? "Connecting…" : "Not connected";
+        OnPropertyChanged(nameof(IsConnecting));
+        OnPropertyChanged(nameof(ShowDaemonActivity));
+        OnPropertyChanged(nameof(DaemonActivityText));
+        OnPropertyChanged(nameof(ShowStartButton));
     }
 
     partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();

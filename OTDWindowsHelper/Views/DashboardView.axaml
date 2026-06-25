@@ -88,10 +88,10 @@
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </Button>
-                        <!-- Start button: show when NOT connected -->
+                        <!-- Start button: show when NOT connected and not mid-connect -->
                         <Button Content="Start" Theme="{StaticResource AccentButton}"
                                 Command="{Binding StartDaemonCommand}"
-                                IsVisible="{Binding !IsConnected}"
+                                IsVisible="{Binding ShowStartButton}"
                                 IsEnabled="{Binding !IsDaemonBusy}"
                                 Padding="12,6" FontSize="12" />
                         <!-- Restart button: show when connected -->
@@ -109,11 +109,13 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Busy: indeterminate progress + live phase text while a lifecycle op runs -->
-                <StackPanel IsVisible="{Binding IsDaemonBusy}" Margin="0,12,0,0">
+                <!-- Activity: indeterminate progress + phase text while a lifecycle op runs OR while
+                     the initial connect is in flight (so startup shows "Connecting…" instead of a
+                     bare "Not connected" with nothing happening). -->
+                <StackPanel IsVisible="{Binding ShowDaemonActivity}" Margin="0,12,0,0">
                     <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,6"
                                  Foreground="{DynamicResource AccentBrush}" />
-                    <TextBlock Text="{Binding DaemonOperationStatus}" FontSize="11"
+                    <TextBlock Text="{Binding DaemonActivityText}" FontSize="11"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
 
