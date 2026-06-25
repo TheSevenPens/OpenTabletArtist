@@ -249,7 +249,28 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
 
-        // Filters
+        // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
+        // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
+        UpdateFiltersDisplay();
+
+        // Pen dynamics — curve + smoothing (load without triggering a persist)
+        var pc = PressureCurveProfile.Read(_settings, _profile.Tablet ?? "");
+        var dynamics = pc?.Dynamics ?? PenDynamicsSettings.Default;
+        _skipCurvePersist = true;
+        Curve = dynamics.Curve;
+        PressureSmoothing = dynamics.PressureSmoothing;
+        PositionSmoothing = dynamics.PositionSmoothing;
+        SmoothAfterCurve = dynamics.SmoothAfterCurve;
+        PressureCurveEnabled = pc?.Enabled ?? false;
+        _skipCurvePersist = false;
+        CanEditPressure = _applyAction != null;
+    }
+
+    /// <summary>Recomputes the Filters-tab list and the raw-JSON view from the current
+    /// <see cref="_profile"/>. Called on a full refresh and again after a dynamics edit persists,
+    /// so the Filters tab tracks the DynamicsFilter's enabled state without a manual Refresh.</summary>
+    private void UpdateFiltersDisplay()
+    {
         if (_profile.Filters.Count > 0)
         {
             var filterNames = _profile.Filters.Select(f =>
@@ -265,19 +286,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             FiltersText = "No filters configured";
         }
 
-        // Pen dynamics — curve + smoothing (load without triggering a persist)
-        var pc = PressureCurveProfile.Read(_settings, _profile.Tablet ?? "");
-        var dynamics = pc?.Dynamics ?? PenDynamicsSettings.Default;
-        _skipCurvePersist = true;
-        Curve = dynamics.Curve;
-        PressureSmoothing = dynamics.PressureSmoothing;
-        PositionSmoothing = dynamics.PositionSmoothing;
-        SmoothAfterCurve = dynamics.SmoothAfterCurve;
-        PressureCurveEnabled = pc?.Enabled ?? false;
-        _skipCurvePersist = false;
-        CanEditPressure = _applyAction != null;
-
-        // Raw JSON
         RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
     }
 
@@ -545,6 +553,9 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         if (_applyAction == null || _settings == null) return;
         var dynamics = new PenDynamicsSettings(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
         PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, PressureCurveEnabled);
+        // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
+        // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
+        UpdateFiltersDisplay();
         await _applyAction(_settings);
     }
 }
