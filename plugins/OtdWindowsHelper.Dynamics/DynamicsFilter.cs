@@ -76,12 +76,21 @@ public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
 
         if (value is ITabletReport report)
         {
-            if (report.Pressure == 0)
+            var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
+            var settings = _processor.Settings;
+            double norm = max > 0 ? report.Pressure / (double)max : 0;
+
+            // "Drawing" means the curve actually emits pressure. Both hover (raw 0) and the Cut/Clamp
+            // dead zone (raw > 0 but mapped to 0) count as not-drawing: zero the output and reset
+            // smoothing so the first real sample starts crisp — no lag/fly-in carried over from the
+            // pre-stroke approach (Codex #106). Position is smoothed only while drawing, so a pen-out
+            // coordinate is never folded into the next stroke either.
+            bool drawing = max > 0 && report.Pressure > 0
+                           && Domain.PressureCurve.Apply(norm, settings.Curve) > 0;
+
+            if (!drawing)
             {
-                // Hover / pen up: leave pressure 0 untouched (Output Minimum applies only when the pen
-                // is down) and reset smoothing so the next stroke starts crisp. Smoothing only while
-                // drawing — and resetting on lift — steadies stroke starts/ends without depending on
-                // proximity reports (Slimy Scylla's "apply while drawing" default).
+                report.Pressure = 0;
                 _processor.Reset();
             }
             else
@@ -92,12 +101,8 @@ public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
                     report.Position = new Vector2((float)x, (float)y);
                 }
 
-                var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
-                if (max > 0)
-                {
-                    var outPressure = _processor.ProcessPressure(report.Pressure / (double)max);
-                    report.Pressure = (uint)Math.Round(outPressure * max);
-                }
+                var outPressure = _processor.ProcessPressure(norm);
+                report.Pressure = (uint)Math.Round(outPressure * max);
             }
         }
 

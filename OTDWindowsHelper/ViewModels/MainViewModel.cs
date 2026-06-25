@@ -92,6 +92,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsUtilities));
         OnPropertyChanged(nameof(IsDiagnostics));
         OnPropertyChanged(nameof(IsTest));
+        OnPropertyChanged(nameof(IsPlugins));
         OnPropertyChanged(nameof(IsAbout));
     }
 
