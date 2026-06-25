@@ -28,7 +28,7 @@ public class PressurePluginInstallerTests
     }
 
     [Fact]
-    public void CopyIfNeeded_CopiesWhenMissing_ThenSkipsWhenUpToDate()
+    public void CopyIfNeeded_FreshThenUpToDate()
     {
         var dir = TempDir();
         try
@@ -37,17 +37,17 @@ public class PressurePluginInstallerTests
             File.WriteAllText(src, "v1");
             var pluginDir = Path.Combine(dir, "plugins");
 
-            Assert.True(PressurePluginInstaller.CopyIfNeeded(src, pluginDir));     // first copy
+            Assert.Equal(PluginInstallOutcome.Installed, PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
             var dest = Path.Combine(pluginDir, "OtdWindowsHelperPressureCurve", "OtdWindowsHelper.PressureCurve.dll");
             Assert.True(File.Exists(dest));
 
-            Assert.False(PressurePluginInstaller.CopyIfNeeded(src, pluginDir));    // already up to date
+            Assert.Equal(PluginInstallOutcome.None, PressurePluginInstaller.CopyIfNeeded(src, pluginDir)); // up to date
         }
         finally { Directory.Delete(dir, true); }
     }
 
     [Fact]
-    public void CopyIfNeeded_RecopiesWhenSourceChanges()
+    public void CopyIfNeeded_OverwriteReportsUpdated()
     {
         var dir = TempDir();
         try
@@ -55,10 +55,10 @@ public class PressurePluginInstallerTests
             var src = Path.Combine(dir, "src.dll");
             File.WriteAllText(src, "v1");
             var pluginDir = Path.Combine(dir, "plugins");
-            Assert.True(PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
+            Assert.Equal(PluginInstallOutcome.Installed, PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
 
             File.WriteAllText(src, "v2-longer-content"); // different size + newer
-            Assert.True(PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
+            Assert.Equal(PluginInstallOutcome.Updated, PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
             var dest = Path.Combine(pluginDir, "OtdWindowsHelperPressureCurve", "OtdWindowsHelper.PressureCurve.dll");
             Assert.Equal("v2-longer-content", File.ReadAllText(dest));
         }
@@ -66,8 +66,9 @@ public class PressurePluginInstallerTests
     }
 
     [Fact]
-    public void CopyIfNeeded_MissingSource_IsNoOp()
-        => Assert.False(PressurePluginInstaller.CopyIfNeeded(Path.Combine("C:", "nope", "x.dll"), Path.Combine("C:", "plugins")));
+    public void CopyIfNeeded_MissingSource_IsNone()
+        => Assert.Equal(PluginInstallOutcome.None,
+            PressurePluginInstaller.CopyIfNeeded(Path.Combine("C:", "nope", "x.dll"), Path.Combine("C:", "plugins")));
 
     private static string TempDir()
     {
