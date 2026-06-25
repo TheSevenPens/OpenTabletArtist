@@ -99,10 +99,6 @@
                             <TextBlock Text="PEN TIP" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding TipBinding}" />
-                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
-                                       IsVisible="{Binding TipPressure, Converter={StaticResource NonEmptyToBool}}">
-                                <Run Text="Activation threshold: " /><Run Text="{Binding TipPressure}" />
-                            </TextBlock>
                             <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -122,10 +118,6 @@
                             <TextBlock Text="ERASER" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding EraserBinding}" />
-                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
-                                       IsVisible="{Binding EraserPressure, Converter={StaticResource NonEmptyToBool}}">
-                                <Run Text="Activation threshold: " /><Run Text="{Binding EraserPressure}" />
-                            </TextBlock>
                             <TextBlock Text="Not using recommended Adaptive Binding"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"

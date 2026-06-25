@@ -171,9 +171,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         // Bindings
         var bindings = _profile.BindingSettings;
         TipBinding = GetBindingName(bindings.TipButton);
-        TipPressure = bindings.TipActivationThreshold.ToString("F1");
         EraserBinding = GetBindingName(bindings.EraserButton);
-        EraserPressure = bindings.EraserActivationThreshold.ToString("F1");
         CanFixTip = !IsAdaptive(bindings.TipButton) && _applyAction != null;
         CanFixEraser = !IsAdaptive(bindings.EraserButton) && _applyAction != null;
 
@@ -400,10 +398,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public bool HasAreaMapping { get; }
     public ObservableCollection<DisplayInfo> Displays { get; }
     [ObservableProperty] private string _tipBinding = "None";
-    [ObservableProperty] private string _tipPressure = "";
     [ObservableProperty] private bool _canFixTip;
     [ObservableProperty] private string _eraserBinding = "None";
-    [ObservableProperty] private string _eraserPressure = "";
     [ObservableProperty] private bool _canFixEraser;
     [ObservableProperty] private string _penButtonCount = "0";
     [ObservableProperty] private string _auxButtonCount = "0";
