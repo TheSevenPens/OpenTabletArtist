@@ -55,6 +55,16 @@ jobs:
       - name: Publish daemon into the app's Daemon/ folder
         run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -o publish/OTDWindowsHelper/Daemon
 
+      # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
+      # at runtime (PressurePluginInstaller looks for BundledPlugins/<folder>/ next to the app first).
+      - name: Bundle the pressure-curve plugin
+        shell: pwsh
+        run: |
+          dotnet build plugins/OtdWindowsHelper.PressureCurve/OtdWindowsHelper.PressureCurve.csproj -c Release
+          $dest = "publish/OTDWindowsHelper/BundledPlugins/OtdWindowsHelperPressureCurve"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Copy-Item "plugins/OtdWindowsHelper.PressureCurve/bin/Release/net8.0/OtdWindowsHelper.PressureCurve.dll" $dest
+
       - name: Package zip
         shell: pwsh
         run: Compress-Archive -Path publish/OTDWindowsHelper/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force

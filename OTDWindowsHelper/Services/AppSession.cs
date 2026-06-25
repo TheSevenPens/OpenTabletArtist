@@ -169,6 +169,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonSourcePath = "";
             HasTablet = false;
             TabletName = "";
+            _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
         });
     }
@@ -312,8 +313,24 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
 
             DataLoaded?.Invoke();
+
+            // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
+            // connection). Fire-and-forget so it can't stall the load.
+            _ = EnsurePressurePluginAsync();
         }
         catch { /* Data load failed — will retry on next connection/poll */ }
+    }
+
+    private readonly PressurePluginInstaller _pluginInstaller = new();
+    private bool _pluginEnsured;
+
+    private async Task EnsurePressurePluginAsync()
+    {
+        if (_pluginEnsured || !IsAppOwnedDaemon || string.IsNullOrEmpty(PluginDirectory)) return;
+        _pluginEnsured = true;
+        var dir = PluginDirectory;
+        var copied = await Task.Run(() => _pluginInstaller.EnsureInstalled(dir));
+        if (copied) await _daemon.LoadPluginsAsync();
     }
 
     private async Task PollDataAsync()
