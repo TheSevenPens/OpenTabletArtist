@@ -52,7 +52,8 @@ public class DialogService : IDialogService
                 return _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
             },
             digitizer,
-            openDynamics);
+            openDynamics,
+            _session.Daemon); // live pen-pressure dot on the Dynamics tab (#102)
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)
