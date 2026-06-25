@@ -72,8 +72,20 @@
 
         <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
         <Border Classes="GlassPanel" CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
-            <c:PenTestCanvas x:Name="PaintCanvas"
-                             BrushMode="{Binding BrushMode}" />
+            <Grid>
+                <c:PenTestCanvas x:Name="PaintCanvas"
+                                 BrushMode="{Binding BrushMode}" />
+                <!-- Driver-input painting needs an Absolute output mode; otherwise show why the
+                     canvas is disabled (#95). -->
+                <Border IsVisible="{Binding DriverCanvasDisabled}"
+                        Background="#E6F5F5F0" Padding="32">
+                    <TextBlock Text="{Binding DriverDisabledNote}"
+                               FontSize="13" MaxWidth="420" TextWrapping="Wrap"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </Border>
+            </Grid>
         </Border>
     </DockPanel>
 </UserControl>

@@ -1,7 +1,10 @@
 using System;
 using System.Linq;
+using System.Numerics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Newtonsoft.Json.Linq;
+using OpenTabletDriver.Desktop.Profiles;
 using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.Services;
 
@@ -29,6 +32,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _driver.Sample += OnDriverSample;
         _deviceData = deviceData;
         _dialogs = dialogs;
+        _deviceData.DataLoaded += RecomputeMapping;
     }
 
     /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
@@ -89,11 +93,88 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     private void OnDriverSample(PenSample s) => DriverSample?.Invoke(s);
 
+    // --- Driver-input position mapping (#95) ---
+    // In Driver mode the canvas paints under the pen by mapping the daemon's raw tablet position
+    // through OTD's Absolute-mode transform. Only works in an Absolute output mode; in Relative the
+    // canvas is disabled with a note.
+
+    private (TabletDigitizerSpec Digi, MappingArea Input, MappingArea Output, bool Clip, bool Limit)? _mapping;
+
+    /// <summary>Driver mode + an Absolute output mode we can map → paint at the mapped position.</summary>
+    public bool DriverPositioned => UseDriverInput && _mapping.HasValue;
+
+    /// <summary>Driver mode but no usable Absolute mapping → canvas disabled, show the note.</summary>
+    public bool DriverCanvasDisabled => UseDriverInput && !_mapping.HasValue;
+
+    public string DriverDisabledNote =>
+        "Driver-input painting needs an Absolute output mode (e.g. Windows Ink Absolute) on the active " +
+        "tablet, so the raw pen position can be mapped to the screen. The current mode doesn't map " +
+        "position, so the canvas is disabled while in Driver input. Switch to App input, or set this " +
+        "tablet to Windows Ink Absolute.";
+
+    /// <summary>Map a raw tablet point to a virtual-desktop pixel, or null if not mappable.</summary>
+    public Vector2? MapRawToDesktop(double rawX, double rawY) =>
+        _mapping is { } m
+            ? AbsolutePositionMapper.MapToDesktop(new Vector2((float)rawX, (float)rawY), m.Digi, m.Input, m.Output, m.Clip, m.Limit)
+            : null;
+
+    private void RecomputeMapping()
+    {
+        _mapping = BuildMapping();
+        OnPropertyChanged(nameof(DriverPositioned));
+        OnPropertyChanged(nameof(DriverCanvasDisabled));
+    }
+
+    private (TabletDigitizerSpec, MappingArea, MappingArea, bool, bool)? BuildMapping()
+    {
+        var profile = ActiveProfile();
+        // Absolute output modes (OTD AbsoluteOutputMode + VoiD's WinInkAbsoluteMode) carry "Absolute"
+        // in their type path; Relative modes don't map an absolute position.
+        if (profile?.OutputMode?.Path is not { } path ||
+            !path.Contains("Absolute", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var abs = profile.AbsoluteModeSettings;
+        if (abs?.Tablet is not { } t || abs.Display is not { } disp) return null;
+        if (t.Width <= 0 || t.Height <= 0 || disp.Width <= 0 || disp.Height <= 0) return null;
+        if (ReadDigitizer(profile.Tablet) is not { } digi) return null;
+
+        return (digi,
+            new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation),
+            new MappingArea(disp.X, disp.Y, disp.Width, disp.Height),
+            abs.EnableClipping, abs.EnableAreaLimiting);
+    }
+
+    private Profile? ActiveProfile()
+    {
+        var profiles = _deviceData.Profiles;
+        return profiles.FirstOrDefault(p => p.Profile.Tablet == _deviceData.TabletName)?.Profile
+            ?? profiles.FirstOrDefault(p => p.IsDetected)?.Profile
+            ?? profiles.FirstOrDefault()?.Profile;
+    }
+
+    private TabletDigitizerSpec? ReadDigitizer(string? tabletName)
+    {
+        if (_deviceData.Tablets is not JArray tablets || string.IsNullOrEmpty(tabletName)) return null;
+        foreach (var tk in tablets)
+        {
+            var props = tk["Properties"] ?? tk;
+            if (props["Name"]?.ToString() != tabletName) continue;
+            var d = props["Specifications"]?["Digitizer"];
+            if (d == null) return null;
+            float w = d["Width"]?.Value<float>() ?? 0, h = d["Height"]?.Value<float>() ?? 0;
+            float mx = d["MaxX"]?.Value<float>() ?? 0, my = d["MaxY"]?.Value<float>() ?? 0;
+            return w > 0 && h > 0 && mx > 0 && my > 0 ? new TabletDigitizerSpec(w, h, mx, my) : null;
+        }
+        return null;
+    }
+
     // --- page lifecycle (called by the shell on navigation, like Diagnostics) ---
 
     public async Task ActivateAsync()
     {
         _active = true;
+        RecomputeMapping(); // data may already be loaded before the page is shown
         if (UseDriverInput) await _driver.StartAsync();
     }
 
@@ -105,12 +186,16 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     partial void OnUseDriverInputChanged(bool value)
     {
+        // The position-source state depends on the toggle.
+        OnPropertyChanged(nameof(DriverPositioned));
+        OnPropertyChanged(nameof(DriverCanvasDisabled));
         if (!_active) return;
         _ = value ? _driver.StartAsync() : _driver.StopAsync();
     }
 
     public void Dispose()
     {
+        _deviceData.DataLoaded -= RecomputeMapping;
         _driver.Sample -= OnDriverSample;
         _ = _driver.StopAsync();
     }
