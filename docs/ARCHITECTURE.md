@@ -83,6 +83,28 @@ The Test page is a paint canvas for confirming pressure / tilt / twist actually 
 - **Readouts** reflect the selected source: Canvas X/Y (where the stroke lands, always the pointer) vs Raw X/Y (the source's pre-normalization coords — tablet units in Driver mode), plus pressure/tilt/azimuth/altitude/twist (azimuth & altitude reuse `DiagnosticsMath`).
 - **Lifecycle**: the shell starts/stops the daemon debug stream on Test page enter/leave (same treatment as Diagnostics). Delete/Backspace clear the canvas.
 
+#### Daemon communication
+
+How the app actually talks to the daemon, end to end.
+
+**Transport.** A Windows **named pipe** (`"OpenTabletDriver.Daemon"`) carrying **JSON-RPC** via StreamJsonRpc. The client connects with `NamedPipeClientStream` (`Asynchronous | WriteThrough | CurrentUserOnly`) and wraps it in `new JsonRpc(stream)` — the bare constructor on purpose, because the daemon uses StreamJsonRpc's default **newline-delimited framing** (specifying a header-delimited handler would break it). StreamJsonRpc serializes with **Newtonsoft.Json**, which is why request/response payloads come back as `JToken`/`JArray`, not `System.Text.Json` types.
+
+**Client API (`Services/DaemonClient.cs`).** A thin typed wrapper over the RPC methods, using OTD's own model types (from the submodule) so writes round-trip exactly like OTD's UX:
+- `GetSettings()` / `SetSettings(Settings)`, `GetApplicationInfo()`, `GetTablets()` (returns `JArray` — complex runtime data we parse selectively), `CheckForUpdates()`
+- plugins: `DownloadPlugin` / `UninstallPlugin` / `LoadPlugins`
+- `SetTabletDebug(bool)` — toggles the live pen stream
+- **Server → client push:** the client registers a *local* RPC method via `AddLocalRpcMethod("DeviceReport", …)`; the daemon invokes it to push pen reports, which `DaemonClient` re-raises as its `DeviceReport` event (consumed by Diagnostics and the Test tab's Driver mode). `IsConnected` is derived from the live `JsonRpc` instance.
+
+**Connect / reconnect lifecycle (`Services/AppSession.cs`).** `AppSession` owns the client and drives connection:
+1. `StartAndConnectAsync()` launches the daemon exe (via `DaemonLifecycleService`) if none is running, then connects.
+2. `ConnectAsync()` is **fire-and-forget**: it triggers a connect loop through `Concurrency/CoalescingSingleFlight` so only one connect runs at a time and a request arriving mid-connect is honored once (latest-wins) — closing the dropped-reconnect race.
+3. On success the client raises **`Connected`** → `AppSession` runs the data load (settings + tablets + app-info, coalesced by `Concurrency/LatestOnlyGate` so overlapping loads don't clobber each other) and starts a periodic poll (~3s) so newly-plugged tablets are detected.
+4. On an unexpected drop the `JsonRpc.Disconnected` handler nulls the dead RPC, raises **`Disconnected`**, and — **only if `AutoReconnect` is set** — kicks off another connect. A user-initiated **Stop** clears `AutoReconnect` first, so "stopped" stays stopped; Start/Restart/Connect set it back.
+
+**Threading.** Reports and connect/disconnect callbacks arrive off the UI thread; `AppSession` marshals to the dispatcher before mutating observable state (and `Dispatcher.UIThread.VerifyAccess()` guards the load/settings entry points), so binders and page VMs never have to marshal.
+
+**Identity.** Because the pipe name is global, the app may connect to a separately-installed OTD instead of its own build — see *Daemon identity verification* under Technical Challenges for how that's detected (`GetNamedPipeServerProcessId`).
+
 ### OTD Daemon (external)
 
 **Role:** The actual tablet driver. Manages USB/HID communication with tablet hardware, applies input processing (smoothing, area mapping, bindings), and exposes a configuration API over a named pipe.
