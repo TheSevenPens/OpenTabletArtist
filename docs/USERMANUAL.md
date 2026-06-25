@@ -34,7 +34,7 @@ The landing page shows status cards:
 
   Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The actual daemon exe path is shown on hover (app-owned / external states).
 - **Tablet** — Detected tablet name, or "No tablet detected." Has an **Open** button to jump to the tablet's settings dialog. Updates automatically via polling.
-- **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder. Windows defers VMulti's removal until a restart, so after an Uninstall the card shows "restart Windows to finish removing the driver" (and hides the Install/Uninstall buttons) until you reboot — it then clears to "Not installed" on its own.
+- **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder. Detection reflects a *working* driver: after an uninstall, VMulti can leave behind driverless device nodes (Device Manager Code 28) that persist across reboots — these are reported as **Not installed**, not as installed.
 - **Kuuube's Windows Ink plugin** — Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins). Shows:
   - **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
   - **Output mode** — whether the active profile actually uses a Windows Ink mode ("Plugin active" / "Not configured").
