@@ -12,8 +12,9 @@ namespace OtdWindowsHelper.Services;
 /// </summary>
 public interface IDialogService
 {
-    /// <summary>Opens the per-tablet settings dialog for <paramref name="profile"/> and awaits its close.</summary>
-    Task ShowTabletSettingsAsync(Profile profile);
+    /// <summary>Opens the per-tablet settings dialog for <paramref name="profile"/> and awaits its
+    /// close. When <paramref name="openDynamics"/> is true, the Dynamics tab is preselected.</summary>
+    Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false);
 
     /// <summary>Shows an informational message with an OK button.</summary>
     Task ShowMessageAsync(string title, string message);
@@ -35,7 +36,7 @@ public class DialogService : IDialogService
 
     public DialogService(AppSession session) => _session = session;
 
-    public async Task ShowTabletSettingsAsync(Profile profile)
+    public async Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false)
     {
         var tabletName = profile.Tablet;
         var digitizer = _session.GetTabletDigitizer(tabletName);
@@ -50,7 +51,8 @@ public class DialogService : IDialogService
                 await _session.ReloadAsync();
                 return _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
             },
-            digitizer);
+            digitizer,
+            openDynamics);
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)

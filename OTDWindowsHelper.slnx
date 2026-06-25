@@ -6,7 +6,7 @@
     <Project Path="tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj" />
   </Folder>
   <Folder Name="/plugins/">
-    <Project Path="plugins/OtdWindowsHelper.PressureCurve/OtdWindowsHelper.PressureCurve.csproj" />
+    <Project Path="plugins/OtdWindowsHelper.Dynamics/OtdWindowsHelper.Dynamics.csproj" />
   </Folder>
   <Project Path="OTDWindowsHelper/OtdWindowsHelper.csproj" />
 </Solution>

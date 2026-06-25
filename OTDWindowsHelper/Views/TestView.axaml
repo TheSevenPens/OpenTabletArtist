@@ -19,9 +19,9 @@
                           MinWidth="170" VerticalAlignment="Center" Margin="0,0,20,0" />
                 <Button Content="Clear" Command="{Binding ClearCommand}"
                         Theme="{StaticResource GhostButton}" Padding="14,6" />
-                <Button Content="Tablet Settings" Command="{Binding OpenTabletSettingsCommand}"
+                <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
                         Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
-                        ToolTip.Tip="Open this tablet's settings (e.g. the Pressure curve) without leaving Test" />
+                        ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Test" />
             </WrapPanel>
 
             <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't

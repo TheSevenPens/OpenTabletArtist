@@ -52,7 +52,10 @@ The settings dialog has six tabs:
 - **Screen Mapping** — Output mode selection (Windows Ink Absolute / Relative via radio buttons, with warning + Fix if using a non-Windows Ink mode). Display selection as radio buttons including "All displays" for multi-monitor setups. Selecting a display immediately maps the tablet to it with aspect ratio lock enforced.
 - **Pen Tip & Eraser** — Current tip and eraser bindings with Fix buttons to set Adaptive Binding (recommended for creatives).
 - **Pen Buttons** — Pen and auxiliary button bindings with Fix button to set all to Adaptive Binding.
-- **Pressure** — An interactive pressure-curve editor. Toggle it on to apply a custom curve to this tablet's profile; the curve is enforced by the bundled *OTD Windows Helper – Pressure Curve* filter, so it affects **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one. Drag the pink **min** node and cyan **max** node to set where pressure starts and saturates (input → output), use the **Softness** slider to bend the response (positive = lighter/concave, negative = firmer/convex), and tick **Cut below input minimum** to turn the lead-in into a dead zone instead of a pressure floor. Edits are debounced and applied to the daemon automatically; **Reset** restores the identity curve.
+- **Dynamics** — An interactive pressure-curve editor **plus smoothing**. Toggle it on to apply custom pen dynamics to this tablet's profile; they're enforced by the bundled *OTD Windows Helper – Pen Dynamics* filter, so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one.
+  - **Curve** — drag the pink **min** node and cyan **max** node to set where pressure starts and saturates (input → output), use the **Softness** slider to bend the response (positive = lighter/concave, negative = firmer/convex; the ↺ button resets it to linear), and tick **Cut below input minimum** to turn the lead-in into a dead zone instead of a pressure floor. **Reset** restores the identity curve.
+  - **Smoothing (jitter reduction)** — **Position** smoothing steadies wobbly lines and **Pressure** smoothing evens out pressure jitter (each 0 = off to 1 = max; the amount is perceptually scaled, like Slimy Scylla, so the slider feels even across its range). **Order** chooses whether smoothing runs after the curve (*Curve → Smooth*, default) or before it. Smoothing applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over from the previous one.
+  - Edits are debounced and applied to the daemon automatically.
 - **Filters** — Configured input filters with enabled/disabled status.
 - **JSON** — Raw JSON view of the profile data.
 
@@ -100,7 +103,11 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 - **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
 - **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
 - **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
-- **Tablet Settings** — opens the per-tablet settings dialog for the detected tablet without leaving Test, so you can tweak the Pressure curve and immediately test the feel.
+- **Dynamics** — opens the detected tablet's **Dynamics** settings (pressure curve + smoothing) directly, without leaving Test, so you can tweak and immediately feel the result.
+
+### Plugins
+
+A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OTD Windows Helper – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
 
 ### About
 

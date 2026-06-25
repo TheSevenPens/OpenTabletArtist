@@ -20,10 +20,13 @@ public partial class TabletSettingsDialog : Window
     public TabletSettingsDialog(Profile profile, Settings? settings,
         Func<Settings, Task>? onApplyChanges = null,
         Func<Task<Profile?>>? onRefresh = null,
-        (float Width, float Height)? tabletDigitizer = null)
+        (float Width, float Height)? tabletDigitizer = null,
+        bool openDynamics = false)
     {
         InitializeComponent();
         DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer);
+        if (openDynamics)
+            DynamicsTab.IsChecked = true;
     }
 
     // Parameterless constructor required by Avalonia XAML loader
@@ -210,10 +213,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             FiltersText = "No filters configured";
         }
 
-        // Pressure curve (load without triggering a persist)
+        // Pen dynamics — curve + smoothing (load without triggering a persist)
         var pc = PressureCurveProfile.Read(_settings, _profile.Tablet ?? "");
+        var dynamics = pc?.Dynamics ?? PenDynamicsSettings.Default;
         _skipCurvePersist = true;
-        Curve = pc?.Curve ?? PressureCurveSettings.Default;
+        Curve = dynamics.Curve;
+        PressureSmoothing = dynamics.PressureSmoothing;
+        PositionSmoothing = dynamics.PositionSmoothing;
+        SmoothAfterCurve = dynamics.SmoothAfterCurve;
         PressureCurveEnabled = pc?.Enabled ?? false;
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
@@ -413,8 +420,30 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private PressureCurveSettings _curve = PressureCurveSettings.Default;
     [ObservableProperty] private bool _pressureCurveEnabled;
     [ObservableProperty] private bool _canEditPressure;
+
+    [ObservableProperty] private double _pressureSmoothing;
+    [ObservableProperty] private double _positionSmoothing;
+    [ObservableProperty] private bool _smoothAfterCurve = true;
+
+    public string PressureSmoothingText => PressureSmoothing.ToString("0.00");
+    public string PositionSmoothingText => PositionSmoothing.ToString("0.00");
+
     private bool _skipCurvePersist;
     private CancellationTokenSource? _persistCts;
+
+    partial void OnPressureSmoothingChanged(double value)
+    {
+        OnPropertyChanged(nameof(PressureSmoothingText));
+        SchedulePersist();
+    }
+
+    partial void OnPositionSmoothingChanged(double value)
+    {
+        OnPropertyChanged(nameof(PositionSmoothingText));
+        SchedulePersist();
+    }
+
+    partial void OnSmoothAfterCurveChanged(bool value) => SchedulePersist();
 
     /// <summary>Softness slider value, projected onto the <see cref="Curve"/> struct.</summary>
     public double Softness
@@ -453,6 +482,9 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
+    [RelayCommand]
+    private void ResetSoftness() => Softness = PressureCurveSettings.Default.Softness;
+
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()
     {
@@ -473,7 +505,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     private async Task PersistCurveAsync()
     {
         if (_applyAction == null || _settings == null) return;
-        PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", Curve, PressureCurveEnabled);
+        var dynamics = new PenDynamicsSettings(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
+        PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, PressureCurveEnabled);
         await _applyAction(_settings);
     }
 }
