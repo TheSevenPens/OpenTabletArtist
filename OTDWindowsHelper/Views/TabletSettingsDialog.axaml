@@ -148,14 +148,8 @@
                                 IsVisible="{Binding CanFixEraser}" />
                     </Grid>
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
 
-        <!-- Pen Buttons tab content -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
-            <StackPanel>
-                <!-- Pen Buttons -->
+                <!-- Pen Buttons (the buttons on the pen barrel) -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0">
@@ -191,7 +185,13 @@
                                 IsVisible="{Binding CanFixPenButtons}" />
                     </Grid>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
 
+        <!-- ExpressKeys tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
+            <StackPanel>
                 <!-- Aux Buttons -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
