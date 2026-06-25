@@ -20,7 +20,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **About**.
+The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **Test**, **About**.
 
 ### Dashboard
 
@@ -88,6 +88,17 @@ Helper tools for diagnosing and fixing tablet-driver problems.
 ### Diagnostics
 
 Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details.
+
+### Test
+
+A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
+
+- **Input source** (toggle) — the stroke always renders **under the pen**; the toggle picks where the pressure/tilt come from:
+  - **App input (Windows Ink)** — what a drawing app actually receives (the pointer's pressure/tilt).
+  - **Driver input (OTD)** — the raw OTD daemon signal, before the Windows Ink output stage. Useful for diagnosing whether the driver itself is reporting correctly.
+- **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
+- **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
+- **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
 
 ### About
 

@@ -25,12 +25,12 @@
 **Technology:** .NET 10 Avalonia UI with CommunityToolkit.Mvvm (MVVM pattern).
 
 **Key directories:**
-- `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `DialogService.cs` (the `IDialogService` seam — all app dialogs), `ConfigurationsDirectoryProvider.cs` (locates the OTD configs folder), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
-- `ViewModels/` — `MainViewModel.cs` (the shell: navigation + composition only) plus one VM per page: `DashboardViewModel`, `TabletSettingsViewModel`, `PresetsViewModel`, `CustomTabletConfigsViewModel`, `UtilitiesViewModel`, `DiagnosticsViewModel`, `AboutViewModel`
-- `Views/` — Avalonia AXAML pages (Dashboard, Paired Tablets, Saved Settings, Custom Tablet Configs, Utilities, Diagnostics, About) and the per-tablet `TabletSettingsDialog`
-- `Domain/` — pure, UI-free logic, unit-tested directly: `AreaMappingCalculator`, `PresetNaming`, `TabletConfigNaming`, `ExecutablePath`, `WinInkUpdateState`, `DiagnosticsMath`, `ProfileItem`
+- `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `DialogService.cs` (the `IDialogService` seam — all app dialogs), `ConfigurationsDirectoryProvider.cs` (locates the OTD configs folder), `DaemonPenInputSource.cs` (Test tab — daemon `DeviceReport` stream → pen samples), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
+- `ViewModels/` — `MainViewModel.cs` (the shell: navigation + composition only) plus one VM per page: `DashboardViewModel`, `TabletSettingsViewModel`, `PresetsViewModel`, `CustomTabletConfigsViewModel`, `UtilitiesViewModel`, `DiagnosticsViewModel`, `TestViewModel`, `AboutViewModel`
+- `Views/` — Avalonia AXAML pages (Dashboard, Paired Tablets, Saved Settings, Custom Tablet Configs, Utilities, Diagnostics, Test, About) and the per-tablet `TabletSettingsDialog`
+- `Domain/` — pure, UI-free logic, unit-tested directly: `AreaMappingCalculator`, `PresetNaming`, `TabletConfigNaming`, `ExecutablePath`, `WinInkUpdateState`, `DiagnosticsMath`, `ProfileItem`, `PenSample` + `DeviceReportSample` (Test tab — normalized pen reading + `DeviceReport` parser)
 - `Concurrency/` — async coordination: `LatestOnlyGate` (coalesce overlapping data loads), `CoalescingSingleFlight` (single-flight reconnect with latest-wins rerun)
-- `Controls/` — custom controls: `TabletVisualizer` (area + live pen dot), `IconBox` (card-header icon)
+- `Controls/` — custom controls: `TabletVisualizer` (area + live pen dot), `IconBox` (card-header icon), `PenTestCanvas` (Test tab — SkiaSharp paint surface)
 - `Themes/` — resource dictionaries for colors and styles (light mode, glassmorphism) and the shared `ControlTheme`s
 - `Converters/` — Avalonia value converters (bool/string helpers; the old `PageToView` / `StringEquals` nav converters were removed when navigation moved to typed DataTemplates)
 - `Helpers/` — dialog helpers (MessageBox / InputBox replacements via `Dialogs.ShowConfirmAsync`, etc.)
@@ -43,6 +43,7 @@
 - `StreamJsonRpc` 2.22.23 — JSON-RPC client matching OTD daemon version
 - `Newtonsoft.Json` 13.0.3 — JSON handling (required by StreamJsonRpc)
 - `CommunityToolkit.Mvvm` 8.4.0 — MVVM infrastructure (`[ObservableProperty]`, `[RelayCommand]`)
+- `SkiaSharp` 3.119.3-preview.1.1 — raster paint surface for the Test tab (pinned to the version Avalonia 12 already pulls in via `Avalonia.Skia`; the project also sets `AllowUnsafeBlocks` for the bitmap copy)
 - `HidSharp` — HID device enumeration for vmulti detection (transitively via OTD)
 - `OpenTabletDriver.Desktop`, `OpenTabletDriver`, `OpenTabletDriver.Plugin` — project refs from submodule
 
@@ -70,6 +71,17 @@ A page VM takes only the slice of the session it actually needs, via a narrow **
 **Navigation is typed.** `MainViewModel.CurrentPage` is the page VM instance itself (an `ObservableObject`), and the content host resolves it to a view through App-level `DataTemplate`s keyed by VM type (`App.axaml`). There is no page-name string, no view-lookup converter, and no per-view `DataContext` re-point — each view inherits its VM as `DataContext` from the template. The sidebar highlight binds to converter-free `IsXxx` getters derived from `CurrentPage`.
 
 This shape is the result of an incremental "strangler" refactor (issue #41): shared `AppSession` + role interfaces, then a page-by-page VM split, then typed navigation — each step keeping the build green.
+
+#### Test tab (live pen verification)
+
+The Test page is a paint canvas for confirming pressure / tilt / twist actually work — modeled on the narrow scope of the [WebTabletTesterBasic](https://github.com/TheSevenPens/WebTabletTesterBasic) app (canvas + mode + readouts, not a drawing app).
+
+- **Rendering** is raster accumulation, not retained geometry: each pen sample stamps onto a persistent `SKBitmap` (`Controls/PenTestCanvas`, SkiaSharp) which is blitted into an Avalonia `WriteableBitmap`. A retained scene of stroke objects would grow unbounded as the drawing fills; a bitmap stays O(1). We own the `SKBitmap` and hand Avalonia a pixel buffer (no render-lease interop).
+- **Input source is a toggle, but position always comes from the OS pointer** so the stroke renders under the pen in both modes. The toggle selects where the *dynamics* (pressure/tilt/twist) come from:
+  - **App** — the pointer's own `PointerPointProperties` (Windows Ink).
+  - **Driver** — the OTD daemon's `DeviceReport` stream (`Services/DaemonPenInputSource` → `Domain.DeviceReportSample` → normalized `Domain.PenSample`), pushed to the canvas via `SetDriverDynamics`. This is the driver's raw signal, before the Windows Ink output stage.
+- **Readouts** reflect the selected source: Canvas X/Y (where the stroke lands, always the pointer) vs Raw X/Y (the source's pre-normalization coords — tablet units in Driver mode), plus pressure/tilt/azimuth/altitude/twist (azimuth & altitude reuse `DiagnosticsMath`).
+- **Lifecycle**: the shell starts/stops the daemon debug stream on Test page enter/leave (same treatment as Diagnostics). Delete/Backspace clear the canvas.
 
 ### OTD Daemon (external)
 
@@ -202,6 +214,7 @@ Avalonia App (.NET 10)
   ├── StreamJsonRpc 2.22.23
   ├── Newtonsoft.Json 13.0.3
   ├── CommunityToolkit.Mvvm 8.4.0
+  ├── SkiaSharp 3.119.3-preview.1.1 (Test-tab paint surface)
   └── HidSharp (transitively via OTD)
 
 OTD Daemon (built from submodule, .NET 8)
