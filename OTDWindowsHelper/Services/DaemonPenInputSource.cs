@@ -13,7 +13,9 @@ namespace OtdWindowsHelper.Services;
 public sealed class DaemonPenInputSource
 {
     private readonly IDaemonDebugSession _daemon;
-    private bool _running;
+    private bool _wantRunning;  // desired state — survives across the awaits below
+    private bool _starting;     // a StartAsync is mid-flight (awaiting enable)
+    private bool _subscribed;
 
     public DaemonPenInputSource(IDaemonDebugSession daemon) => _daemon = daemon;
 
@@ -22,24 +24,46 @@ public sealed class DaemonPenInputSource
 
     public async Task StartAsync()
     {
-        if (_running) return;
+        _wantRunning = true;
+        if (_subscribed || _starting) return;
 
-        // Enable the daemon stream first; only subscribe if it succeeds — a subscribe-before-enable
-        // would leak the handler if the RPC throws (the #39 lesson from Diagnostics).
-        try { await _daemon.SetTabletDebugAsync(true); }
-        catch { return; }
+        _starting = true;
+        try
+        {
+            // Enable the daemon stream first; only subscribe if it succeeds — a subscribe-before-
+            // enable would leak the handler if the RPC throws (the #39 lesson from Diagnostics).
+            try { await _daemon.SetTabletDebugAsync(true); }
+            catch { return; }
 
-        _daemon.DeviceReport -= OnDeviceReport; // idempotent
-        _daemon.DeviceReport += OnDeviceReport;
-        _running = true;
+            // If Stop ran while we were awaiting the enable, undo it instead of subscribing —
+            // otherwise the stream would stay on after the page/source went inactive.
+            if (!_wantRunning)
+            {
+                try { await _daemon.SetTabletDebugAsync(false); } catch { }
+                return;
+            }
+
+            _daemon.DeviceReport -= OnDeviceReport; // idempotent
+            _daemon.DeviceReport += OnDeviceReport;
+            _subscribed = true;
+        }
+        finally { _starting = false; }
     }
 
     public async Task StopAsync()
     {
-        if (!_running) return;
-        _daemon.DeviceReport -= OnDeviceReport;
-        _running = false;
-        try { await _daemon.SetTabletDebugAsync(false); } catch { }
+        // Only disable if we actually enabled (or an enable is in flight); avoids spurious RPCs
+        // when stopping a source that never started (e.g. leaving the page in App mode).
+        var wasActiveOrStarting = _subscribed || _starting;
+        _wantRunning = false;
+
+        if (_subscribed)
+        {
+            _daemon.DeviceReport -= OnDeviceReport;
+            _subscribed = false;
+        }
+        if (wasActiveOrStarting)
+            try { await _daemon.SetTabletDebugAsync(false); } catch { }
     }
 
     private void OnDeviceReport(JObject data)

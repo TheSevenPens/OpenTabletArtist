@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.ViewModels;
 
@@ -50,6 +51,19 @@ public partial class TestView : UserControl
         if (_vm is not { UseDriverInput: true }) return; // ignore late samples after toggling off
         _vm.UpdateReadout(s);
         PaintCanvas.SetDriverDynamics(s.Pressure, s.TiltX, s.TiltY, s.Twist);
+    }
+
+    // Typed nav creates a fresh TestView each visit; detach from the long-lived VM on unload so
+    // discarded views don't keep handling driver samples / clears (Codex #94).
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+        if (_vm != null)
+        {
+            _vm.DriverSample -= OnDriverSample;
+            _vm.ClearRequested -= OnClearRequested;
+            _vm.PropertyChanged -= OnVmPropertyChanged;
+        }
     }
 
     private void OnClearRequested() => PaintCanvas.Clear();
