@@ -29,7 +29,7 @@ Several items once listed here have shipped and are no longer "future":
 ## Mid-Term (Deepen the Experience)
 
 - **Multi-Monitor Support** — Show all displays in the area mapper and map the tablet to a chosen monitor/region. ([#67](https://github.com/TheSevenPens/OTDWindowsHelper/issues/67))
-- **Pressure Curve Editor** — Bezier pressure-response editor with presets and a live draw-to-preview. ([#68](https://github.com/TheSevenPens/OTDWindowsHelper/issues/68))
+- **Pressure Curve Editor** — the interactive *Extended* curve shipped in v0.2.0 (Pressure tab, applied via our OTD filter plugin); Bezier variant, presets, smoothing, and live draw-to-preview remain. ([#68](https://github.com/TheSevenPens/OTDWindowsHelper/issues/68), [#101](https://github.com/TheSevenPens/OTDWindowsHelper/issues/101), [#102](https://github.com/TheSevenPens/OTDWindowsHelper/issues/102), [#103](https://github.com/TheSevenPens/OTDWindowsHelper/issues/103))
 - **Plugin Browser** — Browse, install, and configure OTD plugins from a card grid. ([#69](https://github.com/TheSevenPens/OTDWindowsHelper/issues/69))
 - **Animations and Micro-Interactions** — Page transitions, hover effects, loading skeletons, and toast notifications. ([#70](https://github.com/TheSevenPens/OTDWindowsHelper/issues/70))
 
