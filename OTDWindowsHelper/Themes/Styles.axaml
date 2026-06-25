@@ -289,4 +289,14 @@
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
     </Style>
 
+    <!-- Always-visible, full-size scrollbars. The default Fluent overlay scrollbars sit as a thin
+         line until hovered, which is hard to see and grab; AllowAutoHide=False shows the normal
+         persistent bar (and reserves gutter space). -->
+    <Style Selector="ScrollViewer">
+        <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+    <Style Selector="ScrollBar">
+        <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+
 </Styles>
