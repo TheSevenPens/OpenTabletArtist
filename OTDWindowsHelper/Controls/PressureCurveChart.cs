@@ -25,18 +25,18 @@ public sealed class PressureCurveChart : Control
     private const double NodeRadius = 9;     // hit-test radius
     private const double NodeDrawRadius = 6;
 
-    // Tuned for the app's dark theme rather than the reference's white chart.
-    private static readonly IBrush PlotBrush = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x2A));
-    private static readonly IBrush LabelBrush = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0xB0));
-    private static readonly IPen GridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)), 1);
-    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x6B, 0x6F, 0xF5)), 2.2);
-    private static readonly IBrush MinNodeBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x33, 0x99));
-    private static readonly IBrush MaxNodeBrush = new SolidColorBrush(Color.FromRgb(0x33, 0xCC, 0xFF));
-    private static readonly IPen NodeGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), 1)
+    // Light palette to match the app's surfaces (white panels, dark text).
+    private static readonly IBrush PlotBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+    private static readonly IBrush LabelBrush = new SolidColorBrush(Color.FromArgb(0x99, 0x00, 0x00, 0x00));
+    private static readonly IPen GridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x1F, 0x00, 0x00, 0x00)), 1);
+    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)), 2.2);
+    private static readonly IBrush MinNodeBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0x1E, 0x7A));
+    private static readonly IBrush MaxNodeBrush = new SolidColorBrush(Color.FromRgb(0x0E, 0x9F, 0xD6));
+    private static readonly IPen NodeGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x40, 0x00, 0x00, 0x00)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
     private static readonly IPen NodeOutline = new Pen(Brushes.White, 1.5);
-    private static readonly IBrush LiveDotBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0xD1, 0x6B));
-    private static readonly IPen LiveGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x44, 0x2E, 0xD1, 0x6B)), 1)
+    private static readonly IBrush LiveDotBrush = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
+    private static readonly IPen LiveGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0x10, 0xB9, 0x81)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
     private static readonly Typeface ChartTypeface = new("Segoe UI");
     private const double ChartFontSize = 11;

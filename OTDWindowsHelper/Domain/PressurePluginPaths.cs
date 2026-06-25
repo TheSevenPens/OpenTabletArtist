@@ -4,17 +4,17 @@ using System.IO;
 namespace OtdWindowsHelper.Domain;
 
 /// <summary>
-/// Locates the bundled pressure-curve plugin DLL the app installs into the daemon's plugin
+/// Locates the bundled pen-dynamics plugin DLL the app installs into the daemon's plugin
 /// directory. Pure (no filesystem access) so the candidate ordering is unit-testable; the caller
 /// picks the first that exists. Covers the published layout (bundled next to the app) and the dev
 /// build tree (the plugin's own bin output).
 /// </summary>
 public static class PressurePluginPaths
 {
-    public const string DllName = "OtdWindowsHelper.PressureCurve.dll";
+    public const string DllName = "OtdWindowsHelper.Dynamics.dll";
 
     /// <summary>Subfolder name used both for the bundle next to the app and inside the OTD plugin dir.</summary>
-    public const string PluginFolderName = "OtdWindowsHelperPressureCurve";
+    public const string PluginFolderName = "OtdWindowsHelperDynamics";
 
     public static IEnumerable<string> SourceCandidates(string baseDir)
     {
@@ -25,6 +25,6 @@ public static class PressurePluginPaths
         foreach (var config in new[] { "Debug", "Release" })
             yield return Path.GetFullPath(Path.Combine(
                 baseDir, "..", "..", "..", "..",
-                "plugins", "OtdWindowsHelper.PressureCurve", "bin", config, "net8.0", DllName));
+                "plugins", "OtdWindowsHelper.Dynamics", "bin", config, "net8.0", DllName));
     }
 }

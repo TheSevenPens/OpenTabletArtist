@@ -57,13 +57,13 @@ jobs:
 
       # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
       # at runtime (PressurePluginInstaller looks for BundledPlugins/<folder>/ next to the app first).
-      - name: Bundle the pressure-curve plugin
+      - name: Bundle the pen-dynamics plugin
         shell: pwsh
         run: |
-          dotnet build plugins/OtdWindowsHelper.PressureCurve/OtdWindowsHelper.PressureCurve.csproj -c Release
-          $dest = "publish/OTDWindowsHelper/BundledPlugins/OtdWindowsHelperPressureCurve"
+          dotnet build plugins/OtdWindowsHelper.Dynamics/OtdWindowsHelper.Dynamics.csproj -c Release
+          $dest = "publish/OTDWindowsHelper/BundledPlugins/OtdWindowsHelperDynamics"
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Copy-Item "plugins/OtdWindowsHelper.PressureCurve/bin/Release/net8.0/OtdWindowsHelper.PressureCurve.dll" $dest
+          Copy-Item "plugins/OtdWindowsHelper.Dynamics/bin/Release/net8.0/OtdWindowsHelper.Dynamics.dll" $dest
 
       - name: Package zip
         shell: pwsh

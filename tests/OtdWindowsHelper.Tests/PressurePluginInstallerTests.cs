@@ -15,7 +15,7 @@ public class PressurePluginInstallerTests
         var baseDir = Path.Combine("C:", "app");
         var first = PressurePluginPaths.SourceCandidates(baseDir).First();
         Assert.Equal(
-            Path.GetFullPath(Path.Combine(baseDir, "BundledPlugins", "OtdWindowsHelperPressureCurve", "OtdWindowsHelper.PressureCurve.dll")),
+            Path.GetFullPath(Path.Combine(baseDir, "BundledPlugins", "OtdWindowsHelperDynamics", "OtdWindowsHelper.Dynamics.dll")),
             first);
     }
 
@@ -24,7 +24,7 @@ public class PressurePluginInstallerTests
     {
         var candidates = PressurePluginPaths.SourceCandidates(Path.Combine("C:", "repo", "OTDWindowsHelper", "bin", "Debug", "net10.0")).ToList();
         Assert.Equal(3, candidates.Count);
-        Assert.Contains(candidates, c => c.Contains(Path.Combine("plugins", "OtdWindowsHelper.PressureCurve")) && c.Contains(Path.Combine("bin", "Debug", "net8.0")));
+        Assert.Contains(candidates, c => c.Contains(Path.Combine("plugins", "OtdWindowsHelper.Dynamics")) && c.Contains(Path.Combine("bin", "Debug", "net8.0")));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class PressurePluginInstallerTests
             var pluginDir = Path.Combine(dir, "plugins");
 
             Assert.Equal(PluginInstallOutcome.Installed, PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
-            var dest = Path.Combine(pluginDir, "OtdWindowsHelperPressureCurve", "OtdWindowsHelper.PressureCurve.dll");
+            var dest = Path.Combine(pluginDir, "OtdWindowsHelperDynamics", "OtdWindowsHelper.Dynamics.dll");
             Assert.True(File.Exists(dest));
 
             Assert.Equal(PluginInstallOutcome.None, PressurePluginInstaller.CopyIfNeeded(src, pluginDir)); // up to date
@@ -59,7 +59,7 @@ public class PressurePluginInstallerTests
 
             File.WriteAllText(src, "v2-longer-content"); // different size + newer
             Assert.Equal(PluginInstallOutcome.Updated, PressurePluginInstaller.CopyIfNeeded(src, pluginDir));
-            var dest = Path.Combine(pluginDir, "OtdWindowsHelperPressureCurve", "OtdWindowsHelper.PressureCurve.dll");
+            var dest = Path.Combine(pluginDir, "OtdWindowsHelperDynamics", "OtdWindowsHelper.Dynamics.dll");
             Assert.Equal("v2-longer-content", File.ReadAllText(dest));
         }
         finally { Directory.Delete(dir, true); }

@@ -4,7 +4,7 @@ using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
 using OtdWindowsHelper.Domain;
 
-namespace OtdWindowsHelper.PressureCurve;
+namespace OtdWindowsHelper.Dynamics;
 
 /// <summary>
 /// OpenTabletDriver filter implementing the OTD Windows Helper pen dynamics (#92): the "Extended"
@@ -13,10 +13,9 @@ namespace OtdWindowsHelper.PressureCurve;
 ///
 /// The math lives in <see cref="Domain.PressureCurve"/> + <see cref="PenDynamicsProcessor"/>
 /// (source-shared with the app, so the editor preview matches and the logic is unit-tested there).
-/// The type name is kept stable so existing profiles keep resolving.
 /// </summary>
 [PluginName("OTD Windows Helper - Pen Dynamics")]
-public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
+public class DynamicsFilter : IPositionedPipelineElement<IDeviceReport>
 {
     [Property("Softness"), DefaultPropertyValue(0f),
      ToolTip("Curve shape: 0 = linear, positive = lighter touch (concave), negative = heavier (convex). Range -0.9 to 0.9.")]

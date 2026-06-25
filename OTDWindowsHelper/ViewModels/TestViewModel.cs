@@ -31,15 +31,15 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _dialogs = dialogs;
     }
 
-    /// <summary>Open the per-tablet settings dialog (e.g. the Pressure tab) without leaving Test —
+    /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
     /// targets the detected tablet, falling back to the first known profile.</summary>
     [RelayCommand]
-    private async Task OpenTabletSettings()
+    private async Task OpenDynamics()
     {
         var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
                        ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
         if (profile != null)
-            await _dialogs.ShowTabletSettingsAsync(profile);
+            await _dialogs.ShowTabletSettingsAsync(profile, openDynamics: true);
     }
 
     /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>

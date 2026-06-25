@@ -103,7 +103,11 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 - **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
 - **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
 - **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
-- **Tablet Settings** — opens the per-tablet settings dialog for the detected tablet without leaving Test, so you can tweak the Pressure curve and immediately test the feel.
+- **Dynamics** — opens the detected tablet's **Dynamics** settings (pressure curve + smoothing) directly, without leaving Test, so you can tweak and immediately feel the result.
+
+### Plugins
+
+A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OTD Windows Helper – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
 
 ### About
 

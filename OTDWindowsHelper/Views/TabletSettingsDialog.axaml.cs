@@ -20,10 +20,13 @@ public partial class TabletSettingsDialog : Window
     public TabletSettingsDialog(Profile profile, Settings? settings,
         Func<Settings, Task>? onApplyChanges = null,
         Func<Task<Profile?>>? onRefresh = null,
-        (float Width, float Height)? tabletDigitizer = null)
+        (float Width, float Height)? tabletDigitizer = null,
+        bool openDynamics = false)
     {
         InitializeComponent();
         DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer);
+        if (openDynamics)
+            DynamicsTab.IsChecked = true;
     }
 
     // Parameterless constructor required by Avalonia XAML loader

@@ -222,7 +222,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.7. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
 
-**Pen-dynamics plugin.** Pressure remapping + smoothing is implemented as our own OTD filter plugin (`plugins/OtdWindowsHelper.PressureCurve`, net8 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, it applies to every app, not just one. Key seams:
+**Pen-dynamics plugin.** Pressure remapping + smoothing is implemented as our own OTD filter plugin (`plugins/OtdWindowsHelper.Dynamics`, net8 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, it applies to every app, not just one. Key seams:
 
 - **Shared math** — `Domain/PressureCurve.cs` (the `Extended` curve: input/output min-max remap, softness exponent, Clamp-vs-Cut dead zone), `Domain/PenSmoothing.cs` (EMA + the `amount → factor` perceptual mapping borrowed from Slimy Scylla, `amount^(0.02/amount)`), and `Domain/PenDynamicsProcessor.cs` (the stateful per-stroke pipeline: curve + pressure/position smoothing, with the curve/smooth ordering and reset logic) are the single source of truth, **source-linked** (`<Compile Include … Link>`) into the plugin so the daemon-side filter and the app-side editor compute identically, and unit-tested once in the app's test project.
 - **The filter** — `PressureCurveFilter` (type name kept stable for back-compat; display name *OTD Windows Helper - Pen Dynamics*) implements `IPositionedPipelineElement<IDeviceReport>` at `PreTransform`, reads `MaxPressure` via `[TabletReference]` injection, and delegates to a `PenDynamicsProcessor`. Smoothing applies **only while the pen is down** (pressure > 0) and state resets on lift / pen-out — the OTD analogue of Slimy Scylla's "apply while drawing" default, which steadies stroke starts/ends without depending on proximity reports. Hover (`Pressure == 0`) is left untouched.
@@ -256,7 +256,7 @@ OTD Daemon (built from submodule, .NET 8)
 ```
 OTDWindowsHelper.slnx
   ├── OTDWindowsHelper/OtdWindowsHelper.csproj                   (this app)
-  ├── plugins/OtdWindowsHelper.PressureCurve/...                 (our OTD filter plugin, net8)
+  ├── plugins/OtdWindowsHelper.Dynamics/...                      (our OTD filter plugin, net8)
   ├── tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj (xUnit tests)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```

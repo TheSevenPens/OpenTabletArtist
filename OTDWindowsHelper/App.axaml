@@ -34,6 +34,7 @@
         <DataTemplate DataType="{x:Type vm:UtilitiesViewModel}"><views:UtilitiesView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TestViewModel}"><views:TestView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PluginsViewModel}"><views:PluginsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
     </Application.DataTemplates>
 </Application>

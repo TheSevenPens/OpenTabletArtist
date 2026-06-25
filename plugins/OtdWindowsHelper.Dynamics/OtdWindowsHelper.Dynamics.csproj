@@ -5,8 +5,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>OtdWindowsHelper.PressureCurve</RootNamespace>
-    <AssemblyName>OtdWindowsHelper.PressureCurve</AssemblyName>
+    <RootNamespace>OtdWindowsHelper.Dynamics</RootNamespace>
+    <AssemblyName>OtdWindowsHelper.Dynamics</AssemblyName>
   </PropertyGroup>
 
   <!-- The daemon provides OpenTabletDriver.Plugin at runtime; reference it for compile only so the

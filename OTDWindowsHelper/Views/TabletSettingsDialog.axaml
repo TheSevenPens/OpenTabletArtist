@@ -303,13 +303,18 @@
                                        Width="44" TextAlignment="Right"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
                         </Grid>
+                    </StackPanel>
+                </Border>
 
-                        <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="Order" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
-                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding SmoothAfterCurve}"
-                                          OnContent="Curve → Smooth" OffContent="Smooth → Curve" />
-                        </Grid>
+                <!-- Order -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="ORDER" Classes="SectionLabel" />
+                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,8" TextWrapping="Wrap"
+                                   Text="Whether smoothing runs after the curve (default) or before it." />
+                        <ToggleSwitch IsChecked="{Binding SmoothAfterCurve}"
+                                      OnContent="Curve → Smooth" OffContent="Smooth → Curve" />
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -23,6 +23,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public TabletSettingsViewModel TabletSettings { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
+    public PluginsViewModel Plugins { get; }
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
     // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
@@ -37,6 +38,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsUtilities => ReferenceEquals(CurrentPage, Utilities);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
+    public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
@@ -53,6 +55,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
+        Plugins = new PluginsViewModel(_session, _session);
 
         CurrentPage = Dashboard;
 
@@ -99,6 +102,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         TabletSettings.Dispose(); // unsubscribes DataLoaded
         Presets.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running
+        Plugins.Dispose();        // unsubscribes DataLoaded
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         Utilities.Dispose();
     }
