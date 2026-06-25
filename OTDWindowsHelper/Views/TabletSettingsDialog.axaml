@@ -219,15 +219,30 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Chart (1:1 square plot — width drives the square, so cap + center it) -->
+                <!-- Chart (1:1 square plot; responsive up to a max width). The green dot tracks live
+                     pen pressure while drawing (#102). -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
-                                             Width="300" HorizontalAlignment="Center" />
+                                             LivePressure="{Binding LivePressure}"
+                                             MaxWidth="360" HorizontalAlignment="Center" />
                 </Border>
 
                 <!-- Controls -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+                            <TextBlock Grid.Column="0" Text="Presets" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="Linear" Command="{Binding ApplyPresetCommand}" CommandParameter="linear"
+                                        Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,6,0" />
+                                <Button Content="Soft" Command="{Binding ApplyPresetCommand}" CommandParameter="soft"
+                                        Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,6,0" />
+                                <Button Content="Firm" Command="{Binding ApplyPresetCommand}" CommandParameter="firm"
+                                        Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" />
+                            </StackPanel>
+                        </Grid>
+
                         <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,4">
                             <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
@@ -252,22 +267,33 @@
                                   IsChecked="{Binding CutBelowMinimum}" FontSize="12" Margin="0,0,0,8"
                                   Foreground="{DynamicResource TextSecondaryBrush}" />
 
-                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="MIN NODE" Classes="SectionLabel" />
-                                <TextBlock Text="{Binding CurveMinText}" FontSize="11"
-                                           FontFamily="Consolas, Cascadia Code" Margin="0,4,0,0"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="MAX NODE" Classes="SectionLabel" />
-                                <TextBlock Text="{Binding CurveMaxText}" FontSize="11"
-                                           FontFamily="Consolas, Cascadia Code" Margin="0,4,0,0"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </StackPanel>
-                            <Button Grid.Column="2" Content="Reset" Theme="{StaticResource GhostButton}"
-                                    Command="{Binding ResetCurveCommand}" Padding="12,6" FontSize="11"
-                                    VerticalAlignment="Bottom" />
+                        <Grid ColumnDefinitions="Auto,90,90,*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Input" Classes="SectionLabel"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Output" Classes="SectionLabel"
+                                       HorizontalAlignment="Center" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Min node" FontSize="12" Width="90"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding InputMinimum}"
+                                           Minimum="0" Maximum="1" Increment="0.05" FormatString="0.00"
+                                           Margin="2" FontSize="11" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding OutputMinimum}"
+                                           Minimum="0" Maximum="1" Increment="0.05" FormatString="0.00"
+                                           Margin="2" FontSize="11" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Max node" FontSize="12" Width="90"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding InputMaximum}"
+                                           Minimum="0" Maximum="1" Increment="0.05" FormatString="0.00"
+                                           Margin="2" FontSize="11" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding OutputMaximum}"
+                                           Minimum="0" Maximum="1" Increment="0.05" FormatString="0.00"
+                                           Margin="2" FontSize="11" />
+
+                            <Button Grid.Row="1" Grid.RowSpan="2" Grid.Column="4" Content="Reset"
+                                    Theme="{StaticResource GhostButton}" Command="{Binding ResetCurveCommand}"
+                                    Padding="12,6" FontSize="11" VerticalAlignment="Center" />
                         </Grid>
                     </StackPanel>
                 </Border>

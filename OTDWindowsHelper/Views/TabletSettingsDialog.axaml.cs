@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,10 +23,11 @@ public partial class TabletSettingsDialog : Window
         Func<Settings, Task>? onApplyChanges = null,
         Func<Task<Profile?>>? onRefresh = null,
         (float Width, float Height)? tabletDigitizer = null,
-        bool openDynamics = false)
+        bool openDynamics = false,
+        OtdWindowsHelper.Services.IDaemonDebugSession? penInput = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer);
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput);
         if (openDynamics)
             DynamicsTab.IsChecked = true;
     }
@@ -39,16 +41,30 @@ public partial class TabletSettingsDialog : Window
     {
         base.OnOpened(e);
         if (Screens != null) Screens.Changed += OnScreensChanged;
+        DynamicsTab.IsCheckedChanged += OnDynamicsTabChanged;
+        UpdateLivePressure(); // start the live dot if the dialog opened on the Dynamics tab
     }
 
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
         if (Screens != null) Screens.Changed -= OnScreensChanged;
+        DynamicsTab.IsCheckedChanged -= OnDynamicsTabChanged;
+        (DataContext as TabletSettingsDialogViewModel)?.StopLivePressure();
     }
 
     private void OnScreensChanged(object? sender, EventArgs e) =>
         (DataContext as TabletSettingsDialogViewModel)?.RefreshDisplaysCommand.Execute(null);
+
+    // Only stream the live pen-pressure dot while the Dynamics tab is visible (#102).
+    private void OnDynamicsTabChanged(object? sender, RoutedEventArgs e) => UpdateLivePressure();
+
+    private void UpdateLivePressure()
+    {
+        if (DataContext is not TabletSettingsDialogViewModel vm) return;
+        if (DynamicsTab.IsChecked == true) vm.StartLivePressure();
+        else vm.StopLivePressure();
+    }
 }
 
 public partial class TabletSettingsDialogViewModel : ObservableObject
@@ -108,13 +124,20 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public TabletSettingsDialogViewModel(Profile profile, Settings? settings,
         Func<Settings, Task>? applyAction = null,
         Func<Task<Profile?>>? refreshAction = null,
-        (float Width, float Height)? tabletDigitizer = null)
+        (float Width, float Height)? tabletDigitizer = null,
+        IDaemonDebugSession? penInput = null)
     {
         _profile = profile;
         _settings = settings;
         _applyAction = applyAction;
         _refreshAction = refreshAction;
         _tabletDigitizer = tabletDigitizer;
+
+        if (penInput != null)
+        {
+            _penInput = new DaemonPenInputSource(penInput);
+            _penInput.Sample += OnPenSample;
+        }
 
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
@@ -424,17 +447,41 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         }
     }
 
-    public string CurveMinText => $"in {Curve.InputMinimum:0.00}  →  out {Curve.Minimum:0.00}";
-    public string CurveMaxText => $"in {Curve.InputMaximum:0.00}  →  out {Curve.Maximum:0.00}";
     public string SoftnessText => Curve.Softness.ToString("0.00");
+
+    // Numeric entry for the node values (#103). Setters keep input/output min &lt; max and clamp 0..1.
+    public double InputMinimum
+    {
+        get => Curve.InputMinimum;
+        set { var v = Math.Min(Clamp01(value), Curve.InputMaximum - 0.01); if (Curve.InputMinimum != v) Curve = Curve with { InputMinimum = v }; }
+    }
+    public double InputMaximum
+    {
+        get => Curve.InputMaximum;
+        set { var v = Math.Max(Clamp01(value), Curve.InputMinimum + 0.01); if (Curve.InputMaximum != v) Curve = Curve with { InputMaximum = v }; }
+    }
+    public double OutputMinimum
+    {
+        get => Curve.Minimum;
+        set { var v = Math.Min(Clamp01(value), Curve.Maximum); if (Curve.Minimum != v) Curve = Curve with { Minimum = v }; }
+    }
+    public double OutputMaximum
+    {
+        get => Curve.Maximum;
+        set { var v = Math.Max(Clamp01(value), Curve.Minimum); if (Curve.Maximum != v) Curve = Curve with { Maximum = v }; }
+    }
+
+    private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
     partial void OnCurveChanged(PressureCurveSettings value)
     {
         OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
-        OnPropertyChanged(nameof(CurveMinText));
-        OnPropertyChanged(nameof(CurveMaxText));
         OnPropertyChanged(nameof(SoftnessText));
+        OnPropertyChanged(nameof(InputMinimum));
+        OnPropertyChanged(nameof(InputMaximum));
+        OnPropertyChanged(nameof(OutputMinimum));
+        OnPropertyChanged(nameof(OutputMaximum));
         SchedulePersist();
     }
 
@@ -445,6 +492,30 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     [RelayCommand]
     private void ResetSoftness() => Softness = PressureCurveSettings.Default.Softness;
+
+    /// <summary>Quick-start curve presets (#103).</summary>
+    [RelayCommand]
+    private void ApplyPreset(string kind) => Curve = kind switch
+    {
+        "soft" => PressureCurveSettings.Default with { Softness = 0.5 },   // lighter touch (concave)
+        "firm" => PressureCurveSettings.Default with { Softness = -0.5 },  // firmer (convex)
+        _ => PressureCurveSettings.Default,                               // linear
+    };
+
+    // ── Live pen-pressure preview (#102) ──────────────────────────
+    private readonly DaemonPenInputSource? _penInput;
+    [ObservableProperty] private double? _livePressure;
+
+    // DeviceReportSample already normalizes pressure to 0..1; show the dot only while the pen is down.
+    private void OnPenSample(PenSample s) => LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
+
+    public void StartLivePressure() => _ = _penInput?.StartAsync();
+
+    public void StopLivePressure()
+    {
+        LivePressure = null;
+        _ = _penInput?.StopAsync();
+    }
 
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()

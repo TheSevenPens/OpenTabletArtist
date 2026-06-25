@@ -20,6 +20,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\OTDWindowsHelper\OtdWindowsHelper.csproj" />
+    <!-- Build the plugin (don't reference its assembly) so the type-name guard test (#104) always
+         finds its DLL — including release CI, which tests before the solution/plugin build.
+         SkipGetTargetFrameworkProperties avoids the net10→net8 TFM compatibility check. -->
+    <ProjectReference Include="..\..\plugins\OtdWindowsHelper.Dynamics\OtdWindowsHelper.Dynamics.csproj"
+                      ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" Private="false" />
   </ItemGroup>
 
 </Project>
