@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json;
@@ -9,6 +11,7 @@ using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdWindowsHelper.Domain;
+using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.Views;
 
@@ -207,6 +210,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             FiltersText = "No filters configured";
         }
 
+        // Pressure curve (load without triggering a persist)
+        var pc = PressureCurveProfile.Read(_settings, _profile.Tablet ?? "");
+        _skipCurvePersist = true;
+        Curve = pc?.Curve ?? PressureCurveSettings.Default;
+        PressureCurveEnabled = pc?.Enabled ?? false;
+        _skipCurvePersist = false;
+        CanEditPressure = _applyAction != null;
+
         // Raw JSON
         RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
     }
@@ -396,6 +407,75 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
     [ObservableProperty] private string _filtersText = "";
     [ObservableProperty] private string _rawJson = "";
+
+    // ── Pressure curve tab ──────────────────────────────────────
+
+    [ObservableProperty] private PressureCurveSettings _curve = PressureCurveSettings.Default;
+    [ObservableProperty] private bool _pressureCurveEnabled;
+    [ObservableProperty] private bool _canEditPressure;
+    private bool _skipCurvePersist;
+    private CancellationTokenSource? _persistCts;
+
+    /// <summary>Softness slider value, projected onto the <see cref="Curve"/> struct.</summary>
+    public double Softness
+    {
+        get => Curve.Softness;
+        set { if (Curve.Softness != value) Curve = Curve with { Softness = value }; }
+    }
+
+    /// <summary>Cut (dead-zone) vs Clamp (floor) below the input minimum.</summary>
+    public bool CutBelowMinimum
+    {
+        get => Curve.MinApproach == PressureMinApproach.Cut;
+        set
+        {
+            var want = value ? PressureMinApproach.Cut : PressureMinApproach.Clamp;
+            if (Curve.MinApproach != want) Curve = Curve with { MinApproach = want };
+        }
+    }
+
+    public string CurveMinText => $"in {Curve.InputMinimum:0.00}  →  out {Curve.Minimum:0.00}";
+    public string CurveMaxText => $"in {Curve.InputMaximum:0.00}  →  out {Curve.Maximum:0.00}";
+    public string SoftnessText => Curve.Softness.ToString("0.00");
+
+    partial void OnCurveChanged(PressureCurveSettings value)
+    {
+        OnPropertyChanged(nameof(Softness));
+        OnPropertyChanged(nameof(CutBelowMinimum));
+        OnPropertyChanged(nameof(CurveMinText));
+        OnPropertyChanged(nameof(CurveMaxText));
+        OnPropertyChanged(nameof(SoftnessText));
+        SchedulePersist();
+    }
+
+    partial void OnPressureCurveEnabledChanged(bool value) => SchedulePersist();
+
+    [RelayCommand]
+    private void ResetCurve() => Curve = PressureCurveSettings.Default;
+
+    /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
+    private void SchedulePersist()
+    {
+        if (_skipCurvePersist || _applyAction == null || _settings == null) return;
+        _persistCts?.Cancel();
+        var cts = _persistCts = new CancellationTokenSource();
+        _ = DebounceAsync(cts.Token);
+
+        async Task DebounceAsync(CancellationToken ct)
+        {
+            try { await Task.Delay(400, ct); }
+            catch (TaskCanceledException) { return; }
+            if (ct.IsCancellationRequested) return;
+            await Dispatcher.UIThread.InvokeAsync(PersistCurveAsync);
+        }
+    }
+
+    private async Task PersistCurveAsync()
+    {
+        if (_applyAction == null || _settings == null) return;
+        PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", Curve, PressureCurveEnabled);
+        await _applyAction(_settings);
+    }
 }
 
 public class ButtonBinding
