@@ -289,14 +289,18 @@
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
     </Style>
 
-    <!-- Always-visible, full-size scrollbars. The default Fluent overlay scrollbars sit as a thin
-         line until hovered, which is hard to see and grab; AllowAutoHide=False shows the normal
-         persistent bar (and reserves gutter space). -->
+    <!-- Always-visible, full-size scrollbars. The default Fluent scrollbars (a) auto-hide and
+         (b) sit as a thin line until hovered (the thumb is scaled down by a RenderTransform in the
+         collapsed state). Disable auto-hide AND clear the thumb's shrink transform so the bar is
+         always the full, easy-to-grab width. -->
     <Style Selector="ScrollViewer">
         <Setter Property="AllowAutoHide" Value="False" />
     </Style>
     <Style Selector="ScrollBar">
         <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+    <Style Selector="ScrollBar /template/ Thumb">
+        <Setter Property="RenderTransform" Value="none" />
     </Style>
 
 </Styles>
