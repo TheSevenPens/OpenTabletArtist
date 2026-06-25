@@ -47,11 +47,12 @@ The **Start / Stop / Restart** daemon actions show an inline progress bar with l
 
 Lists all tablet profiles. Click **Open** or double-click a card to open the settings dialog.
 
-The settings dialog has five tabs:
+The settings dialog has six tabs:
 
 - **Screen Mapping** — Output mode selection (Windows Ink Absolute / Relative via radio buttons, with warning + Fix if using a non-Windows Ink mode). Display selection as radio buttons including "All displays" for multi-monitor setups. Selecting a display immediately maps the tablet to it with aspect ratio lock enforced.
 - **Pen Tip & Eraser** — Current tip and eraser bindings with Fix buttons to set Adaptive Binding (recommended for creatives).
 - **Pen Buttons** — Pen and auxiliary button bindings with Fix button to set all to Adaptive Binding.
+- **Pressure** — An interactive pressure-curve editor. Toggle it on to apply a custom curve to this tablet's profile; the curve is enforced by the bundled *OTD Windows Helper – Pressure Curve* filter, so it affects **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one. Drag the pink **min** node and cyan **max** node to set where pressure starts and saturates (input → output), use the **Softness** slider to bend the response (positive = lighter/concave, negative = firmer/convex), and tick **Cut below input minimum** to turn the lead-in into a dead zone instead of a pressure floor. Edits are debounced and applied to the daemon automatically; **Reset** restores the identity curve.
 - **Filters** — Configured input filters with enabled/disabled status.
 - **JSON** — Raw JSON view of the profile data.
 

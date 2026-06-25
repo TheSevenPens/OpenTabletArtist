@@ -222,6 +222,13 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.7. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
 
+**Pressure-curve plugin.** Pressure remapping is implemented as our own OTD filter plugin (`plugins/OtdWindowsHelper.PressureCurve`, net8 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, the curve applies to every app, not just one. Key seams:
+
+- **Shared curve math** — `Domain/PressureCurve.cs` (the `Extended` curve: input/output min-max remap, softness exponent, Clamp-vs-Cut dead zone) is the single source of truth, **source-linked** (`<Compile Include … Link>`) into the plugin so the daemon-side filter and the app-side chart compute identically, and unit-tested once in the app's test project.
+- **The filter** — `PressureCurveFilter` implements `IPositionedPipelineElement<IDeviceReport>` at `PreTransform`, reads the tablet's `MaxPressure` via `[TabletReference]` injection, and rewrites `ITabletReport.Pressure` (leaving a raw `0` — hover — untouched).
+- **Auto-install** — the app bundles the built DLL and copies it into the daemon's plugin directory on connect (`Services/PressurePluginInstaller.cs` + `Domain/PressurePluginPaths.cs`); a fresh copy triggers `LoadPlugins`, an update restarts the daemon (it can't hot-replace an already-loaded assembly). Only for the app-owned daemon.
+- **Per-profile config** — `Services/PressureCurveProfile.cs` reads/writes the filter's `PluginSettingStore` (by type name, since the app doesn't reference the plugin assembly) in a profile's `Filters`. The Pressure tab's editor (`Controls/PressureCurveChart.cs`, adapted from PenDynamicsLab) drives it, debouncing edits into a single `ApplyAndSaveSettings`.
+
 ## Dependency Graph
 
 ```
@@ -249,6 +256,7 @@ OTD Daemon (built from submodule, .NET 8)
 ```
 OTDWindowsHelper.slnx
   ├── OTDWindowsHelper/OtdWindowsHelper.csproj                   (this app)
+  ├── plugins/OtdWindowsHelper.PressureCurve/...                 (our OTD filter plugin, net8)
   ├── tests/OtdWindowsHelper.Tests/OtdWindowsHelper.Tests.csproj (xUnit tests)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
