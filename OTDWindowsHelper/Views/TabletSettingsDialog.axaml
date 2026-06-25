@@ -237,9 +237,13 @@
                 <!-- Chart (1:1 square plot; responsive up to a max width). The green dot tracks live
                      pen pressure while drawing (#102). -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
-                                             LivePressure="{Binding LivePressure}"
-                                             MaxWidth="360" HorizontalAlignment="Center" />
+                    <StackPanel>
+                        <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
+                        <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
+                                                 LivePressure="{Binding LivePressure}"
+                                                 MaxWidth="360" HorizontalAlignment="Center"
+                                                 Margin="0,10,0,0" />
+                    </StackPanel>
                 </Border>
 
                 <!-- Controls -->
