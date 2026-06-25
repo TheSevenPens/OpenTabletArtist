@@ -126,6 +126,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
     public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
 
+    /// <summary>A connect attempt is in flight (e.g. the ~5s initial auto-connect at startup) but the
+    /// daemon hasn't answered yet — used to show a "Connecting…" indicator instead of a bare
+    /// "Not connected".</summary>
+    public bool IsConnecting => !IsConnected && ConnectionStatus == "Connecting...";
+
+    /// <summary>Show the indeterminate activity indicator for either a lifecycle op or the initial connect.</summary>
+    public bool ShowDaemonActivity => IsDaemonBusy || IsConnecting;
+
+    /// <summary>Phase text for the activity indicator.</summary>
+    public string DaemonActivityText => IsDaemonBusy ? DaemonOperationStatus : "Connecting…";
+
+    /// <summary>Offer "Start" only when not connected and not already mid-connect.</summary>
+    public bool ShowStartButton => !IsConnected && !IsConnecting;
+
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
     [ObservableProperty] private bool _hasTablet;
@@ -183,9 +197,23 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     partial void OnIsConnectedChanged(bool value)
     {
-        DaemonStatusText = value ? "Daemon running" : "Not connected";
         OnPropertyChanged(nameof(CanStartDaemon));
         NotifyOwnership();
+        UpdateDaemonActivity();
+    }
+
+    partial void OnConnectionStatusChanged(string value) => UpdateDaemonActivity();
+    partial void OnIsDaemonBusyChanged(bool value) => UpdateDaemonActivity();
+    partial void OnDaemonOperationStatusChanged(string value) => UpdateDaemonActivity();
+
+    /// <summary>Recompute the daemon status text + activity indicators from the connect/op state.</summary>
+    private void UpdateDaemonActivity()
+    {
+        DaemonStatusText = IsConnected ? "Daemon running" : IsConnecting ? "Connecting…" : "Not connected";
+        OnPropertyChanged(nameof(IsConnecting));
+        OnPropertyChanged(nameof(ShowDaemonActivity));
+        OnPropertyChanged(nameof(DaemonActivityText));
+        OnPropertyChanged(nameof(ShowStartButton));
     }
 
     partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();
@@ -207,6 +235,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
         _ = PollDataAsync();
+        _ = MonitorConnectAttemptAsync(++_connectAttempt);
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
@@ -215,7 +244,27 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Task ConnectAsync()
     {
         ConnectionStatus = "Connecting...";
-        return _daemon.ConnectAsync(_cts.Token);
+        var connect = _daemon.ConnectAsync(_cts.Token);
+        _ = MonitorConnectAttemptAsync(++_connectAttempt);
+        return connect;
+    }
+
+    // Identifies the latest connect attempt so a stale monitor (e.g. from an earlier Refresh) can't
+    // clear the indicator out from under a newer attempt (Codex #114).
+    private int _connectAttempt;
+
+    /// <summary>A fired-and-forgotten connect (startup / Refresh) keeps retrying in the background;
+    /// if it hasn't landed within the timeout, drop the "Connecting…" indicator back to
+    /// "Not connected" so the card isn't stuck on a spinner. A later success flips it via the
+    /// Connected callback. Only the latest attempt may clear the status.</summary>
+    private async Task MonitorConnectAttemptAsync(int attempt)
+    {
+        if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout)
+            && attempt == _connectAttempt
+            && !IsConnected && ConnectionStatus == "Connecting...")
+        {
+            ConnectionStatus = "Disconnected";
+        }
     }
 
     // --- Data load (IDeviceData) + settings apply (ISettingsCoordinator) ---
@@ -409,10 +458,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
+            _connectAttempt++; // invalidate any pending startup/Refresh monitor
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+            {
                 DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
+            }
         }
         finally
         {
@@ -466,10 +519,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
+            _connectAttempt++; // invalidate any pending startup/Refresh monitor
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+            {
                 DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
+            }
         }
         finally
         {

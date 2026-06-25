@@ -55,6 +55,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     // Lifecycle-operation feedback, forwarded from the session (mirrored via PropertyChanged).
     public bool IsDaemonBusy => _session.IsDaemonBusy;
     public string DaemonOperationStatus => _session.DaemonOperationStatus;
+    public bool ShowDaemonActivity => _session.ShowDaemonActivity;
+    public string DaemonActivityText => _session.DaemonActivityText;
+    public bool ShowStartButton => _session.ShowStartButton;
     public string DaemonOperationError => _session.DaemonOperationError;
     public bool HasDaemonOperationError => _session.HasDaemonOperationError;
 
