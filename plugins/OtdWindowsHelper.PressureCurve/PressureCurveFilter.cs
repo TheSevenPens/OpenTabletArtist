@@ -49,7 +49,9 @@ public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
 
     public void Consume(IDeviceReport value)
     {
-        if (value is ITabletReport report)
+        // Leave a raw zero (hover / no contact) untouched — an Output Minimum > 0 must only apply
+        // once the pen is actually down, or downstream output/bindings would read hover as a press.
+        if (value is ITabletReport report && report.Pressure > 0)
         {
             var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
             if (max > 0)
