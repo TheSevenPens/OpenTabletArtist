@@ -45,25 +45,37 @@ public class VMultiDetector
     {
         try
         {
-            var devices = FindDevicesByHardwareId(VMultiHardwareId);
-
-            if (devices.Count == 0)
-                return new SetupApiDetectionResult(false, false, "Not installed");
-
-            bool anyEnabled = devices.Any(d => d.Enabled);
-            bool anyDisabled = devices.Any(d => !d.Enabled);
-
-            if (anyEnabled && !anyDisabled)
-                return new SetupApiDetectionResult(true, true, $"Installed & enabled ({devices.Count} devices)");
-            if (anyEnabled && anyDisabled)
-                return new SetupApiDetectionResult(true, true, $"Installed ({devices.Count} devices, some disabled)");
-            // All disabled
-            return new SetupApiDetectionResult(true, false, $"Installed but disabled ({devices.Count} devices)");
+            return ClassifySetupApi(FindDevicesByHardwareId(VMultiHardwareId));
         }
         catch (Exception ex)
         {
             return new SetupApiDetectionResult(false, false, $"Error: {ex.Message}");
         }
+    }
+
+    /// <summary>Pure classification of present vmulti device nodes into an install state, by their
+    /// CM problem code. A driverless leftover (e.g. Code 28 after an uninstall) is present but not a
+    /// working install, so it reports as not installed rather than installed.</summary>
+    public static SetupApiDetectionResult ClassifySetupApi(IReadOnlyList<DeviceInfo> devices)
+    {
+        if (devices.Count == 0)
+            return new SetupApiDetectionResult(false, false, "Not installed");
+
+        var functional = devices.Where(d => d.Problem == 0).ToList();
+        var disabled = devices.Where(d => d.Problem == CM_PROB_DISABLED).ToList();
+        var orphaned = devices.Where(d => d.Problem != 0 && d.Problem != CM_PROB_DISABLED).ToList();
+
+        if (functional.Count > 0)
+            return functional.Count == devices.Count
+                ? new SetupApiDetectionResult(true, true, $"Installed & enabled ({functional.Count} devices)")
+                : new SetupApiDetectionResult(true, true, $"Installed ({devices.Count} devices, some inactive)");
+
+        if (disabled.Count > 0 && orphaned.Count == 0)
+            return new SetupApiDetectionResult(true, false, $"Installed but disabled ({disabled.Count} devices)");
+
+        // Only driverless/problem nodes remain — the driver is gone; these are leftover nodes.
+        return new SetupApiDetectionResult(false, false,
+            $"Not installed ({orphaned.Count} leftover device node{(orphaned.Count == 1 ? "" : "s")}, no driver)");
     }
 
     private static List<DeviceInfo> FindDevicesByHardwareId(string targetHardwareId)
@@ -95,13 +107,13 @@ public class VMultiDetector
                     {
                         string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
 
-                        // Check if device is enabled
-                        bool enabled = IsDeviceEnabled(devInfoSet, ref devInfoData);
+                        var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
 
                         results.Add(new DeviceInfo(
                             id,
                             description ?? "Unknown",
-                            enabled
+                            enabled,
+                            problem
                         ));
                         break;
                     }
@@ -162,8 +174,8 @@ public class VMultiDetector
                     if (id.Equals(targetHardwareId, StringComparison.OrdinalIgnoreCase))
                     {
                         string? description = GetDeviceRegistryProperty(devInfoSet, ref devInfoData, SPDRP_DEVICEDESC);
-                        bool enabled = IsDeviceEnabled(devInfoSet, ref devInfoData);
-                        results.Add(new DeviceInfo(id, description ?? "Unknown", enabled));
+                        var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
+                        results.Add(new DeviceInfo(id, description ?? "Unknown", enabled, problem));
                         break;
                     }
                 }
@@ -177,21 +189,21 @@ public class VMultiDetector
         return results;
     }
 
-    private static bool IsDeviceEnabled(nint devInfoSet, ref SP_DEVINFO_DATA devInfoData)
+    // CM device problem codes we care about.
+    private const uint CM_PROB_DISABLED = 0x16; // 22 — user-disabled (driver still present)
+    private const uint DN_HAS_PROBLEM = 0x00000400;
+
+    /// <summary>Returns whether the device node is enabled and its CM problem code (0 = no problem).
+    /// A driverless leftover reports a problem (e.g. Code 28) while still being "present".</summary>
+    private static (bool Enabled, uint Problem) GetDevNodeState(nint devInfoSet, ref SP_DEVINFO_DATA devInfoData)
     {
         uint status = 0, problem = 0;
         if (CM_Get_DevNode_Status(ref status, ref problem, devInfoData.devInst, 0) != 0)
-            return false; // Can't get status — treat as disabled
+            return (false, 0); // Can't get status — treat as disabled, unknown problem
 
-        // DN_DISABLEABLE check isn't needed; if CM_Get_DevNode_Status succeeds
-        // and there's no DN_HAS_PROBLEM with CM_PROB_DISABLED, it's enabled
-        const uint CM_PROB_DISABLED = 0x16;
-        const uint DN_HAS_PROBLEM = 0x00000400;
-
-        if ((status & DN_HAS_PROBLEM) != 0 && problem == CM_PROB_DISABLED)
-            return false;
-
-        return true;
+        uint prob = (status & DN_HAS_PROBLEM) != 0 ? problem : 0;
+        bool enabled = prob != CM_PROB_DISABLED;
+        return (enabled, prob);
     }
 
     private static string? GetDeviceRegistryProperty(nint devInfoSet, ref SP_DEVINFO_DATA devInfoData, uint property)
@@ -252,4 +264,4 @@ public class VMultiDetector
 
 public record HidDetectionResult(bool Visible, bool Functional, string Message);
 public record SetupApiDetectionResult(bool Installed, bool Enabled, string Message);
-public record DeviceInfo(string HardwareId, string Description, bool Enabled);
+public record DeviceInfo(string HardwareId, string Description, bool Enabled, uint Problem = 0);

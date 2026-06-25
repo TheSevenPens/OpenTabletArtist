@@ -111,16 +111,13 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _showInstallButton;
     [ObservableProperty] private bool _showUninstallButton;
 
-    partial void OnVmultiInstalledChanged(bool value)
-    {
-        ShowInstallButton = !value && !VmultiInstalling;
-        ShowUninstallButton = value && !VmultiInstalling;
-    }
+    partial void OnVmultiInstalledChanged(bool value) => UpdateVmultiButtons();
+    partial void OnVmultiInstallingChanged(bool value) => UpdateVmultiButtons();
 
-    partial void OnVmultiInstallingChanged(bool value)
+    private void UpdateVmultiButtons()
     {
-        ShowInstallButton = !VmultiInstalled && !value;
-        ShowUninstallButton = VmultiInstalled && !value;
+        ShowInstallButton = !VmultiInstalled && !VmultiInstalling;
+        ShowUninstallButton = VmultiInstalled && !VmultiInstalling;
     }
 
     private async Task InitVmultiAsync() => await RefreshVmultiDetection();
@@ -133,6 +130,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
         VmultiHidStatus = hidResult.Message;
         VmultiSetupApiStatus = setupResult.Message;
+        // "Installed" means a working driver — detection treats driverless leftover nodes (Code 28
+        // after an uninstall) as not installed, so the card flips to "Not installed" once the driver
+        // is gone instead of reporting the orphaned device nodes as installed.
         VmultiInstalled = hidResult.Visible || setupResult.Installed;
 
         if (hidResult.Functional)
@@ -143,6 +143,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             VmultiMessage = "Installed (not active in HID)";
         else
             VmultiMessage = "Not installed";
+
+        // Recompute explicitly: the OnVmultiInstalledChanged hook only fires when the value changes,
+        // so when detection legitimately leaves VmultiInstalled = false (its default), the buttons
+        // would otherwise never be initialized and the Install button wouldn't appear.
+        UpdateVmultiButtons();
     }
 
     [RelayCommand]
