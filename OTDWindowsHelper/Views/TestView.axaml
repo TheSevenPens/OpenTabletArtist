@@ -8,9 +8,6 @@
 
         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
             <TextBlock Classes="PageTitle" Text="Test" />
-            <TextBlock Classes="PageSubtitle"
-                       Text="Paint with your pen to verify pressure, tilt, and twist are working." />
-
             <!-- Controls -->
             <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <ToggleSwitch OffContent="App input (Windows Ink)" OnContent="Driver input (OTD)"
