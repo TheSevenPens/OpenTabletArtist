@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- The Test tab's paint canvas copies an SKBitmap into an Avalonia WriteableBitmap
+         with a fast unsafe Buffer.MemoryCopy (see Controls/PenTestCanvas). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Avalonia 12 made compiled bindings the default. For this migration we
          keep the 11.x behaviour (reflection-based bindings with no x:DataType
          required). Revisit later to opt back in per-view for compile-time
@@ -30,6 +33,10 @@
          transitively, which trips NU1903 (GHSA-hv8m-jj95-wg3x, fixed in 2.5.301).
          This direct reference stays on the 2.5.x line for compatibility. -->
     <PackageReference Include="MessagePack" Version="2.5.302" />
+    <!-- Raster paint surface for the Test tab. Pinned to the same SkiaSharp Avalonia 12 already
+         pulls in (via Avalonia.Skia) to avoid a package downgrade. We own the SKBitmap and hand
+         Avalonia a pixel buffer (no render-lease interop), so usage stays self-contained. -->
+    <PackageReference Include="SkiaSharp" Version="3.119.3-preview.1.1" />
   </ItemGroup>
 
   <!-- OTD library references (via git submodule at external/OpenTabletDriver) -->

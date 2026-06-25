@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DiagnosticsViewModel Diagnostics { get; }
     public TabletSettingsViewModel TabletSettings { get; }
     public DashboardViewModel Dashboard { get; }
+    public TestViewModel Test { get; }
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
     // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
@@ -35,6 +36,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
     public bool IsUtilities => ReferenceEquals(CurrentPage, Utilities);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
+    public bool IsTest => ReferenceEquals(CurrentPage, Test);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
@@ -50,6 +52,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
+        Test = new TestViewModel(_session.Daemon);
 
         CurrentPage = Dashboard;
 
@@ -71,6 +74,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (ReferenceEquals(oldValue, Diagnostics) && !ReferenceEquals(newValue, Diagnostics))
             _ = Diagnostics.StopDebuggingAsync();
 
+        // Start/stop the Test page's driver-input source so the daemon debug stream is only on
+        // while Test is visible (same lifecycle treatment as Diagnostics).
+        if (ReferenceEquals(newValue, Test) && !ReferenceEquals(oldValue, Test))
+            _ = Test.ActivateAsync();
+        else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
+            _ = Test.DeactivateAsync();
+
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         OnPropertyChanged(nameof(IsDashboard));
         OnPropertyChanged(nameof(IsTabletSettings));
@@ -78,6 +88,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsConfigs));
         OnPropertyChanged(nameof(IsUtilities));
         OnPropertyChanged(nameof(IsDiagnostics));
+        OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsAbout));
     }
 
@@ -87,6 +98,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         TabletSettings.Dispose(); // unsubscribes DataLoaded
         Presets.Dispose();        // unsubscribes DataLoaded
+        Test.Dispose();           // stops the daemon debug stream if running
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         Utilities.Dispose();
     }
