@@ -100,6 +100,7 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 - **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
 - **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
 - **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
+- **Tablet Settings** — opens the per-tablet settings dialog for the detected tablet without leaving Test, so you can tweak the Pressure curve and immediately test the feel.
 
 ### About
 

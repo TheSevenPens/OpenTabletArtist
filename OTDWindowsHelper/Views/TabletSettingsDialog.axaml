@@ -223,7 +223,7 @@
 
                 <!-- Chart -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}" />
+                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}" Height="230" />
                 </Border>
 
                 <!-- Controls -->
