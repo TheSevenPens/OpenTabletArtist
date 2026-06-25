@@ -65,8 +65,7 @@
         <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
         <Border Classes="GlassPanel" CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <c:PenTestCanvas x:Name="PaintCanvas"
-                             BrushMode="{Binding BrushMode}"
-                             AcceptPointerInput="{Binding !UseDriverInput}" />
+                             BrushMode="{Binding BrushMode}" />
         </Border>
     </DockPanel>
 </UserControl>
