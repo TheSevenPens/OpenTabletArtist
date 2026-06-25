@@ -69,20 +69,28 @@
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
-                        <TextBlock Text="AREA MAPPING" Classes="SectionLabel" />
-                        <TextBlock Text="Map tablet to display" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,6" />
-                        <ListBox ItemsSource="{Binding Displays}"
-                                 SelectedItem="{Binding SelectedDisplay}"
-                                 Background="Transparent" BorderThickness="0"
-                                 Padding="0">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Label}" FontSize="11"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Grid.Column="0" Text="AREA MAPPING" Classes="SectionLabel"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Command="{Binding RefreshDisplaysCommand}"
+                                    ToolTip.Tip="Refresh displays from Windows"
+                                    Theme="{StaticResource IconButton}" Margin="0,0,6,0">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </Button>
+                            <Button Grid.Column="2" Content="Display Settings"
+                                    Command="{Binding OpenDisplaySettingsCommand}"
+                                    ToolTip.Tip="Open Windows Display Settings"
+                                    Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" />
+                        </Grid>
+                        <TextBlock Text="Pick the display to map the tablet to, then Apply." FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8" />
+                        <ctrl:DisplayLayoutView Displays="{Binding Displays}"
+                                                SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
+                                                Height="200" />
+                        <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
+                                HorizontalAlignment="Left" Margin="0,10,0,0" />
                     </StackPanel>
                 </Border>
             </StackPanel>
