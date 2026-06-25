@@ -77,6 +77,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     partial void OnIsWinInkAbsoluteChanged(bool value)
     {
+        OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkAbsoluteModePath);
     }
@@ -85,6 +86,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkRelativeModePath);
+    }
+
+    /// <summary>The Output Mode toggle: on = Windows Ink Absolute, off = Windows Ink Relative.
+    /// Setting it switches the mode (also fixing a non-Windows-Ink mode to Windows Ink).</summary>
+    public bool IsAbsoluteMode
+    {
+        get => IsWinInkAbsolute;
+        set => _ = SetOutputMode(value ? WinInkAbsoluteModePath : WinInkRelativeModePath);
     }
 
     private async Task SetOutputMode(string path)

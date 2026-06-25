@@ -45,14 +45,12 @@
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="OUTPUT MODE" Classes="SectionLabel" />
-                        <RadioButton Content="Windows Ink Absolute Mode"
-                                     IsChecked="{Binding IsWinInkAbsolute}"
-                                     Theme="{StaticResource TabRadioButton}"
-                                     Margin="0,8,0,0" />
-                        <RadioButton Content="Windows Ink Relative Mode"
-                                     IsChecked="{Binding IsWinInkRelative}"
-                                     Theme="{StaticResource TabRadioButton}"
-                                     Margin="0,4,0,0" />
+                        <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+                            <TextBlock Grid.Column="0" Text="Windows Ink" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAbsoluteMode}"
+                                          OnContent="Absolute" OffContent="Relative" />
+                        </Grid>
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
                                    FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
                                    TextWrapping="Wrap"
