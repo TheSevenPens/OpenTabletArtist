@@ -34,4 +34,32 @@ public class PenSmoothingTests
         double heavy = PenSmoothing.Ema(1.0, previous: 0.0, factor: 0.9);
         Assert.True(heavy < light); // more smoothing = closer to the old value
     }
+
+    [Fact]
+    public void FactorFromAmount_ZeroIsOff_OneIsMax()
+    {
+        Assert.Equal(0, PenSmoothing.FactorFromAmount(0));
+        Assert.Equal(PenSmoothing.MaxFactor, PenSmoothing.FactorFromAmount(1), 6);
+        Assert.Equal(0, PenSmoothing.FactorFromAmount(-0.5)); // out of range clamps off
+    }
+
+    [Fact]
+    public void FactorFromAmount_IsMonotonicAndNeverFreezes()
+    {
+        double prev = -1;
+        for (double a = 0; a <= 1.0001; a += 0.1)
+        {
+            double f = PenSmoothing.FactorFromAmount(a);
+            Assert.InRange(f, 0, PenSmoothing.MaxFactor);
+            Assert.True(f >= prev - 1e-9); // non-decreasing
+            prev = f;
+        }
+    }
+
+    [Fact]
+    public void FactorFromAmount_MatchesSlimyScyllaCurve()
+    {
+        // amount^(0.02/amount): 0.1 -> 0.1^0.2 ~ 0.631
+        Assert.Equal(System.Math.Pow(0.1, 0.2), PenSmoothing.FactorFromAmount(0.1), 6);
+    }
 }

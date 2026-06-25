@@ -43,11 +43,11 @@ public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
     public bool CutBelowMinimum { get; set; }
 
     [Property("Pressure Smoothing"), DefaultPropertyValue(0f),
-     ToolTip("EMA smoothing of pressure (0 = off, up to 0.99 = heavy). Reduces pressure jitter at the cost of lag.")]
+     ToolTip("EMA smoothing of pressure (amount 0 = off to 1 = max, perceptually scaled). Reduces pressure jitter at the cost of lag. Applies while drawing.")]
     public float PressureSmoothing { get; set; }
 
     [Property("Position Smoothing"), DefaultPropertyValue(0f),
-     ToolTip("EMA smoothing of the pen position (0 = off, up to 0.99 = heavy). Steadies wobbly lines at the cost of lag.")]
+     ToolTip("EMA smoothing of the pen position (amount 0 = off to 1 = max, perceptually scaled). Steadies wobbly lines at the cost of lag. Applies while drawing.")]
     public float PositionSmoothing { get; set; }
 
     [Property("Smooth after curve"), DefaultPropertyValue(true),
@@ -75,28 +75,29 @@ public class PressureCurveFilter : IPositionedPipelineElement<IDeviceReport>
         if (value is IProximityReport { NearProximity: false })
             _processor.Reset();
 
-        // Position smoothing (hover or contact). Skip the no-op when off so we don't disturb reports.
-        if (PositionSmoothing > 0 && value is IAbsolutePositionReport posReport)
-        {
-            var (x, y) = _processor.ProcessPosition(posReport.Position.X, posReport.Position.Y);
-            posReport.Position = new Vector2((float)x, (float)y);
-        }
-
         if (value is ITabletReport report)
         {
-            // Leave a raw zero (hover / no contact) untouched — an Output Minimum > 0 must only apply
-            // once the pen is down — and reset pressure smoothing so the next press starts crisp.
             if (report.Pressure == 0)
             {
-                _processor.ResetPressure();
+                // Hover / pen up: leave pressure 0 untouched (Output Minimum applies only when the pen
+                // is down) and reset smoothing so the next stroke starts crisp. Smoothing only while
+                // drawing — and resetting on lift — steadies stroke starts/ends without depending on
+                // proximity reports (Slimy Scylla's "apply while drawing" default).
+                _processor.Reset();
             }
             else
             {
+                if (PositionSmoothing > 0)
+                {
+                    var (x, y) = _processor.ProcessPosition(report.Position.X, report.Position.Y);
+                    report.Position = new Vector2((float)x, (float)y);
+                }
+
                 var max = Tablet?.Properties?.Specifications?.Pen?.MaxPressure ?? 0;
                 if (max > 0)
                 {
-                    var y = _processor.ProcessPressure(report.Pressure / (double)max);
-                    report.Pressure = (uint)Math.Round(y * max);
+                    var outPressure = _processor.ProcessPressure(report.Pressure / (double)max);
+                    report.Pressure = (uint)Math.Round(outPressure * max);
                 }
             }
         }

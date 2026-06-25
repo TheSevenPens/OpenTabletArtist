@@ -4,6 +4,8 @@ namespace OtdWindowsHelper.Domain;
 /// Full pen-dynamics configuration: the pressure <see cref="Curve"/> plus EMA smoothing amounts and
 /// the curve/smooth ordering. This is what a tablet profile stores and the editor edits; the pure
 /// curve math (<see cref="PressureCurveSettings"/>) is just the <see cref="Curve"/> part.
+/// <para><see cref="PressureSmoothing"/> / <see cref="PositionSmoothing"/> are slider <em>amounts</em>
+/// in [0,1] (0 = off), mapped to an EMA factor by <see cref="PenSmoothing.FactorFromAmount"/>.</para>
 /// </summary>
 public readonly record struct PenDynamicsSettings(
     PressureCurveSettings Curve,
@@ -48,16 +50,17 @@ public sealed class PenDynamicsProcessor
     /// <see cref="PenDynamicsSettings.SmoothAfterCurve"/>). Returns a normalized output [0,1].</summary>
     public double ProcessPressure(double normalized)
     {
+        double factor = PenSmoothing.FactorFromAmount(Settings.PressureSmoothing);
         double result;
         if (Settings.SmoothAfterCurve)
         {
             double curved = PressureCurve.Apply(normalized, Settings.Curve);
-            result = PenSmoothing.Ema(curved, _smoothedPressure, Settings.PressureSmoothing);
+            result = PenSmoothing.Ema(curved, _smoothedPressure, factor);
             _smoothedPressure = result;
         }
         else
         {
-            double smoothed = PenSmoothing.Ema(normalized, _smoothedPressure, Settings.PressureSmoothing);
+            double smoothed = PenSmoothing.Ema(normalized, _smoothedPressure, factor);
             _smoothedPressure = smoothed;
             result = PressureCurve.Apply(smoothed, Settings.Curve);
         }
@@ -67,8 +70,9 @@ public sealed class PenDynamicsProcessor
     /// <summary>Smooth a raw position (tablet units). Returns the smoothed coordinates.</summary>
     public (double X, double Y) ProcessPosition(double x, double y)
     {
-        double sx = PenSmoothing.Ema(x, _smoothedX, Settings.PositionSmoothing);
-        double sy = PenSmoothing.Ema(y, _smoothedY, Settings.PositionSmoothing);
+        double factor = PenSmoothing.FactorFromAmount(Settings.PositionSmoothing);
+        double sx = PenSmoothing.Ema(x, _smoothedX, factor);
+        double sy = PenSmoothing.Ema(y, _smoothedY, factor);
         _smoothedX = sx;
         _smoothedY = sy;
         return (sx, sy);

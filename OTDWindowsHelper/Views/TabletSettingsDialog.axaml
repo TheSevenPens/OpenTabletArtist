@@ -278,7 +278,7 @@
                         <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
                             <TextBlock Grid.Column="0" Text="Position" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
-                            <Slider Grid.Column="1" Minimum="0" Maximum="0.99"
+                            <Slider Grid.Column="1" Minimum="0" Maximum="1"
                                     Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="2" Text="{Binding PositionSmoothingText}" FontSize="12"
                                        FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
@@ -289,7 +289,7 @@
                         <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                             <TextBlock Grid.Column="0" Text="Pressure" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
-                            <Slider Grid.Column="1" Minimum="0" Maximum="0.99"
+                            <Slider Grid.Column="1" Minimum="0" Maximum="1"
                                     Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="2" Text="{Binding PressureSmoothingText}" FontSize="12"
                                        FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
