@@ -143,6 +143,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             VmultiMessage = "Installed (not active in HID)";
         else
             VmultiMessage = "Not installed";
+
+        // Recompute explicitly: the OnVmultiInstalledChanged hook only fires when the value changes,
+        // so when detection legitimately leaves VmultiInstalled = false (its default), the buttons
+        // would otherwise never be initialized and the Install button wouldn't appear.
+        UpdateVmultiButtons();
     }
 
     [RelayCommand]
