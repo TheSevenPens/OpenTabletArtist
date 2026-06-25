@@ -235,6 +235,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
         _ = PollDataAsync();
+        _ = MonitorConnectAttemptAsync();
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
@@ -243,7 +244,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Task ConnectAsync()
     {
         ConnectionStatus = "Connecting...";
-        return _daemon.ConnectAsync(_cts.Token);
+        var connect = _daemon.ConnectAsync(_cts.Token);
+        _ = MonitorConnectAttemptAsync();
+        return connect;
+    }
+
+    /// <summary>A fired-and-forgotten connect (startup / Refresh) keeps retrying in the background;
+    /// if it hasn't landed within the timeout, drop the "Connecting…" indicator back to
+    /// "Not connected" so the card isn't stuck on a spinner. A later success flips it via the
+    /// Connected callback.</summary>
+    private async Task MonitorConnectAttemptAsync()
+    {
+        if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout)
+            && !IsConnected && ConnectionStatus == "Connecting...")
+        {
+            ConnectionStatus = "Disconnected";
+        }
     }
 
     // --- Data load (IDeviceData) + settings apply (ISettingsCoordinator) ---
@@ -440,7 +456,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+            {
                 DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
+            }
         }
         finally
         {
@@ -497,7 +516,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
+            {
                 DaemonOperationError = "The daemon didn't come online within 30 seconds.";
+                ConnectionStatus = "Disconnected"; // clear the Connecting… indicator on failure
+            }
         }
         finally
         {
