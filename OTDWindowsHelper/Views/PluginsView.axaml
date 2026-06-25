@@ -10,15 +10,18 @@
 
         <Border Classes="GlassPanel" Padding="16">
             <StackPanel>
-                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
                     <TextBlock Grid.Column="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
                                VerticalAlignment="Center" />
                     <Button Grid.Column="1" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Rescan the plugin folder"
-                            Theme="{StaticResource IconButton}">
+                            Theme="{StaticResource IconButton}" Margin="0,0,6,0">
                         <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </Button>
+                    <Button Grid.Column="2" Content="Browse" Command="{Binding BrowseCommand}"
+                            ToolTip.Tip="Open the plugin folder in File Explorer"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
                 </Grid>
 
                 <!-- Empty state -->

@@ -156,7 +156,7 @@
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <c:IconBox Grid.Column="0" Glyph="&#xE72E;" Margin="0,0,16,0"
-                               IsActive="{Binding VmultiInstalled}" />
+                               IsActive="{Binding VmultiOk}" />
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
@@ -172,7 +172,7 @@
                             </Button>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding VmultiInstalled}" />
+                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding VmultiOk}" />
                             <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>

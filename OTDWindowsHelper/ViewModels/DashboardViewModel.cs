@@ -102,6 +102,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     }
 
     // --- VMulti driver card ---
+    // VMulti removal is deferred to a Windows restart, so right after an uninstall the device is
+    // still *present* and detection correctly keeps reporting it installed. We persist a
+    // "pending reboot" flag so the card shows a restart-required state instead of a confusing
+    // "Installed", and clear it once the device is actually gone (after the reboot).
+    private const string VMultiUninstallPendingKey = "VMultiUninstallPending";
+
     [ObservableProperty] private bool _vmultiInstalled;
     [ObservableProperty] private string _vmultiMessage = "Checking...";
     [ObservableProperty] private string _vmultiHidStatus = "Checking...";
@@ -110,17 +116,22 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _vmultiInstallStatus = "";
     [ObservableProperty] private bool _showInstallButton;
     [ObservableProperty] private bool _showUninstallButton;
+    [ObservableProperty] private bool _vmultiRebootPending;
 
-    partial void OnVmultiInstalledChanged(bool value)
-    {
-        ShowInstallButton = !value && !VmultiInstalling;
-        ShowUninstallButton = value && !VmultiInstalling;
-    }
+    /// <summary>Healthy "installed" state for the status icons — true only when present and not
+    /// pending a reboot-to-remove (so an uninstalled-but-not-yet-rebooted driver doesn't look OK).</summary>
+    public bool VmultiOk => VmultiInstalled && !VmultiRebootPending;
 
-    partial void OnVmultiInstallingChanged(bool value)
+    partial void OnVmultiInstalledChanged(bool value) { UpdateVmultiButtons(); OnPropertyChanged(nameof(VmultiOk)); }
+    partial void OnVmultiInstallingChanged(bool value) => UpdateVmultiButtons();
+    partial void OnVmultiRebootPendingChanged(bool value) { UpdateVmultiButtons(); OnPropertyChanged(nameof(VmultiOk)); }
+
+    private void UpdateVmultiButtons()
     {
-        ShowInstallButton = !VmultiInstalled && !value;
-        ShowUninstallButton = VmultiInstalled && !value;
+        // While a reboot is pending the driver is being removed — neither Install nor Uninstall
+        // applies, so show just the restart message.
+        ShowInstallButton = !VmultiInstalled && !VmultiInstalling && !VmultiRebootPending;
+        ShowUninstallButton = VmultiInstalled && !VmultiInstalling && !VmultiRebootPending;
     }
 
     private async Task InitVmultiAsync() => await RefreshVmultiDetection();
@@ -133,9 +144,21 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
         VmultiHidStatus = hidResult.Message;
         VmultiSetupApiStatus = setupResult.Message;
-        VmultiInstalled = hidResult.Visible || setupResult.Installed;
+        bool present = hidResult.Visible || setupResult.Installed;
+        VmultiInstalled = present;
 
-        if (hidResult.Functional)
+        bool pending = AppSettings.Get(VMultiUninstallPendingKey) == "1";
+        if (pending && !present)
+        {
+            // The reboot happened and the device is gone — the uninstall is complete.
+            AppSettings.Set(VMultiUninstallPendingKey, "0");
+            pending = false;
+        }
+        VmultiRebootPending = pending;
+
+        if (pending)
+            VmultiMessage = "Uninstalled — restart Windows to finish removing the driver.";
+        else if (hidResult.Functional)
             VmultiMessage = "Installed & active";
         else if (setupResult.Installed && !setupResult.Enabled)
             VmultiMessage = "Installed but disabled";
@@ -175,6 +198,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         {
             var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
             VmultiInstallStatus = installResult.Message;
+            if (installResult.Success)
+                AppSettings.Set(VMultiUninstallPendingKey, "0"); // (re)installed — clear any pending removal
             await RefreshVmultiDetection();
             await _dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
         }
@@ -213,6 +238,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         {
             var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
             VmultiInstallStatus = uninstallResult.Message;
+            if (uninstallResult.Success)
+                AppSettings.Set(VMultiUninstallPendingKey, "1"); // removal completes on the next restart
             await RefreshVmultiDetection();
             await _dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
         }

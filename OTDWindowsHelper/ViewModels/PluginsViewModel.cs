@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -32,6 +33,16 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
         _settings = settings;
         _deviceData.DataLoaded += Refresh;
         Refresh();
+    }
+
+    /// <summary>Open the daemon's plugin folder in File Explorer.</summary>
+    [RelayCommand]
+    private void Browse()
+    {
+        var dir = _deviceData.PluginDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
+        try { Process.Start("explorer.exe", dir); }
+        catch { /* best-effort */ }
     }
 
     [RelayCommand]
