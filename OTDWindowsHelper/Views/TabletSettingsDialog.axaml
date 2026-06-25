@@ -51,6 +51,9 @@
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAbsoluteMode}"
                                           OnContent="Absolute" OffContent="Relative" />
                         </Grid>
+                        <TextBlock Text="Absolute is recommended for drawing — it carries pressure &amp; tilt."
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="90,2,0,0"
+                                   TextWrapping="Wrap" />
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
                                    FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
                                    TextWrapping="Wrap"
@@ -105,6 +108,11 @@
                             <TextBlock Text="PEN TIP" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding TipBinding}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding TipAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -124,6 +132,11 @@
                             <TextBlock Text="ERASER" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding EraserBinding}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding EraserAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not using recommended Adaptive Binding"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -162,6 +175,11 @@
                             <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
                                        Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
                                        IsVisible="{Binding NoPenButtons}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" IsVisible="{Binding PenButtonsAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="All using Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not all pen buttons use recommended Adaptive Binding"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"

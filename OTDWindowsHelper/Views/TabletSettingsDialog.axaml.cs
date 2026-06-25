@@ -223,8 +223,10 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         var bindings = _profile.BindingSettings;
         TipBinding = GetBindingName(bindings.TipButton);
         EraserBinding = GetBindingName(bindings.EraserButton);
-        CanFixTip = !IsAdaptive(bindings.TipButton) && _applyAction != null;
-        CanFixEraser = !IsAdaptive(bindings.EraserButton) && _applyAction != null;
+        TipAdaptive = IsAdaptive(bindings.TipButton);
+        EraserAdaptive = IsAdaptive(bindings.EraserButton);
+        CanFixTip = !TipAdaptive && _applyAction != null;
+        CanFixEraser = !EraserAdaptive && _applyAction != null;
 
         // Pen buttons
         PenButtonCount = bindings.PenButtons.Count.ToString();
@@ -238,6 +240,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         }
         PenButtons = newPenButtons;
         NoPenButtons = newPenButtons.Count == 0;
+        PenButtonsAdaptive = bindings.PenButtons.Count > 0 && allAdaptive;
         CanFixPenButtons = !(bindings.PenButtons.Count == 0 || allAdaptive) && _applyAction != null;
 
         var newAuxButtons = new List<ButtonBinding>();
@@ -387,11 +390,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     public bool HasAreaMapping { get; }
     [ObservableProperty] private string _tipBinding = "None";
     [ObservableProperty] private bool _canFixTip;
+    [ObservableProperty] private bool _tipAdaptive;
     [ObservableProperty] private string _eraserBinding = "None";
     [ObservableProperty] private bool _canFixEraser;
+    [ObservableProperty] private bool _eraserAdaptive;
     [ObservableProperty] private string _penButtonCount = "0";
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _canFixPenButtons;
+    [ObservableProperty] private bool _penButtonsAdaptive;
     [ObservableProperty] private bool _noPenButtons;
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _penButtons = [];
