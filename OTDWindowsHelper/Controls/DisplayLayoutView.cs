@@ -25,6 +25,12 @@ public sealed class DisplayLayoutView : Control
     private static readonly IBrush SubTextOnSel = new SolidColorBrush(Color.FromArgb(0xDD, 0xFF, 0xFF, 0xFF));
     private static readonly IPen UnselBorder = new Pen(new SolidColorBrush(Color.FromRgb(0xBF, 0xBF, 0xCB)), 1);
     private static readonly IPen SelBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x4B, 0x4E, 0xC9)), 1.5);
+    // Accent glow around the selected display.
+    private static readonly BoxShadows GlowShadows = new(new BoxShadow
+    {
+        OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 2,
+        Color = Color.FromArgb(0xB0, 0x63, 0x66, 0xF1),
+    });
     private static readonly Typeface Face = new("Segoe UI");
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
@@ -69,7 +75,7 @@ public sealed class DisplayLayoutView : Control
             return;
         }
 
-        const double pad = 8, gap = 3;
+        const double pad = 20, gap = 3; // pad leaves room for the selected display's glow
         double availW = Bounds.Width - 2 * pad, availH = Bounds.Height - 2 * pad;
         if (availW <= 0 || availH <= 0) return;
 
@@ -82,6 +88,7 @@ public sealed class DisplayLayoutView : Control
         double offX = pad + (availW - vbW * scale) / 2;
         double offY = pad + (availH - vbH * scale) / 2;
 
+        (DisplayInfo Display, Rect Box)? selected = null;
         foreach (var d in displays)
         {
             var box = new Rect(offX + (d.X - minX) * scale, offY + (d.Y - minY) * scale,
@@ -89,9 +96,16 @@ public sealed class DisplayLayoutView : Control
             if (box.Width <= 1 || box.Height <= 1) continue;
             _hitRects.Add((d, box));
 
-            bool sel = SelectedNumber == d.Number;
-            ctx.DrawRectangle(sel ? SelFill : UnselFill, sel ? SelBorder : UnselBorder, box, 8, 8);
-            DrawLabels(ctx, box, d, sel);
+            if (SelectedNumber == d.Number) { selected = (d, box); continue; } // drawn last, on top
+            ctx.DrawRectangle(UnselFill, UnselBorder, box, 8, 8);
+            DrawLabels(ctx, box, d, false);
+        }
+
+        // Selected display last, with an accent glow so it clearly stands out.
+        if (selected is { } s)
+        {
+            ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(s.Box, 8), GlowShadows);
+            DrawLabels(ctx, s.Box, s.Display, true);
         }
     }
 
