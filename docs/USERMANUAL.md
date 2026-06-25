@@ -97,9 +97,9 @@ Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details.
 
 A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
 
-- **Input source** (toggle) — the stroke always renders **under the pen**; the toggle picks where the pressure/tilt come from:
-  - **App input (Windows Ink)** — what a drawing app actually receives (the pointer's pressure/tilt).
-  - **Driver input (OTD)** — the raw OTD daemon signal, before the Windows Ink output stage. Useful for diagnosing whether the driver itself is reporting correctly.
+- **Input source** (toggle) — where both the position and the pressure/tilt come from:
+  - **App input (Windows Ink)** — the OS pointer (what a drawing app actually receives). The stroke renders under the pen.
+  - **Driver input (OTD)** — the raw OTD daemon signal, before the Windows Ink output stage — so it works even when Windows Ink isn't delivering pointer events. The raw tablet position is mapped to the canvas through the active tablet's **Absolute** area mapping, so the stroke still lands under the pen. This needs an **Absolute output mode** (e.g. Windows Ink Absolute); in **Relative** mode there's no absolute position to map, so the canvas is disabled with a note.
 - **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
 - **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
 - **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
