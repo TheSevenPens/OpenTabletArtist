@@ -235,7 +235,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
         _ = PollDataAsync();
-        _ = MonitorConnectAttemptAsync();
+        _ = MonitorConnectAttemptAsync(++_connectAttempt);
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
@@ -245,17 +245,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         ConnectionStatus = "Connecting...";
         var connect = _daemon.ConnectAsync(_cts.Token);
-        _ = MonitorConnectAttemptAsync();
+        _ = MonitorConnectAttemptAsync(++_connectAttempt);
         return connect;
     }
+
+    // Identifies the latest connect attempt so a stale monitor (e.g. from an earlier Refresh) can't
+    // clear the indicator out from under a newer attempt (Codex #114).
+    private int _connectAttempt;
 
     /// <summary>A fired-and-forgotten connect (startup / Refresh) keeps retrying in the background;
     /// if it hasn't landed within the timeout, drop the "Connecting…" indicator back to
     /// "Not connected" so the card isn't stuck on a spinner. A later success flips it via the
-    /// Connected callback.</summary>
-    private async Task MonitorConnectAttemptAsync()
+    /// Connected callback. Only the latest attempt may clear the status.</summary>
+    private async Task MonitorConnectAttemptAsync(int attempt)
     {
         if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout)
+            && attempt == _connectAttempt
             && !IsConnected && ConnectionStatus == "Connecting...")
         {
             ConnectionStatus = "Disconnected";
@@ -453,6 +458,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
+            _connectAttempt++; // invalidate any pending startup/Refresh monitor
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
@@ -513,6 +519,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
+            _connectAttempt++; // invalidate any pending startup/Refresh monitor
             await _daemon.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
