@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -96,5 +97,29 @@ public class TabletSettingsViewModelTests
 
         Assert.True(vm.HasProfiles);
         Assert.Equal("Wacom", vm.Profiles[0].Profile.Tablet);
+    }
+
+    // #137: detected tablet first, then most-recently-seen, then never-seen (alphabetical).
+    [Fact]
+    public void Profiles_OrderedByDetectedThenRecencyThenName()
+    {
+        var now = System.DateTime.Now;
+        var device = new FakeDeviceData
+        {
+            Profiles = new List<ProfileItem>
+            {
+                new(new Profile { Tablet = "NeverSeen-B" }, IsDetected: false, LastSeen: null),
+                new(new Profile { Tablet = "SeenOld" },     IsDetected: false, LastSeen: now.AddDays(-3)),
+                new(new Profile { Tablet = "Detected" },     IsDetected: true,  LastSeen: now),
+                new(new Profile { Tablet = "NeverSeen-A" }, IsDetected: false, LastSeen: null),
+                new(new Profile { Tablet = "SeenRecent" },  IsDetected: false, LastSeen: now.AddHours(-1)),
+            }
+        };
+
+        var vm = NewVm(device: device);
+
+        Assert.Equal(
+            new[] { "Detected", "SeenRecent", "SeenOld", "NeverSeen-A", "NeverSeen-B" },
+            vm.Profiles.Select(p => p.Tablet).ToArray());
     }
 }
