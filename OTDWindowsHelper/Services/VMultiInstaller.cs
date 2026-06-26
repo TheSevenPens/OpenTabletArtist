@@ -107,7 +107,10 @@ public class VMultiInstaller
     }
 
     /// <summary>
-    /// Downloads the VMulti package and runs remove_hiddriver.bat with admin elevation.
+    /// Downloads the VMulti package for its bundled tools, then runs an in-app removal script
+    /// (no <c>@pause</c>) elevated with a hidden window: DIFxCmd uninstalls the driver, devcon removes
+    /// the active device and the leftover driverless <c>djpnewton\vmulti</c> nodes (#110/#112). The
+    /// card re-detects the real state afterward; a restart is recommended.
     /// </summary>
     public async Task<InstallResult> UninstallAsync(CancellationToken ct = default)
     {
