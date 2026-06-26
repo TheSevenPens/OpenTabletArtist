@@ -483,27 +483,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     public string SoftnessText => Curve.Softness.ToString("0.00");
 
-    // Numeric entry for the node values (#103). Setters keep input/output min &lt; max and clamp 0..1.
-    public double InputMinimum
-    {
-        get => Curve.InputMinimum;
-        set { var v = Math.Min(Clamp01(value), Curve.InputMaximum - 0.01); if (Curve.InputMinimum != v) Curve = Curve with { InputMinimum = v }; }
-    }
-    public double InputMaximum
-    {
-        get => Curve.InputMaximum;
-        set { var v = Math.Max(Clamp01(value), Curve.InputMinimum + 0.01); if (Curve.InputMaximum != v) Curve = Curve with { InputMaximum = v }; }
-    }
-    public double OutputMinimum
-    {
-        get => Curve.Minimum;
-        set { var v = Math.Min(Clamp01(value), Curve.Maximum); if (Curve.Minimum != v) Curve = Curve with { Minimum = v }; }
-    }
-    public double OutputMaximum
-    {
-        get => Curve.Maximum;
-        set { var v = Math.Max(Clamp01(value), Curve.Minimum); if (Curve.Maximum != v) Curve = Curve with { Maximum = v }; }
-    }
+    // Read-only display of the node values (#131). Editing is via dragging the chart nodes; these
+    // just show where the pink (min) / cyan (max) nodes currently sit (input → output).
+    public string InputMinimumText => Curve.InputMinimum.ToString("0.00");
+    public string OutputMinimumText => Curve.Minimum.ToString("0.00");
+    public string InputMaximumText => Curve.InputMaximum.ToString("0.00");
+    public string OutputMaximumText => Curve.Maximum.ToString("0.00");
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
@@ -512,10 +497,10 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
         OnPropertyChanged(nameof(SoftnessText));
-        OnPropertyChanged(nameof(InputMinimum));
-        OnPropertyChanged(nameof(InputMaximum));
-        OnPropertyChanged(nameof(OutputMinimum));
-        OnPropertyChanged(nameof(OutputMaximum));
+        OnPropertyChanged(nameof(InputMinimumText));
+        OnPropertyChanged(nameof(InputMaximumText));
+        OnPropertyChanged(nameof(OutputMinimumText));
+        OnPropertyChanged(nameof(OutputMaximumText));
         SchedulePersist();
     }
 
