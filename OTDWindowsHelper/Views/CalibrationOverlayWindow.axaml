@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OtdWindowsHelper.Views.CalibrationOverlayWindow"
+        Title="Calibrate"
+        WindowDecorations="None" CanResize="False" ShowInTaskbar="False"
+        Topmost="True" Background="#D9101018"
+        WindowStartupLocation="Manual">
+
+    <Grid>
+        <!-- Targets + live dot are drawn onto this canvas from code-behind. -->
+        <Canvas x:Name="Surface" />
+
+        <!-- Instruction + actions -->
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,48"
+                Background="#CC1B1B28" CornerRadius="12" Padding="20,16" MaxWidth="640">
+            <StackPanel Spacing="12">
+                <TextBlock Text="{Binding Instruction}" Foreground="White" FontSize="14"
+                           TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                    <Button Content="Apply" IsVisible="{Binding ShowApply}" Command="{Binding ApplyCommand}"
+                            Theme="{StaticResource AccentButton}" Padding="16,8" FontSize="13" />
+                    <Button Content="Redo" IsVisible="{Binding ShowRedo}" Command="{Binding RedoCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                    <Button Content="Clear calibration" Command="{Binding ClearCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                    <Button Content="Cancel (Esc)" Command="{Binding CancelCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

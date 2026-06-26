@@ -77,4 +77,37 @@ public class AbsolutePositionMapperTests
         Assert.Equal(1920, clamped.X, 3); // clamped to the right/bottom edge
         Assert.Equal(1080, clamped.Y, 3);
     }
+
+    // #127: MapFromDesktop is the inverse of MapToDesktop (no clip/limit).
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(500, 500)]
+    [InlineData(250, 750)]
+    [InlineData(1000, 1000)]
+    public void MapFromDesktop_RoundTrips(float rawX, float rawY)
+    {
+        var raw = new Vector2(rawX, rawY);
+        var screen = AbsolutePositionMapper.MapToDesktop(raw, Digi, FullTablet, Display, false, false)!.Value;
+        var back = AbsolutePositionMapper.MapFromDesktop(screen, Digi, FullTablet, Display)!.Value;
+        Assert.Equal(raw.X, back.X, 2);
+        Assert.Equal(raw.Y, back.Y, 2);
+    }
+
+    [Fact]
+    public void MapFromDesktop_RoundTrips_WithRotationAndPartialArea()
+    {
+        var input = new MappingArea(CenterX: 40, CenterY: 60, Width: 70, Height: 80, Rotation: 17);
+        var raw = new Vector2(300, 650);
+        var screen = AbsolutePositionMapper.MapToDesktop(raw, Digi, input, Display, false, false)!.Value;
+        var back = AbsolutePositionMapper.MapFromDesktop(screen, Digi, input, Display)!.Value;
+        Assert.Equal(raw.X, back.X, 2);
+        Assert.Equal(raw.Y, back.Y, 2);
+    }
+
+    [Fact]
+    public void MapFromDesktop_DegenerateInput_ReturnsNull()
+    {
+        var bad = new TabletDigitizerSpec(Width: 100, Height: 100, MaxX: 0, MaxY: 1000);
+        Assert.Null(AbsolutePositionMapper.MapFromDesktop(new Vector2(960, 540), bad, FullTablet, Display));
+    }
 }

@@ -99,9 +99,18 @@
                         <ctrl:DisplayLayoutView Displays="{Binding Displays}"
                                                 SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
                                                 Height="200" />
-                        <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
-                                Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
-                                HorizontalAlignment="Left" Margin="0,10,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Spacing="8">
+                            <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
+                                    HorizontalAlignment="Left" />
+                            <Button Content="Calibrate…" Command="{Binding CalibrateCommand}"
+                                    IsEnabled="{Binding CanCalibrate}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,7" FontSize="12"
+                                    ToolTip.Tip="Tap 4 corners to correct where the pen lands vs. where you see it (Absolute mode only)" />
+                        </StackPanel>
+                        <TextBlock Text="Calibration is available in Absolute mode."
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
                     </StackPanel>
                 </Border>
             </StackPanel>

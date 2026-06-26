@@ -457,6 +457,24 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         return null;
     }
 
+    /// <summary>Full digitizer spec (mm dimensions + raw maxima) for a tablet, from the daemon's
+    /// reported specs — needed by the calibration mapper (#127). Null if unavailable/degenerate.</summary>
+    public Domain.TabletDigitizerSpec? GetDigitizerSpec(string tabletName)
+    {
+        if (Tablets is not JArray tablets) return null;
+        foreach (var t in tablets)
+        {
+            var props = t["Properties"] ?? t;
+            if (props["Name"]?.ToString() != tabletName) continue;
+            var d = props["Specifications"]?["Digitizer"];
+            if (d == null) return null;
+            float w = d["Width"]?.Value<float>() ?? 0, h = d["Height"]?.Value<float>() ?? 0;
+            float mx = d["MaxX"]?.Value<float>() ?? 0, my = d["MaxY"]?.Value<float>() ?? 0;
+            return w > 0 && h > 0 && mx > 0 && my > 0 ? new Domain.TabletDigitizerSpec(w, h, mx, my) : null;
+        }
+        return null;
+    }
+
     [RelayCommand]
     private async Task StartDaemon()
     {

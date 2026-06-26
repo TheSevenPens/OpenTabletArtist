@@ -59,11 +59,54 @@ public class DialogService : IDialogService
             dynamicsOnly,
             _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
             // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
-            () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName));
+            () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
+            // Open the pointer-calibration overlay owned by the settings dialog (#127).
+            owner => ShowCalibrationAsync(profile, owner));
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)
             await dialog.ShowDialog(mainWindow);
+    }
+
+    /// <summary>Opens the 4-tap pointer-calibration overlay on the display this tablet is mapped to
+    /// (#127). Validates that the profile is in an Absolute mapping with a known digitizer + display.</summary>
+    public async Task ShowCalibrationAsync(Profile profile, Avalonia.Controls.Window owner)
+    {
+        var tabletName = profile.Tablet;
+        var digi = _session.GetDigitizerSpec(tabletName);
+        var abs = profile.AbsoluteModeSettings;
+        if (digi is null || abs?.Tablet is not { } t || abs.Display is not { } disp
+            || t.Width <= 0 || t.Height <= 0 || disp.Width <= 0 || disp.Height <= 0
+            || _session.CurrentSettings is not { } settings)
+        {
+            await ShowMessageAsync("Calibration unavailable",
+                "Calibration needs an Absolute output mode with a known tablet area and display. " +
+                "Set this tablet to Windows Ink Absolute and map it to a display first.");
+            return;
+        }
+
+        var input = new Domain.MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
+        var output = new Domain.MappingArea(disp.X, disp.Y, disp.Width, disp.Height);
+
+        // The mapped display = the monitor whose top-left matches the output area's origin.
+        var originX = disp.X - disp.Width / 2;
+        var originY = disp.Y - disp.Height / 2;
+        var displays = DisplayEnumerator.Enumerate();
+        var display = displays.FirstOrDefault(d => System.Math.Abs(d.X - originX) <= 2 && System.Math.Abs(d.Y - originY) <= 2)
+                      ?? displays.FirstOrDefault(d => disp.X >= d.X && disp.X <= d.X + d.Width && disp.Y >= d.Y && disp.Y <= d.Y + d.Height);
+        if (display is null)
+        {
+            await ShowMessageAsync("Calibration unavailable",
+                "Couldn't match this tablet's mapped area to a connected display. Re-apply the display mapping and try again.");
+            return;
+        }
+
+        var ctx = new ViewModels.CalibrationViewModel.Context(
+            tabletName, digi.Value, input, output, display, settings,
+            s => _session.ApplyAndSaveSettingsAsync(s), _session.Daemon);
+
+        var window = new Views.CalibrationOverlayWindow(new ViewModels.CalibrationViewModel(ctx), display);
+        await window.ShowDialog(owner);
     }
 
     // The confirm/message/input flows delegate to the static helper, which owns the actual

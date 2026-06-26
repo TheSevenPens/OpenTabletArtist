@@ -1,6 +1,7 @@
 # Design — Pointer calibration for pen displays (#127)
 
-> Status: **proposal, pre-implementation.** Seeking review before writing code.
+> Status: **approved & implemented** in this PR. (Design reviewed before coding; decisions and
+> implementation requirements below were folded in from that review.)
 
 ## Problem
 

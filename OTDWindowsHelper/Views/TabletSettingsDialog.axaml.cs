@@ -25,10 +25,16 @@ public partial class TabletSettingsDialog : Window
         (float Width, float Height)? tabletDigitizer = null,
         bool dynamicsOnly = false,
         OtdWindowsHelper.Services.IDaemonDebugSession? penInput = null,
-        Func<bool>? isDetected = null)
+        Func<bool>? isDetected = null,
+        Func<Window, Task>? onCalibrate = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected, dynamicsOnly);
+        var vm = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected, dynamicsOnly);
+        DataContext = vm;
+        if (onCalibrate != null)
+            // Open the calibration overlay owned by this dialog (#127). The VM raises the request;
+            // the View owns window creation.
+            vm.CalibrationRequested += () => _ = onCalibrate(this);
         if (dynamicsOnly)
         {
             // Focused Pen Dynamics editor (#133): preselect the Dynamics tab; the tab bar is hidden
@@ -105,9 +111,21 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     partial void OnIsWinInkAbsoluteChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
+        OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkAbsoluteModePath);
     }
+
+    // --- Pointer calibration entry point (#127) ---
+
+    /// <summary>Calibration corrects an Absolute mapping, so it's only offered in an Absolute mode.</summary>
+    public bool CanCalibrate => IsWinInkAbsolute;
+
+    /// <summary>Raised when the user clicks Calibrate; the view opens the overlay (owned by the dialog).</summary>
+    public event Action? CalibrationRequested;
+
+    [RelayCommand]
+    private void Calibrate() => CalibrationRequested?.Invoke();
 
     partial void OnIsWinInkRelativeChanged(bool value)
     {
