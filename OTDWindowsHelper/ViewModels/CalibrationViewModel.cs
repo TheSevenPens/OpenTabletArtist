@@ -97,7 +97,7 @@ public partial class CalibrationViewModel : ObservableObject
     /// <summary>Disable any existing calibration (so capture is uncorrected) and start the pen stream.</summary>
     public async Task StartAsync()
     {
-        await DisableExistingAsync();
+        await BypassCalibrationAsync();
         await _input.StartAsync();
     }
 
@@ -107,11 +107,15 @@ public partial class CalibrationViewModel : ObservableObject
         await _input.StopAsync();
     }
 
-    private async Task DisableExistingAsync()
+    /// <summary>Disable whatever calibration is <em>currently</em> active so taps are captured
+    /// uncorrected — covers both the calibration that existed at open and a preview applied before a
+    /// Redo (otherwise recapture would be corrected by the matrix we're replacing). (Cursor review)</summary>
+    private async Task BypassCalibrationAsync()
     {
-        if (_original is { Enabled: true })
+        var current = CalibrationProfile.ReadProfile(_ctx.Settings.Profiles.FirstOrDefault(p => p.Tablet == _ctx.TabletName));
+        if (current is { Enabled: true })
         {
-            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, _original.Transform, enable: false, _original.Fingerprint);
+            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, current.Transform, enable: false, current.Fingerprint);
             await _ctx.Apply(_ctx.Settings);
         }
     }
@@ -202,7 +206,7 @@ public partial class CalibrationViewModel : ObservableObject
         _tapAccum.Clear();
         CurrentTarget = 0;
         OnPropertyChanged(nameof(CapturedCount));
-        await DisableExistingAsync();
+        await BypassCalibrationAsync(); // clear the preview correction before recapturing
         CurrentPhase = Phase.Capturing;
         UpdateInstruction();
     }

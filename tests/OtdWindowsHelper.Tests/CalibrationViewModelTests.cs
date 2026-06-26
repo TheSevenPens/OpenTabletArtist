@@ -91,6 +91,25 @@ public class CalibrationViewModelTests
         Assert.True(vm.IsCapturing);
     }
 
+    // Cursor review: after the preview is applied, Redo must clear that correction so the next
+    // capture is uncorrected — even when there was no calibration at open.
+    [Fact]
+    public void RedoAfterPreview_DisablesTheLivePreviewCalibration()
+    {
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
+        Assert.True(vm.IsConfirming);
+        Assert.True(CalibrationProfile.Read(settings, "T")!.Enabled); // preview is live
+
+        vm.RedoCommand.Execute(null);
+
+        // The preview correction must be disabled (or gone) before recapture.
+        var cal = CalibrationProfile.Read(settings, "T");
+        Assert.True(cal is null || !cal.Enabled);
+        Assert.True(vm.IsCapturing);
+        Assert.Equal(0, vm.CapturedCount);
+    }
+
     [Fact]
     public void TapsAwayFromTarget_AreIgnored()
     {

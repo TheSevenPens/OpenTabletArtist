@@ -18,7 +18,8 @@
                            TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                     <Button Content="Apply" IsVisible="{Binding ShowApply}" Command="{Binding ApplyCommand}"
-                            Theme="{StaticResource AccentButton}" Padding="16,8" FontSize="13" />
+                            Theme="{StaticResource AccentButton}" Padding="16,8" FontSize="13"
+                            ToolTip.Tip="Keep this calibration. Cancel reverts to the previous one." />
                     <Button Content="Redo" IsVisible="{Binding ShowRedo}" Command="{Binding RedoCommand}"
                             Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
                     <Button Content="Clear calibration" Command="{Binding ClearCommand}"
