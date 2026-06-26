@@ -82,6 +82,20 @@ public class CalibrationProfileTests
         Assert.True(paths.IndexOf(CalibrationProfile.FilterTypeName) < paths.IndexOf(PressureCurveProfile.FilterTypeName));
     }
 
+    // #147: stale only when an enabled calibration's fingerprint differs from the current mapping's.
+    [Fact]
+    public void IsStale_TrueOnlyWhenEnabledAndFingerprintDiffers()
+    {
+        var enabled = new CalibrationProfile.CalibrationData(Matrix3x2.Identity, Enabled: true, "fp-A");
+
+        Assert.True(CalibrationProfile.IsStale(enabled, "fp-B"));                                  // differs
+        Assert.False(CalibrationProfile.IsStale(enabled, "fp-A"));                                 // matches
+        Assert.False(CalibrationProfile.IsStale(enabled, null));                                   // current unknown
+        Assert.False(CalibrationProfile.IsStale(enabled with { Enabled = false }, "fp-B"));        // disabled
+        Assert.False(CalibrationProfile.IsStale(enabled with { Fingerprint = "" }, "fp-B"));       // legacy / no fp
+        Assert.False(CalibrationProfile.IsStale(null, "fp-B"));                                    // no calibration
+    }
+
     [Fact]
     public void Fingerprint_ChangesWithMapping()
     {
