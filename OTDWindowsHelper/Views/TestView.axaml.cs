@@ -11,12 +11,33 @@ namespace OtdWindowsHelper.Views;
 public partial class TestView : UserControl
 {
     private TestViewModel? _vm;
+    // In-app dynamics for the split "With dynamics" canvas (#134). Stateful per stroke (EMA smoothing),
+    // reset on pen-up so a new stroke starts crisp.
+    private readonly PenDynamicsProcessor _processor = new();
 
     public TestView()
     {
         InitializeComponent();
         PaintCanvas.SampleObserved += OnCanvasSample;
+        ProcessedCanvas.IgnorePointer = true; // display-only; fed programmatically from the raw stroke
         DataContextChanged += OnDataContextChanged;
+    }
+
+    // Mirror every sample drawn on the raw canvas onto the processed canvas with this tablet's
+    // dynamics applied (curve + smoothing). No-op unless the split view is on.
+    private void MirrorToProcessed(PenSample s)
+    {
+        if (_vm is null || !_vm.ShowSplit) return;
+        _processor.Settings = _vm.CurrentDynamics;
+        if (!s.IsDown)
+        {
+            _processor.Reset();          // pen up — clear smoothing state for the next stroke
+            ProcessedCanvas.AddSample(s); // also ends the processed stroke
+            return;
+        }
+        var (sx, sy) = _processor.ProcessPosition(s.X, s.Y);
+        var p = _processor.ProcessPressure(s.Pressure);
+        ProcessedCanvas.AddSample(s with { X = sx, Y = sy, Pressure = p });
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -41,6 +62,9 @@ public partial class TestView : UserControl
     // + Canvas X/Y. In Driver mode OnDriverSample owns the readouts/position.
     private void OnCanvasSample(PenSample s)
     {
+        // Runs for every sample drawn on the raw canvas (pointer in App mode, pushed in Driver mode),
+        // so mirror to the processed canvas here regardless of source.
+        MirrorToProcessed(s);
         if (_vm is null || _vm.UseDriverInput) return;
         _vm.UpdateCanvasPosition(s.RawX, s.RawY);
         _vm.UpdateReadout(s);
@@ -92,14 +116,28 @@ public partial class TestView : UserControl
         }
     }
 
-    private void OnClearRequested() => PaintCanvas.Clear();
+    private void OnClearRequested()
+    {
+        PaintCanvas.Clear();
+        ProcessedCanvas.Clear();
+        _processor.Reset();
+    }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TestViewModel.UseDriverInput) && _vm != null)
+        if (_vm == null) return;
+        if (e.PropertyName == nameof(TestViewModel.UseDriverInput))
         {
             PaintCanvas.IgnorePointer = _vm.UseDriverInput;
             PaintCanvas.EndStroke(); // don't connect a stroke across an input-source switch
+            ProcessedCanvas.EndStroke();
+            _processor.Reset();
+        }
+        else if (e.PropertyName == nameof(TestViewModel.ShowSplit))
+        {
+            // Don't carry a stroke across the toggle; start the comparison fresh.
+            ProcessedCanvas.EndStroke();
+            _processor.Reset();
         }
     }
 }

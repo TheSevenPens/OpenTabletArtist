@@ -102,4 +102,25 @@ public class PressureCurveProfileTests
         PressureCurveProfile.Write(settings, "Other", PenDynamicsSettings.Default, enable: true);
         Assert.Empty(settings.Profiles.First().Filters);
     }
+
+    [Fact]
+    public void ReadProfile_ReadsDynamicsDirectlyFromProfile()
+    {
+        var settings = SettingsFor("Tab");
+        PressureCurveProfile.Write(settings, "Tab", Dyn(softness: 0.4, posSmooth: 0.2), enable: true);
+
+        var read = PressureCurveProfile.ReadProfile(settings.Profiles.First());
+
+        Assert.NotNull(read);
+        Assert.True(read!.Value.Enabled);
+        Assert.Equal(0.4, read.Value.Dynamics.Curve.Softness, 5);
+        Assert.Equal(0.2, read.Value.Dynamics.PositionSmoothing, 5);
+    }
+
+    [Fact]
+    public void ReadProfile_NullOrNoFilter_ReturnsNull()
+    {
+        Assert.Null(PressureCurveProfile.ReadProfile(null));
+        Assert.Null(PressureCurveProfile.ReadProfile(SettingsFor("Tab").Profiles.First()));
+    }
 }

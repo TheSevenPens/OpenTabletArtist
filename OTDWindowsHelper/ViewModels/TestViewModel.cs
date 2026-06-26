@@ -62,7 +62,20 @@ public partial class TestViewModel : ObservableObject, IDisposable
         DynamicsActive = detected?.Profile.Filters
             ?.Any(f => f.Enable && (f.Path == PressureCurveProfile.FilterTypeName
                                     || f.Path == PressureCurveProfile.LegacyFilterTypeName)) ?? false;
+        // The detected tablet's configured dynamics (curve + smoothing) — used to render the
+        // "With dynamics" side of the split canvas (#134). Default = identity (no visible change).
+        CurrentDynamics = PressureCurveProfile.ReadProfile(detected?.Profile)?.Dynamics
+                          ?? PenDynamicsSettings.Default;
     }
+
+    // --- Split canvas: compare raw vs dynamics-processed (#134). Off by default. ---
+
+    [ObservableProperty] private bool _showSplit;
+    [ObservableProperty] private PenDynamicsSettings _currentDynamics = PenDynamicsSettings.Default;
+
+    /// <summary>UniformGrid column count for the canvas area: 1 normally, 2 when comparing.</summary>
+    public int SplitColumnCount => ShowSplit ? 2 : 1;
+    partial void OnShowSplitChanged(bool value) => OnPropertyChanged(nameof(SplitColumnCount));
 
     /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
     /// targets the detected tablet, falling back to the first known profile.</summary>

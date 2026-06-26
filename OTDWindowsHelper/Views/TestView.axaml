@@ -25,6 +25,9 @@
                 <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
                         Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
                         ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Test" />
+                <ToggleSwitch OffContent="Single canvas" OnContent="Compare dynamics"
+                              IsChecked="{Binding ShowSplit}" VerticalAlignment="Center" Margin="20,0,0,0"
+                              ToolTip.Tip="Split the canvas to compare raw pen input vs. this tablet's dynamics (curve + smoothing) side by side. Most meaningful with Driver input." />
             </WrapPanel>
 
             <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
@@ -73,22 +76,45 @@
             </UniformGrid>
         </StackPanel>
 
-        <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
+        <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding).
+             When "Compare dynamics" is on, a second canvas appears alongside showing the same
+             stroke with this tablet's dynamics applied (#134). -->
         <Border Classes="GlassPanel" CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
-            <Grid>
-                <c:PenTestCanvas x:Name="PaintCanvas"
-                                 BrushMode="{Binding BrushMode}" />
-                <!-- Driver-input painting needs an Absolute output mode; otherwise show why the
-                     canvas is disabled (#95). -->
-                <Border IsVisible="{Binding DriverCanvasDisabled}"
-                        Background="#E6F5F5F0" Padding="32">
-                    <TextBlock Text="{Binding DriverDisabledNote}"
-                               FontSize="13" MaxWidth="420" TextWrapping="Wrap"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                </Border>
-            </Grid>
+            <UniformGrid Columns="{Binding SplitColumnCount}">
+
+                <!-- Raw / primary canvas -->
+                <Grid>
+                    <c:PenTestCanvas x:Name="PaintCanvas" BrushMode="{Binding BrushMode}" />
+                    <!-- Driver-input painting needs an Absolute output mode; otherwise show why the
+                         canvas is disabled (#95). -->
+                    <Border IsVisible="{Binding DriverCanvasDisabled}"
+                            Background="#E6F5F5F0" Padding="32">
+                        <TextBlock Text="{Binding DriverDisabledNote}"
+                                   FontSize="13" MaxWidth="420" TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Border>
+                    <!-- Label (only when comparing) -->
+                    <Border IsVisible="{Binding ShowSplit}" VerticalAlignment="Top" HorizontalAlignment="Left"
+                            Background="#CC222222" CornerRadius="0,0,6,0" Padding="8,3">
+                        <TextBlock Text="Raw" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                    </Border>
+                </Grid>
+
+                <!-- Dynamics-processed canvas (only present when comparing) -->
+                <Grid IsVisible="{Binding ShowSplit}">
+                    <c:PenTestCanvas x:Name="ProcessedCanvas" BrushMode="{Binding BrushMode}" />
+                    <!-- Divider against the raw canvas -->
+                    <Rectangle Width="1" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                               Fill="{DynamicResource GlassBorderBrush}" />
+                    <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                            Background="#CC6366F1" CornerRadius="0,0,6,0" Padding="8,3" Margin="1,0,0,0">
+                        <TextBlock Text="With dynamics" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                    </Border>
+                </Grid>
+
+            </UniformGrid>
         </Border>
     </DockPanel>
 </UserControl>

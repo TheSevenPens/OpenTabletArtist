@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdWindowsHelper.Domain;
 
@@ -25,8 +26,13 @@ public static class PressureCurveProfile
     /// <summary>The current dynamics (curve + smoothing) + enabled state for a tablet's profile,
     /// or null if not present.</summary>
     public static (PenDynamicsSettings Dynamics, bool Enabled)? Read(Settings? settings, string tabletName)
+        => ReadProfile(settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName));
+
+    /// <summary>Same as <see cref="Read"/> but reads directly from a profile (when you already have
+    /// it, e.g. the Test tab's live preview). Returns null when the profile has no dynamics filter.</summary>
+    public static (PenDynamicsSettings Dynamics, bool Enabled)? ReadProfile(Profile? profile)
     {
-        var store = FindStore(settings, tabletName);
+        var store = FindStore(profile?.Filters);
         if (store == null) return null;
 
         float Get(string name, float fallback) =>
@@ -85,13 +91,13 @@ public static class PressureCurveProfile
         };
     }
 
-    private static PluginSettingStore? FindStore(Settings? settings, string tabletName)
+    private static PluginSettingStore? FindStore(System.Collections.Generic.IEnumerable<PluginSettingStore>? filters)
     {
-        var filters = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters;
+        var list = filters?.ToList();
         // Prefer the current store; fall back to the pre-rename one so old settings still show up
         // (the next write migrates them to the new type name).
-        return filters?.FirstOrDefault(f => f.Path == FilterTypeName)
-            ?? filters?.FirstOrDefault(f => f.Path == LegacyFilterTypeName);
+        return list?.FirstOrDefault(f => f.Path == FilterTypeName)
+            ?? list?.FirstOrDefault(f => f.Path == LegacyFilterTypeName);
     }
 
     // The app doesn't have the plugin Type (it's a separate net8 assembly), and PluginSettingStore's

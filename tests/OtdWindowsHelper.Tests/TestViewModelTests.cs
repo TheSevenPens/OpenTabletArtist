@@ -126,4 +126,37 @@ public class TestViewModelTests
         Assert.False(vm.TabletDetected);
         Assert.Equal("No tablet detected", vm.TabletStatusText);
     }
+
+    // #134: split canvas is off by default and drives the UniformGrid column count.
+    [Fact]
+    public void ShowSplit_DefaultsOff_AndDrivesColumnCount()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+
+        Assert.False(vm.ShowSplit);
+        Assert.Equal(1, vm.SplitColumnCount);
+
+        vm.ShowSplit = true;
+        Assert.Equal(2, vm.SplitColumnCount);
+    }
+
+    [Fact]
+    public void CurrentDynamics_ReflectsDetectedProfilesConfiguredCurve()
+    {
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "Wacom" } } };
+        PressureCurveProfile.Write(settings, "Wacom",
+            new PenDynamicsSettings(
+                new PressureCurveSettings(0.5, 0, 1, 0, 1, PressureMinApproach.Clamp),
+                PressureSmoothing: 0, PositionSmoothing: 0, SmoothAfterCurve: true),
+            enable: false); // configured-but-disabled still previews
+        var data = new FakeDeviceData
+        {
+            Profiles = new List<ProfileItem> { new(settings.Profiles.First(), IsDetected: true, LastSeen: null) }
+        };
+        using var vm = NewVm(data);
+
+        data.RaiseDataLoaded();
+
+        Assert.Equal(0.5, vm.CurrentDynamics.Curve.Softness, 5);
+    }
 }
