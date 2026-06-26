@@ -73,13 +73,38 @@ is reachable; full feature parity is not (and isn't the right goal). **Recommend
 backlog.** The one piece worth doing *regardless* is the **icon-font swap** (removes a Windows-font
 dependency that's mildly fragile even on Windows) and continuing to keep OS integration behind seams.
 
-## Open questions for review
+## macOS toolchain facts (confirmed in the pinned submodule)
 
-1. Is the **portable-core** framing right (ship config/mapping/dynamics/calibration; drop VMulti +
-   Windows-Ink on macOS), or is macOS only worth it with a full output story?
-2. Is the **icon-font swap** worth scheduling now as a Windows-side improvement that also unblocks
-   macOS, or deferred with the rest?
-3. Should we invest in the **platform-abstraction seam** incrementally now (low cost, keeps options
-   open), or not touch it until macOS is actually greenlit?
-4. Does the pinned **OTD submodule** support macOS well enough to be the foundation, or would this
-   wait on an OTD upgrade?
+- OTD ships `OpenTabletDriver.MacOS.slnf`, an `OpenTabletDriver.UX.MacOS`, and a `PermissionHelper`;
+  `DaemonWatchdog` has a macOS launch path (`OpenTabletDriver.Daemon`, no `.exe`). So **OTD itself is
+  a first-class macOS target at 0.6.x** — and the daemon uses the **same pipe name**, so our
+  `DaemonClient` may connect as-is (`NamedPipeClientStream` over Unix-domain-socket emulation).
+- The gap is **our** integration, not OTD: daemon-path discovery, the ownership P/Invoke, display
+  enumeration, permissions UX, and packaging. *OTD macOS maturity ≠ this helper being macOS-ready.*
+- The biggest P/Invoke gaps are **`DisplayEnumerator` (GDI)** and **daemon-ownership**
+  (`GetNamedPipeServerProcessId`) — not VMulti/HidSharp (that whole feature is hidden on macOS anyway).
+- `IDaemonLifecycleService` is already an interface — the platform seam is **partially in place**.
+- The **calibration overlay** hardcodes dark styling (fine cross-platform) but its display-matching /
+  placement logic needs separate validation on a macOS pen display.
+
+## Recommended first step if greenlit
+
+A **macOS spike, in this order**, before any UI port work: build the daemon from the submodule →
+connect with the existing `DaemonClient` → call `GetSettings()`. If that round-trips, the foundation
+is sound and the rest is the integration/UI work above.
+
+## Resolved (design review #148)
+
+1. **Portable-core is the goal.** Ship connect + profiles + area mapping + dynamics + calibration +
+   test; hide the VMulti / Windows-Ink dashboard cards on macOS and surface OTD's native output path.
+   A full macOS "output story" (guided setup, mac-specific recommendations) can follow later.
+2. **Icon-font swap: schedule now**, independent of any macOS greenlight — it removes a Windows-only
+   font dependency (fragile even on clean Windows installs) and is a small standalone PR. Tracked
+   separately.
+3. **Platform seam: yes, incrementally and lightly** — extract `DisplayEnumerator` behind an
+   interface when next touched, gate VMulti/Windows-Ink views with `OperatingSystem.IsWindows()` when
+   next edited (zero cost, documents intent), and defer macOS impls until the spike passes.
+4. **OTD submodule is likely a sufficient foundation** (see toolchain facts above); the unknown is our
+   integration, settled by the spike — not an OTD upgrade.
+
+**Outcome:** #140 stays **backlog**. The icon-font swap is split out as its own near-term item.
