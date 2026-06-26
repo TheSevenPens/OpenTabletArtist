@@ -340,7 +340,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                         // lastSeen stays null when this tablet has never been observed connected
                         // while the helper was running — there's no timestamp we could know (#138).
                         DateTime? lastSeen = null;
-                        var stored = string.IsNullOrEmpty(p.Tablet) ? null : AppSettings.Get(LastSeenKey(p.Tablet));
+                        // Prefer the normalized key; fall back to the pre-#138 exact-case key so
+                        // history written before the lowercase migration isn't lost (re-detection
+                        // rewrites it under the normalized key). (Cursor nit on #142.)
+                        var stored = string.IsNullOrEmpty(p.Tablet)
+                            ? null
+                            : AppSettings.Get(LastSeenKey(p.Tablet)) ?? AppSettings.Get($"LastSeen:{p.Tablet}");
                         if (stored != null && DateTime.TryParse(stored, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
                             lastSeen = dt;
                         if (detected)
