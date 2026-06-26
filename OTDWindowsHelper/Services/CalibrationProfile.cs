@@ -79,6 +79,16 @@ public static class CalibrationProfile
         if (filters != null && store != null) filters.Remove(store);
     }
 
+    /// <summary>True when an enabled calibration's stored fingerprint differs from the current
+    /// mapping's fingerprint — captured against a different mapping, so it may be inaccurate (#147).
+    /// False when there's no calibration, it's disabled, has no stored fingerprint, or the current
+    /// fingerprint is unknown.</summary>
+    public static bool IsStale(CalibrationData? cal, string? currentFingerprint) =>
+        cal is { Enabled: true }
+        && !string.IsNullOrEmpty(cal.Fingerprint)
+        && !string.IsNullOrEmpty(currentFingerprint)
+        && cal.Fingerprint != currentFingerprint;
+
     /// <summary>A short, stable token identifying the area mapping a calibration was captured against
     /// (input area + output area + display number). When it changes, the calibration may be stale.</summary>
     public static string Fingerprint(MappingArea input, MappingArea output, int displayNumber)

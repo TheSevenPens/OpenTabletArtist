@@ -136,15 +136,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// the current one — it may no longer be accurate, so suggest recalibrating (#147).</summary>
     [ObservableProperty] private bool _calibrationStale;
 
-    private void RefreshCalibrationStatus()
-    {
-        var cal = CalibrationProfile.ReadProfile(_profile);
-        var current = CurrentMappingFingerprint();
-        CalibrationStale = cal is { Enabled: true }
-                           && !string.IsNullOrEmpty(cal.Fingerprint)
-                           && current != null
-                           && cal.Fingerprint != current;
-    }
+    private void RefreshCalibrationStatus() =>
+        CalibrationStale = CalibrationProfile.IsStale(CalibrationProfile.ReadProfile(_profile), CurrentMappingFingerprint());
 
     /// <summary>Fingerprint of the profile's current Absolute mapping (input + output area + mapped
     /// display), matching how <see cref="CalibrationProfile.Fingerprint"/> was written at calibration.</summary>
