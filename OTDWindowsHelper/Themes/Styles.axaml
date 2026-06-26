@@ -30,25 +30,41 @@
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
              Green check + text when detected; amber warning otherwise; optional "Dynamics on" chip. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Classes="GlassPanel" Padding="12,10">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Classes="statusMarkWarn"
-                                       Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
-                            <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center" TextWrapping="Wrap" />
-                            <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
-                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
-                                <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                            </Border>
-                        </StackPanel>
+                    <!-- Full-width band: status-tinted fill + a colored left stripe. -->
+                    <Border x:Name="PART_Band" CornerRadius="8" ClipToBounds="True"
+                            Background="{DynamicResource WarningMutedBrush}">
+                        <Grid ColumnDefinitions="4,*">
+                            <Border x:Name="PART_Stripe" Grid.Column="0"
+                                    Background="{DynamicResource WarningBrush}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                        Margin="14,10">
+                                <TextBlock Classes="statusMarkWarn"
+                                           Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
+                                <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
+                                        Background="{DynamicResource AccentMutedBrush}"
+                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
+                                    <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource AccentBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter>
+            <!-- Detected → success treatment (default is the warning treatment above). -->
+            <Style Selector="^[IsDetected=True] /template/ Border#PART_Band">
+                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
+            </Style>
+            <Style Selector="^[IsDetected=True] /template/ Border#PART_Stripe">
+                <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+            </Style>
         </ControlTheme>
 
         <!-- Nav Item Button -->

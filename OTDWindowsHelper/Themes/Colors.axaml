@@ -20,6 +20,7 @@
     <Color x:Key="Success">#10B981</Color>
     <Color x:Key="SuccessMuted">#1A10B981</Color>
     <Color x:Key="Warning">#F59E0B</Color>
+    <Color x:Key="WarningMuted">#1AF59E0B</Color>
     <Color x:Key="Error">#EF4444</Color>
     <Color x:Key="ErrorMuted">#1AEF4444</Color>
 
@@ -42,6 +43,7 @@
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
     <SolidColorBrush x:Key="SuccessMutedBrush" Color="{StaticResource SuccessMuted}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
+    <SolidColorBrush x:Key="WarningMutedBrush" Color="{StaticResource WarningMuted}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
     <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
     <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />

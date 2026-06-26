@@ -27,8 +27,7 @@
                 </Button>
             </Grid>
             <!-- Detected/connected status for this tablet (#132) -->
-            <ctrl:TabletStatusBanner Text="{Binding DetectionText}" IsDetected="{Binding IsTabletDetected}"
-                                     HorizontalAlignment="Left" />
+            <ctrl:TabletStatusBanner Text="{Binding DetectionText}" IsDetected="{Binding IsTabletDetected}" />
         </StackPanel>
 
         <!-- Tab buttons -->
