@@ -8,6 +8,9 @@
 
         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
             <TextBlock Classes="PageTitle" Text="Test" />
+            <!-- Tablet status (detected name / not detected + dynamics indicator) #128/#129/#130 -->
+            <c:TabletStatusBanner Text="{Binding TabletStatusText}" IsDetected="{Binding TabletDetected}"
+                                  DynamicsOn="{Binding DynamicsActive}" Margin="0,8,0,0" />
             <!-- Controls -->
             <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <ToggleSwitch OffContent="App input (Windows Ink)" OnContent="Driver input (OTD)"

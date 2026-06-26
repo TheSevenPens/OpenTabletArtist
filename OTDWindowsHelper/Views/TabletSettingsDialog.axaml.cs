@@ -24,10 +24,11 @@ public partial class TabletSettingsDialog : Window
         Func<Task<(Settings? Settings, Profile? Profile)>>? onRefresh = null,
         (float Width, float Height)? tabletDigitizer = null,
         bool openDynamics = false,
-        OtdWindowsHelper.Services.IDaemonDebugSession? penInput = null)
+        OtdWindowsHelper.Services.IDaemonDebugSession? penInput = null,
+        Func<bool>? isDetected = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput);
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected);
         if (openDynamics)
             DynamicsTab.IsChecked = true;
     }
@@ -79,6 +80,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
     private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
+    // Probes whether this tablet is currently detected/connected (re-checked on open and on Refresh).
+    private readonly Func<bool>? _isDetectedProbe;
     private readonly (float Width, float Height)? _tabletDigitizer;
 
     [ObservableProperty] private IReadOnlyList<DisplayInfo> _displays = [];
@@ -127,12 +130,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         Func<Settings, Task>? applyAction = null,
         Func<Task<(Settings? Settings, Profile? Profile)>>? refreshAction = null,
         (float Width, float Height)? tabletDigitizer = null,
-        IDaemonDebugSession? penInput = null)
+        IDaemonDebugSession? penInput = null,
+        Func<bool>? isDetected = null)
     {
         _profile = profile;
         _settings = settings;
         _applyAction = applyAction;
         _refreshAction = refreshAction;
+        _isDetectedProbe = isDetected;
         _tabletDigitizer = tabletDigitizer;
 
         if (penInput != null)
@@ -146,6 +151,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
         Displays = DisplayEnumerator.Enumerate();
         RefreshFromProfile();
+        RefreshDetectionStatus();
         // Highlight the display the tablet is currently mapped to (else the primary).
         SelectedDisplayNumber = CurrentlyMappedNumber()
             ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
@@ -192,6 +198,21 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// (#124 / Cursor review on #125)</summary>
     [ObservableProperty] private string? _refreshWarning;
 
+    // --- Tablet detected/connected banner (#132) ---
+
+    /// <summary>True when this tablet is the currently-connected one (green check vs. amber warning).</summary>
+    [ObservableProperty] private bool _isTabletDetected;
+    /// <summary>Banner text describing the detection state.</summary>
+    [ObservableProperty] private string _detectionText = "";
+
+    private void RefreshDetectionStatus()
+    {
+        IsTabletDetected = _isDetectedProbe?.Invoke() ?? false;
+        DetectionText = IsTabletDetected
+            ? "Connected"
+            : "Not currently connected — showing this tablet's saved settings.";
+    }
+
     [RelayCommand]
     private async Task Refresh()
     {
@@ -202,6 +223,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             // The tablet/profile is gone (unplugged or removed since the dialog opened). Keep
             // showing the last-known data rather than blanking it, but warn it may be stale.
             RefreshWarning = "This tablet is no longer connected — showing the last known settings.";
+            RefreshDetectionStatus();
             return;
         }
 
@@ -215,6 +237,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
             "Refreshed profile must be a reference inside the refreshed settings (#124).");
         RefreshWarning = null;
         RefreshFromProfile();
+        RefreshDetectionStatus();
     }
 
     private async Task ApplySettingsChange(Action<Profile> modify)
@@ -483,27 +506,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     public string SoftnessText => Curve.Softness.ToString("0.00");
 
-    // Numeric entry for the node values (#103). Setters keep input/output min &lt; max and clamp 0..1.
-    public double InputMinimum
-    {
-        get => Curve.InputMinimum;
-        set { var v = Math.Min(Clamp01(value), Curve.InputMaximum - 0.01); if (Curve.InputMinimum != v) Curve = Curve with { InputMinimum = v }; }
-    }
-    public double InputMaximum
-    {
-        get => Curve.InputMaximum;
-        set { var v = Math.Max(Clamp01(value), Curve.InputMinimum + 0.01); if (Curve.InputMaximum != v) Curve = Curve with { InputMaximum = v }; }
-    }
-    public double OutputMinimum
-    {
-        get => Curve.Minimum;
-        set { var v = Math.Min(Clamp01(value), Curve.Maximum); if (Curve.Minimum != v) Curve = Curve with { Minimum = v }; }
-    }
-    public double OutputMaximum
-    {
-        get => Curve.Maximum;
-        set { var v = Math.Max(Clamp01(value), Curve.Minimum); if (Curve.Maximum != v) Curve = Curve with { Maximum = v }; }
-    }
+    // Read-only display of the node values (#131). Editing is via dragging the chart nodes; these
+    // just show where the pink (min) / cyan (max) nodes currently sit (input → output).
+    public string InputMinimumText => Curve.InputMinimum.ToString("0.00");
+    public string OutputMinimumText => Curve.Minimum.ToString("0.00");
+    public string InputMaximumText => Curve.InputMaximum.ToString("0.00");
+    public string OutputMaximumText => Curve.Maximum.ToString("0.00");
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
@@ -512,10 +520,10 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
         OnPropertyChanged(nameof(SoftnessText));
-        OnPropertyChanged(nameof(InputMinimum));
-        OnPropertyChanged(nameof(InputMaximum));
-        OnPropertyChanged(nameof(OutputMinimum));
-        OnPropertyChanged(nameof(OutputMaximum));
+        OnPropertyChanged(nameof(InputMinimumText));
+        OnPropertyChanged(nameof(InputMaximumText));
+        OnPropertyChanged(nameof(OutputMinimumText));
+        OnPropertyChanged(nameof(OutputMaximumText));
         SchedulePersist();
     }
 

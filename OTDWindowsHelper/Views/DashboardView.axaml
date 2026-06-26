@@ -278,16 +278,20 @@
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0" Spacing="8">
                             <Button Content="Install" Theme="{StaticResource AccentButton}"
                                     Command="{Binding InstallWindowsInkCommand}"
+                                    Padding="12,6" FontSize="12"
                                     IsVisible="{Binding ShowWinInkInstall}" />
                             <Button Content="Check for Update" Theme="{StaticResource GhostButton}"
                                     Command="{Binding CheckForWindowsInkUpdateCommand}"
+                                    Padding="12,6" FontSize="12"
                                     IsVisible="{Binding ShowWinInkCheckUpdate}" />
                             <Button Content="{Binding WinInkLatestVersion, StringFormat='Install Update (v{0})'}"
                                     Theme="{StaticResource AccentButton}"
                                     Command="{Binding InstallWindowsInkUpdateCommand}"
+                                    Padding="12,6" FontSize="12"
                                     IsVisible="{Binding ShowWinInkInstallUpdate}" />
                             <Button Content="Uninstall" Theme="{StaticResource DeleteButton}"
                                     Command="{Binding UninstallWindowsInkCommand}"
+                                    Padding="12,6" FontSize="12"
                                     IsVisible="{Binding ShowWinInkUninstall}" />
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                                         IsVisible="{Binding WinInkBusy}">
