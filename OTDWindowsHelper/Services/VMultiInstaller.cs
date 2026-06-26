@@ -14,9 +14,10 @@ public class VMultiInstaller
     public event Action<int>? ProgressChanged;
 
     /// <summary>
-    /// Downloads, extracts, and installs the VMulti driver.
-    /// The install step requires admin elevation (UAC prompt).
-    /// Returns true if the install script completed (may still need reboot).
+    /// Downloads and extracts the VMulti package, then installs the driver in-app: an elevated,
+    /// hidden devcon call creates the root-enumerated <c>pentablet\hid</c> device from
+    /// <c>vmulti.inf</c> (no self-elevating <c>install_hiddriver.bat</c> / visible cmd window, #111).
+    /// Admin elevation (one UAC prompt) is required; a restart is recommended afterward.
     /// </summary>
     public async Task<InstallResult> InstallAsync(CancellationToken ct = default)
     {
@@ -50,22 +51,36 @@ public class VMultiInstaller
             ZipFile.ExtractToDirectory(zipPath, extractDir);
             ProgressChanged?.Invoke(60);
 
-            // Find the install batch file (may be in a subfolder)
-            string? installBat = FindFile(extractDir, "install_hiddriver.bat");
-            if (installBat == null)
-                return new InstallResult(false, "Could not find install_hiddriver.bat in the downloaded archive.");
+            // Locate the driver folder (devcon.exe + vmulti.inf live together).
+            string? inf = FindFile(extractDir, "vmulti.inf");
+            if (inf == null)
+                return new InstallResult(false, "Could not find vmulti.inf in the downloaded archive.");
+            string driverDir = Path.GetDirectoryName(inf)!;
 
-            string driverDir = Path.GetDirectoryName(installBat)!;
+            // Write our own install script instead of the stock install_hiddriver.bat, which
+            // self-elevates and pops a visible cmd window. devcon creates the root-enumerated
+            // pentablet\hid device and installs the driver from vmulti.inf. No `/r` — we don't want to
+            // auto-reboot the user's machine; we surface "restart recommended" instead.
+            string script = Path.Combine(driverDir, "otd_install_vmulti.bat");
+            await File.WriteAllTextAsync(script, string.Join("\r\n", new[]
+            {
+                "@echo off",
+                "\"%~dp0devcon.exe\" install vmulti.inf \"pentablet\\hid\"",
+                "exit /b %errorlevel%",
+                "",
+            }), ct);
 
-            // Step 3: Run the official install batch file with admin privileges
+            // Step 3: Run the install once, elevated, with a hidden window (single UAC, no console).
             StatusChanged?.Invoke("Installing driver (admin required)...");
             ProgressChanged?.Invoke(70);
 
             var psi = new ProcessStartInfo
             {
-                FileName = installBat,
+                FileName = script,
                 Verb = "runas",
                 UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
                 WorkingDirectory = driverDir,
             };
 
@@ -76,16 +91,19 @@ public class VMultiInstaller
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
 
-            if (process.ExitCode == 0)
+            // devcon: 0 = installed, 1 = installed but a reboot is needed; treat both as success and
+            // recommend a restart (VMulti's virtual HID device only enumerates after one). Anything
+            // else is a failure — the card re-detects the real state afterward.
+            if (process.ExitCode is 0 or 1)
             {
-                StatusChanged?.Invoke("VMulti driver installed successfully.");
-                return new InstallResult(true, "Driver installed. A reboot may be required.");
+                StatusChanged?.Invoke("VMulti driver installed.");
+                return new InstallResult(true, "VMulti installed. A restart is recommended to finish setup.",
+                    RebootRecommended: true);
             }
-            else
-            {
-                StatusChanged?.Invoke("Installation may have failed.");
-                return new InstallResult(false, $"Installer exited with code {process.ExitCode}. The driver may still have been installed — check Device Manager.");
-            }
+
+            StatusChanged?.Invoke("Installation may have failed.");
+            return new InstallResult(false,
+                $"The installer exited with code {process.ExitCode}. The driver may not be installed — check the VMulti status.");
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
