@@ -21,15 +21,8 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
-                                    Background="{DynamicResource AccentMutedBrush}" Margin="0,0,16,0">
-                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18" Foreground="{DynamicResource AccentBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
-
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Text="{Binding LastModified}" FontSize="11"
@@ -37,7 +30,7 @@
                                            Margin="0,2,0,0" />
                             </StackPanel>
 
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Content="Load" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.LoadPresetCommand}"
                                         CommandParameter="{Binding Name}"

@@ -11,22 +11,18 @@
 
         <Border Classes="GlassPanel" Padding="16">
             <StackPanel>
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <c:IconBox Grid.Column="0" Glyph="&#xE8B7;" Margin="0,0,16,0" />
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="Configurations Folder" FontSize="13" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                         <TextBlock Text="{Binding ConfigurationsDirectory}" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
                     </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Command="{Binding RefreshConfigurationsCommand}"
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Refresh" Command="{Binding RefreshConfigurationsCommand}"
                                 ToolTip.Tip="Reload list"
-                                Theme="{StaticResource IconButton}" Margin="0,0,6,0">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </Button>
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,0" />
                         <Button Content="Open Folder" Theme="{StaticResource GhostButton}"
                                 Command="{Binding OpenConfigurationsFolderCommand}"
                                 Padding="12,6" FontSize="12" />

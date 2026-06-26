@@ -11,11 +11,8 @@
 
         <!-- TabletDriverCleanup -->
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <c:IconBox Grid.Column="0" Glyph="&#xE74D;" Margin="0,0,16,0"
-                           IsActive="{Binding CleanupInstalled}" />
-
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Text="TabletDriverCleanup" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" />
                     <TextBlock Text="Removes leftover bits from previous tablet drivers"
@@ -31,7 +28,7 @@
                                IsVisible="{Binding CleanupBusy}" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- When not installed: just an Install button -->
                     <Button Content="Install" Theme="{StaticResource AccentButton}"
                             Command="{Binding InstallCleanupCommand}"

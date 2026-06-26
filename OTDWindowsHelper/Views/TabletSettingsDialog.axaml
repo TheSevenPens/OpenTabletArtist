@@ -17,14 +17,11 @@
                            Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
                            Foreground="#e87930" VerticalAlignment="Center" TextWrapping="Wrap"
-                           HorizontalAlignment="Right" Margin="0,0,44,0" MaxWidth="380"
+                           HorizontalAlignment="Right" Margin="0,0,96,0" MaxWidth="360"
                            IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
-                <Button Command="{Binding RefreshCommand}" HorizontalAlignment="Right"
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Right"
                         ToolTip.Tip="Reload settings from daemon"
-                        Theme="{StaticResource IconButton}">
-                    <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                </Button>
+                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
             </Grid>
             <!-- Detected/connected status for this tablet (#132) -->
             <ctrl:TabletStatusBanner Text="{Binding DetectionText}" IsDetected="{Binding IsTabletDetected}" />
@@ -83,12 +80,9 @@
                         <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBlock Grid.Column="0" Text="AREA MAPPING" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Command="{Binding RefreshDisplaysCommand}"
+                            <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshDisplaysCommand}"
                                     ToolTip.Tip="Refresh displays from Windows"
-                                    Theme="{StaticResource IconButton}" Margin="0,0,6,0">
-                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </Button>
+                                    Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,0" />
                             <Button Grid.Column="2" Content="Display Settings"
                                     Command="{Binding OpenDisplaySettingsCommand}"
                                     ToolTip.Tip="Open Windows Display Settings"
@@ -290,12 +284,9 @@
                                        FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
                                        Width="44" TextAlignment="Right"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <Button Grid.Column="3" Command="{Binding ResetSoftnessCommand}"
-                                    Theme="{StaticResource IconButton}" Margin="4,0,0,0"
-                                    ToolTip.Tip="Reset softness to 0 (linear)">
-                                <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </Button>
+                            <Button Grid.Column="3" Content="Reset" Command="{Binding ResetSoftnessCommand}"
+                                    Theme="{StaticResource GhostButton}" Margin="6,0,0,0" Padding="8,3" FontSize="11"
+                                    ToolTip.Tip="Reset softness to 0 (linear)" />
                         </Grid>
                         <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="90,0,0,8"
