@@ -144,15 +144,45 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
 - **Later:** homography/keystone; calibration from a guided setup (#60); auto-invalidate on area
   change; export/import calibration.
 
-## Open questions for review
+## Resolved decisions (design review, #146)
 
-1. **Filter (A) vs area-bake (B)** — agree the orthogonal filter is the right call despite the plugin
-   dependency?
-2. **Affine vs simpler** — is full affine right, or start with offset + per-axis scale (4 DOF, maps
-   closely to Kuuuube's offset+stretch and is trivially explainable) and add rotation/shear later?
-3. **Raw-stream capture vs OS-pointer capture** — raw is mapping-independent (recommended); is there
-   a reason to prefer the OS pointer (what the app actually receives)?
-4. **Calibration ⟂ area-mapping coupling** — is "recalibrate when you change the area" acceptable for
-   v1, or should calibration be stored in a mapping-independent way?
-5. **New filter in the Dynamics assembly vs a separate `OtdWindowsHelper.Calibration` assembly** —
-   one install (recommended) vs cleaner separation?
+1. **Filter (A), not area-bake.** Orthogonal correction layer; keeps the user's area mapping intact.
+2. **Full affine (6 DOF) for v1.** 4 inset taps → least squares. The confirm screen may show
+   human-readable deltas ("offset ~2 px, scale ~1.01") derived from the matrix, without limiting the
+   model.
+3. **Raw-stream capture.** OS-pointer capture would fold in Windows Ink + any existing calibration
+   error (circular).
+4. **Coupling acceptable for v1** (OEM drivers behave the same). Store a small **mapping fingerprint**
+   (hash of input/output area + display id) next to the affine so the UI can flag "calibration may be
+   stale" without forcing a blind recalibrate.
+5. **Same plugin assembly** (`OtdWindowsHelper.Dynamics`) — zero new install path. Add a
+   `CalibrationProfile.FilterTypeName` constant and extend the plugin type-name guard test.
+
+## Implementation requirements (from review)
+
+- **Inverse mapping (new):** `AbsolutePositionMapper` has no desktop→raw path. Add `TryInvertMatrix`
+  + `MapFromDesktop` in `Domain/` (unit-tested) to compute `expectedRawᵢ`.
+- **Filter order:** Calibration **before** Dynamics (both `PreTransform`) — correct the raw position
+  first so position smoothing never smears an uncorrected error. Order deterministically when writing
+  the filter stores (`CalibrationProfile.Write` / `PressureCurveProfile.Write`).
+- **Capture with existing calibration bypassed:** while tapping, capture **pre-calibration** raw (or
+  temporarily disable the calibration filter), so we don't calibrate on top of an old correction and
+  "Clear" truly returns to identity.
+- **Preview before Apply:** after computing `A`, apply it temporarily (in-memory / short-lived daemon
+  push) for the "move the pen around" confirm step; persist only on Apply.
+- **Tap acceptance:** pen-down pressure threshold, optional averaging of N raw reports, and a hit
+  radius (screen px) around the active target so stray taps don't advance.
+- **Overlay placement:** top-most borderless window on the mapped display (`DisplayEnumerator` +
+  Avalonia placement). Manual-test on a real display tablet — Windows may need the overlay on the
+  same output as the pen display for pen input to land cleanly.
+
+## Testing (incl. review additions)
+
+- `Domain` math: affine-from-points (identity, offset, scale, rotation, least-squares on noisy 4
+  points), degenerate-input rejection, normalize/denormalize round-trip.
+- **Inverse round-trip:** `raw → MapToDesktop → MapFromDesktop ≈ raw` for non-degenerate mappings.
+- **Composition:** calibration ∘ `AbsolutePositionMapper` lands measured taps near their targets
+  (synthetic point pairs).
+- `CalibrationProfile` read/write round-trip (mirrors `PressureCurveProfileTests`) + type-name guard.
+- Filter `Consume` applies the transform and passes through when MaxX/MaxY unknown.
+- VM: Calibrate enabled only in Absolute mode; capture state machine advances/resets correctly.
