@@ -47,9 +47,12 @@ public class DialogService : IDialogService
             async () =>
             {
                 // Authoritative refresh through the session so its CurrentSettings cache stays
-                // coherent (and the rest of the UI updates too). (Codex #43.)
+                // coherent (and the rest of the UI updates too). (Codex #43.) Return the reloaded
+                // settings together with the profile so the dialog keeps both in sync — the profile
+                // is a reference inside these settings, and later edits persist through them (#124).
                 await _session.ReloadAsync();
-                return _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+                var settings = _session.CurrentSettings;
+                return (settings, settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
             },
             digitizer,
             openDynamics,
