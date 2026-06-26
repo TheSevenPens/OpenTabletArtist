@@ -57,9 +57,11 @@ public partial class TestViewModel : ObservableObject, IDisposable
         TabletStatusText = detected != null
             ? (string.IsNullOrEmpty(detected.Profile.Tablet) ? "Tablet detected" : detected.Profile.Tablet)
             : "No tablet detected";
-        // Dynamics is "on" when the OtdWindowsHelper.Dynamics filter is present AND enabled on the profile.
+        // Dynamics is "on" when the OtdWindowsHelper.Dynamics filter is present AND enabled on the
+        // profile. Accept the pre-rename legacy path too, mirroring PressureCurveProfile.FindStore.
         DynamicsActive = detected?.Profile.Filters
-            ?.Any(f => f.Path == PressureCurveProfile.FilterTypeName && f.Enable) ?? false;
+            ?.Any(f => f.Enable && (f.Path == PressureCurveProfile.FilterTypeName
+                                    || f.Path == PressureCurveProfile.LegacyFilterTypeName)) ?? false;
     }
 
     /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
