@@ -139,6 +139,6 @@ public class TestViewModelTests
         await vm.OpenDynamicsCommand.ExecuteAsync(null);
 
         Assert.Same(profile, dialogs.ShownProfile);
-        Assert.True(dialogs.ShownDynamics);
+        Assert.True(dialogs.ShownDynamicsOnly);
     }
 }
