@@ -141,22 +141,41 @@ public class VMultiInstaller
             ZipFile.ExtractToDirectory(zipPath, extractDir);
             ProgressChanged?.Invoke(60);
 
-            // Find the uninstall batch file
-            string? uninstallBat = FindFile(extractDir, "remove_hiddriver.bat");
-            if (uninstallBat == null)
-                return new InstallResult(false, "Could not find remove_hiddriver.bat in the downloaded archive.");
+            // Locate the driver folder (DIFxCmd.exe / devcon.exe / vmulti.inf live together).
+            string? inf = FindFile(extractDir, "vmulti.inf");
+            if (inf == null)
+                return new InstallResult(false, "Could not find vmulti.inf in the downloaded archive.");
+            string driverDir = Path.GetDirectoryName(inf)!;
 
-            string driverDir = Path.GetDirectoryName(uninstallBat)!;
+            // Write our own removal script instead of the stock remove_hiddriver.bat — its trailing
+            // `@pause` leaves a cmd window open waiting for a keypress (and blocks our completion).
+            // We also remove the leftover driverless `djpnewton\vmulti` nodes that `devcon remove
+            // pentablet\hid` leaves behind (Device Manager Code 28, #110), so detection comes back clean.
+            string script = Path.Combine(driverDir, "otd_remove_vmulti.bat");
+            await File.WriteAllTextAsync(script, string.Join("\r\n", new[]
+            {
+                "@echo off",
+                "\"%~dp0DIFxCmd.exe\" /u vmulti.inf",
+                "\"%~dp0devcon.exe\" remove \"pentablet\\hid\"",
+                "\"%~dp0devcon.exe\" remove \"djpnewton\\vmulti\"",
+                // Always succeed: devcon returns non-zero when a node was already gone, which isn't a
+                // failure for us. The card re-detects the real state after this returns.
+                "exit /b 0",
+                "",
+            }), ct);
 
-            // Step 3: Run uninstall with admin privileges
-            StatusChanged?.Invoke("Uninstalling driver (admin required)...");
+            // Step 3: Run the removal once, elevated, with a hidden window (single UAC prompt, no
+            // lingering console). UAC is unavoidable for driver removal.
+            StatusChanged?.Invoke("Removing driver (admin required)...");
             ProgressChanged?.Invoke(70);
 
             var psi = new ProcessStartInfo
             {
-                FileName = uninstallBat,
+                FileName = script,
                 Verb = "runas",
                 UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
                 WorkingDirectory = driverDir,
             };
 
@@ -167,16 +186,10 @@ public class VMultiInstaller
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
 
-            if (process.ExitCode == 0)
-            {
-                StatusChanged?.Invoke("VMulti driver uninstalled successfully.");
-                return new InstallResult(true, "Driver uninstalled. A reboot may be required.");
-            }
-            else
-            {
-                StatusChanged?.Invoke("Uninstallation may have failed.");
-                return new InstallResult(false, $"Uninstaller exited with code {process.ExitCode}. Check Device Manager.");
-            }
+            StatusChanged?.Invoke("VMulti driver removed.");
+            return new InstallResult(true,
+                "VMulti was removed. A restart is recommended to finish cleaning it up.",
+                RebootRecommended: true);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
@@ -203,4 +216,4 @@ public class VMultiInstaller
     }
 }
 
-public record InstallResult(bool Success, string Message);
+public record InstallResult(bool Success, string Message, bool RebootRecommended = false);
