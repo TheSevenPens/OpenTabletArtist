@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -33,10 +34,19 @@ public partial class TabletSettingsViewModel : ObservableObject, IDisposable
 
         // Self-subscribe to the session's data load instead of being pushed to by the shell.
         _deviceData.DataLoaded += OnDataLoaded;
-        Profiles = _deviceData.Profiles.ToList();
+        Profiles = Ordered(_deviceData.Profiles);
     }
 
-    private void OnDataLoaded() => Profiles = _deviceData.Profiles.ToList();
+    private void OnDataLoaded() => Profiles = Ordered(_deviceData.Profiles);
+
+    /// <summary>Ordering for the Paired Tablets list (#137): the currently-detected tablet(s) first,
+    /// then the rest by most-recently-seen, with never-seen tablets last (alphabetical). Last-seen is
+    /// persisted across restarts (see <see cref="ProfileItem.LastSeen"/>), so the order is stable.</summary>
+    private static List<ProfileItem> Ordered(IEnumerable<ProfileItem> items) =>
+        items.OrderByDescending(p => p.IsDetected)
+             .ThenByDescending(p => p.LastSeen ?? DateTime.MinValue)
+             .ThenBy(p => p.Tablet, StringComparer.OrdinalIgnoreCase)
+             .ToList();
 
     [RelayCommand]
     private async Task OpenTabletSettings(object profileObj)

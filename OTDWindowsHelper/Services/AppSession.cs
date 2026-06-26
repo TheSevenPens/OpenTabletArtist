@@ -301,7 +301,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                     if (!string.IsNullOrEmpty(name))
                     {
                         detectedNames.Add(name);
-                        AppSettings.Set($"LastSeen:{name}", DateTime.Now.ToString("o"));
+                        // Key normalized to lower-case so the read side (keyed by the profile's
+                        // Tablet name) matches even if the daemon's reported casing drifts from the
+                        // profile's — detection is case-insensitive, so persistence must be too (#138).
+                        AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
                     }
                 }
 
@@ -334,8 +337,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                     .Select(p =>
                     {
                         bool detected = detectedNames.Contains(p.Tablet);
+                        // lastSeen stays null when this tablet has never been observed connected
+                        // while the helper was running — there's no timestamp we could know (#138).
                         DateTime? lastSeen = null;
-                        var stored = AppSettings.Get($"LastSeen:{p.Tablet}");
+                        // Prefer the normalized key; fall back to the pre-#138 exact-case key so
+                        // history written before the lowercase migration isn't lost (re-detection
+                        // rewrites it under the normalized key). (Cursor nit on #142.)
+                        var stored = string.IsNullOrEmpty(p.Tablet)
+                            ? null
+                            : AppSettings.Get(LastSeenKey(p.Tablet)) ?? AppSettings.Get($"LastSeen:{p.Tablet}");
                         if (stored != null && DateTime.TryParse(stored, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
                             lastSeen = dt;
                         if (detected)
@@ -369,6 +379,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
         catch { /* Data load failed — will retry on next connection/poll */ }
     }
+
+    /// <summary>Persistence key for a tablet's last-seen timestamp. Lower-cased so write (by detected
+    /// daemon name) and read (by profile name) match case-insensitively, like detection does (#138).</summary>
+    private static string LastSeenKey(string tabletName) => $"LastSeen:{tabletName.ToLowerInvariant()}";
 
     private readonly PressurePluginInstaller _pluginInstaller = new();
     private bool _pluginEnsured;
