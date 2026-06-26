@@ -197,6 +197,21 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         }
     }
 
+    // User-initiated Windows restart (offered after a VMulti uninstall, #112). Best-effort.
+    private static void TryRestartWindows()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("shutdown", "/r /t 0")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                });
+        }
+        catch { /* best-effort; user can restart manually */ }
+    }
+
     [RelayCommand]
     private async Task UninstallVmulti()
     {
@@ -222,7 +237,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
             VmultiInstallStatus = uninstallResult.Message;
             await RefreshVmultiDetection();
-            await _dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
+
+            if (uninstallResult.Success && uninstallResult.RebootRecommended)
+            {
+                var restart = await _dialogs.ShowConfirmAsync(
+                    "Restart recommended",
+                    uninstallResult.Message + "\n\nRestart now? Save your work in other apps first.");
+                if (restart)
+                    TryRestartWindows();
+            }
+            else
+            {
+                await _dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
+            }
         }
         catch (Exception ex)
         {
