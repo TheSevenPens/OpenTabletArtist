@@ -32,7 +32,34 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _driver.Sample += OnDriverSample;
         _deviceData = deviceData;
         _dialogs = dialogs;
-        _deviceData.DataLoaded += RecomputeMapping;
+        _deviceData.DataLoaded += OnDataLoaded;
+    }
+
+    private void OnDataLoaded()
+    {
+        RecomputeMapping();
+        RefreshTabletStatus();
+    }
+
+    // --- Tablet status banner (#128/#129/#130) ---
+
+    /// <summary>A tablet is currently detected (drives the banner's green check vs. amber warning).</summary>
+    [ObservableProperty] private bool _tabletDetected;
+    /// <summary>Banner text: the detected tablet's name, or a "no tablet" message.</summary>
+    [ObservableProperty] private string _tabletStatusText = "No tablet detected";
+    /// <summary>Pen Dynamics is enabled on the detected tablet's profile (shows the "Dynamics on" chip).</summary>
+    [ObservableProperty] private bool _dynamicsActive;
+
+    private void RefreshTabletStatus()
+    {
+        var detected = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
+        TabletDetected = detected != null;
+        TabletStatusText = detected != null
+            ? (string.IsNullOrEmpty(detected.Profile.Tablet) ? "Tablet detected" : detected.Profile.Tablet)
+            : "No tablet detected";
+        // Dynamics is "on" when the OtdWindowsHelper.Dynamics filter is present AND enabled on the profile.
+        DynamicsActive = detected?.Profile.Filters
+            ?.Any(f => f.Path == PressureCurveProfile.FilterTypeName && f.Enable) ?? false;
     }
 
     /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
@@ -175,6 +202,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         _active = true;
         RecomputeMapping(); // data may already be loaded before the page is shown
+        RefreshTabletStatus();
         if (UseDriverInput) await _driver.StartAsync();
     }
 
@@ -195,7 +223,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _deviceData.DataLoaded -= RecomputeMapping;
+        _deviceData.DataLoaded -= OnDataLoaded;
         _driver.Sample -= OnDriverSample;
         _ = _driver.StopAsync();
     }

@@ -27,6 +27,30 @@
             </Style>
         </ControlTheme>
 
+        <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
+             Green check + text when detected; amber warning otherwise; optional "Dynamics on" chip. -->
+        <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Classes="GlassPanel" Padding="12,10">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Classes="statusMarkWarn"
+                                       Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
+                            <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
+                                <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
         <!-- Nav Item Button -->
         <ControlTheme x:Key="NavButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />

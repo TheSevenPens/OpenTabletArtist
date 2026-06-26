@@ -56,7 +56,9 @@ public class DialogService : IDialogService
             },
             digitizer,
             openDynamics,
-            _session.Daemon); // live pen-pressure dot on the Dynamics tab (#102)
+            _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
+            // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
+            () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName));
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)
