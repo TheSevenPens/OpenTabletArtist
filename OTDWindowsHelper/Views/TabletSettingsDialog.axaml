@@ -105,6 +105,9 @@
                         <TextBlock Text="Calibration is available in Absolute mode."
                                    FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
+                        <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
+                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                   Margin="0,4,0,0" IsVisible="{Binding CalibrationStale}" />
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -33,8 +33,13 @@ public partial class TabletSettingsDialog : Window
         DataContext = vm;
         if (onCalibrate != null)
             // Open the calibration overlay owned by this dialog (#127). The VM raises the request;
-            // the View owns window creation.
-            vm.CalibrationRequested += () => _ = onCalibrate(this);
+            // the View owns window creation. After it closes, reload so the stale-calibration hint
+            // and settings stay coherent (#147).
+            vm.CalibrationRequested += async () =>
+            {
+                await onCalibrate(this);
+                await vm.RefreshCommand.ExecuteAsync(null);
+            };
         if (dynamicsOnly)
         {
             // Focused Pen Dynamics editor (#133): preselect the Dynamics tab; the tab bar is hidden
@@ -126,6 +131,32 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     [RelayCommand]
     private void Calibrate() => CalibrationRequested?.Invoke();
+
+    /// <summary>True when a calibration exists but was captured against a different area mapping than
+    /// the current one — it may no longer be accurate, so suggest recalibrating (#147).</summary>
+    [ObservableProperty] private bool _calibrationStale;
+
+    private void RefreshCalibrationStatus()
+    {
+        var cal = CalibrationProfile.ReadProfile(_profile);
+        var current = CurrentMappingFingerprint();
+        CalibrationStale = cal is { Enabled: true }
+                           && !string.IsNullOrEmpty(cal.Fingerprint)
+                           && current != null
+                           && cal.Fingerprint != current;
+    }
+
+    /// <summary>Fingerprint of the profile's current Absolute mapping (input + output area + mapped
+    /// display), matching how <see cref="CalibrationProfile.Fingerprint"/> was written at calibration.</summary>
+    private string? CurrentMappingFingerprint()
+    {
+        var abs = _profile.AbsoluteModeSettings;
+        if (abs?.Tablet is not { } t || abs.Display is not { } d || CurrentlyMappedNumber() is not { } num)
+            return null;
+        var input = new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
+        var output = new MappingArea(d.X, d.Y, d.Width, d.Height);
+        return CalibrationProfile.Fingerprint(input, output, num);
+    }
 
     partial void OnIsWinInkRelativeChanged(bool value)
     {
@@ -337,6 +368,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         PressureCurveEnabled = pc?.Enabled ?? false;
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
+
+        RefreshCalibrationStatus();
     }
 
     /// <summary>Recomputes the Filters-tab list and the raw-JSON view from the current
