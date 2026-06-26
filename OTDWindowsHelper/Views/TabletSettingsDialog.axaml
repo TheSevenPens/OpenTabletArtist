@@ -25,9 +25,9 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
             <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
                          Theme="{StaticResource TabRadioButton}" />
-            <RadioButton Content="Pen Tip &amp; Eraser" x:Name="PenTipTab"
+            <RadioButton Content="Pen Switches" x:Name="PenTipTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="Pen Buttons" x:Name="PenButtonsTab"
+            <RadioButton Content="ExpressKeys" x:Name="PenButtonsTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="Dynamics" x:Name="DynamicsTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
@@ -51,6 +51,9 @@
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAbsoluteMode}"
                                           OnContent="Absolute" OffContent="Relative" />
                         </Grid>
+                        <TextBlock Text="Absolute is recommended for drawing — it carries pressure &amp; tilt."
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="90,2,0,0"
+                                   TextWrapping="Wrap" />
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
                                    FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
                                    TextWrapping="Wrap"
@@ -105,6 +108,11 @@
                             <TextBlock Text="PEN TIP" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding TipBinding}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding TipAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -124,6 +132,11 @@
                             <TextBlock Text="ERASER" Classes="SectionLabel" />
                             <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
                                        FontWeight="SemiBold" Text="{Binding EraserBinding}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding EraserAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not using recommended Adaptive Binding"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -135,14 +148,8 @@
                                 IsVisible="{Binding CanFixEraser}" />
                     </Grid>
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
 
-        <!-- Pen Buttons tab content -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
-            <StackPanel>
-                <!-- Pen Buttons -->
+                <!-- Pen Buttons (the buttons on the pen barrel) -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0">
@@ -162,6 +169,11 @@
                             <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
                                        Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
                                        IsVisible="{Binding NoPenButtons}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" IsVisible="{Binding PenButtonsAdaptive}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="All using Adaptive Binding (recommended)" FontSize="10"
+                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="Not all pen buttons use recommended Adaptive Binding"
                                        FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
                                        TextWrapping="Wrap"
@@ -173,7 +185,13 @@
                                 IsVisible="{Binding CanFixPenButtons}" />
                     </Grid>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
 
+        <!-- ExpressKeys tab content -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
+            <StackPanel>
                 <!-- Aux Buttons -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
@@ -206,13 +224,10 @@
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
-                                <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                                           Margin="0,6,0,0" TextWrapping="Wrap"
-                                           Text="Remaps pen pressure for every app (Krita, CSP, …) via the OTD Windows Helper filter. Drag the pink (min) and cyan (max) nodes; tune the bend with Softness." />
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="PEN DYNAMICS" Classes="SectionLabel" />
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Top"
+                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="On" OffContent="Off"
                                           IsChecked="{Binding PressureCurveEnabled}" />
                         </Grid>
@@ -222,9 +237,13 @@
                 <!-- Chart (1:1 square plot; responsive up to a max width). The green dot tracks live
                      pen pressure while drawing (#102). -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
-                                             LivePressure="{Binding LivePressure}"
-                                             MaxWidth="360" HorizontalAlignment="Center" />
+                    <StackPanel>
+                        <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
+                        <ctrl:PressureCurveChart Curve="{Binding Curve, Mode=TwoWay}"
+                                                 LivePressure="{Binding LivePressure}"
+                                                 MaxWidth="360" HorizontalAlignment="Center"
+                                                 Margin="0,10,0,0" />
+                    </StackPanel>
                 </Border>
 
                 <!-- Controls -->

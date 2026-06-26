@@ -145,7 +145,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Button Grid.Column="1" Content="Open"
+                    <Button Grid.Column="1" Content="Settings"
                             Command="{Binding OpenConnectedTabletSettingsCommand}"
                             IsEnabled="{Binding HasTablet}"
                             VerticalAlignment="Center"
