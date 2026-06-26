@@ -187,19 +187,34 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         return store;
     }
 
+    /// <summary>Set when an in-dialog Refresh finds this tablet's profile gone (unplugged/removed
+    /// since the dialog opened); surfaced as a header warning. Cleared on a successful refresh.
+    /// (#124 / Cursor review on #125)</summary>
+    [ObservableProperty] private string? _refreshWarning;
+
     [RelayCommand]
     private async Task Refresh()
     {
         if (_refreshAction == null) return;
         var (settings, profile) = await _refreshAction();
-        if (profile != null)
+        if (profile == null)
         {
-            // Reassign BOTH so later edits write to and push the same settings object the profile
-            // lives in — otherwise persists would mutate stale settings (#124).
-            _settings = settings;
-            _profile = profile;
-            RefreshFromProfile();
+            // The tablet/profile is gone (unplugged or removed since the dialog opened). Keep
+            // showing the last-known data rather than blanking it, but warn it may be stale.
+            RefreshWarning = "This tablet is no longer connected — showing the last known settings.";
+            return;
         }
+
+        // Reassign BOTH so later edits write to and push the same settings object the profile
+        // lives in — otherwise persists would mutate stale settings (#124).
+        _settings = settings;
+        _profile = profile;
+        // The profile must be a live reference inside the settings we now persist through; if a
+        // future refresh source returns a detached profile, edits would silently write elsewhere.
+        Debug.Assert(settings?.Profiles.Contains(profile) == true,
+            "Refreshed profile must be a reference inside the refreshed settings (#124).");
+        RefreshWarning = null;
+        RefreshFromProfile();
     }
 
     private async Task ApplySettingsChange(Action<Profile> modify)

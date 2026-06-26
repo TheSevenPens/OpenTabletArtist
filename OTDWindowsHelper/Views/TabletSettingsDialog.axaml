@@ -2,6 +2,7 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="using:OtdWindowsHelper.Controls"
+        xmlns:conv="using:Avalonia.Data.Converters"
         Title="Tablet Settings"
         Width="700" Height="640"
         WindowStartupLocation="CenterOwner"
@@ -13,6 +14,10 @@
         <Grid Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
+                       Foreground="#e87930" VerticalAlignment="Center" TextWrapping="Wrap"
+                       HorizontalAlignment="Right" Margin="0,0,44,0" MaxWidth="380"
+                       IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <Button Command="{Binding RefreshCommand}" HorizontalAlignment="Right"
                     ToolTip.Tip="Reload settings from daemon"
                     Theme="{StaticResource IconButton}">
