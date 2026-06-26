@@ -30,6 +30,20 @@ public class PluginTypeNameGuardTests
         Assert.Contains(type!.GetInterfaces(), i => i.Name.StartsWith("IPositionedPipelineElement"));
     }
 
+    [Fact]
+    public void CalibrationFilterTypeName_ResolvesToABuiltPluginPipelineElement()
+    {
+        var dll = FindPluginDll();
+        Assert.True(dll != null, "Plugin DLL not found — build the solution (it compiles the plugin).");
+
+        var asm = Assembly.LoadFrom(dll!);
+        var type = asm.GetType(CalibrationProfile.FilterTypeName);
+        Assert.True(type != null,
+            $"CalibrationProfile.FilterTypeName ('{CalibrationProfile.FilterTypeName}') matches no type in the " +
+            "plugin assembly — the calibration filter was renamed; update the constant (#127).");
+        Assert.Contains(type!.GetInterfaces(), i => i.Name.StartsWith("IPositionedPipelineElement"));
+    }
+
     // Walk up from the test output dir to the repo root and locate the built plugin DLL (the test
     // project doesn't reference the plugin; the solution build produces it).
     private static string? FindPluginDll()

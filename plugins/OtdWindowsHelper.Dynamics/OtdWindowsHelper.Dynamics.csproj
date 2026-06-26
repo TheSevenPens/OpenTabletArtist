@@ -21,6 +21,7 @@
     <Compile Include="..\..\OTDWindowsHelper\Domain\PressureCurve.cs" Link="PressureCurve.cs" />
     <Compile Include="..\..\OTDWindowsHelper\Domain\PenSmoothing.cs" Link="PenSmoothing.cs" />
     <Compile Include="..\..\OTDWindowsHelper\Domain\PenDynamicsProcessor.cs" Link="PenDynamicsProcessor.cs" />
+    <Compile Include="..\..\OTDWindowsHelper\Domain\CalibrationMath.cs" Link="CalibrationMath.cs" />
   </ItemGroup>
 
 </Project>

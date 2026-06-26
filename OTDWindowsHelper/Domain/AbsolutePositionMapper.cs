@@ -54,4 +54,16 @@ public static class AbsolutePositionMapper
         if (areaClipping) pos = clamped;
         return pos;
     }
+
+    /// <summary>Map a virtual-desktop pixel back to raw tablet units — the inverse of
+    /// <see cref="MapToDesktop"/> (no clipping/limiting). Used by calibration (#127) to find the raw
+    /// position that *should* land on a given on-screen target. Returns null when the inputs are
+    /// degenerate or the transform isn't invertible.</summary>
+    public static Vector2? MapFromDesktop(Vector2 desktopPx, TabletDigitizerSpec digitizer,
+        MappingArea input, MappingArea output)
+    {
+        if (digitizer.MaxX <= 0 || digitizer.MaxY <= 0 || input.Width <= 0 || input.Height <= 0) return null;
+        if (!Matrix3x2.Invert(CreateMatrix(digitizer, input, output), out var inverse)) return null;
+        return Vector2.Transform(desktopPx, inverse);
+    }
 }
