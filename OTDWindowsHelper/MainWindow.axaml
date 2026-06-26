@@ -22,12 +22,9 @@
                 <!-- Brand -->
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
                             Margin="16,20,16,16">
+                    <!-- Minimal brand mark (no icon font) -->
                     <Border Width="28" Height="28" CornerRadius="8"
-                            Background="{DynamicResource AccentBrush}">
-                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets"
-                                   Foreground="White" FontSize="14"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                            Background="{DynamicResource AccentBrush}" />
                     <TextBlock Text="OTD Windows Helper"
                                FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"

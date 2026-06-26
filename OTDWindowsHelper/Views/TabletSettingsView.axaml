@@ -13,29 +13,8 @@
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
                             Cursor="Hand"
                             DoubleTapped="ProfileCard_DoubleTapped">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <!-- Icon: green when detected, muted when not -->
-                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
-                                    Margin="0,0,16,0"
-                                    Background="{DynamicResource AccentMutedBrush}"
-                                    Classes.active="{Binding IsDetected}">
-                                <Border.Styles>
-                                    <Style Selector="Border.active">
-                                        <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-                                    </Style>
-                                </Border.Styles>
-                                <TextBlock Text="&#xE70A;" FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18" Foreground="{DynamicResource AccentBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Classes.active="{Binding IsDetected}">
-                                    <TextBlock.Styles>
-                                        <Style Selector="TextBlock.active">
-                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-                                        </Style>
-                                    </TextBlock.Styles>
-                                </TextBlock>
-                            </Border>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
@@ -55,7 +34,7 @@
                                            FontStyle="Italic" Margin="0,2,0,0"
                                            IsVisible="{Binding LastSeenDetail, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
                                 <Button Content="Open" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
                                         CommandParameter="{Binding}"

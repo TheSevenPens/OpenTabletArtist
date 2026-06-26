@@ -27,9 +27,6 @@
                         HorizontalAlignment="Left"
                         ToolTip.Tip="{Binding RepoUrl}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBlock Text="{Binding RepoUrl}" FontSize="13"
                                    Foreground="{DynamicResource AccentBrush}"
                                    TextDecorations="Underline" VerticalAlignment="Center" />
