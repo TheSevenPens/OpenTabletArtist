@@ -184,7 +184,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
             VmultiInstallStatus = installResult.Message;
             await RefreshVmultiDetection();
-            await _dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
+
+            if (installResult.Success && installResult.RebootRecommended)
+            {
+                var restart = await _dialogs.ShowConfirmAsync(
+                    "Restart recommended",
+                    installResult.Message + "\n\nRestart now? Save your work in other apps first.");
+                if (restart)
+                    TryRestartWindows();
+            }
+            else
+            {
+                await _dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
+            }
         }
         catch (Exception ex)
         {
