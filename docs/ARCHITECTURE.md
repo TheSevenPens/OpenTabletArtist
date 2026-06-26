@@ -31,7 +31,7 @@
 - `Domain/` — pure, UI-free logic, unit-tested directly: `AreaMappingCalculator`, `PresetNaming`, `TabletConfigNaming`, `ExecutablePath`, `WinInkUpdateState`, `DiagnosticsMath`, `ProfileItem`, `PenSample` + `DeviceReportSample` (Test tab — normalized pen reading + `DeviceReport` parser)
 - `Concurrency/` — async coordination: `LatestOnlyGate` (coalesce overlapping data loads), `CoalescingSingleFlight` (single-flight reconnect with latest-wins rerun)
 - `Controls/` — custom controls: `TabletVisualizer` (area + live pen dot), `IconBox` (card-header icon), `PenTestCanvas` (Test tab — SkiaSharp paint surface)
-- `Themes/` — resource dictionaries for colors and styles (light mode, glassmorphism) and the shared `ControlTheme`s
+- `Themes/` — resource dictionaries for colors and styles (light + dark theme variants, glassmorphism) and the shared `ControlTheme`s
 - `Converters/` — Avalonia value converters (bool/string helpers; the old `PageToView` / `StringEquals` nav converters were removed when navigation moved to typed DataTemplates)
 - `Helpers/` — dialog helpers (MessageBox / InputBox replacements via `Dialogs.ShowConfirmAsync`, etc.)
 
@@ -216,7 +216,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Interactive area mapper.** The Diagnostics page already draws a live tablet area + pen dot (`Controls/TabletVisualizer`). The *interactive* area mapper — drag/resize/rotate the active area on an Avalonia `Canvas` with coordinate transforms — is still to be built.
 
-**Dark mode.** Light mode colors are implemented. Dark mode requires a second `ResourceDictionary` with runtime switching.
+**Theming.** Light and dark themes are implemented via `ResourceDictionary.ThemeDictionaries` in `Themes/Colors.axaml` (shared accent/status colors at the top level, variant-specific backgrounds/text/glass per dictionary). `Services/ThemeService` persists the user's Light/Dark/System choice (`AppSettings`) and applies it through `Application.RequestedThemeVariant` — "System" follows the OS. The selector lives in the sidebar footer. Custom-drawn controls (e.g. `PressureCurveChart`) still use fixed colors and could be re-tuned per variant.
 
 **Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with box shadows. True acrylic blur effects could be added for deeper visual fidelity.
 

@@ -117,6 +117,10 @@ Project information.
 
 Click items in the sidebar to switch between pages. The active page is highlighted with an indigo accent bar.
 
+## Theme
+
+The sidebar footer has a **Theme** selector with three choices: **System** (follows your Windows light/dark setting — the default), **Light**, and **Dark**. The choice is applied immediately and remembered across restarts.
+
 ## Stopping the daemon from outside this app
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
