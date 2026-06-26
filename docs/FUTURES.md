@@ -10,8 +10,15 @@ Several items once listed here have shipped and are no longer "future":
 - **Saved Settings (preset snapshots)** — save / load / rename / delete configuration snapshots (the *Saved Settings* page).
 - **Live input visualization** — the *Diagnostics* page streams pen position (area + dot), pressure, and tilt via `Controls/TabletVisualizer`.
 - **Settings write-back (initial)** — the per-tablet dialog writes output mode and display mapping back to the daemon via `SetSettings`.
-- **Windows Ink + VMulti management** — detect, install, update, and uninstall both from the Dashboard.
+- **Windows Ink + VMulti management** — detect, install, update, and uninstall both from the Dashboard. VMulti install/uninstall now run **in-app** (single UAC, no console window) and clean up leftover device nodes (#110/#111/#112).
 - **Daemon lifecycle UX** — Start / Stop / Restart with reliable reconnect and progress feedback.
+- **Pen Dynamics** — interactive pressure-curve editor **plus** position/pressure smoothing, enforced by the bundled OTD filter; presets, numeric node read-outs, live pressure dot, and a focused dynamics-only editor reachable from the Test view (#68/#101–#104/#119/#133).
+- **Pointer calibration** — 4-tap calibration for pen displays: capture, least-squares affine correction via a bundled filter, with a "may be stale" hint when the mapping changes (#127/#147).
+- **Graphical area mapping** — Screen-Mapping tab with a to-scale monitor picker, Absolute/Relative toggle, and aspect-locked apply (#117); supersedes the old multi-monitor item (#67).
+- **Light / Dark / System theming** — variant-aware palette with a sidebar selector, defaulting to follow-system (#139).
+- **Paired Tablets ordering** — detected tablet first, then most-recently-seen (persisted), then never-seen (#137/#138).
+- **Plugins page** — read-only list of installed daemon plugins with active/installed status.
+- **Simplified iconography** — replaced the Windows-only Segoe MDL2 icon font with text labels + colored status dots (#150).
 
 ## Near-Term (Polish the Prototype)
 
@@ -28,9 +35,8 @@ Several items once listed here have shipped and are no longer "future":
 
 ## Mid-Term (Deepen the Experience)
 
-- **Multi-Monitor Support** — Show all displays in the area mapper and map the tablet to a chosen monitor/region. ([#67](https://github.com/TheSevenPens/OTDWindowsHelper/issues/67))
-- **Pressure Curve Editor** — the interactive *Extended* curve shipped in v0.2.0 (Pressure tab, applied via our OTD filter plugin); Bezier variant, presets, smoothing, and live draw-to-preview remain. ([#68](https://github.com/TheSevenPens/OTDWindowsHelper/issues/68), [#101](https://github.com/TheSevenPens/OTDWindowsHelper/issues/101), [#102](https://github.com/TheSevenPens/OTDWindowsHelper/issues/102), [#103](https://github.com/TheSevenPens/OTDWindowsHelper/issues/103))
-- **Plugin Browser** — Browse, install, and configure OTD plugins from a card grid. ([#69](https://github.com/TheSevenPens/OTDWindowsHelper/issues/69))
+- **Plugin Browser** — A read-only Plugins page shipped; full browse/install/configure from a card grid remains. ([#69](https://github.com/TheSevenPens/OTDWindowsHelper/issues/69))
+- **Supported-tablets catalog** — show the full list of OTD-compatible tablets (read from the embedded configs); investigated and scoped, implementation deferred. ([#155](https://github.com/TheSevenPens/OTDWindowsHelper/issues/155))
 - **Animations and Micro-Interactions** — Page transitions, hover effects, loading skeletons, and toast notifications. ([#70](https://github.com/TheSevenPens/OTDWindowsHelper/issues/70))
 
 ## Long-Term (Distribution and Platform)

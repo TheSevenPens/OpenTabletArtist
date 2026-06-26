@@ -30,7 +30,7 @@
 - `Views/` — Avalonia AXAML pages (Dashboard, Paired Tablets, Saved Settings, Custom Tablet Configs, Utilities, Diagnostics, Test, About) and the per-tablet `TabletSettingsDialog`
 - `Domain/` — pure, UI-free logic, unit-tested directly: `AreaMappingCalculator`, `PresetNaming`, `TabletConfigNaming`, `ExecutablePath`, `WinInkUpdateState`, `DiagnosticsMath`, `ProfileItem`, `PenSample` + `DeviceReportSample` (Test tab — normalized pen reading + `DeviceReport` parser)
 - `Concurrency/` — async coordination: `LatestOnlyGate` (coalesce overlapping data loads), `CoalescingSingleFlight` (single-flight reconnect with latest-wins rerun)
-- `Controls/` — custom controls: `TabletVisualizer` (area + live pen dot), `IconBox` (card-header icon), `PenTestCanvas` (Test tab — SkiaSharp paint surface)
+- `Controls/` — custom controls: `TabletVisualizer` (area + live pen dot), `PenTestCanvas` (Test tab — SkiaSharp paint surface), `PressureCurveChart` (Dynamics curve editor), `DisplayLayoutView` (to-scale monitor picker), `TabletStatusBanner` (detected/connected banner)
 - `Themes/` — resource dictionaries for colors and styles (light + dark theme variants, glassmorphism) and the shared `ControlTheme`s
 - `Converters/` — Avalonia value converters (bool/string helpers; the old `PageToView` / `StringEquals` nav converters were removed when navigation moved to typed DataTemplates)
 - `Helpers/` — dialog helpers (MessageBox / InputBox replacements via `Dialogs.ShowConfirmAsync`, etc.)
