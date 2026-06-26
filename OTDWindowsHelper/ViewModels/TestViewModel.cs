@@ -64,15 +64,15 @@ public partial class TestViewModel : ObservableObject, IDisposable
                                     || f.Path == PressureCurveProfile.LegacyFilterTypeName)) ?? false;
     }
 
-    /// <summary>Open the tablet's settings dialog straight to the Dynamics tab without leaving Test —
-    /// targets the detected tablet, falling back to the first known profile.</summary>
+    /// <summary>Open a focused Pen Dynamics editor (curve + smoothing only) without leaving Test —
+    /// targets the detected tablet, falling back to the first known profile (#133).</summary>
     [RelayCommand]
     private async Task OpenDynamics()
     {
         var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
                        ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
         if (profile != null)
-            await _dialogs.ShowTabletSettingsAsync(profile, openDynamics: true);
+            await _dialogs.ShowTabletSettingsAsync(profile, dynamicsOnly: true);
     }
 
     /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>

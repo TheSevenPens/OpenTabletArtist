@@ -126,4 +126,19 @@ public class TestViewModelTests
         Assert.False(vm.TabletDetected);
         Assert.Equal("No tablet detected", vm.TabletStatusText);
     }
+
+    // #133: the Test "Dynamics" button opens the focused dynamics-only editor for the detected tablet.
+    [Fact]
+    public async Task OpenDynamics_OpensDynamicsOnlyDialog_ForDetectedProfile()
+    {
+        var profile = new Profile { Tablet = "Wacom" };
+        var data = new FakeDeviceData { Profiles = new List<ProfileItem> { new(profile, IsDetected: true, LastSeen: null) } };
+        var dialogs = new FakeDialogService();
+        using var vm = new TestViewModel(new NoopDebugSession(), data, dialogs);
+
+        await vm.OpenDynamicsCommand.ExecuteAsync(null);
+
+        Assert.Same(profile, dialogs.ShownProfile);
+        Assert.True(dialogs.ShownDynamicsOnly);
+    }
 }

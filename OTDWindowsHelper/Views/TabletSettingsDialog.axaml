@@ -30,8 +30,9 @@
             <ctrl:TabletStatusBanner Text="{Binding DetectionText}" IsDetected="{Binding IsTabletDetected}" />
         </StackPanel>
 
-        <!-- Tab buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+        <!-- Tab buttons (hidden in the focused Pen Dynamics view, #133) -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16"
+                    IsVisible="{Binding !DynamicsOnly}">
             <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
                          Theme="{StaticResource TabRadioButton}" />
             <RadioButton Content="Pen Switches" x:Name="PenTipTab"

@@ -23,14 +23,20 @@ public partial class TabletSettingsDialog : Window
         Func<Settings, Task>? onApplyChanges = null,
         Func<Task<(Settings? Settings, Profile? Profile)>>? onRefresh = null,
         (float Width, float Height)? tabletDigitizer = null,
-        bool openDynamics = false,
+        bool dynamicsOnly = false,
         OtdWindowsHelper.Services.IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null)
     {
         InitializeComponent();
-        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected);
-        if (openDynamics)
+        DataContext = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected, dynamicsOnly);
+        if (dynamicsOnly)
+        {
+            // Focused Pen Dynamics editor (#133): preselect the Dynamics tab; the tab bar is hidden
+            // via the VM's DynamicsOnly flag, and a smaller window suits the single panel.
             DynamicsTab.IsChecked = true;
+            Title = "Pen Dynamics";
+            Height = 560;
+        }
     }
 
     // Parameterless constructor required by Avalonia XAML loader
@@ -131,7 +137,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         Func<Task<(Settings? Settings, Profile? Profile)>>? refreshAction = null,
         (float Width, float Height)? tabletDigitizer = null,
         IDaemonDebugSession? penInput = null,
-        Func<bool>? isDetected = null)
+        Func<bool>? isDetected = null,
+        bool dynamicsOnly = false)
     {
         _profile = profile;
         _settings = settings;
@@ -139,6 +146,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _refreshAction = refreshAction;
         _isDetectedProbe = isDetected;
         _tabletDigitizer = tabletDigitizer;
+        DynamicsOnly = dynamicsOnly;
 
         if (penInput != null)
         {
@@ -197,6 +205,10 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// since the dialog opened); surfaced as a header warning. Cleared on a successful refresh.
     /// (#124 / Cursor review on #125)</summary>
     [ObservableProperty] private string? _refreshWarning;
+
+    /// <summary>When true, the dialog is opened as a focused Pen Dynamics editor: the tab bar is
+    /// hidden and only the Dynamics content shows (#133). The Dynamics tab is preselected by the view.</summary>
+    [ObservableProperty] private bool _dynamicsOnly;
 
     // --- Tablet detected/connected banner (#132) ---
 

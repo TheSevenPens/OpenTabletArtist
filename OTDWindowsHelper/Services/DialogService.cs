@@ -13,8 +13,9 @@ namespace OtdWindowsHelper.Services;
 public interface IDialogService
 {
     /// <summary>Opens the per-tablet settings dialog for <paramref name="profile"/> and awaits its
-    /// close. When <paramref name="openDynamics"/> is true, the Dynamics tab is preselected.</summary>
-    Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false);
+    /// close. When <paramref name="dynamicsOnly"/> is true, the dialog opens as a focused Pen Dynamics
+    /// editor — the tab bar is hidden and only the Dynamics panel shows (#133).</summary>
+    Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false);
 
     /// <summary>Shows an informational message with an OK button.</summary>
     Task ShowMessageAsync(string title, string message);
@@ -36,7 +37,7 @@ public class DialogService : IDialogService
 
     public DialogService(AppSession session) => _session = session;
 
-    public async Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false)
+    public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
     {
         var tabletName = profile.Tablet;
         var digitizer = _session.GetTabletDigitizer(tabletName);
@@ -55,7 +56,7 @@ public class DialogService : IDialogService
                 return (settings, settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
             },
             digitizer,
-            openDynamics,
+            dynamicsOnly,
             _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
             // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
             () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName));

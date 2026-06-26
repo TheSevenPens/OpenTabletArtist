@@ -23,12 +23,12 @@ internal sealed class FakeDialogService : IDialogService
     /// <summary>Result returned by <see cref="ShowInputAsync"/> (default null = cancelled).</summary>
     public string? InputResult { get; set; }
 
-    public bool ShownDynamics { get; set; }
+    public bool ShownDynamicsOnly { get; set; }
 
-    public Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false)
+    public Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
     {
         ShownProfile = profile;
-        ShownDynamics = openDynamics;
+        ShownDynamicsOnly = dynamicsOnly;
         ShowCount++;
         return Task.CompletedTask;
     }

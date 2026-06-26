@@ -103,7 +103,7 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 - **Mode** — what to visualize: pressure → brush size, tilt azimuth → brush rotation, tilt altitude → brush size, twist → brush rotation, or pointer-only (a crosshair, no drawing).
 - **Readouts** — live values: Canvas X/Y (where the stroke lands), Raw X/Y (the source's raw coordinates — tablet units in Driver mode), pressure, tilt X/Y, azimuth, altitude, twist.
 - **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
-- **Dynamics** — opens the detected tablet's **Dynamics** settings (pressure curve + smoothing) directly, without leaving Test, so you can tweak and immediately feel the result.
+- **Dynamics** — opens a focused **Pen Dynamics** editor for the detected tablet (just the pressure curve + smoothing, no other tabs) without leaving Test, so you can tweak and immediately feel the result.
 
 ### Plugins
 
