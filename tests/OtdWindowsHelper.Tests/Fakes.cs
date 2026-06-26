@@ -25,10 +25,10 @@ internal sealed class FakeDialogService : IDialogService
 
     public bool ShownDynamics { get; set; }
 
-    public Task ShowTabletSettingsAsync(Profile profile, bool openDynamics = false)
+    public Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
     {
         ShownProfile = profile;
-        ShownDynamics = openDynamics;
+        ShownDynamics = dynamicsOnly;
         ShowCount++;
         return Task.CompletedTask;
     }
