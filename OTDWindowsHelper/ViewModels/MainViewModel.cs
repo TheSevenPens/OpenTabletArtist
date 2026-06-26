@@ -68,6 +68,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         await _session.StartAndConnectAsync();
     }
 
+    // --- Theme (#139): Light / Dark / System, persisted via ThemeService ---
+    public string[] ThemeOptions { get; } = { ThemeService.System, ThemeService.Light, ThemeService.Dark };
+
+    [ObservableProperty] private string _selectedTheme = ThemeService.SavedChoice;
+
+    // Fires only on user-driven changes (not the field initializer), so it both applies and persists.
+    partial void OnSelectedThemeChanged(string value) => ThemeService.Apply(value);
+
     [RelayCommand]
     private void Navigate(object page) => CurrentPage = page as ObservableObject;
 

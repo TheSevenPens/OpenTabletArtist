@@ -1,20 +1,15 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Light Mode (default) -->
-    <Color x:Key="BgBase">#F0F0F6</Color>
-    <Color x:Key="BgElevated">#F7F7FC</Color>
-    <Color x:Key="BgSurface">#FFFFFF</Color>
+    <!-- ============================================================================
+         Theming (#139): light + dark, switched by the app's ThemeVariant.
+         - Variant-INDEPENDENT colors/brushes (accent + status) live at the top level.
+         - Variant-SPECIFIC colors/brushes (backgrounds, text, glass, dividers) live in
+           the Light/Dark theme dictionaries below; consumers bind with DynamicResource so
+           they re-resolve when Application.RequestedThemeVariant changes.
+         ============================================================================ -->
 
-    <Color x:Key="GlassBg">#A6FFFFFF</Color>
-    <Color x:Key="GlassBgHover">#BFFFFFFF</Color>
-    <Color x:Key="GlassBorder">#33000000</Color>
-
-    <Color x:Key="TextPrimary">#F0000000</Color>
-    <Color x:Key="TextSecondary">#CC000000</Color>
-    <Color x:Key="TextMuted">#99000000</Color>
-    <Color x:Key="TextInverse">#FFFFFF</Color>
-
+    <!-- Shared accent + status (work on both light and dark surfaces) -->
     <Color x:Key="Accent">#6366F1</Color>
     <Color x:Key="AccentMuted">#1A6366F1</Color>
     <Color x:Key="Success">#10B981</Color>
@@ -23,21 +18,9 @@
     <Color x:Key="WarningMuted">#1AF59E0B</Color>
     <Color x:Key="Error">#EF4444</Color>
     <Color x:Key="ErrorMuted">#1AEF4444</Color>
-
-    <Color x:Key="Divider">#1A000000</Color>
     <Color x:Key="NavActive">#1A6366F1</Color>
+    <Color x:Key="TextInverse">#FFFFFF</Color>
 
-    <!-- Brushes -->
-    <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
-    <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
-    <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
-    <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
-    <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
-    <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
-    <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
     <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
@@ -46,7 +29,61 @@
     <SolidColorBrush x:Key="WarningMutedBrush" Color="{StaticResource WarningMuted}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
     <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
-    <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
     <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+    <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
+
+    <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ===== Light ===== -->
+        <ResourceDictionary x:Key="Light">
+            <Color x:Key="BgBase">#F0F0F6</Color>
+            <Color x:Key="BgElevated">#F7F7FC</Color>
+            <Color x:Key="BgSurface">#FFFFFF</Color>
+            <Color x:Key="GlassBg">#A6FFFFFF</Color>
+            <Color x:Key="GlassBgHover">#BFFFFFFF</Color>
+            <Color x:Key="GlassBorder">#33000000</Color>
+            <Color x:Key="TextPrimary">#F0000000</Color>
+            <Color x:Key="TextSecondary">#CC000000</Color>
+            <Color x:Key="TextMuted">#99000000</Color>
+            <Color x:Key="Divider">#1A000000</Color>
+
+            <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+            <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+            <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+            <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+            <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+        </ResourceDictionary>
+
+        <!-- ===== Dark ===== -->
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="BgBase">#13131C</Color>
+            <Color x:Key="BgElevated">#1B1B28</Color>
+            <Color x:Key="BgSurface">#232336</Color>
+            <Color x:Key="GlassBg">#1FFFFFFF</Color>
+            <Color x:Key="GlassBgHover">#2EFFFFFF</Color>
+            <Color x:Key="GlassBorder">#26FFFFFF</Color>
+            <Color x:Key="TextPrimary">#F2FFFFFF</Color>
+            <Color x:Key="TextSecondary">#CCFFFFFF</Color>
+            <Color x:Key="TextMuted">#80FFFFFF</Color>
+            <Color x:Key="Divider">#1AFFFFFF</Color>
+
+            <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+            <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+            <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+            <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+            <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
 
 </ResourceDictionary>
