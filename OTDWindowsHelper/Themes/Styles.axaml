@@ -290,14 +290,16 @@
         <Setter Property="RenderTransform" Value="none" />
     </Style>
 
-    <!-- Slimmer slider thumb (#160). Shrink the Fluent thumb knob + its inner ellipse. -->
+    <!-- Slimmer slider thumb (#160). The Fluent thumb knob is ~20px; replace its template with a
+         small accent dot so the size is fully under our control. -->
     <Style Selector="Slider /template/ Thumb">
-        <Setter Property="Width" Value="14" />
-        <Setter Property="Height" Value="14" />
-    </Style>
-    <Style Selector="Slider /template/ Thumb /template/ Ellipse">
-        <Setter Property="Width" Value="10" />
-        <Setter Property="Height" Value="10" />
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Ellipse Width="12" Height="12" Fill="{DynamicResource AccentBrush}" />
+            </ControlTemplate>
+        </Setter>
     </Style>
 
 </Styles>
