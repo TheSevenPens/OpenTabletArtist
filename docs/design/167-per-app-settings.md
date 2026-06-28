@@ -9,13 +9,13 @@
 
 **Feasible, and smaller than first expected — but it is a feature we own end-to-end, gated by one
 unknown (switch latency / mid-stroke safety).** OTD has *no* per-application concept of its own, so
-the auto-switching layer is entirely ours. The good news: OTD already ships a **Presets** primitive
-(named settings files + `ApplyPreset(name)` on the daemon API), so we don't have to build profile
-storage — each app maps to an OTD preset by name, and our job shrinks to **(1) a foreground-window
-watcher** and **(2) an app→preset mapping + UI**. The make-or-break risk is that `ApplyPreset`
-rebuilds the daemon pipeline on every focus change; a timed spike must confirm switching is fast and
-glitch-free (especially mid-stroke) before we build the rest. The tray/background mode (#72) is a
-hard prerequisite and is already shipped.
+the auto-switching layer is entirely ours. The good news: a "config" is just a saved `Settings`
+snapshot applied via the daemon's `SetSettings`, and **we already have that UX** (the Saved Settings
+page). So our job shrinks to **(1) a foreground-window watcher**, **(2) an app→snapshot mapping + UI**,
+and **(3) a live-apply-only switch path** (apply without persisting to disk). The make-or-break risk
+is that `SetSettings` rebuilds the daemon pipeline on every focus change; a timed spike must confirm
+switching is fast and glitch-free (especially mid-stroke) before we build the rest. The
+tray/background mode (#72) is a hard prerequisite and is already shipped.
 
 ## How manufacturer drivers do this (and why there's no code to read)
 
@@ -33,41 +33,46 @@ API. That gap is the entire risk of this feature (see Risks).
 
 ## What OTD does and does not provide
 
-- **No application concept.** The daemon model is `Settings → Profiles[]` keyed by *tablet*
-  (name + `PersistentId`), plus global `Tools[]`. Nothing keys on a process or foreground window.
-  (`OpenTabletDriver.Daemon.Contracts/Persistence/Settings.cs`, `Profile.cs`.)
+> **API note (verified against our *pinned submodule*, `external/OpenTabletDriver`).** The daemon
+> interface is whole-settings only — `Task<Settings> GetSettings()` / `Task SetSettings(Settings)`
+> (`OpenTabletDriver.Desktop/Contracts/IDriverDaemon.cs`). There are **no preset RPCs** and no
+> per-tablet apply RPC in the version we ship against. (Newer OTD branches expose a different
+> `Profiles[]` + preset RPC surface — do **not** design against those; we build on what's pinned.)
+
+- **No application concept.** `Settings` is one global object: a per-tablet `ProfileCollection Profiles`
+  (each `Profile` = `OutputMode` + `Filters` + `Bindings`), plus `Tools` and the lock flags
+  (`OpenTabletDriver.Desktop/Settings.cs`). Nothing keys on a process or foreground window.
+- **"Presets" are a client-side convention, not a daemon feature.** A preset is just a saved `Settings`
+  JSON snapshot; "applying" one means `SetSettings(thatSnapshot)`. Everything the issue wants
+  (mapping, dynamics, pen switches, tablet buttons) is inside `Settings`, so a snapshot is a complete,
+  self-contained "this app's config."
+- **We already implement the snapshot UX.** Our **Saved Settings** page (`PresetsViewModel`) saves,
+  loads, renames, and deletes snapshot JSON and applies via
+  `AppSession.ApplyAndSaveSettingsAsync(Settings)` ([AppSession.cs:427](../../OTDWindowsHelper/Services/AppSession.cs))
+  → `SetSettingsAsync` + best-effort `TrySave`. The per-app feature should **reuse these snapshots**,
+  not invent a new format or borrow OTD's console/tray code.
 - OTD's own ["Windows App-specific FAQ"](https://opentabletdriver.net/Wiki/FAQ/WindowsAppSpecific) is
   **manual per-app workarounds** (osu! settings, enabling Windows Ink for Photoshop/Krita) — not
   auto-switching.
 - The nearest upstream issue, [#4119 "Layered Settings"](https://github.com/OpenTabletDriver/OpenTabletDriver/issues/4119),
   is **multi-tablet** global/override profiles, not per-app, and sits in their backlog.
 - **No community plugin** doing per-app switching was found.
-- **Presets primitive exists** ([PR #1715](https://github.com/OpenTabletDriver/OpenTabletDriver/pull/1715)) —
-  named settings JSON files, switchable from the tray menu or a hotkey, exposed on the daemon API:
 
-  ```csharp
-  Task<IEnumerable<string>> GetPresets();
-  Task ApplyPreset(string name);
-  Task SaveAsPreset(string name);
-  ```
+## Recommended approach: reuse our Saved Settings snapshots
 
-Everything the issue wants (mapping, dynamics, pen switches, tablet buttons) lives in a `Profile`
-(`OutputMode`, `Filters`, `Bindings`), and a preset bundles a full settings snapshot — so a preset is
-a complete, self-contained "this app's config."
+| Layer | Who owns it | Status |
+|---|---|---|
+| Per-app config **storage** (the snapshot) | **us** — a Saved Settings JSON snapshot | **exists** (`PresetsViewModel`) |
+| **Apply** a config live | **OTD** — `SetSettings(snapshot)` via our `_daemon.SetSettingsAsync` | **exists** |
+| **Live-apply-only path** (apply without persisting to disk) | **us** | **new** — see Risk 3 |
+| **app → snapshot name** mapping | **us** — small JSON in AppSettings | new |
+| **Foreground-window watcher** | **us** — Win32 `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` | new |
+| **Switch policy** (debounce, fall back to a default snapshot for unmapped apps) | **us** | new |
+| **UI** — assign an app to a snapshot; pick from running processes or browse to an exe | **us** | new |
 
-## Recommended approach: build on OTD Presets (not raw profile snapshots)
-
-| Layer | Who owns it |
-|---|---|
-| Per-app config **storage** (the snapshot) | **OTD** — each app's config is a named OTD preset |
-| **Apply** a config live | **OTD** — `ApplyPreset(name)` |
-| **app → preset name** mapping | **us** — a small JSON in our AppSettings |
-| **Foreground-window watcher** | **us** — Win32 `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` |
-| **Switch policy** (debounce, fall back to a "default/global" preset for unmapped apps) | **us** |
-| **UI** — assign an app to a preset, pick from running processes or browse to an exe | **us** |
-
-This keeps our new surface minimal and composes with OTD's existing manual preset switching (a user
-can still flip presets by hand or hotkey; we just automate it by foreground app).
+Most of the building blocks already exist. The genuinely new code is the **foreground watcher**, the
+**exe→snapshot mapping + UI**, and a **live-apply-only** variant of the apply path (today's
+`ApplyAndSaveSettingsAsync` always persists — see Risk 3).
 
 ### Reference code we *can* read (the only novel OS-integration piece)
 
@@ -80,41 +85,48 @@ can still flip presets by hand or hotkey; we just automate it by foreground app)
 
 ## Risks / open questions (in priority order)
 
-1. **Switch latency & mid-stroke safety — the make-or-break.** `ApplyPreset` (like `SetTabletProfile`)
-   rebuilds the daemon pipeline. Rapid alt-tabbing, or a switch *while the pen is down*, could cause a
-   hitch, a dropped report, or a visible glitch mid-stroke. **Must be measured by a spike before
-   anything else is built.** Likely mitigations: debounce focus changes; defer a switch until the pen
-   lifts (we already stream pen-down state via `DaemonPenInputSource`).
+1. **Switch latency & mid-stroke safety — the make-or-break.** `SetSettings` disposes and
+   reconstructs the daemon's output pipeline. Rapid alt-tabbing, or a switch *while the pen is down*,
+   could cause a hitch, a dropped report, or a visible glitch mid-stroke. **Must be measured by a
+   spike before anything else is built.** Likely mitigations: debounce focus changes; defer a switch
+   until the pen lifts (we already stream pen-down state via `DaemonPenInputSource`).
+   **Success criteria for the spike (proposed):** a switch completes in **≲50 ms** with **no dropped
+   report** when the pen is up, *or* defer-until-pen-up keeps perceived lag **≲100 ms**. Below that =
+   go; above, or visible glitches that can't be hidden = no-go.
 2. **Our app must be running.** OTD won't switch on its own; this only works while OTDWindowsHelper is
-   alive (tray/background mode #72 — done ✅). When the app is closed, the last-applied preset stays.
-3. **Persistence collision.** Don't let auto-switching call `SaveSettings()` / overwrite the user's
-   intended on-disk default. Keep our mapping in *our* store; on exit, restore the user's chosen
-   default preset.
+   alive (tray/background mode #72 — done ✅). When the app is closed, the last-applied snapshot stays.
+3. **Persistence collision (concrete).** `ApplyAndSaveSettingsAsync` **always** persists via `TrySave`
+   ([AppSession.cs:435](../../OTDWindowsHelper/Services/AppSession.cs)), so reusing it for every focus
+   change would overwrite the user's on-disk default with whatever app is in front. The switcher needs
+   a **live-apply-only** path (`SetSettingsAsync` *without* `TrySave`), plus restore-the-default on
+   exit. Keep the exe→snapshot mapping in *our* AppSettings, never in OTD's settings file.
 4. **Coexistence with OTD's own UI** is cosmetic — a user running OTD's UI would see the preset flip.
 5. **"App" identity.** Map by process executable name/path (robust) vs. window title (fragile). Prefer
    exe path; expose a running-process picker + browse-to-exe.
-6. **Multi-tablet** interaction with presets (a preset is whole-settings, all tablets) — out of scope
-   for v1; document the limitation.
+6. **Multi-tablet** interaction (a snapshot is whole-`Settings`, all tablets) — out of scope for v1;
+   document the limitation.
 
 ## Recommended phasing (if pursued)
 
-1. **Spike (gates everything):** wire a throwaway `SetWinEventHook` foreground watcher to
-   `ApplyPreset` between two real presets; **time the switch** and feel it mid-stroke. Decide go/no-go
-   and whether defer-until-pen-up is required.
+1. **Spike (gates everything):** wire a throwaway `SetWinEventHook` foreground watcher to apply two
+   existing Saved Settings snapshots via `SetSettingsAsync` *only* (no disk write); **time the switch**
+   and feel it mid-stroke against the success criteria above. Decide go/no-go and whether
+   defer-until-pen-up is required.
 2. **Switch service:** `IForegroundAppWatcher` (Win32 impl behind an interface, for testability and
-   the macOS seam per #140) + a debounced switcher with default-preset fallback.
-3. **Mapping store:** `app exe → preset name` in AppSettings; restore-default-on-exit.
+   the macOS seam per #140) + a debounced switcher with default-snapshot fallback.
+3. **Mapping store:** `app exe → snapshot name` in AppSettings; restore-default-on-exit.
 4. **UI:** a "Per-app profiles" view — list mappings, add via running-process picker / browse, assign
-   an existing OTD preset, enable/disable the whole feature.
+   an existing Saved Settings snapshot, enable/disable the whole feature.
 5. **Docs:** USERMANUAL section + note the "app must be running" caveat.
 
 ## Effort & recommendation
 
-Medium. The storage/apply is free (OTD presets); the real work is the foreground watcher + UI, and
-the real risk is switch performance. **Recommendation: greenlight the spike only.** Build nothing
-user-facing until the latency/mid-stroke spike proves `ApplyPreset` switching is acceptable. If the
-spike fails, this feature is likely impractical on the current OTD daemon and should go back to
-backlog with that finding recorded.
+Medium. Storage + apply already exist (Saved Settings + `SetSettingsAsync`); the real work is the
+foreground watcher, the mapping UI, and a live-apply-only path, and the real risk is switch
+performance. **Recommendation: greenlight the spike only.** Build nothing user-facing until the
+latency/mid-stroke spike proves `SetSettings` switching meets the success criteria. If the spike
+fails, this feature is likely impractical on the current OTD daemon and should go back to backlog
+with that finding recorded.
 
 ## Sources
 
