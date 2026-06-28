@@ -15,6 +15,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
 
+    /// <summary>Daemon connection state + Start/Stop/Restart commands — surfaced for the tray menu (#72).</summary>
+    public IConnectionState Connection => _session;
+
     public AboutViewModel About { get; } = new();
     public UtilitiesViewModel Utilities { get; }
     public CustomTabletConfigsViewModel Configs { get; }

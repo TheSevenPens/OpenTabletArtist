@@ -34,6 +34,8 @@ public interface IConnectionState : INotifyPropertyChanged
     bool ShowForeignDaemonWarning { get; }
     bool ShowDaemonSourceUnknown { get; }
     bool CanStartDaemon { get; }
+    /// <summary>Offer Start only when not connected and not mid-connect (drives the tray + dashboard).</summary>
+    bool ShowStartButton { get; }
     string DaemonStatusText { get; }
 
     /// <summary>True while a Start/Stop/Restart is in progress (drives the busy indicator).</summary>
