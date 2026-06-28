@@ -153,30 +153,33 @@
         </ControlTheme>
 
         <!-- Tab RadioButton (for dialog tabs) -->
+        <!-- Real-tab look: flat header with a 2px accent underline on the selected tab (sits on the
+             tab strip's baseline), instead of a pill button. -->
         <ControlTheme x:Key="TabRadioButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="8"
-                            Padding="12,6" BorderThickness="1" BorderBrush="Transparent">
+                    <Border x:Name="Bd" Background="Transparent"
+                            Padding="12,8" Margin="0,0,0,-1"
+                            BorderThickness="0,0,0,2" BorderBrush="Transparent">
                         <TextBlock x:Name="Label" Text="{TemplateBinding Content}"
                                    FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource TextMutedBrush}" />
                     </Border>
                 </ControlTemplate>
             </Setter>
-            <Style Selector="^:pointerover /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
-            </Style>
             <Style Selector="^:pointerover /template/ TextBlock#Label">
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </Style>
+            <Style Selector="^:pointerover /template/ Border#Bd">
+                <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+            </Style>
             <Style Selector="^:checked /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Label">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
             </Style>
         </ControlTheme>
 

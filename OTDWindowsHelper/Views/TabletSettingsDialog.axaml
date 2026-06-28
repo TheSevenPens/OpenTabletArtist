@@ -28,8 +28,10 @@
         </StackPanel>
 
         <!-- Tab buttons (hidden in the focused Pen Dynamics view, #133) -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16"
-                    IsVisible="{Binding !DynamicsOnly}">
+        <Border Grid.Row="1" Margin="0,0,0,16" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource DividerBrush}"
+                IsVisible="{Binding !DynamicsOnly}">
+            <StackPanel Orientation="Horizontal">
             <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
                          Theme="{StaticResource TabRadioButton}" />
             <RadioButton Content="Pen Switches" x:Name="PenTipTab"
@@ -42,7 +44,8 @@
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
             <RadioButton Content="JSON" x:Name="JsonTab"
                          Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-        </StackPanel>
+            </StackPanel>
+        </Border>
 
         <!-- Screen Mapping tab content -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
