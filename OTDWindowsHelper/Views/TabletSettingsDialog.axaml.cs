@@ -588,9 +588,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
-    [RelayCommand]
-    private void ResetSoftness() => Softness = PressureCurveSettings.Default.Softness;
-
     /// <summary>Quick-start curve presets (#103).</summary>
     [RelayCommand]
     private void ApplyPreset(string kind) => Curve = kind switch
