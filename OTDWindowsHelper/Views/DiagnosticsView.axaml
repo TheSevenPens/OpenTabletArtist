@@ -10,14 +10,15 @@
         <TextBlock Classes="PageSubtitle" Text="Live pen data" />
         <!-- Controls -->
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Text="Current Tablet" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMark" Classes.success="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"
-                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
                         <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding DebugReportRate}" FontSize="11"

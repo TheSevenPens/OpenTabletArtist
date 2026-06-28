@@ -4,47 +4,54 @@
         xmlns:ctrl="using:OtdWindowsHelper.Controls"
         xmlns:conv="using:Avalonia.Data.Converters"
         Title="Tablet Settings"
-        Width="700" Height="640"
+        Width="700" MinWidth="640" Height="640"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BgBaseBrush}"
         CanResize="True">
 
     <Grid Margin="24" RowDefinitions="Auto,Auto,*">
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,16">
-            <Grid>
-                <TextBlock Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
-                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
-                           Foreground="#e87930" VerticalAlignment="Center" TextWrapping="Wrap"
-                           HorizontalAlignment="Right" Margin="0,0,96,0" MaxWidth="360"
-                           IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
-                <Button Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Right"
+        <!-- Header: tablet name, connection status, and Refresh on one row (#171). -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <TextBlock Grid.Column="0" Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="280" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="0">
+                    <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsTabletDetected}" />
+                    <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" TextWrapping="Wrap" MinWidth="0" />
+                </StackPanel>
+                <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}"
                         ToolTip.Tip="Reload settings from daemon"
-                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
+                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                        VerticalAlignment="Center" />
             </Grid>
-            <!-- Detected/connected status for this tablet (#132) -->
-            <ctrl:TabletStatusBanner Text="{Binding DetectionText}" IsDetected="{Binding IsTabletDetected}" />
+            <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
+                       Foreground="#e87930" TextWrapping="Wrap"
+                       IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
 
         <!-- Tab buttons (hidden in the focused Pen Dynamics view, #133) -->
         <Border Grid.Row="1" Margin="0,0,0,16" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
-            <StackPanel Orientation="Horizontal">
-            <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
-                         Theme="{StaticResource TabRadioButton}" />
-            <RadioButton Content="Pen Switches" x:Name="PenTipTab"
-                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="ExpressKeys" x:Name="PenButtonsTab"
-                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="Dynamics" x:Name="DynamicsTab"
-                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="Filters" x:Name="FiltersTab"
-                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            <RadioButton Content="JSON" x:Name="JsonTab"
-                         Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-            </StackPanel>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
+                                 Theme="{StaticResource TabRadioButton}" />
+                    <RadioButton Content="Pen Switches" x:Name="PenTipTab"
+                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+                    <RadioButton Content="ExpressKeys" x:Name="PenButtonsTab"
+                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+                    <RadioButton Content="Dynamics" x:Name="DynamicsTab"
+                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+                    <RadioButton Content="Filters" x:Name="FiltersTab"
+                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+                    <RadioButton Content="JSON" x:Name="JsonTab"
+                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
+                </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- Screen Mapping tab content -->
@@ -80,16 +87,18 @@
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
-                        <Grid ColumnDefinitions="*,Auto,Auto">
-                            <TextBlock Grid.Column="0" Text="AREA MAPPING" Classes="SectionLabel"
+                        <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Text="AREA MAPPING" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshDisplaysCommand}"
-                                    ToolTip.Tip="Refresh displays from Windows"
-                                    Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,0" />
-                            <Button Grid.Column="2" Content="Display Settings"
-                                    Command="{Binding OpenDisplaySettingsCommand}"
-                                    ToolTip.Tip="Open Windows Display Settings"
-                                    Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" />
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                                <Button Content="Refresh" Command="{Binding RefreshDisplaysCommand}"
+                                        ToolTip.Tip="Refresh displays from Windows"
+                                        Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
+                                <Button Content="Display Settings"
+                                        Command="{Binding OpenDisplaySettingsCommand}"
+                                        ToolTip.Tip="Open Windows Display Settings"
+                                        Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,0,4" />
+                            </WrapPanel>
                         </Grid>
                         <TextBlock Text="Pick the display to map the tablet to, then Apply." FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8" />
@@ -116,94 +125,56 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pen Tip & Eraser tab content -->
+        <!-- Pen Switches tab content -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}">
             <StackPanel>
-                <!-- Tip -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="PEN TIP" Classes="SectionLabel" />
-                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
-                                       FontWeight="SemiBold" Text="{Binding TipBinding}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding TipAdaptive}">
-                                <TextBlock Classes="success" />
-                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
-                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <TextBlock Text="Not using recommended Adaptive Binding — pressure may not work correctly in drawing apps"
-                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
-                                       TextWrapping="Wrap"
-                                       IsVisible="{Binding CanFixTip}" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Content="Fix" Theme="{StaticResource AccentButton}"
-                                Command="{Binding FixTipBindingCommand}"
-                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
-                                IsVisible="{Binding CanFixTip}" />
-                    </Grid>
-                </Border>
-
-                <!-- Eraser -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="ERASER" Classes="SectionLabel" />
-                            <TextBlock FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,8,0,0"
-                                       FontWeight="SemiBold" Text="{Binding EraserBinding}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding EraserAdaptive}">
-                                <TextBlock Classes="success" />
-                                <TextBlock Text="Adaptive Binding (recommended)" FontSize="10"
-                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <TextBlock Text="Not using recommended Adaptive Binding"
-                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
-                                       TextWrapping="Wrap"
-                                       IsVisible="{Binding CanFixEraser}" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Content="Fix" Theme="{StaticResource AccentButton}"
-                                Command="{Binding FixEraserBindingCommand}"
-                                Padding="16,8" FontSize="12" VerticalAlignment="Center"
-                                IsVisible="{Binding CanFixEraser}" />
-                    </Grid>
-                </Border>
-
-                <!-- Pen Buttons (the buttons on the pen barrel) -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="PEN BUTTONS" Classes="SectionLabel" />
-                            <ItemsControl ItemsSource="{Binding PenButtons}" Margin="0,8,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
-                                            <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
-                                            <TextBlock Text="{Binding Name}" FontSize="11"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                <ItemsControl ItemsSource="{Binding PenSwitchRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                            <Button Content="Auto" Theme="{StaticResource BindingModePill}"
+                                                    Classes.selected="{Binding IsAutoSelected}"
+                                                    Command="{Binding SetAutoCommand}" />
+                                            <Button Content="Legacy" Theme="{StaticResource BindingModePill}"
+                                                    Classes.selected="{Binding IsLegacySelected}"
+                                                    Command="{Binding SetLegacyCommand}" />
+                                            <Button Content="Other" Theme="{StaticResource BindingModePill}"
+                                                    Classes.selected="{Binding IsOtherSelected}"
+                                                    IsEnabled="{Binding IsOtherSelected}" />
                                         </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="No pen buttons configured" FontSize="11" FontStyle="Italic"
-                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
-                                       IsVisible="{Binding NoPenButtons}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" IsVisible="{Binding PenButtonsAdaptive}">
-                                <TextBlock Classes="success" />
-                                <TextBlock Text="All using Adaptive Binding (recommended)" FontSize="10"
-                                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <TextBlock Text="Not all pen buttons use recommended Adaptive Binding"
-                                       FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,4,0,0"
-                                       TextWrapping="Wrap"
-                                       IsVisible="{Binding CanFixPenButtons}" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Content="Fix All" Theme="{StaticResource AccentButton}"
-                                Command="{Binding FixPenButtonsCommand}"
-                                Padding="16,8" FontSize="12" VerticalAlignment="Top" Margin="12,0,0,0"
-                                IsVisible="{Binding CanFixPenButtons}" />
-                    </Grid>
-                </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding BindingLabel}"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center" TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="220"
+                                                   HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsRecommended}">
+                                        <TextBlock Text="✓" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Text="Using recommended setting" FontSize="10"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsNotRecommended}">
+                                        <TextBlock Text="⚠" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource WarningBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock Text="Not recommended — use Auto mode instead" FontSize="10"
+                                                   Foreground="{DynamicResource WarningBrush}"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
 
@@ -240,7 +211,7 @@
                       IsVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <!-- Master On/Off as a header row (not a card). -->
-                <Grid ColumnDefinitions="*,Auto" Margin="2,2,2,10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,10">
                     <TextBlock Grid.Column="0" Text="PEN DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
                     <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                   OnContent="On" OffContent="Off"
@@ -280,7 +251,7 @@
                                         </WrapPanel>
                                     </Grid>
 
-                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
                                         <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" Width="70"
                                                    ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
@@ -289,6 +260,7 @@
                                         <Slider Grid.Column="1" Minimum="-0.95" Maximum="0.95"
                                                 Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
                                                 Value="{Binding Softness, Mode=TwoWay}" VerticalAlignment="Center"
+                                                MinWidth="40"
                                                 ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
                                         <TextBlock Grid.Column="2" Text="{Binding SoftnessText}" FontSize="12"
                                                    FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
@@ -333,23 +305,25 @@
                         <StackPanel>
                             <TextBlock Text="SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                        ToolTip.Tip="EMA smoothing trades a little lag for steadier output. Position steadies wobbly lines; pressure evens out pressure jitter." />
-                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,8,0,4">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,4">
                                 <TextBlock Grid.Column="0" Text="Position" FontSize="12" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
                                 <Slider Grid.Column="1" Minimum="0" Maximum="1"
                                         Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
-                                        Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
+                                        Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center"
+                                        MinWidth="40" />
                                 <TextBlock Grid.Column="2" Text="{Binding PositionSmoothingText}" FontSize="12"
                                            FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
                                            Width="44" TextAlignment="Right"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                             </Grid>
-                            <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                 <TextBlock Grid.Column="0" Text="Pressure" FontSize="12" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
                                 <Slider Grid.Column="1" Minimum="0" Maximum="1"
                                         Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
-                                        Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
+                                        Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center"
+                                        MinWidth="40" />
                                 <TextBlock Grid.Column="2" Text="{Binding PressureSmoothingText}" FontSize="12"
                                            FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
                                            Width="44" TextAlignment="Right"
@@ -360,7 +334,7 @@
 
                     <!-- Order (compact one-row card) -->
                     <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0" Text="ORDER" Classes="SectionLabel" VerticalAlignment="Center"
                                        ToolTip.Tip="Whether smoothing runs after the curve (default) or before it." />
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding SmoothAfterCurve}"
