@@ -38,6 +38,7 @@ Several items once listed here have shipped and are no longer "future":
 
 - **Plugin Browser** — A read-only Plugins page shipped; full browse/install/configure from a card grid remains. ([#69](https://github.com/TheSevenPens/OTDWindowsHelper/issues/69))
 - **Supported-tablets catalog** — show the full list of OTD-compatible tablets (read from the embedded configs); investigated and scoped, implementation deferred. ([#155](https://github.com/TheSevenPens/OTDWindowsHelper/issues/155))
+- **Per-application settings** — auto-switch tablet config (mapping/dynamics/bindings) by foreground app, the way manufacturer drivers do. Investigated ([design doc](design/167-per-app-settings.md)): feasible by reusing our existing **Saved Settings** snapshots (applied via the daemon's `SetSettings`) + a Win32 foreground-window watcher + a live-apply-only switch path, but **gated by a latency / mid-stroke-safety spike** before any build. Tray/background mode (#72) is the prerequisite and is shipped. ([#167](https://github.com/TheSevenPens/OTDWindowsHelper/issues/167))
 - **Animations and Micro-Interactions** — Page transitions, hover effects, loading skeletons, and toast notifications. ([#70](https://github.com/TheSevenPens/OTDWindowsHelper/issues/70))
 
 ## Long-Term (Distribution and Platform)
