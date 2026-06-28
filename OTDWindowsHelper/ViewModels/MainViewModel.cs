@@ -24,6 +24,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
     public PluginsViewModel Plugins { get; }
+    public SettingsViewModel Settings { get; } = new();
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
     // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
@@ -39,6 +40,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
+    public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
@@ -68,14 +70,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         await _session.StartAndConnectAsync();
     }
 
-    // --- Theme (#139): Light / Dark / System, persisted via ThemeService ---
-    public string[] ThemeOptions { get; } = { ThemeService.System, ThemeService.Light, ThemeService.Dark };
-
-    [ObservableProperty] private string _selectedTheme = ThemeService.SavedChoice;
-
-    // Fires only on user-driven changes (not the field initializer), so it both applies and persists.
-    partial void OnSelectedThemeChanged(string value) => ThemeService.Apply(value);
-
     [RelayCommand]
     private void Navigate(object page) => CurrentPage = page as ObservableObject;
 
@@ -101,6 +95,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsDiagnostics));
         OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsPlugins));
+        OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAbout));
     }
 
