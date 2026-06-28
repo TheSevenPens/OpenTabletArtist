@@ -281,7 +281,10 @@
                                         <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" Width="70"
                                                    ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
+                                        <!-- Capped at ±0.95 (±1.0 is mathematically degenerate); the end
+                                             ticks sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
                                         <Slider Grid.Column="1" Minimum="-0.95" Maximum="0.95"
+                                                Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
                                                 Value="{Binding Softness, Mode=TwoWay}" VerticalAlignment="Center"
                                                 ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
                                         <TextBlock Grid.Column="2" Text="{Binding SoftnessText}" FontSize="12"
@@ -331,6 +334,7 @@
                                 <TextBlock Grid.Column="0" Text="Position" FontSize="12" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
                                 <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                                        Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
                                         Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{Binding PositionSmoothingText}" FontSize="12"
                                            FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
@@ -341,6 +345,7 @@
                                 <TextBlock Grid.Column="0" Text="Pressure" FontSize="12" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
                                 <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                                        Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
                                         Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{Binding PressureSmoothingText}" FontSize="12"
                                            FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
