@@ -32,15 +32,6 @@
                                VerticalAlignment="Center" Margin="12,0,0,0" />
                 </StackPanel>
 
-                <!-- Version -->
-                <Border DockPanel.Dock="Bottom"
-                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0"
-                        Padding="0,8">
-                    <TextBlock Text="{Binding AppVersion}" FontSize="11"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               HorizontalAlignment="Center" />
-                </Border>
-
                 <!-- Nav Items -->
                 <StackPanel Margin="8,0,8,0">
                     <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
