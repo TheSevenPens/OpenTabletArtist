@@ -75,7 +75,9 @@ public sealed class AppTray : IDisposable
     private void UpdateMenu()
     {
         var connected = _conn.IsConnected;
-        _startItem.IsVisible = !connected;          // offer Start only when stopped
+        // Offer Start only when stopped AND not mid-connect (mirrors the dashboard's ShowStartButton);
+        // while connecting, no daemon actions show. Stop/Restart only when connected.
+        _startItem.IsVisible = _conn.ShowStartButton;
         _restartItem.IsVisible = connected;
         _stopItem.IsVisible = connected;
         _tray.ToolTipText = $"OTD Windows Helper — {_conn.DaemonStatusText}";
