@@ -20,7 +20,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **Test**, **About**.
+The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **Test**, **Plugins**, **Settings**, **About**.
 
 ### Dashboard
 
@@ -117,9 +117,11 @@ Project information.
 
 Click items in the sidebar to switch between pages. The active page is highlighted with an indigo accent bar.
 
-## Theme
+## Settings
 
-The sidebar footer has a **Theme** selector with three choices: **System** (follows your Windows light/dark setting — the default), **Light**, and **Dark**. The choice is applied immediately and remembered across restarts.
+The **Settings** page (in the sidebar) holds app-level preferences. Currently:
+
+- **Theme** — a selector with three choices: **System** (follows your Windows light/dark setting — the default), **Light**, and **Dark**. The choice is applied immediately and remembered across restarts.
 
 ## Stopping the daemon from outside this app
 

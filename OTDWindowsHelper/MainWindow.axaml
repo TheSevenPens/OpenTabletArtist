@@ -40,16 +40,6 @@
                                HorizontalAlignment="Center" />
                 </Border>
 
-                <!-- Theme selector (#139) -->
-                <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="16,8,16,8">
-                    <TextBlock Grid.Column="0" Text="Theme" FontSize="12" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
-                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                              ItemsSource="{Binding ThemeOptions}"
-                              SelectedItem="{Binding SelectedTheme}"
-                              ToolTip.Tip="Light, Dark, or follow the system setting" />
-                </Grid>
-
                 <!-- Nav Items -->
                 <StackPanel Margin="8,0,8,0">
                     <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
@@ -82,6 +72,10 @@
                     <RadioButton Theme="{StaticResource NavButton}" Content="Plugins"
                                  IsChecked="{Binding IsPlugins, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Settings"
+                                 IsChecked="{Binding IsSettings, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="About"
                                  IsChecked="{Binding IsAbout, Mode=OneWay}"
