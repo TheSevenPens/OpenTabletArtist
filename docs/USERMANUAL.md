@@ -121,6 +121,15 @@ Click items in the sidebar to switch between pages. The active page is highlight
 
 The sidebar footer has a **Theme** selector with three choices: **System** (follows your Windows light/dark setting — the default), **Light**, and **Dark**. The choice is applied immediately and remembered across restarts.
 
+## System tray & background mode
+
+The app runs with a **system tray icon**. **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
+
+- **Click the icon** — reopen the window.
+- **Show OTD Windows Helper** — reopen the window.
+- **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
+- **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
+
 ## Stopping the daemon from outside this app
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
@@ -128,7 +137,7 @@ The OTD daemon is a separate process and keeps running after our app's window cl
 - **Use the OTD UX**: Click **OTD UX** on the Dashboard's daemon card to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
-A future improvement may add a system tray icon to our own app — see `docs/FUTURES.md`.
+The app's own tray icon (above) can also Stop/Restart the daemon directly.
 
 ## Troubleshooting
 

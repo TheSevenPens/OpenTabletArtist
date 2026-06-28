@@ -19,6 +19,7 @@ Several items once listed here have shipped and are no longer "future":
 - **Paired Tablets ordering** — detected tablet first, then most-recently-seen (persisted), then never-seen (#137/#138).
 - **Plugins page** — read-only list of installed daemon plugins with active/installed status.
 - **Simplified iconography** — replaced the Windows-only Segoe MDL2 icon font with text labels + colored status dots (#150).
+- **System tray & background mode** — a tray icon reflects daemon status and offers Show / Start-or-Stop / Restart / Quit; closing the window minimizes to the tray (#72).
 
 ## Near-Term (Polish the Prototype)
 
@@ -42,7 +43,6 @@ Several items once listed here have shipped and are no longer "future":
 ## Long-Term (Distribution and Platform)
 
 - **Packaging as a Standalone App** — Publish/bundle options (single-file, framework-dependent, installer/MSIX) and shipping the daemon. ([#71](https://github.com/TheSevenPens/OTDWindowsHelper/issues/71))
-- **Tray Icon and Background Mode** — Run as a tray app: minimize-to-tray with daemon status and start/stop controls. ([#72](https://github.com/TheSevenPens/OTDWindowsHelper/issues/72))
 - **Cross-Platform Verification** — Test/guard the Windows-specific paths so the app runs on macOS/Linux. ([#73](https://github.com/TheSevenPens/OTDWindowsHelper/issues/73))
 - **Accessibility** — Keyboard nav, screen-reader labels, high-contrast theme, and reduced-motion support. ([#74](https://github.com/TheSevenPens/OTDWindowsHelper/issues/74))
 - **Localization** — Extract user-facing strings into a translation system; add RTL support. ([#75](https://github.com/TheSevenPens/OTDWindowsHelper/issues/75))
