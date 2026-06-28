@@ -10,15 +10,17 @@
 
         <Border Classes="GlassPanel" Padding="16">
             <StackPanel>
-                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
-                    <TextBlock Grid.Column="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
+                <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Row="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
                                VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}"
-                            ToolTip.Tip="Rescan the plugin folder"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,0" />
-                    <Button Grid.Column="2" Content="Browse" Command="{Binding BrowseCommand}"
-                            ToolTip.Tip="Open the plugin folder in File Explorer"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
+                    <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                                ToolTip.Tip="Rescan the plugin folder"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,4" />
+                        <Button Content="Browse" Command="{Binding BrowseCommand}"
+                                ToolTip.Tip="Open the plugin folder in File Explorer"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,0,4" />
+                    </WrapPanel>
                 </Grid>
 
                 <!-- Empty state -->

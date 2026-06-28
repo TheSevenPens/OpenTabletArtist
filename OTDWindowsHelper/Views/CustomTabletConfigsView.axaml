@@ -11,22 +11,22 @@
 
         <Border Classes="GlassPanel" Padding="16">
             <StackPanel>
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                         <TextBlock Text="Configurations Folder" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding ConfigurationsDirectory}" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}"
-                                   TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                   TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                         <Button Content="Refresh" Command="{Binding RefreshConfigurationsCommand}"
                                 ToolTip.Tip="Reload list"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,0" />
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,4" />
                         <Button Content="Open Folder" Theme="{StaticResource GhostButton}"
                                 Command="{Binding OpenConfigurationsFolderCommand}"
-                                Padding="12,6" FontSize="12" />
-                    </StackPanel>
+                                Padding="12,6" FontSize="12" Margin="0,0,0,4" />
+                    </WrapPanel>
                 </Grid>
 
                 <!-- Empty state -->
@@ -44,10 +44,10 @@
                         <DataTemplate>
                             <Border Background="{DynamicResource GlassBgBrush}"
                                     CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                         <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                             <TextBlock Text="{Binding FileName}" FontSize="10"
                                                        Foreground="{DynamicResource TextMutedBrush}" />
@@ -57,18 +57,18 @@
                                                        Foreground="{DynamicResource TextMutedBrush}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                                         <Button Content="View"
                                                 Theme="{StaticResource GhostButton}"
                                                 Command="{Binding $parent[ItemsControl].DataContext.ViewConfigurationCommand}"
                                                 CommandParameter="{Binding Path}"
-                                                Padding="10,4" FontSize="11" Margin="0,0,6,0" />
+                                                Padding="10,4" FontSize="11" Margin="0,0,6,4" />
                                         <Button Content="Delete"
                                                 Theme="{StaticResource DeleteButton}"
                                                 Command="{Binding $parent[ItemsControl].DataContext.DeleteConfigurationCommand}"
                                                 CommandParameter="{Binding Path}"
-                                                Padding="10,4" FontSize="11" />
-                                    </StackPanel>
+                                                Padding="10,4" FontSize="11" Margin="0,0,0,4" />
+                                    </WrapPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>

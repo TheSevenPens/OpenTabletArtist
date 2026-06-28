@@ -9,7 +9,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
-using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdWindowsHelper.Domain;
@@ -89,7 +88,6 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 {
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
     private const string WinInkRelativeModePath = "VoiDPlugins.OutputMode.WinInkRelativeMode";
-    private const string AdaptiveBindingPath = "OpenTabletDriver.Desktop.Binding.AdaptiveBinding";
 
     private Profile _profile;
     private Settings? _settings;
@@ -216,32 +214,11 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         Displays = [];
     }
 
-    private static string GetBindingName(PluginSettingStore? store)
-    {
-        if (store?.Path == null) return "None";
-        if (store.Path == AdaptiveBindingPath)
-        {
-            var bindingSetting = store.Settings.FirstOrDefault(s => s.Property == "Binding");
-            var value = bindingSetting?.Value?.ToString();
-            return string.IsNullOrEmpty(value) ? "Adaptive Binding" : $"Adaptive Binding ({value})";
-        }
-        return store.Path.Split('.').LastOrDefault() ?? store.Path;
-    }
+    private static string? GetPluginFriendlyName(string? path) =>
+        path == null ? null : AppInfo.PluginManager.GetFriendlyName(path);
 
-    private static bool IsAdaptive(PluginSettingStore? store)
-        => store?.Path == AdaptiveBindingPath;
-
-    private static PluginSettingStore MakeAdaptiveBinding(string value)
-    {
-        var store = new PluginSettingStore(typeof(AdaptiveBinding), true);
-        // Set the "Binding" property to the desired value
-        var bindingSetting = store.Settings.FirstOrDefault(s => s.Property == "Binding");
-        if (bindingSetting != null)
-            bindingSetting.SetValue(value);
-        else
-            store.Settings.Add(new PluginSetting("Binding", value));
-        return store;
-    }
+    private static string GetBindingName(PluginSettingStore? store) =>
+        PenSwitchBinding.GetBindingLabel(store, GetPluginFriendlyName);
 
     /// <summary>Set when an in-dialog Refresh finds this tablet's profile gone (unplugged/removed
     /// since the dialog opened); surfaced as a header warning. Cleared on a successful refresh.
@@ -316,29 +293,12 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         var isWinInk = IsWinInkAbsolute || IsWinInkRelative;
         CanFixOutputMode = !isWinInk && _applyAction != null;
 
-        // Bindings
+        // Bindings — pen switches (tip, eraser, barrel buttons)
         var bindings = _profile.BindingSettings;
-        TipBinding = GetBindingName(bindings.TipButton);
-        EraserBinding = GetBindingName(bindings.EraserButton);
-        TipAdaptive = IsAdaptive(bindings.TipButton);
-        EraserAdaptive = IsAdaptive(bindings.EraserButton);
-        CanFixTip = !TipAdaptive && _applyAction != null;
-        CanFixEraser = !EraserAdaptive && _applyAction != null;
+        RefreshPenSwitchRows();
 
-        // Pen buttons
-        PenButtonCount = bindings.PenButtons.Count.ToString();
+        // ExpressKeys (read-only)
         AuxButtonCount = bindings.AuxButtons.Count.ToString();
-        bool allAdaptive = true;
-        var newPenButtons = new List<ButtonBinding>();
-        for (int i = 0; i < bindings.PenButtons.Count; i++)
-        {
-            newPenButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.PenButtons[i]) });
-            if (!IsAdaptive(bindings.PenButtons[i])) allAdaptive = false;
-        }
-        PenButtons = newPenButtons;
-        NoPenButtons = newPenButtons.Count == 0;
-        PenButtonsAdaptive = bindings.PenButtons.Count > 0 && allAdaptive;
-        CanFixPenButtons = !(bindings.PenButtons.Count == 0 || allAdaptive) && _applyAction != null;
 
         var newAuxButtons = new List<ButtonBinding>();
         for (int i = 0; i < bindings.AuxButtons.Count; i++)
@@ -464,28 +424,39 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
     private static bool Approx(float a, float b) => Math.Abs(a - b) <= 1.5f;
 
-    [RelayCommand]
-    private async Task FixTipBinding()
+    private void RefreshPenSwitchRows()
     {
-        await ApplySettingsChange(p => p.BindingSettings.TipButton = MakeAdaptiveBinding("Tip"));
+        var bindings = _profile.BindingSettings;
+        var canEdit = _applyAction != null;
+        var rows = new List<PenSwitchRowViewModel>
+        {
+            new(PenSwitchKind.Tip, 1, bindings.TipButton, canEdit, ApplyPenSwitchBindingAsync),
+            new(PenSwitchKind.Eraser, 1, bindings.EraserButton, canEdit, ApplyPenSwitchBindingAsync),
+        };
+        for (int i = 0; i < bindings.PenButtons.Count; i++)
+            rows.Add(new(PenSwitchKind.PenButton, i + 1, bindings.PenButtons[i], canEdit, ApplyPenSwitchBindingAsync));
+        PenSwitchRows = rows;
     }
 
-    [RelayCommand]
-    private async Task FixEraserBinding()
-    {
-        await ApplySettingsChange(p => p.BindingSettings.EraserButton = MakeAdaptiveBinding("Eraser"));
-    }
-
-    [RelayCommand]
-    private async Task FixPenButtons()
+    private async Task ApplyPenSwitchBindingAsync(PenSwitchKind kind, int penButtonIndex, PluginSettingStore store)
     {
         await ApplySettingsChange(p =>
         {
-            for (int i = 0; i < p.BindingSettings.PenButtons.Count; i++)
-                p.BindingSettings.PenButtons[i] = MakeAdaptiveBinding($"Button {i + 1}");
+            switch (kind)
+            {
+                case PenSwitchKind.Tip:
+                    p.BindingSettings.TipButton = store;
+                    break;
+                case PenSwitchKind.Eraser:
+                    p.BindingSettings.EraserButton = store;
+                    break;
+                case PenSwitchKind.PenButton:
+                    if (penButtonIndex >= 1 && penButtonIndex <= p.BindingSettings.PenButtons.Count)
+                        p.BindingSettings.PenButtons[penButtonIndex - 1] = store;
+                    break;
+            }
         });
     }
-
 
     public string TabletName { get; }
     [ObservableProperty] private string _outputModeShort = "";
@@ -495,19 +466,9 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [ObservableProperty] private bool _isWinInkRelative;
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
-    [ObservableProperty] private string _tipBinding = "None";
-    [ObservableProperty] private bool _canFixTip;
-    [ObservableProperty] private bool _tipAdaptive;
-    [ObservableProperty] private string _eraserBinding = "None";
-    [ObservableProperty] private bool _canFixEraser;
-    [ObservableProperty] private bool _eraserAdaptive;
-    [ObservableProperty] private string _penButtonCount = "0";
+    [ObservableProperty] private List<PenSwitchRowViewModel> _penSwitchRows = [];
     [ObservableProperty] private string _auxButtonCount = "0";
-    [ObservableProperty] private bool _canFixPenButtons;
-    [ObservableProperty] private bool _penButtonsAdaptive;
-    [ObservableProperty] private bool _noPenButtons;
     [ObservableProperty] private bool _noAuxButtons;
-    [ObservableProperty] private List<ButtonBinding> _penButtons = [];
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
     [ObservableProperty] private string _filtersText = "";
     [ObservableProperty] private string _rawJson = "";
@@ -639,6 +600,83 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         UpdateFiltersDisplay();
         await _applyAction(_settings);
     }
+}
+
+public partial class PenSwitchRowViewModel : ObservableObject
+{
+    private readonly PenSwitchKind _kind;
+    private readonly int _penButtonIndex;
+    private readonly Func<PenSwitchKind, int, PluginSettingStore, Task> _applyAsync;
+
+    public PenSwitchRowViewModel(
+        PenSwitchKind kind,
+        int penButtonIndex,
+        PluginSettingStore? store,
+        bool canEdit,
+        Func<PenSwitchKind, int, PluginSettingStore, Task> applyAsync)
+    {
+        _kind = kind;
+        _penButtonIndex = penButtonIndex;
+        _applyAsync = applyAsync;
+        SectionLabel = kind switch
+        {
+            PenSwitchKind.Tip => "PEN TIP",
+            PenSwitchKind.Eraser => "ERASER",
+            PenSwitchKind.PenButton => $"BUTTON {penButtonIndex}",
+            _ => "SWITCH"
+        };
+        RefreshFromStore(store, canEdit);
+    }
+
+    public string SectionLabel { get; }
+
+    [ObservableProperty] private string _bindingLabel = "None";
+    [ObservableProperty] private PenSwitchBindingMode _mode;
+    [ObservableProperty] private bool _canEdit;
+
+    public bool IsAutoSelected => Mode == PenSwitchBindingMode.Auto;
+    public bool IsLegacySelected => Mode == PenSwitchBindingMode.Legacy;
+    public bool IsOtherSelected => Mode == PenSwitchBindingMode.Other;
+    public bool IsRecommended => Mode == PenSwitchBindingMode.Auto;
+    public bool IsNotRecommended => Mode != PenSwitchBindingMode.Auto;
+
+    partial void OnModeChanged(PenSwitchBindingMode value)
+    {
+        OnPropertyChanged(nameof(IsAutoSelected));
+        OnPropertyChanged(nameof(IsLegacySelected));
+        OnPropertyChanged(nameof(IsOtherSelected));
+        OnPropertyChanged(nameof(IsRecommended));
+        OnPropertyChanged(nameof(IsNotRecommended));
+        SetAutoCommand.NotifyCanExecuteChanged();
+        SetLegacyCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnCanEditChanged(bool value)
+    {
+        SetAutoCommand.NotifyCanExecuteChanged();
+        SetLegacyCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshFromStore(PluginSettingStore? store, bool canEdit)
+    {
+        CanEdit = canEdit;
+        Mode = PenSwitchBinding.DetectMode(store, _kind, _penButtonIndex);
+        BindingLabel = PenSwitchBinding.GetDisplayLabel(store, _kind, _penButtonIndex, GetPluginFriendlyName);
+    }
+
+    private static string? GetPluginFriendlyName(string? path) =>
+        path == null ? null : AppInfo.PluginManager.GetFriendlyName(path);
+
+    private bool CanSetAuto => CanEdit && Mode != PenSwitchBindingMode.Auto;
+    private bool CanSetLegacy => CanEdit && Mode != PenSwitchBindingMode.Legacy;
+
+    [RelayCommand(CanExecute = nameof(CanSetAuto))]
+    private Task SetAuto() =>
+        _applyAsync(_kind, _penButtonIndex, PenSwitchBinding.MakeAdaptiveBinding(_kind, _penButtonIndex));
+
+    [RelayCommand(CanExecute = nameof(CanSetLegacy))]
+    private Task SetLegacy() =>
+        _applyAsync(_kind, _penButtonIndex, PenSwitchBinding.MakeLegacyBinding(_kind));
 }
 
 public class ButtonBinding

@@ -21,16 +21,16 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding LastModified}" FontSize="11"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,2,0,0" />
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                                 <Button Content="Load" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.LoadPresetCommand}"
                                         CommandParameter="{Binding Name}"
@@ -46,8 +46,8 @@
                                 <Button Content="Delete" Padding="12,6" FontSize="12"
                                         Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
-                                        CommandParameter="{Binding Name}" />
-                            </StackPanel>
+                                        CommandParameter="{Binding Name}" Margin="0,0,0,4" />
+                            </WrapPanel>
                         </Grid>
                     </Border>
                 </DataTemplate>

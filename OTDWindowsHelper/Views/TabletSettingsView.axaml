@@ -13,10 +13,10 @@
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
                             Cursor="Hand"
                             DoubleTapped="ProfileCard_DoubleTapped">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                     <TextBlock Classes="statusMark" Classes.success="{Binding IsDetected}" />
                                     <TextBlock Text="{Binding StatusText}" FontSize="11"
@@ -34,16 +34,16 @@
                                            FontStyle="Italic" Margin="0,2,0,0"
                                            IsVisible="{Binding LastSeenDetail, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                            <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                                 <Button Content="Open" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
                                         CommandParameter="{Binding}"
-                                        Padding="12,6" FontSize="12" />
+                                        Padding="12,6" FontSize="12" Margin="0,0,6,4" />
                                 <Button Content="Forget" Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.ForgetProfileCommand}"
                                         CommandParameter="{Binding Tablet}"
-                                        Padding="12,6" FontSize="12" />
-                            </StackPanel>
+                                        Padding="12,6" FontSize="12" Margin="0,0,0,4" />
+                            </WrapPanel>
                         </Grid>
                     </Border>
                 </DataTemplate>
