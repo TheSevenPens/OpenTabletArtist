@@ -36,7 +36,7 @@
                 <Border DockPanel.Dock="Bottom"
                         BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0"
                         Padding="0,8">
-                    <TextBlock Text="v0.1.0-proto" FontSize="11"
+                    <TextBlock Text="{Binding AppVersion}" FontSize="11"
                                Foreground="{DynamicResource TextMutedBrush}"
                                HorizontalAlignment="Center" />
                 </Border>

@@ -1,5 +1,7 @@
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OtdWindowsHelper.Domain;
 using OtdWindowsHelper.Services;
 
 namespace OtdWindowsHelper.ViewModels;
@@ -17,6 +19,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Daemon connection state + Start/Stop/Restart commands — surfaced for the tray menu (#72).</summary>
     public IConnectionState Connection => _session;
+
+    /// <summary>App version for the sidebar footer — read from the assembly so it never drifts (the
+    /// release workflow stamps the tag version at build).</summary>
+    public string AppVersion { get; } = AppVersionInfo.Format(
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
     public AboutViewModel About { get; } = new();
     public UtilitiesViewModel Utilities { get; }

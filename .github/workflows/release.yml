@@ -39,6 +39,8 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($tag)) { throw "No tag resolved" }
           "tag=$tag"  >> $env:GITHUB_OUTPUT
           "zip=OTDWindowsHelper-$tag-win-x64.zip" >> $env:GITHUB_OUTPUT
+          # Numeric version (strip a leading 'v') stamped into the assembly for the in-app label.
+          "version=$($tag -replace '^v','')" >> $env:GITHUB_OUTPUT
           Write-Host "Releasing $tag"
 
       # Gate the release on the test suite (build.yml tests every push/PR, but a tag could point
@@ -48,7 +50,7 @@ jobs:
 
       # Self-contained so end users need no .NET runtime installed.
       - name: Publish app (self-contained win-x64)
-        run: dotnet publish OTDWindowsHelper/OtdWindowsHelper.csproj -c Release -r win-x64 --self-contained -o publish/OTDWindowsHelper
+        run: dotnet publish OTDWindowsHelper/OtdWindowsHelper.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish/OTDWindowsHelper
 
       # Bundle the OTD daemon next to the app in a Daemon/ subfolder — the app's daemon-locate
       # logic (DaemonExePaths) checks this path first, so auto-start works in the release.
