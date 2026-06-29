@@ -78,10 +78,10 @@ reach on a display and digitizer linearity is worst at the very edge. Inset taps
 
 ## Where the transform runs — recommendation + alternative
 
-**Recommended (A): a new `CalibrationFilter` in the existing `OtdWindowsHelper.Dynamics` plugin
+**Recommended (A): a new `CalibrationFilter` in the existing `OtdArtist.Dynamics` plugin
 assembly**, `PipelinePosition.PreTransform`, exposing the 6 affine values as `[Property]`s
 (`A11,A12,A21,A22,Tx,Ty`) plus an `Enabled`-style presence. The installer already copies the whole
-assembly (`PressurePluginInstaller`), so a second `[PluginName]` filter ("OTD Windows Helper -
+assembly (`PressurePluginInstaller`), so a second `[PluginName]` filter ("OTD Artist -
 Calibration") ships with **no new install/build path**. A `CalibrationProfile` service reads/writes
 the store on the profile, mirroring `PressureCurveProfile` exactly.
 
@@ -156,7 +156,7 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
 4. **Coupling acceptable for v1** (OEM drivers behave the same). Store a small **mapping fingerprint**
    (hash of input/output area + display id) next to the affine so the UI can flag "calibration may be
    stale" without forcing a blind recalibrate.
-5. **Same plugin assembly** (`OtdWindowsHelper.Dynamics`) — zero new install path. Add a
+5. **Same plugin assembly** (`OtdArtist.Dynamics`) — zero new install path. Add a
    `CalibrationProfile.FilterTypeName` constant and extend the plugin type-name guard test.
 
 ## Implementation requirements (from review)

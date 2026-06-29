@@ -18,7 +18,7 @@ pursued, do it in phases behind a platform-abstraction seam, starting with the d
   design.
 - **`Domain/`** — pure math/logic (pressure curve, smoothing, area mapping, calibration). No OS deps;
   already unit-tested on the build host.
-- **OTD plugins** (`net8`, `OtdWindowsHelper.Dynamics` incl. the calibration filter) — run inside the
+- **OTD plugins** (`net8`, `OtdArtist.Dynamics` incl. the calibration filter) — run inside the
   daemon, which is the same managed assembly on any OS.
 - **`AppSettings`** — JSON under `LocalApplicationData`; the .NET path resolves on macOS.
 

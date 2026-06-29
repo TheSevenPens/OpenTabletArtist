@@ -8,13 +8,13 @@
 ## Quick Start
 
 ```bash
-git clone --recursive https://github.com/TheSevenPens/OTDWindowsHelper.git
-cd OTDWindowsHelper
-dotnet build OTDWindowsHelper.slnx   # builds the app AND the OTD daemon from the submodule
-dotnet run --project OTDWindowsHelper
+git clone --recursive https://github.com/TheSevenPens/OTDArtist.git
+cd OTDArtist
+dotnet build OTDArtist.slnx   # builds the app AND the OTD daemon from the submodule
+dotnet run --project OTDArtist
 ```
 
-> Build the **solution** (`.slnx`), not just `OTDWindowsHelper/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
+> Build the **solution** (`.slnx`), not just `OTDArtist/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
 
 On launch the app auto-starts the daemon if it isn't already running, then connects.
 
@@ -52,7 +52,7 @@ The settings dialog has six tabs:
 - **Screen Mapping** — Output mode is an **Absolute / Relative** toggle (Absolute is noted as recommended for drawing, since it carries pressure & tilt; a warning + Fix appears if the profile is on a non-Windows-Ink mode). **Area Mapping** shows a graphical layout of your monitors (like Windows Display Settings) — each drawn to scale and position with its number, name, resolution, and refresh rate (e.g. "2560×1440 · 144 Hz", when Windows reports it). Click a monitor to select it (the one the tablet is currently mapped to starts highlighted), then **Apply mapping** to map the tablet to that whole display with aspect-ratio lock enforced. You map to **one** display at a time (no "all displays" span). The card also has **Display Settings** (opens Windows Display Settings) and a **Refresh** icon (re-reads monitors); the layout also updates automatically if you add or remove a display while the dialog is open. A **Calibrate…** button (Absolute mode only) opens a full-screen overlay on the mapped display where you tap four corner targets with the pen; the helper computes a correction so the cursor lands where you see the nib (useful for pen displays), previews it live, and lets you Apply, Redo, or Clear. The correction is applied by a bundled OpenTabletDriver filter, so it's tied to the current area mapping — recalibrate if you change the mapping.
 - **Pen Switches** — All the switches on the pen: tip, eraser, and pen barrel buttons. Each shows a green check + "Adaptive Binding (recommended)" when already on Adaptive Binding; otherwise a Fix (tip/eraser) or Fix All (pen buttons) button sets it.
 - **ExpressKeys** — The tablet's auxiliary (express key) bindings.
-- **Dynamics** — An interactive pressure-curve editor **plus smoothing**. Toggle it on to apply custom pen dynamics to this tablet's profile; they're enforced by the bundled *OTD Windows Helper – Pen Dynamics* filter, so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one.
+- **Dynamics** — An interactive pressure-curve editor **plus smoothing**. Toggle it on to apply custom pen dynamics to this tablet's profile; they're enforced by the bundled *OTD Artist – Pen Dynamics* filter, so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one.
   - **Curve** — drag the pink **min** node and cyan **max** node to set where pressure starts and saturates (input → output); the **Min/Max node** input/output values are shown read-only beside the chart. Use the **Softness** slider to bend the response (positive = lighter/concave, negative = firmer/convex; the ↺ button resets it to linear), and tick **Cut below input minimum** to turn the lead-in into a dead zone instead of a pressure floor. **Presets** (Linear / Soft / Firm) are quick starting points; **Reset** restores the identity curve. While you draw, a green dot tracks your **live pen pressure** on the curve so you can feel the mapping.
   - **Smoothing (jitter reduction)** — **Position** smoothing steadies wobbly lines and **Pressure** smoothing evens out pressure jitter (each 0 = off to 1 = max; the amount is perceptually scaled, like Slimy Scylla, so the slider feels even across its range). **Order** chooses whether smoothing runs after the curve (*Curve → Smooth*, default) or before it. Smoothing applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over from the previous one.
   - **Reset all** (in the tab header) returns the curve, both smoothing amounts, and the order to their defaults in one click (it leaves the On/Off toggle as you set it). The curve's own **Reset** button only resets the curve.
@@ -110,7 +110,7 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 
 ### Plugins
 
-A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OTD Windows Helper – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
+A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OTD Artist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
 
 ### About
 
@@ -131,7 +131,7 @@ The **Settings** page (in the sidebar) holds app-level preferences. Currently:
 The app runs with a **system tray icon**. **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
 
 - **Click the icon** — reopen the window.
-- **Show OTD Windows Helper** — reopen the window.
+- **Show OTD Artist** — reopen the window.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 
@@ -158,6 +158,6 @@ The app's own tray icon (above) can also Stop/Restart the daemon directly.
 2. Wait a few seconds — the app polls for changes every 3 seconds.
 3. Click the refresh icon to force an immediate check.
 
-### Build fails with "file is locked by OtdWindowsHelper"
+### Build fails with "file is locked by OtdArtist"
 
 Close the running app first. If a previous instance hasn't fully exited, it may still hold the .exe. We have an open investigation item in `docs/FUTURES.md` to make shutdown cleaner.
