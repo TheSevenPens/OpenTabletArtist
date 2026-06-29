@@ -360,33 +360,8 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         var display = Displays.FirstOrDefault(d => d.Number == SelectedDisplayNumber);
         if (_applyAction == null || _settings == null || display == null) return;
 
-        await ApplySettingsChange(p =>
-        {
-            var abs = p.AbsoluteModeSettings;
-            if (abs == null) return;
-
-            // Set display area to the full selected monitor
-            abs.Display.Width = display.Width;
-            abs.Display.Height = display.Height;
-            abs.Display.X = display.X + display.Width / 2f;
-            abs.Display.Y = display.Y + display.Height / 2f;
-
-            // Start from the FULL tablet digitizer area
-            float fullWidth = _tabletDigitizer?.Width ?? abs.Tablet.Width;
-            float fullHeight = _tabletDigitizer?.Height ?? abs.Tablet.Height;
-
-            // Guard against degenerate dimensions (the inline math used to divide by these).
-            if (fullWidth <= 0 || fullHeight <= 0 || display.Width <= 0 || display.Height <= 0)
-                return;
-
-            // Largest centered sub-area of the digitizer that matches the display's aspect ratio.
-            var area = AreaMappingCalculator.FitToDisplayAspect(fullWidth, fullHeight, display.Width, display.Height);
-            abs.Tablet.Width = area.Width;
-            abs.Tablet.Height = area.Height;
-            abs.Tablet.X = area.X;
-            abs.Tablet.Y = area.Y;
-            abs.LockAspectRatio = true;
-        });
+        // Same mapping the tray's "Switch display" uses — aspect-locked, full-monitor (#187).
+        await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display));
     }
 
     /// <summary>Re-read the connected monitors from Windows (manual Refresh or a live display change).</summary>
@@ -410,19 +385,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     }
 
     /// <summary>The display the profile is currently mapped to (full-monitor match), or null.</summary>
-    private int? CurrentlyMappedNumber()
-    {
-        var disp = _profile.AbsoluteModeSettings?.Display;
-        if (disp == null) return null;
-        foreach (var d in Displays)
-            // ApplyDisplay stores the display area as centre = monitor centre, size = monitor size.
-            if (Approx(disp.Width, d.Width) && Approx(disp.Height, d.Height)
-                && Approx(disp.X, d.X + d.Width / 2f) && Approx(disp.Y, d.Y + d.Height / 2f))
-                return d.Number;
-        return null;
-    }
-
-    private static bool Approx(float a, float b) => Math.Abs(a - b) <= 1.5f;
+    private int? CurrentlyMappedNumber() => DisplayMappingApplier.CurrentlyMapped(_profile, Displays)?.Number;
 
     private void RefreshPenSwitchRows()
     {

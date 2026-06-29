@@ -128,10 +128,15 @@ The **Settings** page (in the sidebar) holds app-level preferences. Currently:
 
 ## System tray & background mode
 
+The app is **single-instance**: launching it again while it's already running (including when it's minimized to the tray) doesn't open a second window or tray icon — it just brings the existing window to the front.
+
 The app runs with a **system tray icon**. **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
 
 - **Click the icon** — reopen the window.
 - **Show OTD Artist** — reopen the window.
+- **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the detected tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Test page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is detected.
+- **Open Tablet Settings…** — opens the per-tablet settings dialog for the detected tablet (reopening the window first, since the dialog is owned by it). Shown when connected with at least one tablet profile.
+- **Switch Display** — a submenu listing your monitors; pick one to map the detected tablet to that whole display (aspect-locked, the same mapping as the Screen-Mapping tab's *Apply mapping*). The currently-mapped display is check-marked. Shown only when the detected tablet is in an Absolute output mode (otherwise there's no display area to set).
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 
@@ -151,6 +156,14 @@ The app's own tray icon (above) can also Stop/Restart the daemon directly.
 1. Click **Start** to launch the daemon (built from the submodule).
 2. Click the refresh icon to check the connection.
 3. The daemon auto-starts on app launch — if it didn't, check if another OTD instance is already running.
+
+If the daemon card shows **"OpenTabletDriver.Daemon.exe wasn't found…"**, the daemon exe was never built. The app checks for it before every connection attempt and says so plainly instead of silently timing out. Build the whole solution so the daemon is produced:
+
+```bash
+dotnet build OTDArtist.slnx
+```
+
+Building only the app project, or only running the test suite, does **not** produce the daemon exe (it's a standalone project the app launches as a separate process).
 
 ### "No Tablet Detected" even though my tablet is plugged in
 

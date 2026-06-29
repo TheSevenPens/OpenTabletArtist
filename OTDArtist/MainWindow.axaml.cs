@@ -21,6 +21,15 @@ public partial class MainWindow : Window
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;
 
+    /// <summary>Surface the window from a hidden/minimized state and focus it. Used by the tray click
+    /// and by a second app instance asking the running one to come forward (#191).</summary>
+    public void BringToFront()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         if (!_allowClose)

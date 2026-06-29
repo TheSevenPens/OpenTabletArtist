@@ -31,7 +31,12 @@ public partial class App : Application
             window.Show();
 
             if (window.DataContext is ViewModels.MainViewModel vm)
-                _tray = new AppTray(desktop, window, vm.Connection);
+                _tray = new AppTray(desktop, window, vm.Connection, vm.DeviceData, vm.SettingsCoordinator, vm.Dialogs);
+
+            // When a second instance is launched, it signals this (primary) one to surface instead of
+            // opening a duplicate window (#191). The signal arrives off the UI thread — marshal first.
+            Program.Instance.ListenForActivation(() =>
+                Avalonia.Threading.Dispatcher.UIThread.Post(window.BringToFront));
         }
 
         base.OnFrameworkInitializationCompleted();
