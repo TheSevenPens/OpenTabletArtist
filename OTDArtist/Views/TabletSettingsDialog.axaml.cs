@@ -398,6 +398,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         };
         for (int i = 0; i < bindings.PenButtons.Count; i++)
             rows.Add(new(PenSwitchKind.PenButton, i + 1, bindings.PenButtons[i], canEdit, ApplyPenSwitchBindingAsync));
+        if (rows.Count > 0) rows[0].IsFirst = true; // suppresses the leading divider in the merged card
         PenSwitchRows = rows;
     }
 
@@ -439,8 +440,15 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     // ── Pressure curve tab ──────────────────────────────────────
 
     [ObservableProperty] private PressureCurveSettings _curve = PressureCurveSettings.Default;
-    [ObservableProperty] private bool _pressureCurveEnabled;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DynamicsControlsOpacity))]
+    private bool _pressureCurveEnabled;
     [ObservableProperty] private bool _canEditPressure;
+
+    /// <summary>Dim the curve/smoothing controls when Pen Dynamics is off so they read as inactive.
+    /// <c>IsEnabled</c> alone barely greys them, and the custom-drawn curve chart ignores
+    /// <c>IsEnabled</c> entirely, so without this it would still look fully interactive.</summary>
+    public double DynamicsControlsOpacity => PressureCurveEnabled ? 1.0 : 0.4;
 
     [ObservableProperty] private double _pressureSmoothing;
     [ObservableProperty] private double _positionSmoothing;
@@ -604,6 +612,9 @@ public partial class PenSwitchRowViewModel : ObservableObject
     }
 
     public string SectionLabel { get; }
+
+    /// <summary>First row in the merged Pen Switches card — its separating divider is hidden.</summary>
+    public bool IsFirst { get; set; }
 
     [ObservableProperty] private string _bindingLabel = "None";
     [ObservableProperty] private PenSwitchBindingMode _mode;

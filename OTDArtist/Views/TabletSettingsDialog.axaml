@@ -129,10 +129,14 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}">
             <StackPanel>
-                <ItemsControl ItemsSource="{Binding PenSwitchRows}">
+                <!-- All pen switches live in one card; each switch is a divider-separated section. -->
+                <Border Classes="GlassPanel" Padding="16">
+                    <ItemsControl ItemsSource="{Binding PenSwitchRows}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <Border Height="1" Background="{DynamicResource DividerBrush}"
+                                        Margin="0,16,0,16" IsVisible="{Binding !IsFirst}" />
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -171,10 +175,11 @@
                                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </StackPanel>
-                            </Border>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ItemsControl>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 
@@ -221,8 +226,11 @@
                                   IsChecked="{Binding PressureCurveEnabled}" />
                 </Grid>
 
-                <!-- Curve + smoothing only apply when Pen Dynamics is On — dim them when it's Off. -->
-                <StackPanel IsEnabled="{Binding PressureCurveEnabled}">
+                <!-- Curve + smoothing only apply when Pen Dynamics is On — disable AND dim them when
+                     it's Off (IsEnabled barely greys the read-outs, and the custom curve chart ignores
+                     IsEnabled, so the opacity is what actually makes "Off" read as inactive). -->
+                <StackPanel IsEnabled="{Binding PressureCurveEnabled}"
+                            Opacity="{Binding DynamicsControlsOpacity}">
 
                     <!-- Pressure curve: chart + presets + softness + dead zone + node read-outs -->
                     <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
