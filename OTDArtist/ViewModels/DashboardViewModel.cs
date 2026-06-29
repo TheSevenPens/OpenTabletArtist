@@ -60,6 +60,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public bool ShowStartButton => _session.ShowStartButton;
     public string DaemonOperationError => _session.DaemonOperationError;
     public bool HasDaemonOperationError => _session.HasDaemonOperationError;
+    public bool IsDaemonExeMissing => _session.IsDaemonExeMissing;
 
     public IAsyncRelayCommand StartDaemonCommand => _session.StartDaemonCommand;
     public IAsyncRelayCommand StopDaemonCommand => _session.StopDaemonCommand;

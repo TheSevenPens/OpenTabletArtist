@@ -103,6 +103,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool ShowForeignDaemonWarning => false;
     public bool ShowDaemonSourceUnknown => false;
     public bool CanStartDaemon => !_isConnected;
+    public bool IsDaemonExeMissing => false;
     public bool ShowStartButton => !_isConnected;
     public string DaemonStatusText => ConnectionStatus;
     public bool IsDaemonBusy => false;

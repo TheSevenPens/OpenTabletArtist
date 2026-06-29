@@ -11,12 +11,28 @@ namespace OtdArtist.Tests;
 /// </summary>
 public class AppSessionLifecycleTests
 {
+    // The daemon exe is "present" (so the session treats it as reachable and goes through the normal
+    // launch/connect path), but Launch is a counted no-op and nothing ever connects — so the
+    // auto-reconnect gate + timeout behavior is what's exercised, not the missing-exe short-circuit.
     private sealed class FakeLifecycle : IDaemonLifecycleService
     {
         public int StopAllCount { get; private set; }
         public int LaunchCount { get; private set; }
+        public string? ExpectedExePath() => "fake-daemon.exe"; // present → reachable
+        public string? FindExe() => "fake-daemon.exe";
+        public bool IsRunning() => false;
+        public void Launch() => LaunchCount++;                 // no real process — never connects
+        public void StopAll() => StopAllCount++;
+        public string? GetProcessPath(int processId) => null;
+    }
+
+    // No exe present and nothing running → the missing-exe short-circuit should fire.
+    private sealed class MissingLifecycle : IDaemonLifecycleService
+    {
+        public int StopAllCount { get; private set; }
+        public int LaunchCount { get; private set; }
         public string? ExpectedExePath() => null;
-        public string? FindExe() => null;            // no real daemon — Launch becomes a no-op
+        public string? FindExe() => null;
         public bool IsRunning() => false;
         public void Launch() => LaunchCount++;
         public void StopAll() => StopAllCount++;
@@ -96,5 +112,56 @@ public class AppSessionLifecycleTests
         // A Stop succeeds (already disconnected) and must clear the stale error.
         await session.StopDaemonCommand.ExecuteAsync(null);
         Assert.False(session.HasDaemonOperationError);
+    }
+
+    // --- Daemon-exe-missing short-circuit (checked before any connect attempt) ---
+
+    private static AppSession NewMissingSession(out MissingLifecycle lifecycle)
+    {
+        lifecycle = new MissingLifecycle();
+        return new AppSession(new DaemonClient(), lifecycle, new FakeSettingsStore())
+        {
+            DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
+        };
+    }
+
+    [Fact]
+    public async Task StartAndConnect_WhenExeMissing_FlagsMissing_AndDoesNotLaunchOrConnect()
+    {
+        using var session = NewMissingSession(out var lifecycle);
+
+        await session.StartAndConnectAsync();
+
+        Assert.True(session.IsDaemonExeMissing);
+        Assert.True(session.HasDaemonOperationError);
+        Assert.Equal(AppSession.DaemonExeMissingMessage, session.DaemonOperationError);
+        Assert.Equal(0, lifecycle.LaunchCount); // no point launching a nonexistent exe
+        Assert.False(session.IsConnected);
+    }
+
+    [Fact]
+    public async Task StartDaemon_WhenExeMissing_FlagsMissing_AndDoesNotLaunch()
+    {
+        using var session = NewMissingSession(out var lifecycle);
+
+        await session.StartDaemonCommand.ExecuteAsync(null);
+
+        Assert.True(session.IsDaemonExeMissing);
+        Assert.True(session.HasDaemonOperationError);
+        Assert.Equal(0, lifecycle.LaunchCount);
+        Assert.False(session.IsDaemonBusy); // cleared in finally
+    }
+
+    [Fact]
+    public async Task RestartDaemon_WhenExeMissing_DoesNotStopTheRunningDaemon()
+    {
+        using var session = NewMissingSession(out var lifecycle);
+
+        await session.RestartDaemonCommand.ExecuteAsync(null);
+
+        Assert.True(session.IsDaemonExeMissing);
+        // Must not kill a daemon it can't relaunch.
+        Assert.Equal(0, lifecycle.StopAllCount);
+        Assert.False(session.IsDaemonBusy);
     }
 }

@@ -34,6 +34,10 @@ public interface IConnectionState : INotifyPropertyChanged
     bool ShowForeignDaemonWarning { get; }
     bool ShowDaemonSourceUnknown { get; }
     bool CanStartDaemon { get; }
+    /// <summary>The daemon exe couldn't be found (not built / not bundled) and none is running, so a
+    /// connect attempt is pointless. Checked before every connect; surfaces a clear "build the
+    /// solution" message instead of a silent 30s timeout.</summary>
+    bool IsDaemonExeMissing { get; }
     /// <summary>Offer Start only when not connected and not mid-connect (drives the tray + dashboard).</summary>
     bool ShowStartButton { get; }
     string DaemonStatusText { get; }
@@ -108,6 +112,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
     [ObservableProperty] private string _daemonStatusText = "Not connected";
+    [ObservableProperty] private bool _isDaemonExeMissing;
+
+    /// <summary>Message shown when <see cref="IsDaemonExeMissing"/> — the most common cause of a
+    /// dead connection (building only the app, or only running the test suite, never produces the
+    /// standalone daemon exe).</summary>
+    public const string DaemonExeMissingMessage =
+        "OpenTabletDriver.Daemon.exe wasn't found and no daemon is running. Build the whole " +
+        "solution (dotnet build OTDArtist.slnx) so the daemon is produced, then try again.";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
     [ObservableProperty] private bool _isDaemonBusy;
@@ -171,6 +183,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
+            // Connected, so the exe clearly isn't missing — clear the flag and its stale message.
+            IsDaemonExeMissing = false;
+            if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             UpdateDaemonSource();
             Connected?.Invoke();
             _ = LoadDataAsync();
@@ -227,8 +242,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <remarks>UI-thread only — it mutates observable connection state directly.</remarks>
     public async Task StartAndConnectAsync()
     {
+        // Start the poll up front: it's a no-op while disconnected and keeps device data fresh once
+        // a connection is established (even via a later Start), regardless of the early return below.
+        _ = PollDataAsync();
+
         IsDaemonRunning = _daemonLifecycle.IsRunning();
-        if (!IsDaemonRunning && _daemonLifecycle.FindExe() != null)
+
+        // Specific pre-connect check (the #1 cause of a dead connection): with no exe to launch and
+        // nothing already running, a connect attempt would just time out. Say so plainly and stop.
+        if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
+        IsDaemonExeMissing = false;
+
+        if (!IsDaemonRunning)
         {
             _daemonLifecycle.Launch();
             await Task.Delay(1000);
@@ -236,8 +261,21 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
-        _ = PollDataAsync();
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
+    }
+
+    /// <summary>Is there a daemon to talk to — our exe present to launch, or one already running
+    /// (including a separately-installed instance)? Gates every connect path so a missing build
+    /// surfaces a clear message rather than a silent timeout.</summary>
+    private bool DaemonReachable() =>
+        _daemonLifecycle.ExpectedExePath() != null || _daemonLifecycle.IsRunning();
+
+    /// <summary>Flag the daemon exe as missing and surface the message; no connect is attempted.</summary>
+    private void SetDaemonExeMissing()
+    {
+        IsDaemonExeMissing = true;
+        DaemonOperationError = DaemonExeMissingMessage;
+        ConnectionStatus = "Disconnected";
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
@@ -245,6 +283,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// commands below have the same contract (invoked from UI command paths).</remarks>
     public Task ConnectAsync()
     {
+        if (!DaemonReachable()) { SetDaemonExeMissing(); return Task.CompletedTask; }
+        IsDaemonExeMissing = false;
         ConnectionStatus = "Connecting...";
         var connect = _daemon.ConnectAsync(_cts.Token);
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
@@ -485,6 +525,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         DaemonOperationError = "";
         try
         {
+            // Nothing to launch and nothing running → don't spin a 30s timeout; say what's wrong.
+            if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
+            IsDaemonExeMissing = false;
+
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
             _daemonLifecycle.Launch();
@@ -540,6 +584,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         DaemonOperationError = "";
         try
         {
+            // Restart relaunches *our* build, so it needs our exe present — check before stopping,
+            // so we never kill a running daemon we can't bring back.
+            if (_daemonLifecycle.ExpectedExePath() == null) { SetDaemonExeMissing(); return; }
+            IsDaemonExeMissing = false;
+
             // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
             DaemonOperationStatus = "Stopping daemon…";
             _daemon.AutoReconnect = false;
