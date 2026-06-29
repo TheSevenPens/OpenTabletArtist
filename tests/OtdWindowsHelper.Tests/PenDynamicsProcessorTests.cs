@@ -93,4 +93,42 @@ public class PenDynamicsProcessorTests
         var s = PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Maximum = 1.5 } };
         Assert.InRange(Proc(s).ProcessPressure(1.0), 0, 1);
     }
+
+    // --- "what's affecting the pen" flags (#184) ---
+
+    [Fact]
+    public void Default_IsNoOp_AndNothingActive()
+    {
+        var s = PenDynamicsSettings.Default;
+        Assert.True(s.IsNoOp);
+        Assert.False(s.CurveShapesPressure);
+        Assert.False(s.HasPressureSmoothing);
+        Assert.False(s.HasPositionSmoothing);
+    }
+
+    [Fact]
+    public void NonLinearCurve_CountsAsShapingPressure()
+    {
+        var s = PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Softness = 0.3 } };
+        Assert.True(s.CurveShapesPressure);
+        Assert.False(s.IsNoOp);
+    }
+
+    [Fact]
+    public void RemappedCurve_CountsAsShapingPressure()
+    {
+        var s = PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Maximum = 0.8 } };
+        Assert.True(s.CurveShapesPressure);
+    }
+
+    [Theory]
+    [InlineData(0.5, 0)]
+    [InlineData(0, 0.5)]
+    public void SmoothingAmounts_AreReportedActive(double pressure, double position)
+    {
+        var s = PenDynamicsSettings.Default with { PressureSmoothing = pressure, PositionSmoothing = position };
+        Assert.Equal(pressure > 0, s.HasPressureSmoothing);
+        Assert.Equal(position > 0, s.HasPositionSmoothing);
+        Assert.False(s.IsNoOp);
+    }
 }

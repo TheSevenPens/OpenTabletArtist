@@ -210,10 +210,13 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
-                <!-- Master On/Off as a header row (not a card). -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,10">
+                <!-- Master On/Off as a header row (not a card), plus a reset-everything action. -->
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="2,2,2,10">
                     <TextBlock Grid.Column="0" Text="PEN DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
-                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                    <Button Grid.Column="1" Content="Reset all" Command="{Binding ResetAllDynamicsCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" VerticalAlignment="Center"
+                            ToolTip.Tip="Reset the curve, smoothing, and order back to their defaults" />
+                    <ToggleSwitch Grid.Column="2" VerticalAlignment="Center"
                                   OnContent="On" OffContent="Off"
                                   IsChecked="{Binding PressureCurveEnabled}" />
                 </Grid>
