@@ -50,6 +50,17 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Pen Dynamics is enabled on the detected tablet's profile (shows the "Dynamics on" chip).</summary>
     [ObservableProperty] private bool _dynamicsActive;
 
+    // Which parts of the enabled dynamics actually alter the pen — so the Test page can tell the user
+    // exactly what's affecting their stroke, not just that "dynamics" is on (#184).
+    /// <summary>The pressure curve is bent (non-linear), so it's reshaping pen pressure.</summary>
+    [ObservableProperty] private bool _curveActive;
+    /// <summary>Pressure smoothing is on.</summary>
+    [ObservableProperty] private bool _pressureSmoothingActive;
+    /// <summary>Position smoothing is on.</summary>
+    [ObservableProperty] private bool _positionSmoothingActive;
+    /// <summary>Dynamics is enabled but nothing actually changes the pen (linear curve, no smoothing).</summary>
+    [ObservableProperty] private bool _dynamicsNoOp;
+
     private void RefreshTabletStatus()
     {
         var detected = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
@@ -57,11 +68,16 @@ public partial class TestViewModel : ObservableObject, IDisposable
         TabletStatusText = detected != null
             ? (string.IsNullOrEmpty(detected.Profile.Tablet) ? "Tablet detected" : detected.Profile.Tablet)
             : "No tablet detected";
-        // Dynamics is "on" when the OtdWindowsHelper.Dynamics filter is present AND enabled on the
-        // profile. Accept the pre-rename legacy path too, mirroring PressureCurveProfile.FindStore.
-        DynamicsActive = detected?.Profile.Filters
-            ?.Any(f => f.Enable && (f.Path == PressureCurveProfile.FilterTypeName
-                                    || f.Path == PressureCurveProfile.LegacyFilterTypeName)) ?? false;
+
+        // Dynamics is "on" when our filter is present AND enabled; then read the actual settings so we
+        // can surface which aspects (curve / pressure smoothing / position smoothing) are in effect.
+        var read = PressureCurveProfile.ReadProfile(detected?.Profile);
+        DynamicsActive = read is { Enabled: true };
+        var d = DynamicsActive ? read!.Value.Dynamics : PenDynamicsSettings.Default;
+        CurveActive = DynamicsActive && d.CurveShapesPressure;
+        PressureSmoothingActive = DynamicsActive && d.HasPressureSmoothing;
+        PositionSmoothingActive = DynamicsActive && d.HasPositionSmoothing;
+        DynamicsNoOp = DynamicsActive && d.IsNoOp;
     }
 
     /// <summary>Open a focused Pen Dynamics editor (curve + smoothing only) without leaving Test —
@@ -71,8 +87,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
                        ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
-        if (profile != null)
-            await _dialogs.ShowTabletSettingsAsync(profile, dynamicsOnly: true);
+        if (profile == null) return;
+
+        // Pointer-only mode draws nothing, so dynamics edits would be invisible. Switch to a pressure
+        // view first so the user can actually see the effect of what they're about to tweak (#183).
+        if (BrushMode == PenBrushMode.PointerOnly)
+            BrushMode = PenBrushMode.PressureToSize;
+
+        await _dialogs.ShowTabletSettingsAsync(profile, dynamicsOnly: true);
     }
 
     /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>
@@ -80,6 +102,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
+
+    /// <summary>Pointer-only mode draws nothing, so active dynamics can't be seen — warn while both
+    /// are true (the user can switch Mode to a pressure view). Complements the auto-switch on the
+    /// Dynamics button (#183).</summary>
+    public bool PointerOnlyWithDynamics => BrushMode == PenBrushMode.PointerOnly && DynamicsActive;
+
+    partial void OnBrushModeChanged(PenBrushMode value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
+    partial void OnDynamicsActiveChanged(bool value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
 
     [ObservableProperty] private string _canvasXText = "—";
     [ObservableProperty] private string _canvasYText = "—";

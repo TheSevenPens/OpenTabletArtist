@@ -73,6 +73,19 @@ public class DialogService : IDialogService
     public async Task ShowCalibrationAsync(Profile profile, Avalonia.Controls.Window owner)
     {
         var tabletName = profile.Tablet;
+
+        // Calibration captures live pen taps, so the tablet must actually be connected. Check this
+        // first and say so plainly — otherwise a missing tablet falls through to the generic
+        // "set Windows Ink Absolute" message below, which is misleading (#178).
+        var isDetected = _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName);
+        if (!isDetected)
+        {
+            await ShowMessageAsync("Tablet not detected",
+                "Calibration needs this tablet connected so it can read where the pen actually lands. " +
+                "Plug in / reconnect the tablet, wait for it to be detected, then try again.");
+            return;
+        }
+
         var digi = _session.GetDigitizerSpec(tabletName);
         var abs = profile.AbsoluteModeSettings;
         if (digi is null || abs?.Tablet is not { } t || abs.Display is not { } disp

@@ -15,6 +15,19 @@ public readonly record struct PenDynamicsSettings(
 {
     public static PenDynamicsSettings Default { get; } =
         new(PressureCurveSettings.Default, 0, 0, SmoothAfterCurve: true);
+
+    /// <summary>The pressure curve is non-linear/remapped (not the identity), so it bends how hard
+    /// the pen registers. Used to tell the user the curve is actually affecting pressure (#184).</summary>
+    public bool CurveShapesPressure => Curve != PressureCurveSettings.Default;
+
+    /// <summary>Pressure smoothing is on (evens out pressure jitter).</summary>
+    public bool HasPressureSmoothing => PressureSmoothing > 0;
+
+    /// <summary>Position smoothing is on (steadies wobbly lines).</summary>
+    public bool HasPositionSmoothing => PositionSmoothing > 0;
+
+    /// <summary>Nothing actually alters the pen: linear curve and no smoothing.</summary>
+    public bool IsNoOp => !CurveShapesPressure && !HasPressureSmoothing && !HasPositionSmoothing;
 }
 
 /// <summary>

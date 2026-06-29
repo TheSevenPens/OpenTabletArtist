@@ -37,7 +37,8 @@ public static class DisplayEnumerator
                     Height: devMode.dmPelsHeight,
                     X: devMode.dmPositionX,
                     Y: devMode.dmPositionY,
-                    IsPrimary: isPrimary));
+                    IsPrimary: isPrimary,
+                    RefreshHz: devMode.dmDisplayFrequency));
             }
             return true;
         };

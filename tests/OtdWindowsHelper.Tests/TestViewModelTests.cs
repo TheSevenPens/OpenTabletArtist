@@ -28,11 +28,19 @@ public class TestViewModelTests
         new(new NoopDebugSession(), data, new FakeDialogService());
 
     private static Profile DetectedProfileWithDynamics(string tablet, bool enabled)
+        => ProfileWithDynamics(tablet, PenDynamicsSettings.Default, enabled);
+
+    private static Profile ProfileWithDynamics(string tablet, PenDynamicsSettings dyn, bool enabled)
     {
         var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
-        PressureCurveProfile.Write(settings, tablet, PenDynamicsSettings.Default, enable: enabled);
+        PressureCurveProfile.Write(settings, tablet, dyn, enable: enabled);
         return settings.Profiles.First();
     }
+
+    private static FakeDeviceData DetectedWith(Profile profile) => new()
+    {
+        Profiles = new List<ProfileItem> { new(profile, IsDetected: true, LastSeen: null) }
+    };
 
     [Fact]
     public void NoProfiles_ReportsNotDetected()
@@ -140,5 +148,85 @@ public class TestViewModelTests
 
         Assert.Same(profile, dialogs.ShownProfile);
         Assert.True(dialogs.ShownDynamicsOnly);
+    }
+
+    // --- #184: spell out which dynamics aspects are altering the pen ---
+
+    [Fact]
+    public void EnabledDynamics_WithCurveAndPressureSmoothing_FlagsExactlyThose()
+    {
+        var dyn = PenDynamicsSettings.Default with
+        {
+            Curve = PressureCurveSettings.Default with { Softness = 0.4 },
+            PressureSmoothing = 0.5,
+        };
+        var data = DetectedWith(ProfileWithDynamics("Wacom", dyn, enabled: true));
+        using var vm = NewVm(data);
+        data.RaiseDataLoaded();
+
+        Assert.True(vm.DynamicsActive);
+        Assert.True(vm.CurveActive);
+        Assert.True(vm.PressureSmoothingActive);
+        Assert.False(vm.PositionSmoothingActive);
+        Assert.False(vm.DynamicsNoOp);
+    }
+
+    [Fact]
+    public void EnabledDynamics_AtDefaults_IsNoOp_WithNoAspectFlags()
+    {
+        var data = DetectedWith(DetectedProfileWithDynamics("Wacom", enabled: true));
+        using var vm = NewVm(data);
+        data.RaiseDataLoaded();
+
+        Assert.True(vm.DynamicsActive);
+        Assert.True(vm.DynamicsNoOp);
+        Assert.False(vm.CurveActive);
+        Assert.False(vm.PressureSmoothingActive);
+        Assert.False(vm.PositionSmoothingActive);
+    }
+
+    [Fact]
+    public void DisabledDynamics_ClearsAllAspectFlags()
+    {
+        var dyn = PenDynamicsSettings.Default with { Curve = PressureCurveSettings.Default with { Softness = 0.4 } };
+        var data = DetectedWith(ProfileWithDynamics("Wacom", dyn, enabled: false));
+        using var vm = NewVm(data);
+        data.RaiseDataLoaded();
+
+        Assert.False(vm.DynamicsActive);
+        Assert.False(vm.CurveActive);
+        Assert.False(vm.DynamicsNoOp);
+    }
+
+    // --- #183: pointer-only mode hides dynamics ---
+
+    [Fact]
+    public void PointerOnlyWithDynamics_TrueOnlyInPointerOnlyModeWithDynamicsActive()
+    {
+        var data = DetectedWith(DetectedProfileWithDynamics("Wacom", enabled: true));
+        using var vm = NewVm(data);
+        data.RaiseDataLoaded();
+        Assert.True(vm.DynamicsActive);
+
+        vm.BrushMode = PenBrushMode.PressureToSize;
+        Assert.False(vm.PointerOnlyWithDynamics);
+
+        vm.BrushMode = PenBrushMode.PointerOnly;
+        Assert.True(vm.PointerOnlyWithDynamics);
+    }
+
+    [Fact]
+    public async Task OpenDynamics_FromPointerOnly_SwitchesToPressureMode()
+    {
+        var profile = new Profile { Tablet = "Wacom" };
+        var dialogs = new FakeDialogService();
+        using var vm = new TestViewModel(new NoopDebugSession(), DetectedWith(profile), dialogs)
+        {
+            BrushMode = PenBrushMode.PointerOnly,
+        };
+
+        await vm.OpenDynamicsCommand.ExecuteAsync(null);
+
+        Assert.Equal(PenBrushMode.PressureToSize, vm.BrushMode);
     }
 }

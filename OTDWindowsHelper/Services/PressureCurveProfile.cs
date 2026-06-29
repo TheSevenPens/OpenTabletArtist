@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdWindowsHelper.Domain;
 
@@ -24,9 +25,16 @@ public static class PressureCurveProfile
 
     /// <summary>The current dynamics (curve + smoothing) + enabled state for a tablet's profile,
     /// or null if not present.</summary>
-    public static (PenDynamicsSettings Dynamics, bool Enabled)? Read(Settings? settings, string tabletName)
+    public static (PenDynamicsSettings Dynamics, bool Enabled)? Read(Settings? settings, string tabletName) =>
+        ReadStore(FindStore(settings, tabletName));
+
+    /// <summary>Same as <see cref="Read(Settings?,string)"/> but reads straight from a profile —
+    /// handy when the caller already has the <see cref="Profile"/> (e.g. the Test page).</summary>
+    public static (PenDynamicsSettings Dynamics, bool Enabled)? ReadProfile(Profile? profile) =>
+        ReadStore(FindStore(profile?.Filters));
+
+    private static (PenDynamicsSettings Dynamics, bool Enabled)? ReadStore(PluginSettingStore? store)
     {
-        var store = FindStore(settings, tabletName);
         if (store == null) return null;
 
         float Get(string name, float fallback) =>
@@ -85,14 +93,14 @@ public static class PressureCurveProfile
         };
     }
 
-    private static PluginSettingStore? FindStore(Settings? settings, string tabletName)
-    {
-        var filters = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters;
+    private static PluginSettingStore? FindStore(Settings? settings, string tabletName) =>
+        FindStore(settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters);
+
+    private static PluginSettingStore? FindStore(System.Collections.Generic.IEnumerable<PluginSettingStore>? filters) =>
         // Prefer the current store; fall back to the pre-rename one so old settings still show up
         // (the next write migrates them to the new type name).
-        return filters?.FirstOrDefault(f => f.Path == FilterTypeName)
+        filters?.FirstOrDefault(f => f.Path == FilterTypeName)
             ?? filters?.FirstOrDefault(f => f.Path == LegacyFilterTypeName);
-    }
 
     // The app doesn't have the plugin Type (it's a separate net8 assembly), and PluginSettingStore's
     // only public ctors take a Type/instance — so build an empty store via its JSON constructor and

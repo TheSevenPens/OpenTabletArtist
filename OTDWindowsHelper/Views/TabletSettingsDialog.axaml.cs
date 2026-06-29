@@ -549,6 +549,18 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
+    /// <summary>Reset every dynamics setting — the curve, both smoothing amounts, and the order —
+    /// back to their no-op defaults (#185). Each setter schedules the debounced persist, so the
+    /// cleared state is written to the daemon. Leaves the On/Off toggle as the user set it.</summary>
+    [RelayCommand]
+    private void ResetAllDynamics()
+    {
+        Curve = PressureCurveSettings.Default;
+        PressureSmoothing = 0;
+        PositionSmoothing = 0;
+        SmoothAfterCurve = true;
+    }
+
     /// <summary>Quick-start curve presets (#103).</summary>
     [RelayCommand]
     private void ApplyPreset(string kind) => Curve = kind switch

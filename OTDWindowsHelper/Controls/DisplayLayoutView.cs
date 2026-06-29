@@ -120,7 +120,7 @@ public sealed class DisplayLayoutView : Control
         // Sub-lines only when there's room.
         bool roomy = box.Height > numSize + 26 && box.Width > 70;
         FormattedText? name = roomy && !string.IsNullOrWhiteSpace(d.Name) ? Text(Ellipsize(d.Name, box.Width), 11, subBrush) : null;
-        FormattedText? res = roomy ? Text(d.Resolution + (d.IsPrimary ? "  ·  Primary" : ""), 10.5, subBrush) : null;
+        FormattedText? res = roomy ? Text(d.ResolutionWithRefresh + (d.IsPrimary ? "  ·  Primary" : ""), 10.5, subBrush) : null;
 
         double totalH = num.Height + (name != null ? name.Height + 1 : 0) + (res != null ? res.Height + 1 : 0);
         double y = box.Y + (box.Height - totalH) / 2;
