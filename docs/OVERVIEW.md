@@ -1,8 +1,8 @@
-# Tablet Driver — Overview
+# OTD Artist  — Overview
 
 ## What Is This?
 
-A UX experiment exploring ideas in simplifying the experience for tablet drivers. Currently interfacing with [OpenTabletDriver](https://github.com/OpenTabletDriver/OpenTabletDriver) (OTD), an open-source, cross-platform drawing tablet driver. The prototype explores what a next-generation configuration experience could look like — one that prioritizes visual beauty, clarity, and delight alongside functional completeness.
+OTD Artist simplifies the experience of using OpenTabletDriver for artists.
 
 This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI 12, .NET 10) that:
 

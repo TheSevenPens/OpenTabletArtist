@@ -31,6 +31,8 @@ public sealed class AppTray : IDisposable
     private readonly IDialogService _dialogs;
 
     private readonly TrayIcon _tray;
+    private readonly NativeMenuItem _activeTabletItem;
+    private readonly NativeMenu _activeTabletMenu;
     private readonly NativeMenuItem _dynamicsItem;
     private readonly NativeMenuItem _openSettingsItem;
     private readonly NativeMenuItem _switchDisplayItem;
@@ -40,10 +42,11 @@ public sealed class AppTray : IDisposable
     private readonly NativeMenuItem _stopItem;
     private readonly NativeMenuItem _restartItem;
 
-    // Signature of the last-built display submenu (detected tablet + monitor geometry + mapped
-    // display); lets us skip rebuilding the submenu when nothing relevant changed, so the 3s data
-    // poll doesn't churn the menu under the user.
+    // Signatures of the last-built submenus (so the 3s data poll doesn't churn an open menu): the
+    // display submenu (active tablet + monitor geometry + mapped display) and the active-tablet
+    // picker (connected tablets + which is active).
     private string _displaySignature = "";
+    private string _activeTabletSignature = "";
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
         IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord, IDialogService dialogs)
@@ -66,6 +69,11 @@ public sealed class AppTray : IDisposable
         var showItem = new NativeMenuItem("Show OTD Artist");
         showItem.Click += (_, _) => ShowWindow();
 
+        // Active-tablet picker (#190 phase 3): only shown when more than one tablet is connected; the
+        // tablet actions below all target the active tablet.
+        _activeTabletMenu = new NativeMenu();
+        _activeTabletItem = new NativeMenuItem("Active Tablet") { Menu = _activeTabletMenu };
+
         // Tablet group (#186/#187): a non-clickable dynamics-reveal line, then the tablet actions.
         _dynamicsItem = new NativeMenuItem("Pen dynamics: off") { IsEnabled = false };
         _openSettingsItem = new NativeMenuItem("Open Tablet Settings…");
@@ -84,6 +92,7 @@ public sealed class AppTray : IDisposable
         var menu = new NativeMenu();
         menu.Items.Add(showItem);
         menu.Items.Add(new NativeMenuItemSeparator());
+        menu.Items.Add(_activeTabletItem);
         menu.Items.Add(_dynamicsItem);
         menu.Items.Add(_openSettingsItem);
         menu.Items.Add(_switchDisplayItem);
@@ -128,35 +137,75 @@ public sealed class AppTray : IDisposable
         UpdateTabletItems(connected);
     }
 
-    /// <summary>Refresh the dynamics-reveal line and the tablet actions for the detected tablet.</summary>
+    /// <summary>Refresh the active-tablet picker, the dynamics-reveal line, and the tablet actions —
+    /// all targeting the active tablet (#190 phase 3).</summary>
     private void UpdateTabletItems(bool connected)
     {
-        var detected = connected
-            ? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
-            : null;
+        var activeProfile = connected ? ActiveProfile() : null;
 
-        // #186 — reveal what dynamics are doing to the pen. Only meaningful with a detected tablet.
-        if (detected != null)
+        // #186 — reveal what dynamics are doing to the pen, for the active tablet.
+        if (activeProfile != null)
         {
-            var read = PressureCurveProfile.ReadProfile(detected.Profile);
+            var read = PressureCurveProfile.ReadProfile(activeProfile);
             var enabled = read is { Enabled: true };
             var dynamics = enabled ? read!.Value.Dynamics : PenDynamicsSettings.Default;
             _dynamicsItem.Header = DynamicsStatus.Describe(enabled, dynamics);
         }
-        _dynamicsItem.IsVisible = detected != null;
+        _dynamicsItem.IsVisible = activeProfile != null;
 
-        // #187 — open the per-tablet settings dialog (prefer the detected tablet, else the first).
-        _openSettingsItem.IsVisible = connected && _deviceData.Profiles.Count > 0;
+        // #187 — open the active tablet's settings dialog.
+        _openSettingsItem.IsVisible = activeProfile != null;
 
-        // #187 — switch the detected tablet's mapped display. Only when it's in an Absolute mode we
-        // can map (otherwise there's no display area to set).
-        var mappable = detected != null && IsAbsoluteMappable(detected.Profile);
+        // #187 — switch the active tablet's mapped display. Only when it's in an Absolute mode we can
+        // map (otherwise there's no display area to set).
+        var mappable = activeProfile != null && IsAbsoluteMappable(activeProfile);
         _switchDisplayItem.IsVisible = mappable;
-        _tabletSeparator.IsVisible = _dynamicsItem.IsVisible || _openSettingsItem.IsVisible || mappable;
         if (mappable)
-            RebuildDisplayMenu(detected!.Profile);
+            RebuildDisplayMenu(activeProfile!);
         else
             _displaySignature = ""; // force a rebuild next time it becomes mappable
+
+        // #190 — active-tablet picker, only when there's a choice to make (>1 connected).
+        var multipleTablets = connected && _deviceData.DetectedTablets.Count > 1;
+        _activeTabletItem.IsVisible = multipleTablets;
+        if (multipleTablets)
+            RebuildActiveTabletMenu();
+        else
+            _activeTabletSignature = "";
+
+        _tabletSeparator.IsVisible =
+            _dynamicsItem.IsVisible || _openSettingsItem.IsVisible || mappable || multipleTablets;
+    }
+
+    /// <summary>The detected profile for the active tablet, falling back to any detected one.</summary>
+    private OpenTabletDriver.Desktop.Profiles.Profile? ActiveProfile()
+    {
+        var name = _deviceData.ActiveTabletName;
+        return _deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == name)?.Profile
+            ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected)?.Profile;
+    }
+
+    private void RebuildActiveTabletMenu()
+    {
+        var names = _deviceData.DetectedTablets.Select(t => t.Name).ToList();
+        var active = _deviceData.ActiveTabletName;
+
+        var signature = (active ?? "-") + "|" + string.Join(";", names);
+        if (signature == _activeTabletSignature) return;
+        _activeTabletSignature = signature;
+
+        _activeTabletMenu.Items.Clear();
+        foreach (var name in names)
+        {
+            var item = new NativeMenuItem(name)
+            {
+                ToggleType = MenuItemToggleType.Radio,
+                IsChecked = name == active,
+            };
+            var target = name; // capture per-iteration
+            item.Click += (_, _) => { _deviceData.SetActiveTablet(target); UpdateMenu(); };
+            _activeTabletMenu.Items.Add(item);
+        }
     }
 
     private static bool IsAbsoluteMappable(OpenTabletDriver.Desktop.Profiles.Profile profile) =>
@@ -194,8 +243,7 @@ public sealed class AppTray : IDisposable
 
     private async Task OpenTabletSettingsAsync()
     {
-        var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
-                       ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
+        var profile = ActiveProfile();
         if (profile == null) return;
 
         // The dialog is owned by the main window, so it must be visible first (we may be in the tray).
@@ -207,15 +255,15 @@ public sealed class AppTray : IDisposable
     private async Task SwitchDisplayAsync(DisplayInfo display)
     {
         var settings = _settingsCoord.CurrentSettings;
-        var detectedName = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected)?.Profile.Tablet;
-        if (settings == null || string.IsNullOrEmpty(detectedName)) return;
+        var activeName = _deviceData.ActiveTabletName;
+        if (settings == null || string.IsNullOrEmpty(activeName)) return;
 
         // Mutate the live profile inside CurrentSettings, then persist the whole settings object —
         // same path the tablet dialog's "Apply mapping" uses.
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == detectedName);
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == activeName);
         if (profile == null) return;
 
-        var digitizer = _deviceData.GetTabletDigitizer(detectedName);
+        var digitizer = _deviceData.GetTabletDigitizer(activeName);
         if (!DisplayMappingApplier.ApplyToProfile(profile, digitizer, display)) return;
 
         try { await _settingsCoord.ApplyAndSaveSettingsAsync(settings); }

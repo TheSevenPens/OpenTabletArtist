@@ -21,6 +21,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
 {
     private readonly IDaemonDebugSession _daemon;
     private readonly IConnectionState? _connection;
+    private readonly IDeviceData? _deviceData;
     private double _reportPeriodEma;
     private DateTime _lastReportTime;
 
@@ -53,14 +54,20 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _debugNearProximity = "";
     [ObservableProperty] private string _debugHoverDistance = "";
 
-    public DiagnosticsViewModel(IDaemonDebugSession daemon, IConnectionState? connection = null)
+    public DiagnosticsViewModel(IDaemonDebugSession daemon, IConnectionState? connection = null, IDeviceData? deviceData = null)
     {
         _daemon = daemon;
         _connection = connection;
+        _deviceData = deviceData;
         if (_connection != null)
         {
             IsConnected = _connection.IsConnected;
             _connection.PropertyChanged += OnConnectionChanged;
+        }
+        if (_deviceData != null)
+        {
+            _deviceData.DataLoaded += OnDeviceDataLoaded;
+            _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
         }
     }
 
@@ -68,6 +75,42 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName == nameof(IConnectionState.IsConnected))
             IsConnected = _connection!.IsConnected;
+    }
+
+    private void OnDeviceDataLoaded()
+    {
+        // Connected-tablet set may have changed → refresh the picker (#190).
+        OnPropertyChanged(nameof(TabletNames));
+        OnPropertyChanged(nameof(ShowTabletPicker));
+        OnPropertyChanged(nameof(SelectedTablet));
+    }
+
+    private void OnDeviceDataPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IDeviceData.ActiveTabletName))
+            OnPropertyChanged(nameof(SelectedTablet));
+    }
+
+    // --- Active-tablet picker (#190 phase 3): shown only when more than one tablet is connected ---
+
+    public IReadOnlyList<string> TabletNames => _deviceData?.DetectedTablets.Select(t => t.Name).ToList() ?? [];
+    public bool ShowTabletPicker => (_deviceData?.DetectedTablets.Count ?? 0) > 1;
+    public string? SelectedTablet
+    {
+        get => _deviceData?.ActiveTabletName;
+        set { if (value != null) _deviceData?.SetActiveTablet(value); }
+    }
+
+    /// <summary>With more than one tablet connected, the daemon's debug stream interleaves all of them;
+    /// show only the active tablet's reports (#190 phase 4). With 0/1 tablet, or no active tablet, show
+    /// everything (preserves the prior single-tablet behavior).</summary>
+    private bool ShouldIgnoreReportFrom(string? tabletName)
+    {
+        var active = _deviceData?.ActiveTabletName;
+        return active != null
+            && (_deviceData?.DetectedTablets.Count ?? 0) > 1
+            && tabletName != null
+            && tabletName != active;
     }
 
     [RelayCommand]
@@ -129,6 +172,11 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     {
         Dispatcher.UIThread.InvokeAsync(() =>
         {
+            // Drop reports from non-active tablets when several are connected (#190 phase 4), before
+            // they inflate the count / rate.
+            var reportTablet = data["Tablet"]?["Properties"]?["Name"]?.ToString();
+            if (ShouldIgnoreReportFrom(reportTablet)) return;
+
             ReportCount++;
 
             // Report rate (EMA)
@@ -245,6 +293,11 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     {
         if (_connection != null)
             _connection.PropertyChanged -= OnConnectionChanged;
+        if (_deviceData != null)
+        {
+            _deviceData.DataLoaded -= OnDeviceDataLoaded;
+            _deviceData.PropertyChanged -= OnDeviceDataPropertyChanged;
+        }
         if (IsDebugging)
         {
             _daemon.DeviceReport -= OnDeviceReport;

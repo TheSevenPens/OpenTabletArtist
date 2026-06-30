@@ -71,6 +71,12 @@ public interface IDeviceData : INotifyPropertyChanged
     /// <summary>Every currently-connected tablet (one Dashboard card each, #190). The scalar
     /// <see cref="HasTablet"/>/<see cref="TabletName"/>/… below mirror the first entry for back-compat.</summary>
     IReadOnlyList<DetectedTablet> DetectedTablets { get; }
+    /// <summary>The tablet that single-target flows (tray actions, Test, Diagnostics) act on. Defaults
+    /// to the first connected tablet and stays valid as tablets come and go; user-selectable when more
+    /// than one is connected (#190 phase 3). Null when nothing is connected.</summary>
+    string? ActiveTabletName { get; }
+    /// <summary>Choose the active tablet. Ignored unless <paramref name="name"/> is a connected tablet.</summary>
+    void SetActiveTablet(string? name);
     bool HasTablet { get; }
     string TabletName { get; }
     string TabletArea { get; }
@@ -160,6 +166,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
     [ObservableProperty] private List<DetectedTablet> _detectedTablets = [];
+    [ObservableProperty] private string? _activeTabletName;
     [ObservableProperty] private bool _hasTablet;
     [ObservableProperty] private string _tabletName = "";
     [ObservableProperty] private string _tabletArea = "";
@@ -174,6 +181,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     IReadOnlyList<ProfileItem> IDeviceData.Profiles => Profiles;
     IReadOnlyList<DetectedTablet> IDeviceData.DetectedTablets => DetectedTablets;
+
+    /// <summary>Choose the active tablet (#190 phase 3). Ignored unless it's a connected tablet, so a
+    /// stale pick from the UI can't point the single-target flows at a disconnected tablet.</summary>
+    public void SetActiveTablet(string? name)
+    {
+        if (name != null && DetectedTablets.Any(t => t.Name == name))
+            ActiveTabletName = name;
+    }
     public Settings? CurrentSettings => _settings;
     public event Action? DataLoaded;
 
@@ -206,6 +221,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             HasTablet = false;
             TabletName = "";
             DetectedTablets = [];
+            ActiveTabletName = null;
             _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
         });
@@ -356,6 +372,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 detected.Add(ParseDetectedTablet(t));
             }
             DetectedTablets = detected;
+
+            // Keep the active tablet valid: clear it when nothing's connected, and default it to the
+            // first tablet when unset or when the previously-active one has disconnected (#190 phase 3).
+            if (detected.Count == 0)
+                ActiveTabletName = null;
+            else if (ActiveTabletName == null || detected.All(t => t.Name != ActiveTabletName))
+                ActiveTabletName = detected[0].Name;
 
             if (detected.Count > 0)
             {

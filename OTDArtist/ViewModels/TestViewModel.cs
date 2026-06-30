@@ -33,12 +33,43 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _deviceData = deviceData;
         _dialogs = dialogs;
         _deviceData.DataLoaded += OnDataLoaded;
+        _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
     }
 
     private void OnDataLoaded()
     {
         RecomputeMapping();
         RefreshTabletStatus();
+        // The connected-tablet set may have changed → refresh the picker (#190 phase 3).
+        OnPropertyChanged(nameof(TabletNames));
+        OnPropertyChanged(nameof(ShowTabletPicker));
+        OnPropertyChanged(nameof(SelectedTablet));
+    }
+
+    private void OnDeviceDataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Active tablet switched elsewhere (tray / another page) → re-target this page's view.
+        if (e.PropertyName == nameof(IDeviceData.ActiveTabletName))
+        {
+            RecomputeMapping();
+            RefreshTabletStatus();
+            OnPropertyChanged(nameof(SelectedTablet));
+        }
+    }
+
+    // --- Active-tablet picker (#190 phase 3): shown only when more than one tablet is connected ---
+
+    /// <summary>Names of the currently-connected tablets, for the picker.</summary>
+    public IReadOnlyList<string> TabletNames => _deviceData.DetectedTablets.Select(t => t.Name).ToList();
+
+    /// <summary>Only offer the picker when there's a choice to make.</summary>
+    public bool ShowTabletPicker => _deviceData.DetectedTablets.Count > 1;
+
+    /// <summary>The tablet this page shows; setting it updates the app-wide active tablet.</summary>
+    public string? SelectedTablet
+    {
+        get => _deviceData.ActiveTabletName;
+        set { if (value != null) _deviceData.SetActiveTablet(value); }
     }
 
     // --- Tablet status banner (#128/#129/#130) ---
@@ -63,7 +94,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     private void RefreshTabletStatus()
     {
-        var detected = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
+        // Prefer the active tablet (when it's detected), else any detected one (#190 phase 3).
+        var detected = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == _deviceData.ActiveTabletName)
+                       ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
         TabletDetected = detected != null;
         TabletStatusText = detected != null
             ? (string.IsNullOrEmpty(detected.Profile.Tablet) ? "Tablet detected" : detected.Profile.Tablet)
@@ -85,7 +118,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenDynamics()
     {
-        var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
+        var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == _deviceData.ActiveTabletName)
+                       ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
                        ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
         if (profile == null) return;
 
@@ -207,7 +241,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     private Profile? ActiveProfile()
     {
         var profiles = _deviceData.Profiles;
-        return profiles.FirstOrDefault(p => p.Profile.Tablet == _deviceData.TabletName)?.Profile
+        return profiles.FirstOrDefault(p => p.Profile.Tablet == _deviceData.ActiveTabletName)?.Profile
             ?? profiles.FirstOrDefault(p => p.IsDetected)?.Profile
             ?? profiles.FirstOrDefault()?.Profile;
     }
@@ -256,6 +290,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _deviceData.DataLoaded -= OnDataLoaded;
+        _deviceData.PropertyChanged -= OnDeviceDataPropertyChanged;
         _driver.Sample -= OnDriverSample;
         _ = _driver.StopAsync();
     }

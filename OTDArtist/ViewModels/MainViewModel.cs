@@ -65,7 +65,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Utilities = new UtilitiesViewModel(dialogs);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
-        Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
+        Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
         Test = new TestViewModel(_session.Daemon, _session, dialogs);

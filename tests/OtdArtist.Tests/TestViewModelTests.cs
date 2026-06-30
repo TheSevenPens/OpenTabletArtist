@@ -229,4 +229,58 @@ public class TestViewModelTests
 
         Assert.Equal(PenBrushMode.PressureToSize, vm.BrushMode);
     }
+
+    // --- #190 phase 3: active-tablet picker + targeting ---
+
+    [Fact]
+    public void Picker_HiddenWithOneTablet_ShownWithMore()
+    {
+        var one = new FakeDeviceData { DetectedTablets = new List<DetectedTablet> { new("A", "", "", "") } };
+        using (var vm = NewVm(one)) { one.RaiseDataLoaded(); Assert.False(vm.ShowTabletPicker); }
+
+        var two = new FakeDeviceData
+        {
+            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
+            ActiveTabletName = "A",
+        };
+        using var vm2 = NewVm(two);
+        two.RaiseDataLoaded();
+        Assert.True(vm2.ShowTabletPicker);
+        Assert.Equal(new[] { "A", "B" }, vm2.TabletNames);
+        Assert.Equal("A", vm2.SelectedTablet);
+    }
+
+    [Fact]
+    public void SettingSelectedTablet_UpdatesActiveTablet()
+    {
+        var data = new FakeDeviceData
+        {
+            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
+            ActiveTabletName = "A",
+        };
+        using var vm = NewVm(data);
+
+        vm.SelectedTablet = "B";
+
+        Assert.Equal("B", data.ActiveTabletName);
+    }
+
+    [Fact]
+    public async Task OpenDynamics_TargetsActiveTablet_NotJustTheFirstDetected()
+    {
+        var first = new Profile { Tablet = "A" };
+        var second = new Profile { Tablet = "B" };
+        var data = new FakeDeviceData
+        {
+            Profiles = new List<ProfileItem> { new(first, IsDetected: true, LastSeen: null), new(second, IsDetected: true, LastSeen: null) },
+            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
+            ActiveTabletName = "B",
+        };
+        var dialogs = new FakeDialogService();
+        using var vm = new TestViewModel(new NoopDebugSession(), data, dialogs);
+
+        await vm.OpenDynamicsCommand.ExecuteAsync(null);
+
+        Assert.Same(second, dialogs.ShownProfile);
+    }
 }

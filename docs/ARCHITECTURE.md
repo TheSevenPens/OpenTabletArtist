@@ -59,7 +59,7 @@ A page VM takes only the slice of the session it actually needs, via a narrow **
 |---|---|
 | `IConnectionState` | Connection + daemon-ownership state; the Start / Stop / Restart / LaunchOtdUx commands and their busy/progress state |
 | `ISettingsCoordinator` | Current `Settings` and the apply-and-persist path |
-| `IDeviceData` | Tablet/device data produced by the data load, plus the `DataLoaded` event |
+| `IDeviceData` | Tablet/device data produced by the data load, plus the `DataLoaded` event — including the full connected-tablet set (`DetectedTablets`, one Dashboard card each) and the user-selectable **active tablet** (`ActiveTabletName`/`SetActiveTablet`) that the single-target flows (tray actions, Test, Diagnostics) act on (#190) |
 | `IDaemonDebugSession` | The live debug-report subscription used by Diagnostics |
 
 `AppSession` mutates its observable state only on the UI thread — the daemon's Connected/Disconnected callbacks marshal via the dispatcher, and `Dispatcher.UIThread.VerifyAccess()` guards the data-load and settings-mutation entry points so an off-thread caller fails loudly instead of corrupting bindings.

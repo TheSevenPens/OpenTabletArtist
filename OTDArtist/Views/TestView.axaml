@@ -30,6 +30,15 @@
             <c:TabletStatusBanner Text="{Binding TabletStatusText}" IsDetected="{Binding TabletDetected}"
                                   DynamicsOn="{Binding DynamicsActive}" Margin="0,8,0,0" />
 
+            <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
+                        IsVisible="{Binding ShowTabletPicker}">
+                <TextBlock Text="Tablet" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <ComboBox ItemsSource="{Binding TabletNames}" SelectedItem="{Binding SelectedTablet}"
+                          MinWidth="200" />
+            </StackPanel>
+
             <!-- Spell out which dynamics are actually altering the pen, so it's clear why the stroke
                  behaves as it does (#184). -->
             <WrapPanel Orientation="Horizontal" IsVisible="{Binding DynamicsActive}" Margin="0,6,0,0">

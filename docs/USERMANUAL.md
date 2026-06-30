@@ -92,11 +92,13 @@ Helper tools for diagnosing and fixing tablet-driver problems.
 
 ### Diagnostics
 
-Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details.
+Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details. When more than one tablet is connected, a **Show** selector picks which tablet's live reports to display (the daemon's debug stream carries all tablets at once); with a single tablet it's hidden.
 
 ### Test
 
 A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
+
+- **Tablet picker** — when more than one tablet is connected, a selector chooses which tablet this page (and the other single-tablet flows) acts on; hidden with a single tablet.
 
 - **Dynamics indicators** — when Pen Dynamics is enabled on the active tablet, the status banner is followed by an "Affecting your pen:" row of chips spelling out exactly what's altering the stroke — **Pressure curve** (the curve is bent, not linear), **Pressure smoothing**, and/or **Position smoothing** — so behavior changes are never a mystery. If dynamics is enabled but everything is at its default, it says so ("No curve or smoothing — behaves linear").
 - **Pointer-only warning** — *Pointer-only* Mode draws nothing, so active dynamics can't be seen. Picking it while dynamics is on shows a short warning, and pressing the **Dynamics** button automatically switches Mode to a pressure view so you can feel your edits.
@@ -134,9 +136,10 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 
 - **Click the icon** — reopen the window.
 - **Show OTD Artist** — reopen the window.
-- **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the detected tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Test page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is detected.
-- **Open Tablet Settings…** — opens the per-tablet settings dialog for the detected tablet (reopening the window first, since the dialog is owned by it). Shown when connected with at least one tablet profile.
-- **Switch Display** — a submenu listing your monitors; pick one to map the detected tablet to that whole display (aspect-locked, the same mapping as the Screen-Mapping tab's *Apply mapping*). The currently-mapped display is check-marked. Shown only when the detected tablet is in an Absolute output mode (otherwise there's no display area to set).
+- **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the active tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Test page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is connected.
+- **Open Tablet Settings…** — opens the per-tablet settings dialog for the active tablet (reopening the window first, since the dialog is owned by it). Shown when a tablet is connected.
+- **Switch Display** — a submenu listing your monitors; pick one to map the active tablet to that whole display (aspect-locked, the same mapping as the Screen-Mapping tab's *Apply mapping*). The currently-mapped display is check-marked. Shown only when the active tablet is in an Absolute output mode (otherwise there's no display area to set).
+- **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Test / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 
