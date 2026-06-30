@@ -211,6 +211,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             _penInput = new DaemonPenInputSource(penInput);
             _penInput.Sample += OnPenSample;
+            _penInput.AuxButtons += OnAuxButtons;
         }
 
         // Live-refresh the detection banner + tablet-dependent actions as tablets connect/disconnect
@@ -611,18 +612,29 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _ => PressureCurveSettings.Default,                               // linear
     };
 
-    // ── Live pen-pressure preview (#102) ──────────────────────────
+    // ── Live device-report preview: pen-pressure dot (#102) + aux-button highlight ───────
     private readonly DaemonPenInputSource? _penInput;
     [ObservableProperty] private double? _livePressure;
 
     // DeviceReportSample already normalizes pressure to 0..1; show the dot only while the pen is down.
     private void OnPenSample(PenSample s) => LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
 
-    public void StartLivePressure() => _ = _penInput?.StartAsync();
+    // Light up each aux-button card while its physical button is held (express-key live highlight).
+    private void OnAuxButtons(bool[] states)
+    {
+        for (int i = 0; i < AuxButtons.Count; i++)
+            AuxButtons[i].IsPressed = i < states.Length && states[i];
+    }
 
-    public void StopLivePressure()
+    /// <summary>Enables the daemon's device-report stream (live pressure dot + aux highlight). Driven
+    /// by the view: on while the Dynamics or ExpressKeys tab is visible, off otherwise.</summary>
+    public void StartLiveInput() => _ = _penInput?.StartAsync();
+
+    /// <summary>Stops the stream and clears any live state so nothing stays lit after we look away.</summary>
+    public void StopLiveInput()
     {
         LivePressure = null;
+        foreach (var b in AuxButtons) b.IsPressed = false;
         _ = _penInput?.StopAsync();
     }
 
@@ -707,7 +719,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         if (_deviceData != null) _deviceData.DataLoaded -= RefreshDetectionStatus;
-        StopLivePressure();
+        StopLiveInput();
     }
 }
 
@@ -815,7 +827,7 @@ public partial class PenSwitchRowViewModel : ObservableObject
         _applyAsync(_kind, _penButtonIndex, PenSwitchBinding.MakeLegacyBinding(_kind));
 }
 
-public class ButtonBinding
+public partial class ButtonBinding : ObservableObject
 {
     public int Index { get; set; }
     public string Name { get; set; } = "None";
@@ -824,4 +836,6 @@ public class ButtonBinding
     public bool IsBound => !string.IsNullOrEmpty(Name) && Name != "None";
     /// <summary>The binding shown on the card — the binding name, or "Unbound" when there's none.</summary>
     public string DisplayBinding => IsBound ? Name : "Unbound";
+    /// <summary>True while the physical button is held down — highlights the card live (#…).</summary>
+    [ObservableProperty] private bool _isPressed;
 }

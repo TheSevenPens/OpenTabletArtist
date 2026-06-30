@@ -22,6 +22,10 @@ public sealed class DaemonPenInputSource
     /// <summary>Raised on the UI thread for each parseable device report.</summary>
     public event Action<PenSample>? Sample;
 
+    /// <summary>Raised on the UI thread when a report carries auxiliary-button (express key) state,
+    /// with the current pressed/released state of each button. Pen-only reports don't fire it.</summary>
+    public event Action<bool[]>? AuxButtons;
+
     public async Task StartAsync()
     {
         _wantRunning = true;
@@ -68,8 +72,11 @@ public sealed class DaemonPenInputSource
 
     private void OnDeviceReport(JObject data)
     {
-        if (!DeviceReportSample.TryParse(data, out var sample)) return;
         // Reports arrive off the UI thread; marshal before raising (subscribers touch UI state).
-        Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
+        // Pen and aux state come on different report types, so parse/raise them independently.
+        if (DeviceReportSample.TryParse(data, out var sample))
+            Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
+        if (DeviceReportSample.TryParseAuxButtons(data, out var aux))
+            Dispatcher.UIThread.Post(() => AuxButtons?.Invoke(aux));
     }
 }

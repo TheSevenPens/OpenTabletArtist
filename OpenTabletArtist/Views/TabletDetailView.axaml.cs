@@ -31,27 +31,31 @@ public partial class TabletDetailView : UserControl
 
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
-        DynamicsTab.IsCheckedChanged += OnDynamicsTabChanged;
-        UpdateLivePressure(); // start the live dot if we opened on the Dynamics tab
+        // Live device-report stream feeds the pressure dot (Dynamics) and the aux-button highlight
+        // (ExpressKeys), so watch both tabs.
+        DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
+        PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
+        UpdateLiveInput(); // start now if we opened on a live tab
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
-        DynamicsTab.IsCheckedChanged -= OnDynamicsTabChanged;
-        Vm?.StopLivePressure();
+        DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
+        PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
+        Vm?.StopLiveInput();
     }
 
     private void OnScreensChanged(object? sender, EventArgs e) =>
         Vm?.RefreshDisplaysCommand.Execute(null);
 
-    private void OnDynamicsTabChanged(object? sender, RoutedEventArgs e) => UpdateLivePressure();
+    private void OnLiveTabChanged(object? sender, RoutedEventArgs e) => UpdateLiveInput();
 
-    private void UpdateLivePressure()
+    private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (DynamicsTab.IsChecked == true) vm.StartLivePressure();
-        else vm.StopLivePressure();
+        if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true) vm.StartLiveInput();
+        else vm.StopLiveInput();
     }
 }
