@@ -4,7 +4,7 @@
 
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Saved Settings" />
+        <TextBlock Classes="PageTitle" Text="SAVED SETTINGS" />
         <TextBlock Classes="PageSubtitle" Text="Saved configuration snapshots" />
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">

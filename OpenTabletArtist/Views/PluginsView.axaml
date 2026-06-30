@@ -4,7 +4,7 @@
 
     <!-- DataContext is the PluginsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Plugins" />
+        <TextBlock Classes="PageTitle" Text="PLUGINS" />
         <TextBlock Classes="PageSubtitle"
                    Text="OpenTabletDriver plugins installed in the daemon's plugin folder (read-only)" />
 
