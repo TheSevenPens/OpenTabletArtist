@@ -52,7 +52,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool IsAdvancedPage(object? page) =>
         ReferenceEquals(page, Otd) || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Console)
-        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, Utilities);
+        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, Utilities)
+        || ReferenceEquals(page, Settings);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
