@@ -55,4 +55,66 @@ public class AuxKeyBindingTests
         Assert.Contains(AuxKeyBinding.Options, o => o.Display == "F5" && o.Value == "F5");
         Assert.Contains(AuxKeyBinding.Options, o => o.Value == "Space");
     }
+
+    // ── Multi-key combos ───────────────────────────────────────────
+
+    [Fact]
+    public void MakeBinding_NoModifiers_IsPlainKeyBinding()
+    {
+        var store = AuxKeyBinding.MakeBinding(new AuxCombo(false, false, false, "A"));
+        Assert.Equal(AuxKeyBinding.KeyBindingPath, store!.Path);
+        Assert.Equal("A", store.Settings.First(s => s.Property == "Key").Value!.ToString());
+    }
+
+    [Fact]
+    public void MakeBinding_WithModifiers_IsMultiKeyBinding_JoinedByPlus()
+    {
+        var store = AuxKeyBinding.MakeBinding(new AuxCombo(Ctrl: true, Shift: true, Alt: false, "Z"));
+        Assert.Equal(AuxKeyBinding.MultiKeyBindingPath, store!.Path);
+        Assert.Equal("Control+Shift+Z", store.Settings.First(s => s.Property == "Keys").Value!.ToString());
+    }
+
+    [Fact]
+    public void MakeBinding_Unbound_WhenNoKey_EvenWithModifiers()
+    {
+        Assert.Null(AuxKeyBinding.MakeBinding(new AuxCombo(true, true, true, AuxKeyBinding.None)));
+    }
+
+    [Fact]
+    public void ReadCombo_RoundTripsModifiersAndKey()
+    {
+        var combo = new AuxCombo(Ctrl: true, Shift: false, Alt: true, "S");
+        Assert.Equal(combo, AuxKeyBinding.ReadCombo(AuxKeyBinding.MakeBinding(combo)));
+    }
+
+    [Fact]
+    public void ReadCombo_PlainKeyBinding_HasNoModifiers()
+    {
+        Assert.Equal(new AuxCombo(false, false, false, "A"),
+            AuxKeyBinding.ReadCombo(AuxKeyBinding.MakeKeyBinding("A")));
+    }
+
+    [Fact]
+    public void ReadCombo_RecognizesSideSpecificModifiers()
+    {
+        var store = StoreAt(AuxKeyBinding.MultiKeyBindingPath);
+        store.Settings.Add(new PluginSetting("Keys", "LeftControl+Z"));
+        Assert.Equal(new AuxCombo(true, false, false, "Z"), AuxKeyBinding.ReadCombo(store));
+    }
+
+    [Fact]
+    public void ReadCombo_NullForUnmodellableBindings()
+    {
+        Assert.Equal(AuxCombo.Unbound, AuxKeyBinding.ReadCombo(null));
+
+        var twoKeys = StoreAt(AuxKeyBinding.MultiKeyBindingPath);
+        twoKeys.Settings.Add(new PluginSetting("Keys", "A+B")); // two non-modifier keys
+        Assert.Null(AuxKeyBinding.ReadCombo(twoKeys));
+
+        var modsOnly = StoreAt(AuxKeyBinding.MultiKeyBindingPath);
+        modsOnly.Settings.Add(new PluginSetting("Keys", "Control+Shift")); // no actual key
+        Assert.Null(AuxKeyBinding.ReadCombo(modsOnly));
+
+        Assert.Null(AuxKeyBinding.ReadCombo(StoreAt("OpenTabletDriver.Desktop.Binding.MouseBinding")));
+    }
 }

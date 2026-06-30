@@ -271,17 +271,27 @@
                                                    IsVisible="{Binding IsOtherBinding}"
                                                    Text="{Binding OtherLabel, StringFormat='Currently: {0} — picking a key replaces it'}" />
                                     </StackPanel>
-                                    <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
-                                              IsEnabled="{Binding CanEdit}"
-                                              ItemsSource="{Binding KeyOptions}"
-                                              SelectedValueBinding="{Binding Value}"
-                                              SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Display}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
+                                    <!-- Modifiers + key. No modifiers → Key Binding; with → Multi-Key. -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                VerticalAlignment="Center">
+                                        <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" IsEnabled="{Binding CanEdit}"
+                                                  MinWidth="0" VerticalAlignment="Center" />
+                                        <CheckBox Content="Shift" IsChecked="{Binding Shift}" IsEnabled="{Binding CanEdit}"
+                                                  MinWidth="0" VerticalAlignment="Center" />
+                                        <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
+                                                  MinWidth="0" VerticalAlignment="Center" />
+                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                                  IsEnabled="{Binding CanEdit}"
+                                                  ItemsSource="{Binding KeyOptions}"
+                                                  SelectedValueBinding="{Binding Value}"
+                                                  SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Display}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>

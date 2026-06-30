@@ -358,15 +358,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         for (int i = 0; i < auxStores.Count; i++)
         {
             var store = auxStores[i];
-            var key = AuxKeyBinding.ReadKey(store);
-            var isOther = store?.Path != null && store.Path != AuxKeyBinding.KeyBindingPath;
+            var combo = AuxKeyBinding.ReadCombo(store); // null = a binding this editor can't model
             newAuxButtons.Add(new ButtonBinding(
                 index: i + 1,
-                selectedKey: key,
-                isOtherBinding: isOther,
-                otherLabel: isOther ? GetBindingName(store) : "",
+                combo: combo ?? AuxCombo.Unbound,
+                isOtherBinding: combo == null,
+                otherLabel: combo == null ? GetBindingName(store) : "",
                 canEdit: canEditAux,
-                applyKey: ApplyAuxKeyAsync));
+                applyCombo: ApplyAuxComboAsync));
         }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
@@ -544,10 +543,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return _profile.BindingSettings.AuxButtons;
     }
 
-    private async Task ApplyAuxKeyAsync(int buttonIndex, string key)
+    private async Task ApplyAuxComboAsync(int buttonIndex, AuxCombo combo)
     {
         if (!AuxButtonsEnabled) return; // editing is locked while suspended
-        var store = AuxKeyBinding.MakeKeyBinding(key); // null = unbound
+        var store = AuxKeyBinding.MakeBinding(combo); // null = unbound
         await ApplySettingsChange(p =>
         {
             var aux = p.BindingSettings.AuxButtons;
@@ -950,21 +949,24 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
-    private readonly Func<int, string, Task>? _applyKey;
+    private readonly Func<int, AuxCombo, Task>? _applyCombo;
     private bool _suppressApply;
-    private string _appliedKey;
+    private AuxCombo _appliedCombo;
 
-    public ButtonBinding(int index, string selectedKey, bool isOtherBinding, string otherLabel,
-        bool canEdit, Func<int, string, Task>? applyKey)
+    public ButtonBinding(int index, AuxCombo combo, bool isOtherBinding, string otherLabel,
+        bool canEdit, Func<int, AuxCombo, Task>? applyCombo)
     {
         Index = index;
         IsOtherBinding = isOtherBinding;
         OtherLabel = otherLabel;
         CanEdit = canEdit;
-        _applyKey = applyKey;
-        _appliedKey = selectedKey;
+        _applyCombo = applyCombo;
+        _appliedCombo = combo;
         _suppressApply = true;
-        SelectedKey = selectedKey;
+        Ctrl = combo.Ctrl;
+        Shift = combo.Shift;
+        Alt = combo.Alt;
+        SelectedKey = combo.Key;
         _suppressApply = false;
     }
 
@@ -973,26 +975,38 @@ public partial class ButtonBinding : ObservableObject
 
     /// <summary>The keys offered in the picker (shared list).</summary>
     public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
-    /// <summary>The selected key's OTD value ("None" = unbound). Two-way bound to the picker; a change
-    /// from the user persists the binding.</summary>
+    /// <summary>Modifiers + the selected key's OTD value ("None" = unbound). Two-way bound to the
+    /// editor; a genuine user change persists (no modifiers → Key Binding, with → Multi-Key).</summary>
+    [ObservableProperty] private bool _ctrl;
+    [ObservableProperty] private bool _shift;
+    [ObservableProperty] private bool _alt;
     [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
-    /// <summary>False disables the picker (read-only host, or button mapping suspended).</summary>
+    /// <summary>False disables the editor (read-only host, or button mapping suspended).</summary>
     public bool CanEdit { get; }
 
-    /// <summary>True when this button already holds a binding that isn't a simple key (e.g. set in
-    /// OTD's own UX) — surfaced so the user knows the picker will replace it.</summary>
+    /// <summary>True when this button already holds a binding this editor can't model (a mouse/scroll
+    /// binding, or a multi-key macro) — surfaced so the user knows the editor will replace it.</summary>
     public bool IsOtherBinding { get; }
     public string OtherLabel { get; }
 
     /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
 
-    partial void OnSelectedKeyChanged(string value)
+    partial void OnCtrlChanged(bool value) => ApplyIfChanged();
+    partial void OnShiftChanged(bool value) => ApplyIfChanged();
+    partial void OnAltChanged(bool value) => ApplyIfChanged();
+    partial void OnSelectedKeyChanged(string value) => ApplyIfChanged();
+
+    private void ApplyIfChanged()
     {
-        // Ignore programmatic sets, the picker's transient null during init, and binding round-trips
-        // back to the value we were constructed with — only a genuine user change persists.
-        if (_suppressApply || _applyKey == null || string.IsNullOrEmpty(value) || value == _appliedKey) return;
-        _appliedKey = value;
-        _ = _applyKey(Index, value);
+        // Skip programmatic sets and the picker's transient null during init.
+        if (_suppressApply || _applyCombo == null || string.IsNullOrEmpty(SelectedKey)) return;
+        var combo = new AuxCombo(Ctrl, Shift, Alt, SelectedKey);
+        if (combo == _appliedCombo) return; // binding round-trip / no real change
+        // Toggling modifiers while there's still no key isn't a real binding — don't persist (avoids a
+        // refresh that would immediately reset the checkbox the user just ticked).
+        if (!combo.IsBound && !_appliedCombo.IsBound) { _appliedCombo = combo; return; }
+        _appliedCombo = combo;
+        _ = _applyCombo(Index, combo);
     }
 }
