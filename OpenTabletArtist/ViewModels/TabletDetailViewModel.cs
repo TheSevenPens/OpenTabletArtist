@@ -223,6 +223,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
         Displays = DisplayEnumerator.Enumerate();
+        LoadAuxEnabledState();
         RefreshFromProfile();
         RefreshDetectionStatus();
         // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
@@ -347,14 +348,28 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var bindings = _profile.BindingSettings;
         RefreshPenSwitchRows();
 
-        // ExpressKeys (read-only)
-        AuxButtonCount = bindings.AuxButtons.Count.ToString();
+        // ExpressKeys — editable single-key bindings. While mapping is suspended we show the stashed
+        // bindings (greyed) so the user still sees what will come back.
+        var auxStores = EffectiveAuxStores();
+        AuxButtonCount = auxStores.Count.ToString();
+        var canEditAux = _applyAction != null && AuxButtonsEnabled;
 
         var newAuxButtons = new List<ButtonBinding>();
-        for (int i = 0; i < bindings.AuxButtons.Count; i++)
-            newAuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.AuxButtons[i]) });
+        for (int i = 0; i < auxStores.Count; i++)
+        {
+            var store = auxStores[i];
+            var binding = AuxKeyBinding.ReadBinding(store); // null = a binding this editor can't model
+            newAuxButtons.Add(new ButtonBinding(
+                index: i + 1,
+                binding: binding ?? AuxBinding.Unbound,
+                isOtherBinding: binding == null,
+                otherLabel: binding == null ? GetBindingName(store) : "",
+                canEdit: canEditAux,
+                applyBinding: ApplyAuxBindingAsync));
+        }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
+        ShowAuxControls = newAuxButtons.Count > 0 && _applyAction != null;
 
         // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
         // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
@@ -487,6 +502,111 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                     break;
             }
         });
+    }
+
+    // ── ExpressKeys (auxiliary buttons): key bindings, enable-all toggle, clear-all ──────────────
+    private string AuxEnabledKey => $"AuxEnabled:{_profile.Tablet}";
+    private string AuxBackupKey => $"AuxBackup:{_profile.Tablet}";
+
+    /// <summary>Master switch (per tablet, persisted): when off, the buttons do nothing — their
+    /// bindings are stashed and empty ones are written to the driver, restored when toggled on.</summary>
+    [ObservableProperty] private bool _auxButtonsEnabled = true;
+    /// <summary>Show the enable-all toggle + clear-all button (only when the tablet has aux buttons
+    /// and this host can edit).</summary>
+    [ObservableProperty] private bool _showAuxControls;
+    private bool _suppressAuxEnabledApply;
+
+    private void LoadAuxEnabledState()
+    {
+        _suppressAuxEnabledApply = true;
+        AuxButtonsEnabled = AppSettings.Get(AuxEnabledKey) != "false"; // default enabled
+        _suppressAuxEnabledApply = false;
+    }
+
+    /// <summary>The aux stores to display: the live profile when enabled, else the stash (so a
+    /// suspended set is still visible) falling back to the profile.</summary>
+    private PluginSettingStoreCollection EffectiveAuxStores()
+    {
+        if (!AuxButtonsEnabled)
+        {
+            var backup = AppSettings.Get(AuxBackupKey);
+            if (!string.IsNullOrEmpty(backup))
+            {
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<PluginSettingStoreCollection>(backup);
+                    if (restored != null) return restored;
+                }
+                catch { /* corrupt stash — fall back to the live (empty) profile */ }
+            }
+        }
+        return _profile.BindingSettings.AuxButtons;
+    }
+
+    private async Task ApplyAuxBindingAsync(int buttonIndex, AuxBinding binding)
+    {
+        if (!AuxButtonsEnabled) return; // editing is locked while suspended
+        var store = AuxKeyBinding.MakeBinding(binding); // null = unbound
+        await ApplySettingsChange(p =>
+        {
+            var aux = p.BindingSettings.AuxButtons;
+            if (buttonIndex >= 1 && buttonIndex <= aux.Count)
+                aux[buttonIndex - 1] = store!;
+        });
+    }
+
+    partial void OnAuxButtonsEnabledChanged(bool value)
+    {
+        if (_suppressAuxEnabledApply) return;
+        _ = SetAuxButtonsEnabledAsync(value);
+    }
+
+    private async Task SetAuxButtonsEnabledAsync(bool enabled)
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(AuxEnabledKey, enabled ? "true" : "false");
+        if (!enabled)
+        {
+            // Suspend: stash the current bindings, then write empty ones so the buttons do nothing.
+            AppSettings.Set(AuxBackupKey, JsonConvert.SerializeObject(_profile.BindingSettings.AuxButtons));
+            await ApplySettingsChange(ClearAux);
+        }
+        else
+        {
+            // Resume: restore the stash (if any), then drop it.
+            var backup = AppSettings.Get(AuxBackupKey);
+            await ApplySettingsChange(p =>
+            {
+                if (string.IsNullOrEmpty(backup)) return;
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<PluginSettingStoreCollection>(backup);
+                    if (restored != null)
+                    {
+                        var aux = p.BindingSettings.AuxButtons;
+                        for (int i = 0; i < aux.Count && i < restored.Count; i++) aux[i] = restored[i];
+                    }
+                }
+                catch { /* corrupt stash — leave the (empty) profile as-is */ }
+            });
+            AppSettings.Set(AuxBackupKey, "");
+        }
+    }
+
+    /// <summary>Remove every express-key binding. Also drops any suspended stash, so a later
+    /// enable doesn't bring cleared bindings back.</summary>
+    [RelayCommand]
+    private async Task ClearAuxButtons()
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(AuxBackupKey, "");
+        await ApplySettingsChange(ClearAux);
+    }
+
+    private static void ClearAux(Profile p)
+    {
+        var aux = p.BindingSettings.AuxButtons;
+        for (int i = 0; i < aux.Count; i++) aux[i] = null!;
     }
 
     public string TabletName { get; }
@@ -829,13 +949,127 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
-    public int Index { get; set; }
-    public string Name { get; set; } = "None";
+    private const string NoneKind = "None";
+    private const string KeyboardKind = "Keyboard";
+    private const string MouseKind = "Mouse";
+    private const string ScrollKind = "Scroll";
+
+    private readonly Func<int, AuxBinding, Task>? _applyBinding;
+    private bool _suppressApply;
+    private AuxBinding _applied;
+
+    public ButtonBinding(int index, AuxBinding binding, bool isOtherBinding, string otherLabel,
+        bool canEdit, Func<int, AuxBinding, Task>? applyBinding)
+    {
+        Index = index;
+        IsOtherBinding = isOtherBinding;
+        OtherLabel = otherLabel;
+        CanEdit = canEdit;
+        _applyBinding = applyBinding;
+        _applied = binding;
+        _suppressApply = true;
+        SelectedKind = binding.Kind switch
+        {
+            AuxKind.Keyboard => KeyboardKind,
+            AuxKind.Mouse => MouseKind,
+            AuxKind.Scroll => ScrollKind,
+            _ => NoneKind,
+        };
+        // Only the active type's value is populated; the others start empty so switching to them
+        // requires a fresh pick (no stale value, no accidental default).
+        Ctrl = binding.Combo.Ctrl;
+        Shift = binding.Combo.Shift;
+        Alt = binding.Combo.Alt;
+        SelectedKey = binding.Kind == AuxKind.Keyboard ? binding.Combo.Key : "";
+        SelectedMouseButton = binding.Kind == AuxKind.Mouse ? binding.MouseButton : "";
+        SelectedScroll = binding.Kind == AuxKind.Scroll ? binding.Scroll : "";
+        _suppressApply = false;
+    }
+
+    public int Index { get; }
     public string Label => $"Button {Index}";
-    /// <summary>An aux button is "bound" when it has a real binding (anything but the empty "None").</summary>
-    public bool IsBound => !string.IsNullOrEmpty(Name) && Name != "None";
-    /// <summary>The binding shown on the card — the binding name, or "Unbound" when there's none.</summary>
-    public string DisplayBinding => IsBound ? Name : "Unbound";
-    /// <summary>True while the physical button is held down — highlights the card live (#…).</summary>
+
+    /// <summary>Binding-type choices and per-type pickers (all shared lists).</summary>
+    public IReadOnlyList<KeyOption> KindOptions { get; } = new List<KeyOption>
+    {
+        new("None", NoneKind),
+        new("Keyboard", KeyboardKind),
+        new("Mouse button", MouseKind),
+        new("Mouse scroll", ScrollKind),
+    };
+    public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
+    public IReadOnlyList<KeyOption> MouseButtonOptions => AuxKeyBinding.MouseButtonOptions;
+    public IReadOnlyList<KeyOption> ScrollOptions => AuxKeyBinding.ScrollOptions;
+
+    /// <summary>The chosen binding type; toggles which editor shows. "None" = intentionally unbound.</summary>
+    [ObservableProperty] private string _selectedKind = NoneKind;
+    public bool IsNone => SelectedKind == NoneKind;
+    public bool IsKeyboard => SelectedKind == KeyboardKind;
+    public bool IsMouse => SelectedKind == MouseKind;
+    public bool IsScroll => SelectedKind == ScrollKind;
+
+    // Keyboard editor: Ctrl/Shift/Alt + a key ("None" = unbound). No modifiers → Key Binding; with → Multi-Key.
+    [ObservableProperty] private bool _ctrl;
+    [ObservableProperty] private bool _shift;
+    [ObservableProperty] private bool _alt;
+    [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
+    // Mouse-button editor: a single button ("None" = unbound).
+    [ObservableProperty] private string _selectedMouseButton = AuxKeyBinding.None;
+    // Mouse-scroll editor: a direction ("None" = unbound).
+    [ObservableProperty] private string _selectedScroll = AuxKeyBinding.None;
+
+    /// <summary>False disables the editor (read-only host, or button mapping suspended).</summary>
+    public bool CanEdit { get; }
+
+    /// <summary>True when this button already holds a binding this editor can't model (a scroll
+    /// binding, Windows Ink, or a multi-key macro) — surfaced so the user knows it'll be replaced.</summary>
+    public bool IsOtherBinding { get; }
+    public string OtherLabel { get; }
+
+    /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
+
+    partial void OnSelectedKindChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsKeyboard));
+        OnPropertyChanged(nameof(IsMouse));
+        OnPropertyChanged(nameof(IsScroll));
+        OnPropertyChanged(nameof(IsNone));
+        ApplyIfChanged();
+    }
+
+    partial void OnCtrlChanged(bool value) => ApplyIfChanged();
+    partial void OnShiftChanged(bool value) => ApplyIfChanged();
+    partial void OnAltChanged(bool value) => ApplyIfChanged();
+    partial void OnSelectedKeyChanged(string value) => ApplyIfChanged();
+    partial void OnSelectedMouseButtonChanged(string value) => ApplyIfChanged();
+    partial void OnSelectedScrollChanged(string value) => ApplyIfChanged();
+
+    private AuxBinding Current() => SelectedKind switch
+    {
+        KeyboardKind => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey),
+                                       AuxKeyBinding.None, AuxKeyBinding.None),
+        MouseKind => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton, AuxKeyBinding.None),
+        ScrollKind => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll),
+        _ => AuxBinding.Unbound,
+    };
+
+    private void ApplyIfChanged()
+    {
+        if (_suppressApply || _applyBinding == null) return;
+        // A real type with no value yet isn't applied — the user must pick one. (Also skips the
+        // pickers' transient null during init.)
+        if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
+        if (IsMouse && string.IsNullOrEmpty(SelectedMouseButton)) return;
+        if (IsScroll && string.IsNullOrEmpty(SelectedScroll)) return;
+
+        var binding = Current();
+        if (binding == _applied) return; // round-trip / no real change
+
+        // Persist when we have a real binding, or when None is chosen to clear an existing one.
+        // Selecting None on an already-unbound button is a no-op.
+        if (!binding.IsBound && !_applied.IsBound) { _applied = binding; return; }
+        _applied = binding;
+        _ = _applyBinding(Index, binding);
+    }
 }

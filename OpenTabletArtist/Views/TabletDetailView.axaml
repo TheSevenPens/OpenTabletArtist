@@ -237,7 +237,24 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenButtonsTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="AUXILIARY BUTTONS" Classes="SectionLabel" Margin="0,0,0,8" />
+                <!-- Header: section label + master enable toggle and clear-all (when there are buttons). -->
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                    <TextBlock Grid.Column="0" Text="AUXILIARY BUTTONS" Classes="SectionLabel"
+                               VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
+                        <TextBlock Text="Buttons enabled" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ToggleSwitch IsChecked="{Binding AuxButtonsEnabled}" OnContent="" OffContent=""
+                                      MinWidth="0" VerticalAlignment="Center"
+                                      ToolTip.Tip="Turn all express keys on or off. Your mappings are kept and restored when you turn them back on." />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearAuxButtonsCommand}"
+                            IsVisible="{Binding ShowAuxControls}"
+                            ToolTip.Tip="Remove every express-key mapping"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                </Grid>
 
                 <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
                     <ItemsControl.ItemTemplate>
@@ -245,14 +262,71 @@
                             <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
                                     Padding="16,12" Margin="0,0,0,10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                               VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Classes="statusMark" Classes.success="{Binding IsBound}" />
-                                        <TextBlock Text="{Binding DisplayBinding}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                        <!-- Shown only when the button already holds a non-key binding. -->
+                                        <TextBlock FontSize="11" Foreground="#e87930" TextWrapping="Wrap"
+                                                   IsVisible="{Binding IsOtherBinding}"
+                                                   Text="{Binding OtherLabel, StringFormat='Currently: {0} — picking a key replaces it'}" />
+                                    </StackPanel>
+                                    <!-- Type selector + the editor for that type. -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                VerticalAlignment="Center">
+                                        <ComboBox MinWidth="120" VerticalAlignment="Center"
+                                                  IsEnabled="{Binding CanEdit}"
+                                                  ItemsSource="{Binding KindOptions}"
+                                                  SelectedValueBinding="{Binding Value}"
+                                                  SelectedValue="{Binding SelectedKind, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <!-- Keyboard: modifiers + key. No modifiers → Key Binding; with → Multi-Key. -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                                    IsVisible="{Binding IsKeyboard}">
+                                            <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="0" VerticalAlignment="Center" />
+                                            <CheckBox Content="Shift" IsChecked="{Binding Shift}" IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="0" VerticalAlignment="Center" />
+                                            <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="0" VerticalAlignment="Center" />
+                                            <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                                      IsEnabled="{Binding CanEdit}" PlaceholderText="Pick a key"
+                                                      ItemsSource="{Binding KeyOptions}"
+                                                      SelectedValueBinding="{Binding Value}"
+                                                      SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Mouse: a single button. -->
+                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                                  IsVisible="{Binding IsMouse}" IsEnabled="{Binding CanEdit}"
+                                                  PlaceholderText="Pick a button"
+                                                  ItemsSource="{Binding MouseButtonOptions}"
+                                                  SelectedValueBinding="{Binding Value}"
+                                                  SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <!-- Scroll: a direction. -->
+                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                                  IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
+                                                  PlaceholderText="Pick a direction"
+                                                  ItemsSource="{Binding ScrollOptions}"
+                                                  SelectedValueBinding="{Binding Value}"
+                                                  SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
                                     </StackPanel>
                                 </Grid>
                             </Border>
