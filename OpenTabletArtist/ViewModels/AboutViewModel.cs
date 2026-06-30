@@ -14,7 +14,7 @@ namespace OpenTabletArtist.ViewModels;
 public partial class AboutViewModel : ObservableObject
 {
     /// <summary>This project's GitHub repository.</summary>
-    public string RepoUrl => "https://github.com/TheSevenPens/OTDArtist";
+    public string RepoUrl => "https://github.com/TheSevenPens/OpenTabletArtist";
 
     /// <summary>GitHub releases page (downloads + release notes).</summary>
     public string ReleasesUrl => $"{RepoUrl}/releases";

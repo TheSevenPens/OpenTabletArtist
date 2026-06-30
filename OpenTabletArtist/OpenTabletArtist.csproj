@@ -3,8 +3,6 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- App = OpenTabletArtist (binaries + namespaces + in-repo folders). Only the GitHub repo and the
-         working-dir root folder stay OTDArtist for now. -->
     <AssemblyName>OpenTabletArtist</AssemblyName>
     <RootNamespace>OpenTabletArtist</RootNamespace>
     <LangVersion>14</LangVersion>

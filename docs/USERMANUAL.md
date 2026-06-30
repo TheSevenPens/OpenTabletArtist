@@ -8,7 +8,7 @@
 ## Quick Start
 
 ```bash
-git clone --recursive https://github.com/TheSevenPens/OTDArtist.git
+git clone --recursive https://github.com/TheSevenPens/OpenTabletArtist.git
 cd OpenTabletArtist
 dotnet build OpenTabletArtist.slnx   # builds the app AND the OTD daemon from the submodule
 dotnet run --project OpenTabletArtist

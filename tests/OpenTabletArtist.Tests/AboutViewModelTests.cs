@@ -9,7 +9,7 @@ public class AboutViewModelTests
     public void RepoUrl_IsTheProjectRepository()
     {
         var vm = new AboutViewModel();
-        Assert.Equal("https://github.com/TheSevenPens/OTDArtist", vm.RepoUrl);
+        Assert.Equal("https://github.com/TheSevenPens/OpenTabletArtist", vm.RepoUrl);
     }
 
     [Fact]

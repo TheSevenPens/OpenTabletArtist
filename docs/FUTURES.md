@@ -23,47 +23,47 @@ Several items once listed here have shipped and are no longer "future":
 
 ## Near-Term (Polish the Prototype)
 
-- **Daemon Visibility & Control From Outside the App** — Surface daemon status/control when the app window is closed (tray icon, etc.). ([#57](https://github.com/TheSevenPens/OTDArtist/issues/57))
-- **Investigate App Shutdown Cleanliness** — Ensure the app exits within ~500ms on window close with no lingering file locks. ([#58](https://github.com/TheSevenPens/OTDArtist/issues/58))
-- **Interactive Area Mapper** — Make the area visualization draggable/resizable/rotatable with snap guides and a live readout. ([#59](https://github.com/TheSevenPens/OTDArtist/issues/59))
-- **Guided Setup for Creatives (Windows)** — First-run wizard chaining vmulti + Windows Ink + output-mode setup for creatives. ([#60](https://github.com/TheSevenPens/OTDArtist/issues/60))
-- **Advanced Settings Toggle** — Reveal hidden settings (rotation, clipping, area limiting) behind an Advanced expander. ([#61](https://github.com/TheSevenPens/OTDArtist/issues/61))
-- **Broader Settings Write-Back** — Extend write-back beyond output mode/display to bindings, filters, and per-profile tweaks. ([#62](https://github.com/TheSevenPens/OTDArtist/issues/62))
-- **Bindings Page** — Configure pen tip/eraser/button bindings with a visual pen and per-button editors. ([#63](https://github.com/TheSevenPens/OTDArtist/issues/63))
-- **Filters Page** — View, reorder, toggle, and configure the daemon's filter pipeline. ([#64](https://github.com/TheSevenPens/OTDArtist/issues/64))
-- **Console / Log Viewer** — Stream live daemon logs with level coloring, filtering, and pause/resume. ([#65](https://github.com/TheSevenPens/OTDArtist/issues/65))
-- **Tablet Detection UX** — A 'Detect Tablets' button with scanning feedback and auto-select of new tablets. ([#66](https://github.com/TheSevenPens/OTDArtist/issues/66))
+- **Daemon Visibility & Control From Outside the App** — Surface daemon status/control when the app window is closed (tray icon, etc.). ([#57](https://github.com/TheSevenPens/OpenTabletArtist/issues/57))
+- **Investigate App Shutdown Cleanliness** — Ensure the app exits within ~500ms on window close with no lingering file locks. ([#58](https://github.com/TheSevenPens/OpenTabletArtist/issues/58))
+- **Interactive Area Mapper** — Make the area visualization draggable/resizable/rotatable with snap guides and a live readout. ([#59](https://github.com/TheSevenPens/OpenTabletArtist/issues/59))
+- **Guided Setup for Creatives (Windows)** — First-run wizard chaining vmulti + Windows Ink + output-mode setup for creatives. ([#60](https://github.com/TheSevenPens/OpenTabletArtist/issues/60))
+- **Advanced Settings Toggle** — Reveal hidden settings (rotation, clipping, area limiting) behind an Advanced expander. ([#61](https://github.com/TheSevenPens/OpenTabletArtist/issues/61))
+- **Broader Settings Write-Back** — Extend write-back beyond output mode/display to bindings, filters, and per-profile tweaks. ([#62](https://github.com/TheSevenPens/OpenTabletArtist/issues/62))
+- **Bindings Page** — Configure pen tip/eraser/button bindings with a visual pen and per-button editors. ([#63](https://github.com/TheSevenPens/OpenTabletArtist/issues/63))
+- **Filters Page** — View, reorder, toggle, and configure the daemon's filter pipeline. ([#64](https://github.com/TheSevenPens/OpenTabletArtist/issues/64))
+- **Console / Log Viewer** — Stream live daemon logs with level coloring, filtering, and pause/resume. ([#65](https://github.com/TheSevenPens/OpenTabletArtist/issues/65))
+- **Tablet Detection UX** — A 'Detect Tablets' button with scanning feedback and auto-select of new tablets. ([#66](https://github.com/TheSevenPens/OpenTabletArtist/issues/66))
 
 ## Mid-Term (Deepen the Experience)
 
-- **Plugin Browser** — A read-only Plugins page shipped; full browse/install/configure from a card grid remains. ([#69](https://github.com/TheSevenPens/OTDArtist/issues/69))
-- **Supported-tablets catalog** — show the full list of OTD-compatible tablets (read from the embedded configs); investigated and scoped, implementation deferred. ([#155](https://github.com/TheSevenPens/OTDArtist/issues/155))
-- **Per-application settings** — auto-switch tablet config (mapping/dynamics/bindings) by foreground app, the way manufacturer drivers do. Investigated ([design doc](design/167-per-app-settings.md)): feasible by reusing our existing **Saved Settings** snapshots (applied via the daemon's `SetSettings`) + a Win32 foreground-window watcher + a live-apply-only switch path, but **gated by a latency / mid-stroke-safety spike** before any build. Tray/background mode (#72) is the prerequisite and is shipped. ([#167](https://github.com/TheSevenPens/OTDArtist/issues/167))
-- **Animations and Micro-Interactions** — Page transitions, hover effects, loading skeletons, and toast notifications. ([#70](https://github.com/TheSevenPens/OTDArtist/issues/70))
+- **Plugin Browser** — A read-only Plugins page shipped; full browse/install/configure from a card grid remains. ([#69](https://github.com/TheSevenPens/OpenTabletArtist/issues/69))
+- **Supported-tablets catalog** — show the full list of OTD-compatible tablets (read from the embedded configs); investigated and scoped, implementation deferred. ([#155](https://github.com/TheSevenPens/OpenTabletArtist/issues/155))
+- **Per-application settings** — auto-switch tablet config (mapping/dynamics/bindings) by foreground app, the way manufacturer drivers do. Investigated ([design doc](design/167-per-app-settings.md)): feasible by reusing our existing **Saved Settings** snapshots (applied via the daemon's `SetSettings`) + a Win32 foreground-window watcher + a live-apply-only switch path, but **gated by a latency / mid-stroke-safety spike** before any build. Tray/background mode (#72) is the prerequisite and is shipped. ([#167](https://github.com/TheSevenPens/OpenTabletArtist/issues/167))
+- **Animations and Micro-Interactions** — Page transitions, hover effects, loading skeletons, and toast notifications. ([#70](https://github.com/TheSevenPens/OpenTabletArtist/issues/70))
 
 ## Long-Term (Distribution and Platform)
 
-- **Packaging as a Standalone App** — Publish/bundle options (single-file, framework-dependent, installer/MSIX) and shipping the daemon. ([#71](https://github.com/TheSevenPens/OTDArtist/issues/71))
-- **Cross-Platform Verification** — Test/guard the Windows-specific paths so the app runs on macOS/Linux. ([#73](https://github.com/TheSevenPens/OTDArtist/issues/73))
-- **Accessibility** — Keyboard nav, screen-reader labels, high-contrast theme, and reduced-motion support. ([#74](https://github.com/TheSevenPens/OTDArtist/issues/74))
-- **Localization** — Extract user-facing strings into a translation system; add RTL support. ([#75](https://github.com/TheSevenPens/OTDArtist/issues/75))
+- **Packaging as a Standalone App** — Publish/bundle options (single-file, framework-dependent, installer/MSIX) and shipping the daemon. ([#71](https://github.com/TheSevenPens/OpenTabletArtist/issues/71))
+- **Cross-Platform Verification** — Test/guard the Windows-specific paths so the app runs on macOS/Linux. ([#73](https://github.com/TheSevenPens/OpenTabletArtist/issues/73))
+- **Accessibility** — Keyboard nav, screen-reader labels, high-contrast theme, and reduced-motion support. ([#74](https://github.com/TheSevenPens/OpenTabletArtist/issues/74))
+- **Localization** — Extract user-facing strings into a translation system; add RTL support. ([#75](https://github.com/TheSevenPens/OpenTabletArtist/issues/75))
 
 ## Exploratory Ideas
 
-- **AI-Assisted Configuration** — Suggest area/sensitivity settings from usage patterns. ([#76](https://github.com/TheSevenPens/OTDArtist/issues/76))
-- **Community Presets** — A shared, tagged repository of community presets to browse and apply. ([#77](https://github.com/TheSevenPens/OTDArtist/issues/77))
-- **Visual Tablet Skins** — Render the user's actual tablet model from per-model SVGs with the active area overlaid. ([#78](https://github.com/TheSevenPens/OTDArtist/issues/78))
-- **Split-Area Mapping** — Map different tablet regions to different monitors/apps. ([#79](https://github.com/TheSevenPens/OTDArtist/issues/79))
-- **Gesture Zones** — Define tablet-surface zones that trigger actions, via a visual zone editor. ([#80](https://github.com/TheSevenPens/OTDArtist/issues/80))
+- **AI-Assisted Configuration** — Suggest area/sensitivity settings from usage patterns. ([#76](https://github.com/TheSevenPens/OpenTabletArtist/issues/76))
+- **Community Presets** — A shared, tagged repository of community presets to browse and apply. ([#77](https://github.com/TheSevenPens/OpenTabletArtist/issues/77))
+- **Visual Tablet Skins** — Render the user's actual tablet model from per-model SVGs with the active area overlaid. ([#78](https://github.com/TheSevenPens/OpenTabletArtist/issues/78))
+- **Split-Area Mapping** — Map different tablet regions to different monitors/apps. ([#79](https://github.com/TheSevenPens/OpenTabletArtist/issues/79))
+- **Gesture Zones** — Define tablet-surface zones that trigger actions, via a visual zone editor. ([#80](https://github.com/TheSevenPens/OpenTabletArtist/issues/80))
 
 ## Community Suggestions
 
 User-submitted feature ideas from GitHub issues (labeled `suggestion`):
 
-- **Special handling for ultrawide** — better area-mapping for ultrawide displays. ([#3](https://github.com/TheSevenPens/OTDArtist/issues/3))
-- **Map active area to a specific application** — per-application active-area mappings. ([#4](https://github.com/TheSevenPens/OTDArtist/issues/4))
-- **Hotkey to switch between mappings** — global hotkey to cycle/switch saved mappings. ([#5](https://github.com/TheSevenPens/OTDArtist/issues/5))
-- **Implement smoothing** — an input smoothing filter. ([#6](https://github.com/TheSevenPens/OTDArtist/issues/6))
-- **On-Screen-Menu for shortcuts** — a Wacom-style on-screen radial/menu for shortcuts. ([#7](https://github.com/TheSevenPens/OTDArtist/issues/7))
-- **Per-application settings** — distinct settings/profiles auto-applied per foreground app. ([#8](https://github.com/TheSevenPens/OTDArtist/issues/8))
-- **Pressure curve calibrator** — auto-calibrate the curve from sampled presses (perceptual → linear feel); complements the manual editor in [#68](https://github.com/TheSevenPens/OTDArtist/issues/68). ([#9](https://github.com/TheSevenPens/OTDArtist/issues/9))
+- **Special handling for ultrawide** — better area-mapping for ultrawide displays. ([#3](https://github.com/TheSevenPens/OpenTabletArtist/issues/3))
+- **Map active area to a specific application** — per-application active-area mappings. ([#4](https://github.com/TheSevenPens/OpenTabletArtist/issues/4))
+- **Hotkey to switch between mappings** — global hotkey to cycle/switch saved mappings. ([#5](https://github.com/TheSevenPens/OpenTabletArtist/issues/5))
+- **Implement smoothing** — an input smoothing filter. ([#6](https://github.com/TheSevenPens/OpenTabletArtist/issues/6))
+- **On-Screen-Menu for shortcuts** — a Wacom-style on-screen radial/menu for shortcuts. ([#7](https://github.com/TheSevenPens/OpenTabletArtist/issues/7))
+- **Per-application settings** — distinct settings/profiles auto-applied per foreground app. ([#8](https://github.com/TheSevenPens/OpenTabletArtist/issues/8))
+- **Pressure curve calibrator** — auto-calibrate the curve from sampled presses (perceptual → linear feel); complements the manual editor in [#68](https://github.com/TheSevenPens/OpenTabletArtist/issues/68). ([#9](https://github.com/TheSevenPens/OpenTabletArtist/issues/9))
