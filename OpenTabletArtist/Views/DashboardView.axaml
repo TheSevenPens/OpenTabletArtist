@@ -104,60 +104,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Tablet Status — one card per connected tablet (#190). -->
-            <ItemsControl ItemsSource="{Binding Tablets}" IsVisible="{Binding HasTablet}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <StackPanel Grid.Column="0" MinWidth="0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Classes="statusMark success" />
-                                        <TextBlock Classes="CardTitle" Text="{Binding Name}" FontSize="13"
-                                                   TextWrapping="Wrap" VerticalAlignment="Center" />
-                                        <!-- Marks the active tablet (the one tray / Test / Diagnostics act on), #190. -->
-                                        <Border IsVisible="{Binding IsActive}" VerticalAlignment="Center"
-                                                Background="{DynamicResource AccentMutedBrush}"
-                                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                                CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
-                                            <TextBlock Text="Active" FontSize="10" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource AccentBrush}" />
-                                        </Border>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding SpecsText}" FontSize="11" Margin="0,4,0,0"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                            VerticalAlignment="Center">
-                                    <Button Content="Set active"
-                                            Command="{Binding SetActiveCommand}"
-                                            IsVisible="{Binding ShowSetActive}"
-                                            Theme="{StaticResource GhostButton}"
-                                            Padding="12,6" FontSize="12"
-                                            ToolTip.Tip="Make this the active tablet for the tray, Test, and Diagnostics" />
-                                    <Button Content="Settings"
-                                            Command="{Binding OpenSettingsCommand}"
-                                            Theme="{StaticResource AccentButton}"
-                                            Padding="12,6" FontSize="12" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- Empty state when no tablet is connected. -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16" IsVisible="{Binding !HasTablet}">
-                <StackPanel MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="Tablet" FontSize="13" />
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Classes="statusMark" />
-                        <TextBlock Text="{Binding TabletStatusText}" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+            <!-- Per-tablet status moved to the Tablets nav node (#247); Home no longer duplicates it. -->
 
             <!-- VMulti Status -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
