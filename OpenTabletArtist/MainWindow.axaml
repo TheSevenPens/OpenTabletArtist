@@ -42,7 +42,7 @@
 
                 <!-- Nav Items (labels in all caps) -->
                 <StackPanel Margin="8,0,8,0">
-                    <RadioButton Theme="{StaticResource NavButton}" Content="DASHBOARD"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="PAIRED TABLETS"
