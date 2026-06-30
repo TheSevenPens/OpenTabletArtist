@@ -97,12 +97,12 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Area Mapping -->
+                <!-- Select Display -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Text="AREA MAPPING" Classes="SectionLabel"
+                            <TextBlock Grid.Row="0" Text="SELECT DISPLAY" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
                                 <Button Content="Refresh" Command="{Binding RefreshDisplaysCommand}"

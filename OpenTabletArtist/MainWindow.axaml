@@ -96,7 +96,7 @@
                                   IsChecked="{Binding IsAdvancedExpanded, Mode=TwoWay}"
                                   Margin="0,8,0,0" />
                     <StackPanel IsVisible="{Binding IsAdvancedExpanded}" Margin="12,0,0,0">
-                        <RadioButton Theme="{StaticResource NavButton}" Content="OTD"
+                        <RadioButton Theme="{StaticResource NavButton}" Content="Daemon"
                                      IsChecked="{Binding IsOtd, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Otd}"
                                      Margin="0,2,0,0" />
