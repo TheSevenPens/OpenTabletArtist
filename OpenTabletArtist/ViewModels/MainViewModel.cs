@@ -36,6 +36,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public TestViewModel Test { get; }
     public ConsoleViewModel Console { get; }
     public PluginsViewModel Plugins { get; }
+    public OtdViewModel Otd { get; }
     public SettingsViewModel Settings { get; } = new();
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
@@ -49,9 +50,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, Configs) || ReferenceEquals(page, Diagnostics)
-        || ReferenceEquals(page, Console) || ReferenceEquals(page, Plugins)
-        || ReferenceEquals(page, Utilities);
+        ReferenceEquals(page, Otd) || ReferenceEquals(page, Configs)
+        || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Console)
+        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, Utilities);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
@@ -63,6 +64,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
     public bool IsConsole => ReferenceEquals(CurrentPage, Console);
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
+    public bool IsOtd => ReferenceEquals(CurrentPage, Otd);
     public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -83,6 +85,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Console = new ConsoleViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
+        Otd = new OtdViewModel(_session);
 
         CurrentPage = Dashboard;
 
@@ -125,6 +128,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsConsole));
         OnPropertyChanged(nameof(IsPlugins));
+        OnPropertyChanged(nameof(IsOtd));
         OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAbout));
     }

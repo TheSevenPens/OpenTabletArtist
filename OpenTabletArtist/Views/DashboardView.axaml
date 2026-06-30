@@ -10,23 +10,7 @@
         <TextBlock Classes="PageSubtitle" Text="Overview of your tablet configuration" />
 
         <StackPanel>
-            <!-- Embedded OpenTabletDriver Version -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0">
-                        <TextBlock Classes="CardTitle" Text="Embedded OpenTabletDriver Version" FontSize="13"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                    </StackPanel>
-
-                    <!-- Launch OTD's own UX -->
-                    <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
-                            Command="{Binding LaunchOtdUxCommand}"
-                            VerticalAlignment="Center"
-                            Padding="12,6" FontSize="12" />
-                </Grid>
-            </Border>
+            <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->
 
             <!-- OTD Status -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
