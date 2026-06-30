@@ -24,7 +24,7 @@ public class SakuraPetals : Control
         public double X, Y, Size, Angle, AngularVel, Fall, SwayPhase, SwaySpeed, SwayAmp, Opacity;
     }
 
-    private const int PetalCount = 28;
+    private const int PetalCount = 52;
     private static readonly IBrush PetalBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x9E, 0xC8));
     private static readonly Geometry PetalGeometry = BuildPetal();
 
@@ -102,7 +102,7 @@ public class SakuraPetals : Control
         X = _rng.NextDouble() * w,
         // Initial petals start scattered across the field; recycled ones drop in just above the top.
         Y = initial ? _rng.NextDouble() * h : -20 - _rng.NextDouble() * 80,
-        Size = 8 + _rng.NextDouble() * 8,
+        Size = 16 + _rng.NextDouble() * 20,
         Angle = _rng.NextDouble() * Math.PI * 2,
         AngularVel = (_rng.NextDouble() - 0.5) * 0.06,
         Fall = 0.5 + _rng.NextDouble() * 1.1,
