@@ -448,10 +448,20 @@
                             <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding TypeName}" FontSize="11"
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            <!-- Stale leftover from an older app/plugin name: inert, should be cleaned. -->
+                                            <Border IsVisible="{Binding IsLegacy}"
+                                                    Background="#33e87930" BorderBrush="#e87930" BorderThickness="1"
+                                                    CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
+                                                    ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically.">
+                                                <TextBlock Text="Legacy" FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="#e87930" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding FullPath}" FontSize="11"
                                                    Foreground="{DynamicResource TextMutedBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>

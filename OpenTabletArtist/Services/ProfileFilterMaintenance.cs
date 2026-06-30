@@ -46,6 +46,27 @@ public static class ProfileFilterMaintenance
         "OtdWindowsHelper.",  // earliest name
     };
 
+    /// <summary>Where a filter store's type path came from, for display/diagnostics.</summary>
+    public enum FilterOrigin
+    {
+        /// <summary>A type this app currently writes — expected and live.</summary>
+        Current,
+        /// <summary>One of ours under an old namespace (a rename orphan): inert, should be cleaned.</summary>
+        Legacy,
+        /// <summary>Anything else — a third-party / driver-built-in filter we don't manage.</summary>
+        Unknown,
+    }
+
+    /// <summary>Classifies a filter's type path so the UI can flag a stale leftover ("Legacy")
+    /// distinctly from a current OTA filter or an unrelated third-party one.</summary>
+    public static FilterOrigin Classify(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return FilterOrigin.Unknown;
+        if (CurrentPaths.Contains(path!)) return FilterOrigin.Current;
+        if (IsOurStaleFilter(path!)) return FilterOrigin.Legacy;
+        return FilterOrigin.Unknown;
+    }
+
     /// <summary>Strips rename-orphaned and duplicate OTA filter stores from every profile. Mutates
     /// <paramref name="settings"/> in place. Returns true if anything was removed.</summary>
     public static bool CleanLegacyFilters(Settings? settings)

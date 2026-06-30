@@ -390,11 +390,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Filters.Clear();
         foreach (var f in _profile.Filters)
         {
-            var typeName = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
+            var path = f?.Path ?? "Unknown";
+            var typeName = path.Split('.').LastOrDefault() ?? "Unknown";
             Filters.Add(new FilterCardViewModel(
                 title: FriendlyFilterName(typeName),
-                typeName: typeName,
-                enabled: f?.Enable ?? true));
+                fullPath: path,
+                enabled: f?.Enable ?? true,
+                origin: ProfileFilterMaintenance.Classify(path)));
         }
         HasFilters = Filters.Count > 0;
 
@@ -712,19 +714,25 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 /// <summary>A single filter on a tablet's profile, shown as a card in the Filters tab.</summary>
 public sealed class FilterCardViewModel
 {
-    public FilterCardViewModel(string title, string typeName, bool enabled)
+    public FilterCardViewModel(string title, string fullPath, bool enabled,
+        ProfileFilterMaintenance.FilterOrigin origin)
     {
         Title = title;
-        TypeName = typeName;
+        FullPath = fullPath;
         Enabled = enabled;
+        IsLegacy = origin == ProfileFilterMaintenance.FilterOrigin.Legacy;
     }
 
     /// <summary>Friendly label (e.g. "Pen Dynamics") or the raw type name for unknown filters.</summary>
     public string Title { get; }
-    /// <summary>The filter's class name (last segment of the type path), shown as a subtitle.</summary>
-    public string TypeName { get; }
+    /// <summary>The filter's full type path (with namespace) — the subtitle. Showing the namespace is
+    /// what makes a stale duplicate (old vs current namespace) visibly distinct rather than identical.</summary>
+    public string FullPath { get; }
     public bool Enabled { get; }
     public string StatusText => Enabled ? "Enabled" : "Disabled";
+    /// <summary>True for a filter left over from an older app/plugin name — inert (the driver has no
+    /// plugin for it) and normally cleaned on load, but flagged so a stray one stands out.</summary>
+    public bool IsLegacy { get; }
 }
 
 public partial class PenSwitchRowViewModel : ObservableObject

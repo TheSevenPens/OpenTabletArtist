@@ -117,4 +117,16 @@ public class ProfileFilterMaintenanceTests
     {
         Assert.False(ProfileFilterMaintenance.CleanLegacyFilters(null));
     }
+
+    [Theory]
+    [InlineData(null, ProfileFilterMaintenance.FilterOrigin.Unknown)]
+    [InlineData("", ProfileFilterMaintenance.FilterOrigin.Unknown)]
+    [InlineData("OpenTabletArtist.Dynamics.DynamicsFilter", ProfileFilterMaintenance.FilterOrigin.Current)]
+    [InlineData("OtdWindowsHelper.Dynamics.DynamicsFilter", ProfileFilterMaintenance.FilterOrigin.Legacy)]
+    [InlineData("OtdArtist.PressureCurve.PressureCurveFilter", ProfileFilterMaintenance.FilterOrigin.Legacy)]
+    [InlineData("OpenTabletDriver.Filters.Noise.NoiseReduction", ProfileFilterMaintenance.FilterOrigin.Unknown)]
+    public void Classify_TagsCurrentLegacyAndThirdParty(string? path, ProfileFilterMaintenance.FilterOrigin expected)
+    {
+        Assert.Equal(expected, ProfileFilterMaintenance.Classify(path));
+    }
 }
