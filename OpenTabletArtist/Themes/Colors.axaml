@@ -10,39 +10,25 @@
            they re-resolve when Application.RequestedThemeVariant changes.
          ============================================================================ -->
 
-    <!-- Shared accent + status (work on both light and dark surfaces) -->
-    <Color x:Key="Accent">#6366F1</Color>
-    <Color x:Key="AccentMuted">#1A6366F1</Color>
+    <!-- Shared status colours (variant-independent). NOTE: the ACCENT (and its derived button/card
+         resources) is intentionally NOT here — it lives in each theme dictionary instead, because a
+         top-level resource shadows a same-key entry in the ThemeDictionaries, which would stop the
+         Sakura skin from re-colouring the accent (#207). -->
     <Color x:Key="Success">#10B981</Color>
     <Color x:Key="SuccessMuted">#1A10B981</Color>
     <Color x:Key="Warning">#F59E0B</Color>
     <Color x:Key="WarningMuted">#1AF59E0B</Color>
     <Color x:Key="Error">#EF4444</Color>
     <Color x:Key="ErrorMuted">#1AEF4444</Color>
-    <Color x:Key="NavActive">#1A6366F1</Color>
     <Color x:Key="TextInverse">#FFFFFF</Color>
 
-    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
-    <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
     <SolidColorBrush x:Key="SuccessMutedBrush" Color="{StaticResource SuccessMuted}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
     <SolidColorBrush x:Key="WarningMutedBrush" Color="{StaticResource WarningMuted}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
     <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
-    <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
     <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
-
-    <!-- AccentButton fills (default = the existing tinted/outline look). The Anime skin overrides
-         these with a pink→rose gradient (see its theme dictionary). -->
-    <SolidColorBrush x:Key="AccentButtonFillBrush" Color="{StaticResource AccentMuted}" />
-    <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
-    <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
-    <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
-
-    <!-- Card (GlassPanel) shape + shadow (default). Anime makes cards rounder with a soft pink glow. -->
-    <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
-    <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
 
     <ResourceDictionary.ThemeDictionaries>
 
@@ -73,6 +59,21 @@
             <!-- Sidebar fill — same as the card glass here; the Anime skin gives it its own look. -->
             <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
 
+            <!-- Accent + derived button/card resources. Per-theme (not top-level) so the Sakura skin
+                 can override them — see the note at the top. Light + Dark share the indigo accent. -->
+            <Color x:Key="Accent">#6366F1</Color>
+            <Color x:Key="AccentMuted">#1A6366F1</Color>
+            <Color x:Key="NavActive">#1A6366F1</Color>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+            <SolidColorBrush x:Key="AccentButtonFillBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
+            <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+            <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
+
             <!-- Full-window backdrop layer behind content; flat themes have none (see Anime). -->
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
         </ResourceDictionary>
@@ -102,6 +103,21 @@
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
+
+            <!-- Accent + derived button/card resources (indigo; matches Light). Per-theme so Sakura
+                 can override — see the note at the top. -->
+            <Color x:Key="Accent">#6366F1</Color>
+            <Color x:Key="AccentMuted">#1A6366F1</Color>
+            <Color x:Key="NavActive">#1A6366F1</Color>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+            <SolidColorBrush x:Key="AccentButtonFillBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
+            <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+            <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
 
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
         </ResourceDictionary>
