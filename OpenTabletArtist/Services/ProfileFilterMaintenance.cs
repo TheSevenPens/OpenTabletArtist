@@ -37,13 +37,13 @@ public static class ProfileFilterMaintenance
 
     /// <summary>Namespace prefixes this app's plugin has used across renames. Anything we write has
     /// always lived under one of these — so "ours but not current" == a rename orphan to remove.
-    /// Add a new entry here whenever the app is renamed again.</summary>
+    /// Matched case-insensitively (the earliest name was written as both "OtdWindowsHelper" and
+    /// "OTDWindowsHelper"). Add a new entry here whenever the app is renamed again.</summary>
     private static readonly string[] OurNamespaceRoots =
     {
-        "OpenTabletArtist.", // current
-        "OtdArtist.",        // pre-#200 rename
-        "OTDArtist.",
-        "OTDWindowsHelper.", // earliest name
+        "OpenTabletArtist.",  // current
+        "OtdArtist.",         // pre-#200 rename
+        "OtdWindowsHelper.",  // earliest name
     };
 
     /// <summary>Strips rename-orphaned and duplicate OTA filter stores from every profile. Mutates
@@ -93,6 +93,6 @@ public static class ProfileFilterMaintenance
     {
         var className = path.Split('.').LastOrDefault();
         if (className == null || !OurClassNames.Contains(className)) return false;
-        return OurNamespaceRoots.Any(root => path.StartsWith(root, StringComparison.Ordinal));
+        return OurNamespaceRoots.Any(root => path.StartsWith(root, StringComparison.OrdinalIgnoreCase));
     }
 }

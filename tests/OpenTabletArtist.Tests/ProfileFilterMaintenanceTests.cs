@@ -48,8 +48,9 @@ public class ProfileFilterMaintenanceTests
     {
         var settings = WithFilters(
             "OtdArtist.Dynamics.DynamicsFilter",
-            "OTDWindowsHelper.Dynamics.DynamicsFilter",
-            "OtdArtist.PressureCurve.PressureCurveFilter", // even-older class name
+            "OtdWindowsHelper.Dynamics.DynamicsFilter",     // real-world earliest name (mixed case)
+            "OtdWindowsHelper.Dynamics.CalibrationFilter",  // its calibration sibling
+            "OtdArtist.PressureCurve.PressureCurveFilter",  // even-older class name
             PressureCurveProfile.FilterTypeName,
             HoverProfile.FilterTypeName);
 
@@ -57,6 +58,20 @@ public class ProfileFilterMaintenanceTests
         Assert.Equal(
             new[] { PressureCurveProfile.FilterTypeName, HoverProfile.FilterTypeName },
             Paths(settings));
+    }
+
+    // The orphan that shipped: an OtdWindowsHelper DynamicsFilter sitting beside the current one,
+    // matched case-insensitively (the namespace appears as both "Otd..." and "OTD..." in the wild).
+    [Theory]
+    [InlineData("OtdWindowsHelper.Dynamics.DynamicsFilter")]
+    [InlineData("OTDWindowsHelper.Dynamics.DynamicsFilter")]
+    [InlineData("otdwindowshelper.dynamics.DynamicsFilter")]
+    public void RemovesEarliestNamespaceOrphan_RegardlessOfCase(string legacyPath)
+    {
+        var settings = WithFilters(legacyPath, PressureCurveProfile.FilterTypeName);
+
+        Assert.True(ProfileFilterMaintenance.CleanLegacyFilters(settings));
+        Assert.Equal(new[] { PressureCurveProfile.FilterTypeName }, Paths(settings));
     }
 
     // An exact duplicate of a current store (somehow written twice) collapses to one.
