@@ -34,6 +34,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public TabletSettingsViewModel TabletSettings { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
+    public ConsoleViewModel Console { get; }
     public PluginsViewModel Plugins { get; }
     public SettingsViewModel Settings { get; } = new();
 
@@ -50,6 +51,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsUtilities => ReferenceEquals(CurrentPage, Utilities);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
+    public bool IsConsole => ReferenceEquals(CurrentPage, Console);
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
     public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
@@ -69,6 +71,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
+        Console = new ConsoleViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
 
         CurrentPage = Dashboard;
@@ -106,6 +109,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsUtilities));
         OnPropertyChanged(nameof(IsDiagnostics));
         OnPropertyChanged(nameof(IsTest));
+        OnPropertyChanged(nameof(IsConsole));
         OnPropertyChanged(nameof(IsPlugins));
         OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAbout));
@@ -118,6 +122,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         TabletSettings.Dispose(); // unsubscribes DataLoaded
         Presets.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running
+        Console.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         Utilities.Dispose();
