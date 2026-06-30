@@ -72,6 +72,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
     [ObservableProperty] private string _windowsInkStatusText = "Not configured";
 
+    /// <summary>One card per connected tablet (#190); empty when none, where the view shows the
+    /// "No tablet detected" placeholder instead.</summary>
+    [ObservableProperty] private List<DashboardTabletViewModel> _tablets = [];
+
     private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
@@ -83,6 +87,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
     private void OnSessionDataLoaded()
     {
+        // One card per connected tablet (#190).
+        Tablets = _session.DetectedTablets
+            .Select(t => new DashboardTabletViewModel(t, OpenTabletSettingsByNameAsync))
+            .ToList();
+
         // The Windows Ink card reflects the daemon's plugin directory from the last data load.
         _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(_session.PluginDirectory);
         RefreshWindowsInkInstalledStatus();
@@ -95,12 +104,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         else await _session.ConnectAsync();
     }
 
-    [RelayCommand]
-    private async Task OpenConnectedTabletSettings()
+    /// <summary>Open the per-tablet settings dialog for a specific connected tablet (#190).</summary>
+    private async Task OpenTabletSettingsByNameAsync(string tabletName)
     {
         var settings = _session.CurrentSettings;
-        if (!_session.HasTablet || string.IsNullOrEmpty(_session.TabletName) || settings == null) return;
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == _session.TabletName);
+        if (string.IsNullOrEmpty(tabletName) || settings == null) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile != null)
             await _dialogs.ShowTabletSettingsAsync(profile);
     }
@@ -528,4 +537,24 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _cts.Cancel();
         _cts.Dispose();
     }
+}
+
+/// <summary>One connected tablet on the Dashboard (#190): its name, a one-line spec summary, and a
+/// command to open that tablet's settings dialog.</summary>
+public partial class DashboardTabletViewModel : ObservableObject
+{
+    private readonly Func<string, Task> _openSettings;
+
+    public DashboardTabletViewModel(DetectedTablet tablet, Func<string, Task> openSettings)
+    {
+        Name = tablet.Name;
+        SpecsText = $"{tablet.Area} · {tablet.Pressure} pressure levels · {tablet.Buttons} buttons";
+        _openSettings = openSettings;
+    }
+
+    public string Name { get; }
+    public string SpecsText { get; }
+
+    [RelayCommand]
+    private Task OpenSettings() => _openSettings(Name);
 }

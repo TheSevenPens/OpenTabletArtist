@@ -120,26 +120,44 @@
                 </StackPanel>
             </Border>
 
-            <!-- Tablet Status -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Classes="statusMark" Classes.success="{Binding HasTablet}" />
-                                <TextBlock Text="{Binding TabletStatusText}" FontSize="11"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                            </StackPanel>
-                    </StackPanel>
+            <!-- Tablet Status — one card per connected tablet (#190). -->
+            <ItemsControl ItemsSource="{Binding Tablets}" IsVisible="{Binding HasTablet}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" MinWidth="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Classes="statusMark success" />
+                                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding SpecsText}" FontSize="11" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
 
-                    <Button Grid.Column="1" Content="Settings"
-                            Command="{Binding OpenConnectedTabletSettingsCommand}"
-                            IsEnabled="{Binding HasTablet}"
-                            VerticalAlignment="Center"
-                            Theme="{StaticResource AccentButton}"
-                            Padding="12,6" FontSize="12" />
-                </Grid>
+                                <Button Grid.Column="1" Content="Settings"
+                                        Command="{Binding OpenSettingsCommand}"
+                                        VerticalAlignment="Center"
+                                        Theme="{StaticResource AccentButton}"
+                                        Padding="12,6" FontSize="12" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Empty state when no tablet is connected. -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16" IsVisible="{Binding !HasTablet}">
+                <StackPanel MinWidth="0">
+                    <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Classes="statusMark" />
+                        <TextBlock Text="{Binding TabletStatusText}" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
 
             <!-- VMulti Status -->

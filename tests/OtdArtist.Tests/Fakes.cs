@@ -55,6 +55,7 @@ internal sealed class FakeDialogService : IDialogService
 internal sealed class FakeDeviceData : IDeviceData
 {
     public JToken? Tablets => null;
+    public IReadOnlyList<DetectedTablet> DetectedTablets { get; set; } = new List<DetectedTablet>();
     public bool HasTablet { get; set; }
     public string TabletName { get; set; } = "";
     public string TabletArea => "";

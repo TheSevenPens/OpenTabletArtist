@@ -68,6 +68,9 @@ public interface ISettingsCoordinator
 public interface IDeviceData : INotifyPropertyChanged
 {
     JToken? Tablets { get; }
+    /// <summary>Every currently-connected tablet (one Dashboard card each, #190). The scalar
+    /// <see cref="HasTablet"/>/<see cref="TabletName"/>/… below mirror the first entry for back-compat.</summary>
+    IReadOnlyList<DetectedTablet> DetectedTablets { get; }
     bool HasTablet { get; }
     string TabletName { get; }
     string TabletArea { get; }
@@ -156,6 +159,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
+    [ObservableProperty] private List<DetectedTablet> _detectedTablets = [];
     [ObservableProperty] private bool _hasTablet;
     [ObservableProperty] private string _tabletName = "";
     [ObservableProperty] private string _tabletArea = "";
@@ -169,6 +173,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     IReadOnlyList<ProfileItem> IDeviceData.Profiles => Profiles;
+    IReadOnlyList<DetectedTablet> IDeviceData.DetectedTablets => DetectedTablets;
     public Settings? CurrentSettings => _settings;
     public event Action? DataLoaded;
 
@@ -200,6 +205,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonSourcePath = "";
             HasTablet = false;
             TabletName = "";
+            DetectedTablets = [];
             _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
         });
@@ -334,33 +340,33 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             Tablets = tablets;
 
             var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (tablets.Count > 0)
+            var detected = new List<DetectedTablet>(tablets.Count);
+            foreach (var t in tablets)
             {
-                foreach (var t in tablets)
+                var props = t["Properties"] ?? t;
+                var name = props["Name"]?.ToString();
+                if (!string.IsNullOrEmpty(name))
                 {
-                    var props = t["Properties"] ?? t;
-                    var name = props["Name"]?.ToString();
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        detectedNames.Add(name);
-                        // Key normalized to lower-case so the read side (keyed by the profile's
-                        // Tablet name) matches even if the daemon's reported casing drifts from the
-                        // profile's — detection is case-insensitive, so persistence must be too (#138).
-                        AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
-                    }
+                    detectedNames.Add(name);
+                    // Key normalized to lower-case so the read side (keyed by the profile's
+                    // Tablet name) matches even if the daemon's reported casing drifts from the
+                    // profile's — detection is case-insensitive, so persistence must be too (#138).
+                    AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
                 }
+                detected.Add(ParseDetectedTablet(t));
+            }
+            DetectedTablets = detected;
 
-                var first = tablets[0];
-                var firstProps = first["Properties"] ?? first;
+            if (detected.Count > 0)
+            {
+                // Scalars mirror the first tablet for back-compat; the Dashboard now shows all of
+                // them via DetectedTablets (#190).
+                var first = detected[0];
                 HasTablet = true;
-                TabletName = firstProps["Name"]?.ToString() ?? "Unknown";
-
-                var specs = firstProps["Specifications"];
-                var digi = specs?["Digitizer"];
-                var pen = specs?["Pen"];
-                TabletArea = $"{digi?["Width"]} x {digi?["Height"]} mm";
-                TabletPressure = pen?["MaxPressure"]?.ToString() ?? "?";
-                TabletButtons = pen?["ButtonCount"]?.ToString() ?? "?";
+                TabletName = first.Name;
+                TabletArea = first.Area;
+                TabletPressure = first.Pressure;
+                TabletButtons = first.Buttons;
             }
             else
             {
@@ -420,6 +426,21 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             _ = EnsurePressurePluginAsync();
         }
         catch { /* Data load failed — will retry on next connection/poll */ }
+    }
+
+    /// <summary>Parse one daemon tablet token into a <see cref="DetectedTablet"/> (name + formatted specs).</summary>
+    private static DetectedTablet ParseDetectedTablet(JToken t)
+    {
+        var props = t["Properties"] ?? t;
+        var name = props["Name"]?.ToString() ?? "Unknown";
+        var specs = props["Specifications"];
+        var digi = specs?["Digitizer"];
+        var pen = specs?["Pen"];
+        return new DetectedTablet(
+            name,
+            $"{digi?["Width"]} x {digi?["Height"]} mm",
+            pen?["MaxPressure"]?.ToString() ?? "?",
+            pen?["ButtonCount"]?.ToString() ?? "?");
     }
 
     /// <summary>Persistence key for a tablet's last-seen timestamp. Lower-cased so write (by detected
