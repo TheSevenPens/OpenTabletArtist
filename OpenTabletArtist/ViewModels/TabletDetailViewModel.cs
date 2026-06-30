@@ -358,14 +358,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         for (int i = 0; i < auxStores.Count; i++)
         {
             var store = auxStores[i];
-            var combo = AuxKeyBinding.ReadCombo(store); // null = a binding this editor can't model
+            var binding = AuxKeyBinding.ReadBinding(store); // null = a binding this editor can't model
             newAuxButtons.Add(new ButtonBinding(
                 index: i + 1,
-                combo: combo ?? AuxCombo.Unbound,
-                isOtherBinding: combo == null,
-                otherLabel: combo == null ? GetBindingName(store) : "",
+                binding: binding ?? AuxBinding.Unbound,
+                isOtherBinding: binding == null,
+                otherLabel: binding == null ? GetBindingName(store) : "",
                 canEdit: canEditAux,
-                applyCombo: ApplyAuxComboAsync));
+                applyBinding: ApplyAuxBindingAsync));
         }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
@@ -543,10 +543,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return _profile.BindingSettings.AuxButtons;
     }
 
-    private async Task ApplyAuxComboAsync(int buttonIndex, AuxCombo combo)
+    private async Task ApplyAuxBindingAsync(int buttonIndex, AuxBinding binding)
     {
         if (!AuxButtonsEnabled) return; // editing is locked while suspended
-        var store = AuxKeyBinding.MakeBinding(combo); // null = unbound
+        var store = AuxKeyBinding.MakeBinding(binding); // null = unbound
         await ApplySettingsChange(p =>
         {
             var aux = p.BindingSettings.AuxButtons;
@@ -949,64 +949,101 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
-    private readonly Func<int, AuxCombo, Task>? _applyCombo;
-    private bool _suppressApply;
-    private AuxCombo _appliedCombo;
+    private const string KeyboardKind = "Keyboard";
+    private const string MouseKind = "Mouse";
 
-    public ButtonBinding(int index, AuxCombo combo, bool isOtherBinding, string otherLabel,
-        bool canEdit, Func<int, AuxCombo, Task>? applyCombo)
+    private readonly Func<int, AuxBinding, Task>? _applyBinding;
+    private bool _suppressApply;
+    private AuxBinding _applied;
+
+    public ButtonBinding(int index, AuxBinding binding, bool isOtherBinding, string otherLabel,
+        bool canEdit, Func<int, AuxBinding, Task>? applyBinding)
     {
         Index = index;
         IsOtherBinding = isOtherBinding;
         OtherLabel = otherLabel;
         CanEdit = canEdit;
-        _applyCombo = applyCombo;
-        _appliedCombo = combo;
+        _applyBinding = applyBinding;
+        _applied = binding;
         _suppressApply = true;
-        Ctrl = combo.Ctrl;
-        Shift = combo.Shift;
-        Alt = combo.Alt;
-        SelectedKey = combo.Key;
+        SelectedKind = binding.Kind == AuxKind.Mouse ? MouseKind : KeyboardKind;
+        Ctrl = binding.Combo.Ctrl;
+        Shift = binding.Combo.Shift;
+        Alt = binding.Combo.Alt;
+        SelectedKey = binding.Combo.Key;
+        SelectedMouseButton = binding.MouseButton;
         _suppressApply = false;
     }
 
     public int Index { get; }
     public string Label => $"Button {Index}";
 
-    /// <summary>The keys offered in the picker (shared list).</summary>
+    /// <summary>Binding-type choices and per-type pickers (all shared lists).</summary>
+    public IReadOnlyList<KeyOption> KindOptions { get; } = new List<KeyOption>
+    {
+        new("Keyboard", KeyboardKind),
+        new("Mouse button", MouseKind),
+    };
     public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
-    /// <summary>Modifiers + the selected key's OTD value ("None" = unbound). Two-way bound to the
-    /// editor; a genuine user change persists (no modifiers → Key Binding, with → Multi-Key).</summary>
+    public IReadOnlyList<KeyOption> MouseButtonOptions => AuxKeyBinding.MouseButtonOptions;
+
+    /// <summary>The chosen binding type; toggles which editor shows.</summary>
+    [ObservableProperty] private string _selectedKind = KeyboardKind;
+    public bool IsKeyboard => SelectedKind == KeyboardKind;
+    public bool IsMouse => SelectedKind == MouseKind;
+
+    // Keyboard editor: Ctrl/Shift/Alt + a key ("None" = unbound). No modifiers → Key Binding; with → Multi-Key.
     [ObservableProperty] private bool _ctrl;
     [ObservableProperty] private bool _shift;
     [ObservableProperty] private bool _alt;
     [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
+    // Mouse editor: a single button ("None" = unbound).
+    [ObservableProperty] private string _selectedMouseButton = AuxKeyBinding.None;
+
     /// <summary>False disables the editor (read-only host, or button mapping suspended).</summary>
     public bool CanEdit { get; }
 
-    /// <summary>True when this button already holds a binding this editor can't model (a mouse/scroll
-    /// binding, or a multi-key macro) — surfaced so the user knows the editor will replace it.</summary>
+    /// <summary>True when this button already holds a binding this editor can't model (a scroll
+    /// binding, Windows Ink, or a multi-key macro) — surfaced so the user knows it'll be replaced.</summary>
     public bool IsOtherBinding { get; }
     public string OtherLabel { get; }
 
     /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
 
+    partial void OnSelectedKindChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsKeyboard));
+        OnPropertyChanged(nameof(IsMouse));
+        ApplyIfChanged();
+    }
+
     partial void OnCtrlChanged(bool value) => ApplyIfChanged();
     partial void OnShiftChanged(bool value) => ApplyIfChanged();
     partial void OnAltChanged(bool value) => ApplyIfChanged();
     partial void OnSelectedKeyChanged(string value) => ApplyIfChanged();
+    partial void OnSelectedMouseButtonChanged(string value) => ApplyIfChanged();
+
+    private AuxBinding Current() => IsMouse
+        ? new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton)
+        : new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey), AuxKeyBinding.None);
 
     private void ApplyIfChanged()
     {
-        // Skip programmatic sets and the picker's transient null during init.
-        if (_suppressApply || _applyCombo == null || string.IsNullOrEmpty(SelectedKey)) return;
-        var combo = new AuxCombo(Ctrl, Shift, Alt, SelectedKey);
-        if (combo == _appliedCombo) return; // binding round-trip / no real change
-        // Toggling modifiers while there's still no key isn't a real binding — don't persist (avoids a
-        // refresh that would immediately reset the checkbox the user just ticked).
-        if (!combo.IsBound && !_appliedCombo.IsBound) { _appliedCombo = combo; return; }
-        _appliedCombo = combo;
-        _ = _applyCombo(Index, combo);
+        if (_suppressApply || _applyBinding == null) return;
+        // The pickers can momentarily report null while binding initializes; ignore that.
+        if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
+        if (IsMouse && string.IsNullOrEmpty(SelectedMouseButton)) return;
+
+        var binding = Current();
+        if (binding == _applied) return; // round-trip / no real change
+
+        // Persist a bound result, or an explicit clear within the same type (key/button set to None).
+        // A type switch that doesn't yet have a value just updates the editor — don't persist (which
+        // would refresh and snap the type back).
+        var isClearWithinKind = binding.Kind == _applied.Kind && !binding.IsBound && _applied.IsBound;
+        if (!binding.IsBound && !isClearWithinKind) { _applied = binding; return; }
+        _applied = binding;
+        _ = _applyBinding(Index, binding);
     }
 }

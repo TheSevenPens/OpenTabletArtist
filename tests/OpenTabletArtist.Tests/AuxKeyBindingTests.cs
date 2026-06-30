@@ -115,6 +115,59 @@ public class AuxKeyBindingTests
         modsOnly.Settings.Add(new PluginSetting("Keys", "Control+Shift")); // no actual key
         Assert.Null(AuxKeyBinding.ReadCombo(modsOnly));
 
-        Assert.Null(AuxKeyBinding.ReadCombo(StoreAt("OpenTabletDriver.Desktop.Binding.MouseBinding")));
+        Assert.Null(AuxKeyBinding.ReadCombo(StoreAt(AuxKeyBinding.MouseBindingPath)));
+    }
+
+    // ── Mouse buttons + unified read/write ──────────────────────────
+
+    [Fact]
+    public void MakeMouseBinding_BuildsMouseBindingStore()
+    {
+        var store = AuxKeyBinding.MakeMouseBinding("Right");
+        Assert.Equal(AuxKeyBinding.MouseBindingPath, store!.Path);
+        Assert.Equal("Right", store.Settings.First(s => s.Property == "Button").Value!.ToString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("None")]
+    public void MakeMouseBinding_UnboundForNone(string? button)
+    {
+        Assert.Null(AuxKeyBinding.MakeMouseBinding(button));
+    }
+
+    [Fact]
+    public void ReadBinding_DispatchesByType()
+    {
+        Assert.Equal(AuxBinding.Unbound, AuxKeyBinding.ReadBinding(null));
+
+        var key = AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeKeyBinding("A"));
+        Assert.Equal(AuxKind.Keyboard, key!.Kind);
+        Assert.Equal("A", key.Combo.Key);
+
+        var mouse = AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeMouseBinding("Backward"));
+        Assert.Equal(AuxKind.Mouse, mouse!.Kind);
+        Assert.Equal("Backward", mouse.MouseButton);
+
+        // A binding the editor can't model → null (flagged in the UI, not misrepresented).
+        Assert.Null(AuxKeyBinding.ReadBinding(StoreAt("OpenTabletDriver.Desktop.Binding.MouseScrollBinding")));
+    }
+
+    [Fact]
+    public void MakeBinding_UnifiedRoundTrips()
+    {
+        var mouse = new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, "Middle");
+        Assert.Equal(mouse, AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeBinding(mouse)));
+
+        var combo = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, false, true, "S"), AuxKeyBinding.None);
+        Assert.Equal(combo, AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeBinding(combo)));
+    }
+
+    [Fact]
+    public void MouseButtonOptions_StartWithNone_AndMapBackToBackward()
+    {
+        Assert.Equal(AuxKeyBinding.None, AuxKeyBinding.MouseButtonOptions[0].Value);
+        Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Display == "Back" && o.Value == "Backward");
+        Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Value == "Left");
     }
 }

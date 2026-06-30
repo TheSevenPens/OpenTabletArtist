@@ -18,6 +18,19 @@ public sealed record AuxCombo(bool Ctrl, bool Shift, bool Alt, string Key)
     public bool IsBound => !string.IsNullOrEmpty(Key) && Key != AuxKeyBinding.None;
 }
 
+/// <summary>The kind of action an express key performs.</summary>
+public enum AuxKind { Keyboard, Mouse }
+
+/// <summary>A full express-key binding the editor can model: either a keyboard <see cref="AuxCombo"/>
+/// or a mouse button. Carries both so the UI keeps each editor's state while switching type.</summary>
+public sealed record AuxBinding(AuxKind Kind, AuxCombo Combo, string MouseButton)
+{
+    public static readonly AuxBinding Unbound = new(AuxKind.Keyboard, AuxCombo.Unbound, AuxKeyBinding.None);
+    public bool IsBound => Kind == AuxKind.Mouse
+        ? !string.IsNullOrEmpty(MouseButton) && MouseButton != AuxKeyBinding.None
+        : Combo.IsBound;
+}
+
 /// <summary>
 /// Reads/writes a single-key "Key Binding" (OTD's <c>KeyBinding</c>) on a tablet's auxiliary buttons.
 /// The simplest mapping: an express key sends one keyboard key. An unbound button is a <c>null</c>
@@ -27,6 +40,7 @@ public static class AuxKeyBinding
 {
     public const string KeyBindingPath = "OpenTabletDriver.Desktop.Binding.KeyBinding";
     public const string MultiKeyBindingPath = "OpenTabletDriver.Desktop.Binding.MultiKeyBinding";
+    public const string MouseBindingPath = "OpenTabletDriver.Desktop.Binding.MouseBinding";
 
     /// <summary>Picker sentinel + OTD's own key name for "no key": maps to an unbound button.</summary>
     public const string None = "None";
@@ -51,9 +65,7 @@ public static class AuxKeyBinding
     public static PluginSettingStore? MakeKeyBinding(string? key)
     {
         if (string.IsNullOrEmpty(key) || key == None) return null;
-        var store = JsonConvert.DeserializeObject<PluginSettingStore>(
-            $$"""{"Path":"{{KeyBindingPath}}","Enable":true,"Settings":[]}""")!;
-        store.Settings ??= new ObservableCollection<PluginSetting>();
+        var store = NewStore(KeyBindingPath);
         store.Settings.Add(new PluginSetting("Key", key));
         return store;
     }
@@ -99,10 +111,61 @@ public static class AuxKeyBinding
         if (combo.Alt) parts.Add("Alt");
         parts.Add(combo.Key);
 
-        var store = JsonConvert.DeserializeObject<PluginSettingStore>(
-            $$"""{"Path":"{{MultiKeyBindingPath}}","Enable":true,"Settings":[]}""")!;
-        store.Settings ??= new ObservableCollection<PluginSetting>();
+        var store = NewStore(MultiKeyBindingPath);
         store.Settings.Add(new PluginSetting("Keys", string.Join("+", parts)));
+        return store;
+    }
+
+    /// <summary>The mouse button assigned to an aux store, or "None" when unbound / not a mouse binding.</summary>
+    public static string ReadMouseButton(PluginSettingStore? store)
+    {
+        if (store?.Path != MouseBindingPath) return None;
+        var b = store.Settings?.FirstOrDefault(s => s.Property == "Button")?.Value?.ToString();
+        return string.IsNullOrEmpty(b) ? None : b;
+    }
+
+    /// <summary>A Mouse Button Binding store, or null (unbound) for "None"/empty.</summary>
+    public static PluginSettingStore? MakeMouseBinding(string? button)
+    {
+        if (string.IsNullOrEmpty(button) || button == None) return null;
+        var store = NewStore(MouseBindingPath);
+        store.Settings.Add(new PluginSetting("Button", button));
+        return store;
+    }
+
+    /// <summary>Parse any aux store into the editor's unified model, or null when it's a binding the
+    /// editor can't represent (scroll, adaptive, Windows Ink, or a multi-key macro).</summary>
+    public static AuxBinding? ReadBinding(PluginSettingStore? store)
+    {
+        if (store?.Path == null) return AuxBinding.Unbound;
+        if (store.Path == MouseBindingPath)
+            return new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, ReadMouseButton(store));
+        var combo = ReadCombo(store);
+        return combo == null ? null : new AuxBinding(AuxKind.Keyboard, combo, None);
+    }
+
+    /// <summary>Build the store for a unified binding (keyboard combo or mouse button); null = unbound.</summary>
+    public static PluginSettingStore? MakeBinding(AuxBinding binding) => binding.Kind == AuxKind.Mouse
+        ? MakeMouseBinding(binding.MouseButton)
+        : MakeBinding(binding.Combo);
+
+    /// <summary>Mouse buttons offered in the picker (OTD's MouseButton enum names; "Back" reads nicer
+    /// than the stored "Backward").</summary>
+    public static IReadOnlyList<KeyOption> MouseButtonOptions { get; } = new List<KeyOption>
+    {
+        new("None", None),
+        new("Left", "Left"),
+        new("Right", "Right"),
+        new("Middle", "Middle"),
+        new("Back", "Backward"),
+        new("Forward", "Forward"),
+    };
+
+    private static PluginSettingStore NewStore(string path)
+    {
+        var store = JsonConvert.DeserializeObject<PluginSettingStore>(
+            $$"""{"Path":"{{path}}","Enable":true,"Settings":[]}""")!;
+        store.Settings ??= new ObservableCollection<PluginSetting>();
         return store;
     }
 
