@@ -62,23 +62,30 @@ public partial class CalibrationOverlayWindow : Window
         }
     }
 
-    // Match the Avalonia screen to the target display by position, then size the window to it (DIPs).
+    // Cover the mapped display. Pick the Avalonia screen by containment of the target display's
+    // centre (robust to rounding / DPI), rather than matching the top-left exactly — the old exact
+    // match could miss and leave the overlay stuck on the primary display (#179). Size first, then
+    // set Position last so the placement is the final operation (a later size change can otherwise
+    // nudge the window back toward the startup location).
     private void PlaceOnDisplay()
     {
         if (_display is not { } display) return;
-        foreach (var s in Screens.All)
+
+        var centre = new PixelPoint(display.X + display.Width / 2, display.Y + display.Height / 2);
+        var screen = Screens.ScreenFromPoint(centre);
+
+        if (screen != null)
         {
-            if (Math.Abs(s.Bounds.X - display.X) <= 2 && Math.Abs(s.Bounds.Y - display.Y) <= 2)
-            {
-                Position = s.Bounds.Position;
-                Width = s.Bounds.Width / s.Scaling;
-                Height = s.Bounds.Height / s.Scaling;
-                return;
-            }
+            Width = screen.Bounds.Width / screen.Scaling;
+            Height = screen.Bounds.Height / screen.Scaling;
+            Position = screen.Bounds.Position;
         }
-        Position = new PixelPoint(display.X, display.Y);
-        Width = display.Width;
-        Height = display.Height;
+        else
+        {
+            Width = display.Width;
+            Height = display.Height;
+            Position = new PixelPoint(display.X, display.Y);
+        }
     }
 
     private void BuildAndLayout()
