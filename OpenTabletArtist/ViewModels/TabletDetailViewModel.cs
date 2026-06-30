@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -386,23 +387,31 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// so the Filters tab tracks the DynamicsFilter's enabled state without a manual Refresh.</summary>
     private void UpdateFiltersDisplay()
     {
-        if (_profile.Filters.Count > 0)
+        Filters.Clear();
+        foreach (var f in _profile.Filters)
         {
-            var filterNames = _profile.Filters.Select(f =>
-            {
-                var name = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
-                var enabled = f?.Enable ?? true;
-                return enabled ? name : $"{name} (disabled)";
-            });
-            FiltersText = string.Join("\n", filterNames);
+            var path = f?.Path ?? "Unknown";
+            var typeName = path.Split('.').LastOrDefault() ?? "Unknown";
+            Filters.Add(new FilterCardViewModel(
+                title: FriendlyFilterName(typeName),
+                fullPath: path,
+                enabled: f?.Enable ?? true,
+                origin: ProfileFilterMaintenance.Classify(path)));
         }
-        else
-        {
-            FiltersText = "No filters configured";
-        }
+        HasFilters = Filters.Count > 0;
 
         RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
     }
+
+    /// <summary>Maps our plugin filter class names to the friendly labels they carry as
+    /// <c>[PluginName]</c> in the plugin; anything else (third-party filters) keeps its type name.</summary>
+    private static string FriendlyFilterName(string typeName) => typeName switch
+    {
+        "DynamicsFilter" => "Pen Dynamics",
+        "HoverFilter" => "Hover Limit",
+        "CalibrationFilter" => "Calibration",
+        _ => typeName,
+    };
 
     [RelayCommand]
     private async Task FixOutputMode()
@@ -491,7 +500,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
-    [ObservableProperty] private string _filtersText = "";
+    /// <summary>One card per filter on the profile (Filters tab). Rebuilt by <see cref="UpdateFiltersDisplay"/>.</summary>
+    public ObservableCollection<FilterCardViewModel> Filters { get; } = new();
+
+    /// <summary>False when the profile has no filters — the Filters tab shows its empty state.</summary>
+    [ObservableProperty] private bool _hasFilters;
     [ObservableProperty] private string _rawJson = "";
 
     // ── Pressure curve tab ──────────────────────────────────────
@@ -698,6 +711,30 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     }
 }
 
+/// <summary>A single filter on a tablet's profile, shown as a card in the Filters tab.</summary>
+public sealed class FilterCardViewModel
+{
+    public FilterCardViewModel(string title, string fullPath, bool enabled,
+        ProfileFilterMaintenance.FilterOrigin origin)
+    {
+        Title = title;
+        FullPath = fullPath;
+        Enabled = enabled;
+        IsLegacy = origin == ProfileFilterMaintenance.FilterOrigin.Legacy;
+    }
+
+    /// <summary>Friendly label (e.g. "Pen Dynamics") or the raw type name for unknown filters.</summary>
+    public string Title { get; }
+    /// <summary>The filter's full type path (with namespace) — the subtitle. Showing the namespace is
+    /// what makes a stale duplicate (old vs current namespace) visibly distinct rather than identical.</summary>
+    public string FullPath { get; }
+    public bool Enabled { get; }
+    public string StatusText => Enabled ? "Enabled" : "Disabled";
+    /// <summary>True for a filter left over from an older app/plugin name — inert (the driver has no
+    /// plugin for it) and normally cleaned on load, but flagged so a stray one stands out.</summary>
+    public bool IsLegacy { get; }
+}
+
 public partial class PenSwitchRowViewModel : ObservableObject
 {
     private readonly PenSwitchKind _kind;
@@ -783,4 +820,8 @@ public class ButtonBinding
     public int Index { get; set; }
     public string Name { get; set; } = "None";
     public string Label => $"Button {Index}";
+    /// <summary>An aux button is "bound" when it has a real binding (anything but the empty "None").</summary>
+    public bool IsBound => !string.IsNullOrEmpty(Name) && Name != "None";
+    /// <summary>The binding shown on the card — the binding name, or "Unbound" when there's none.</summary>
+    public string DisplayBinding => IsBound ? Name : "Unbound";
 }
