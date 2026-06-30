@@ -69,8 +69,9 @@
                             <TextBlock Grid.Column="2"
                                        x:Name="Label"
                                        Text="{TemplateBinding Content}"
+                                       FontFamily="Segoe UI"
                                        FontSize="13"
-                                       FontWeight="Medium"
+                                       FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
@@ -252,8 +253,9 @@
 
     <!-- Page Title -->
     <Style Selector="TextBlock.PageTitle">
+        <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="28" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="Light" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Margin" Value="0,0,0,4" />
     </Style>
