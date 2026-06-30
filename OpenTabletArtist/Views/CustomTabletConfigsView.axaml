@@ -5,7 +5,7 @@
 
     <!-- DataContext is the CustomTabletConfigsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Custom Tablet Configs" />
+        <TextBlock Classes="PageTitle" Text="CUSTOM TABLET CONFIGS" />
         <TextBlock Classes="PageSubtitle"
                    Text="Tablet config JSON files in OpenTabletDriver's Configurations folder" />
 

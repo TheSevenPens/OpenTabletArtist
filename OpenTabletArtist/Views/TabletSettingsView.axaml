@@ -4,7 +4,7 @@
 
     <!-- DataContext is the TabletSettingsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="Paired Tablets" />
+        <TextBlock Classes="PageTitle" Text="PAIRED TABLETS" />
         <TextBlock Classes="PageSubtitle" Text="Tablets that have been detected" />
 
         <ItemsControl ItemsSource="{Binding Profiles}">

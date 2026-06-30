@@ -4,7 +4,7 @@
 
     <!-- DataContext is the AboutViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="About" />
+        <TextBlock Classes="PageTitle" Text="ABOUT" />
 
         <Border Classes="GlassPanel">
             <StackPanel>

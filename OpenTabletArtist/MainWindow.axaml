@@ -32,44 +32,44 @@
                                VerticalAlignment="Center" Margin="12,0,0,0" />
                 </StackPanel>
 
-                <!-- Nav Items -->
+                <!-- Nav Items (labels in all caps) -->
                 <StackPanel Margin="8,0,8,0">
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="DASHBOARD"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Paired Tablets"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="PAIRED TABLETS"
                                  IsChecked="{Binding IsTabletSettings, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletSettings}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Saved Settings"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="SAVED SETTINGS"
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Custom Tablet Configs"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET CONFIGS"
                                  IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Utilities"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="UTILITIES"
                                  IsChecked="{Binding IsUtilities, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Diagnostics"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
                                  IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Test"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="TEST"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Plugins"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="PLUGINS"
                                  IsChecked="{Binding IsPlugins, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="Settings"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="SETTINGS"
                                  IsChecked="{Binding IsSettings, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="About"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="ABOUT"
                                  IsChecked="{Binding IsAbout, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
                                  Margin="0,2,0,0" />
