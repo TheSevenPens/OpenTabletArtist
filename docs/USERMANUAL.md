@@ -47,7 +47,7 @@ The **Start / Stop / Restart** daemon actions show an inline progress bar with l
 
 Lists all tablet profiles. Click **Open** or double-click a card to open the settings dialog.
 
-The settings dialog has six tabs:
+The settings dialog has seven tabs:
 
 - **Screen Mapping** — Output mode is an **Absolute / Relative** toggle (Absolute is noted as recommended for drawing, since it carries pressure & tilt; a warning + Fix appears if the profile is on a non-Windows-Ink mode). **Area Mapping** shows a graphical layout of your monitors (like Windows Display Settings) — each drawn to scale and position with its number, name, resolution, and refresh rate (e.g. "2560×1440 · 144 Hz", when Windows reports it). Click a monitor to select it (the one the tablet is currently mapped to starts highlighted), then **Apply mapping** to map the tablet to that whole display with aspect-ratio lock enforced. Selecting a different monitor shows a "Display selection changed — click Apply mapping to save it" hint, so it's clear the choice isn't live until you apply it. You map to **one** display at a time (no "all displays" span). The card also has **Display Settings** (opens Windows Display Settings) and a **Refresh** icon (re-reads monitors); the layout also updates automatically if you add or remove a display while the dialog is open. A **Calibrate…** button (Absolute mode only) opens a full-screen overlay on the mapped display where you tap the targets with the pen; the helper computes a correction so the cursor lands where you see the nib (useful for pen displays), previews it live, and lets you Apply, Redo, or Clear. A **mode** selector next to the button chooses how it captures:
 
@@ -62,6 +62,7 @@ The correction is applied by a bundled OpenTabletDriver filter, so it's tied to 
   - **Smoothing (jitter reduction)** — **Position** smoothing steadies wobbly lines and **Pressure** smoothing evens out pressure jitter (each 0 = off to 1 = max; the amount is perceptually scaled, like Slimy Scylla, so the slider feels even across its range). **Order** chooses whether smoothing runs after the curve (*Curve → Smooth*, default) or before it. Smoothing applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over from the previous one.
   - **Reset all** (in the tab header) returns the curve, both smoothing amounts, and the order to their defaults in one click (it leaves the On/Off toggle as you set it). The curve's own **Reset** button only resets the curve.
   - Edits are debounced and applied to the daemon automatically.
+- **Hover** — Limits the pen's **hover height** (#188). Toggle it on and set **Max hover** — once the pen lifts farther than this from the surface, the cursor stops tracking (it holds its last position) instead of being dragged around by a raised pen. Drawing is unaffected (in contact the hover distance is ~0, always within the limit). Hover distance is 0–255 and **not all tablets report it** — check the Diagnostics page for your tablet's live hover values to pick a limit. Enforced by the bundled *OTD Artist – Hover Limit* filter; edits are debounced and applied automatically.
 - **Filters** — Configured input filters with enabled/disabled status.
 - **JSON** — Raw JSON view of the profile data.
 

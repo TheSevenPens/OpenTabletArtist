@@ -44,6 +44,20 @@ public class PluginTypeNameGuardTests
         Assert.Contains(type!.GetInterfaces(), i => i.Name.StartsWith("IPositionedPipelineElement"));
     }
 
+    [Fact]
+    public void HoverFilterTypeName_ResolvesToABuiltPluginPipelineElement()
+    {
+        var dll = FindPluginDll();
+        Assert.True(dll != null, "Plugin DLL not found — build the solution (it compiles the plugin).");
+
+        var asm = Assembly.LoadFrom(dll!);
+        var type = asm.GetType(HoverProfile.FilterTypeName);
+        Assert.True(type != null,
+            $"HoverProfile.FilterTypeName ('{HoverProfile.FilterTypeName}') matches no type in the " +
+            "plugin assembly — the hover filter was renamed; update the constant (#188).");
+        Assert.Contains(type!.GetInterfaces(), i => i.Name.StartsWith("IPositionedPipelineElement"));
+    }
+
     // Walk up from the test output dir to the repo root and locate the built plugin DLL (the test
     // project doesn't reference the plugin; the solution build produces it).
     private static string? FindPluginDll()
