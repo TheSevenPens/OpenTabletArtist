@@ -56,4 +56,32 @@ public class TabletSettingsDialogViewModelTests
         await vm.FixOutputModeCommand.ExecuteAsync(null);
         Assert.Same(original, pushed);
     }
+
+    // #179 follow-up: a changed display selection must read as "pending" until Apply, but the dialog
+    // must not open already-pending before the user touches anything.
+    [Fact]
+    public void MappingChangePending_FalseOnOpen_TrueAfterChangingSelection()
+    {
+        var settings = SettingsWith("T");
+        var vm = new TabletSettingsDialogViewModel(
+            settings.Profiles.First(), settings,
+            applyAction: _ => Task.CompletedTask);
+
+        Assert.False(vm.MappingChangePending); // as opened, nothing changed
+
+        // Selecting a display that isn't the applied mapping marks the change pending.
+        vm.SelectedDisplayNumber = 999;
+        Assert.True(vm.MappingChangePending);
+    }
+
+    [Fact]
+    public void MappingChangePending_False_WhenNoApplyAction()
+    {
+        var settings = SettingsWith("T");
+        var vm = new TabletSettingsDialogViewModel(settings.Profiles.First(), settings); // read-only (no apply)
+
+        vm.SelectedDisplayNumber = 999;
+
+        Assert.False(vm.MappingChangePending); // can't apply, so never "pending"
+    }
 }

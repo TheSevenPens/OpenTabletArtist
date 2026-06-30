@@ -125,6 +125,37 @@ public class CalibrationViewModelTests
     }
 
     [Fact]
+    public void CornersMode_WritesHomographyModel()
+    {
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
+
+        var cal = CalibrationProfile.Read(settings, "T");
+        Assert.Equal(CalibrationProfile.CalibrationModel.Homography, cal!.Model);
+        Assert.True(cal.Enabled);
+    }
+
+    [Fact]
+    public void GridMode_CapturesEveryNode_ThenWritesGridModel()
+    {
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var ctx = new CalibrationViewModel.Context(
+            "T", Digi, Input, Output, Display, settings,
+            _ => Task.CompletedTask, new NoopDebugSession(),
+            CalibrationMode.Grid, GridCols: 3, GridRows: 3);
+        var vm = new CalibrationViewModel(ctx);
+
+        Assert.Equal(9, vm.Targets.Count);
+        for (int i = 0; i < 9; i++) Tap(vm, i);
+
+        Assert.True(vm.IsConfirming);
+        var cal = CalibrationProfile.Read(settings, "T");
+        Assert.Equal(CalibrationProfile.CalibrationModel.Grid, cal!.Model);
+        Assert.NotNull(cal.Grid);
+        Assert.Equal(3, cal.Grid!.Cols);
+    }
+
+    [Fact]
     public void Clear_RemovesCalibration()
     {
         var (vm, settings, _) = NewVm();
