@@ -5,12 +5,13 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Desktop.Updater;
+using OpenTabletDriver.Plugin.Logging;
 using OpenTabletArtist.Concurrency;
 using StreamJsonRpc;
 
 namespace OpenTabletArtist.Services;
 
-public class DaemonClient : IDisposable, IDaemonDebugSession
+public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
 {
     private const string PipeName = "OpenTabletDriver.Daemon";
 
@@ -36,6 +37,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     /// list) is intentionally not surfaced so consumers stay decoupled from its shape (#170).
     /// </summary>
     public event Action? TabletsChanged;
+    /// <summary>The daemon forwarded a log message (its <c>Message</c> event). Fires off the RPC
+    /// thread — subscribers marshal to the UI thread. (#console)</summary>
+    public event Action<LogMessage>? LogReceived;
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     /// <summary>
@@ -98,6 +102,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
                 // new tablet list. We ignore the payload and just signal (accept it as a loose JToken so a
                 // null/empty list can't fault the dispatch), then reload authoritatively (#170).
                 rpc.AddLocalRpcMethod("TabletsChanged", new Action<JToken?>(OnTabletsChanged));
+                // The daemon forwards its Message event as a same-named notification carrying a
+                // serialized LogMessage; surface it for the Console page (#console).
+                rpc.AddLocalRpcMethod("Message", new Action<JObject>(OnLogMessage));
                 rpc.StartListening();
                 Connected?.Invoke();
                 return;
@@ -163,6 +170,28 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     private void OnTabletsChanged(JToken? tablets)
     {
         TabletsChanged?.Invoke();
+    }
+
+    private void OnLogMessage(JObject data)
+    {
+        var message = data.ToObject<LogMessage>();
+        if (message != null) LogReceived?.Invoke(message);
+    }
+
+    /// <summary>Snapshot of the daemon's current log buffer (seeds the Console on connect). Empty when
+    /// not connected or on error.</summary>
+    public async Task<List<LogMessage>> GetCurrentLogAsync()
+    {
+        if (_rpc == null) return [];
+        try
+        {
+            var log = await _rpc.InvokeAsync<List<LogMessage>>("GetCurrentLog");
+            return log ?? [];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     /// <summary>

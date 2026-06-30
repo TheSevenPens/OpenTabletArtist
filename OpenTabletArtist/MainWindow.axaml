@@ -69,6 +69,10 @@
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
                                  Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="CONSOLE"
+                                 IsChecked="{Binding IsConsole, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Console}"
+                                 Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="PLUGINS"
                                  IsChecked="{Binding IsPlugins, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
