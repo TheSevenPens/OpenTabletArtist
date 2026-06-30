@@ -37,6 +37,12 @@
                 <TextBlock Text="Your choice is remembered across restarts."
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,2,0,0" />
+
+                <!-- Sakura-only: toggle the falling-petal animation (#207). -->
+                <CheckBox IsChecked="{Binding PetalsEnabled}"
+                          IsVisible="{Binding ShowPetalsToggle}"
+                          Content="Falling petals" FontSize="13" Margin="0,12,0,0"
+                          ToolTip.Tip="Animate drifting cherry-blossom petals in the Sakura theme" />
             </StackPanel>
         </Border>
     </StackPanel>
