@@ -820,4 +820,8 @@ public class ButtonBinding
     public int Index { get; set; }
     public string Name { get; set; } = "None";
     public string Label => $"Button {Index}";
+    /// <summary>An aux button is "bound" when it has a real binding (anything but the empty "None").</summary>
+    public bool IsBound => !string.IsNullOrEmpty(Name) && Name != "None";
+    /// <summary>The binding shown on the card — the binding name, or "Unbound" when there's none.</summary>
+    public string DisplayBinding => IsBound ? Name : "Unbound";
 }

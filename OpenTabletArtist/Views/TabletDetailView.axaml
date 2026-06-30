@@ -224,30 +224,36 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- ExpressKeys tab content -->
+        <!-- ExpressKeys tab content: one card per auxiliary button. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenButtonsTab.IsChecked}">
             <StackPanel>
-                <!-- Aux Buttons -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="AUXILIARY BUTTONS" Classes="SectionLabel" />
-                        <ItemsControl ItemsSource="{Binding AuxButtons}" Margin="0,8,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
-                                        <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
-                                        <TextBlock Text="{Binding Name}" FontSize="11"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                <TextBlock Text="AUXILIARY BUTTONS" Classes="SectionLabel" Margin="0,0,0,8" />
+
+                <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Classes="statusMark" Classes.success="{Binding IsBound}" />
+                                        <TextBlock Text="{Binding DisplayBinding}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
                                     </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <TextBlock Text="No auxiliary buttons configured" FontSize="11" FontStyle="Italic"
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
-                                   IsVisible="{Binding NoAuxButtons}" />
-                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Empty state when the tablet has no auxiliary buttons. -->
+                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding NoAuxButtons}">
+                    <TextBlock Text="No auxiliary buttons configured" FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
             </StackPanel>
         </ScrollViewer>
