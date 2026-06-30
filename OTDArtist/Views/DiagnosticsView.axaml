@@ -30,6 +30,15 @@
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsVisible="{Binding IsDebugging}" />
                     </StackPanel>
+
+                    <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
+                                IsVisible="{Binding ShowTabletPicker}">
+                        <TextBlock Text="Show" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox ItemsSource="{Binding TabletNames}" SelectedItem="{Binding SelectedTablet}"
+                                  MinWidth="200" />
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="Start" Command="{Binding ToggleDebuggingCommand}"

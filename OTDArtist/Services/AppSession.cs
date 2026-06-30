@@ -34,6 +34,10 @@ public interface IConnectionState : INotifyPropertyChanged
     bool ShowForeignDaemonWarning { get; }
     bool ShowDaemonSourceUnknown { get; }
     bool CanStartDaemon { get; }
+    /// <summary>The daemon exe couldn't be found (not built / not bundled) and none is running, so a
+    /// connect attempt is pointless. Checked before every connect; surfaces a clear "build the
+    /// solution" message instead of a silent 30s timeout.</summary>
+    bool IsDaemonExeMissing { get; }
     /// <summary>Offer Start only when not connected and not mid-connect (drives the tray + dashboard).</summary>
     bool ShowStartButton { get; }
     string DaemonStatusText { get; }
@@ -64,6 +68,15 @@ public interface ISettingsCoordinator
 public interface IDeviceData : INotifyPropertyChanged
 {
     JToken? Tablets { get; }
+    /// <summary>Every currently-connected tablet (one Dashboard card each, #190). The scalar
+    /// <see cref="HasTablet"/>/<see cref="TabletName"/>/… below mirror the first entry for back-compat.</summary>
+    IReadOnlyList<DetectedTablet> DetectedTablets { get; }
+    /// <summary>The tablet that single-target flows (tray actions, Test, Diagnostics) act on. Defaults
+    /// to the first connected tablet and stays valid as tablets come and go; user-selectable when more
+    /// than one is connected (#190 phase 3). Null when nothing is connected.</summary>
+    string? ActiveTabletName { get; }
+    /// <summary>Choose the active tablet. Ignored unless <paramref name="name"/> is a connected tablet.</summary>
+    void SetActiveTablet(string? name);
     bool HasTablet { get; }
     string TabletName { get; }
     string TabletArea { get; }
@@ -108,6 +121,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
     [ObservableProperty] private string _daemonStatusText = "Not connected";
+    [ObservableProperty] private bool _isDaemonExeMissing;
+
+    /// <summary>Message shown when <see cref="IsDaemonExeMissing"/> — the most common cause of a
+    /// dead connection (building only the app, or only running the test suite, never produces the
+    /// standalone daemon exe).</summary>
+    public const string DaemonExeMissingMessage =
+        "OpenTabletDriver.Daemon.exe wasn't found and no daemon is running. Build the whole " +
+        "solution (dotnet build OTDArtist.slnx) so the daemon is produced, then try again.";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
     [ObservableProperty] private bool _isDaemonBusy;
@@ -144,6 +165,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
+    [ObservableProperty] private List<DetectedTablet> _detectedTablets = [];
+    [ObservableProperty] private string? _activeTabletName;
     [ObservableProperty] private bool _hasTablet;
     [ObservableProperty] private string _tabletName = "";
     [ObservableProperty] private string _tabletArea = "";
@@ -157,6 +180,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     IReadOnlyList<ProfileItem> IDeviceData.Profiles => Profiles;
+    IReadOnlyList<DetectedTablet> IDeviceData.DetectedTablets => DetectedTablets;
+
+    /// <summary>Choose the active tablet (#190 phase 3). Ignored unless it's a connected tablet, so a
+    /// stale pick from the UI can't point the single-target flows at a disconnected tablet.</summary>
+    public void SetActiveTablet(string? name)
+    {
+        if (name != null && DetectedTablets.Any(t => t.Name == name))
+            ActiveTabletName = name;
+    }
     public Settings? CurrentSettings => _settings;
     public event Action? DataLoaded;
 
@@ -171,6 +203,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
+            // Connected, so the exe clearly isn't missing — clear the flag and its stale message.
+            IsDaemonExeMissing = false;
+            if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             UpdateDaemonSource();
             Connected?.Invoke();
             _ = LoadDataAsync();
@@ -185,6 +220,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonSourcePath = "";
             HasTablet = false;
             TabletName = "";
+            DetectedTablets = [];
+            ActiveTabletName = null;
             _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
         });
@@ -227,8 +264,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <remarks>UI-thread only — it mutates observable connection state directly.</remarks>
     public async Task StartAndConnectAsync()
     {
+        // Start the poll up front: it's a no-op while disconnected and keeps device data fresh once
+        // a connection is established (even via a later Start), regardless of the early return below.
+        _ = PollDataAsync();
+
         IsDaemonRunning = _daemonLifecycle.IsRunning();
-        if (!IsDaemonRunning && _daemonLifecycle.FindExe() != null)
+
+        // Specific pre-connect check (the #1 cause of a dead connection): with no exe to launch and
+        // nothing already running, a connect attempt would just time out. Say so plainly and stop.
+        if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
+        IsDaemonExeMissing = false;
+
+        if (!IsDaemonRunning)
         {
             _daemonLifecycle.Launch();
             await Task.Delay(1000);
@@ -236,8 +283,21 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         ConnectionStatus = "Connecting...";
         await _daemon.ConnectAsync(_cts.Token);
-        _ = PollDataAsync();
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
+    }
+
+    /// <summary>Is there a daemon to talk to — our exe present to launch, or one already running
+    /// (including a separately-installed instance)? Gates every connect path so a missing build
+    /// surfaces a clear message rather than a silent timeout.</summary>
+    private bool DaemonReachable() =>
+        _daemonLifecycle.ExpectedExePath() != null || _daemonLifecycle.IsRunning();
+
+    /// <summary>Flag the daemon exe as missing and surface the message; no connect is attempted.</summary>
+    private void SetDaemonExeMissing()
+    {
+        IsDaemonExeMissing = true;
+        DaemonOperationError = DaemonExeMissingMessage;
+        ConnectionStatus = "Disconnected";
     }
 
     /// <summary>Begins (re)connecting to the daemon. Used by the shell's Refresh when disconnected.</summary>
@@ -245,6 +305,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// commands below have the same contract (invoked from UI command paths).</remarks>
     public Task ConnectAsync()
     {
+        if (!DaemonReachable()) { SetDaemonExeMissing(); return Task.CompletedTask; }
+        IsDaemonExeMissing = false;
         ConnectionStatus = "Connecting...";
         var connect = _daemon.ConnectAsync(_cts.Token);
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
@@ -294,33 +356,40 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             Tablets = tablets;
 
             var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (tablets.Count > 0)
+            var detected = new List<DetectedTablet>(tablets.Count);
+            foreach (var t in tablets)
             {
-                foreach (var t in tablets)
+                var props = t["Properties"] ?? t;
+                var name = props["Name"]?.ToString();
+                if (!string.IsNullOrEmpty(name))
                 {
-                    var props = t["Properties"] ?? t;
-                    var name = props["Name"]?.ToString();
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        detectedNames.Add(name);
-                        // Key normalized to lower-case so the read side (keyed by the profile's
-                        // Tablet name) matches even if the daemon's reported casing drifts from the
-                        // profile's — detection is case-insensitive, so persistence must be too (#138).
-                        AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
-                    }
+                    detectedNames.Add(name);
+                    // Key normalized to lower-case so the read side (keyed by the profile's
+                    // Tablet name) matches even if the daemon's reported casing drifts from the
+                    // profile's — detection is case-insensitive, so persistence must be too (#138).
+                    AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
                 }
+                detected.Add(ParseDetectedTablet(t));
+            }
+            DetectedTablets = detected;
 
-                var first = tablets[0];
-                var firstProps = first["Properties"] ?? first;
+            // Keep the active tablet valid: clear it when nothing's connected, and default it to the
+            // first tablet when unset or when the previously-active one has disconnected (#190 phase 3).
+            if (detected.Count == 0)
+                ActiveTabletName = null;
+            else if (ActiveTabletName == null || detected.All(t => t.Name != ActiveTabletName))
+                ActiveTabletName = detected[0].Name;
+
+            if (detected.Count > 0)
+            {
+                // Scalars mirror the first tablet for back-compat; the Dashboard now shows all of
+                // them via DetectedTablets (#190).
+                var first = detected[0];
                 HasTablet = true;
-                TabletName = firstProps["Name"]?.ToString() ?? "Unknown";
-
-                var specs = firstProps["Specifications"];
-                var digi = specs?["Digitizer"];
-                var pen = specs?["Pen"];
-                TabletArea = $"{digi?["Width"]} x {digi?["Height"]} mm";
-                TabletPressure = pen?["MaxPressure"]?.ToString() ?? "?";
-                TabletButtons = pen?["ButtonCount"]?.ToString() ?? "?";
+                TabletName = first.Name;
+                TabletArea = first.Area;
+                TabletPressure = first.Pressure;
+                TabletButtons = first.Buttons;
             }
             else
             {
@@ -380,6 +449,21 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             _ = EnsurePressurePluginAsync();
         }
         catch { /* Data load failed — will retry on next connection/poll */ }
+    }
+
+    /// <summary>Parse one daemon tablet token into a <see cref="DetectedTablet"/> (name + formatted specs).</summary>
+    private static DetectedTablet ParseDetectedTablet(JToken t)
+    {
+        var props = t["Properties"] ?? t;
+        var name = props["Name"]?.ToString() ?? "Unknown";
+        var specs = props["Specifications"];
+        var digi = specs?["Digitizer"];
+        var pen = specs?["Pen"];
+        return new DetectedTablet(
+            name,
+            $"{digi?["Width"]} x {digi?["Height"]} mm",
+            pen?["MaxPressure"]?.ToString() ?? "?",
+            pen?["ButtonCount"]?.ToString() ?? "?");
     }
 
     /// <summary>Persistence key for a tablet's last-seen timestamp. Lower-cased so write (by detected
@@ -485,6 +569,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         DaemonOperationError = "";
         try
         {
+            // Nothing to launch and nothing running → don't spin a 30s timeout; say what's wrong.
+            if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
+            IsDaemonExeMissing = false;
+
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
             _daemonLifecycle.Launch();
@@ -540,6 +628,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         DaemonOperationError = "";
         try
         {
+            // Restart relaunches *our* build, so it needs our exe present — check before stopping,
+            // so we never kill a running daemon we can't bring back.
+            if (_daemonLifecycle.ExpectedExePath() == null) { SetDaemonExeMissing(); return; }
+            IsDaemonExeMissing = false;
+
             // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
             DaemonOperationStatus = "Stopping daemon…";
             _daemon.AutoReconnect = false;

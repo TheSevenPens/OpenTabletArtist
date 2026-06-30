@@ -60,6 +60,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public bool ShowStartButton => _session.ShowStartButton;
     public string DaemonOperationError => _session.DaemonOperationError;
     public bool HasDaemonOperationError => _session.HasDaemonOperationError;
+    public bool IsDaemonExeMissing => _session.IsDaemonExeMissing;
 
     public IAsyncRelayCommand StartDaemonCommand => _session.StartDaemonCommand;
     public IAsyncRelayCommand StopDaemonCommand => _session.StopDaemonCommand;
@@ -71,6 +72,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
     [ObservableProperty] private string _windowsInkStatusText = "Not configured";
 
+    /// <summary>One card per connected tablet (#190); empty when none, where the view shows the
+    /// "No tablet detected" placeholder instead.</summary>
+    [ObservableProperty] private List<DashboardTabletViewModel> _tablets = [];
+
     private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
@@ -78,13 +83,35 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             TabletStatusText = _session.HasTablet ? $"{_session.TabletName} detected" : "No tablet detected";
         if (e.PropertyName == nameof(IDeviceData.HasWindowsInk))
             WindowsInkStatusText = _session.HasWindowsInk ? "Plugin active" : "Plugin not active in current profile";
+        // Active tablet switched (e.g. from the tray or Test/Diagnostics) → refresh the card badge.
+        if (e.PropertyName == nameof(IDeviceData.ActiveTabletName))
+            RebuildTabletCards();
     }
 
     private void OnSessionDataLoaded()
     {
+        RebuildTabletCards();
+
         // The Windows Ink card reflects the daemon's plugin directory from the last data load.
         _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(_session.PluginDirectory);
         RefreshWindowsInkInstalledStatus();
+    }
+
+    // One card per connected tablet (#190). The active-tablet badge is only meaningful when there's a
+    // choice to make, so it's marked only when more than one tablet is connected.
+    private void RebuildTabletCards()
+    {
+        var active = _session.ActiveTabletName;
+        var multiple = _session.DetectedTablets.Count > 1;
+        Tablets = _session.DetectedTablets
+            .Select(t =>
+            {
+                var isActive = multiple && t.Name == active;
+                return new DashboardTabletViewModel(
+                    t, OpenTabletSettingsByNameAsync, _session.SetActiveTablet,
+                    isActive: isActive, showSetActive: multiple && !isActive);
+            })
+            .ToList();
     }
 
     [RelayCommand]
@@ -94,12 +121,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         else await _session.ConnectAsync();
     }
 
-    [RelayCommand]
-    private async Task OpenConnectedTabletSettings()
+    /// <summary>Open the per-tablet settings dialog for a specific connected tablet (#190).</summary>
+    private async Task OpenTabletSettingsByNameAsync(string tabletName)
     {
         var settings = _session.CurrentSettings;
-        if (!_session.HasTablet || string.IsNullOrEmpty(_session.TabletName) || settings == null) return;
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == _session.TabletName);
+        if (string.IsNullOrEmpty(tabletName) || settings == null) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile != null)
             await _dialogs.ShowTabletSettingsAsync(profile);
     }
@@ -527,4 +554,40 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _cts.Cancel();
         _cts.Dispose();
     }
+}
+
+/// <summary>One connected tablet on the Dashboard (#190): its name, a one-line spec summary, and a
+/// command to open that tablet's settings dialog.</summary>
+public partial class DashboardTabletViewModel : ObservableObject
+{
+    private readonly Func<string, Task> _openSettings;
+    private readonly Action<string> _setActive;
+
+    public DashboardTabletViewModel(DetectedTablet tablet, Func<string, Task> openSettings,
+        Action<string> setActive, bool isActive, bool showSetActive)
+    {
+        Name = tablet.Name;
+        SpecsText = $"{tablet.Area} · {tablet.Pressure} pressure levels · {tablet.Buttons} buttons";
+        IsActive = isActive;
+        ShowSetActive = showSetActive;
+        _openSettings = openSettings;
+        _setActive = setActive;
+    }
+
+    public string Name { get; }
+    public string SpecsText { get; }
+
+    /// <summary>This card is the active tablet (the one the single-target flows act on). Only set when
+    /// more than one tablet is connected, so a lone tablet doesn't show a redundant badge (#190).</summary>
+    public bool IsActive { get; }
+
+    /// <summary>Show the "Set active" action — i.e. more than one tablet is connected and this isn't
+    /// the active one (#190).</summary>
+    public bool ShowSetActive { get; }
+
+    [RelayCommand]
+    private Task OpenSettings() => _openSettings(Name);
+
+    [RelayCommand]
+    private void SetActive() => _setActive(Name);
 }

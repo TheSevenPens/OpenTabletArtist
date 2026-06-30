@@ -33,7 +33,7 @@ The landing page shows status cards:
   - **Daemon source unknown** (grey) — connected, but the daemon's exe path couldn't be read (e.g. it's running elevated). The app reports this honestly rather than guessing.
 
   Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The actual daemon exe path is shown on hover (app-owned / external states).
-- **Tablet** — Detected tablet name, or "No tablet detected." Has a **Settings** button to jump to the tablet's settings dialog. Updates automatically via polling.
+- **Tablet** — **One card per connected tablet** (so a second tablet is never hidden behind the first), each showing the tablet name, a one-line spec summary (area · pressure levels · buttons), and a **Settings** button that opens that tablet's settings dialog. When more than one is connected, the **active** tablet (the one the tray / Test / Diagnostics act on) is marked with an **Active** badge, and every other card gets a **Set active** button to switch it. When nothing is connected, a single card shows "No tablet detected." Updates automatically via polling.
 - **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder. Both **Install** and **Uninstall** run in-app (one UAC prompt each, no flashing cmd window) and offer to **restart** Windows afterward. Install creates the VMulti device via `devcon`; Uninstall removes the driver and the active device *and* cleans up the leftover driverless `djpnewton\vmulti` nodes (Device Manager Code 28) that the stock removal left behind. Detection reflects a *working* driver, so any remaining driverless leftovers are reported as **Not installed**, not as installed.
 - **Kuuube's Windows Ink plugin** — Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins). Shows:
   - **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
@@ -92,11 +92,13 @@ Helper tools for diagnosing and fixing tablet-driver problems.
 
 ### Diagnostics
 
-Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details.
+Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details. When more than one tablet is connected, a **Show** selector picks which tablet's live reports to display (the daemon's debug stream carries all tablets at once); with a single tablet it's hidden.
 
 ### Test
 
 A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
+
+- **Tablet picker** — when more than one tablet is connected, a selector chooses which tablet this page (and the other single-tablet flows) acts on; hidden with a single tablet.
 
 - **Dynamics indicators** — when Pen Dynamics is enabled on the active tablet, the status banner is followed by an "Affecting your pen:" row of chips spelling out exactly what's altering the stroke — **Pressure curve** (the curve is bent, not linear), **Pressure smoothing**, and/or **Position smoothing** — so behavior changes are never a mystery. If dynamics is enabled but everything is at its default, it says so ("No curve or smoothing — behaves linear").
 - **Pointer-only warning** — *Pointer-only* Mode draws nothing, so active dynamics can't be seen. Picking it while dynamics is on shows a short warning, and pressing the **Dynamics** button automatically switches Mode to a pressure view so you can feel your edits.
@@ -128,10 +130,16 @@ The **Settings** page (in the sidebar) holds app-level preferences. Currently:
 
 ## System tray & background mode
 
+The app is **single-instance**: launching it again while it's already running (including when it's minimized to the tray) doesn't open a second window or tray icon — it just brings the existing window to the front.
+
 The app runs with a **system tray icon**. **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
 
 - **Click the icon** — reopen the window.
 - **Show OTD Artist** — reopen the window.
+- **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the active tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Test page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is connected.
+- **Open Tablet Settings…** — opens the per-tablet settings dialog for the active tablet (reopening the window first, since the dialog is owned by it). Shown when a tablet is connected.
+- **Switch Display** — a submenu listing your monitors; pick one to map the active tablet to that whole display (aspect-locked, the same mapping as the Screen-Mapping tab's *Apply mapping*). The currently-mapped display is check-marked. Shown only when the active tablet is in an Absolute output mode (otherwise there's no display area to set).
+- **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Test / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 
@@ -151,6 +159,14 @@ The app's own tray icon (above) can also Stop/Restart the daemon directly.
 1. Click **Start** to launch the daemon (built from the submodule).
 2. Click the refresh icon to check the connection.
 3. The daemon auto-starts on app launch — if it didn't, check if another OTD instance is already running.
+
+If the daemon card shows **"OpenTabletDriver.Daemon.exe wasn't found…"**, the daemon exe was never built. The app checks for it before every connection attempt and says so plainly instead of silently timing out. Build the whole solution so the daemon is produced:
+
+```bash
+dotnet build OTDArtist.slnx
+```
+
+Building only the app project, or only running the test suite, does **not** produce the daemon exe (it's a standalone project the app launches as a separate process).
 
 ### "No Tablet Detected" even though my tablet is plugged in
 

@@ -55,6 +55,9 @@ internal sealed class FakeDialogService : IDialogService
 internal sealed class FakeDeviceData : IDeviceData
 {
     public JToken? Tablets => null;
+    public IReadOnlyList<DetectedTablet> DetectedTablets { get; set; } = new List<DetectedTablet>();
+    public string? ActiveTabletName { get; set; }
+    public void SetActiveTablet(string? name) => ActiveTabletName = name;
     public bool HasTablet { get; set; }
     public string TabletName { get; set; } = "";
     public string TabletArea => "";
@@ -103,6 +106,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool ShowForeignDaemonWarning => false;
     public bool ShowDaemonSourceUnknown => false;
     public bool CanStartDaemon => !_isConnected;
+    public bool IsDaemonExeMissing => false;
     public bool ShowStartButton => !_isConnected;
     public string DaemonStatusText => ConnectionStatus;
     public bool IsDaemonBusy => false;

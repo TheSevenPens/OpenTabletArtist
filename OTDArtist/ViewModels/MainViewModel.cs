@@ -14,9 +14,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
+    private readonly IDialogService _dialogs;
 
     /// <summary>Daemon connection state + Start/Stop/Restart commands — surfaced for the tray menu (#72).</summary>
     public IConnectionState Connection => _session;
+
+    // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
+    // Open Tablet Settings / Switch Display items read device data, persist via the settings
+    // coordinator, and open the per-tablet dialog through the dialog service.
+    public IDeviceData DeviceData => _session;
+    public ISettingsCoordinator SettingsCoordinator => _session;
+    public IDialogService Dialogs => _dialogs;
 
     public AboutViewModel About { get; } = new();
     public UtilitiesViewModel Utilities { get; }
@@ -50,13 +58,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
         var dialogs = new DialogService(_session);
+        _dialogs = dialogs;
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         Utilities = new UtilitiesViewModel(dialogs);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
-        Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session);
+        Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         TabletSettings = new TabletSettingsViewModel(_session, _session, dialogs);
         Dashboard = new DashboardViewModel(_session, dialogs);
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
