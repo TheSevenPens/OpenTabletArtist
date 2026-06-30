@@ -375,6 +375,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
         UpdateFiltersDisplay();
 
+        // Active-area diagram (full + effective area + mapped display).
+        RefreshTabletArea();
+
         // Pen dynamics — curve + smoothing (load without triggering a persist)
         var pc = PressureCurveProfile.Read(_settings, _profile.Tablet ?? "");
         var dynamics = pc?.Dynamics ?? PenDynamicsSettings.Default;
@@ -457,6 +460,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             : CurrentlyMappedNumber()
               ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
               ?? Displays.FirstOrDefault()?.Number;
+        RefreshTabletArea(); // displays changed → recompute the mapped-display side of the diagram
     }
 
     [RelayCommand]
@@ -732,12 +736,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _ => PressureCurveSettings.Default,                               // linear
     };
 
-    // ── Live device-report preview: pen-pressure dot (#102) + aux-button highlight ───────
+    // ── Live device-report preview: pen-pressure dot (#102) + aux-button highlight + area map ──
     private readonly DaemonPenInputSource? _penInput;
     [ObservableProperty] private double? _livePressure;
+    /// <summary>Live pen position (0..1 over the full tablet area) for the active-area diagram, or
+    /// null when no pen is in range. (#250)</summary>
+    [ObservableProperty] private double? _livePenX;
+    [ObservableProperty] private double? _livePenY;
 
-    // DeviceReportSample already normalizes pressure to 0..1; show the dot only while the pen is down.
-    private void OnPenSample(PenSample s) => LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
+    // DeviceReportSample normalizes to 0..1; feed both the pressure dot and the active-area map.
+    private void OnPenSample(PenSample s)
+    {
+        LivePenX = s.X;
+        LivePenY = s.Y;
+        LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
+    }
 
     // Light up each aux-button card while its physical button is held (express-key live highlight).
     private void OnAuxButtons(bool[] states)
@@ -754,8 +767,33 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void StopLiveInput()
     {
         LivePressure = null;
+        LivePenX = null;
+        LivePenY = null;
         foreach (var b in AuxButtons) b.IsPressed = false;
         _ = _penInput?.StopAsync();
+    }
+
+    /// <summary>Active-area diagram geometry (full + effective area + mapped display), or null when
+    /// the tablet has no absolute mapping / digitizer specs. (#250/#252)</summary>
+    [ObservableProperty] private TabletAreaInfo? _tabletArea;
+
+    private void RefreshTabletArea()
+    {
+        var t = _profile.AbsoluteModeSettings?.Tablet;
+        if (t != null && _tabletDigitizer is { } dig && dig.Width > 0 && dig.Height > 0)
+        {
+            var mapped = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
+            TabletArea = new TabletAreaInfo(
+                FullWidth: dig.Width, FullHeight: dig.Height,
+                EffWidth: t.Width, EffHeight: t.Height, EffCenterX: t.X, EffCenterY: t.Y,
+                HasDisplay: mapped != null,
+                DisplayNumber: mapped?.Number ?? 0, DisplayName: mapped?.Name ?? "",
+                DisplayWidth: mapped?.Width ?? 0, DisplayHeight: mapped?.Height ?? 0);
+        }
+        else
+        {
+            TabletArea = null;
+        }
     }
 
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>

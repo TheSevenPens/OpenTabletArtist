@@ -97,12 +97,13 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Select Display -->
+                <!-- Display Mapping: pick a display + see the tablet's active area and the live pen,
+                     all in one diagram (#250/#252). -->
                 <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Text="SELECT DISPLAY" Classes="SectionLabel"
+                            <TextBlock Grid.Row="0" Text="DISPLAY MAPPING" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
                                 <Button Content="Refresh" Command="{Binding RefreshDisplaysCommand}"
@@ -114,15 +115,40 @@
                                         Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
-                        <TextBlock Text="Pick the display to map the tablet to, then Apply." FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8" />
-                        <ctrl:DisplayLayoutView Displays="{Binding Displays}"
-                                                SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
-                                                Height="200" />
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Spacing="8">
-                            <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
-                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
-                                    HorizontalAlignment="Left" />
+                        <TextBlock Text="Click a display to map the tablet to it, then Apply. Move the pen to see it live."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
+                                   TextWrapping="Wrap" />
+                        <ctrl:ScreenMappingDiagram Displays="{Binding Displays}"
+                                                   SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
+                                                   Area="{Binding TabletArea}"
+                                                   LiveX="{Binding LivePenX}" LiveY="{Binding LivePenY}"
+                                                   Pressure="{Binding LivePressure}"
+                                                   AccentBrush="{DynamicResource AccentBrush}"
+                                                   Height="320" />
+                        <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
+                                HorizontalAlignment="Left" Margin="0,10,0,0" />
+                        <!-- Make it obvious a changed display selection isn't live until applied (#179 follow-up). -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"
+                                    IsVisible="{Binding MappingChangePending}">
+                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
+                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Calibration: its own card (#252). -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
+                        IsVisible="{Binding HasAreaMapping}">
+                    <StackPanel>
+                        <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
+                        <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only)."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,6,0,8" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0" Spacing="8">
                             <ComboBox ItemsSource="{Binding CalibrationModeChoices}"
                                       SelectedItem="{Binding SelectedCalibrationMode}"
                                       IsVisible="{Binding CanCalibrate}" VerticalAlignment="Center" MinWidth="170"
@@ -135,27 +161,18 @@
                             </ComboBox>
                             <Button Content="Calibrate…" Command="{Binding CalibrateCommand}"
                                     IsEnabled="{Binding CanRunCalibration}"
-                                    Theme="{StaticResource GhostButton}" Padding="14,7" FontSize="12"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
                                     ToolTip.Tip="Tap the targets to correct where the pen lands vs. where you see it (Absolute mode only)" />
-                        </StackPanel>
-                        <!-- Make it obvious a changed display selection isn't live until applied (#179 follow-up). -->
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"
-                                    IsVisible="{Binding MappingChangePending}">
-                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
-                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                         </StackPanel>
                         <TextBlock Text="Calibration is available in Absolute mode."
                                    FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
+                                   Margin="0,8,0,0" IsVisible="{Binding !CanCalibrate}" />
                         <!-- Absolute mode, but the tablet isn't connected — calibration needs live pen taps (#177). -->
                         <TextBlock Text="Connect this tablet to calibrate."
                                    FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="0,4,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
+                                   Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
                         <!-- Calibration state: whether it's active, which mode, and a way to clear it. -->
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
                                     IsVisible="{Binding CanCalibrate}">
                             <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}"
                                        VerticalAlignment="Center" />
