@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletArtist.Helpers;
+using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Services;
 
@@ -16,6 +18,11 @@ public interface IDialogService
     /// close. When <paramref name="dynamicsOnly"/> is true, the dialog opens as a focused Pen Dynamics
     /// editor — the tab bar is hidden and only the Dynamics panel shows (#133).</summary>
     Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false);
+
+    /// <summary>Builds a <see cref="TabletDetailViewModel"/> for the in-app Tablets page, wired to the
+    /// session (apply/save, reload, detection, live pen input, calibration owned by the main window).
+    /// <paramref name="onForget"/> removes the tablet's profile and is invoked by the page's Forget.</summary>
+    TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget);
 
     /// <summary>Shows an informational message with an OK button.</summary>
     Task ShowMessageAsync(string title, string message);
@@ -36,6 +43,36 @@ public class DialogService : IDialogService
     private readonly AppSession _session;
 
     public DialogService(AppSession session) => _session = session;
+
+    /// <inheritdoc />
+    public TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget)
+    {
+        var tabletName = profile.Tablet;
+        return new TabletDetailViewModel(
+            profile,
+            _session.CurrentSettings,
+            applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
+            refreshAction: async () =>
+            {
+                // Authoritative reload through the session so its cache stays coherent; return the
+                // reloaded settings + this tablet's profile (a reference inside them) together (#124).
+                await _session.ReloadAsync();
+                var settings = _session.CurrentSettings;
+                return (settings, settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
+            },
+            tabletDigitizer: _session.GetTabletDigitizer(tabletName),
+            penInput: _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
+            isDetected: () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
+            dynamicsOnly: false,
+            deviceData: _session, // live detection updates while the page is open (#177)
+            forgetAction: onForget,
+            // Calibration overlay is owned by the main window (the page has no window of its own, #127).
+            onCalibrate: options =>
+            {
+                var owner = Dialogs.GetMainWindow();
+                return owner != null ? ShowCalibrationAsync(profile, owner, options) : Task.CompletedTask;
+            });
+    }
 
     public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
     {

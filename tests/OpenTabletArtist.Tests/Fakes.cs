@@ -33,6 +33,9 @@ internal sealed class FakeDialogService : IDialogService
         return Task.CompletedTask;
     }
 
+    public OpenTabletArtist.ViewModels.TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget)
+        => new(profile, null);
+
     public Task ShowMessageAsync(string title, string message)
     {
         Messages.Add($"{title}: {message}");

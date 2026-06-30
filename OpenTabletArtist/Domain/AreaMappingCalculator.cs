@@ -4,7 +4,7 @@ namespace OpenTabletArtist.Domain;
 /// Pure geometry for mapping a tablet's active area to a display while preserving the
 /// display's aspect ratio (proportional 1:1 mapping, no distortion).
 ///
-/// Extracted from <c>TabletSettingsDialogViewModel.SetToDisplay</c> so the math can be
+/// Extracted from <c>TabletDetailViewModel.SetToDisplay</c> so the math can be
 /// unit-tested without an Avalonia window or the daemon. The view model is responsible
 /// for reading the digitizer/display dimensions and writing the result back to OTD's
 /// <c>AbsoluteModeSettings</c>; this class only does the arithmetic.

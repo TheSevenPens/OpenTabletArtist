@@ -4,12 +4,12 @@ using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
-using OpenTabletArtist.Views;
+using OpenTabletArtist.ViewModels;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;
 
-public class TabletSettingsDialogViewModelTests
+public class TabletDetailViewModelTests
 {
     private const string WinInkAbsolute = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
 
@@ -35,7 +35,7 @@ public class TabletSettingsDialogViewModelTests
         var reloaded = SettingsWith("T");
         Settings? pushed = null;
 
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
             applyAction: s => { pushed = s; return Task.CompletedTask; },
@@ -57,7 +57,7 @@ public class TabletSettingsDialogViewModelTests
         var original = SettingsWith("T");
         Settings? pushed = null;
 
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
             applyAction: s => { pushed = s; return Task.CompletedTask; },
@@ -76,7 +76,7 @@ public class TabletSettingsDialogViewModelTests
     public void MappingChangePending_FalseOnOpen_TrueAfterChangingSelection()
     {
         var settings = SettingsWith("T");
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask);
 
@@ -91,7 +91,7 @@ public class TabletSettingsDialogViewModelTests
     public void MappingChangePending_False_WhenNoApplyAction()
     {
         var settings = SettingsWith("T");
-        var vm = new TabletSettingsDialogViewModel(settings.Profiles.First(), settings); // read-only (no apply)
+        var vm = new TabletDetailViewModel(settings.Profiles.First(), settings); // read-only (no apply)
 
         vm.SelectedDisplayNumber = 999;
 
@@ -104,10 +104,11 @@ public class TabletSettingsDialogViewModelTests
     public void CanRunCalibration_RequiresAbsoluteMode_AndDetectedTablet()
     {
         var settings = AbsoluteSettingsWith("T");
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask,
-            isDetected: () => false);
+            isDetected: () => false,
+            onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
         Assert.True(vm.CanCalibrate);                // absolute mode → section visible
         Assert.False(vm.CanRunCalibration);          // ...but not connected → button disabled
@@ -121,10 +122,11 @@ public class TabletSettingsDialogViewModelTests
     {
         bool detected = false;
         var settings = AbsoluteSettingsWith("T");
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask,
-            isDetected: () => detected);
+            isDetected: () => detected,
+            onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
         Assert.False(vm.IsTabletDetected);
         Assert.False(vm.CanRunCalibration);
@@ -151,7 +153,7 @@ public class TabletSettingsDialogViewModelTests
     public void CanRunCalibration_False_WhenDetected_ButNotAbsoluteMode()
     {
         var settings = SettingsWith("T"); // no Absolute output mode set
-        var vm = new TabletSettingsDialogViewModel(
+        var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask,
             isDetected: () => true);

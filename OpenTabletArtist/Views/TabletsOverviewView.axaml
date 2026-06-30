@@ -1,0 +1,33 @@
+<UserControl x:Class="OpenTabletArtist.Views.TabletsOverviewView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- DataContext is the TabletsOverviewViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="TABLETS" />
+
+        <Border Classes="GlassPanel" Padding="32">
+            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                <!-- Tablets exist → prompt to pick one from the sidebar. -->
+                <TextBlock Text="Select a tablet"
+                           FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           IsVisible="{Binding HasTablets}" />
+                <TextBlock Text="Pick a tablet from the list on the left to view and change its settings."
+                           FontSize="13" HorizontalAlignment="Center" TextAlignment="Center"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           IsVisible="{Binding HasTablets}" />
+
+                <!-- No tablets at all → explicit empty state. -->
+                <TextBlock Text="No tablets connected or remembered"
+                           FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           IsVisible="{Binding !HasTablets}" />
+                <TextBlock Text="Connect a tablet and it will appear here."
+                           FontSize="13" HorizontalAlignment="Center" TextAlignment="Center"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           IsVisible="{Binding !HasTablets}" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
