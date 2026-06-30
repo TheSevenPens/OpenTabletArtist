@@ -159,7 +159,7 @@
         <!-- Not connected warning -->
         <Border Classes="GlassPanel" Padding="16"
                 IsVisible="{Binding !IsConnected}">
-            <TextBlock Text="Daemon not connected. Connect first from the Dashboard."
+            <TextBlock Text="Daemon not connected. Connect first from Home."
                        FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
                        HorizontalAlignment="Center" />
         </Border>
