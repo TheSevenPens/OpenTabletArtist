@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
     private readonly IDialogService _dialogs;
+    private readonly DriverConflictMonitor _conflicts;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -90,13 +91,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
 
+        // Conflicting-driver detection (#245), shared by the Driver cleanup page and the Home alert.
+        _conflicts = new DriverConflictMonitor(_session.Daemon, _session);
+
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
-        Utilities = new UtilitiesViewModel(dialogs);
+        Utilities = new UtilitiesViewModel(dialogs, _conflicts);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
-        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName);
+        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _conflicts, () => Navigate(Utilities));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Console = new ConsoleViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -237,6 +241,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Plugins.Dispose();        // unsubscribes DataLoaded
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         Utilities.Dispose();
+        _conflicts.Dispose();
     }
 }
 

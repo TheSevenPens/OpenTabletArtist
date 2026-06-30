@@ -116,7 +116,7 @@
                                      IsChecked="{Binding IsPlugins, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="UTILITIES"
+                        <RadioButton Theme="{StaticResource NavButton}" Content="DRIVER CLEANUP"
                                      IsChecked="{Binding IsUtilities, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
                                      Margin="0,2,0,0" />

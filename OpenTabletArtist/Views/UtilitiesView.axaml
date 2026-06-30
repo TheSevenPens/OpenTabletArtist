@@ -5,9 +5,41 @@
 
     <!-- DataContext is the UtilitiesViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="UTILITIES" />
+        <TextBlock Classes="PageTitle" Text="DRIVER CLEANUP" />
         <TextBlock Classes="PageSubtitle"
-                   Text="Helpful tools for diagnosing and fixing tablet driver problems" />
+                   Text="Find and remove conflicting manufacturer tablet drivers" />
+
+        <!-- Detected conflicting drivers — one card each, with the full daemon message (#245). -->
+        <StackPanel IsVisible="{Binding Conflicts.HasConflicts}" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <TextBlock Classes="warning" VerticalAlignment="Center" />
+            <TextBlock Text="CONFLICTING DRIVERS DETECTED" Classes="SectionLabel"
+                       Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Conflicts.Drivers}" IsVisible="{Binding Conflicts.HasConflicts}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                            BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding Name}" Classes="CardTitle" FontSize="14" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Impact}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding ProcessesText}" FontSize="11" IsVisible="{Binding HasProcesses}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                            <!-- Full daemon message — selectable so it can be copied for troubleshooting. -->
+                            <SelectableTextBlock Text="{Binding Detail}" FontSize="11"
+                                                 Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                                 Margin="0,2,0,0" />
+                            <Button Content="Open OpenTabletDriver FAQ" IsVisible="{Binding HasWiki}"
+                                    Command="{Binding $parent[ItemsControl].DataContext.OpenUrlCommand}"
+                                    CommandParameter="{Binding WikiUrl}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="11"
+                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
         <!-- TabletDriverCleanup -->
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
