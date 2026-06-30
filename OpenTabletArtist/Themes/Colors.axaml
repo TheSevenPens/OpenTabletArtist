@@ -33,6 +33,17 @@
     <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
     <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
 
+    <!-- AccentButton fills (default = the existing tinted/outline look). The Anime skin overrides
+         these with a pink→rose gradient (see its theme dictionary). -->
+    <SolidColorBrush x:Key="AccentButtonFillBrush" Color="{StaticResource AccentMuted}" />
+    <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
+    <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
+    <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
+
+    <!-- Card (GlassPanel) shape + shadow (default). Anime makes cards rounder with a soft pink glow. -->
+    <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+    <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
+
     <ResourceDictionary.ThemeDictionaries>
 
         <!-- ===== Light ===== -->
@@ -140,6 +151,23 @@
                 <GradientStop Offset="0" Color="#D9FCDCEC" />
                 <GradientStop Offset="1" Color="#D9F7C2DC" />
             </LinearGradientBrush>
+
+            <!-- Accent buttons: a filled pink→rose gradient with white text (vs. the tinted/outline
+                 look of the flat themes). The hover gradient lifts a touch brighter. -->
+            <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#FF7EC4" />
+                <GradientStop Offset="1" Color="#E0218A" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="#FFFFFF" />
+            <LinearGradientBrush x:Key="AccentButtonFillHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#FF93CF" />
+                <GradientStop Offset="1" Color="#EC3A9B" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="#FFFFFF" />
+
+            <!-- Softer, glowier cards: rounder corners and a diffuse pink glow instead of a grey drop. -->
+            <CornerRadius x:Key="CardCornerRadius">22</CornerRadius>
+            <BoxShadows x:Key="CardShadow">0 6 24 0 #33E0218A</BoxShadows>
 
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
