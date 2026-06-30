@@ -22,7 +22,7 @@
     <Grid ColumnDefinitions="260,*">
         <!-- SIDEBAR -->
         <Border Grid.Column="0"
-                Background="{DynamicResource GlassBgBrush}"
+                Background="{DynamicResource SidebarBgBrush}"
                 BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="0,0,1,0">
             <DockPanel>
