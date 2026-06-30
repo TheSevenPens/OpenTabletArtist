@@ -30,6 +30,12 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action<JObject>? DeviceReport;
+    /// <summary>
+    /// The daemon pushed a tablet add/remove (its <c>TabletsChanged</c> event — fired on plug/unplug
+    /// and on sleep/wake). Parameterless: subscribers just re-pull state; the payload (the new tablet
+    /// list) is intentionally not surfaced so consumers stay decoupled from its shape (#170).
+    /// </summary>
+    public event Action? TabletsChanged;
     public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     /// <summary>
@@ -88,6 +94,10 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
                         ConnectAsync(ct);
                 };
                 rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
+                // The daemon forwards its TabletsChanged event as a same-named notification carrying the
+                // new tablet list. We ignore the payload and just signal (accept it as a loose JToken so a
+                // null/empty list can't fault the dispatch), then reload authoritatively (#170).
+                rpc.AddLocalRpcMethod("TabletsChanged", new Action<JToken?>(OnTabletsChanged));
                 rpc.StartListening();
                 Connected?.Invoke();
                 return;
@@ -148,6 +158,11 @@ public class DaemonClient : IDisposable, IDaemonDebugSession
     private void OnDeviceReport(JObject data)
     {
         DeviceReport?.Invoke(data);
+    }
+
+    private void OnTabletsChanged(JToken? tablets)
+    {
+        TabletsChanged?.Invoke();
     }
 
     /// <summary>

@@ -99,8 +99,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private readonly IDaemonLifecycleService _daemonLifecycle;
     private readonly ISettingsFileStore _settingsStore;
     private readonly CancellationTokenSource _cts = new();
-    // Ensures only the most recent data load applies (Connected handler, 3s poll, Refresh). #19.
+    // Ensures only the most recent data load applies (Connected handler, TabletsChanged event,
+    // fallback poll, Refresh). #19.
     private readonly LatestOnlyGate _loadGate = new();
+
+    /// <summary>
+    /// Fallback reconciliation interval. Detection is event-driven via the daemon's
+    /// <c>TabletsChanged</c> push (#170); this poll is only a safety net in case an event is missed,
+    /// not the primary detection path — hence much longer than the original 3s magic literal.
+    /// </summary>
+    private static readonly TimeSpan FallbackPollInterval = TimeSpan.FromSeconds(30);
     private Settings? _settings;
 
     /// <summary>
@@ -224,6 +232,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ActiveTabletName = null;
             _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
+        });
+
+        // Event-driven detection (#170): the daemon pushes TabletsChanged on plug/unplug (and on
+        // sleep/wake), so reload immediately for near-instant detection and an accurate "last seen",
+        // rather than waiting up to a full FallbackPollInterval. Marshalled to the UI thread (the
+        // event fires off the RPC thread); the load gate coalesces a burst of events into one load.
+        _daemon.TabletsChanged += () => Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (IsConnected) _ = LoadDataAsync();
         });
     }
 
@@ -494,11 +511,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
     }
 
+    /// <summary>Low-frequency fallback reconciliation. Detection itself is event-driven (#170); this
+    /// only catches a missed <c>TabletsChanged</c> push so state can't drift indefinitely.</summary>
     private async Task PollDataAsync()
     {
         while (!_cts.Token.IsCancellationRequested)
         {
-            await Task.Delay(3000, _cts.Token).ConfigureAwait(false);
+            await Task.Delay(FallbackPollInterval, _cts.Token).ConfigureAwait(false);
             if (IsConnected)
             {
                 try { await Dispatcher.UIThread.InvokeAsync(LoadDataAsync); }
