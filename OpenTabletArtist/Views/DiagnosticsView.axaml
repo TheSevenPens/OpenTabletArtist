@@ -12,8 +12,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Text="Current Tablet" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Classes="CardTitle" Text="Current Tablet" FontSize="13" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMark" Classes.success="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"

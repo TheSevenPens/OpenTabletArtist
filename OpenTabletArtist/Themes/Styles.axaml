@@ -267,6 +267,14 @@
         <Setter Property="Margin" Value="0,0,0,28" />
     </Style>
 
+    <!-- Card Title — the heading at the top of a card/panel. Segoe UI Semibold; size stays per-card
+         (each card sets its own FontSize), this just fixes the family/weight/colour. -->
+    <Style Selector="TextBlock.CardTitle">
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+
     <!-- Section Label -->
     <Style Selector="TextBlock.SectionLabel">
         <Setter Property="FontSize" Value="10" />
