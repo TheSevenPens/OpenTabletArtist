@@ -14,8 +14,8 @@
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0">
-                        <TextBlock Text="Embedded OpenTabletDriver Version" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Classes="CardTitle" Text="Embedded OpenTabletDriver Version" FontSize="13"
+                                   TextWrapping="Wrap" />
                         <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
@@ -33,8 +33,8 @@
                 <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Text="OpenTabletDriver Daemon" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                            <TextBlock Classes="CardTitle" Text="OpenTabletDriver Daemon" FontSize="13"
+                                       TextWrapping="Wrap" />
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsConnected}" />
                                 <TextBlock Text="{Binding DaemonStatusText}" FontSize="11"
@@ -129,9 +129,8 @@
                                 <StackPanel Grid.Column="0" MinWidth="0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Classes="statusMark success" />
-                                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
-                                                   VerticalAlignment="Center" />
+                                        <TextBlock Classes="CardTitle" Text="{Binding Name}" FontSize="13"
+                                                   TextWrapping="Wrap" VerticalAlignment="Center" />
                                         <!-- Marks the active tablet (the one tray / Test / Diagnostics act on), #190. -->
                                         <Border IsVisible="{Binding IsActive}" VerticalAlignment="Center"
                                                 Background="{DynamicResource AccentMutedBrush}"
@@ -167,8 +166,7 @@
             <!-- Empty state when no tablet is connected. -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16" IsVisible="{Binding !HasTablet}">
                 <StackPanel MinWidth="0">
-                    <TextBlock Text="Tablet" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Classes="CardTitle" Text="Tablet" FontSize="13" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMark" />
                         <TextBlock Text="{Binding TabletStatusText}" FontSize="11"
@@ -182,8 +180,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="VMulti Driver" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                            <TextBlock Classes="CardTitle" Text="VMulti Driver" FontSize="13" TextWrapping="Wrap" />
                             <Button Content="Refresh" Command="{Binding RefreshVmultiDetectionCommand}"
                                     ToolTip.Tip="Refresh VMulti status"
                                     Theme="{StaticResource GhostButton}" Padding="8,3" FontSize="11"
@@ -240,8 +237,8 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                         <!-- Title -->
-                        <TextBlock Text="Kuuube's Windows Ink plugin" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Classes="CardTitle" Text="Kuuube's Windows Ink plugin" FontSize="13"
+                                   TextWrapping="Wrap" />
 
                         <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">

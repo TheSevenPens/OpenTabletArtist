@@ -15,8 +15,7 @@
                             DoubleTapped="ProfileCard_DoubleTapped">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                                <TextBlock Text="{Binding Tablet}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                <TextBlock Classes="CardTitle" Text="{Binding Tablet}" FontSize="14" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                     <TextBlock Classes="statusMark" Classes.success="{Binding IsDetected}" />
                                     <TextBlock Text="{Binding StatusText}" FontSize="11"
