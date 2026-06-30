@@ -193,9 +193,11 @@
             </LinearGradientBrush>
             <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="#FFFFFF" />
 
-            <!-- Softer, glowier cards: rounder corners and a diffuse pink glow instead of a grey drop. -->
+            <!-- Softer, glowier cards: rounder corners and a diffuse pink glow instead of a grey drop.
+                 Blur kept ≤16 so the glow's rendered extent fits inside the content padding and isn't
+                 clipped by the scroll viewport on the left/right; alpha bumped to keep it prominent. -->
             <CornerRadius x:Key="CardCornerRadius">22</CornerRadius>
-            <BoxShadows x:Key="CardShadow">0 6 24 0 #33E0218A</BoxShadows>
+            <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
 
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
