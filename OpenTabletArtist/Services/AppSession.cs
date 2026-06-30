@@ -294,8 +294,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         if (!IsDaemonRunning)
         {
+            // No flat delay: the pipe connect below already waits for the daemon's pipe to come up,
+            // so a fixed sleep only adds latency (and risks eating the connect timeout). (#246)
             _daemonLifecycle.Launch();
-            await Task.Delay(1000);
         }
 
         ConnectionStatus = "Connecting...";
