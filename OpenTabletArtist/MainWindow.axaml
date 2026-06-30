@@ -29,13 +29,10 @@
                 <!-- Brand -->
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
                             Margin="16,20,16,16">
-                    <!-- Minimal brand mark (no icon font) -->
-                    <Border Width="28" Height="28" CornerRadius="8"
-                            Background="{DynamicResource AccentBrush}" />
                     <TextBlock Text="OpenTabletArtist"
                                FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"
-                               VerticalAlignment="Center" Margin="12,0,0,0" />
+                               VerticalAlignment="Center" />
                 </StackPanel>
 
                 <!-- Nav Items (labels in all caps) -->
