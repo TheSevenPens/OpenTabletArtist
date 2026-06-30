@@ -34,7 +34,7 @@
                                            IsVisible="{Binding LastSeenDetail, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
                             <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                                <Button Content="Open" Theme="{StaticResource AccentButton}"
+                                <Button Content="Settings" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.OpenTabletSettingsCommand}"
                                         CommandParameter="{Binding}"
                                         Padding="12,6" FontSize="12" Margin="0,0,6,4" />
