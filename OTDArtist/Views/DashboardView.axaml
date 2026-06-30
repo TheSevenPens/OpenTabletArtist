@@ -130,17 +130,34 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Classes="statusMark success" />
                                         <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
+                                                   VerticalAlignment="Center" />
+                                        <!-- Marks the active tablet (the one tray / Test / Diagnostics act on), #190. -->
+                                        <Border IsVisible="{Binding IsActive}" VerticalAlignment="Center"
+                                                Background="{DynamicResource AccentMutedBrush}"
+                                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                                CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
+                                            <TextBlock Text="Active" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
                                     </StackPanel>
                                     <TextBlock Text="{Binding SpecsText}" FontSize="11" Margin="0,4,0,0"
                                                Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
 
-                                <Button Grid.Column="1" Content="Settings"
-                                        Command="{Binding OpenSettingsCommand}"
-                                        VerticalAlignment="Center"
-                                        Theme="{StaticResource AccentButton}"
-                                        Padding="12,6" FontSize="12" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <Button Content="Set active"
+                                            Command="{Binding SetActiveCommand}"
+                                            IsVisible="{Binding ShowSetActive}"
+                                            Theme="{StaticResource GhostButton}"
+                                            Padding="12,6" FontSize="12"
+                                            ToolTip.Tip="Make this the active tablet for the tray, Test, and Diagnostics" />
+                                    <Button Content="Settings"
+                                            Command="{Binding OpenSettingsCommand}"
+                                            Theme="{StaticResource AccentButton}"
+                                            Padding="12,6" FontSize="12" />
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </DataTemplate>
