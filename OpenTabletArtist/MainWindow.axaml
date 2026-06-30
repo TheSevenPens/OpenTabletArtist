@@ -46,7 +46,7 @@
                     <RadioButton Theme="{StaticResource NavButton}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="PAIRED TABLETS"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="TABLETS"
                                  IsChecked="{Binding IsTabletSettings, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletSettings}"
                                  Margin="0,2,0,0" />
