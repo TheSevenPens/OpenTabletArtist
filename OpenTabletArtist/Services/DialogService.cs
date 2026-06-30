@@ -62,7 +62,10 @@ public class DialogService : IDialogService
             () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
             // Open the pointer-calibration overlay owned by the settings dialog (#127), using the
             // capture mode the user picked (corners → homography, or a finer grid; #195/#196).
-            (owner, options) => ShowCalibrationAsync(profile, owner, options));
+            (owner, options) => ShowCalibrationAsync(profile, owner, options),
+            // Live-refresh the detection banner + tablet-dependent actions while the dialog is open
+            // (#177): the session reloads on the daemon's TabletsChanged push (#170) and raises DataLoaded.
+            _session);
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)
