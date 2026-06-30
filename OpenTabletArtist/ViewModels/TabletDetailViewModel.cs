@@ -20,7 +20,7 @@ namespace OpenTabletArtist.ViewModels;
 /// or in the focused Pen Dynamics dialog the tray opens. Delegate-based (apply / refresh / detection
 /// probe / live pen input / calibrate) so the host wires it to the session.
 /// </summary>
-public partial class TabletDetailViewModel : ObservableObject
+public partial class TabletDetailViewModel : ObservableObject, IDisposable
 {
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
     private const string WinInkRelativeModePath = "VoiDPlugins.OutputMode.WinInkRelativeMode";
@@ -28,6 +28,11 @@ public partial class TabletDetailViewModel : ObservableObject
     private Profile _profile;
     private Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
+    // Detection source — when provided, the banner + tablet-dependent actions live-update on each
+    // data load (tablet plug/unplug, #177). Unsubscribed in Dispose so a cached page VM doesn't leak.
+    private readonly IDeviceData? _deviceData;
+    // Removes this tablet's saved profile (wired by the page host). Null in the tray dialog.
+    private readonly Func<Task>? _forgetAction;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
     private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
@@ -179,7 +184,9 @@ public partial class TabletDetailViewModel : ObservableObject
         (float Width, float Height)? tabletDigitizer = null,
         IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null,
-        bool dynamicsOnly = false)
+        bool dynamicsOnly = false,
+        IDeviceData? deviceData = null,
+        Func<Task>? forgetAction = null)
     {
         _profile = profile;
         _settings = settings;
@@ -187,6 +194,8 @@ public partial class TabletDetailViewModel : ObservableObject
         _refreshAction = refreshAction;
         _isDetectedProbe = isDetected;
         _tabletDigitizer = tabletDigitizer;
+        _deviceData = deviceData;
+        _forgetAction = forgetAction;
         DynamicsOnly = dynamicsOnly;
         SelectedCalibrationMode = CalibrationModeChoices[0]; // default: Corners
 
@@ -195,6 +204,11 @@ public partial class TabletDetailViewModel : ObservableObject
             _penInput = new DaemonPenInputSource(penInput);
             _penInput.Sample += OnPenSample;
         }
+
+        // Live-refresh the detection banner + tablet-dependent actions as tablets connect/disconnect
+        // while this view is open (#177, via the session's DataLoaded after a TabletsChanged push #170).
+        if (_deviceData != null)
+            _deviceData.DataLoaded += RefreshDetectionStatus;
 
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
@@ -293,6 +307,17 @@ public partial class TabletDetailViewModel : ObservableObject
         modify(_profile);
         await _applyAction(_settings);
         RefreshFromProfile();
+    }
+
+    /// <summary>Show the Forget button only on the in-app page (host wires the action), not in the
+    /// tray's focused Pen Dynamics dialog.</summary>
+    public bool ShowForget => !DynamicsOnly && _forgetAction != null;
+
+    /// <summary>Remove this tablet's saved profile (the host then navigates away).</summary>
+    [RelayCommand]
+    private async Task Forget()
+    {
+        if (_forgetAction != null) await _forgetAction();
     }
 
     private void RefreshFromProfile()
@@ -657,6 +682,12 @@ public partial class TabletDetailViewModel : ObservableObject
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled);
         UpdateFiltersDisplay();
         await _applyAction(_settings);
+    }
+
+    public void Dispose()
+    {
+        if (_deviceData != null) _deviceData.DataLoaded -= RefreshDetectionStatus;
+        StopLivePressure();
     }
 }
 
