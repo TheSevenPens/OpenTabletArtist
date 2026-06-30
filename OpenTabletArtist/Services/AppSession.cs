@@ -419,6 +419,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // Settings (typed) + profile derivation
             _settings = await _daemon.GetSettingsAsync();
+            // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
+            // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
+            // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
+            bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(_settings);
             if (_settings != null)
             {
                 Profiles = _settings.Profiles
@@ -457,6 +461,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 PresetDirectory = appInfo.PresetDirectory ?? "";
                 SettingsFilePath = appInfo.SettingsFile ?? "";
                 PluginDirectory = appInfo.PluginDirectory ?? "";
+            }
+
+            // One-time migration: if we stripped orphaned filter stores above, persist the cleaned
+            // settings so they don't linger on disk. Best-effort — the in-memory cleanup has already
+            // fixed the display regardless.
+            if (staleFiltersRemoved && _settings != null)
+            {
+                try
+                {
+                    await _daemon.SetSettingsAsync(_settings);
+                    if (!string.IsNullOrEmpty(SettingsFilePath))
+                        _settingsStore.TrySave(_settings, SettingsFilePath);
+                }
+                catch { /* leave it; next save will retry the cleanup via the forward guard */ }
             }
 
             DataLoaded?.Invoke();
@@ -532,6 +550,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // Verify up front so an off-thread caller fails before any side effects (daemon write,
         // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
         Dispatcher.UIThread.VerifyAccess();
+        // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
+        ProfileFilterMaintenance.CleanLegacyFilters(settings);
         _settings = settings;
         await _daemon.SetSettingsAsync(settings);
 
