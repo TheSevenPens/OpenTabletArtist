@@ -29,8 +29,9 @@ public static class ThemeService
     /// control resources) fall back to the Light theme rather than rendering unstyled.</summary>
     public static readonly ThemeVariant AnimeVariant = new(Anime, ThemeVariant.Light);
 
-    /// <summary>The saved choice, or "System" if none has been set.</summary>
-    public static string SavedChoice => AppSettings.Get(Key) ?? System;
+    /// <summary>The saved choice, or the default skin ("Anime"/Sakura) if none has been set. Sakura
+    /// ships as the default appearance; users can switch to Light/Dark/System from the Theme page.</summary>
+    public static string SavedChoice => AppSettings.Get(Key) ?? Anime;
 
     /// <summary>Applies a choice to the running app and persists it.</summary>
     public static void Apply(string choice)
