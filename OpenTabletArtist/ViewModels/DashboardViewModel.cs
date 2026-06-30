@@ -28,22 +28,33 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     // Navigate the shell to a tablet's in-app settings page (#tablet-ux-overhaul). Replaces opening
     // the modal dialog for a Home card's "Settings".
     private readonly Action<string> _navigateToTablet;
+    private readonly Action? _openDriverCleanup;
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
 
-    public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet)
+    public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet,
+        DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null)
     {
         _session = session;
         _dialogs = dialogs;
         _navigateToTablet = navigateToTablet;
+        _openDriverCleanup = openDriverCleanup;
+        Conflicts = conflicts ?? new DriverConflictMonitor();
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
 
         _ = InitVmultiAsync();
     }
+
+    /// <summary>Conflicting-driver detection (#245); the Home alert card binds to this and the button
+    /// jumps to the Driver cleanup page.</summary>
+    public DriverConflictMonitor Conflicts { get; }
+
+    [RelayCommand]
+    private void OpenDriverCleanup() => _openDriverCleanup?.Invoke();
 
     // --- Connection + device state forwarded from the session (mirrored below) ---
     public bool IsConnected => _session.IsConnected;

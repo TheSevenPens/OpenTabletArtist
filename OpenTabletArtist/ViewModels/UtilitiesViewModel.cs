@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.IO;
 using Avalonia.Threading;
@@ -23,11 +24,15 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _cleanupBusy;
     [ObservableProperty] private string _cleanupStatus = "";
 
+    /// <summary>Conflicting drivers the daemon flagged (#245) — shared with the Home alert.</summary>
+    public DriverConflictMonitor Conflicts { get; }
+
     public string CleanupInstallPath => TabletDriverCleanupRunner.InstallDir;
 
-    public UtilitiesViewModel(IDialogService dialogs)
+    public UtilitiesViewModel(IDialogService dialogs, DriverConflictMonitor? conflicts = null)
     {
         _dialogs = dialogs;
+        Conflicts = conflicts ?? new DriverConflictMonitor();
         CleanupInstalled = TabletDriverCleanupRunner.IsInstalled();
     }
 
@@ -36,6 +41,16 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
     {
         if (Directory.Exists(path))
             Process.Start("explorer.exe", path);
+    }
+
+    /// <summary>Opens a detection's FAQ link. Restricted to the OTD wiki domain so a crafted log line
+    /// can't turn this into an arbitrary-URL launcher.</summary>
+    [RelayCommand]
+    private void OpenUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        if (!url.StartsWith("https://opentabletdriver.net/", StringComparison.OrdinalIgnoreCase)) return;
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
     }
 
     [RelayCommand]
@@ -138,6 +153,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        // The shared DriverConflictMonitor is owned/disposed by the shell (MainViewModel).
         _cts.Cancel();
         _cts.Dispose();
     }
