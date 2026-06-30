@@ -13,10 +13,16 @@
         <vm:MainViewModel />
     </Window.DataContext>
 
+    <Panel>
+        <!-- Full-window backdrop layer. Transparent in Light/Dark; the sakura image in the Anime
+             skin (#anime). Sits behind everything so the translucent sidebar + glass cards show it
+             through. -->
+        <Border Background="{DynamicResource AppBackdropBrush}" />
+
     <Grid ColumnDefinitions="260,*">
         <!-- SIDEBAR -->
         <Border Grid.Column="0"
-                Background="{DynamicResource GlassBgBrush}"
+                Background="{DynamicResource SidebarBgBrush}"
                 BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="0,0,1,0">
             <DockPanel>
@@ -86,4 +92,5 @@
             </Border>
         </ScrollViewer>
     </Grid>
+    </Panel>
 </Window>

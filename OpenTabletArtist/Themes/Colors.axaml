@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:svc="using:OpenTabletArtist.Services">
 
     <!-- ============================================================================
          Theming (#139): light + dark, switched by the app's ThemeVariant.
@@ -57,6 +58,12 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+
+            <!-- Sidebar fill — same as the card glass here; the Anime skin gives it its own look. -->
+            <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
+
+            <!-- Full-window backdrop layer behind content; flat themes have none (see Anime). -->
+            <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
         </ResourceDictionary>
 
         <!-- ===== Dark ===== -->
@@ -82,6 +89,61 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+
+            <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
+
+            <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
+        </ResourceDictionary>
+
+        <!-- ===== Anime (experimental skin, #anime) =====
+             A pink light-mode skin: re-skins app surfaces over a sakura backdrop image, leaning on
+             the existing translucent "glass" panels so the image shows through. Keyed by the custom
+             AnimeVariant, which inherits Light — so anything not overridden here (incl. all Fluent
+             control resources) resolves from the Light theme. Cards stay translucent so the sakura
+             backdrop shows through; the sidebar gets its own pink translucent gradient. -->
+        <ResourceDictionary x:Key="{x:Static svc:ThemeService.AnimeVariant}">
+            <!-- Pink accent (ties to the app's magenta mark) overriding the shared indigo. -->
+            <Color x:Key="Accent">#E0218A</Color>
+            <Color x:Key="AccentMuted">#1FE0218A</Color>
+            <Color x:Key="NavActive">#24E0218A</Color>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+
+            <Color x:Key="BgBase">#FCE3EE</Color>
+            <Color x:Key="BgElevated">#FFF1F7</Color>
+            <Color x:Key="BgSurface">#FFFFFF</Color>
+            <!-- Translucent pink-white so the sakura backdrop shows through the cards (still opaque
+                 enough to keep text legible). -->
+            <Color x:Key="GlassBg">#CCFDF1F7</Color>
+            <Color x:Key="GlassBgHover">#E6FEF7FB</Color>
+            <Color x:Key="GlassBorder">#33E0218A</Color>
+            <Color x:Key="TextPrimary">#F03A0E26</Color>
+            <Color x:Key="TextSecondary">#C43A0E26</Color>
+            <Color x:Key="TextMuted">#8A3A0E26</Color>
+            <Color x:Key="Divider">#22E0218A</Color>
+
+            <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+            <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+            <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+            <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+            <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+
+            <!-- Themed sidebar: a soft pink translucent vertical gradient (deeper rose at the bottom)
+                 so the panel reads as part of the skin and the backdrop still glows through. -->
+            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0" Color="#D9FCDCEC" />
+                <GradientStop Offset="1" Color="#D9F7C2DC" />
+            </LinearGradientBrush>
+
+            <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
+            <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
+                        Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>
