@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -386,23 +387,29 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// so the Filters tab tracks the DynamicsFilter's enabled state without a manual Refresh.</summary>
     private void UpdateFiltersDisplay()
     {
-        if (_profile.Filters.Count > 0)
+        Filters.Clear();
+        foreach (var f in _profile.Filters)
         {
-            var filterNames = _profile.Filters.Select(f =>
-            {
-                var name = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
-                var enabled = f?.Enable ?? true;
-                return enabled ? name : $"{name} (disabled)";
-            });
-            FiltersText = string.Join("\n", filterNames);
+            var typeName = (f?.Path ?? "Unknown").Split('.').LastOrDefault() ?? "Unknown";
+            Filters.Add(new FilterCardViewModel(
+                title: FriendlyFilterName(typeName),
+                typeName: typeName,
+                enabled: f?.Enable ?? true));
         }
-        else
-        {
-            FiltersText = "No filters configured";
-        }
+        HasFilters = Filters.Count > 0;
 
         RawJson = JsonConvert.SerializeObject(_profile, Formatting.Indented);
     }
+
+    /// <summary>Maps our plugin filter class names to the friendly labels they carry as
+    /// <c>[PluginName]</c> in the plugin; anything else (third-party filters) keeps its type name.</summary>
+    private static string FriendlyFilterName(string typeName) => typeName switch
+    {
+        "DynamicsFilter" => "Pen Dynamics",
+        "HoverFilter" => "Hover Limit",
+        "CalibrationFilter" => "Calibration",
+        _ => typeName,
+    };
 
     [RelayCommand]
     private async Task FixOutputMode()
@@ -491,7 +498,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];
-    [ObservableProperty] private string _filtersText = "";
+    /// <summary>One card per filter on the profile (Filters tab). Rebuilt by <see cref="UpdateFiltersDisplay"/>.</summary>
+    public ObservableCollection<FilterCardViewModel> Filters { get; } = new();
+
+    /// <summary>False when the profile has no filters — the Filters tab shows its empty state.</summary>
+    [ObservableProperty] private bool _hasFilters;
     [ObservableProperty] private string _rawJson = "";
 
     // ── Pressure curve tab ──────────────────────────────────────
@@ -696,6 +707,24 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_deviceData != null) _deviceData.DataLoaded -= RefreshDetectionStatus;
         StopLivePressure();
     }
+}
+
+/// <summary>A single filter on a tablet's profile, shown as a card in the Filters tab.</summary>
+public sealed class FilterCardViewModel
+{
+    public FilterCardViewModel(string title, string typeName, bool enabled)
+    {
+        Title = title;
+        TypeName = typeName;
+        Enabled = enabled;
+    }
+
+    /// <summary>Friendly label (e.g. "Pen Dynamics") or the raw type name for unknown filters.</summary>
+    public string Title { get; }
+    /// <summary>The filter's class name (last segment of the type path), shown as a subtitle.</summary>
+    public string TypeName { get; }
+    public bool Enabled { get; }
+    public string StatusText => Enabled ? "Enabled" : "Disabled";
 }
 
 public partial class PenSwitchRowViewModel : ObservableObject

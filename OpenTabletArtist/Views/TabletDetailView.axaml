@@ -436,17 +436,42 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Filters tab content -->
+        <!-- Filters tab content: one card per filter on the profile. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="FILTERS" Classes="SectionLabel" />
-                        <TextBlock Text="{Binding FiltersText}" FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,8,0,0"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
+                <TextBlock Text="FILTERS" Classes="SectionLabel" Margin="0,0,0,8" />
+
+                <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding TypeName}" FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Classes="statusMark" Classes.success="{Binding Enabled}" />
+                                        <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Empty state when the profile has no filters. -->
+                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding !HasFilters}">
+                    <TextBlock Text="No filters configured" FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
             </StackPanel>
         </ScrollViewer>
