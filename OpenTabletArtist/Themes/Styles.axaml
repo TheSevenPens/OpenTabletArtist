@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:c="using:OpenTabletArtist.Controls">
+        xmlns:c="using:OpenTabletArtist.Controls"
+        xmlns:conv="using:OpenTabletArtist.Converters">
 
     <Styles.Resources>
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
@@ -138,8 +139,9 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -148,7 +150,7 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
+                        <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
                                           HorizontalContentAlignment="Center"
                                           VerticalContentAlignment="Center" />
                     </Border>
@@ -160,15 +162,16 @@
             </Style>
         </ControlTheme>
 
-        <!-- Ghost Button (subtle, no background) -->
+        <!-- Ghost Button (subtle filled chip; legible on cards and the page backdrop, #249) -->
         <ControlTheme x:Key="GhostButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -177,7 +180,7 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
+                        <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
                                           HorizontalContentAlignment="Center"
                                           VerticalContentAlignment="Center" />
                     </Border>
@@ -185,7 +188,7 @@
             </Setter>
             <Style Selector="^:pointerover">
                 <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             </Style>
         </ControlTheme>
 
@@ -257,22 +260,28 @@
             </Style>
         </ControlTheme>
 
-        <!-- Delete Button (red outline) -->
+        <!-- Delete Button (solid red — unmistakably destructive, #251) -->
         <ControlTheme x:Key="DeleteButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Background="Transparent" CornerRadius="8"
+                    <Border x:Name="Bd" Background="{DynamicResource ErrorBrush}" CornerRadius="8"
                             Padding="{TemplateBinding Padding}"
                             BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1">
-                        <ContentPresenter Content="{TemplateBinding Content}"
+                        <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
                                           HorizontalContentAlignment="Center"
                                           VerticalContentAlignment="Center" />
                     </Border>
                 </ControlTemplate>
             </Setter>
+            <Style Selector="^:pointerover /template/ Border#Bd">
+                <Setter Property="Opacity" Value="0.88" />
+            </Style>
         </ControlTheme>
     </Styles.Resources>
 
