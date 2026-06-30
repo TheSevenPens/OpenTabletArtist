@@ -137,6 +137,18 @@
             <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
             <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
 
+            <!-- Fluent's native-control accent ramp (#216): toggles, checkboxes, combo/list selection,
+                 sliders, focus rings. Without these, native controls keep Fluent's default blue accent
+                 even in Sakura. Light1-3 = progressively lighter, Dark1-3 = darker, around the #E0218A
+                 base; Fluent picks the right shade per state/variant. -->
+            <Color x:Key="SystemAccentColor">#E0218A</Color>
+            <Color x:Key="SystemAccentColorLight1">#E73E9C</Color>
+            <Color x:Key="SystemAccentColorLight2">#EE5EAE</Color>
+            <Color x:Key="SystemAccentColorLight3">#F488C4</Color>
+            <Color x:Key="SystemAccentColorDark1">#C41C79</Color>
+            <Color x:Key="SystemAccentColorDark2">#A41667</Color>
+            <Color x:Key="SystemAccentColorDark3">#81104F</Color>
+
             <Color x:Key="BgBase">#FCE3EE</Color>
             <Color x:Key="BgElevated">#FFF1F7</Color>
             <Color x:Key="BgSurface">#FFFFFF</Color>
