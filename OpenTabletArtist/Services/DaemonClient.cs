@@ -78,7 +78,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                     PipeOptions.Asynchronous | PipeOptions.WriteThrough | PipeOptions.CurrentUserOnly
                 );
 
-                await _pipe.ConnectAsync(5000, ct);
+                // Wait generously for the daemon's pipe — a cold daemon can take ~5s to listen, and a
+                // too-short timeout drops us into the 3s backoff below for no reason (#246).
+                await _pipe.ConnectAsync(15000, ct);
                 var rpc = new JsonRpc(_pipe);
                 _rpc = rpc;
                 rpc.Disconnected += (_, _) =>
