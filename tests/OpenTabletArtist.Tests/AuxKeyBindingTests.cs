@@ -149,17 +149,22 @@ public class AuxKeyBindingTests
         Assert.Equal(AuxKind.Mouse, mouse!.Kind);
         Assert.Equal("Backward", mouse.MouseButton);
 
+        var scroll = AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeScrollBinding("Up"));
+        Assert.Equal(AuxKind.Scroll, scroll!.Kind);
+        Assert.Equal("Up", scroll.Scroll);
+
         // A binding the editor can't model → null (flagged in the UI, not misrepresented).
-        Assert.Null(AuxKeyBinding.ReadBinding(StoreAt("OpenTabletDriver.Desktop.Binding.MouseScrollBinding")));
+        Assert.Null(AuxKeyBinding.ReadBinding(StoreAt("OpenTabletDriver.Desktop.Binding.AdaptiveBinding")));
     }
 
     [Fact]
     public void MakeBinding_UnifiedRoundTrips()
     {
-        var mouse = new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, "Middle");
+        var mouse = new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, "Middle", AuxKeyBinding.None);
         Assert.Equal(mouse, AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeBinding(mouse)));
 
-        var combo = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, false, true, "S"), AuxKeyBinding.None);
+        var combo = new AuxBinding(AuxKind.Keyboard, new AuxCombo(true, false, true, "S"),
+            AuxKeyBinding.None, AuxKeyBinding.None);
         Assert.Equal(combo, AuxKeyBinding.ReadBinding(AuxKeyBinding.MakeBinding(combo)));
     }
 
@@ -169,5 +174,38 @@ public class AuxKeyBindingTests
         Assert.Equal(AuxKeyBinding.None, AuxKeyBinding.MouseButtonOptions[0].Value);
         Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Display == "Back" && o.Value == "Backward");
         Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Value == "Left");
+    }
+
+    // ── Mouse scroll ────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("Up", "Vertical", -120)]
+    [InlineData("Down", "Vertical", 120)]
+    [InlineData("Left", "Horizontal", -120)]
+    [InlineData("Right", "Horizontal", 120)]
+    public void MakeScrollBinding_MapsDirectionToSignedAmount(string scroll, string direction, int amount)
+    {
+        var store = AuxKeyBinding.MakeScrollBinding(scroll);
+
+        Assert.Equal(AuxKeyBinding.MouseScrollBindingPath, store!.Path);
+        Assert.Equal(direction, store.Settings.First(s => s.Property == "Direction").Value!.ToString());
+        Assert.Equal(amount, store.Settings.First(s => s.Property == "Amount").GetValue<int>());
+    }
+
+    [Theory]
+    [InlineData("Up")]
+    [InlineData("Down")]
+    [InlineData("Left")]
+    [InlineData("Right")]
+    public void ReadScroll_RoundTrips(string scroll)
+    {
+        Assert.Equal(scroll, AuxKeyBinding.ReadScroll(AuxKeyBinding.MakeScrollBinding(scroll)));
+    }
+
+    [Fact]
+    public void MakeScrollBinding_UnboundForNone()
+    {
+        Assert.Null(AuxKeyBinding.MakeScrollBinding("None"));
+        Assert.Null(AuxKeyBinding.MakeScrollBinding(null));
     }
 }

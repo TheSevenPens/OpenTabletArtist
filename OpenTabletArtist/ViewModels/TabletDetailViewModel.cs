@@ -951,6 +951,7 @@ public partial class ButtonBinding : ObservableObject
 {
     private const string KeyboardKind = "Keyboard";
     private const string MouseKind = "Mouse";
+    private const string ScrollKind = "Scroll";
 
     private readonly Func<int, AuxBinding, Task>? _applyBinding;
     private bool _suppressApply;
@@ -966,12 +967,18 @@ public partial class ButtonBinding : ObservableObject
         _applyBinding = applyBinding;
         _applied = binding;
         _suppressApply = true;
-        SelectedKind = binding.Kind == AuxKind.Mouse ? MouseKind : KeyboardKind;
+        SelectedKind = binding.Kind switch
+        {
+            AuxKind.Mouse => MouseKind,
+            AuxKind.Scroll => ScrollKind,
+            _ => KeyboardKind,
+        };
         Ctrl = binding.Combo.Ctrl;
         Shift = binding.Combo.Shift;
         Alt = binding.Combo.Alt;
         SelectedKey = binding.Combo.Key;
         SelectedMouseButton = binding.MouseButton;
+        SelectedScroll = binding.Scroll;
         _suppressApply = false;
     }
 
@@ -983,22 +990,27 @@ public partial class ButtonBinding : ObservableObject
     {
         new("Keyboard", KeyboardKind),
         new("Mouse button", MouseKind),
+        new("Mouse scroll", ScrollKind),
     };
     public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
     public IReadOnlyList<KeyOption> MouseButtonOptions => AuxKeyBinding.MouseButtonOptions;
+    public IReadOnlyList<KeyOption> ScrollOptions => AuxKeyBinding.ScrollOptions;
 
     /// <summary>The chosen binding type; toggles which editor shows.</summary>
     [ObservableProperty] private string _selectedKind = KeyboardKind;
     public bool IsKeyboard => SelectedKind == KeyboardKind;
     public bool IsMouse => SelectedKind == MouseKind;
+    public bool IsScroll => SelectedKind == ScrollKind;
 
     // Keyboard editor: Ctrl/Shift/Alt + a key ("None" = unbound). No modifiers → Key Binding; with → Multi-Key.
     [ObservableProperty] private bool _ctrl;
     [ObservableProperty] private bool _shift;
     [ObservableProperty] private bool _alt;
     [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
-    // Mouse editor: a single button ("None" = unbound).
+    // Mouse-button editor: a single button ("None" = unbound).
     [ObservableProperty] private string _selectedMouseButton = AuxKeyBinding.None;
+    // Mouse-scroll editor: a direction ("None" = unbound).
+    [ObservableProperty] private string _selectedScroll = AuxKeyBinding.None;
 
     /// <summary>False disables the editor (read-only host, or button mapping suspended).</summary>
     public bool CanEdit { get; }
@@ -1015,6 +1027,7 @@ public partial class ButtonBinding : ObservableObject
     {
         OnPropertyChanged(nameof(IsKeyboard));
         OnPropertyChanged(nameof(IsMouse));
+        OnPropertyChanged(nameof(IsScroll));
         ApplyIfChanged();
     }
 
@@ -1023,10 +1036,15 @@ public partial class ButtonBinding : ObservableObject
     partial void OnAltChanged(bool value) => ApplyIfChanged();
     partial void OnSelectedKeyChanged(string value) => ApplyIfChanged();
     partial void OnSelectedMouseButtonChanged(string value) => ApplyIfChanged();
+    partial void OnSelectedScrollChanged(string value) => ApplyIfChanged();
 
-    private AuxBinding Current() => IsMouse
-        ? new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton)
-        : new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey), AuxKeyBinding.None);
+    private AuxBinding Current() => SelectedKind switch
+    {
+        MouseKind => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton, AuxKeyBinding.None),
+        ScrollKind => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll),
+        _ => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey),
+                            AuxKeyBinding.None, AuxKeyBinding.None),
+    };
 
     private void ApplyIfChanged()
     {
@@ -1034,6 +1052,7 @@ public partial class ButtonBinding : ObservableObject
         // The pickers can momentarily report null while binding initializes; ignore that.
         if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
         if (IsMouse && string.IsNullOrEmpty(SelectedMouseButton)) return;
+        if (IsScroll && string.IsNullOrEmpty(SelectedScroll)) return;
 
         var binding = Current();
         if (binding == _applied) return; // round-trip / no real change

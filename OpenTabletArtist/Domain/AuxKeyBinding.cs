@@ -19,16 +19,24 @@ public sealed record AuxCombo(bool Ctrl, bool Shift, bool Alt, string Key)
 }
 
 /// <summary>The kind of action an express key performs.</summary>
-public enum AuxKind { Keyboard, Mouse }
+public enum AuxKind { Keyboard, Mouse, Scroll }
 
-/// <summary>A full express-key binding the editor can model: either a keyboard <see cref="AuxCombo"/>
-/// or a mouse button. Carries both so the UI keeps each editor's state while switching type.</summary>
-public sealed record AuxBinding(AuxKind Kind, AuxCombo Combo, string MouseButton)
+/// <summary>A full express-key binding the editor can model: a keyboard <see cref="AuxCombo"/>, a
+/// mouse button, or a scroll direction. Carries all three so the UI keeps each editor's state while
+/// switching type.</summary>
+public sealed record AuxBinding(AuxKind Kind, AuxCombo Combo, string MouseButton, string Scroll)
 {
-    public static readonly AuxBinding Unbound = new(AuxKind.Keyboard, AuxCombo.Unbound, AuxKeyBinding.None);
-    public bool IsBound => Kind == AuxKind.Mouse
-        ? !string.IsNullOrEmpty(MouseButton) && MouseButton != AuxKeyBinding.None
-        : Combo.IsBound;
+    public static readonly AuxBinding Unbound =
+        new(AuxKind.Keyboard, AuxCombo.Unbound, AuxKeyBinding.None, AuxKeyBinding.None);
+
+    public bool IsBound => Kind switch
+    {
+        AuxKind.Mouse => IsSet(MouseButton),
+        AuxKind.Scroll => IsSet(Scroll),
+        _ => Combo.IsBound,
+    };
+
+    private static bool IsSet(string v) => !string.IsNullOrEmpty(v) && v != AuxKeyBinding.None;
 }
 
 /// <summary>
@@ -41,6 +49,11 @@ public static class AuxKeyBinding
     public const string KeyBindingPath = "OpenTabletDriver.Desktop.Binding.KeyBinding";
     public const string MultiKeyBindingPath = "OpenTabletDriver.Desktop.Binding.MultiKeyBinding";
     public const string MouseBindingPath = "OpenTabletDriver.Desktop.Binding.MouseBinding";
+    public const string MouseScrollBindingPath = "OpenTabletDriver.Desktop.Binding.MouseScrollBinding";
+
+    // One wheel tick (Windows/Linux). Negative scrolls up/left, positive down/right.
+    private const int ScrollTick = 120;
+    private const string Up = "Up", Down = "Down", Left = "Left", Right = "Right";
 
     /// <summary>Picker sentinel + OTD's own key name for "no key": maps to an unbound button.</summary>
     public const string None = "None";
@@ -133,21 +146,61 @@ public static class AuxKeyBinding
         return store;
     }
 
+    /// <summary>The scroll direction (Up/Down/Left/Right) for an aux store, or "None" when unbound /
+    /// not a scroll binding.</summary>
+    public static string ReadScroll(PluginSettingStore? store)
+    {
+        if (store?.Path != MouseScrollBindingPath) return None;
+        var direction = store.Settings?.FirstOrDefault(s => s.Property == "Direction")?.Value?.ToString();
+        var amount = store.Settings?.FirstOrDefault(s => s.Property == "Amount") is { HasValue: true } s
+            ? s.GetValue<int>() : ScrollTick;
+        var horizontal = string.Equals(direction, "Horizontal", StringComparison.OrdinalIgnoreCase);
+        return horizontal ? (amount < 0 ? Left : Right) : (amount < 0 ? Up : Down);
+    }
+
+    /// <summary>A Mouse Scroll Binding store for a direction, or null (unbound) for "None".</summary>
+    public static PluginSettingStore? MakeScrollBinding(string? scroll)
+    {
+        if (string.IsNullOrEmpty(scroll) || scroll == None) return null;
+        var horizontal = scroll is Left or Right;
+        var amount = scroll is Up or Left ? -ScrollTick : ScrollTick;
+        var store = NewStore(MouseScrollBindingPath);
+        store.Settings.Add(new PluginSetting("Direction", horizontal ? "Horizontal" : "Vertical"));
+        store.Settings.Add(new PluginSetting("Amount", amount));
+        store.Settings.Add(new PluginSetting("Interval", 300)); // OTD's default auto-repeat interval
+        return store;
+    }
+
     /// <summary>Parse any aux store into the editor's unified model, or null when it's a binding the
-    /// editor can't represent (scroll, adaptive, Windows Ink, or a multi-key macro).</summary>
+    /// editor can't represent (adaptive, Windows Ink, or a multi-key macro).</summary>
     public static AuxBinding? ReadBinding(PluginSettingStore? store)
     {
         if (store?.Path == null) return AuxBinding.Unbound;
         if (store.Path == MouseBindingPath)
-            return new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, ReadMouseButton(store));
+            return new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, ReadMouseButton(store), None);
+        if (store.Path == MouseScrollBindingPath)
+            return new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, None, ReadScroll(store));
         var combo = ReadCombo(store);
-        return combo == null ? null : new AuxBinding(AuxKind.Keyboard, combo, None);
+        return combo == null ? null : new AuxBinding(AuxKind.Keyboard, combo, None, None);
     }
 
-    /// <summary>Build the store for a unified binding (keyboard combo or mouse button); null = unbound.</summary>
-    public static PluginSettingStore? MakeBinding(AuxBinding binding) => binding.Kind == AuxKind.Mouse
-        ? MakeMouseBinding(binding.MouseButton)
-        : MakeBinding(binding.Combo);
+    /// <summary>Build the store for a unified binding (keyboard / mouse button / scroll); null = unbound.</summary>
+    public static PluginSettingStore? MakeBinding(AuxBinding binding) => binding.Kind switch
+    {
+        AuxKind.Mouse => MakeMouseBinding(binding.MouseButton),
+        AuxKind.Scroll => MakeScrollBinding(binding.Scroll),
+        _ => MakeBinding(binding.Combo),
+    };
+
+    /// <summary>Scroll directions offered in the picker.</summary>
+    public static IReadOnlyList<KeyOption> ScrollOptions { get; } = new List<KeyOption>
+    {
+        new("None", None),
+        new("Up", Up),
+        new("Down", Down),
+        new("Left", Left),
+        new("Right", Right),
+    };
 
     /// <summary>Mouse buttons offered in the picker (OTD's MouseButton enum names; "Back" reads nicer
     /// than the stored "Backward").</summary>

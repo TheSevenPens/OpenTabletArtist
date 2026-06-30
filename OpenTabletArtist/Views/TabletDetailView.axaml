@@ -314,6 +314,17 @@
                                                 <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
+
+                                        <!-- Scroll: a direction. -->
+                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                                  IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
+                                                  ItemsSource="{Binding ScrollOptions}"
+                                                  SelectedValueBinding="{Binding Value}"
+                                                  SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
                                     </StackPanel>
                                 </Grid>
                             </Border>
