@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- App = OpenTabletArtist (binaries + namespaces + in-repo folders). Only the GitHub repo and the
+         working-dir root folder stay OTDArtist for now. -->
+    <AssemblyName>OpenTabletArtist</AssemblyName>
+    <RootNamespace>OpenTabletArtist</RootNamespace>
+    <LangVersion>14</LangVersion>
+    <!-- Base version for dev builds; the release workflow overrides it with the tag (-p:Version=…).
+         Surfaced in the sidebar footer via AssemblyInformationalVersion. -->
+    <Version>0.6.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- The Test tab's paint canvas copies an SKBitmap into an Avalonia WriteableBitmap
+         with a fast unsafe Buffer.MemoryCopy (see Controls/PenTestCanvas). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Avalonia 12 made compiled bindings the default. For this migration we
+         keep the 11.x behaviour (reflection-based bindings with no x:DataType
+         required). Revisit later to opt back in per-view for compile-time
+         type checking. -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Exe + window/tray icon (#72). -->
+    <ApplicationIcon>Assets\appicon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.1" />
+    <!-- Avalonia.Diagnostics not yet published for 12.x — re-add when available.
+         As of 2026-04: latest Diagnostics is 11.3.14, while Avalonia core is 12.0.1. -->
+    <!-- <PackageReference Include="Avalonia.Diagnostics" Version="12.0.1" Condition="'$(Configuration)' == 'Debug'" /> -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- HidSharp removed — OTD brings HidSharpCore via its project references -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="StreamJsonRpc" Version="2.22.23" />
+    <!-- Pin MessagePack to a patched version. StreamJsonRpc pulls in 2.5.192
+         transitively, which trips NU1903 (GHSA-hv8m-jj95-wg3x, fixed in 2.5.301).
+         This direct reference stays on the 2.5.x line for compatibility. -->
+    <PackageReference Include="MessagePack" Version="2.5.302" />
+    <!-- Raster paint surface for the Test tab. Pinned to the same SkiaSharp Avalonia 12 already
+         pulls in (via Avalonia.Skia) to avoid a package downgrade. We own the SKBitmap and hand
+         Avalonia a pixel buffer (no render-lease interop), so usage stays self-contained. -->
+    <PackageReference Include="SkiaSharp" Version="3.119.3-preview.1.1" />
+  </ItemGroup>
+
+  <!-- OTD library references (via git submodule at external/OpenTabletDriver) -->
+  <ItemGroup>
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver\OpenTabletDriver.csproj" />
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Plugin\OpenTabletDriver.Plugin.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -5,7 +5,7 @@
 ```
 ┌─────────────────────┐                    ┌─────────────────────┐
 │  Avalonia App (.NET 10)│     Named Pipe     │   OTD Daemon        │
-│  OtdArtist   │◄───────────────────►│ (OpenTabletDriver   │
+│  OpenTabletArtist   │◄───────────────────►│ (OpenTabletDriver   │
 │                     │    StreamJsonRpc    │  .Daemon.exe)       │
 └─────────────────────┘                    └─────────────────────┘
          ▲                                          │
@@ -18,7 +18,7 @@
 
 ## Components
 
-### Avalonia App (`OTDArtist/`)
+### Avalonia App (`OpenTabletArtist/`)
 
 **Role:** Single-process desktop application. Renders all UI, manages state, and communicates directly with the OTD daemon via named pipe.
 
@@ -72,7 +72,7 @@ A page VM takes only the slice of the session it actually needs, via a narrow **
 
 This shape is the result of an incremental "strangler" refactor (issue #41): shared `AppSession` + role interfaces, then a page-by-page VM split, then typed navigation — each step keeping the build green.
 
-**System tray + background mode (#72).** `AppTray` (`OTDArtist/AppTray.cs`) owns an Avalonia `TrayIcon` that reflects daemon status and offers Show / Start-or-Stop / Restart / Quit, driven off the `IConnectionState` role interface (the same commands and `ShowStartButton`/`DaemonStatusText` the dashboard uses). Closing the main window hides it to the tray instead of exiting (`MainWindow.AllowCloseForQuit()` is the one path that really shuts down, taken only by the tray's Quit). This keeps the daemon controls reachable while the window is closed and is the prerequisite for the investigated per-application-settings feature.
+**System tray + background mode (#72).** `AppTray` (`OpenTabletArtist/AppTray.cs`) owns an Avalonia `TrayIcon` that reflects daemon status and offers Show / Start-or-Stop / Restart / Quit, driven off the `IConnectionState` role interface (the same commands and `ShowStartButton`/`DaemonStatusText` the dashboard uses). Closing the main window hides it to the tray instead of exiting (`MainWindow.AllowCloseForQuit()` is the one path that really shuts down, taken only by the tray's Quit). This keeps the daemon controls reachable while the window is closed and is the prerequisite for the investigated per-application-settings feature.
 
 **Single instance (#191).** `Services/SingleInstance` (held by `Program`) gates startup on a named `Mutex`: the first instance becomes primary and listens on a named `EventWaitHandle`; a second launch detects the mutex, signals that event — waking the primary to `MainWindow.BringToFront()` (the same surface path the tray click uses) — and exits before any Avalonia/tray init, so there's never a duplicate window or tray icon. Windows-only (named-event signalling isn't portable); a no-op elsewhere.
 
@@ -228,7 +228,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 - **Corners** (default) → a **perspective homography** (`CalibrationMath.SolveHomography` / the `Homography` struct), which corrects keystone/parallax as well as offset/scale/rotation — an upgrade from the original least-squares affine (still read for legacy stores, #195).
 - **Fine grid** (3×3 / 5×5) → a **per-node bilinear offset field** (`CalibrationSolver.SolveGrid` / the `CalibrationGrid` struct), correcting localized distortion a single global transform can't (#196).
 
-`CalibrationSolver` turns measured taps + `AbsolutePositionMapper.MapFromDesktop` into the chosen model. The correction is applied by a second plugin filter (`OtdArtist.Dynamics.CalibrationFilter`, `PreTransform`, before the dynamics filter), which branches on a stored `Model` field (homography / grid / legacy affine). It's persisted via `Services/CalibrationProfile` (mirrors `PressureCurveProfile`; tags the model + payload, keeps a mapping fingerprint for staleness). The UI is a full-display overlay (`Views/CalibrationOverlayWindow` + `ViewModels/CalibrationViewModel`) launched from the Screen-Mapping tab in Absolute mode, with the mode picked from a selector next to **Calibrate…**; capture uses the daemon debug stream and bypasses any existing calibration so taps are recorded uncorrected. See `docs/design/127-pointer-calibration.md`.
+`CalibrationSolver` turns measured taps + `AbsolutePositionMapper.MapFromDesktop` into the chosen model. The correction is applied by a second plugin filter (`OpenTabletArtist.Dynamics.CalibrationFilter`, `PreTransform`, before the dynamics filter), which branches on a stored `Model` field (homography / grid / legacy affine). It's persisted via `Services/CalibrationProfile` (mirrors `PressureCurveProfile`; tags the model + payload, keeps a mapping fingerprint for staleness). The UI is a full-display overlay (`Views/CalibrationOverlayWindow` + `ViewModels/CalibrationViewModel`) launched from the Screen-Mapping tab in Absolute mode, with the mode picked from a selector next to **Calibrate…**; capture uses the daemon debug stream and bypasses any existing calibration so taps are recorded uncorrected. See `docs/design/127-pointer-calibration.md`.
 
 **Theming.** Light and dark themes are implemented via `ResourceDictionary.ThemeDictionaries` in `Themes/Colors.axaml` (shared accent/status colors at the top level, variant-specific backgrounds/text/glass per dictionary). `Services/ThemeService` persists the user's Light/Dark/System choice (`AppSettings`) and applies it through `Application.RequestedThemeVariant` — "System" follows the OS. The selector lives on the Settings page (`SettingsViewModel` / `SettingsView`). Custom-drawn controls (e.g. `PressureCurveChart`) still use fixed colors and could be re-tuned per variant.
 
@@ -236,10 +236,10 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.7. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.
 
-**Pen-dynamics plugin.** Pressure remapping + smoothing is implemented as our own OTD filter plugin (`plugins/OtdArtist.Dynamics`, net8 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, it applies to every app, not just one. Key seams:
+**Pen-dynamics plugin.** Pressure remapping + smoothing is implemented as our own OTD filter plugin (`plugins/OpenTabletArtist.Dynamics`, net8 to match the daemon) rather than taking a dependency on a third-party plugin (e.g. Slimy Scylla). Because it runs inside the daemon's pipeline, it applies to every app, not just one. Key seams:
 
 - **Shared math** — `Domain/PressureCurve.cs` (the `Extended` curve: input/output min-max remap, softness exponent, Clamp-vs-Cut dead zone), `Domain/PenSmoothing.cs` (EMA + the `amount → factor` perceptual mapping borrowed from Slimy Scylla, `amount^(0.02/amount)`), and `Domain/PenDynamicsProcessor.cs` (the stateful per-stroke pipeline: curve + pressure/position smoothing, with the curve/smooth ordering and reset logic) are the single source of truth, **source-linked** (`<Compile Include … Link>`) into the plugin so the daemon-side filter and the app-side editor compute identically, and unit-tested once in the app's test project.
-- **The filter** — `PressureCurveFilter` (type name kept stable for back-compat; display name *OTD Artist - Pen Dynamics*) implements `IPositionedPipelineElement<IDeviceReport>` at `PreTransform`, reads `MaxPressure` via `[TabletReference]` injection, and delegates to a `PenDynamicsProcessor`. Smoothing applies **only while the pen is down** (pressure > 0) and state resets on lift / pen-out — the OTD analogue of Slimy Scylla's "apply while drawing" default, which steadies stroke starts/ends without depending on proximity reports. Hover (`Pressure == 0`) is left untouched.
+- **The filter** — `PressureCurveFilter` (type name kept stable for back-compat; display name *OpenTabletArtist - Pen Dynamics*) implements `IPositionedPipelineElement<IDeviceReport>` at `PreTransform`, reads `MaxPressure` via `[TabletReference]` injection, and delegates to a `PenDynamicsProcessor`. Smoothing applies **only while the pen is down** (pressure > 0) and state resets on lift / pen-out — the OTD analogue of Slimy Scylla's "apply while drawing" default, which steadies stroke starts/ends without depending on proximity reports. Hover (`Pressure == 0`) is left untouched.
 - **Auto-install** — the app bundles the built DLL and copies it into the daemon's plugin directory on connect (`Services/PressurePluginInstaller.cs` + `Domain/PressurePluginPaths.cs`); a fresh copy triggers `LoadPlugins`, an update restarts the daemon (it can't hot-replace an already-loaded assembly). Only for the app-owned daemon.
 - **Per-profile config** — `Services/PressureCurveProfile.cs` reads/writes the filter's `PluginSettingStore` (by type name, since the app doesn't reference the plugin assembly) in a profile's `Filters`, as a `PenDynamicsSettings` (curve + smoothing). The Pressure tab's editor (`Controls/PressureCurveChart.cs`, adapted from PenDynamicsLab) drives it, debouncing edits into a single `ApplyAndSaveSettings`.
 
@@ -270,25 +270,25 @@ OTD Daemon (built from submodule, .NET 8)
 ## Solution Layout
 
 ```
-OTDArtist.slnx
-  ├── OTDArtist/OtdArtist.csproj                   (this app)
-  ├── plugins/OtdArtist.Dynamics/...                      (our OTD filter plugin, net8)
-  ├── tests/OtdArtist.Tests/OtdArtist.Tests.csproj (xUnit tests)
+OpenTabletArtist.slnx
+  ├── OpenTabletArtist/OpenTabletArtist.csproj                   (this app)
+  ├── plugins/OpenTabletArtist.Dynamics/...                      (our OTD filter plugin, net8)
+  ├── tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj (xUnit tests)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
 
 The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.
 
-> **Build the solution, not just the app project.** A common failure mode ("Disconnected" / "No tablet detected") is building only `OTDArtist/OtdArtist.csproj`, which leaves the daemon exe missing. Build `OTDArtist.slnx` so the daemon is produced too.
+> **Build the solution, not just the app project.** A common failure mode ("Disconnected" / "No tablet detected") is building only `OpenTabletArtist/OpenTabletArtist.csproj`, which leaves the daemon exe missing. Build `OpenTabletArtist.slnx` so the daemon is produced too.
 
 ## Testing & CI
 
-Logic that doesn't need a UI is unit-tested with **xUnit** in `tests/OtdArtist.Tests`. Two things make that practical:
+Logic that doesn't need a UI is unit-tested with **xUnit** in `tests/OpenTabletArtist.Tests`. Two things make that practical:
 
 - **Pure logic in `Domain/`** (area-mapping math, preset/config naming, version comparison, diagnostics math) is tested with no scaffolding.
 - **Seams behind interfaces** — `ISettingsFileStore`, `IDaemonLifecycleService`, the `AppSession` role interfaces, `IDaemonDebugSession`, plus `Concurrency/` primitives — are exercised with small hand-written fakes, so page VMs and session behavior (e.g. the daemon Stop/Start auto-reconnect gate) are covered without a real daemon.
 
-GitHub Actions (`.github/workflows/build.yml`) checks out the submodule recursively, sets up the .NET 8 + .NET 10 SDKs, and runs `dotnet build OTDArtist.slnx` + `dotnet test` on `windows-latest` for every push and PR.
+GitHub Actions (`.github/workflows/build.yml`) checks out the submodule recursively, sets up the .NET 8 + .NET 10 SDKs, and runs `dotnet build OpenTabletArtist.slnx` + `dotnet test` on `windows-latest` for every push and PR.
 
 **Releases.** `.github/workflows/release.yml` publishes a downloadable Windows build when a `v*` tag is pushed (or via manual dispatch). It runs the tests, then `dotnet publish`es the app **self-contained for `win-x64`** (no .NET runtime needed on the user's machine) and the OTD daemon into a `Daemon/` subfolder next to the app, zips the result, and attaches it to a GitHub Release with generated notes. The bundled `Daemon/` path is what `Domain/DaemonExePaths` checks first, so the daemon auto-starts from the release layout exactly as in dev. To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
 

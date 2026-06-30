@@ -1,0 +1,168 @@
+<UserControl x:Class="OpenTabletArtist.Views.DiagnosticsView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls"
+>
+
+    <!-- DataContext is the DiagnosticsViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="Diagnostics" />
+        <TextBlock Classes="PageSubtitle" Text="Live pen data" />
+        <!-- Controls -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                    <TextBlock Text="Current Tablet" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Classes="statusMark" Classes.success="{Binding IsDebugging}" />
+                        <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding IsDebugging}" />
+                        <TextBlock Text="{Binding DebugReportRate}" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding IsDebugging}" />
+                        <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding IsDebugging}" />
+                        <TextBlock Text="{Binding ReportCount, StringFormat='Reports: {0}'}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding IsDebugging}" />
+                    </StackPanel>
+
+                    <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
+                                IsVisible="{Binding ShowTabletPicker}">
+                        <TextBlock Text="Show" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox ItemsSource="{Binding TabletNames}" SelectedItem="{Binding SelectedTablet}"
+                                  MinWidth="200" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Start" Command="{Binding ToggleDebuggingCommand}"
+                            IsEnabled="{Binding IsConnected}"
+                            IsVisible="{Binding !IsDebugging}"
+                            Theme="{StaticResource AccentButton}"
+                            Padding="12,6" FontSize="12" />
+                    <Button Content="Stop" Command="{Binding ToggleDebuggingCommand}"
+                            IsVisible="{Binding IsDebugging}"
+                            Theme="{StaticResource DeleteButton}"
+                            Padding="12,6" FontSize="12" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <StackPanel>
+            <!-- Tablet Visualizer -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
+                    IsVisible="{Binding IsDebugging}">
+                <c:TabletVisualizer Height="200"
+                                    PenX="{Binding DebugPenX}"
+                                    PenY="{Binding DebugPenY}"
+                                    MaxX="{Binding DebugMaxX}"
+                                    MaxY="{Binding DebugMaxY}"
+                                    DigitizerWidth="{Binding DebugDigitizerWidth}"
+                                    DigitizerHeight="{Binding DebugDigitizerHeight}"
+                                    Pressure="{Binding DebugPenPressure}"
+                                    MaxPressure="{Binding DebugMaxPressure}"
+                                    HasPosition="{Binding DebugHasPosition}" />
+            </Border>
+
+            <!-- Stylus Info -->
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+                    IsVisible="{Binding IsDebugging}">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+                    <!-- Position -->
+                    <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,12,0">
+                        <TextBlock Text="POSITION" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPenX, StringFormat='X: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DebugPenY, StringFormat='Y: {0:F1}'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <!-- Pressure -->
+                    <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,0">
+                        <TextBlock Text="PRESSURE" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPressurePercent, StringFormat='{}{0:F1}%'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                        <!-- Pressure bar -->
+                        <Border Height="6" CornerRadius="3" Margin="0,4,0,0"
+                                Background="{DynamicResource GlassBgBrush}" ClipToBounds="True">
+                            <Border CornerRadius="3" HorizontalAlignment="Left"
+                                    Background="{DynamicResource AccentBrush}">
+                                <Border.Width>
+                                    <MultiBinding>
+                                        <MultiBinding.Converter>
+                                            <c:PercentToWidthConverter />
+                                        </MultiBinding.Converter>
+                                        <Binding Path="DebugPressurePercent" />
+                                        <Binding Path="$parent[Border].Bounds.Width" />
+                                    </MultiBinding>
+                                </Border.Width>
+                            </Border>
+                        </Border>
+                        <TextBlock Text="{Binding DebugPenPressure, StringFormat='{}{0:F0}'}" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <!-- Tilt -->
+                    <StackPanel Grid.Column="2" Grid.Row="0">
+                        <TextBlock Text="TILT" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding DebugTiltAzimuth, StringFormat='Az: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding DebugTiltAltitude, StringFormat='Alt: {0:F1}°'}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <!-- Proximity -->
+                    <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,12,12,0">
+                        <TextBlock Text="PROXIMITY" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugNearProximity}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <!-- Hover Distance -->
+                    <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,12,12,0">
+                        <TextBlock Text="HOVER DISTANCE" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugHoverDistance}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <!-- Buttons -->
+                    <StackPanel Grid.Column="2" Grid.Row="1" Margin="0,12,0,0">
+                        <TextBlock Text="PEN BUTTONS" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding DebugPenButtons}" FontSize="12"
+                                   FontFamily="Cascadia Mono,Consolas,monospace"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- Not connected warning -->
+        <Border Classes="GlassPanel" Padding="16"
+                IsVisible="{Binding !IsConnected}">
+            <TextBlock Text="Daemon not connected. Connect first from the Dashboard."
+                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                       HorizontalAlignment="Center" />
+        </Border>
+    </StackPanel>
+</UserControl>

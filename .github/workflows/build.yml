@@ -23,7 +23,7 @@ jobs:
 
       # Builds the whole solution: the OTD daemon (from the submodule) + the app + tests.
       - name: Build
-        run: dotnet build OTDArtist.slnx -c Debug
+        run: dotnet build OpenTabletArtist.slnx -c Debug
 
       - name: Test
-        run: dotnet test tests/OtdArtist.Tests/OtdArtist.Tests.csproj -c Debug --no-build
+        run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug --no-build

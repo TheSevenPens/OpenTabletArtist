@@ -1,8 +1,8 @@
-# OTD Artist  — Overview
+# OpenTabletArtist  — Overview
 
 ## What Is This?
 
-OTD Artist simplifies the experience of using OpenTabletDriver for artists.
+OpenTabletArtist simplifies the experience of using OpenTabletDriver for artists.
 
 This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI 12, .NET 10) that:
 
