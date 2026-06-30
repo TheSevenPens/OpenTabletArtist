@@ -72,4 +72,20 @@ public class DeviceReportSampleTests
         ((JObject)r["Data"]!).Remove("Position");
         Assert.False(DeviceReportSample.TryParse(r, out _));
     }
+
+    [Fact]
+    public void TryParseAuxButtons_ReadsPressedState()
+    {
+        var r = JObject.Parse("""{ "Data": { "AuxButtons": [false, true, false, true] } }""");
+
+        Assert.True(DeviceReportSample.TryParseAuxButtons(r, out var aux));
+        Assert.Equal(new[] { false, true, false, true }, aux);
+    }
+
+    [Fact]
+    public void TryParseAuxButtons_PenOnlyReport_ReturnsFalse()
+    {
+        // A pen report carries no AuxButtons → callers leave the last-known press state untouched.
+        Assert.False(DeviceReportSample.TryParseAuxButtons(Report(), out _));
+    }
 }

@@ -4,6 +4,15 @@
              xmlns:ctrl="using:OpenTabletArtist.Controls"
              xmlns:conv="using:Avalonia.Data.Converters">
 
+    <UserControl.Styles>
+        <!-- Express-key card lights up while its physical button is held. Only the border/background
+             change (thickness stays 1) so the highlight doesn't nudge the layout. -->
+        <Style Selector="Border.expressCard.pressed">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+        </Style>
+    </UserControl.Styles>
+
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
     <Grid RowDefinitions="Auto,Auto,*">
@@ -233,7 +242,8 @@
                 <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
+                            <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
+                                    Padding="16,12" Margin="0,0,0,10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}"

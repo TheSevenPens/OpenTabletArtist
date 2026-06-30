@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace OpenTabletArtist.Domain;
@@ -44,6 +46,17 @@ public static class DeviceReportSample
             TiltY: tiltY,
             Twist: 0, // OTD device reports don't carry barrel twist
             IsDown: pressure > 0);
+        return true;
+    }
+
+    /// <summary>Pulls the auxiliary-button (express key) states out of an OTD <c>DeviceReport</c>.
+    /// Only aux reports carry <c>Data.AuxButtons</c>; returns false for pen-only reports so callers
+    /// can ignore them and leave the last-known press state untouched.</summary>
+    public static bool TryParseAuxButtons(JObject data, out bool[] auxButtons)
+    {
+        auxButtons = Array.Empty<bool>();
+        if (data["Data"]?["AuxButtons"] is not JArray arr) return false;
+        auxButtons = arr.Select(t => t.Value<bool>()).ToArray();
         return true;
     }
 
