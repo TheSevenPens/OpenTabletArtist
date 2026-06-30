@@ -23,7 +23,25 @@ public static class CalibrationProfile
 {
     public const string FilterTypeName = "OtdArtist.Dynamics.CalibrationFilter";
 
-    public sealed record CalibrationData(Matrix3x2 Transform, bool Enabled, string Fingerprint);
+    /// <summary>Which correction model a stored calibration uses. Legacy stores (no Model field) read
+    /// as <see cref="Affine"/>. The 4-tap corner capture now writes <see cref="Homography"/> (#195);
+    /// the finer-grid mode writes <see cref="Grid"/> (#196).</summary>
+    public enum CalibrationModel { Affine, Homography, Grid }
+
+    /// <summary>A stored calibration. <see cref="Transform"/> is the legacy/affine matrix; for the
+    /// other models the relevant <see cref="Homography"/> / <see cref="Grid"/> payload is set. New
+    /// fields are optional so existing call sites keep compiling.</summary>
+    public sealed record CalibrationData(
+        Matrix3x2 Transform, bool Enabled, string Fingerprint,
+        CalibrationModel Model = CalibrationModel.Affine,
+        Homography Homography = default,
+        CalibrationGrid? Grid = null)
+    {
+        public static CalibrationData ForHomography(Homography h, bool enabled, string fingerprint) =>
+            new(Matrix3x2.Identity, enabled, fingerprint, CalibrationModel.Homography, h);
+        public static CalibrationData ForGrid(CalibrationGrid g, bool enabled, string fingerprint) =>
+            new(Matrix3x2.Identity, enabled, fingerprint, CalibrationModel.Grid, default, g);
+    }
 
     public static CalibrationData? Read(Settings? settings, string tabletName)
         => ReadProfile(settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName));
@@ -42,12 +60,25 @@ public static class CalibrationProfile
             Get("M11", 1f), Get("M12", 0f),
             Get("M21", 0f), Get("M22", 1f),
             Get("M31", 0f), Get("M32", 0f));
-        return new CalibrationData(m, store.Enable, GetStr("MappingFingerprint"));
+        var model = GetStr("Model") switch
+        {
+            "Homography" => CalibrationModel.Homography,
+            "Grid" => CalibrationModel.Grid,
+            _ => CalibrationModel.Affine, // legacy stores have no Model field
+        };
+        var homography = Homography.TryParse(GetStr("Homography")) ?? default;
+        var grid = CalibrationGrid.TryParse(GetStr("Grid"));
+        return new CalibrationData(m, store.Enable, GetStr("MappingFingerprint"), model, homography, grid);
     }
 
-    /// <summary>Writes (and enables/disables) the calibration filter on the tablet's profile, ordered
-    /// before the dynamics filter. Mutates <paramref name="settings"/>; no-op if the profile isn't found.</summary>
+    /// <summary>Writes (and enables/disables) the affine calibration filter (legacy convenience).</summary>
     public static void Write(Settings? settings, string tabletName, Matrix3x2 transform, bool enable, string fingerprint)
+        => Write(settings, tabletName, new CalibrationData(transform, enable, fingerprint, CalibrationModel.Affine));
+
+    /// <summary>Writes (and enables/disables) the calibration filter on the tablet's profile, ordered
+    /// before the dynamics filter, using whichever model <paramref name="data"/> carries. Mutates
+    /// <paramref name="settings"/>; no-op if the profile isn't found.</summary>
+    public static void Write(Settings? settings, string tabletName, CalibrationData data)
     {
         var profile = settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile?.Filters == null) return;
@@ -59,13 +90,19 @@ public static class CalibrationProfile
             profile.Filters.Add(store);
         }
 
-        store.Enable = enable;
+        // Keep the affine M-matrix at identity for non-affine models so a legacy reader is a no-op.
+        var m = data.Model == CalibrationModel.Affine ? data.Transform : Matrix3x2.Identity;
+
+        store.Enable = data.Enabled;
         store.Settings = new ObservableCollection<PluginSetting>
         {
-            new("M11", transform.M11), new("M12", transform.M12),
-            new("M21", transform.M21), new("M22", transform.M22),
-            new("M31", transform.M31), new("M32", transform.M32),
-            new("MappingFingerprint", fingerprint),
+            new("M11", m.M11), new("M12", m.M12),
+            new("M21", m.M21), new("M22", m.M22),
+            new("M31", m.M31), new("M32", m.M32),
+            new("Model", data.Model.ToString()),
+            new("Homography", data.Model == CalibrationModel.Homography ? data.Homography.ToCsv() : ""),
+            new("Grid", data.Model == CalibrationModel.Grid && data.Grid != null ? data.Grid.ToCsv() : ""),
+            new("MappingFingerprint", data.Fingerprint),
         };
 
         EnsureBeforeDynamics(profile);

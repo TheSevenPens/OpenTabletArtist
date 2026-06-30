@@ -11,8 +11,21 @@ using OtdArtist.Services;
 
 namespace OtdArtist.ViewModels;
 
+/// <summary>How the overlay captures: 4 corners (→ perspective homography, #195) or an N×M grid
+/// (→ per-node bilinear offsets, #196).</summary>
+public enum CalibrationMode { Corners, Grid }
+
+/// <summary>The capture mode + grid size chosen before calibrating.</summary>
+public readonly record struct CalibrationOptions(CalibrationMode Mode, int Cols, int Rows);
+
+/// <summary>A user-pickable calibration preset (label + the options it maps to), for the mode selector.</summary>
+public sealed record CalibrationModeChoice(string Label, CalibrationMode Mode, int Cols, int Rows)
+{
+    public CalibrationOptions ToOptions() => new(Mode, Cols, Rows);
+}
+
 /// <summary>
-/// Drives the 4-tap pointer-calibration overlay (#127). Coordinates are exposed <em>normalized</em>
+/// Drives the pointer-calibration overlay (#127). Coordinates are exposed <em>normalized</em>
 /// to the mapped display (0..1) so the view can place targets/live dot on a Canvas without caring
 /// about DPI scaling. The measured raw positions come from the daemon debug stream (mapping- and
 /// Windows-Ink-independent); on completion <see cref="CalibrationSolver"/> fits the affine and it is
@@ -31,15 +44,32 @@ public partial class CalibrationViewModel : ObservableObject
         DisplayInfo Display,
         Settings Settings,
         Func<Settings, Task> Apply,
-        IDaemonDebugSession Daemon);
+        IDaemonDebugSession Daemon,
+        CalibrationMode Mode = CalibrationMode.Corners,
+        int GridCols = 3,
+        int GridRows = 3);
 
     public enum Phase { Capturing, Confirming, Failed }
 
-    // Inset-corner targets, normalized to the display (10% in). Order: TL, TR, BR, BL.
-    private static readonly (double X, double Y)[] TargetN =
+    // Target positions normalized to the display (0..1). Corners = 4 inset corners (TL, TR, BR, BL);
+    // Grid = a cols×rows lattice, row-major.
+    private readonly List<(double X, double Y)> _targets;
+
+    private static List<(double X, double Y)> BuildTargets(CalibrationMode mode, int cols, int rows)
     {
-        (0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9),
-    };
+        if (mode == CalibrationMode.Corners)
+            return new() { (0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9) };
+
+        var list = new List<(double X, double Y)>(cols * rows);
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols; c++)
+            {
+                double x = cols <= 1 ? 0.5 : 0.08 + 0.84 * c / (cols - 1);
+                double y = rows <= 1 ? 0.5 : 0.08 + 0.84 * r / (rows - 1);
+                list.Add((x, y));
+            }
+        return list;
+    }
 
     private const double HitRadiusN = 0.06;   // accept a tap only this close to the active target
     private const int MinSamplesPerTap = 4;    // average at least this many down-samples
@@ -54,6 +84,7 @@ public partial class CalibrationViewModel : ObservableObject
     public CalibrationViewModel(Context ctx)
     {
         _ctx = ctx;
+        _targets = BuildTargets(ctx.Mode, ctx.GridCols, ctx.GridRows);
         _input = new DaemonPenInputSource(ctx.Daemon);
         _input.Sample += OnSample;
         _original = CalibrationProfile.ReadProfile(ctx.Settings.Profiles.FirstOrDefault(p => p.Tablet == ctx.TabletName));
@@ -75,8 +106,8 @@ public partial class CalibrationViewModel : ObservableObject
     public bool ShowApply => IsConfirming;
     public bool ShowRedo => IsConfirming || IsFailed;
 
-    /// <summary>Normalized target positions for the view to draw (TL, TR, BR, BL).</summary>
-    public IReadOnlyList<(double X, double Y)> Targets => TargetN;
+    /// <summary>Normalized target positions for the view to draw (in capture order).</summary>
+    public IReadOnlyList<(double X, double Y)> Targets => _targets;
     /// <summary>How many targets are captured (for ticking them off in the view).</summary>
     public int CapturedCount => _measuredRaw.Count;
 
@@ -115,7 +146,8 @@ public partial class CalibrationViewModel : ObservableObject
         var current = CalibrationProfile.ReadProfile(_ctx.Settings.Profiles.FirstOrDefault(p => p.Tablet == _ctx.TabletName));
         if (current is { Enabled: true })
         {
-            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, current.Transform, enable: false, current.Fingerprint);
+            // Re-write the current calibration disabled, preserving its model + payload.
+            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, current with { Enabled = false });
             await _ctx.Apply(_ctx.Settings);
         }
     }
@@ -140,7 +172,7 @@ public partial class CalibrationViewModel : ObservableObject
 
         if (CurrentPhase != Phase.Capturing) { _wasDown = s.IsDown; return; }
 
-        bool nearTarget = LiveDotVisible && Near(LiveDotX, LiveDotY, TargetN[CurrentTarget]);
+        bool nearTarget = LiveDotVisible && Near(LiveDotX, LiveDotY, _targets[CurrentTarget]);
 
         if (s.IsDown && nearTarget)
             _tapAccum.Add(raw);                 // collecting a tap on the active target
@@ -162,7 +194,7 @@ public partial class CalibrationViewModel : ObservableObject
         _measuredRaw.Add(avg);
         OnPropertyChanged(nameof(CapturedCount));
 
-        if (_measuredRaw.Count >= TargetN.Length)
+        if (_measuredRaw.Count >= _targets.Count)
             _ = FinishAsync();
         else
         {
@@ -173,12 +205,26 @@ public partial class CalibrationViewModel : ObservableObject
 
     private async Task FinishAsync()
     {
-        var targetsDesktop = TargetN.Select(t => new Vector2(
+        var targetsDesktop = _targets.Select(t => new Vector2(
             (float)(_ctx.Display.X + t.X * _ctx.Display.Width),
             (float)(_ctx.Display.Y + t.Y * _ctx.Display.Height))).ToList();
 
-        var transform = CalibrationSolver.Solve(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output);
-        if (transform is null)
+        var fp = CalibrationProfile.Fingerprint(_ctx.Input, _ctx.Output, _ctx.Display.Number);
+
+        // Corners → perspective homography (#195); Grid → per-node bilinear offsets (#196).
+        CalibrationProfile.CalibrationData? data = null;
+        if (_ctx.Mode == CalibrationMode.Corners)
+        {
+            if (CalibrationSolver.SolveHomography(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output) is { } h)
+                data = CalibrationProfile.CalibrationData.ForHomography(h, enabled: true, fp);
+        }
+        else
+        {
+            if (CalibrationSolver.SolveGrid(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output, _ctx.GridCols, _ctx.GridRows) is { } g)
+                data = CalibrationProfile.CalibrationData.ForGrid(g, enabled: true, fp);
+        }
+
+        if (data is null)
         {
             CurrentPhase = Phase.Failed;
             Instruction = "Couldn't compute a calibration from those taps — they may be too close together or off-target. Redo.";
@@ -186,8 +232,7 @@ public partial class CalibrationViewModel : ObservableObject
         }
 
         // Apply for the live preview ("move the pen around"). Apply == persist in this app; Cancel restores.
-        var fp = CalibrationProfile.Fingerprint(_ctx.Input, _ctx.Output, _ctx.Display.Number);
-        CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, transform.Value, enable: true, fp);
+        CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, data);
         await _ctx.Apply(_ctx.Settings);
 
         CurrentPhase = Phase.Confirming;
@@ -222,11 +267,11 @@ public partial class CalibrationViewModel : ObservableObject
     [RelayCommand]
     private async Task Cancel()
     {
-        // Restore whatever calibration existed when the overlay opened.
+        // Restore whatever calibration existed when the overlay opened (model + payload preserved).
         if (_original is null)
             CalibrationProfile.Clear(_ctx.Settings, _ctx.TabletName);
         else
-            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, _original.Transform, _original.Enabled, _original.Fingerprint);
+            CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, _original);
         await _ctx.Apply(_ctx.Settings);
         CloseRequested?.Invoke();
     }
@@ -236,8 +281,16 @@ public partial class CalibrationViewModel : ObservableObject
 
     private void UpdateInstruction()
     {
-        string[] corner = { "top-left", "top-right", "bottom-right", "bottom-left" };
-        Instruction = $"Tap the {corner[CurrentTarget]} target with your pen ({CurrentTarget + 1} of 4). " +
-                      "Press on it and lift.";
+        int total = _targets.Count;
+        if (_ctx.Mode == CalibrationMode.Corners)
+        {
+            string[] corner = { "top-left", "top-right", "bottom-right", "bottom-left" };
+            var where = CurrentTarget < corner.Length ? corner[CurrentTarget] : $"#{CurrentTarget + 1}";
+            Instruction = $"Tap the {where} target with your pen ({CurrentTarget + 1} of {total}). Press on it and lift.";
+        }
+        else
+        {
+            Instruction = $"Tap target {CurrentTarget + 1} of {total} with your pen. Press on it and lift.";
+        }
     }
 }

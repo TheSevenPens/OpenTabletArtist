@@ -13,6 +13,7 @@ using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdArtist.Domain;
 using OtdArtist.Services;
+using OtdArtist.ViewModels;
 
 namespace OtdArtist.Views;
 
@@ -25,7 +26,7 @@ public partial class TabletSettingsDialog : Window
         bool dynamicsOnly = false,
         OtdArtist.Services.IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null,
-        Func<Window, Task>? onCalibrate = null)
+        Func<Window, ViewModels.CalibrationOptions, Task>? onCalibrate = null)
     {
         InitializeComponent();
         var vm = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected, dynamicsOnly);
@@ -36,7 +37,7 @@ public partial class TabletSettingsDialog : Window
             // and settings stay coherent (#147).
             vm.CalibrationRequested += async () =>
             {
-                await onCalibrate(this);
+                await onCalibrate(this, vm.CalibrationOptions);
                 await vm.RefreshCommand.ExecuteAsync(null);
             };
         if (dynamicsOnly)
@@ -137,6 +138,20 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// <summary>Calibration corrects an Absolute mapping, so it's only offered in an Absolute mode.</summary>
     public bool CanCalibrate => IsWinInkAbsolute;
 
+    /// <summary>Calibration capture presets: the current corner method (→ homography, #195) or a finer
+    /// grid (→ bilinear offsets, #196). The user picks one before calibrating.</summary>
+    public IReadOnlyList<CalibrationModeChoice> CalibrationModeChoices { get; } = new List<CalibrationModeChoice>
+    {
+        new("4 point", CalibrationMode.Corners, 0, 0),
+        new("9 point", CalibrationMode.Grid, 3, 3),
+        new("25 point", CalibrationMode.Grid, 5, 5),
+    };
+
+    [ObservableProperty] private CalibrationModeChoice _selectedCalibrationMode;
+
+    /// <summary>The capture options for the current selection (used when opening the overlay).</summary>
+    public CalibrationOptions CalibrationOptions => SelectedCalibrationMode.ToOptions();
+
     /// <summary>Raised when the user clicks Calibrate; the view opens the overlay (owned by the dialog).</summary>
     public event Action? CalibrationRequested;
 
@@ -147,8 +162,33 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// the current one — it may no longer be accurate, so suggest recalibrating (#147).</summary>
     [ObservableProperty] private bool _calibrationStale;
 
-    private void RefreshCalibrationStatus() =>
-        CalibrationStale = CalibrationProfile.IsStale(CalibrationProfile.ReadProfile(_profile), CurrentMappingFingerprint());
+    /// <summary>An enabled calibration is active on this profile (drives the status indicator).</summary>
+    [ObservableProperty] private bool _isCalibrated;
+    /// <summary>Human-readable calibration state incl. the mode used ("Not calibrated" / "Calibrated — …").</summary>
+    [ObservableProperty] private string _calibrationStatusText = "Not calibrated";
+
+    public bool CanClearCalibration => IsCalibrated && _applyAction != null;
+    partial void OnIsCalibratedChanged(bool value) => OnPropertyChanged(nameof(CanClearCalibration));
+
+    private void RefreshCalibrationStatus()
+    {
+        var cal = CalibrationProfile.ReadProfile(_profile);
+        CalibrationStale = CalibrationProfile.IsStale(cal, CurrentMappingFingerprint());
+        IsCalibrated = cal is { Enabled: true };
+        CalibrationStatusText = !IsCalibrated
+            ? "Not calibrated"
+            : cal!.Model switch
+            {
+                CalibrationProfile.CalibrationModel.Homography => "Calibrated — 4 point (perspective)",
+                CalibrationProfile.CalibrationModel.Grid => $"Calibrated — {(cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0)} point",
+                _ => "Calibrated — 4 point (legacy)",
+            };
+    }
+
+    /// <summary>Remove the calibration filter, returning the pointer to its uncorrected default.</summary>
+    [RelayCommand]
+    private async Task ClearCalibration()
+        => await ApplySettingsChange(p => CalibrationProfile.Clear(_settings, p.Tablet ?? ""));
 
     /// <summary>Fingerprint of the profile's current Absolute mapping (input + output area + mapped
     /// display), matching how <see cref="CalibrationProfile.Fingerprint"/> was written at calibration.</summary>
@@ -200,6 +240,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _isDetectedProbe = isDetected;
         _tabletDigitizer = tabletDigitizer;
         DynamicsOnly = dynamicsOnly;
+        SelectedCalibrationMode = CalibrationModeChoices[0]; // default: Corners
 
         if (penInput != null)
         {
@@ -228,6 +269,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _profile = new Profile();
         TabletName = "Design Tablet";
         Displays = [];
+        SelectedCalibrationMode = CalibrationModeChoices[0];
     }
 
     private static string? GetPluginFriendlyName(string? path) =>

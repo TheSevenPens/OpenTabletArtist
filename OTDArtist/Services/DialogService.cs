@@ -60,8 +60,9 @@ public class DialogService : IDialogService
             _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
             // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
             () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
-            // Open the pointer-calibration overlay owned by the settings dialog (#127).
-            owner => ShowCalibrationAsync(profile, owner));
+            // Open the pointer-calibration overlay owned by the settings dialog (#127), using the
+            // capture mode the user picked (corners → homography, or a finer grid; #195/#196).
+            (owner, options) => ShowCalibrationAsync(profile, owner, options));
 
         var mainWindow = Dialogs.GetMainWindow();
         if (mainWindow != null)
@@ -70,7 +71,8 @@ public class DialogService : IDialogService
 
     /// <summary>Opens the 4-tap pointer-calibration overlay on the display this tablet is mapped to
     /// (#127). Validates that the profile is in an Absolute mapping with a known digitizer + display.</summary>
-    public async Task ShowCalibrationAsync(Profile profile, Avalonia.Controls.Window owner)
+    public async Task ShowCalibrationAsync(Profile profile, Avalonia.Controls.Window owner,
+        ViewModels.CalibrationOptions options = default)
     {
         var tabletName = profile.Tablet;
 
@@ -116,7 +118,8 @@ public class DialogService : IDialogService
 
         var ctx = new ViewModels.CalibrationViewModel.Context(
             tabletName, digi.Value, input, output, display, settings,
-            s => _session.ApplyAndSaveSettingsAsync(s), _session.Daemon);
+            s => _session.ApplyAndSaveSettingsAsync(s), _session.Daemon,
+            options.Mode, options.Cols, options.Rows);
 
         var window = new Views.CalibrationOverlayWindow(new ViewModels.CalibrationViewModel(ctx), display);
         await window.ShowDialog(owner);

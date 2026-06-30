@@ -16,6 +16,53 @@ public class CalibrationProfileTests
     private static Matrix3x2 Sample => new(1.02f, 0.01f, -0.01f, 0.98f, 0.03f, -0.04f);
 
     [Fact]
+    public void HomographyModel_Write_ThenRead_RoundTrips()
+    {
+        var settings = SettingsFor("Tab");
+        var h = new Homography(1.1f, 0.05f, 0.02f, -0.03f, 0.95f, -0.01f, 0.08f, -0.04f, 1f);
+
+        CalibrationProfile.Write(settings, "Tab", CalibrationProfile.CalibrationData.ForHomography(h, enabled: true, "fp"));
+        var read = CalibrationProfile.Read(settings, "Tab");
+
+        Assert.NotNull(read);
+        Assert.Equal(CalibrationProfile.CalibrationModel.Homography, read!.Model);
+        Assert.Equal(h, read.Homography);
+        Assert.True(read.Enabled);
+    }
+
+    [Fact]
+    public void GridModel_Write_ThenRead_RoundTrips()
+    {
+        var settings = SettingsFor("Tab");
+        var g = new CalibrationGrid(2, 2, -1, -1, 1, 1, new[]
+        {
+            Vector2.Zero, new Vector2(0.1f, 0), Vector2.Zero, new Vector2(0.1f, 0),
+        });
+
+        CalibrationProfile.Write(settings, "Tab", CalibrationProfile.CalibrationData.ForGrid(g, enabled: true, "fp"));
+        var read = CalibrationProfile.Read(settings, "Tab");
+
+        Assert.NotNull(read);
+        Assert.Equal(CalibrationProfile.CalibrationModel.Grid, read!.Model);
+        Assert.NotNull(read.Grid);
+        Assert.Equal(2, read.Grid!.Cols);
+        Assert.Equal(0.1f, read.Grid.Offsets[1].X, 4);
+    }
+
+    // Legacy stores (written before the Model field existed) must read back as Affine.
+    [Fact]
+    public void LegacyAffineWrite_ReadsBackAsAffineModel()
+    {
+        var settings = SettingsFor("Tab");
+        CalibrationProfile.Write(settings, "Tab", Sample, enable: true, "fp");
+
+        var read = CalibrationProfile.Read(settings, "Tab");
+
+        Assert.Equal(CalibrationProfile.CalibrationModel.Affine, read!.Model);
+        Assert.Equal(Sample.M11, read.Transform.M11, 5);
+    }
+
+    [Fact]
     public void Write_ThenRead_RoundTrips()
     {
         var settings = SettingsFor("Tab");
