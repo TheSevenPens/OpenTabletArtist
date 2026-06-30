@@ -38,7 +38,7 @@ jobs:
           $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ github.event.inputs.tag }}' } else { '${{ github.ref_name }}' }
           if ([string]::IsNullOrWhiteSpace($tag)) { throw "No tag resolved" }
           "tag=$tag"  >> $env:GITHUB_OUTPUT
-          "zip=OTDArtist-$tag-win-x64.zip" >> $env:GITHUB_OUTPUT
+          "zip=OpenTabletArtist-$tag-win-x64.zip" >> $env:GITHUB_OUTPUT
           # Numeric version (strip a leading 'v') stamped into the assembly for the in-app label.
           "version=$($tag -replace '^v','')" >> $env:GITHUB_OUTPUT
           Write-Host "Releasing $tag"
@@ -46,30 +46,30 @@ jobs:
       # Gate the release on the test suite (build.yml tests every push/PR, but a tag could point
       # at any commit, so verify here too).
       - name: Test
-        run: dotnet test tests/OtdArtist.Tests/OtdArtist.Tests.csproj -c Debug
+        run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug
 
       # Self-contained so end users need no .NET runtime installed.
       - name: Publish app (self-contained win-x64)
-        run: dotnet publish OTDArtist/OtdArtist.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish/OTDArtist
+        run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
 
       # Bundle the OTD daemon next to the app in a Daemon/ subfolder — the app's daemon-locate
       # logic (DaemonExePaths) checks this path first, so auto-start works in the release.
       - name: Publish daemon into the app's Daemon/ folder
-        run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -o publish/OTDArtist/Daemon
+        run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -o publish/OpenTabletArtist/Daemon
 
       # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
       # at runtime (PressurePluginInstaller looks for BundledPlugins/<folder>/ next to the app first).
       - name: Bundle the pen-dynamics plugin
         shell: pwsh
         run: |
-          dotnet build plugins/OtdArtist.Dynamics/OtdArtist.Dynamics.csproj -c Release
-          $dest = "publish/OTDArtist/BundledPlugins/OtdArtistDynamics"
+          dotnet build plugins/OpenTabletArtist.Dynamics/OpenTabletArtist.Dynamics.csproj -c Release
+          $dest = "publish/OpenTabletArtist/BundledPlugins/OpenTabletArtistDynamics"
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Copy-Item "plugins/OtdArtist.Dynamics/bin/Release/net8.0/OtdArtist.Dynamics.dll" $dest
+          Copy-Item "plugins/OpenTabletArtist.Dynamics/bin/Release/net8.0/OpenTabletArtist.Dynamics.dll" $dest
 
       - name: Package zip
         shell: pwsh
-        run: Compress-Archive -Path publish/OTDArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force
+        run: Compress-Archive -Path publish/OpenTabletArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force
 
       - name: Create release & upload asset
         shell: pwsh
@@ -79,6 +79,6 @@ jobs:
           $tag = '${{ steps.ver.outputs.tag }}'
           gh release view $tag 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "OTD Artist $tag" --generate-notes
+            gh release create $tag --title "OpenTabletArtist $tag" --generate-notes
           }
           gh release upload $tag '${{ steps.ver.outputs.zip }}' --clobber

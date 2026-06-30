@@ -1,0 +1,59 @@
+<UserControl x:Class="OpenTabletArtist.Views.UtilitiesView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- DataContext is the UtilitiesViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="Utilities" />
+        <TextBlock Classes="PageSubtitle"
+                   Text="Helpful tools for diagnosing and fixing tablet driver problems" />
+
+        <!-- TabletDriverCleanup -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                    <TextBlock Text="TabletDriverCleanup" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <TextBlock Text="Removes leftover bits from previous tablet drivers"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0" TextWrapping="Wrap"
+                               IsVisible="{Binding !CleanupInstalled}" />
+                    <TextBlock Text="{Binding CleanupInstallPath}" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0" TextWrapping="Wrap"
+                               IsVisible="{Binding CleanupInstalled}" />
+                    <TextBlock Text="{Binding CleanupStatus}" FontSize="10"
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"
+                               IsVisible="{Binding CleanupBusy}" />
+                </StackPanel>
+
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                    <!-- When not installed: just an Install button -->
+                    <Button Content="Install" Theme="{StaticResource AccentButton}"
+                            Command="{Binding InstallCleanupCommand}"
+                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding !CleanupInstalled}" />
+
+                    <!-- When installed: Browse, Run, Uninstall -->
+                    <Button Content="Browse" Theme="{StaticResource AccentButton}"
+                            Command="{Binding OpenFolderCommand}"
+                            CommandParameter="{Binding CleanupInstallPath}"
+                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            IsVisible="{Binding CleanupInstalled}" />
+                    <Button Content="Run" Theme="{StaticResource AccentButton}"
+                            Command="{Binding RunCleanupCommand}"
+                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding CleanupInstalled}" />
+                    <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
+                            Command="{Binding UninstallCleanupCommand}"
+                            Padding="12,6" FontSize="12" Margin="0,0,0,4"
+                            IsEnabled="{Binding !CleanupBusy}"
+                            IsVisible="{Binding CleanupInstalled}" />
+                </WrapPanel>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

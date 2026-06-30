@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- OTD plugin assembly — must match the daemon's target framework. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenTabletArtist.Dynamics</RootNamespace>
+    <AssemblyName>OpenTabletArtist.Dynamics</AssemblyName>
+  </PropertyGroup>
+
+  <!-- The daemon provides OpenTabletDriver.Plugin at runtime; reference it for compile only so the
+       plugin output is just our own DLL. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\external\OpenTabletDriver\OpenTabletDriver.Plugin\OpenTabletDriver.Plugin.csproj"
+                      Private="false" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Single source of truth for the curve + smoothing math, shared with the app + its tests. -->
+  <ItemGroup>
+    <Compile Include="..\..\OpenTabletArtist\Domain\PressureCurve.cs" Link="PressureCurve.cs" />
+    <Compile Include="..\..\OpenTabletArtist\Domain\PenSmoothing.cs" Link="PenSmoothing.cs" />
+    <Compile Include="..\..\OpenTabletArtist\Domain\PenDynamicsProcessor.cs" Link="PenDynamicsProcessor.cs" />
+    <Compile Include="..\..\OpenTabletArtist\Domain\CalibrationMath.cs" Link="CalibrationMath.cs" />
+  </ItemGroup>
+
+</Project>

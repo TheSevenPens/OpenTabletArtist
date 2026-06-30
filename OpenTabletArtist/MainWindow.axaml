@@ -1,0 +1,89 @@
+<Window x:Class="OpenTabletArtist.MainWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:OpenTabletArtist.ViewModels"
+        Title="OpenTabletArtist"
+        Icon="/Assets/appicon.png"
+        Width="1100" Height="720"
+        MinWidth="800" MinHeight="500"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBaseBrush}">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Grid ColumnDefinitions="260,*">
+        <!-- SIDEBAR -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource GlassBgBrush}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
+                            Margin="16,20,16,16">
+                    <!-- Minimal brand mark (no icon font) -->
+                    <Border Width="28" Height="28" CornerRadius="8"
+                            Background="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="OpenTabletArtist"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" Margin="12,0,0,0" />
+                </StackPanel>
+
+                <!-- Nav Items -->
+                <StackPanel Margin="8,0,8,0">
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Dashboard"
+                                 IsChecked="{Binding IsDashboard, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Paired Tablets"
+                                 IsChecked="{Binding IsTabletSettings, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletSettings}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Saved Settings"
+                                 IsChecked="{Binding IsPresets, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Custom Tablet Configs"
+                                 IsChecked="{Binding IsConfigs, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Utilities"
+                                 IsChecked="{Binding IsUtilities, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Diagnostics"
+                                 IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Test"
+                                 IsChecked="{Binding IsTest, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Plugins"
+                                 IsChecked="{Binding IsPlugins, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="Settings"
+                                 IsChecked="{Binding IsSettings, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
+                                 Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="About"
+                                 IsChecked="{Binding IsAbout, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
+                                 Margin="0,2,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- CONTENT AREA -->
+        <ScrollViewer Grid.Column="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Border Padding="28">
+                <ContentControl Content="{Binding CurrentPage}" />
+            </Border>
+        </ScrollViewer>
+    </Grid>
+</Window>
