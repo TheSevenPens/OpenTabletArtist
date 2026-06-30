@@ -243,6 +243,8 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 - **Auto-install** — the app bundles the built DLL and copies it into the daemon's plugin directory on connect (`Services/PressurePluginInstaller.cs` + `Domain/PressurePluginPaths.cs`); a fresh copy triggers `LoadPlugins`, an update restarts the daemon (it can't hot-replace an already-loaded assembly). Only for the app-owned daemon.
 - **Per-profile config** — `Services/PressureCurveProfile.cs` reads/writes the filter's `PluginSettingStore` (by type name, since the app doesn't reference the plugin assembly) in a profile's `Filters`, as a `PenDynamicsSettings` (curve + smoothing). The Pressure tab's editor (`Controls/PressureCurveChart.cs`, adapted from PenDynamicsLab) drives it, debouncing edits into a single `ApplyAndSaveSettings`.
 
+The same plugin assembly also carries the **calibration filter** (above) and a **hover-limit filter** (`HoverFilter`, #188, modeled on Kuuube's Hover Distance Limiter): at `PreTransform` it drops a report when `IProximityReport.HoverDistance` exceeds a configured max, so a pen lifted past that height stops moving the cursor (drawing is untouched — hover is ~0 in contact). Persisted per-profile by `Services/HoverProfile.cs` and edited from the dialog's **Hover** tab. Each filter's type name is guarded by a unit test that resolves it against the built plugin assembly.
+
 ## Dependency Graph
 
 ```

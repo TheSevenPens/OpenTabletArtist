@@ -380,6 +380,14 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
 
+        // Hover limit (#188) — load without triggering a persist.
+        var hover = HoverProfile.Read(_settings, _profile.Tablet ?? "");
+        _skipHoverPersist = true;
+        MaxHoverDistance = hover?.MaxHoverDistance ?? DefaultMaxHoverDistance;
+        HoverLimitEnabled = hover?.Enabled ?? false;
+        _skipHoverPersist = false;
+        CanEditHover = _applyAction != null;
+
         RefreshCalibrationStatus();
     }
 
@@ -639,6 +647,56 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, PressureCurveEnabled);
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
         // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
+        UpdateFiltersDisplay();
+        await _applyAction(_settings);
+    }
+
+    // ── Hover limit tab (#188) ──────────────────────────────────
+
+    public const int DefaultMaxHoverDistance = 127; // sensible mid-point when first enabled (range 0-255)
+    public int HoverDistanceMax => HoverProfile.MaxDistance;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HoverControlsOpacity))]
+    private bool _hoverLimitEnabled;
+    [ObservableProperty] private bool _canEditHover;
+    [ObservableProperty] private double _maxHoverDistance = DefaultMaxHoverDistance;
+
+    public string MaxHoverDistanceText => ((int)MaxHoverDistance).ToString();
+    /// <summary>Dim the hover controls when the limit is off so they read as inactive (like Dynamics).</summary>
+    public double HoverControlsOpacity => HoverLimitEnabled ? 1.0 : 0.4;
+
+    private bool _skipHoverPersist;
+    private CancellationTokenSource? _hoverPersistCts;
+
+    partial void OnHoverLimitEnabledChanged(bool value) => SchedulePersistHover();
+
+    partial void OnMaxHoverDistanceChanged(double value)
+    {
+        OnPropertyChanged(nameof(MaxHoverDistanceText));
+        SchedulePersistHover();
+    }
+
+    private void SchedulePersistHover()
+    {
+        if (_skipHoverPersist || _applyAction == null || _settings == null) return;
+        _hoverPersistCts?.Cancel();
+        var cts = _hoverPersistCts = new CancellationTokenSource();
+        _ = DebounceAsync(cts.Token);
+
+        async Task DebounceAsync(CancellationToken ct)
+        {
+            try { await Task.Delay(400, ct); }
+            catch (TaskCanceledException) { return; }
+            if (ct.IsCancellationRequested) return;
+            await Dispatcher.UIThread.InvokeAsync(PersistHoverAsync);
+        }
+    }
+
+    private async Task PersistHoverAsync()
+    {
+        if (_applyAction == null || _settings == null) return;
+        HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled);
         UpdateFiltersDisplay();
         await _applyAction(_settings);
     }
