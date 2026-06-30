@@ -25,15 +25,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly AppSession _session;
     private readonly IDialogService _dialogs;
+    // Navigate the shell to a tablet's in-app settings page (#tablet-ux-overhaul). Replaces opening
+    // the modal dialog for a Home card's "Settings".
+    private readonly Action<string> _navigateToTablet;
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
     private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
 
-    public DashboardViewModel(AppSession session, IDialogService dialogs)
+    public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet)
     {
         _session = session;
         _dialogs = dialogs;
+        _navigateToTablet = navigateToTablet;
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
@@ -121,14 +125,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         else await _session.ConnectAsync();
     }
 
-    /// <summary>Open the per-tablet settings dialog for a specific connected tablet (#190).</summary>
-    private async Task OpenTabletSettingsByNameAsync(string tabletName)
+    /// <summary>Open a specific tablet's in-app settings page (#190 / #tablet-ux-overhaul).</summary>
+    private Task OpenTabletSettingsByNameAsync(string tabletName)
     {
-        var settings = _session.CurrentSettings;
-        if (string.IsNullOrEmpty(tabletName) || settings == null) return;
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
-        if (profile != null)
-            await _dialogs.ShowTabletSettingsAsync(profile);
+        if (!string.IsNullOrEmpty(tabletName)) _navigateToTablet(tabletName);
+        return Task.CompletedTask;
     }
 
     // --- VMulti driver card ---

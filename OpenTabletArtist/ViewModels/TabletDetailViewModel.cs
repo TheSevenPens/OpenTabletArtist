@@ -33,6 +33,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private readonly IDeviceData? _deviceData;
     // Removes this tablet's saved profile (wired by the page host). Null in the tray dialog.
     private readonly Func<Task>? _forgetAction;
+    // Opens the calibration overlay for the chosen options; the host supplies the owner window.
+    // Null when calibration isn't available (the focused Pen Dynamics dialog hides Screen Mapping).
+    private readonly Func<CalibrationOptions, Task>? _onCalibrate;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
     private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
@@ -83,9 +86,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public bool CanCalibrate => IsWinInkAbsolute;
 
     /// <summary>Calibration captures live pen taps, so it additionally needs the tablet connected
-    /// (#177). Gates the Calibrate button so it can't be clicked into the "not detected" dead-end,
-    /// and flips live as the tablet is (un)plugged while the page stays open.</summary>
-    public bool CanRunCalibration => CanCalibrate && IsTabletDetected;
+    /// (#177) and a host that can open the overlay. Gates the Calibrate button so it can't be clicked
+    /// into the "not detected" dead-end, and flips live as the tablet is (un)plugged.</summary>
+    public bool CanRunCalibration => CanCalibrate && IsTabletDetected && _onCalibrate != null;
 
     /// <summary>In an Absolute mode but the tablet isn't connected, so calibration is shown but
     /// disabled — prompt the user to connect it (#177).</summary>
@@ -105,11 +108,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>The capture options for the current selection (used when opening the overlay).</summary>
     public CalibrationOptions CalibrationOptions => SelectedCalibrationMode.ToOptions();
 
-    /// <summary>Raised when the user clicks Calibrate; the host opens the overlay.</summary>
-    public event Action? CalibrationRequested;
-
     [RelayCommand]
-    private void Calibrate() => CalibrationRequested?.Invoke();
+    private async Task Calibrate()
+    {
+        if (_onCalibrate == null) return;
+        await _onCalibrate(CalibrationOptions);
+        await Refresh(); // reload so the stale-calibration hint + settings stay coherent (#147)
+    }
 
     /// <summary>True when a calibration exists but was captured against a different area mapping than
     /// the current one — it may no longer be accurate, so suggest recalibrating (#147).</summary>
@@ -186,7 +191,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Func<bool>? isDetected = null,
         bool dynamicsOnly = false,
         IDeviceData? deviceData = null,
-        Func<Task>? forgetAction = null)
+        Func<Task>? forgetAction = null,
+        Func<CalibrationOptions, Task>? onCalibrate = null)
     {
         _profile = profile;
         _settings = settings;
@@ -196,6 +202,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _tabletDigitizer = tabletDigitizer;
         _deviceData = deviceData;
         _forgetAction = forgetAction;
+        _onCalibrate = onCalibrate;
         DynamicsOnly = dynamicsOnly;
         SelectedCalibrationMode = CalibrationModeChoices[0]; // default: Corners
 

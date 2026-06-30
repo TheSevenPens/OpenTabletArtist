@@ -107,7 +107,8 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask,
-            isDetected: () => false);
+            isDetected: () => false,
+            onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
         Assert.True(vm.CanCalibrate);                // absolute mode → section visible
         Assert.False(vm.CanRunCalibration);          // ...but not connected → button disabled
@@ -124,7 +125,8 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
             applyAction: _ => Task.CompletedTask,
-            isDetected: () => detected);
+            isDetected: () => detected,
+            onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
         Assert.False(vm.IsTabletDetected);
         Assert.False(vm.CanRunCalibration);

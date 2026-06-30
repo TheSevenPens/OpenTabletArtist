@@ -27,17 +27,11 @@ public partial class TabletSettingsDialog : Window
         IDeviceData? deviceData = null)
     {
         InitializeComponent();
+        // Calibration overlay is owned by this dialog window (#127); the VM reloads afterward (#147).
         var vm = new TabletDetailViewModel(profile, settings, onApplyChanges, onRefresh,
-            tabletDigitizer, penInput, isDetected, dynamicsOnly, deviceData);
+            tabletDigitizer, penInput, isDetected, dynamicsOnly, deviceData,
+            onCalibrate: onCalibrate != null ? (opts => onCalibrate(this, opts)) : null);
         DataContext = vm; // inherited by the hosted TabletDetailView
-        if (onCalibrate != null)
-            // Open the calibration overlay owned by this dialog (#127); reload afterward so the
-            // stale-calibration hint and settings stay coherent (#147).
-            vm.CalibrationRequested += async () =>
-            {
-                await onCalibrate(this, vm.CalibrationOptions);
-                await vm.RefreshCommand.ExecuteAsync(null);
-            };
         if (dynamicsOnly)
         {
             // Focused Pen Dynamics editor (#133): the view preselects/hides tabs via the VM's
