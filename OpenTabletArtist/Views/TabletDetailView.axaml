@@ -294,7 +294,7 @@
                                             <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
                                                       MinWidth="0" VerticalAlignment="Center" />
                                             <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                                      IsEnabled="{Binding CanEdit}"
+                                                      IsEnabled="{Binding CanEdit}" PlaceholderText="Pick a key"
                                                       ItemsSource="{Binding KeyOptions}"
                                                       SelectedValueBinding="{Binding Value}"
                                                       SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
@@ -307,6 +307,7 @@
                                         <!-- Mouse: a single button. -->
                                         <ComboBox MinWidth="110" VerticalAlignment="Center"
                                                   IsVisible="{Binding IsMouse}" IsEnabled="{Binding CanEdit}"
+                                                  PlaceholderText="Pick a button"
                                                   ItemsSource="{Binding MouseButtonOptions}"
                                                   SelectedValueBinding="{Binding Value}"
                                                   SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
@@ -318,6 +319,7 @@
                                         <!-- Scroll: a direction. -->
                                         <ComboBox MinWidth="110" VerticalAlignment="Center"
                                                   IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
+                                                  PlaceholderText="Pick a direction"
                                                   ItemsSource="{Binding ScrollOptions}"
                                                   SelectedValueBinding="{Binding Value}"
                                                   SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">

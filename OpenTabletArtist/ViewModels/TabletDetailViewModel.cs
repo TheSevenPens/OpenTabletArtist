@@ -949,6 +949,7 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
+    private const string NoneKind = "None";
     private const string KeyboardKind = "Keyboard";
     private const string MouseKind = "Mouse";
     private const string ScrollKind = "Scroll";
@@ -969,16 +970,19 @@ public partial class ButtonBinding : ObservableObject
         _suppressApply = true;
         SelectedKind = binding.Kind switch
         {
+            AuxKind.Keyboard => KeyboardKind,
             AuxKind.Mouse => MouseKind,
             AuxKind.Scroll => ScrollKind,
-            _ => KeyboardKind,
+            _ => NoneKind,
         };
+        // Only the active type's value is populated; the others start empty so switching to them
+        // requires a fresh pick (no stale value, no accidental default).
         Ctrl = binding.Combo.Ctrl;
         Shift = binding.Combo.Shift;
         Alt = binding.Combo.Alt;
-        SelectedKey = binding.Combo.Key;
-        SelectedMouseButton = binding.MouseButton;
-        SelectedScroll = binding.Scroll;
+        SelectedKey = binding.Kind == AuxKind.Keyboard ? binding.Combo.Key : "";
+        SelectedMouseButton = binding.Kind == AuxKind.Mouse ? binding.MouseButton : "";
+        SelectedScroll = binding.Kind == AuxKind.Scroll ? binding.Scroll : "";
         _suppressApply = false;
     }
 
@@ -988,6 +992,7 @@ public partial class ButtonBinding : ObservableObject
     /// <summary>Binding-type choices and per-type pickers (all shared lists).</summary>
     public IReadOnlyList<KeyOption> KindOptions { get; } = new List<KeyOption>
     {
+        new("None", NoneKind),
         new("Keyboard", KeyboardKind),
         new("Mouse button", MouseKind),
         new("Mouse scroll", ScrollKind),
@@ -996,8 +1001,9 @@ public partial class ButtonBinding : ObservableObject
     public IReadOnlyList<KeyOption> MouseButtonOptions => AuxKeyBinding.MouseButtonOptions;
     public IReadOnlyList<KeyOption> ScrollOptions => AuxKeyBinding.ScrollOptions;
 
-    /// <summary>The chosen binding type; toggles which editor shows.</summary>
-    [ObservableProperty] private string _selectedKind = KeyboardKind;
+    /// <summary>The chosen binding type; toggles which editor shows. "None" = intentionally unbound.</summary>
+    [ObservableProperty] private string _selectedKind = NoneKind;
+    public bool IsNone => SelectedKind == NoneKind;
     public bool IsKeyboard => SelectedKind == KeyboardKind;
     public bool IsMouse => SelectedKind == MouseKind;
     public bool IsScroll => SelectedKind == ScrollKind;
@@ -1028,6 +1034,7 @@ public partial class ButtonBinding : ObservableObject
         OnPropertyChanged(nameof(IsKeyboard));
         OnPropertyChanged(nameof(IsMouse));
         OnPropertyChanged(nameof(IsScroll));
+        OnPropertyChanged(nameof(IsNone));
         ApplyIfChanged();
     }
 
@@ -1040,16 +1047,18 @@ public partial class ButtonBinding : ObservableObject
 
     private AuxBinding Current() => SelectedKind switch
     {
+        KeyboardKind => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey),
+                                       AuxKeyBinding.None, AuxKeyBinding.None),
         MouseKind => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton, AuxKeyBinding.None),
         ScrollKind => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll),
-        _ => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey),
-                            AuxKeyBinding.None, AuxKeyBinding.None),
+        _ => AuxBinding.Unbound,
     };
 
     private void ApplyIfChanged()
     {
         if (_suppressApply || _applyBinding == null) return;
-        // The pickers can momentarily report null while binding initializes; ignore that.
+        // A real type with no value yet isn't applied — the user must pick one. (Also skips the
+        // pickers' transient null during init.)
         if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
         if (IsMouse && string.IsNullOrEmpty(SelectedMouseButton)) return;
         if (IsScroll && string.IsNullOrEmpty(SelectedScroll)) return;
@@ -1057,11 +1066,9 @@ public partial class ButtonBinding : ObservableObject
         var binding = Current();
         if (binding == _applied) return; // round-trip / no real change
 
-        // Persist a bound result, or an explicit clear within the same type (key/button set to None).
-        // A type switch that doesn't yet have a value just updates the editor — don't persist (which
-        // would refresh and snap the type back).
-        var isClearWithinKind = binding.Kind == _applied.Kind && !binding.IsBound && _applied.IsBound;
-        if (!binding.IsBound && !isClearWithinKind) { _applied = binding; return; }
+        // Persist when we have a real binding, or when None is chosen to clear an existing one.
+        // Selecting None on an already-unbound button is a no-op.
+        if (!binding.IsBound && !_applied.IsBound) { _applied = binding; return; }
         _applied = binding;
         _ = _applyBinding(Index, binding);
     }

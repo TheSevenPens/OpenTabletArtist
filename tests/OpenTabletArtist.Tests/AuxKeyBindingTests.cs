@@ -46,9 +46,10 @@ public class AuxKeyBindingTests
     }
 
     [Fact]
-    public void Options_StartWithNone_AndMapDigitsToOtdNames()
+    public void Options_HaveNoNone_AndMapDigitsToOtdNames()
     {
-        Assert.Equal(AuxKeyBinding.None, AuxKeyBinding.Options[0].Value);
+        // Unbinding is the explicit None binding type, so the key picker carries only real keys.
+        Assert.DoesNotContain(AuxKeyBinding.Options, o => o.Value == AuxKeyBinding.None);
         Assert.Contains(AuxKeyBinding.Options, o => o.Value == "A" && o.Display == "A");
         // Digits show as "0".."9" but store as OTD's "D0".."D9".
         Assert.Contains(AuxKeyBinding.Options, o => o.Display == "0" && o.Value == "D0");
@@ -169,11 +170,26 @@ public class AuxKeyBindingTests
     }
 
     [Fact]
-    public void MouseButtonOptions_StartWithNone_AndMapBackToBackward()
+    public void MouseButtonOptions_HaveNoNone_AndMapBackToBackward()
     {
-        Assert.Equal(AuxKeyBinding.None, AuxKeyBinding.MouseButtonOptions[0].Value);
+        Assert.DoesNotContain(AuxKeyBinding.MouseButtonOptions, o => o.Value == AuxKeyBinding.None);
         Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Display == "Back" && o.Value == "Backward");
         Assert.Contains(AuxKeyBinding.MouseButtonOptions, o => o.Value == "Left");
+    }
+
+    [Fact]
+    public void ReadBinding_ValuelessStoresAreExplicitNone()
+    {
+        // Unbound, or a typed binding with no value, all read as the None type (Kind = None).
+        Assert.Equal(AuxKind.None, AuxKeyBinding.ReadBinding(null)!.Kind);
+        Assert.Equal(AuxKind.None, AuxKeyBinding.ReadBinding(StoreAt(AuxKeyBinding.KeyBindingPath))!.Kind);
+        Assert.Equal(AuxKind.None, AuxKeyBinding.ReadBinding(StoreAt(AuxKeyBinding.MouseBindingPath))!.Kind);
+    }
+
+    [Fact]
+    public void MakeBinding_NoneKind_IsUnbound()
+    {
+        Assert.Null(AuxKeyBinding.MakeBinding(AuxBinding.Unbound));
     }
 
     // ── Mouse scroll ────────────────────────────────────────────────

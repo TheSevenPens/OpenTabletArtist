@@ -18,22 +18,24 @@ public sealed record AuxCombo(bool Ctrl, bool Shift, bool Alt, string Key)
     public bool IsBound => !string.IsNullOrEmpty(Key) && Key != AuxKeyBinding.None;
 }
 
-/// <summary>The kind of action an express key performs.</summary>
-public enum AuxKind { Keyboard, Mouse, Scroll }
+/// <summary>The kind of action an express key performs. <see cref="None"/> is an explicit "do
+/// nothing" so an intentionally-unbound button reads clearly in the UI.</summary>
+public enum AuxKind { None, Keyboard, Mouse, Scroll }
 
-/// <summary>A full express-key binding the editor can model: a keyboard <see cref="AuxCombo"/>, a
-/// mouse button, or a scroll direction. Carries all three so the UI keeps each editor's state while
-/// switching type.</summary>
+/// <summary>A full express-key binding the editor can model: nothing, a keyboard <see cref="AuxCombo"/>,
+/// a mouse button, or a scroll direction. Carries each value so the UI keeps every editor's state
+/// while switching type.</summary>
 public sealed record AuxBinding(AuxKind Kind, AuxCombo Combo, string MouseButton, string Scroll)
 {
     public static readonly AuxBinding Unbound =
-        new(AuxKind.Keyboard, AuxCombo.Unbound, AuxKeyBinding.None, AuxKeyBinding.None);
+        new(AuxKind.None, AuxCombo.Unbound, AuxKeyBinding.None, AuxKeyBinding.None);
 
     public bool IsBound => Kind switch
     {
+        AuxKind.Keyboard => Combo.IsBound,
         AuxKind.Mouse => IsSet(MouseButton),
         AuxKind.Scroll => IsSet(Scroll),
-        _ => Combo.IsBound,
+        _ => false,
     };
 
     private static bool IsSet(string v) => !string.IsNullOrEmpty(v) && v != AuxKeyBinding.None;
@@ -172,30 +174,37 @@ public static class AuxKeyBinding
     }
 
     /// <summary>Parse any aux store into the editor's unified model, or null when it's a binding the
-    /// editor can't represent (adaptive, Windows Ink, or a multi-key macro).</summary>
+    /// editor can't represent (adaptive, Windows Ink, or a multi-key macro). An unbound or
+    /// value-less store reads as <see cref="AuxBinding.Unbound"/> (the explicit None type).</summary>
     public static AuxBinding? ReadBinding(PluginSettingStore? store)
     {
         if (store?.Path == null) return AuxBinding.Unbound;
         if (store.Path == MouseBindingPath)
-            return new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, ReadMouseButton(store), None);
+        {
+            var button = ReadMouseButton(store);
+            return button == None ? AuxBinding.Unbound
+                : new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, button, None);
+        }
         if (store.Path == MouseScrollBindingPath)
             return new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, None, ReadScroll(store));
         var combo = ReadCombo(store);
-        return combo == null ? null : new AuxBinding(AuxKind.Keyboard, combo, None, None);
+        if (combo == null) return null;                       // a binding the editor can't model
+        return combo.IsBound ? new AuxBinding(AuxKind.Keyboard, combo, None, None) : AuxBinding.Unbound;
     }
 
-    /// <summary>Build the store for a unified binding (keyboard / mouse button / scroll); null = unbound.</summary>
+    /// <summary>Build the store for a unified binding (keyboard / mouse button / scroll), or null
+    /// (unbound) for the None type.</summary>
     public static PluginSettingStore? MakeBinding(AuxBinding binding) => binding.Kind switch
     {
+        AuxKind.Keyboard => MakeBinding(binding.Combo),
         AuxKind.Mouse => MakeMouseBinding(binding.MouseButton),
         AuxKind.Scroll => MakeScrollBinding(binding.Scroll),
-        _ => MakeBinding(binding.Combo),
+        _ => null,
     };
 
-    /// <summary>Scroll directions offered in the picker.</summary>
+    /// <summary>Scroll directions offered in the picker. No "None" — unbinding is the None type.</summary>
     public static IReadOnlyList<KeyOption> ScrollOptions { get; } = new List<KeyOption>
     {
-        new("None", None),
         new("Up", Up),
         new("Down", Down),
         new("Left", Left),
@@ -203,10 +212,9 @@ public static class AuxKeyBinding
     };
 
     /// <summary>Mouse buttons offered in the picker (OTD's MouseButton enum names; "Back" reads nicer
-    /// than the stored "Backward").</summary>
+    /// than the stored "Backward"). No "None" — unbinding is the explicit None binding type.</summary>
     public static IReadOnlyList<KeyOption> MouseButtonOptions { get; } = new List<KeyOption>
     {
-        new("None", None),
         new("Left", "Left"),
         new("Right", "Right"),
         new("Middle", "Middle"),
@@ -228,7 +236,7 @@ public static class AuxKeyBinding
 
     private static IReadOnlyList<KeyOption> BuildOptions()
     {
-        var list = new List<KeyOption> { new("None", None) };
+        var list = new List<KeyOption>(); // no "None" — unbinding is the explicit None binding type
         for (char c = 'A'; c <= 'Z'; c++) list.Add(new(c.ToString(), c.ToString()));
         for (int d = 0; d <= 9; d++) list.Add(new(d.ToString(), $"D{d}"));
         for (int f = 1; f <= 12; f++) list.Add(new($"F{f}", $"F{f}"));
