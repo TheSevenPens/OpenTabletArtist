@@ -73,6 +73,7 @@
                                        FontSize="13"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>

@@ -54,7 +54,7 @@
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="TEST"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="TEST DRAWING"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
                                  Margin="0,2,0,0" />
@@ -77,7 +77,7 @@
                                      IsChecked="{Binding IsOtd, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Otd}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET CONFIGS"
+                        <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET COMPATIBILITY"
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
                                      Margin="0,2,0,0" />
@@ -85,7 +85,7 @@
                                      IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="CONSOLE"
+                        <RadioButton Theme="{StaticResource NavButton}" Content="LOG"
                                      IsChecked="{Binding IsConsole, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Console}"
                                      Margin="0,2,0,0" />
