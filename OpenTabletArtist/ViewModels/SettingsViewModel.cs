@@ -31,6 +31,12 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>Description of the currently-selected theme (shown under the picker).</summary>
     public string SelectedDescription => SelectedTheme?.Description ?? "";
 
+    /// <summary>The falling-petals toggle only makes sense for the Sakura skin.</summary>
+    public bool ShowPetalsToggle => SelectedTheme?.Id == ThemeService.Anime;
+
+    /// <summary>Falling-petal animation for the Sakura skin (#207). Persisted; the overlay reacts live.</summary>
+    [ObservableProperty] private bool _petalsEnabled = AnimationSettings.PetalsEnabled;
+
     public SettingsViewModel()
     {
         // Assign the backing field directly so selecting the persisted choice here doesn't re-fire
@@ -42,8 +48,11 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnSelectedThemeChanged(ThemeOption value)
     {
         OnPropertyChanged(nameof(SelectedDescription));
+        OnPropertyChanged(nameof(ShowPetalsToggle));
         if (value != null) ThemeService.Apply(value.Id);
     }
+
+    partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;
 
     /// <summary>Sakura swatch: the same pink→rose gradient as the skin's accent buttons.</summary>
     private static IBrush SakuraSwatch() => Gradient("#FF7EC4", "#E0218A");
