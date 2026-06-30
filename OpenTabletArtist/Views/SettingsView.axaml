@@ -13,14 +13,30 @@
                 <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
                     <TextBlock Grid.Column="0" Text="Theme" FontSize="13" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}" Width="120" />
-                    <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="200"
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
                               ItemsSource="{Binding ThemeOptions}"
                               SelectedItem="{Binding SelectedTheme}"
-                              ToolTip.Tip="Light, Dark, or follow the system setting" />
+                              ToolTip.Tip="Light, Dark, Sakura, or follow the system setting">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <!-- Colour swatch previewing the theme. -->
+                                    <Border Width="18" Height="18" CornerRadius="5"
+                                            Background="{Binding Swatch}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </Grid>
-                <TextBlock Text="System follows your Windows light/dark setting. Your choice is remembered across restarts."
+                <TextBlock Text="{Binding SelectedDescription}"
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,8,0,0" />
+                <TextBlock Text="Your choice is remembered across restarts."
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           TextWrapping="Wrap" Margin="0,2,0,0" />
             </StackPanel>
         </Border>
     </StackPanel>

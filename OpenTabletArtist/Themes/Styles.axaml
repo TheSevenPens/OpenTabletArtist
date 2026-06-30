@@ -96,8 +96,8 @@
 
         <!-- Accent Button -->
         <ControlTheme x:Key="AccentButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentButtonFillBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentButtonForegroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
@@ -118,8 +118,8 @@
                 </ControlTemplate>
             </Setter>
             <Style Selector="^:pointerover">
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextInverseBrush}" />
+                <Setter Property="Background" Value="{DynamicResource AccentButtonFillHoverBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource AccentButtonForegroundHoverBrush}" />
             </Style>
         </ControlTheme>
 
@@ -244,9 +244,10 @@
         <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="16" />
+        <!-- Corner radius + shadow are theme-driven so the Anime skin can make cards rounder/glowier. -->
+        <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
         <Setter Property="Padding" Value="24" />
-        <Setter Property="BoxShadow" Value="0 2 12 0 #14000000" />
+        <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}" />
     </Style>
 
     <!-- Page Title -->
