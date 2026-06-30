@@ -4,7 +4,7 @@
 
     <!-- DataContext is the ConsoleViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel HorizontalAlignment="Stretch">
-        <TextBlock Classes="PageTitle" Text="CONSOLE" />
+        <TextBlock Classes="PageTitle" Text="LOG" />
         <TextBlock Classes="PageSubtitle" Text="Live OpenTabletDriver daemon log" />
 
         <!-- Toolbar: level filter, auto-scroll, copy/clear -->
