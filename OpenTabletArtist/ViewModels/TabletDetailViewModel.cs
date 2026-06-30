@@ -223,6 +223,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
         Displays = DisplayEnumerator.Enumerate();
+        LoadAuxEnabledState();
         RefreshFromProfile();
         RefreshDetectionStatus();
         // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
@@ -347,14 +348,29 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var bindings = _profile.BindingSettings;
         RefreshPenSwitchRows();
 
-        // ExpressKeys (read-only)
-        AuxButtonCount = bindings.AuxButtons.Count.ToString();
+        // ExpressKeys — editable single-key bindings. While mapping is suspended we show the stashed
+        // bindings (greyed) so the user still sees what will come back.
+        var auxStores = EffectiveAuxStores();
+        AuxButtonCount = auxStores.Count.ToString();
+        var canEditAux = _applyAction != null && AuxButtonsEnabled;
 
         var newAuxButtons = new List<ButtonBinding>();
-        for (int i = 0; i < bindings.AuxButtons.Count; i++)
-            newAuxButtons.Add(new ButtonBinding { Index = i + 1, Name = GetBindingName(bindings.AuxButtons[i]) });
+        for (int i = 0; i < auxStores.Count; i++)
+        {
+            var store = auxStores[i];
+            var key = AuxKeyBinding.ReadKey(store);
+            var isOther = store?.Path != null && store.Path != AuxKeyBinding.KeyBindingPath;
+            newAuxButtons.Add(new ButtonBinding(
+                index: i + 1,
+                selectedKey: key,
+                isOtherBinding: isOther,
+                otherLabel: isOther ? GetBindingName(store) : "",
+                canEdit: canEditAux,
+                applyKey: ApplyAuxKeyAsync));
+        }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
+        ShowAuxControls = newAuxButtons.Count > 0 && _applyAction != null;
 
         // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
         // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
@@ -487,6 +503,111 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                     break;
             }
         });
+    }
+
+    // ── ExpressKeys (auxiliary buttons): key bindings, enable-all toggle, clear-all ──────────────
+    private string AuxEnabledKey => $"AuxEnabled:{_profile.Tablet}";
+    private string AuxBackupKey => $"AuxBackup:{_profile.Tablet}";
+
+    /// <summary>Master switch (per tablet, persisted): when off, the buttons do nothing — their
+    /// bindings are stashed and empty ones are written to the driver, restored when toggled on.</summary>
+    [ObservableProperty] private bool _auxButtonsEnabled = true;
+    /// <summary>Show the enable-all toggle + clear-all button (only when the tablet has aux buttons
+    /// and this host can edit).</summary>
+    [ObservableProperty] private bool _showAuxControls;
+    private bool _suppressAuxEnabledApply;
+
+    private void LoadAuxEnabledState()
+    {
+        _suppressAuxEnabledApply = true;
+        AuxButtonsEnabled = AppSettings.Get(AuxEnabledKey) != "false"; // default enabled
+        _suppressAuxEnabledApply = false;
+    }
+
+    /// <summary>The aux stores to display: the live profile when enabled, else the stash (so a
+    /// suspended set is still visible) falling back to the profile.</summary>
+    private PluginSettingStoreCollection EffectiveAuxStores()
+    {
+        if (!AuxButtonsEnabled)
+        {
+            var backup = AppSettings.Get(AuxBackupKey);
+            if (!string.IsNullOrEmpty(backup))
+            {
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<PluginSettingStoreCollection>(backup);
+                    if (restored != null) return restored;
+                }
+                catch { /* corrupt stash — fall back to the live (empty) profile */ }
+            }
+        }
+        return _profile.BindingSettings.AuxButtons;
+    }
+
+    private async Task ApplyAuxKeyAsync(int buttonIndex, string key)
+    {
+        if (!AuxButtonsEnabled) return; // editing is locked while suspended
+        var store = AuxKeyBinding.MakeKeyBinding(key); // null = unbound
+        await ApplySettingsChange(p =>
+        {
+            var aux = p.BindingSettings.AuxButtons;
+            if (buttonIndex >= 1 && buttonIndex <= aux.Count)
+                aux[buttonIndex - 1] = store!;
+        });
+    }
+
+    partial void OnAuxButtonsEnabledChanged(bool value)
+    {
+        if (_suppressAuxEnabledApply) return;
+        _ = SetAuxButtonsEnabledAsync(value);
+    }
+
+    private async Task SetAuxButtonsEnabledAsync(bool enabled)
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(AuxEnabledKey, enabled ? "true" : "false");
+        if (!enabled)
+        {
+            // Suspend: stash the current bindings, then write empty ones so the buttons do nothing.
+            AppSettings.Set(AuxBackupKey, JsonConvert.SerializeObject(_profile.BindingSettings.AuxButtons));
+            await ApplySettingsChange(ClearAux);
+        }
+        else
+        {
+            // Resume: restore the stash (if any), then drop it.
+            var backup = AppSettings.Get(AuxBackupKey);
+            await ApplySettingsChange(p =>
+            {
+                if (string.IsNullOrEmpty(backup)) return;
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<PluginSettingStoreCollection>(backup);
+                    if (restored != null)
+                    {
+                        var aux = p.BindingSettings.AuxButtons;
+                        for (int i = 0; i < aux.Count && i < restored.Count; i++) aux[i] = restored[i];
+                    }
+                }
+                catch { /* corrupt stash — leave the (empty) profile as-is */ }
+            });
+            AppSettings.Set(AuxBackupKey, "");
+        }
+    }
+
+    /// <summary>Remove every express-key binding. Also drops any suspended stash, so a later
+    /// enable doesn't bring cleared bindings back.</summary>
+    [RelayCommand]
+    private async Task ClearAuxButtons()
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(AuxBackupKey, "");
+        await ApplySettingsChange(ClearAux);
+    }
+
+    private static void ClearAux(Profile p)
+    {
+        var aux = p.BindingSettings.AuxButtons;
+        for (int i = 0; i < aux.Count; i++) aux[i] = null!;
     }
 
     public string TabletName { get; }
@@ -829,13 +950,49 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
-    public int Index { get; set; }
-    public string Name { get; set; } = "None";
+    private readonly Func<int, string, Task>? _applyKey;
+    private bool _suppressApply;
+    private string _appliedKey;
+
+    public ButtonBinding(int index, string selectedKey, bool isOtherBinding, string otherLabel,
+        bool canEdit, Func<int, string, Task>? applyKey)
+    {
+        Index = index;
+        IsOtherBinding = isOtherBinding;
+        OtherLabel = otherLabel;
+        CanEdit = canEdit;
+        _applyKey = applyKey;
+        _appliedKey = selectedKey;
+        _suppressApply = true;
+        SelectedKey = selectedKey;
+        _suppressApply = false;
+    }
+
+    public int Index { get; }
     public string Label => $"Button {Index}";
-    /// <summary>An aux button is "bound" when it has a real binding (anything but the empty "None").</summary>
-    public bool IsBound => !string.IsNullOrEmpty(Name) && Name != "None";
-    /// <summary>The binding shown on the card — the binding name, or "Unbound" when there's none.</summary>
-    public string DisplayBinding => IsBound ? Name : "Unbound";
-    /// <summary>True while the physical button is held down — highlights the card live (#…).</summary>
+
+    /// <summary>The keys offered in the picker (shared list).</summary>
+    public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
+    /// <summary>The selected key's OTD value ("None" = unbound). Two-way bound to the picker; a change
+    /// from the user persists the binding.</summary>
+    [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
+    /// <summary>False disables the picker (read-only host, or button mapping suspended).</summary>
+    public bool CanEdit { get; }
+
+    /// <summary>True when this button already holds a binding that isn't a simple key (e.g. set in
+    /// OTD's own UX) — surfaced so the user knows the picker will replace it.</summary>
+    public bool IsOtherBinding { get; }
+    public string OtherLabel { get; }
+
+    /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
+
+    partial void OnSelectedKeyChanged(string value)
+    {
+        // Ignore programmatic sets, the picker's transient null during init, and binding round-trips
+        // back to the value we were constructed with — only a genuine user change persists.
+        if (_suppressApply || _applyKey == null || string.IsNullOrEmpty(value) || value == _appliedKey) return;
+        _appliedKey = value;
+        _ = _applyKey(Index, value);
+    }
 }
