@@ -34,8 +34,11 @@ public class SingleInstanceTests
         Assert.False(second.TryAcquire()); // detects the primary
         Assert.False(second.IsPrimary);
 
-        // The primary should have been woken to surface its window.
-        Assert.True(activated.Wait(TimeSpan.FromSeconds(2)));
+        // The primary should have been woken to surface its window. A working signal arrives in
+        // milliseconds; the generous timeout only bites on a genuine failure and absorbs ThreadPool
+        // scheduling delay on loaded CI runners (the activation callback runs via
+        // RegisterWaitForSingleObject), which previously flaked this test and blocked releases (#222).
+        Assert.True(activated.Wait(TimeSpan.FromSeconds(30)));
         second.Dispose();
     }
 
