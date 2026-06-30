@@ -102,7 +102,7 @@ public class SakuraPetals : Control
         X = _rng.NextDouble() * w,
         // Initial petals start scattered across the field; recycled ones drop in just above the top.
         Y = initial ? _rng.NextDouble() * h : -20 - _rng.NextDouble() * 80,
-        Size = 16 + _rng.NextDouble() * 20,
+        Size = 28 + _rng.NextDouble() * 32,
         Angle = _rng.NextDouble() * Math.PI * 2,
         AngularVel = (_rng.NextDouble() - 0.5) * 0.06,
         Fall = 0.5 + _rng.NextDouble() * 1.1,
