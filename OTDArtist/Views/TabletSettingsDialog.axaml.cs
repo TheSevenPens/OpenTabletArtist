@@ -105,10 +105,23 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// <summary>A display is selected, so "Apply" can map to it.</summary>
     public bool CanApplyDisplay => SelectedDisplayNumber != null && _applyAction != null;
 
+    /// <summary>The selected display differs from the one currently applied, so the change still needs
+    /// "Apply mapping" — drives the pending hint so it's obvious the selection isn't live yet (#179
+    /// follow-up). Suppressed during the initial load so an as-opened profile doesn't read as pending
+    /// before the user changes anything.</summary>
+    [ObservableProperty] private bool _mappingChangePending;
+    private bool _suppressMappingPending;
+
+    private void RecomputeMappingPending() =>
+        MappingChangePending = _applyAction != null
+            && SelectedDisplayNumber != null
+            && SelectedDisplayNumber != CurrentlyMappedNumber();
+
     partial void OnSelectedDisplayNumberChanged(int? value)
     {
         OnPropertyChanged(nameof(CanApplyDisplay));
         ApplyDisplayCommand.NotifyCanExecuteChanged();
+        if (!_suppressMappingPending) RecomputeMappingPending();
     }
 
     partial void OnIsWinInkAbsoluteChanged(bool value)
@@ -200,10 +213,13 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
         Displays = DisplayEnumerator.Enumerate();
         RefreshFromProfile();
         RefreshDetectionStatus();
-        // Highlight the display the tablet is currently mapped to (else the primary).
+        // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
+        // pending flag for this initial, programmatic selection so the dialog doesn't open "pending".
+        _suppressMappingPending = true;
         SelectedDisplayNumber = CurrentlyMappedNumber()
             ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
             ?? Displays.FirstOrDefault()?.Number;
+        _suppressMappingPending = false;
     }
 
     // Parameterless constructor for design-time
@@ -362,6 +378,7 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
 
         // Same mapping the tray's "Switch display" uses — aspect-locked, full-monitor (#187).
         await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display));
+        MappingChangePending = false; // the selection is now the applied mapping
     }
 
     /// <summary>Re-read the connected monitors from Windows (manual Refresh or a live display change).</summary>

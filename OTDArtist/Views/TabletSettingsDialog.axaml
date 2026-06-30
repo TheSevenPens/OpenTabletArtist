@@ -114,6 +114,15 @@
                                     Theme="{StaticResource GhostButton}" Padding="14,7" FontSize="12"
                                     ToolTip.Tip="Tap 4 corners to correct where the pen lands vs. where you see it (Absolute mode only)" />
                         </StackPanel>
+                        <!-- Make it obvious a changed display selection isn't live until applied (#179 follow-up). -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"
+                                    IsVisible="{Binding MappingChangePending}">
+                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
+                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
                         <TextBlock Text="Calibration is available in Absolute mode."
                                    FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
