@@ -43,6 +43,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // no view-lookup converter, and no per-view DataContext re-point.
     [ObservableProperty] private ObservableObject? _currentPage;
 
+    /// <summary>Whether the sidebar's collapsible "ADVANCED" group is expanded. Collapsed by default;
+    /// auto-expands when one of its pages becomes active so the highlight is visible.</summary>
+    [ObservableProperty] private bool _isAdvancedExpanded;
+
+    /// <summary>The pages tucked under the ADVANCED group.</summary>
+    private bool IsAdvancedPage(object? page) =>
+        ReferenceEquals(page, Configs) || ReferenceEquals(page, Diagnostics)
+        || ReferenceEquals(page, Console) || ReferenceEquals(page, Plugins)
+        || ReferenceEquals(page, Utilities);
+
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsTabletSettings => ReferenceEquals(CurrentPage, TabletSettings);
@@ -100,6 +110,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _ = Test.ActivateAsync();
         else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
             _ = Test.DeactivateAsync();
+
+        // Keep the ADVANCED group open when navigating to one of its pages (e.g. from the tray or
+        // programmatically), so the active item isn't hidden behind a collapsed group.
+        if (IsAdvancedPage(newValue)) IsAdvancedExpanded = true;
 
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         OnPropertyChanged(nameof(IsDashboard));

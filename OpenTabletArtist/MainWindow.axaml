@@ -40,7 +40,8 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- Nav Items (labels in all caps) -->
+                <!-- Nav Items (labels in all caps). Most pages sit at the root; the less-common ones
+                     are tucked under a collapsible ADVANCED group at the bottom. -->
                 <StackPanel Margin="8,0,8,0">
                     <RadioButton Theme="{StaticResource NavButton}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
@@ -53,29 +54,9 @@
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET CONFIGS"
-                                 IsChecked="{Binding IsConfigs, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="UTILITIES"
-                                 IsChecked="{Binding IsUtilities, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
-                                 IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
-                                 Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="TEST"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="CONSOLE"
-                                 IsChecked="{Binding IsConsole, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Console}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="PLUGINS"
-                                 IsChecked="{Binding IsPlugins, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
                                  Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="SETTINGS"
                                  IsChecked="{Binding IsSettings, Mode=OneWay}"
@@ -85,6 +66,34 @@
                                  IsChecked="{Binding IsAbout, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
                                  Margin="0,2,0,0" />
+
+                    <!-- ADVANCED group: collapsible header + indented children (auto-expands when one
+                         of its pages is active, via IsAdvancedExpanded). -->
+                    <ToggleButton Theme="{StaticResource NavGroupHeader}" Content="ADVANCED"
+                                  IsChecked="{Binding IsAdvancedExpanded, Mode=TwoWay}"
+                                  Margin="0,8,0,0" />
+                    <StackPanel IsVisible="{Binding IsAdvancedExpanded}" Margin="12,0,0,0">
+                        <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET CONFIGS"
+                                     IsChecked="{Binding IsConfigs, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
+                                     Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
+                                     IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
+                                     Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="CONSOLE"
+                                     IsChecked="{Binding IsConsole, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Console}"
+                                     Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="PLUGINS"
+                                     IsChecked="{Binding IsPlugins, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
+                                     Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="UTILITIES"
+                                     IsChecked="{Binding IsUtilities, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
+                                     Margin="0,2,0,0" />
+                    </StackPanel>
                 </StackPanel>
             </DockPanel>
         </Border>
