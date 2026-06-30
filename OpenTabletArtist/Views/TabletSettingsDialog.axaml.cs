@@ -19,6 +19,10 @@ namespace OpenTabletArtist.Views;
 
 public partial class TabletSettingsDialog : Window
 {
+    // Session device-data source, used to live-refresh the detection banner while the dialog is open
+    // (#177). Null in design-time / test paths, in which case detection is only read at open + Refresh.
+    private readonly IDeviceData? _deviceData;
+
     public TabletSettingsDialog(Profile profile, Settings? settings,
         Func<Settings, Task>? onApplyChanges = null,
         Func<Task<(Settings? Settings, Profile? Profile)>>? onRefresh = null,
@@ -26,9 +30,11 @@ public partial class TabletSettingsDialog : Window
         bool dynamicsOnly = false,
         OpenTabletArtist.Services.IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null,
-        Func<Window, ViewModels.CalibrationOptions, Task>? onCalibrate = null)
+        Func<Window, ViewModels.CalibrationOptions, Task>? onCalibrate = null,
+        IDeviceData? deviceData = null)
     {
         InitializeComponent();
+        _deviceData = deviceData;
         var vm = new TabletSettingsDialogViewModel(profile, settings, onApplyChanges, onRefresh, tabletDigitizer, penInput, isDetected, dynamicsOnly);
         DataContext = vm;
         if (onCalibrate != null)
@@ -60,6 +66,9 @@ public partial class TabletSettingsDialog : Window
         base.OnOpened(e);
         if (Screens != null) Screens.Changed += OnScreensChanged;
         DynamicsTab.IsCheckedChanged += OnDynamicsTabChanged;
+        // Live-refresh the detection banner + tablet-dependent actions when the daemon reports a
+        // tablet add/remove while the dialog is open (#177). DataLoaded is raised on the UI thread.
+        if (_deviceData != null) _deviceData.DataLoaded += OnSessionDataLoaded;
         UpdateLivePressure(); // start the live dot if the dialog opened on the Dynamics tab
     }
 
@@ -68,8 +77,12 @@ public partial class TabletSettingsDialog : Window
         base.OnClosed(e);
         if (Screens != null) Screens.Changed -= OnScreensChanged;
         DynamicsTab.IsCheckedChanged -= OnDynamicsTabChanged;
+        if (_deviceData != null) _deviceData.DataLoaded -= OnSessionDataLoaded;
         (DataContext as TabletSettingsDialogViewModel)?.StopLivePressure();
     }
+
+    private void OnSessionDataLoaded() =>
+        (DataContext as TabletSettingsDialogViewModel)?.RefreshDetectionStatus();
 
     private void OnScreensChanged(object? sender, EventArgs e) =>
         (DataContext as TabletSettingsDialogViewModel)?.RefreshDisplaysCommand.Execute(null);
@@ -129,14 +142,27 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
+        OnPropertyChanged(nameof(CanRunCalibration));
+        OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(WinInkAbsoluteModePath);
     }
 
     // --- Pointer calibration entry point (#127) ---
 
-    /// <summary>Calibration corrects an Absolute mapping, so it's only offered in an Absolute mode.</summary>
+    /// <summary>Calibration corrects an Absolute mapping, so the calibration UI is only shown in an
+    /// Absolute mode. (Whether it can actually run also needs a live tablet — see
+    /// <see cref="CanRunCalibration"/>.)</summary>
     public bool CanCalibrate => IsWinInkAbsolute;
+
+    /// <summary>Calibration captures live pen taps, so it additionally needs the tablet connected
+    /// (#177). Gates the Calibrate button so it can't be clicked into the "not detected" dead-end,
+    /// and flips live as the tablet is (un)plugged while the dialog stays open.</summary>
+    public bool CanRunCalibration => CanCalibrate && IsTabletDetected;
+
+    /// <summary>In an Absolute mode but the tablet isn't connected, so calibration is shown but
+    /// disabled — prompt the user to connect it (#177).</summary>
+    public bool ShowConnectToCalibrateHint => CanCalibrate && !IsTabletDetected;
 
     /// <summary>Calibration capture presets: the current corner method (→ homography, #195) or a finer
     /// grid (→ bilinear offsets, #196). The user picks one before calibrating.</summary>
@@ -294,7 +320,17 @@ public partial class TabletSettingsDialogViewModel : ObservableObject
     /// <summary>Banner text describing the detection state.</summary>
     [ObservableProperty] private string _detectionText = "";
 
-    private void RefreshDetectionStatus()
+    partial void OnIsTabletDetectedChanged(bool value)
+    {
+        // Tablet-dependent actions follow the live detection state (#177).
+        OnPropertyChanged(nameof(CanRunCalibration));
+        OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
+    }
+
+    /// <summary>Re-evaluate the detection banner + tablet-dependent actions from the current session
+    /// state. Called on open, on manual Refresh, and live whenever the daemon reports a tablet
+    /// add/remove while the dialog stays open (#177, driven by the #170 TabletsChanged signal).</summary>
+    public void RefreshDetectionStatus()
     {
         IsTabletDetected = _isDetectedProbe?.Invoke() ?? false;
         DetectionText = IsTabletDetected
