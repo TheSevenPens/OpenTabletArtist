@@ -32,10 +32,10 @@ public partial class TabletDetailView : UserControl
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
         // Live device-report stream feeds the pressure dot (Dynamics), the aux-button highlight
-        // (ExpressKeys), and the active-area pen dot (Screen Mapping), so watch those tabs.
+        // (ExpressKeys), and the active-area pen dot (Display Mapping), so watch those tabs.
         DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
-        ScreenMappingTab.IsCheckedChanged += OnLiveTabChanged;
+        DisplayMappingTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
     }
 
@@ -45,7 +45,7 @@ public partial class TabletDetailView : UserControl
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
         DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
-        ScreenMappingTab.IsCheckedChanged -= OnLiveTabChanged;
+        DisplayMappingTab.IsCheckedChanged -= OnLiveTabChanged;
         Vm?.StopLiveInput();
     }
 
@@ -58,7 +58,7 @@ public partial class TabletDetailView : UserControl
     {
         if (Vm is not { } vm) return;
         if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
-            || ScreenMappingTab.IsChecked == true) vm.StartLiveInput();
+            || DisplayMappingTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }
 }

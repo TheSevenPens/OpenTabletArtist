@@ -15,7 +15,8 @@ public static class DisplayEnumerator
 {
     public static IReadOnlyList<DisplayInfo> Enumerate()
     {
-        var names = TryGetFriendlyNames();
+        var targets = TryGetTargetInfo();   // \\.\DISPLAYx → (friendly name, connector/port)
+        var gpus = TryGetGpuNames();        // \\.\DISPLAYx → adapter (GPU) name
         var monitors = new List<DisplayInfo>();
 
         MonitorEnumProc callback = (nint hMonitor, nint hdc, ref RECT rect, nint data) =>
@@ -28,17 +29,20 @@ public static class DisplayEnumerator
 
                 int number = ParseDisplayNumber(info.szDevice, monitors.Count + 1);
                 bool isPrimary = (info.dwFlags & 1) != 0;
-                names.TryGetValue(info.szDevice, out var name);
+                targets.TryGetValue(info.szDevice, out var t);
+                gpus.TryGetValue(info.szDevice, out var gpu);
 
                 monitors.Add(new DisplayInfo(
                     Number: number,
-                    Name: name ?? "",
+                    Name: t.Name ?? "",
                     Width: devMode.dmPelsWidth,
                     Height: devMode.dmPelsHeight,
                     X: devMode.dmPositionX,
                     Y: devMode.dmPositionY,
                     IsPrimary: isPrimary,
-                    RefreshHz: devMode.dmDisplayFrequency));
+                    RefreshHz: devMode.dmDisplayFrequency,
+                    Port: t.Port ?? "",
+                    Gpu: gpu ?? ""));
             }
             return true;
         };
@@ -47,6 +51,42 @@ public static class DisplayEnumerator
         return monitors.OrderBy(m => m.Number).ToList();
     }
 
+    /// <summary>GDI device name (\\.\DISPLAYx) → the adapter (GPU) that drives it, via EnumDisplayDevices.
+    /// The adapter's DeviceString is the card name Windows shows in Device Manager. Best-effort.</summary>
+    private static Dictionary<string, string> TryGetGpuNames()
+    {
+        var map = new Dictionary<string, string>();
+        try
+        {
+            for (uint i = 0; ; i++)
+            {
+                var dd = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };
+                if (!EnumDisplayDevices(null, i, ref dd, 0)) break;
+                if (!string.IsNullOrWhiteSpace(dd.DeviceName) && !string.IsNullOrWhiteSpace(dd.DeviceString))
+                    map[dd.DeviceName] = dd.DeviceString.Trim();
+            }
+        }
+        catch { /* best-effort — blank GPU is fine */ }
+        return map;
+    }
+
+    /// <summary>Map a DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY value to a short connector label.</summary>
+    private static string PortName(uint tech) => tech switch
+    {
+        0 => "VGA",
+        4 => "DVI",
+        5 => "HDMI",
+        6 => "Internal",            // LVDS (built-in panel)
+        9 => "SDI",
+        10 => "DisplayPort",        // external
+        11 => "Internal (eDP)",     // embedded DisplayPort
+        12 => "USB-C",              // UDI external
+        13 => "Internal",           // UDI embedded
+        15 => "Wireless",           // Miracast
+        0x80000000 => "Internal",
+        _ => "",
+    };
+
     // "\\.\DISPLAY1" → 1 (the Windows display number); fall back to the enumeration order.
     private static int ParseDisplayNumber(string device, int fallback)
     {
@@ -54,10 +94,11 @@ public static class DisplayEnumerator
         return int.TryParse(digits, out var n) && n > 0 ? n : fallback;
     }
 
-    /// <summary>Map GDI device name (\\.\DISPLAYx) → friendly monitor name, via DisplayConfig.</summary>
-    private static Dictionary<string, string> TryGetFriendlyNames()
+    /// <summary>Map GDI device name (\\.\DISPLAYx) → (friendly monitor name, connector/port), via
+    /// DisplayConfig. Both are best-effort; either may be empty.</summary>
+    private static Dictionary<string, (string Name, string Port)> TryGetTargetInfo()
     {
-        var map = new Dictionary<string, string>();
+        var map = new Dictionary<string, (string Name, string Port)>();
         try
         {
             if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out uint pathCount, out uint modeCount) != 0)
@@ -95,9 +136,9 @@ public static class DisplayEnumerator
                 if (DisplayConfigGetDeviceInfo(ref target) != 0) continue;
 
                 var gdi = source.viewGdiDeviceName;
+                if (string.IsNullOrWhiteSpace(gdi)) continue;
                 var friendly = target.monitorFriendlyDeviceName;
-                if (!string.IsNullOrWhiteSpace(gdi) && !string.IsNullOrWhiteSpace(friendly))
-                    map[gdi] = friendly;
+                map[gdi] = (string.IsNullOrWhiteSpace(friendly) ? "" : friendly, PortName(target.outputTechnology));
             }
         }
         catch { /* best-effort — blank names are fine */ }
@@ -117,8 +158,22 @@ public static class DisplayEnumerator
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool EnumDisplayDevices(string? device, uint devNum, ref DISPLAY_DEVICE displayDevice, uint flags);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int left, top, right, bottom; }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DISPLAY_DEVICE
+    {
+        public int cb;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+        public int StateFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceID;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+    }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct MONITORINFOEX

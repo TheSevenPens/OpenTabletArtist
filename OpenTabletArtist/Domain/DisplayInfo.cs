@@ -3,9 +3,12 @@ namespace OpenTabletArtist.Domain;
 /// <summary>
 /// One connected monitor, in virtual-desktop pixels. <see cref="Number"/> is the Windows display
 /// number; <see cref="Name"/> is the friendly monitor name (may be empty if it couldn't be read);
-/// <see cref="RefreshHz"/> is the current refresh rate in Hz (0 if unknown).
+/// <see cref="RefreshHz"/> is the current refresh rate in Hz (0 if unknown). <see cref="Port"/> is the
+/// connector type (HDMI/DisplayPort/USB-C/Internal/…) and <see cref="Gpu"/> the adapter that drives it;
+/// both are best-effort and may be empty.
 /// </summary>
-public record DisplayInfo(int Number, string Name, int Width, int Height, int X, int Y, bool IsPrimary, int RefreshHz = 0)
+public record DisplayInfo(int Number, string Name, int Width, int Height, int X, int Y, bool IsPrimary,
+    int RefreshHz = 0, string Port = "", string Gpu = "")
 {
     public string Resolution => $"{Width}×{Height}";
 
@@ -20,4 +23,23 @@ public record DisplayInfo(int Number, string Name, int Width, int Height, int X,
 
     /// <summary>Heading line, e.g. "Display 1 (Primary)".</summary>
     public string Caption => IsPrimary ? $"Display {Number} (Primary)" : $"Display {Number}";
+
+    public bool HasPort => !string.IsNullOrWhiteSpace(Port);
+    public bool HasGpu => !string.IsNullOrWhiteSpace(Gpu);
+
+    /// <summary>Row title for the detail list: the monitor's friendly name, or "Display N" if unknown.</summary>
+    public string DisplayTitle => string.IsNullOrWhiteSpace(Name) ? $"Display {Number}" : Name;
+
+    /// <summary>Detail line beneath the title: resolution · refresh · port · GPU · Primary (blanks skipped).</summary>
+    public string DetailSubLine
+    {
+        get
+        {
+            var s = ResolutionWithRefresh;
+            if (HasPort) s += "  ·  " + Port;
+            if (HasGpu) s += "  ·  " + Gpu;
+            if (IsPrimary) s += "  ·  Primary";
+            return s;
+        }
+    }
 }

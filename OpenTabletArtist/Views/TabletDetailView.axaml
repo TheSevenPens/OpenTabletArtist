@@ -49,8 +49,17 @@
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
             <StackPanel Width="150" Spacing="2">
-                <RadioButton Content="SCREEN MAPPING" IsChecked="True" x:Name="ScreenMappingTab"
+                <RadioButton Content="OUTPUT MODE" IsChecked="True" x:Name="OutputModeTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="DISPLAY MAPPING" x:Name="DisplayMappingTab"
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding HasAreaMapping}" />
+                <RadioButton Content="ACTIVE AREA" x:Name="ActiveAreaTab"
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding HasAreaMapping}" />
+                <RadioButton Content="CALIBRATION" x:Name="CalibrationTab"
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding HasAreaMapping}" />
                 <RadioButton Content="PEN SWITCHES" x:Name="PenTipTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="EXPRESSKEYS" x:Name="PenButtonsTab"
@@ -66,12 +75,12 @@
             </StackPanel>
         </Border>
 
-        <!-- Screen Mapping tab content -->
+        <!-- Output Mode tab content -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ScreenMappingTab.IsChecked}">
+                      IsVisible="{Binding #OutputModeTab.IsChecked}">
             <StackPanel>
                 <!-- Output Mode -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
+                <Border Classes="GlassPanel" Padding="16">
                     <StackPanel>
                         <TextBlock Text="OUTPUT MODE" Classes="SectionLabel" />
                         <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
@@ -94,10 +103,15 @@
                                 IsVisible="{Binding CanFixOutputMode}" />
                     </StackPanel>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
 
-                <!-- Display Mapping: pick a display + see the tablet's active area and the live pen,
-                     all in one diagram (#250/#252). -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
+        <!-- Display Mapping tab content: pick a display + see the tablet's active area and the live
+             pen, all in one diagram (#250/#252). -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #DisplayMappingTab.IsChecked}">
+            <StackPanel>
+                <Border Classes="GlassPanel" Padding="16"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
@@ -135,11 +149,103 @@
                                        FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                         </StackPanel>
+
+                        <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->
+                        <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,12" />
+                        <ItemsControl ItemsSource="{Binding Displays}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
+                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="5"
+                                                Background="{DynamicResource AccentMutedBrush}" VerticalAlignment="Top">
+                                            <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="12.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding DetailSubLine}" FontSize="11"
+                                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
 
-                <!-- Calibration: its own card (#252). -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12"
+        <!-- Active Area tab content: the tablet's full area with the effective (used) area drawn to
+             scale. Read-only for now — a later iteration will let the user resize/align it here. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ActiveAreaTab.IsChecked}">
+            <StackPanel>
+                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding HasAreaMapping}">
+                    <StackPanel>
+                        <TextBlock Text="ACTIVE AREA" Classes="SectionLabel" />
+                        <TextBlock Text="The highlighted region is the part of your tablet that's currently mapped to the screen. It's sized automatically to match the selected display's proportions, so pen movement isn't stretched or squashed."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,6,0,10" TextWrapping="Wrap" />
+
+                        <!-- Diagram + stats when we have digitizer specs. -->
+                        <StackPanel IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                            <ctrl:ActiveAreaDiagram Area="{Binding TabletArea}"
+                                                    AccentBrush="{DynamicResource AccentBrush}"
+                                                    Height="320" />
+                            <Grid ColumnDefinitions="*,*,*,*" Margin="0,12,0,0">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="{Binding ActiveAreaUsagePercentText}" FontSize="20" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}" />
+                                    <TextBlock Text="of tablet area used" FontSize="10" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="width × height" FontSize="10" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="active area" FontSize="10" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Spacing="2">
+                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="full tablet area" FontSize="10" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
+                                <TextBlock Text="Diagonal:" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding ActiveAreaDiagonalText}" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                            <TextBlock Text="You'll be able to shrink or realign this area in a future update."
+                                       FontSize="10" FontStyle="Italic" Margin="0,12,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+
+                        <!-- No digitizer specs for this tablet — nothing to draw. -->
+                        <TextBlock Text="Active-area details aren't available for this tablet."
+                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNull}}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Calibration tab content (#252). -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #CalibrationTab.IsChecked}">
+            <StackPanel>
+                <Border Classes="GlassPanel" Padding="16"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
