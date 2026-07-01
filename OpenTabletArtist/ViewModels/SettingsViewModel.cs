@@ -31,17 +31,49 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>Description of the currently-selected theme (shown under the picker).</summary>
     public string SelectedDescription => SelectedTheme?.Description ?? "";
 
-    /// <summary>The falling-petals toggle only makes sense for the Sakura skin.</summary>
+    /// <summary>The falling-petals toggle + frost slider only make sense for the Sakura skin.</summary>
     public bool ShowPetalsToggle => SelectedTheme?.Id == ThemeService.Anime;
+    public bool ShowFrostControls => SelectedTheme?.Id == ThemeService.Anime;
 
     /// <summary>Falling-petal animation for the Sakura skin (#207). Persisted; the overlay reacts live.</summary>
     [ObservableProperty] private bool _petalsEnabled = AnimationSettings.PetalsEnabled;
+
+    // ── Sakura frosted-glass (card translucency) ──
+    // Avalonia can't blur in-app content behind a control, so "frosted glass" is a tunable translucent
+    // tint: the sakura backdrop shows through the cards. Driving the global GlassBgBrush resource
+    // re-frosts every card live. Scoped to the Sakura skin — cleared for other themes so the pink
+    // frost never carries over (top-level resource shadows the theme dictionary entry).
+    private static readonly Color FrostTint = Color.Parse("#FDF1F7"); // soft sakura white
+    [ObservableProperty] private double _cardOpacity = AcrylicSettings.MaterialOpacity;
+
+    partial void OnCardOpacityChanged(double value)
+    {
+        AcrylicSettings.MaterialOpacity = value;
+        ApplyOrClearFrost();
+    }
+
+    /// <summary>Applies the frost override in the Sakura skin, or removes it (restoring the theme's own
+    /// glass) for any other theme.</summary>
+    private void ApplyOrClearFrost()
+    {
+        if (Application.Current is not { } app) return;
+        if (SelectedTheme?.Id == ThemeService.Anime)
+        {
+            var a = (byte)(System.Math.Clamp(CardOpacity, 0, 1) * 255);
+            app.Resources["GlassBgBrush"] = new SolidColorBrush(Color.FromArgb(a, FrostTint.R, FrostTint.G, FrostTint.B));
+        }
+        else
+        {
+            app.Resources.Remove("GlassBgBrush");
+        }
+    }
 
     public SettingsViewModel()
     {
         // Assign the backing field directly so selecting the persisted choice here doesn't re-fire
         // Apply at construction (the theme is already applied at startup via ThemeService.ApplySaved).
         _selectedTheme = ThemeOptions.FirstOrDefault(o => o.Id == ThemeService.SavedChoice) ?? ThemeOptions[0];
+        ApplyOrClearFrost(); // restore the persisted frost level (Sakura only)
     }
 
     // Fires only on user-driven changes, so it both applies and persists.
@@ -49,7 +81,9 @@ public partial class SettingsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(SelectedDescription));
         OnPropertyChanged(nameof(ShowPetalsToggle));
+        OnPropertyChanged(nameof(ShowFrostControls));
         if (value != null) ThemeService.Apply(value.Id);
+        ApplyOrClearFrost(); // re-apply for Sakura, clear for other themes
     }
 
     partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;

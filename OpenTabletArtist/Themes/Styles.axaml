@@ -302,14 +302,8 @@
         <Setter Property="FontSize" Value="28" />
         <Setter Property="FontWeight" Value="Light" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <Setter Property="Margin" Value="0,0,0,4" />
-    </Style>
-
-    <!-- Page Subtitle -->
-    <Style Selector="TextBlock.PageSubtitle">
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-        <Setter Property="Margin" Value="0,0,0,28" />
+        <!-- Header→content gap (previously carried by the now-removed PageSubtitle). -->
+        <Setter Property="Margin" Value="0,0,0,20" />
     </Style>
 
     <!-- Card Title — the heading at the top of a card/panel. Segoe UI Semibold; size stays per-card
@@ -396,6 +390,21 @@
                 <Ellipse Width="12" Height="12" Fill="{DynamicResource AccentBrush}" />
             </ControlTemplate>
         </Setter>
+    </Style>
+
+    <!-- CheckBox: the checked box uses the theme accent (Fluent's default is an off-theme accent that
+         reads green in the Sakura skin). Covers the rest/hover/pressed checked states. -->
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="CheckBox:checked:pressed /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
 </Styles>
