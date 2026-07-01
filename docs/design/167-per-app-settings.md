@@ -2,7 +2,7 @@
 
 > **See also:** [167-per-app-settings-design.md](167-per-app-settings-design.md) — the concrete
 > implementation design (components, switch policy, live-apply path, data model, UI, tests) that
-> builds on this feasibility note.
+> builds on this feasibility note, including an agent review (2026-06-30).
 >
 > Status: **investigation only.** No commitment. The ask: typical manufacturer drivers (Wacom,
 > XP-Pen, Huion) let you define a *global* config plus *per-application* overrides for mapping,
