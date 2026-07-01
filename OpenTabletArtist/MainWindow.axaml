@@ -133,9 +133,9 @@
         <ScrollViewer Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <!-- Horizontal padding is a touch wider than vertical so the Sakura cards' soft glow
-                 (a 24px box-shadow blur) isn't clipped by the scroll viewport on the left/right. -->
-            <Border Padding="36,28">
+            <!-- Content padding. Kept above the Sakura cards' glow extent (16px blur, see CardShadow)
+                 so the soft glow isn't clipped by the scroll viewport on the left/right. -->
+            <Border Padding="20,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
