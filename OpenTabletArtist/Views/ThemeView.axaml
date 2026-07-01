@@ -45,16 +45,16 @@
             </StackPanel>
         </Border>
 
-        <!-- Sakura-only frosted-glass control: drives the global card glass alpha, so every card
-             (including this one) re-frosts live as you drag. -->
+        <!-- Sakura-only card-opacity control: drives the global card glass alpha, so every card
+             (including this one) re-tints live as you drag. -->
         <Border Classes="GlassPanel" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Frosted glass (experimental)" FontSize="16" Margin="0,0,0,4" />
-                <TextBlock Text="Tune how translucent the cards are — the sakura backdrop shows through. Applies to every card live."
+                <TextBlock Classes="CardTitle" Text="Card opacity" FontSize="16" Margin="0,0,0,4" />
+                <TextBlock Text="Set how opaque the cards are — lower lets more of the sakura backdrop show through. Applies to every card live."
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,0,0,12" />
                 <Grid ColumnDefinitions="130,*,44" ColumnSpacing="12">
-                    <TextBlock Grid.Column="0" Text="Card opacity" FontSize="13" VerticalAlignment="Center"
+                    <TextBlock Grid.Column="0" Text="Opacity" FontSize="13" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                     <Slider Grid.Column="1" Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}"
                             VerticalAlignment="Center" />

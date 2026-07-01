@@ -186,7 +186,8 @@ public sealed class ScreenMappingDiagram : Control
         var num = Text(d.Number.ToString(), numSize, selected ? SelText : UnselText);
         var subBrush = selected ? SubTextOnSel : SubText;
         bool roomy = box.Height > numSize + 24 && box.Width > 70;
-        var extra = (d.HasPort ? "  ·  " + d.Port : "") + (d.IsPrimary ? "  ·  Primary" : "");
+        // Number + resolution only; the port is shown in the per-display list below the diagram (#301).
+        var extra = d.IsPrimary ? "  ·  Primary" : "";
         var res = roomy ? Text(d.ResolutionWithRefresh + extra, 10, subBrush) : null;
 
         double totalH = num.Height + (res != null ? res.Height + 1 : 0);

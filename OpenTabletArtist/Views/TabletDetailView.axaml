@@ -116,7 +116,7 @@
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAbsoluteMode}"
                                           OnContent="Absolute" OffContent="Relative" />
                         </Grid>
-                        <TextBlock Text="Absolute is recommended for drawing — it carries pressure &amp; tilt."
+                        <TextBlock Text="Absolute is recommended for drawing — the pen maps directly to your screen. Both modes use Windows Ink, so pressure &amp; tilt work either way."
                                    FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="90,2,0,0"
                                    TextWrapping="Wrap" />
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
@@ -385,10 +385,8 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenButtonsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: section label + master enable toggle and clear-all (when there are buttons). -->
+                <!-- Header: master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
-                    <TextBlock Grid.Column="0" Text="AUXILIARY BUTTONS" Classes="SectionLabel"
-                               VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
                         <TextBlock Text="Buttons enabled" FontSize="12" VerticalAlignment="Center"
