@@ -7,18 +7,18 @@ using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
 
-public partial class ConsoleView : UserControl
+public partial class LogView : UserControl
 {
-    private ConsoleViewModel? _vm;
+    private LogViewModel? _vm;
 
-    public ConsoleView() => InitializeComponent();
+    public LogView() => InitializeComponent();
 
     // Hook the VM's scroll request for the dialog/page lifetime. The page view is rebuilt each time
     // the Console tab is navigated to, so attach/detach pair cleanly with no lingering subscription.
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (DataContext is ConsoleViewModel vm)
+        if (DataContext is LogViewModel vm)
         {
             _vm = vm;
             vm.ScrollToEndRequested += ScrollToEnd;
@@ -42,7 +42,7 @@ public partial class ConsoleView : UserControl
             LogList.ScrollIntoView(LogList.ItemCount - 1);
     }
 
-    private ConsoleViewModel? Vm => DataContext as ConsoleViewModel;
+    private LogViewModel? Vm => DataContext as LogViewModel;
 
     private async void CopyText_Click(object? sender, RoutedEventArgs e) => await CopyAsync(Vm?.BuildLogText());
     private async void CopyMarkdown_Click(object? sender, RoutedEventArgs e) => await CopyAsync(Vm?.BuildLogMarkdown());

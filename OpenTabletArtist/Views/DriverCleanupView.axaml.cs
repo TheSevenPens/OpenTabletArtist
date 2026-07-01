@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace OpenTabletArtist.Views;
 
-public partial class UtilitiesView : UserControl
+public partial class DriverCleanupView : UserControl
 {
-    public UtilitiesView()
+    public DriverCleanupView()
     {
         InitializeComponent();
     }

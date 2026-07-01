@@ -32,13 +32,13 @@
         <DataTemplate DataType="{x:Type vm:TabletDetailViewModel}"><views:TabletDetailView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PresetsViewModel}"><views:PresetsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CustomTabletConfigsViewModel}"><views:CustomTabletConfigsView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:UtilitiesViewModel}"><views:UtilitiesView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DriverCleanupViewModel}"><views:DriverCleanupView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TestViewModel}"><views:TestView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ConsoleViewModel}"><views:ConsoleView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:OtdViewModel}"><views:OtdView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LogViewModel}"><views:LogView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DaemonViewModel}"><views:DaemonView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PluginsViewModel}"><views:PluginsView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ThemeViewModel}"><views:ThemeView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
     </Application.DataTemplates>
 </Application>

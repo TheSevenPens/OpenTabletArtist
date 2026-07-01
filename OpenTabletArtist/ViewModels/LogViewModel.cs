@@ -15,12 +15,12 @@ using OpenTabletArtist.Services;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the Console page — a live view of the OpenTabletDriver daemon's log, like OTD's
+/// View model for the Log page — a live view of the OpenTabletDriver daemon's log, like OTD's
 /// own Console tab. Seeds from the daemon's buffered log on connect (<see cref="IDaemonLogSource"/>)
 /// and appends each pushed message. A minimum-level filter and a bounded buffer keep it readable and
 /// cheap; the view handles auto-scroll + copy via <see cref="ScrollToEndRequested"/> / <see cref="BuildLogText"/>.
 /// </summary>
-public partial class ConsoleViewModel : ObservableObject, IDisposable
+public partial class LogViewModel : ObservableObject, IDisposable
 {
     // Bound so a long-running daemon can't grow the log without limit; oldest entries drop off.
     private const int MaxEntries = 5000;
@@ -47,7 +47,7 @@ public partial class ConsoleViewModel : ObservableObject, IDisposable
     /// <summary>Raised (UI thread) when the view should scroll to the latest entry.</summary>
     public event Action? ScrollToEndRequested;
 
-    public ConsoleViewModel(IDaemonLogSource log, IConnectionState? connection = null)
+    public LogViewModel(IDaemonLogSource log, IConnectionState? connection = null)
     {
         _log = log;
         _connection = connection;

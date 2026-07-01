@@ -10,11 +10,11 @@ namespace OpenTabletArtist.ViewModels;
 /// OpenTabletDriver engine. Currently the embedded OTD version + a launcher for OTD's own UX, moved
 /// here off the Home dashboard.
 /// </summary>
-public partial class OtdViewModel : ObservableObject
+public partial class DaemonViewModel : ObservableObject
 {
     private readonly IConnectionState _connection;
 
-    public OtdViewModel(IConnectionState connection) => _connection = connection;
+    public DaemonViewModel(IConnectionState connection) => _connection = connection;
 
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
