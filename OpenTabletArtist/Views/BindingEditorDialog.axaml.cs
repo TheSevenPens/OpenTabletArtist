@@ -40,6 +40,15 @@ public partial class BindingEditorDialog : Window
         Close();
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        // Complete the awaiter even when the dialog is closed via the title-bar X / Alt+F4, which
+        // bypass the VM's CloseRequested path. Without this, ShowAsync's `await _resultTcs.Task` would
+        // never return. TrySetResult is a no-op if the normal Save/Cancel path already set it.
+        _resultTcs.TrySetResult((DataContext as BindingEditorViewModel)?.Result);
+    }
+
     /// <summary>Open the editor modally over <paramref name="owner"/> and return the result.</summary>
     public static async Task<AuxBinding?> ShowAsync(Window owner, AuxBinding initial, string title)
     {
