@@ -20,20 +20,21 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar shows: **Dashboard**, **Paired Tablets**, **Saved Settings**, **Custom Tablet Configs**, **Utilities**, **Diagnostics**, **Test**, **Plugins**, **Settings**, **About**.
+The sidebar's top-level items are **Home**, **Tablets**, **Saved Settings**, **Test Drawing**, and **About**. A collapsible **Advanced** group holds **Daemon**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, **Plugins**, **Driver Cleanup**, and **Theme**.
 
-### Dashboard
+**Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
+
+### Home
 
 The landing page shows status cards:
 
-- **OpenTabletDriver Version** — Shows the OTD version from the referenced assembly.
-- **OpenTabletDriver Daemon** — Connection status. Shows **Start** button when disconnected, **Restart** to restart the daemon, **Refresh** icon to check status, and **OTD UX** to launch the original OTD interface for comparison. Below the "Daemon running" line, a **daemon ownership indicator** shows which daemon the app is actually connected to (one of three states):
+- **Conflicting tablet driver** *(only when detected)* — a warning card when the daemon flags a manufacturer driver that can interfere with OpenTabletDriver, with a **Driver cleanup** button that jumps to that page.
+- **OpenTabletDriver Daemon** — Connection status. Shows **Start** when disconnected, **Restart** / **Stop** when running, and a **Refresh** to check status. (The embedded OTD version and the **OTD UX** launcher now live on the **Daemon** page under Advanced.) Below the "Daemon running" line, a **daemon ownership indicator** shows which daemon the app is actually connected to (one of three states):
   - **App-owned daemon** (green check) — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
   - **External daemon (not app-owned)** (amber warning) — connected to a different OTD instance, e.g. a separately-installed daemon the user already had running. Hint text suggests clicking **Restart**, which kills any running daemon and relaunches this project's build.
   - **Daemon source unknown** (grey) — connected, but the daemon's exe path couldn't be read (e.g. it's running elevated). The app reports this honestly rather than guessing.
 
   Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The actual daemon exe path is shown on hover (app-owned / external states).
-- **Tablet** — **One card per connected tablet** (so a second tablet is never hidden behind the first), each showing the tablet name, a one-line spec summary (area · pressure levels · buttons), and a **Settings** button that opens that tablet's settings dialog. When more than one is connected, the **active** tablet (the one the tray / Test / Diagnostics act on) is marked with an **Active** badge, and every other card gets a **Set active** button to switch it. When nothing is connected, a single card shows "No tablet detected." Updates automatically via polling.
 - **VMulti Driver** — Detection via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder. Both **Install** and **Uninstall** run in-app (one UAC prompt each, no flashing cmd window) and offer to **restart** Windows afterward. Install creates the VMulti device via `devcon`; Uninstall removes the driver and the active device *and* cleans up the leftover driverless `djpnewton\vmulti` nodes (Device Manager Code 28) that the stock removal left behind. Detection reflects a *working* driver, so any remaining driverless leftovers are reported as **Not installed**, not as installed.
 - **Kuuube's Windows Ink plugin** — Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins). Shows:
   - **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
@@ -43,30 +44,26 @@ The landing page shows status cards:
 
 The **Start / Stop / Restart** daemon actions show an inline progress bar with live phase text (Stopping… → Starting… → Connecting…) while they run, and report a clear error if the daemon doesn't come online within 30 seconds.
 
-### Paired Tablets
+### Tablets (per-tablet settings)
 
-Lists all tablet profiles. Click **Open** or double-click a card to open the settings dialog.
+Selecting a tablet in the sidebar opens its settings **in the right-hand pane** (no separate dialog), with a header showing the tablet name, live connection status, a **Refresh**, and a **Forget** button. The settings have seven tabs:
 
-The settings dialog has seven tabs:
+- **Screen Mapping** — Output mode is an **Absolute / Relative** toggle (Absolute is recommended for drawing, since it carries pressure & tilt; a warning + Fix appears if the profile is on a non-Windows-Ink mode). A **Display Mapping** diagram shows the whole picture in one view: your monitors across the top (to scale/position, numbered, with resolution + refresh), the **tablet's active area** below, and an **L-shaped arrow** from the tablet to the selected display. **Click a monitor** to select it, then **Apply mapping** to map the tablet to that whole display (aspect-locked); a "Display selection changed — click Apply mapping to save it" hint makes clear the choice isn't live until applied. A **live pen dot** tracks over the tablet area as you move the pen. **Display Settings** opens Windows Display Settings and **Refresh** re-reads monitors (the diagram also updates when you add/remove a display). Calibration is its own **Calibration** card below (Absolute mode only): a **mode** selector + **Calibrate…** opens a full-screen overlay on the mapped display where you tap targets so the cursor lands where you see the nib; you can Apply, Clear, and see whether the current calibration is stale.
 
-- **Screen Mapping** — Output mode is an **Absolute / Relative** toggle (Absolute is noted as recommended for drawing, since it carries pressure & tilt; a warning + Fix appears if the profile is on a non-Windows-Ink mode). **Area Mapping** shows a graphical layout of your monitors (like Windows Display Settings) — each drawn to scale and position with its number, name, resolution, and refresh rate (e.g. "2560×1440 · 144 Hz", when Windows reports it). Click a monitor to select it (the one the tablet is currently mapped to starts highlighted), then **Apply mapping** to map the tablet to that whole display with aspect-ratio lock enforced. Selecting a different monitor shows a "Display selection changed — click Apply mapping to save it" hint, so it's clear the choice isn't live until you apply it. You map to **one** display at a time (no "all displays" span). The card also has **Display Settings** (opens Windows Display Settings) and a **Refresh** icon (re-reads monitors); the layout also updates automatically if you add or remove a display while the dialog is open. A **Calibrate…** button (Absolute mode only) opens a full-screen overlay on the mapped display where you tap the targets with the pen; the helper computes a correction so the cursor lands where you see the nib (useful for pen displays), previews it live, and lets you Apply, Redo, or Clear. A **mode** selector next to the button chooses how it captures:
-
-- **4 point** — the default; tap the four corners. Fits a **perspective** correction, which fixes keystone/parallax (the nib-vs-cursor gap that grows toward the edges) as well as offset/scale/rotation.
-- **9 point / 25 point** — tap a 3×3 or 5×5 grid; fits a **per-node** correction interpolated across the screen, which also handles **localized** distortion that a single transform can't. More taps, best for displays whose error varies across the surface.
-
-The correction is applied by a bundled OpenTabletDriver filter, so it's tied to the current area mapping — recalibrate if you change the mapping.
+  - **4 point** — the default; tap the four corners. Fits a **perspective** correction (keystone/parallax + offset/scale/rotation).
+  - **9 point / 25 point** — tap a 3×3 or 5×5 grid; fits a **per-node** correction that also handles **localized** distortion. The correction is tied to the current mapping — recalibrate if you change it.
 - **Pen Switches** — All the switches on the pen: tip, eraser, and pen barrel buttons. Each shows a green check + "Adaptive Binding (recommended)" when already on Adaptive Binding; otherwise a Fix (tip/eraser) or Fix All (pen buttons) button sets it.
-- **ExpressKeys** — The tablet's auxiliary (express key) bindings.
+- **ExpressKeys** — The tablet's auxiliary buttons, **fully editable**, one card each. Pick a binding **type** (None / Keyboard / Mouse button / Mouse scroll): Keyboard offers Ctrl/Shift/Alt modifiers + a key (a combo writes a Multi-Key binding); Mouse button is Left/Right/Middle/Back/Forward; Mouse scroll is a direction. **Pressing a physical button highlights its card live.** A **Buttons enabled** master toggle suspends all mappings (kept and restored when re-enabled), and **Clear all** removes every binding.
 - **Dynamics** — An interactive pressure-curve editor **plus smoothing**. Toggle it on to apply custom pen dynamics to this tablet's profile; they're enforced by the bundled *OpenTabletArtist – Pen Dynamics* filter, so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one.
   - **Curve** — drag the pink **min** node and cyan **max** node to set where pressure starts and saturates (input → output); the **Min/Max node** input/output values are shown read-only beside the chart. Use the **Softness** slider to bend the response (positive = lighter/concave, negative = firmer/convex; the ↺ button resets it to linear), and tick **Cut below input minimum** to turn the lead-in into a dead zone instead of a pressure floor. **Presets** (Linear / Soft / Firm) are quick starting points; **Reset** restores the identity curve. While you draw, a green dot tracks your **live pen pressure** on the curve so you can feel the mapping.
   - **Smoothing (jitter reduction)** — **Position** smoothing steadies wobbly lines and **Pressure** smoothing evens out pressure jitter (each 0 = off to 1 = max; the amount is perceptually scaled, like Slimy Scylla, so the slider feels even across its range). **Order** chooses whether smoothing runs after the curve (*Curve → Smooth*, default) or before it. Smoothing applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over from the previous one.
   - **Reset all** (in the tab header) returns the curve, both smoothing amounts, and the order to their defaults in one click (it leaves the On/Off toggle as you set it). The curve's own **Reset** button only resets the curve.
   - Edits are debounced and applied to the daemon automatically.
 - **Hover** — Limits the pen's **hover height** (#188). Toggle it on and set **Max hover** — once the pen lifts farther than this from the surface, the cursor stops tracking (it holds its last position) instead of being dragged around by a raised pen. Drawing is unaffected (in contact the hover distance is ~0, always within the limit). Hover distance is 0–255 and **not all tablets report it** — check the Diagnostics page for your tablet's live hover values to pick a limit. Enforced by the bundled *OpenTabletArtist – Hover Limit* filter; edits are debounced and applied automatically.
-- **Filters** — Configured input filters with enabled/disabled status.
+- **Filters** — The profile's input filters, one card each: friendly name, full type path, and enabled/disabled status. A stale filter left over from an older app name is flagged **Legacy** (and cleaned up automatically).
 - **JSON** — Raw JSON view of the profile data.
 
-A **Refresh** button in the dialog header reloads settings from the daemon (useful after making changes in the OTD UX).
+A **Refresh** button in the page header reloads settings from the daemon (useful after making changes in the OTD UX).
 
 ### Saved Settings
 
@@ -86,21 +83,22 @@ Each snapshot card has:
 
 The "No Snapshots" empty state appears only when the snapshots folder is actually empty.
 
-### Custom Tablet Configs
+### Custom Tablet Compatibility
 
 Lists tablet config JSON files in `%AppData%\OpenTabletDriver\Configurations\` (the folder is created on app startup if missing). Each row shows the tablet's friendly name (read from the JSON `Name` field, falling back to a manufacturer-folder + filename combo). Per-row **View** opens the formatted JSON in a read-only viewer; **Delete** removes the file after a confirmation prompt. The panel header has a **Refresh** icon to rescan and an **Open Folder** button.
 
-### Utilities
+### Driver Cleanup
 
-Helper tools for diagnosing and fixing tablet-driver problems.
+Finds and removes conflicting manufacturer tablet drivers.
 
+- **Conflicting drivers detected** — When the daemon flags a manufacturer driver (parsed from its detection warnings), each is shown as its own card with the driver name, its impact ("Blocks OpenTabletDriver from detecting tablets" / "Can cause flaky tablet support"), the offending processes, the full (selectable) daemon message, and an **Open OpenTabletDriver FAQ** link. (OpenTabletArtist's own process is filtered out so it isn't mistaken for a conflict.)
 - **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). Install the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.
 
 ### Diagnostics
 
 Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details. When more than one tablet is connected, a **Show** selector picks which tablet's live reports to display (the daemon's debug stream carries all tablets at once); with a single tablet it's hidden.
 
-### Test
+### Test Drawing
 
 A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
 
@@ -120,19 +118,29 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 
 A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OpenTabletArtist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
 
+### Log
+
+The live OpenTabletDriver daemon log, streamed with per-level coloring and a **minimum-level** filter. **Copy** is a dropdown — copy the visible log as **text**, a **Markdown** table, or an **HTML** table. **Clear** empties the view.
+
+### Daemon
+
+Details about the bundled OpenTabletDriver engine: the embedded OTD version, and an **OTD UX** launcher to open the original OpenTabletDriver interface for comparison.
+
 ### About
 
 Project information.
 
 ## Navigation
 
-Click items in the sidebar to switch between pages. The active page is highlighted with an indigo accent bar.
+Click items in the sidebar to switch between pages. The active page is highlighted with an accent bar.
 
-## Settings
+## Theme
 
-The **Settings** page (in the sidebar) holds app-level preferences. Currently:
+The **Theme** page (under **Advanced**) holds appearance preferences:
 
-- **Theme** — a selector with three choices: **System** (follows your Windows light/dark setting — the default), **Light**, and **Dark**. The choice is applied immediately and remembered across restarts.
+- **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, and **Sakura** (a pink skin with a cherry-blossom backdrop and frosted-glass panels — the default). Applied immediately and remembered across restarts.
+- **Falling petals** *(Sakura only)* — toggles the drifting cherry-blossom animation.
+- **Frosted glass** *(Sakura only)* — a **Card opacity** slider that tunes how translucent the cards are (the backdrop shows through). Live and persisted; scoped to the Sakura skin.
 
 ## System tray & background mode
 
@@ -143,7 +151,7 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 - **Click the icon** — reopen the window.
 - **Show OpenTabletArtist** — reopen the window.
 - **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the active tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Test page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is connected.
-- **Open Tablet Settings…** — opens the per-tablet settings dialog for the active tablet (reopening the window first, since the dialog is owned by it). Shown when a tablet is connected.
+- **Open Tablet Settings…** — reopens the window and shows the active tablet's settings. Shown when a tablet is connected. (The tray also offers a focused **Pen Dynamics** editor.)
 - **Switch Display** — a submenu listing your monitors; pick one to map the active tablet to that whole display (aspect-locked, the same mapping as the Screen-Mapping tab's *Apply mapping*). The currently-mapped display is check-marked. Shown only when the active tablet is in an Absolute output mode (otherwise there's no display area to set).
 - **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Test / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
@@ -153,7 +161,7 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
 
-- **Use the OTD UX**: Click **OTD UX** on the Dashboard's daemon card to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
+- **Use the OTD UX**: Click **OTD UX** on the **Daemon** page (under Advanced) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
 The app's own tray icon (above) can also Stop/Restart the daemon directly.
