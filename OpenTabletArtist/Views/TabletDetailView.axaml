@@ -13,6 +13,85 @@
         </Style>
     </UserControl.Styles>
 
+    <UserControl.Resources>
+        <!-- Shared binding-editor card: a label + a type selector (None/Keyboard/Mouse/Scroll) and the
+             matching key/mouse/scroll picker. Used by both the ExpressKeys tab (auxiliary buttons) and
+             the Wheel tab (rotation directions) — both bind a ButtonBinding. -->
+        <DataTemplate x:Key="ButtonBindingCard">
+            <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
+                    Padding="16,12" Margin="0,0,0,10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                        <!-- Shown only when the slot already holds a binding this editor can't model. -->
+                        <TextBlock FontSize="11" Foreground="#e87930" TextWrapping="Wrap"
+                                   IsVisible="{Binding IsOtherBinding}"
+                                   Text="{Binding OtherLabel, StringFormat='Currently: {0} — picking a key replaces it'}" />
+                    </StackPanel>
+                    <!-- Type selector + the editor for that type. -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center">
+                        <ComboBox MinWidth="120" VerticalAlignment="Center"
+                                  IsEnabled="{Binding CanEdit}"
+                                  ItemsSource="{Binding KindOptions}"
+                                  SelectedValueBinding="{Binding Value}"
+                                  SelectedValue="{Binding SelectedKind, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <!-- Keyboard: modifiers + key. No modifiers → Key Binding; with → Multi-Key. -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                    IsVisible="{Binding IsKeyboard}">
+                            <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" IsEnabled="{Binding CanEdit}"
+                                      MinWidth="0" VerticalAlignment="Center" />
+                            <CheckBox Content="Shift" IsChecked="{Binding Shift}" IsEnabled="{Binding CanEdit}"
+                                      MinWidth="0" VerticalAlignment="Center" />
+                            <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
+                                      MinWidth="0" VerticalAlignment="Center" />
+                            <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                      IsEnabled="{Binding CanEdit}" PlaceholderText="Pick a key"
+                                      ItemsSource="{Binding KeyOptions}"
+                                      SelectedValueBinding="{Binding Value}"
+                                      SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Mouse: a single button. -->
+                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                  IsVisible="{Binding IsMouse}" IsEnabled="{Binding CanEdit}"
+                                  PlaceholderText="Pick a button"
+                                  ItemsSource="{Binding MouseButtonOptions}"
+                                  SelectedValueBinding="{Binding Value}"
+                                  SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <!-- Scroll: a direction. -->
+                        <ComboBox MinWidth="110" VerticalAlignment="Center"
+                                  IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
+                                  PlaceholderText="Pick a direction"
+                                  ItemsSource="{Binding ScrollOptions}"
+                                  SelectedValueBinding="{Binding Value}"
+                                  SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
@@ -64,6 +143,9 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="EXPRESSKEYS" x:Name="PenButtonsTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="WHEEL" x:Name="WheelTab"
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding HasWheels}" />
                 <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="HOVER" x:Name="HoverTab"
@@ -377,89 +459,28 @@
                             VerticalAlignment="Center" />
                 </Grid>
 
-                <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
-                                    Padding="16,12" Margin="0,0,0,10">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                                   TextWrapping="Wrap" />
-                                        <!-- Shown only when the button already holds a non-key binding. -->
-                                        <TextBlock FontSize="11" Foreground="#e87930" TextWrapping="Wrap"
-                                                   IsVisible="{Binding IsOtherBinding}"
-                                                   Text="{Binding OtherLabel, StringFormat='Currently: {0} — picking a key replaces it'}" />
-                                    </StackPanel>
-                                    <!-- Type selector + the editor for that type. -->
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                                                VerticalAlignment="Center">
-                                        <ComboBox MinWidth="120" VerticalAlignment="Center"
-                                                  IsEnabled="{Binding CanEdit}"
-                                                  ItemsSource="{Binding KindOptions}"
-                                                  SelectedValueBinding="{Binding Value}"
-                                                  SelectedValue="{Binding SelectedKind, Mode=TwoWay}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-
-                                        <!-- Keyboard: modifiers + key. No modifiers → Key Binding; with → Multi-Key. -->
-                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                                    IsVisible="{Binding IsKeyboard}">
-                                            <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="0" VerticalAlignment="Center" />
-                                            <CheckBox Content="Shift" IsChecked="{Binding Shift}" IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="0" VerticalAlignment="Center" />
-                                            <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="0" VerticalAlignment="Center" />
-                                            <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                                      IsEnabled="{Binding CanEdit}" PlaceholderText="Pick a key"
-                                                      ItemsSource="{Binding KeyOptions}"
-                                                      SelectedValueBinding="{Binding Value}"
-                                                      SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </StackPanel>
-
-                                        <!-- Mouse: a single button. -->
-                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                                  IsVisible="{Binding IsMouse}" IsEnabled="{Binding CanEdit}"
-                                                  PlaceholderText="Pick a button"
-                                                  ItemsSource="{Binding MouseButtonOptions}"
-                                                  SelectedValueBinding="{Binding Value}"
-                                                  SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-
-                                        <!-- Scroll: a direction. -->
-                                        <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                                  IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
-                                                  PlaceholderText="Pick a direction"
-                                                  ItemsSource="{Binding ScrollOptions}"
-                                                  SelectedValueBinding="{Binding Value}"
-                                                  SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}"
+                              ItemTemplate="{StaticResource ButtonBindingCard}" />
 
                 <!-- Empty state when the tablet has no auxiliary buttons. -->
                 <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding NoAuxButtons}">
                     <TextBlock Text="No auxiliary buttons configured" FontSize="12"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Wheel tab content: clockwise / counter-clockwise rotation bindings per wheel. Reuses the
+             ExpressKeys binding-editor card; only shown when the tablet reports a wheel. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #WheelTab.IsChecked}">
+            <StackPanel>
+                <TextBlock Text="WHEEL" Classes="SectionLabel" Margin="0,0,0,8" />
+                <TextBlock Text="Bind an action to each direction the wheel turns. The action repeats as the wheel passes each step."
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,0,0,10" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding WheelRows}"
+                              ItemTemplate="{StaticResource ButtonBindingCard}" />
             </StackPanel>
         </ScrollViewer>
 

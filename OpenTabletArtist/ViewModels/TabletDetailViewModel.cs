@@ -371,6 +371,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         NoAuxButtons = newAuxButtons.Count == 0;
         ShowAuxControls = newAuxButtons.Count > 0 && _applyAction != null;
 
+        // Wheel bindings — clockwise / counter-clockwise rotation per wheel.
+        RefreshWheelRows();
+
         // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
         // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
         UpdateFiltersDisplay();
@@ -556,6 +559,63 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             var aux = p.BindingSettings.AuxButtons;
             if (buttonIndex >= 1 && buttonIndex <= aux.Count)
                 aux[buttonIndex - 1] = store!;
+        });
+    }
+
+    // ── Wheel tab: bind each wheel's clockwise / counter-clockwise rotation ──────
+    // Reuses the ExpressKeys ButtonBinding editor — each rotation direction is a single OTD
+    // PluginSettingStore, exactly what AuxKeyBinding.Read/MakeBinding already handle. Starting simple
+    // (just the two rotation directions); wheel buttons, thresholds, and step size can follow.
+    [ObservableProperty] private List<ButtonBinding> _wheelRows = new();
+    public bool HasWheels => WheelRows.Count > 0;
+    public bool NoWheels => WheelRows.Count == 0;
+
+    partial void OnWheelRowsChanged(List<ButtonBinding> value)
+    {
+        OnPropertyChanged(nameof(HasWheels));
+        OnPropertyChanged(nameof(NoWheels));
+    }
+
+    private void RefreshWheelRows()
+    {
+        var wheels = _profile.BindingSettings?.WheelBindings;
+        var rows = new List<ButtonBinding>();
+        if (wheels != null)
+        {
+            bool multi = wheels.Count > 1;
+            for (int w = 0; w < wheels.Count; w++)
+            {
+                rows.Add(MakeWheelRow(w, clockwise: true, wheels[w].ClockwiseRotation, multi));
+                rows.Add(MakeWheelRow(w, clockwise: false, wheels[w].CounterClockwiseRotation, multi));
+            }
+        }
+        WheelRows = rows;
+    }
+
+    private ButtonBinding MakeWheelRow(int wheelIndex, bool clockwise, PluginSettingStore? store, bool multiWheel)
+    {
+        var binding = AuxKeyBinding.ReadBinding(store); // null = a binding this editor can't model
+        var dir = clockwise ? "Clockwise" : "Counter-clockwise";
+        var label = multiWheel ? $"Wheel {wheelIndex + 1} · {dir}" : dir;
+        return new ButtonBinding(
+            index: wheelIndex,
+            binding: binding ?? AuxBinding.Unbound,
+            isOtherBinding: binding == null,
+            otherLabel: binding == null ? GetBindingName(store) : "",
+            canEdit: _applyAction != null,
+            applyBinding: (_, b) => ApplyWheelBindingAsync(wheelIndex, clockwise, b),
+            label: label);
+    }
+
+    private async Task ApplyWheelBindingAsync(int wheelIndex, bool clockwise, AuxBinding binding)
+    {
+        var store = AuxKeyBinding.MakeBinding(binding); // null = unbound
+        await ApplySettingsChange(p =>
+        {
+            var wheels = p.BindingSettings?.WheelBindings;
+            if (wheels == null || wheelIndex < 0 || wheelIndex >= wheels.Count) return;
+            if (clockwise) wheels[wheelIndex].ClockwiseRotation = store;
+            else wheels[wheelIndex].CounterClockwiseRotation = store;
         });
     }
 
@@ -1027,9 +1087,10 @@ public partial class ButtonBinding : ObservableObject
     private AuxBinding _applied;
 
     public ButtonBinding(int index, AuxBinding binding, bool isOtherBinding, string otherLabel,
-        bool canEdit, Func<int, AuxBinding, Task>? applyBinding)
+        bool canEdit, Func<int, AuxBinding, Task>? applyBinding, string? label = null)
     {
         Index = index;
+        _label = label;
         IsOtherBinding = isOtherBinding;
         OtherLabel = otherLabel;
         CanEdit = canEdit;
@@ -1055,7 +1116,9 @@ public partial class ButtonBinding : ObservableObject
     }
 
     public int Index { get; }
-    public string Label => $"Button {Index}";
+    private readonly string? _label;
+    /// <summary>Row title. Defaults to "Button N"; wheel rows pass a custom label (the direction).</summary>
+    public string Label => _label ?? $"Button {Index}";
 
     /// <summary>Binding-type choices and per-type pickers (all shared lists).</summary>
     public IReadOnlyList<KeyOption> KindOptions { get; } = new List<KeyOption>
