@@ -88,4 +88,42 @@ public class DeviceReportSampleTests
         // A pen report carries no AuxButtons → callers leave the last-known press state untouched.
         Assert.False(DeviceReportSample.TryParseAuxButtons(Report(), out _));
     }
+
+    [Fact]
+    public void TryParseWheelButtons_ReadsJaggedState()
+    {
+        var r = JObject.Parse("""{ "Data": { "WheelButtons": [[true, false], [false]] } }""");
+
+        Assert.True(DeviceReportSample.TryParseWheelButtons(r, out var wheels));
+        Assert.Equal(2, wheels.Length);
+        Assert.Equal(new[] { true, false }, wheels[0]);
+        Assert.Equal(new[] { false }, wheels[1]);
+    }
+
+    [Fact]
+    public void TryParseWheelButtons_PenOnlyReport_ReturnsFalse()
+    {
+        Assert.False(DeviceReportSample.TryParseWheelButtons(Report(), out _));
+    }
+
+    [Fact]
+    public void TryParseWheelPositions_ReadsNullableEntries()
+    {
+        var r = JObject.Parse("""{ "Data": { "AnalogPositions": [42, null, 7] } }""");
+
+        Assert.True(DeviceReportSample.TryParseWheelPositions(r, out var pos));
+        Assert.Equal(3, pos.Length);
+        Assert.Equal((uint?)42, pos[0]);
+        Assert.Null(pos[1]);
+        Assert.Equal((uint?)7, pos[2]);
+    }
+
+    [Fact]
+    public void TryParseWheelDeltas_ReadsSignedSteps()
+    {
+        var r = JObject.Parse("""{ "Data": { "AnalogDeltas": [-1, 0, 3] } }""");
+
+        Assert.True(DeviceReportSample.TryParseWheelDeltas(r, out var deltas));
+        Assert.Equal(new[] { -1, 0, 3 }, deltas);
+    }
 }
