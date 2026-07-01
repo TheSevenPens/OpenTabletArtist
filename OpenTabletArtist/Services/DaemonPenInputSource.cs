@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Threading;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
@@ -13,11 +14,16 @@ namespace OpenTabletArtist.Services;
 public sealed class DaemonPenInputSource
 {
     private readonly IDaemonDebugSession _daemon;
+    private readonly Func<JObject, bool>? _acceptReport;
     private bool _wantRunning;  // desired state — survives across the awaits below
     private bool _starting;     // a StartAsync is mid-flight (awaiting enable)
     private bool _subscribed;
 
-    public DaemonPenInputSource(IDaemonDebugSession daemon) => _daemon = daemon;
+    public DaemonPenInputSource(IDaemonDebugSession daemon, Func<JObject, bool>? acceptReport = null)
+    {
+        _daemon = daemon;
+        _acceptReport = acceptReport;
+    }
 
     /// <summary>Raised on the UI thread for each parseable device report.</summary>
     public event Action<PenSample>? Sample;
@@ -81,6 +87,8 @@ public sealed class DaemonPenInputSource
 
     private void OnDeviceReport(JObject data)
     {
+        if (_acceptReport != null && !_acceptReport(data)) return;
+
         // Reports arrive off the UI thread; marshal before raising (subscribers touch UI state).
         // Pen and aux state come on different report types, so parse/raise them independently.
         if (DeviceReportSample.TryParse(data, out var sample))

@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
@@ -214,7 +215,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
         if (penInput != null)
         {
-            _penInput = new DaemonPenInputSource(penInput);
+            _penInput = new DaemonPenInputSource(penInput, AcceptDeviceReportForThisTablet);
             _penInput.Sample += OnPenSample;
             _penInput.AuxButtons += OnAuxButtons;
             _penInput.WheelButtons += OnWheelButtons;
@@ -1011,6 +1012,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// null when no pen is in range. (#250)</summary>
     [ObservableProperty] private double? _livePenX;
     [ObservableProperty] private double? _livePenY;
+
+    /// <summary>With more than one tablet connected, the daemon debug stream interleaves all of them;
+    /// only show this profile's tablet (same rule as Diagnostics #190).</summary>
+    private bool AcceptDeviceReportForThisTablet(JObject data)
+    {
+        if (_deviceData is not { DetectedTablets.Count: > 1 }) return true;
+        var reportTablet = data["Tablet"]?["Properties"]?["Name"]?.ToString();
+        var ourTablet = _profile.Tablet;
+        if (reportTablet == null || string.IsNullOrEmpty(ourTablet)) return true;
+        return string.Equals(reportTablet, ourTablet, StringComparison.OrdinalIgnoreCase);
+    }
 
     // DeviceReportSample normalizes to 0..1; feed both the pressure dot and the active-area map.
     private void OnPenSample(PenSample s)
