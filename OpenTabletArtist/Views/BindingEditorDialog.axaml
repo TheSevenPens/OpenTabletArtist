@@ -3,21 +3,61 @@
         xmlns:conv="using:OpenTabletArtist.Converters"
         x:Class="OpenTabletArtist.Views.BindingEditorDialog"
         Title="{Binding Title}"
-        Width="820" Height="580"
+        Width="880" Height="580"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BgBaseBrush}">
 
     <Window.Resources>
+        <!-- Keycap button: a light "physical key" fill so keys stand out from the card. A picked key
+             gets an accent outline; an active modifier gets an accent-tinted fill (a distinct look). -->
+        <ControlTheme x:Key="KeyCapButton" TargetType="Button">
+            <Setter Property="Background" Value="#40FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#Bd">
+                <Setter Property="Background" Value="#70FFFFFF" />
+            </Style>
+            <!-- Picked main key: light fill + accent outline. -->
+            <Style Selector="^.selected /template/ Border#Bd">
+                <Setter Property="Background" Value="#78FFFFFF" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            </Style>
+            <Style Selector="^.selected">
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <!-- Active modifier: accent-tinted fill (a slightly different colour than a picked key). -->
+            <Style Selector="^.modifier.selected /template/ Border#Bd">
+                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            </Style>
+        </ControlTheme>
+
         <!-- One keycap: a fixed-width footprint (so rows of equal total units align regardless of key
              count) with the visible key inset by a small margin. Spacers render as empty footprint. -->
         <DataTemplate x:Key="KeyCapTemplate">
-            <Border Width="{Binding Width}" Height="34">
-                <Button Theme="{StaticResource BindingModePill}" Classes.selected="{Binding IsSelected}"
+            <Border Width="{Binding Width}" Height="30">
+                <Button Theme="{StaticResource KeyCapButton}" Classes.selected="{Binding IsSelected}"
+                        Classes.modifier="{Binding IsModifier}"
                         Command="{Binding PickCommand}" CommandParameter="{Binding}"
                         Content="{Binding Display}" IsVisible="{Binding !IsSpacer}"
-                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                        Margin="1.5" Padding="0" FontSize="11" />
+                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="1.5" />
             </Border>
         </DataTemplate>
         <!-- One keyboard row. -->
@@ -79,6 +119,36 @@
                 <Button Grid.Column="0" Content="Clear" Command="{Binding ClearCommand}"
                         Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="12"
                         ToolTip.Tip="Remove this binding (unbind)" />
+
+                <!-- Combo preview: CTRL + ALT + E (keyboard tab only). -->
+                <Grid Grid.Column="1" IsVisible="{Binding IsKeyboardTab}">
+                    <TextBlock Text="No key selected" IsVisible="{Binding ComboEmpty}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               FontSize="12" FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}" />
+                    <ItemsControl ItemsSource="{Binding ComboParts}" IsVisible="{Binding !ComboEmpty}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" VerticalAlignment="Center" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Panel VerticalAlignment="Center" Margin="3,0">
+                                    <TextBlock Text="+" IsVisible="{Binding IsSeparator}"
+                                               FontSize="15" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="36" Padding="12,0"
+                                            Background="White" BorderBrush="#40000000" BorderThickness="1.5"
+                                            CornerRadius="7">
+                                        <TextBlock Text="{Binding Text}" FontSize="14" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="#222222" />
+                                    </Border>
+                                </Panel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
                 <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelDialogCommand}"
                         Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="12" Margin="0,0,8,0" />
                 <Button Grid.Column="3" Content="Save" Command="{Binding SaveCommand}"
@@ -123,11 +193,11 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Theme="{StaticResource BindingModePill}"
+                                    <Button Theme="{StaticResource KeyCapButton}"
                                             Classes.selected="{Binding IsSelected}"
                                             Command="{Binding PickCommand}" CommandParameter="{Binding}"
                                             Content="{Binding Display}" Height="30" MinWidth="42"
-                                            Margin="0,0,4,4" Padding="8,0" FontSize="11" />
+                                            Margin="0,0,4,4" Padding="10,0" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -61,6 +61,7 @@ public partial class BindingEditorViewModel : ObservableObject
                 SelectedTabIndex = KeyboardTab;   // an unbound button opens on Keyboard
                 break;
         }
+        UpdateCombo();
     }
 
     /// <summary>Save is enabled only when the active tab has a complete selection.</summary>
@@ -86,7 +87,7 @@ public partial class BindingEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(IsScrollTab));
     }
 
-    partial void OnSelectedKeyOptionChanged(KeyOption? value) => SaveCommand.NotifyCanExecuteChanged();
+    partial void OnSelectedKeyOptionChanged(KeyOption? value) { SaveCommand.NotifyCanExecuteChanged(); UpdateCombo(); }
     partial void OnSelectedMouseButtonChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
     partial void OnSelectedScrollChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
 
@@ -138,7 +139,8 @@ public partial class BindingEditorViewModel : ObservableObject
         switch (cap.Kind)
         {
             case KeyCapKind.Key:
-                SelectKey(cap.Value);
+                // Clicking the already-selected key clears it (toggle).
+                SelectKey(cap.Value == SelectedKeyOption?.Value ? null : cap.Value);
                 break;
             case KeyCapKind.Modifier:
                 if (cap.Value == "Ctrl") Ctrl = !Ctrl;
@@ -154,14 +156,33 @@ public partial class BindingEditorViewModel : ObservableObject
         foreach (var cap in _keyCaps.Values) cap.IsSelected = cap.Value == value;
     }
 
-    partial void OnCtrlChanged(bool value) => SyncModifierCaps();
-    partial void OnShiftChanged(bool value) => SyncModifierCaps();
-    partial void OnAltChanged(bool value) => SyncModifierCaps();
+    partial void OnCtrlChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
+    partial void OnShiftChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
+    partial void OnAltChanged(bool value) { SyncModifierCaps(); UpdateCombo(); }
 
     private void SyncModifierCaps()
     {
         foreach (var c in _modifierCaps)
             c.IsSelected = c.Value switch { "Ctrl" => Ctrl, "Shift" => Shift, "Alt" => Alt, _ => false };
+    }
+
+    // ── Combo preview (the "CTRL + ALT + E" strip in the footer) ────────────────
+    [ObservableProperty] private IReadOnlyList<ComboPart> _comboParts = Array.Empty<ComboPart>();
+    [ObservableProperty] private bool _comboEmpty = true;
+
+    private void UpdateCombo()
+    {
+        var parts = new List<ComboPart>();
+        void Add(ComboPart p) { if (parts.Count > 0) parts.Add(ComboPart.Sep()); parts.Add(p); }
+
+        if (Ctrl) Add(ComboPart.Chip("CTRL"));
+        if (Shift) Add(ComboPart.Chip("SHIFT"));
+        if (Alt) Add(ComboPart.Chip("ALT"));
+        if (SelectedKeyOption is { } k) Add(ComboPart.Chip(k.Display));
+        else if (parts.Count > 0) Add(ComboPart.Chip("?", placeholder: true)); // modifiers set, no key yet
+
+        ComboParts = parts;
+        ComboEmpty = parts.Count == 0;
     }
 
     private void BuildKeyboard()
@@ -247,6 +268,7 @@ public partial class KeyCap : ObservableObject
     public double Width { get; }
     public KeyCapKind Kind { get; }
     public bool IsSpacer => Kind == KeyCapKind.Spacer;
+    public bool IsModifier => Kind == KeyCapKind.Modifier;
     public IRelayCommand<KeyCap?> PickCommand { get; }
 
     [ObservableProperty] private bool _isSelected;
@@ -255,8 +277,28 @@ public partial class KeyCap : ObservableObject
     {
         Display = display;
         Value = value;
-        Width = widthUnits * 30;
+        Width = widthUnits * 34;
         Kind = kind;
         PickCommand = pickCommand;
     }
+}
+
+/// <summary>One element of the footer combo preview — a key/modifier chip, or a "+" separator between
+/// them. <see cref="IsPlaceholder"/> marks the "no key yet" chip when only modifiers are set.</summary>
+public sealed class ComboPart
+{
+    public string Text { get; }
+    public bool IsSeparator { get; }
+    public bool IsPlaceholder { get; }
+    public bool IsChip => !IsSeparator;
+
+    private ComboPart(string text, bool separator, bool placeholder)
+    {
+        Text = text;
+        IsSeparator = separator;
+        IsPlaceholder = placeholder;
+    }
+
+    public static ComboPart Chip(string text, bool placeholder = false) => new(text, false, placeholder);
+    public static ComboPart Sep() => new("+", true, false);
 }
