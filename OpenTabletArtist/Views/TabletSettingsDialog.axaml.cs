@@ -30,7 +30,9 @@ public partial class TabletSettingsDialog : Window
         // Calibration overlay is owned by this dialog window (#127); the VM reloads afterward (#147).
         var vm = new TabletDetailViewModel(profile, settings, onApplyChanges, onRefresh,
             tabletDigitizer, penInput, isDetected, dynamicsOnly, deviceData,
-            onCalibrate: onCalibrate != null ? (opts => onCalibrate(this, opts)) : null);
+            onCalibrate: onCalibrate != null ? (opts => onCalibrate(this, opts)) : null,
+            // Binding editor owned by this dialog window.
+            editBinding: (binding, title) => BindingEditorDialog.ShowAsync(this, binding, title));
         DataContext = vm; // inherited by the hosted TabletDetailView
         if (dynamicsOnly)
         {

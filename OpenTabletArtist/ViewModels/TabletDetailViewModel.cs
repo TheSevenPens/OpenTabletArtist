@@ -29,6 +29,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private Profile _profile;
     private Settings? _settings;
     private readonly Func<Settings, Task>? _applyAction;
+    // Opens the modal binding editor for a card's current binding + label; returns the chosen binding
+    // (or Unbound on Clear), or null on Cancel. Provided by the host that has the owner window.
+    private readonly Func<AuxBinding, string, Task<AuxBinding?>>? _editBinding;
     // Detection source — when provided, the banner + tablet-dependent actions live-update on each
     // data load (tablet plug/unplug, #177). Unsubscribed in Dispose so a cached page VM doesn't leak.
     private readonly IDeviceData? _deviceData;
@@ -193,11 +196,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         bool dynamicsOnly = false,
         IDeviceData? deviceData = null,
         Func<Task>? forgetAction = null,
-        Func<CalibrationOptions, Task>? onCalibrate = null)
+        Func<CalibrationOptions, Task>? onCalibrate = null,
+        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null)
     {
         _profile = profile;
         _settings = settings;
         _applyAction = applyAction;
+        _editBinding = editBinding;
         _refreshAction = refreshAction;
         _isDetectedProbe = isDetected;
         _tabletDigitizer = tabletDigitizer;
@@ -369,7 +374,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 isOtherBinding: binding == null,
                 otherLabel: binding == null ? GetBindingName(store) : "",
                 canEdit: canEditAux,
-                applyBinding: ApplyAuxBindingAsync));
+                applyBinding: ApplyAuxBindingAsync,
+                editBinding: _editBinding));
         }
         AuxButtons = newAuxButtons;
         NoAuxButtons = newAuxButtons.Count == 0;
@@ -665,7 +671,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             otherLabel: binding == null ? GetBindingName(store) : "",
             canEdit: canEdit,
             applyBinding: apply,
-            label: label);
+            label: label,
+            editBinding: _editBinding);
     }
 
     private Task ApplyWheelRotationAsync(int wheelIndex, bool clockwise, AuxBinding binding)
@@ -1278,17 +1285,13 @@ public partial class PenSwitchRowViewModel : ObservableObject
 
 public partial class ButtonBinding : ObservableObject
 {
-    private const string NoneKind = "None";
-    private const string KeyboardKind = "Keyboard";
-    private const string MouseKind = "Mouse";
-    private const string ScrollKind = "Scroll";
-
     private readonly Func<int, AuxBinding, Task>? _applyBinding;
-    private bool _suppressApply;
+    private readonly Func<AuxBinding, string, Task<AuxBinding?>>? _editBinding;
     private AuxBinding _applied;
 
     public ButtonBinding(int index, AuxBinding binding, bool isOtherBinding, string otherLabel,
-        bool canEdit, Func<int, AuxBinding, Task>? applyBinding, string? label = null)
+        bool canEdit, Func<int, AuxBinding, Task>? applyBinding, string? label = null,
+        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null)
     {
         Index = index;
         _label = label;
@@ -1296,24 +1299,8 @@ public partial class ButtonBinding : ObservableObject
         OtherLabel = otherLabel;
         CanEdit = canEdit;
         _applyBinding = applyBinding;
+        _editBinding = editBinding;
         _applied = binding;
-        _suppressApply = true;
-        SelectedKind = binding.Kind switch
-        {
-            AuxKind.Keyboard => KeyboardKind,
-            AuxKind.Mouse => MouseKind,
-            AuxKind.Scroll => ScrollKind,
-            _ => NoneKind,
-        };
-        // Only the active type's value is populated; the others start empty so switching to them
-        // requires a fresh pick (no stale value, no accidental default).
-        Ctrl = binding.Combo.Ctrl;
-        Shift = binding.Combo.Shift;
-        Alt = binding.Combo.Alt;
-        SelectedKey = binding.Kind == AuxKind.Keyboard ? binding.Combo.Key : "";
-        SelectedMouseButton = binding.Kind == AuxKind.Mouse ? binding.MouseButton : "";
-        SelectedScroll = binding.Kind == AuxKind.Scroll ? binding.Scroll : "";
-        _suppressApply = false;
     }
 
     public int Index { get; }
@@ -1321,92 +1308,33 @@ public partial class ButtonBinding : ObservableObject
     /// <summary>Row title. Defaults to "Button N"; wheel rows pass a custom label (the direction).</summary>
     public string Label => _label ?? $"Button {Index}";
 
-    /// <summary>Binding-type choices and per-type pickers (all shared lists).</summary>
-    public IReadOnlyList<KeyOption> KindOptions { get; } = new List<KeyOption>
-    {
-        new("None", NoneKind),
-        new("Keyboard", KeyboardKind),
-        new("Mouse button", MouseKind),
-        new("Mouse scroll", ScrollKind),
-    };
-    public IReadOnlyList<KeyOption> KeyOptions => AuxKeyBinding.Options;
-    public IReadOnlyList<KeyOption> MouseButtonOptions => AuxKeyBinding.MouseButtonOptions;
-    public IReadOnlyList<KeyOption> ScrollOptions => AuxKeyBinding.ScrollOptions;
+    /// <summary>Read-only summary shown on the card: the friendly name of a binding this editor can't
+    /// model, else "Ctrl + Z" / "Left click" / "Scroll up" / "Unbound".</summary>
+    public string Summary => IsOtherBinding && !_applied.IsBound ? OtherLabel : AuxKeyBinding.Describe(_applied);
 
-    /// <summary>The chosen binding type; toggles which editor shows. "None" = intentionally unbound.</summary>
-    [ObservableProperty] private string _selectedKind = NoneKind;
-    public bool IsNone => SelectedKind == NoneKind;
-    public bool IsKeyboard => SelectedKind == KeyboardKind;
-    public bool IsMouse => SelectedKind == MouseKind;
-    public bool IsScroll => SelectedKind == ScrollKind;
-
-    // Keyboard editor: Ctrl/Shift/Alt + a key ("None" = unbound). No modifiers → Key Binding; with → Multi-Key.
-    [ObservableProperty] private bool _ctrl;
-    [ObservableProperty] private bool _shift;
-    [ObservableProperty] private bool _alt;
-    [ObservableProperty] private string _selectedKey = AuxKeyBinding.None;
-    // Mouse-button editor: a single button ("None" = unbound).
-    [ObservableProperty] private string _selectedMouseButton = AuxKeyBinding.None;
-    // Mouse-scroll editor: a direction ("None" = unbound).
-    [ObservableProperty] private string _selectedScroll = AuxKeyBinding.None;
-
-    /// <summary>False disables the editor (read-only host, or button mapping suspended).</summary>
+    /// <summary>False disables the Edit button (read-only host, or button mapping suspended).</summary>
     public bool CanEdit { get; }
 
-    /// <summary>True when this button already holds a binding this editor can't model (a scroll
-    /// binding, Windows Ink, or a multi-key macro) — surfaced so the user knows it'll be replaced.</summary>
+    /// <summary>True when this button already holds a binding this editor can't model (Windows Ink, an
+    /// adaptive binding, or a multi-key macro) — the summary shows its friendly name until it's replaced.</summary>
     public bool IsOtherBinding { get; }
     public string OtherLabel { get; }
 
     /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
 
-    partial void OnSelectedKindChanged(string value)
+    /// <summary>Open the modal editor and apply the result — a binding, or <see cref="AuxBinding.Unbound"/>
+    /// from Clear. Cancel (null) leaves the binding untouched. Nothing is applied until the dialog
+    /// returns, so there's no inline apply-on-change to loop.</summary>
+    [RelayCommand]
+    private async Task Edit()
     {
-        OnPropertyChanged(nameof(IsKeyboard));
-        OnPropertyChanged(nameof(IsMouse));
-        OnPropertyChanged(nameof(IsScroll));
-        OnPropertyChanged(nameof(IsNone));
-        ApplyIfChanged();
-    }
-
-    partial void OnCtrlChanged(bool value) => ApplyIfChanged();
-    partial void OnShiftChanged(bool value) => ApplyIfChanged();
-    partial void OnAltChanged(bool value) => ApplyIfChanged();
-    partial void OnSelectedKeyChanged(string value) => ApplyIfChanged();
-    partial void OnSelectedMouseButtonChanged(string value) => ApplyIfChanged();
-    partial void OnSelectedScrollChanged(string value) => ApplyIfChanged();
-
-    private AuxBinding Current() => SelectedKind switch
-    {
-        KeyboardKind => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey),
-                                       AuxKeyBinding.None, AuxKeyBinding.None),
-        MouseKind => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton, AuxKeyBinding.None),
-        ScrollKind => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll),
-        _ => AuxBinding.Unbound,
-    };
-
-    private void ApplyIfChanged()
-    {
-        if (_suppressApply || _applyBinding == null) return;
-        // The type dropdown can momentarily push an empty SelectedKind while the cards rebuild (an
-        // Avalonia SelectedValue quirk). Ignore it — otherwise a *bound* card oscillates None↔its
-        // binding and loops the save→reload→rebuild cycle, hanging the app. A real "None" selection
-        // has SelectedKind == "None", not empty, so it's unaffected.
-        if (string.IsNullOrEmpty(SelectedKind)) return;
-        // A real type with no value yet isn't applied — the user must pick one. (Also skips the
-        // pickers' transient null during init.)
-        if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
-        if (IsMouse && string.IsNullOrEmpty(SelectedMouseButton)) return;
-        if (IsScroll && string.IsNullOrEmpty(SelectedScroll)) return;
-
-        var binding = Current();
-        if (binding == _applied) return; // round-trip / no real change
-
-        // Persist when we have a real binding, or when None is chosen to clear an existing one.
-        // Selecting None on an already-unbound button is a no-op.
-        if (!binding.IsBound && !_applied.IsBound) { _applied = binding; return; }
+        if (_editBinding == null || !CanEdit) return;
+        var result = await _editBinding(_applied, Label);
+        if (result is not { } binding) return; // cancelled
+        if (binding == _applied) return;        // no change
         _applied = binding;
-        _ = _applyBinding(Index, binding);
+        OnPropertyChanged(nameof(Summary));
+        if (_applyBinding != null) await _applyBinding(Index, binding);
     }
 }
