@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Logging;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
@@ -40,9 +41,24 @@ public partial class LogViewModel : ObservableObject, IDisposable
     /// <summary>Follow the tail: scroll to the newest entry as messages arrive.</summary>
     [ObservableProperty] private bool _autoScroll = true;
 
+    /// <summary>Case-insensitive substring filter on the message text (#275).</summary>
+    [ObservableProperty] private string _searchText = "";
+
     [ObservableProperty] private bool _isConnected;
 
     public bool HasEntries => Entries.Count > 0;
+
+    /// <summary>Shown when the buffer is empty or filters hide every entry.</summary>
+    public bool ShowEmptyState => Entries.Count == 0;
+
+    public string EmptyStateText => _all.Count == 0
+        ? "No log messages yet."
+        : "No matching log entries.";
+
+    /// <summary>When filtering, how many entries are visible (e.g. "3 matching").</summary>
+    public string FilterSummary => string.IsNullOrWhiteSpace(SearchText) ? "" : $"{Entries.Count} matching";
+
+    public bool ShowFilterSummary => !string.IsNullOrWhiteSpace(SearchText);
 
     /// <summary>Raised (UI thread) when the view should scroll to the latest entry.</summary>
     public event Action? ScrollToEndRequested;
@@ -93,19 +109,29 @@ public partial class LogViewModel : ObservableObject, IDisposable
             Entries.Add(entry);
             if (Entries.Count > MaxEntries) Entries.RemoveAt(0);
             OnPropertyChanged(nameof(HasEntries));
+            OnPropertyChanged(nameof(ShowEmptyState));
+            OnPropertyChanged(nameof(EmptyStateText));
+            OnPropertyChanged(nameof(FilterSummary));
+            OnPropertyChanged(nameof(ShowFilterSummary));
             if (AutoScroll) ScrollToEndRequested?.Invoke();
         });
 
-    private bool Passes(LogEntry e) => e.RawLevel >= MinLevel;
+    private bool Passes(LogEntry e) => LogFilter.Matches(e.RawLevel, MinLevel, e.Message, SearchText);
 
     private void Rebuild()
     {
         Entries.Clear();
         foreach (var e in _all.Where(Passes)) Entries.Add(e);
         OnPropertyChanged(nameof(HasEntries));
+        OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(EmptyStateText));
+        OnPropertyChanged(nameof(FilterSummary));
+        OnPropertyChanged(nameof(ShowFilterSummary));
     }
 
     partial void OnMinLevelChanged(LogLevel value) => Rebuild();
+
+    partial void OnSearchTextChanged(string value) => Rebuild();
 
     [RelayCommand]
     private void Clear()
@@ -113,6 +139,10 @@ public partial class LogViewModel : ObservableObject, IDisposable
         _all.Clear();
         Entries.Clear();
         OnPropertyChanged(nameof(HasEntries));
+        OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(EmptyStateText));
+        OnPropertyChanged(nameof(FilterSummary));
+        OnPropertyChanged(nameof(ShowFilterSummary));
     }
 
     /// <summary>Plain-text dump of the visible log, for the view's Copy action.</summary>
