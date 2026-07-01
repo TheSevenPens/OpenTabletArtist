@@ -14,9 +14,9 @@
     </UserControl.Styles>
 
     <UserControl.Resources>
-        <!-- Shared binding-editor card: a label + a type selector (None/Keyboard/Mouse/Scroll) and the
-             matching key/mouse/scroll picker. Used by both the ExpressKeys tab (auxiliary buttons) and
-             the Wheel tab (rotation directions) — both bind a ButtonBinding. -->
+        <!-- Shared binding card: a label + the current binding as text + an Edit button that opens the
+             modal type-tabbed editor (BindingEditorDialog). Used by both the ExpressKeys tab (auxiliary
+             buttons) and the Wheel tab (rotation directions + wheel button) — both bind a ButtonBinding. -->
         <DataTemplate x:Key="ButtonBindingCard">
             <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
                     Padding="16,12" Margin="0,0,0,10">
@@ -25,68 +25,13 @@
                         <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    TextWrapping="Wrap" />
-                        <!-- Shown only when the slot already holds a binding this editor can't model. -->
-                        <TextBlock FontSize="11" Foreground="#e87930" TextWrapping="Wrap"
-                                   IsVisible="{Binding IsOtherBinding}"
-                                   Text="{Binding OtherLabel, StringFormat='Currently: {0} — picking a key replaces it'}" />
+                        <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-                    <!-- Type selector + the editor for that type. -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                                VerticalAlignment="Center">
-                        <ComboBox MinWidth="120" VerticalAlignment="Center"
-                                  IsEnabled="{Binding CanEdit}"
-                                  ItemsSource="{Binding KindOptions}"
-                                  SelectedValueBinding="{Binding Value}"
-                                  SelectedValue="{Binding SelectedKind, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-
-                        <!-- Keyboard: modifiers + key. No modifiers → Key Binding; with → Multi-Key. -->
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                    IsVisible="{Binding IsKeyboard}">
-                            <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" IsEnabled="{Binding CanEdit}"
-                                      MinWidth="0" VerticalAlignment="Center" />
-                            <CheckBox Content="Shift" IsChecked="{Binding Shift}" IsEnabled="{Binding CanEdit}"
-                                      MinWidth="0" VerticalAlignment="Center" />
-                            <CheckBox Content="Alt" IsChecked="{Binding Alt}" IsEnabled="{Binding CanEdit}"
-                                      MinWidth="0" VerticalAlignment="Center" />
-                            <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                      IsEnabled="{Binding CanEdit}" PlaceholderText="Pick a key"
-                                      ItemsSource="{Binding KeyOptions}"
-                                      SelectedValueBinding="{Binding Value}"
-                                      SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </StackPanel>
-
-                        <!-- Mouse: a single button. -->
-                        <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                  IsVisible="{Binding IsMouse}" IsEnabled="{Binding CanEdit}"
-                                  PlaceholderText="Pick a button"
-                                  ItemsSource="{Binding MouseButtonOptions}"
-                                  SelectedValueBinding="{Binding Value}"
-                                  SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-
-                        <!-- Scroll: a direction. -->
-                        <ComboBox MinWidth="110" VerticalAlignment="Center"
-                                  IsVisible="{Binding IsScroll}" IsEnabled="{Binding CanEdit}"
-                                  PlaceholderText="Pick a direction"
-                                  ItemsSource="{Binding ScrollOptions}"
-                                  SelectedValueBinding="{Binding Value}"
-                                  SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
+                    <Button Grid.Column="1" Content="Edit" Command="{Binding EditCommand}"
+                            IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                            Theme="{StaticResource GhostButton}" Padding="16,7" FontSize="12"
+                            ToolTip.Tip="Change this binding" />
                 </Grid>
             </Border>
         </DataTemplate>

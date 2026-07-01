@@ -202,6 +202,41 @@ public static class AuxKeyBinding
         _ => null,
     };
 
+    /// <summary>Human-readable summary of a binding for the read-only card: "Ctrl + Z", "Left click",
+    /// "Scroll up", or "Unbound".</summary>
+    public static string Describe(AuxBinding binding) => binding.Kind switch
+    {
+        AuxKind.Keyboard => binding.Combo.IsBound ? DescribeCombo(binding.Combo) : "Unbound",
+        AuxKind.Mouse => IsBoundValue(binding.MouseButton) ? DescribeMouse(binding.MouseButton) : "Unbound",
+        AuxKind.Scroll => IsBoundValue(binding.Scroll) ? $"Scroll {binding.Scroll.ToLowerInvariant()}" : "Unbound",
+        _ => "Unbound",
+    };
+
+    private static bool IsBoundValue(string v) => !string.IsNullOrEmpty(v) && v != None;
+
+    private static string DescribeCombo(AuxCombo c)
+    {
+        var parts = new List<string>();
+        if (c.Ctrl) parts.Add("Ctrl");
+        if (c.Shift) parts.Add("Shift");
+        if (c.Alt) parts.Add("Alt");
+        parts.Add(KeyDisplay(c.Key));
+        return string.Join(" + ", parts);
+    }
+
+    /// <summary>The friendly display name for a stored key value (e.g. "D0" → "0"), from the picker list.</summary>
+    private static string KeyDisplay(string value) => Options.FirstOrDefault(o => o.Value == value)?.Display ?? value;
+
+    private static string DescribeMouse(string button) => button switch
+    {
+        "Left" => "Left click",
+        "Right" => "Right click",
+        "Middle" => "Middle click",
+        "Backward" => "Back button",
+        "Forward" => "Forward button",
+        _ => button,
+    };
+
     /// <summary>Scroll directions offered in the picker. No "None" — unbinding is the None type.</summary>
     public static IReadOnlyList<KeyOption> ScrollOptions { get; } = new List<KeyOption>
     {

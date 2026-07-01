@@ -71,7 +71,10 @@ public class DialogService : IDialogService
             {
                 var owner = Dialogs.GetMainWindow();
                 return owner != null ? ShowCalibrationAsync(profile, owner, options) : Task.CompletedTask;
-            });
+            },
+            // Express-key / wheel binding editor, owned by the main window (the page has no window).
+            editBinding: (binding, title) =>
+                Views.BindingEditorDialog.ShowAsync(Dialogs.GetMainWindow(), binding, title));
     }
 
     public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)

@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OpenTabletArtist.Views.BindingEditorDialog"
+        Title="{Binding Title}"
+        Width="460" Height="360"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBaseBrush}">
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" />
+        <TextBlock DockPanel.Dock="Top" Text="Pick a binding type, set it, then Save."
+                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,12" />
+
+        <!-- Footer: Clear (unbind) on the left; Cancel / Save on the right. -->
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
+            <Button Grid.Column="0" Content="Clear" Command="{Binding ClearCommand}"
+                    Theme="{StaticResource GhostButton}" Padding="14,7" FontSize="12"
+                    ToolTip.Tip="Remove this binding (unbind)" />
+            <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelDialogCommand}"
+                    Theme="{StaticResource GhostButton}" Padding="14,7" FontSize="12" Margin="0,0,8,0" />
+            <Button Grid.Column="3" Content="Save" Command="{Binding SaveCommand}"
+                    Theme="{StaticResource AccentButton}" Padding="18,7" FontSize="12" />
+        </Grid>
+
+        <!-- One tab per binding type. -->
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+            <TabItem Header="Keyboard">
+                <StackPanel Spacing="14" Margin="0,14,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" />
+                        <CheckBox Content="Shift" IsChecked="{Binding Shift}" />
+                        <CheckBox Content="Alt" IsChecked="{Binding Alt}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="Key" VerticalAlignment="Center" Width="64"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox MinWidth="180" PlaceholderText="Pick a key"
+                                  ItemsSource="{Binding KeyOptions}"
+                                  SelectedValueBinding="{Binding Value}"
+                                  SelectedValue="{Binding SelectedKey, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Mouse">
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,18,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Button" VerticalAlignment="Center" Width="64"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ComboBox MinWidth="180" PlaceholderText="Pick a button"
+                              ItemsSource="{Binding MouseButtonOptions}"
+                              SelectedValueBinding="{Binding Value}"
+                              SelectedValue="{Binding SelectedMouseButton, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Scroll">
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,18,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Direction" VerticalAlignment="Center" Width="64"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ComboBox MinWidth="180" PlaceholderText="Pick a direction"
+                              ItemsSource="{Binding ScrollOptions}"
+                              SelectedValueBinding="{Binding Value}"
+                              SelectedValue="{Binding SelectedScroll, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding Display}" /></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
