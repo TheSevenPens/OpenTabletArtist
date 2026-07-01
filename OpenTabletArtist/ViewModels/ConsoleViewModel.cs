@@ -124,6 +124,36 @@ public partial class ConsoleViewModel : ObservableObject, IDisposable
         return sb.ToString();
     }
 
+    /// <summary>The visible log as a Markdown table (Copy ▸ Markdown).</summary>
+    public string BuildLogMarkdown()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("| Time | Level | Group | Message |");
+        sb.AppendLine("| --- | --- | --- | --- |");
+        foreach (var e in Entries)
+            sb.AppendLine($"| {e.Time} | {e.Level} | {Md(e.Group)} | {Md(e.Message)} |");
+        return sb.ToString();
+    }
+
+    /// <summary>The visible log as an HTML table (Copy ▸ HTML).</summary>
+    public string BuildLogHtml()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<table>");
+        sb.AppendLine("  <thead><tr><th>Time</th><th>Level</th><th>Group</th><th>Message</th></tr></thead>");
+        sb.AppendLine("  <tbody>");
+        foreach (var e in Entries)
+            sb.AppendLine($"    <tr><td>{Html(e.Time)}</td><td>{Html(e.Level)}</td><td>{Html(e.Group)}</td><td>{Html(e.Message)}</td></tr>");
+        sb.AppendLine("  </tbody>");
+        sb.AppendLine("</table>");
+        return sb.ToString();
+    }
+
+    // Escape Markdown table cells (pipes break columns; newlines break rows).
+    private static string Md(string s) => (s ?? "").Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
+    private static string Html(string s) =>
+        (s ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
     public void Dispose()
     {
         _log.LogReceived -= OnLogReceived;
