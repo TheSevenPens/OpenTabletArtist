@@ -1,5 +1,9 @@
 # Feasibility — per-application settings (#167)
 
+> **See also:** [167-per-app-settings-design.md](167-per-app-settings-design.md) — the concrete
+> implementation design (components, switch policy, live-apply path, data model, UI, tests) that
+> builds on this feasibility note.
+>
 > Status: **investigation only.** No commitment. The ask: typical manufacturer drivers (Wacom,
 > XP-Pen, Huion) let you define a *global* config plus *per-application* overrides for mapping,
 > dynamics, pen switches, and tablet buttons, and switch automatically as the foreground app
