@@ -575,8 +575,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // ── Wheel tab: rotation bindings (CW/CCW), wheel buttons, thresholds, live flash ──
     // Reuses the ExpressKeys ButtonBinding editor — each rotation/button is a single OTD
     // PluginSettingStore, exactly what AuxKeyBinding.Read/MakeBinding handle.
-    private const string WheelEnabledKey = "WheelBindingsEnabled";
-    private const string WheelBackupKey = "WheelBindingsBackup";
+    private string WheelEnabledKey => $"WheelEnabled:{_profile.Tablet}";
+    private string WheelBackupKey => $"WheelBackup:{_profile.Tablet}";
 
     [ObservableProperty] private List<WheelEditor> _wheels = new();
     public bool HasWheels => Wheels.Count > 0;
@@ -1038,6 +1038,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         LivePenX = null;
         LivePenY = null;
         foreach (var b in AuxButtons) b.IsPressed = false;
+        foreach (var w in Wheels) w.ClearLiveState();
         _ = _penInput?.StopAsync();
     }
 
