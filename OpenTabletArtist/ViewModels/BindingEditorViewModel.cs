@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
@@ -31,13 +32,14 @@ public partial class BindingEditorViewModel : ObservableObject
     [ObservableProperty] private bool _ctrl;
     [ObservableProperty] private bool _shift;
     [ObservableProperty] private bool _alt;
-    [ObservableProperty] private string? _selectedKey;
+    [ObservableProperty] private KeyOption? _selectedKeyOption;
     [ObservableProperty] private string? _selectedMouseButton;
     [ObservableProperty] private string? _selectedScroll;
 
     public BindingEditorViewModel(AuxBinding initial, string title)
     {
         Title = title;
+        BuildKeyboard();
         switch (initial.Kind)
         {
             case AuxKind.Keyboard:
@@ -45,7 +47,7 @@ public partial class BindingEditorViewModel : ObservableObject
                 Ctrl = initial.Combo.Ctrl;
                 Shift = initial.Combo.Shift;
                 Alt = initial.Combo.Alt;
-                SelectedKey = initial.Combo.IsBound ? initial.Combo.Key : null;
+                SelectKey(initial.Combo.IsBound ? initial.Combo.Key : null);
                 break;
             case AuxKind.Mouse:
                 SelectedTabIndex = MouseTab;
@@ -64,14 +66,27 @@ public partial class BindingEditorViewModel : ObservableObject
     /// <summary>Save is enabled only when the active tab has a complete selection.</summary>
     public bool CanSave => SelectedTabIndex switch
     {
-        KeyboardTab => !string.IsNullOrEmpty(SelectedKey),
+        KeyboardTab => SelectedKeyOption != null,
         MouseTab => !string.IsNullOrEmpty(SelectedMouseButton),
         ScrollTab => !string.IsNullOrEmpty(SelectedScroll),
         _ => false,
     };
 
-    partial void OnSelectedTabIndexChanged(int value) => SaveCommand.NotifyCanExecuteChanged();
-    partial void OnSelectedKeyChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
+    // Tab selection as booleans so the tab strip's RadioButtons bind two-way (checking one switches
+    // the tab; changing the tab re-checks the right one).
+    public bool IsKeyboardTab { get => SelectedTabIndex == KeyboardTab; set { if (value) SelectedTabIndex = KeyboardTab; } }
+    public bool IsMouseTab { get => SelectedTabIndex == MouseTab; set { if (value) SelectedTabIndex = MouseTab; } }
+    public bool IsScrollTab { get => SelectedTabIndex == ScrollTab; set { if (value) SelectedTabIndex = ScrollTab; } }
+
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        SaveCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsKeyboardTab));
+        OnPropertyChanged(nameof(IsMouseTab));
+        OnPropertyChanged(nameof(IsScrollTab));
+    }
+
+    partial void OnSelectedKeyOptionChanged(KeyOption? value) => SaveCommand.NotifyCanExecuteChanged();
     partial void OnSelectedMouseButtonChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
     partial void OnSelectedScrollChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
 
@@ -80,7 +95,7 @@ public partial class BindingEditorViewModel : ObservableObject
     {
         Result = SelectedTabIndex switch
         {
-            KeyboardTab => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKey!),
+            KeyboardTab => new AuxBinding(AuxKind.Keyboard, new AuxCombo(Ctrl, Shift, Alt, SelectedKeyOption!.Value),
                                           AuxKeyBinding.None, AuxKeyBinding.None),
             MouseTab => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton!, AuxKeyBinding.None),
             ScrollTab => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll!),
@@ -101,5 +116,147 @@ public partial class BindingEditorViewModel : ObservableObject
     {
         Result = null;
         CloseRequested?.Invoke();
+    }
+
+    // ── On-screen keyboard (Keyboard tab) ───────────────────────────────────────
+    // A full-size physical layout in three aligned sections (main block · nav cluster · numpad). Every
+    // cap maps to an OTD key name and picks the single main key; the Ctrl/Shift/Alt keys are toggles
+    // (they highlight while active and combine with the picked key). Valid keys not on the layout —
+    // media, F13-F24, misc — go in MoreKeys so nothing is unreachable.
+    private readonly Dictionary<string, KeyCap> _keyCaps = new();   // pickable keys, by value
+    private readonly List<KeyCap> _modifierCaps = new();            // Ctrl/Shift/Alt caps (may repeat)
+
+    public IReadOnlyList<IReadOnlyList<KeyCap>> MainRows { get; private set; } = Array.Empty<IReadOnlyList<KeyCap>>();
+    public IReadOnlyList<IReadOnlyList<KeyCap>> NavRows { get; private set; } = Array.Empty<IReadOnlyList<KeyCap>>();
+    public IReadOnlyList<IReadOnlyList<KeyCap>> NumpadRows { get; private set; } = Array.Empty<IReadOnlyList<KeyCap>>();
+    public IReadOnlyList<KeyCap> MoreKeys { get; private set; } = Array.Empty<KeyCap>();
+
+    [RelayCommand]
+    private void PickKey(KeyCap? cap)
+    {
+        if (cap == null) return;
+        switch (cap.Kind)
+        {
+            case KeyCapKind.Key:
+                SelectKey(cap.Value);
+                break;
+            case KeyCapKind.Modifier:
+                if (cap.Value == "Ctrl") Ctrl = !Ctrl;
+                else if (cap.Value == "Shift") Shift = !Shift;
+                else if (cap.Value == "Alt") Alt = !Alt;
+                break;
+        }
+    }
+
+    private void SelectKey(string? value)
+    {
+        SelectedKeyOption = value == null ? null : KeyOptions.FirstOrDefault(o => o.Value == value);
+        foreach (var cap in _keyCaps.Values) cap.IsSelected = cap.Value == value;
+    }
+
+    partial void OnCtrlChanged(bool value) => SyncModifierCaps();
+    partial void OnShiftChanged(bool value) => SyncModifierCaps();
+    partial void OnAltChanged(bool value) => SyncModifierCaps();
+
+    private void SyncModifierCaps()
+    {
+        foreach (var c in _modifierCaps)
+            c.IsSelected = c.Value switch { "Ctrl" => Ctrl, "Shift" => Shift, "Alt" => Alt, _ => false };
+    }
+
+    private void BuildKeyboard()
+    {
+        KeyCap Key(string display, string value, double units = 1)
+        {
+            var cap = new KeyCap(display, value, units, KeyCapKind.Key, PickKeyCommand);
+            if (!string.IsNullOrEmpty(value)) _keyCaps[value] = cap;
+            return cap;
+        }
+        KeyCap Mod(string display, string modId, double units)
+        {
+            var cap = new KeyCap(display, modId, units, KeyCapKind.Modifier, PickKeyCommand);
+            _modifierCaps.Add(cap);
+            return cap;
+        }
+        KeyCap Sp(double units) => new("", "", units, KeyCapKind.Spacer, PickKeyCommand);
+
+        MainRows = new List<IReadOnlyList<KeyCap>>
+        {
+            new[]{ Key("Esc","Escape"), Sp(1), Key("F1","F1"),Key("F2","F2"),Key("F3","F3"),Key("F4","F4"),
+                   Sp(0.5), Key("F5","F5"),Key("F6","F6"),Key("F7","F7"),Key("F8","F8"),
+                   Sp(0.5), Key("F9","F9"),Key("F10","F10"),Key("F11","F11"),Key("F12","F12") },
+            new[]{ Key("`","Grave"),Key("1","D1"),Key("2","D2"),Key("3","D3"),Key("4","D4"),Key("5","D5"),
+                   Key("6","D6"),Key("7","D7"),Key("8","D8"),Key("9","D9"),Key("0","D0"),
+                   Key("-","Minus"),Key("=","Equal"),Key("Back","Backspace",2) },
+            new[]{ Key("Tab","Tab",1.5), Key("Q","Q"),Key("W","W"),Key("E","E"),Key("R","R"),Key("T","T"),
+                   Key("Y","Y"),Key("U","U"),Key("I","I"),Key("O","O"),Key("P","P"),
+                   Key("[","LeftBracket"),Key("]","RightBracket"),Key("\\","Backslash",1.5) },
+            new[]{ Key("Caps","CapsLock",1.75), Key("A","A"),Key("S","S"),Key("D","D"),Key("F","F"),Key("G","G"),
+                   Key("H","H"),Key("J","J"),Key("K","K"),Key("L","L"),
+                   Key(";","Semicolon"),Key("'","Quote"),Key("Enter","Enter",2.25) },
+            new[]{ Mod("Shift","Shift",2.25), Key("Z","Z"),Key("X","X"),Key("C","C"),Key("V","V"),Key("B","B"),
+                   Key("N","N"),Key("M","M"),Key(",","Comma"),Key(".","Period"),Key("/","Slash"),
+                   Mod("Shift","Shift",2.75) },
+            new[]{ Mod("Ctrl","Ctrl",1.5), Mod("Alt","Alt",1.5), Key("Space","Space",7),
+                   Mod("Alt Gr","Alt",1.5), Key("Menu","Application",1.5), Mod("Ctrl","Ctrl",2) },
+        };
+
+        NavRows = new List<IReadOnlyList<KeyCap>>
+        {
+            new[]{ Key("PrtSc","PrintScreen"), Key("ScrLk","ScrollLock"), Key("Pause","Pause") },
+            new[]{ Key("Ins","Insert"), Key("Home","Home"), Key("PgUp","PageUp") },
+            new[]{ Key("Del","Delete"), Key("End","End"), Key("PgDn","PageDown") },
+            new[]{ Sp(3) },
+            new[]{ Sp(1), Key("↑","Up"), Sp(1) },
+            new[]{ Key("←","Left"), Key("↓","Down"), Key("→","Right") },
+        };
+
+        NumpadRows = new List<IReadOnlyList<KeyCap>>
+        {
+            new[]{ Sp(4) },
+            new[]{ Key("Num","NumberLock"), Key("/","Divide"), Key("*","Multiply"), Key("-","Subtract") },
+            new[]{ Key("7","Keypad7"), Key("8","Keypad8"), Key("9","Keypad9"), Key("+","Add") },
+            new[]{ Key("4","Keypad4"), Key("5","Keypad5"), Key("6","Keypad6"), Sp(1) },
+            new[]{ Key("1","Keypad1"), Key("2","Keypad2"), Key("3","Keypad3"), Sp(1) },
+            new[]{ Key("0","Keypad0",2), Key(".","Decimal"), Sp(1) },
+        };
+
+        var modifiers = new HashSet<string>
+        {
+            "Shift","Control","Alt","LeftShift","RightShift","LeftControl","RightControl",
+            "LeftAlt","RightAlt","LeftApplication","RightApplication","Application",
+        };
+        MoreKeys = KeyOptions
+            .Where(o => !_keyCaps.ContainsKey(o.Value) && !modifiers.Contains(o.Value))
+            .Select(o => Key(o.Display, o.Value))
+            .ToList();
+
+        SyncModifierCaps();
+    }
+}
+
+public enum KeyCapKind { Key, Modifier, Spacer }
+
+/// <summary>One cap on the on-screen keyboard. <see cref="Width"/> is the full footprint in pixels
+/// (units × base) — the visual gap is drawn inside it, so every row of the same total units lines up
+/// regardless of how many caps it has. Spacers are invisible footprint; modifiers toggle Ctrl/Shift/Alt.</summary>
+public partial class KeyCap : ObservableObject
+{
+    public string Display { get; }
+    public string Value { get; }
+    public double Width { get; }
+    public KeyCapKind Kind { get; }
+    public bool IsSpacer => Kind == KeyCapKind.Spacer;
+    public IRelayCommand<KeyCap?> PickCommand { get; }
+
+    [ObservableProperty] private bool _isSelected;
+
+    public KeyCap(string display, string value, double widthUnits, KeyCapKind kind, IRelayCommand<KeyCap?> pickCommand)
+    {
+        Display = display;
+        Value = value;
+        Width = widthUnits * 30;
+        Kind = kind;
+        PickCommand = pickCommand;
     }
 }

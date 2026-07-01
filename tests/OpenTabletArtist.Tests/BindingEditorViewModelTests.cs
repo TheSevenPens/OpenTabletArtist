@@ -1,3 +1,4 @@
+using System.Linq;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using Xunit;
@@ -15,7 +16,7 @@ public class BindingEditorViewModelTests
 
         Assert.Equal(BindingEditorViewModel.KeyboardTab, vm.SelectedTabIndex);
         Assert.True(vm.Ctrl);
-        Assert.Equal("Z", vm.SelectedKey);
+        Assert.Equal("Z", vm.SelectedKeyOption?.Value);
         Assert.True(vm.CanSave);
     }
 
@@ -31,8 +32,9 @@ public class BindingEditorViewModelTests
     [Fact]
     public void Save_Keyboard_ProducesBinding()
     {
-        var vm = new BindingEditorViewModel(AuxBinding.Unbound, "x")
-        { SelectedTabIndex = BindingEditorViewModel.KeyboardTab, Shift = true, SelectedKey = "A" };
+        var vm = new BindingEditorViewModel(AuxBinding.Unbound, "x") { Shift = true };
+        vm.SelectedTabIndex = BindingEditorViewModel.KeyboardTab;
+        vm.SelectedKeyOption = vm.KeyOptions.First(o => o.Value == "A");
 
         Assert.True(vm.CanSave);
         vm.SaveCommand.Execute(null);
