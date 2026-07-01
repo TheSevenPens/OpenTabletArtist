@@ -97,8 +97,8 @@
                                   Margin="0,8,0,0" />
                     <StackPanel IsVisible="{Binding IsAdvancedExpanded}" Margin="12,0,0,0">
                         <RadioButton Theme="{StaticResource NavButton}" Content="DAEMON"
-                                     IsChecked="{Binding IsOtd, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Otd}"
+                                     IsChecked="{Binding IsDaemon, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Daemon}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET COMPATIBILITY"
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
@@ -109,20 +109,20 @@
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="LOG"
-                                     IsChecked="{Binding IsConsole, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Console}"
+                                     IsChecked="{Binding IsLog, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Log}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="PLUGINS"
                                      IsChecked="{Binding IsPlugins, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Plugins}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="DRIVER CLEANUP"
-                                     IsChecked="{Binding IsUtilities, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Utilities}"
+                                     IsChecked="{Binding IsDriverCleanup, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding DriverCleanup}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="THEME"
-                                     IsChecked="{Binding IsSettings, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
+                                     IsChecked="{Binding IsTheme, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Theme}"
                                      Margin="0,2,0,0" />
                     </StackPanel>
                 </StackPanel>

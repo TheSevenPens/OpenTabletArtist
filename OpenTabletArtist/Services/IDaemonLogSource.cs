@@ -5,7 +5,7 @@ namespace OpenTabletArtist.Services;
 /// <summary>
 /// The slice of the daemon connection the Console page needs: the daemon's log stream and a
 /// snapshot of the log buffer it already holds. Mirrors how <see cref="IDaemonDebugSession"/>
-/// narrows the device-report stream — so <c>ConsoleViewModel</c> depends on a small, fakeable
+/// narrows the device-report stream — so <c>LogViewModel</c> depends on a small, fakeable
 /// interface rather than the whole <see cref="DaemonClient"/>. Implemented by <see cref="DaemonClient"/>.
 /// </summary>
 public interface IDaemonLogSource

@@ -1,8 +1,8 @@
-<UserControl x:Class="OpenTabletArtist.Views.SettingsView"
+<UserControl x:Class="OpenTabletArtist.Views.ThemeView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the SettingsViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="THEME" />
 

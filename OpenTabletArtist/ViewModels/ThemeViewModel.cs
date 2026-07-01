@@ -7,12 +7,12 @@ using OpenTabletArtist.Services;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the Settings page. Owns app-level preferences that aren't tied to a tablet —
+/// View model for the Theme page. Owns app-level preferences that aren't tied to a tablet —
 /// currently the appearance theme (Light / Dark / System + the Sakura/Anime skin, #139/#207),
 /// persisted via <see cref="ThemeService"/>. The picker shows a colour swatch + label per option
 /// and a one-line description of the current choice.
 /// </summary>
-public partial class SettingsViewModel : ObservableObject
+public partial class ThemeViewModel : ObservableObject
 {
     /// <summary>One selectable appearance. <see cref="Id"/> is the persisted <see cref="ThemeService"/>
     /// value; <see cref="Label"/> is what the user sees (e.g. "Anime" surfaces as "Sakura").</summary>
@@ -68,7 +68,7 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    public SettingsViewModel()
+    public ThemeViewModel()
     {
         // Assign the backing field directly so selecting the persisted choice here doesn't re-fire
         // Apply at construction (the theme is already applied at startup via ThemeService.ApplySaved).

@@ -1,8 +1,8 @@
-<UserControl x:Class="OpenTabletArtist.Views.OtdView"
+<UserControl x:Class="OpenTabletArtist.Views.DaemonView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the OtdViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the DaemonViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="DAEMON" />
 

@@ -1,8 +1,8 @@
-<UserControl x:Class="OpenTabletArtist.Views.ConsoleView"
+<UserControl x:Class="OpenTabletArtist.Views.LogView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the ConsoleViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the LogViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel HorizontalAlignment="Stretch">
         <TextBlock Classes="PageTitle" Text="LOG" />
 

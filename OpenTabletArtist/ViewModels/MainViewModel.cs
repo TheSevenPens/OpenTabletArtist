@@ -36,16 +36,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public IDialogService Dialogs => _dialogs;
 
     public AboutViewModel About { get; } = new();
-    public UtilitiesViewModel Utilities { get; }
+    public DriverCleanupViewModel DriverCleanup { get; }
     public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
-    public ConsoleViewModel Console { get; }
+    public LogViewModel Log { get; }
     public PluginsViewModel Plugins { get; }
-    public OtdViewModel Otd { get; }
-    public SettingsViewModel Settings { get; } = new();
+    public DaemonViewModel Daemon { get; }
+    public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Landing page for the Tablets group (header click / nothing selected).</summary>
     public TabletsOverviewViewModel TabletsOverview { get; } = new();
@@ -66,23 +66,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, Otd) || ReferenceEquals(page, Configs)
-        || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Console)
-        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, Utilities)
-        || ReferenceEquals(page, Settings);
+        ReferenceEquals(page, Daemon) || ReferenceEquals(page, Configs)
+        || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
+        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
+        || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsTabletsOverview => ReferenceEquals(CurrentPage, TabletsOverview);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
     public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
-    public bool IsUtilities => ReferenceEquals(CurrentPage, Utilities);
+    public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
-    public bool IsConsole => ReferenceEquals(CurrentPage, Console);
+    public bool IsLog => ReferenceEquals(CurrentPage, Log);
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
-    public bool IsOtd => ReferenceEquals(CurrentPage, Otd);
-    public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
+    public bool IsDaemon => ReferenceEquals(CurrentPage, Daemon);
+    public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
@@ -96,15 +96,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
-        Utilities = new UtilitiesViewModel(dialogs, _conflicts);
+        DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
-        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _conflicts, () => Navigate(Utilities));
+        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _conflicts, () => Navigate(DriverCleanup));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
-        Console = new ConsoleViewModel(_session.Daemon, _session);
+        Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
-        Otd = new OtdViewModel(_session);
+        Daemon = new DaemonViewModel(_session);
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -219,13 +219,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTabletsOverview));
         OnPropertyChanged(nameof(IsPresets));
         OnPropertyChanged(nameof(IsConfigs));
-        OnPropertyChanged(nameof(IsUtilities));
+        OnPropertyChanged(nameof(IsDriverCleanup));
         OnPropertyChanged(nameof(IsDiagnostics));
         OnPropertyChanged(nameof(IsTest));
-        OnPropertyChanged(nameof(IsConsole));
+        OnPropertyChanged(nameof(IsLog));
         OnPropertyChanged(nameof(IsPlugins));
-        OnPropertyChanged(nameof(IsOtd));
-        OnPropertyChanged(nameof(IsSettings));
+        OnPropertyChanged(nameof(IsDaemon));
+        OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }
 
@@ -237,10 +237,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         Presets.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running
-        Console.Dispose();        // unsubscribes the daemon log stream + connection sync
+        Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
-        Utilities.Dispose();
+        DriverCleanup.Dispose();
         _conflicts.Dispose();
     }
 }

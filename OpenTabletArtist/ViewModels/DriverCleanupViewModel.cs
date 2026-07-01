@@ -9,12 +9,12 @@ using OpenTabletArtist.Services;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the Utilities page (the TabletDriverCleanup tool). Page-VM split
+/// View model for the Driver Cleanup page (the TabletDriverCleanup tool). Page-VM split
 /// (#14 phase 2): owns its own <see cref="TabletDriverCleanupRunner"/> and cancellation
 /// source rather than borrowing the shell's, so the page is self-contained and its
 /// lifetime is explicit. Confirm/message flows go through <see cref="IDialogService"/> (#37).
 /// </summary>
-public partial class UtilitiesViewModel : ObservableObject, IDisposable
+public partial class DriverCleanupViewModel : ObservableObject, IDisposable
 {
     private readonly TabletDriverCleanupRunner _cleanupRunner = new();
     private readonly CancellationTokenSource _cts = new();
@@ -29,7 +29,7 @@ public partial class UtilitiesViewModel : ObservableObject, IDisposable
 
     public string CleanupInstallPath => TabletDriverCleanupRunner.InstallDir;
 
-    public UtilitiesViewModel(IDialogService dialogs, DriverConflictMonitor? conflicts = null)
+    public DriverCleanupViewModel(IDialogService dialogs, DriverConflictMonitor? conflicts = null)
     {
         _dialogs = dialogs;
         Conflicts = conflicts ?? new DriverConflictMonitor();
