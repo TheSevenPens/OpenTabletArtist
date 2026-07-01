@@ -137,11 +137,12 @@
                                                FontSize="15" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextSecondaryBrush}" />
                                     <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="36" Padding="12,0"
-                                            Background="White" BorderBrush="#40000000" BorderThickness="1.5"
+                                            Background="{DynamicResource GlassBgBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1.5"
                                             CornerRadius="7">
                                         <TextBlock Text="{Binding Text}" FontSize="14" FontWeight="SemiBold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="#222222" />
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </Border>
                                 </Panel>
                             </DataTemplate>
@@ -210,15 +211,15 @@
                 <TextBlock Text="BUTTON" Classes="caption" />
                 <StackPanel Spacing="6">
                     <RadioButton Content="Left click" GroupName="mb"
-                                 IsChecked="{Binding SelectedMouseButton, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Left}" />
+                                 IsChecked="{Binding SelectedMouseButton, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Left}" />
                     <RadioButton Content="Right click" GroupName="mb"
-                                 IsChecked="{Binding SelectedMouseButton, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Right}" />
+                                 IsChecked="{Binding SelectedMouseButton, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Right}" />
                     <RadioButton Content="Middle click" GroupName="mb"
-                                 IsChecked="{Binding SelectedMouseButton, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Middle}" />
+                                 IsChecked="{Binding SelectedMouseButton, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Middle}" />
                     <RadioButton Content="Back button" GroupName="mb"
-                                 IsChecked="{Binding SelectedMouseButton, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Backward}" />
+                                 IsChecked="{Binding SelectedMouseButton, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Backward}" />
                     <RadioButton Content="Forward button" GroupName="mb"
-                                 IsChecked="{Binding SelectedMouseButton, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Forward}" />
+                                 IsChecked="{Binding SelectedMouseButton, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Forward}" />
                 </StackPanel>
             </StackPanel>
 
@@ -227,13 +228,13 @@
                 <TextBlock Text="DIRECTION" Classes="caption" />
                 <StackPanel Spacing="6">
                     <RadioButton Content="Scroll up" GroupName="sc"
-                                 IsChecked="{Binding SelectedScroll, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Up}" />
+                                 IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Up}" />
                     <RadioButton Content="Scroll down" GroupName="sc"
-                                 IsChecked="{Binding SelectedScroll, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Down}" />
+                                 IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Down}" />
                     <RadioButton Content="Scroll left" GroupName="sc"
-                                 IsChecked="{Binding SelectedScroll, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Left}" />
+                                 IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Left}" />
                     <RadioButton Content="Scroll right" GroupName="sc"
-                                 IsChecked="{Binding SelectedScroll, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Right}" />
+                                 IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Right}" />
                 </StackPanel>
             </StackPanel>
         </Panel>
