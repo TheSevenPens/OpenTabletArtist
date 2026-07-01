@@ -132,6 +132,19 @@ public partial class WheelEditor : ObservableObject
         else if (delta > 0) Flash(clockwise: false);
     }
 
+    /// <summary>Clears live gauge/flash state when leaving the Wheel tab or stopping the stream.</summary>
+    public void ClearLiveState()
+    {
+        _flashCts?.Cancel();
+        _lastPosition = null;
+        LivePosition = null;
+        Clockwise.IsPressed = false;
+        CounterClockwise.IsPressed = false;
+        TurningClockwise = false;
+        TurningCounterClockwise = false;
+        foreach (var b in Buttons) b.IsPressed = false;
+    }
+
     private void Flash(bool clockwise)
     {
         Clockwise.IsPressed = clockwise;
