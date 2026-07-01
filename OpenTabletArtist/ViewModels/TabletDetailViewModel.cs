@@ -796,6 +796,36 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
     }
 
+    // ── Active Area tab: read-out of the full vs. effective (used) area ──────────
+    // The diagram binds TabletArea directly; these drive the stat cells beside it. All recompute
+    // when TabletArea changes (a new mapping applied, displays changed, or profile reloaded).
+    partial void OnTabletAreaChanged(TabletAreaInfo? value)
+    {
+        OnPropertyChanged(nameof(ActiveAreaFullText));
+        OnPropertyChanged(nameof(ActiveAreaUsedText));
+        OnPropertyChanged(nameof(ActiveAreaUsagePercentText));
+        OnPropertyChanged(nameof(ActiveAreaDimsPercentText));
+        OnPropertyChanged(nameof(ActiveAreaDiagonalText));
+    }
+
+    public string ActiveAreaFullText => TabletArea is { } a ? $"{a.FullWidth:0.#} × {a.FullHeight:0.#} mm" : "—";
+    public string ActiveAreaUsedText => TabletArea is { } a ? $"{a.EffWidth:0.#} × {a.EffHeight:0.#} mm" : "—";
+
+    /// <summary>Corner-to-corner size of the used vs. full area, e.g. "257 mm active · 269 mm full".</summary>
+    public string ActiveAreaDiagonalText => TabletArea is { } a
+        ? $"{Diagonal(a.EffWidth, a.EffHeight):0.#} mm active  ·  {Diagonal(a.FullWidth, a.FullHeight):0.#} mm full"
+        : "—";
+
+    private static double Diagonal(double w, double h) => System.Math.Sqrt(w * w + h * h);
+
+    /// <summary>Share of the full digitizer area covered by the effective area (width×height).</summary>
+    public string ActiveAreaUsagePercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
+        ? $"{a.EffWidth * a.EffHeight / (a.FullWidth * a.FullHeight) * 100:0}%" : "—";
+
+    /// <summary>Per-axis coverage, e.g. "80% × 62%" — useful once the area no longer fills an edge.</summary>
+    public string ActiveAreaDimsPercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
+        ? $"{a.EffWidth / a.FullWidth * 100:0}% × {a.EffHeight / a.FullHeight * 100:0}%" : "—";
+
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()
     {

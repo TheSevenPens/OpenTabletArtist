@@ -1,4 +1,6 @@
+using System;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
@@ -20,6 +22,45 @@ public partial class MainWindow : Window
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        ClampToWorkingArea();
+    }
+
+    /// <summary>
+    /// Shrink + re-center the window when the default size doesn't fit the current screen's working
+    /// area. A 1080p display at 150% scale is only 1280x720 logical — less than the default height
+    /// once the taskbar and title bar are subtracted — so without this the top edge sits above the
+    /// screen and the bottom hides under the taskbar (#274).
+    /// </summary>
+    private void ClampToWorkingArea()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null) return;
+
+        var scaling = screen.Scaling;
+        var wa = screen.WorkingArea;        // physical pixels, excludes the taskbar
+        var workW = wa.Width / scaling;     // logical (DIPs)
+        var workH = wa.Height / scaling;
+
+        // Headroom so the title bar and window edges stay comfortably reachable.
+        var maxW = Math.Max(MinWidth, workW - 24);
+        var maxH = Math.Max(MinHeight, workH - 48);
+
+        var newW = Math.Min(Width, maxW);
+        var newH = Math.Min(Height, maxH);
+        if (newW >= Width && newH >= Height) return;   // already fits
+
+        Width = newW;
+        Height = newH;
+
+        // Re-center within the working area (Position is in physical pixels).
+        Position = new PixelPoint(
+            wa.X + (int)((wa.Width - newW * scaling) / 2),
+            wa.Y + (int)((wa.Height - newH * scaling) / 2));
+    }
 
     /// <summary>Surface the window from a hidden/minimized state and focus it. Used by the tray click
     /// and by a second app instance asking the running one to come forward (#191).</summary>
