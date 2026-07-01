@@ -33,7 +33,7 @@ public partial class WheelEditor : ObservableObject
     public bool CanEdit => _applyThreshold != null;
 
     public bool HasStepInfo { get; }
-    public string StepInfo { get; }
+    public string StepInfo { get; } = "";
 
     // Sensitivity slider bounds (degrees). Snaps to whole steps when the step size is known.
     public double ThresholdMin { get; }
