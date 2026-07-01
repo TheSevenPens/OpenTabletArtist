@@ -19,11 +19,11 @@ public static class AcrylicSettings
         set => AppSettings.Set(TintKey, value.ToString("0.###", CultureInfo.InvariantCulture));
     }
 
-    /// <summary>0..1 — how opaque the frosted cards are (lower = more sakura shows through). Defaults
-    /// to ~the Sakura skin's current glass alpha so nothing jumps on first launch.</summary>
+    /// <summary>0..1 — how opaque the cards are (lower = more sakura shows through). Defaults to 0.75
+    /// so a little of the backdrop shows through out of the box (#298).</summary>
     public static double MaterialOpacity
     {
-        get => GetDouble(MaterialKey, 0.91);
+        get => GetDouble(MaterialKey, 0.75);
         set => AppSettings.Set(MaterialKey, value.ToString("0.###", CultureInfo.InvariantCulture));
     }
 

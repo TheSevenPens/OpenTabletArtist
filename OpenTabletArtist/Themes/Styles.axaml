@@ -7,40 +7,34 @@
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
              Green check + text when detected; amber warning otherwise; optional "Dynamics on" chip. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <!-- Full-width band: status-tinted fill + a colored left stripe. -->
-                    <Border x:Name="PART_Band" CornerRadius="8" ClipToBounds="True"
-                            Background="{DynamicResource WarningMutedBrush}">
-                        <Grid ColumnDefinitions="4,*">
-                            <Border x:Name="PART_Stripe" Grid.Column="0"
-                                    Background="{DynamicResource WarningBrush}" />
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                                        Margin="14,10">
-                                <TextBlock Classes="statusMarkWarn"
-                                           Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                           VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
-                                        Background="{DynamicResource AccentMutedBrush}"
-                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
-                                    <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AccentBrush}" />
-                                </Border>
-                            </StackPanel>
-                        </Grid>
+                    <!-- Compact status pill: a status-colored outline + mark + text. No translucent
+                         fill (the old muted-tint band read oddly over the Sakura backdrop, #300). -->
+                    <Border x:Name="PART_Pill" CornerRadius="16" Padding="12,7"
+                            Background="Transparent"
+                            BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Classes="statusMarkWarn"
+                                       Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
+                            <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentMutedBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
+                                <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                            </Border>
+                        </StackPanel>
                     </Border>
                 </ControlTemplate>
             </Setter>
-            <!-- Detected → success treatment (default is the warning treatment above). -->
-            <Style Selector="^[IsDetected=True] /template/ Border#PART_Band">
-                <Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" />
-            </Style>
-            <Style Selector="^[IsDetected=True] /template/ Border#PART_Stripe">
-                <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+            <!-- Detected → success outline (default is the warning outline above). -->
+            <Style Selector="^[IsDetected=True] /template/ Border#PART_Pill">
+                <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
             </Style>
         </ControlTheme>
 
@@ -408,6 +402,21 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="CheckBox:checked:pressed /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <!-- ToggleSwitch: the "on" track uses the theme accent (Fluent's default reads blue, off-theme in
+         the Sakura skin — e.g. the Output Mode "Absolute" switch, #297). -->
+    <Style Selector="ToggleSwitch:checked /template/ Border#SwitchKnobBounds">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="ToggleSwitch:checked:pointerover /template/ Border#SwitchKnobBounds">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="ToggleSwitch:checked:pressed /template/ Border#SwitchKnobBounds">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
