@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Newtonsoft.Json;
+using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Reflection;
 
 namespace OpenTabletArtist.Domain;
@@ -265,13 +266,37 @@ public static class AuxKeyBinding
         return store;
     }
 
-    /// <summary>The keys offered in the per-button picker — a curated subset of OTD's valid keys
-    /// (digits show as "0".."9" but store as OTD's "D0".."D9").</summary>
+    /// <summary>Every key the daemon accepts on this platform, straight from OTD's own validated key
+    /// set (Windows → the virtual-keyboard key map), so the picker never drifts from what actually
+    /// works. Digits show as "0".."9" but store as OTD's "D0".."D9"; other keys keep OTD's name.
+    /// Falls back to a curated subset if OTD's list is unavailable (tests / non-desktop).</summary>
     public static IReadOnlyList<KeyOption> Options { get; } = BuildOptions();
 
     private static IReadOnlyList<KeyOption> BuildOptions()
     {
-        var list = new List<KeyOption>(); // no "None" — unbinding is the explicit None binding type
+        try
+        {
+            var valid = KeyBinding.ValidKeys;
+            if (valid != null)
+            {
+                var list = valid
+                    .Where(k => !string.IsNullOrEmpty(k) && k != None)
+                    .Select(k => new KeyOption(KeyDisplayName(k), k))
+                    .ToList();
+                if (list.Count > 0) return list;
+            }
+        }
+        catch { /* OTD list unavailable — fall back to the curated subset below */ }
+        return CuratedOptions();
+    }
+
+    /// <summary>Friendly label for a stored key name: bare digit for "D0".."D9", else OTD's own name.</summary>
+    private static string KeyDisplayName(string value) =>
+        value.Length == 2 && value[0] == 'D' && char.IsDigit(value[1]) ? value[1].ToString() : value;
+
+    private static IReadOnlyList<KeyOption> CuratedOptions()
+    {
+        var list = new List<KeyOption>();
         for (char c = 'A'; c <= 'Z'; c++) list.Add(new(c.ToString(), c.ToString()));
         for (int d = 0; d <= 9; d++) list.Add(new(d.ToString(), $"D{d}"));
         for (int f = 1; f <= 12; f++) list.Add(new($"F{f}", $"F{f}"));
