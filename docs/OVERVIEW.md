@@ -46,9 +46,9 @@ OpenTabletArtist focuses on artists and is designed for simplicity, so it **lack
 
 ## Community Involvement and Feedback
 
-- **Feedback:** Submit bug reports and suggestions directly to the GitHub repository.
-- **Documentation:** See the repository's docs (including the user manual) for more detail.
-- **Community:** Join the drawing-tablet Discord for direct conversation with the developers and community.
+- **Feedback:** Submit bug reports and suggestions on the [GitHub issue tracker](https://github.com/TheSevenPens/OpenTabletArtist/issues).
+- **Documentation:** See the [user manual](USERMANUAL.md) for more detail.
+- **Community:** Join the [drawing-tablet Discord](https://discord.gg/Rr2MXeM7Ny) for direct conversation with the developers and community.
 
 ---
 
