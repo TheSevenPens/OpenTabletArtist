@@ -112,7 +112,7 @@ public partial class LogViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(ShowEmptyState));
             OnPropertyChanged(nameof(EmptyStateText));
             OnPropertyChanged(nameof(FilterSummary));
-        OnPropertyChanged(nameof(ShowFilterSummary));
+            OnPropertyChanged(nameof(ShowFilterSummary));
             if (AutoScroll) ScrollToEndRequested?.Invoke();
         });
 
