@@ -63,6 +63,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public bool ShowForeignDaemonWarning => _session.ShowForeignDaemonWarning;
     public bool ShowDaemonSourceUnknown => _session.ShowDaemonSourceUnknown;
     public string DaemonSourcePath => _session.DaemonSourcePath;
+    // Version read off the connected daemon's binary (#296).
+    public string DaemonVersion => _session.DaemonVersion;
+    public bool HasDaemonVersion => _session.HasDaemonVersion;
     public bool CanStartDaemon => _session.CanStartDaemon;
     public bool HasTablet => _session.HasTablet;
     public bool HasWindowsInk => _session.HasWindowsInk;
@@ -76,6 +79,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public string DaemonOperationError => _session.DaemonOperationError;
     public bool HasDaemonOperationError => _session.HasDaemonOperationError;
     public bool IsDaemonExeMissing => _session.IsDaemonExeMissing;
+    // Auto-connect gave up waiting but the background loop is still retrying (#296).
+    public bool ConnectStalled => _session.ConnectStalled;
 
     public IAsyncRelayCommand StartDaemonCommand => _session.StartDaemonCommand;
     public IAsyncRelayCommand StopDaemonCommand => _session.StopDaemonCommand;

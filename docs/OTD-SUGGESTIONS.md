@@ -135,6 +135,33 @@ so a UI can make targeted edits without shipping (and risking clobbering) the wh
 
 ---
 
+## 7. Reporting the daemon's version over RPC
+
+**What we're building.** OTA's Home card shows the OTD daemon's status and, when it's connected to a
+daemon it didn't launch ("external daemon"), warns the user. A natural next step (#296) is to also show
+*which* daemon version we're talking to and warn when it's older/newer than the OTD the app was built
+against — so a version mismatch (e.g. an old system-wide daemon shadowing our bundled one) is diagnosable
+at a glance instead of surfacing as mysterious behavior.
+
+**What makes it hard today.** There's no version in the RPC surface. `GetApplicationInfo` returns
+`AppInfo` — directory and plugin paths — but no daemon version, build, or protocol/API version. We can
+read *our own* bundled OTD assembly version locally, but we can't ask the **connected** daemon what it
+is, so we can't verify the two match or tell the user which daemon they're actually running. (We can't
+infer it from the assembly either — the daemon is a separate process on the other end of the pipe.)
+
+**What would make it simpler.** Either a field on `AppInfo` (e.g. `Version` / `BuildInfo`) or a small
+dedicated RPC (`string GetDaemonVersion()` / a `GetVersionInfo()` returning daemon version + a
+pipe/protocol version). Even the assembly `InformationalVersion` string would be enough for a UI to
+display the running daemon and flag a mismatch — and a distinct **protocol version** would let clients
+detect and degrade gracefully against a daemon whose RPC surface differs from the one they expect.
+
+*Our workaround today:* we resolve the pipe-server PID (`GetNamedPipeServerProcessId`) → the process's
+executable path → its Win32 `FileVersionInfo`, and show that on the card. It works, but it's best-effort
+(a cross-session or elevated daemon can hide its path) and only gives the *file* version, never a
+*protocol* version — so the RPC ask above still stands.
+
+---
+
 ## What already works really well
 
 Credit where it's due — these are the parts that made OTA *possible* and pleasant to build, and we'd
