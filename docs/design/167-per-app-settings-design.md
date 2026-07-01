@@ -226,6 +226,63 @@ New **Advanced** page "Per-App Profiles":
 6. `PerAppProfilesView`/VM.
 7. Docs (USERMANUAL) + the "app must be running" and "whole-Settings/all-tablets" caveats.
 
+## Ideal upstream (OTD daemon) support
+
+> Constructive feedback for the OTD team. Everything above is designed to work on the **pinned daemon
+> as-is** (whole-`Settings` `SetSettings`), but per-app switching would be dramatically faster, safer,
+> and simpler with any of the following. Ordered by impact on this scenario.
+
+**What the daemon does today.** `SetSettings(Settings)` is the only apply path (`IDriverDaemon`:
+`GetSettings` / `SetSettings` / `ResetSettings`, no per-profile or preset RPC). Its implementation
+**disposes every device's output mode and rebuilds each device's whole pipeline** — output mode,
+absolute/relative settings, filters, and a fresh `BindingHandler` — **unconditionally, regardless of
+what changed** (`DriverDaemon.SetSettings`: disposes all output modes ~L222–223, rebuilds per device
+via `SetOutputModeElements` / `CreateBindingHandler` ~L227–L262). There is no scoped apply, no diffing,
+and no stroke-boundary awareness. That full teardown/rebuild on **every focus change** is the entire
+latency / mid-stroke risk this design is gated on.
+
+1. **Partial / per-tablet apply RPC — highest impact.** `SetProfile(tabletId, Profile)` (or
+   `ApplySettings(diff)`). A per-app switch almost always changes one tablet's profile, yet today that
+   forces a whole-`Settings` rebuild of every device. A scoped apply would cut the work (and latency)
+   to just the thing that changed and likely clear the spike's ≲50 ms bar outright.
+
+2. **Diff-aware reconfigure.** Even keeping the whole-`Settings` entry point, skip disposing/rebuilding
+   stages that didn't change (same output mode → reuse it; only rebuild bindings), instead of the
+   current unconditional `Dispose()` of all output modes. Reuses hot objects; avoids re-instantiating
+   filters that are identical across the switch.
+
+3. **Atomic, mid-stroke-safe swap.** The daemon already sees pen reports, so it could **double-buffer**
+   the pipeline and swap atomically (no dropped report) or **defer** a pending swap to the next pen-up.
+   This removes the single hardest part of our client design — tracking pen state and deferring
+   ourselves — and guarantees no visible glitch mid-stroke.
+
+4. **A lightweight pen-state / stroke-boundary event.** Short of #3, a cheap "pen down/up" signal
+   (without enabling the full `DeviceReport` debug stream) would let clients time switches to pen-up
+   without holding the heavyweight debug stream on in the background — our current workaround is a
+   feature-scoped `DaemonPenInputSource` refcounted through `SetTabletDebug`.
+
+5. **Native per-application profiles (the full ideal).** A daemon-side `app → profile` map with a
+   foreground-window hook, switching **in-driver** the way manufacturer drivers do. Payoff: instant,
+   glitch-free, and it works even when no client app is running (removes our "app must be running"
+   caveat, feasibility Risk 2). Trade-offs the OTD team would weigh: a platform-specific foreground
+   hook (Win32 `SetWinEventHook`; separate macOS/Linux impls) and some policy scope (debounce,
+   defaults) that's arguably a UI concern. Even a **thin** version — the daemon exposes app→profile
+   registration + a fast apply, clients own the OS hook — would be a large win.
+
+6. **Named profile/preset RPCs.** `ListProfiles()` / `ApplyProfile(id)` so clients apply a known,
+   server-cached profile by id rather than shipping a full `Settings` blob every switch — cheaper wire
+   cost, and the daemon can optimize the apply. Newer OTD branches reportedly move toward a `Profiles[]`
+   + preset surface; aligning per-app switching with that direction would be natural. (We build against
+   the pinned contract today; this is the "if upstream moves" path.)
+
+7. **Apply-complete / latency signal.** An awaitable completion beyond the RPC returning (or a
+   documented latency expectation) would let clients sequence rapid switches safely and self-measure,
+   instead of guessing debounce windows.
+
+**Net:** items **1–3** would turn this feature from "gated on a make-or-break latency spike" into
+"straightforward"; **5** would let OTD offer per-app switching **natively** (not only via our app).
+Items 4, 6, 7 are smaller quality-of-life wins.
+
 ## Open questions
 
 - **Default identity** — is "default" the user's on-disk `Settings` (restore path) or a chosen
