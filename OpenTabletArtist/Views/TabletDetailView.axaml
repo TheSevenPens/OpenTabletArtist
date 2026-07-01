@@ -15,9 +15,9 @@
 
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
         <!-- Header: tablet name, connection status, Refresh + Forget on one row. -->
-        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
                 <TextBlock Grid.Column="0" Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
                            Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"
@@ -44,32 +44,30 @@
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
 
-        <!-- Tab buttons (hidden in the focused Pen Dynamics view, #133) -->
-        <Border Grid.Row="1" Margin="0,0,0,16" BorderThickness="0,0,0,1"
+        <!-- Tab rail — vertical, to the left of the content (hidden in the focused Pen Dynamics view, #133) -->
+        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Content="Screen Mapping" IsChecked="True" x:Name="ScreenMappingTab"
-                                 Theme="{StaticResource TabRadioButton}" />
-                    <RadioButton Content="Pen Switches" x:Name="PenTipTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                    <RadioButton Content="ExpressKeys" x:Name="PenButtonsTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                    <RadioButton Content="Dynamics" x:Name="DynamicsTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                    <RadioButton Content="Hover" x:Name="HoverTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                    <RadioButton Content="Filters" x:Name="FiltersTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                    <RadioButton Content="JSON" x:Name="JsonTab"
-                                 Theme="{StaticResource TabRadioButton}" Margin="4,0,0,0" />
-                </StackPanel>
-            </ScrollViewer>
+            <StackPanel Width="150" Spacing="2">
+                <RadioButton Content="SCREEN MAPPING" IsChecked="True" x:Name="ScreenMappingTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="PEN SWITCHES" x:Name="PenTipTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="EXPRESSKEYS" x:Name="PenButtonsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="HOVER" x:Name="HoverTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="FILTERS" x:Name="FiltersTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="JSON" x:Name="JsonTab"
+                             Theme="{StaticResource TabRadioButton}" />
+            </StackPanel>
         </Border>
 
         <!-- Screen Mapping tab content -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ScreenMappingTab.IsChecked}">
             <StackPanel>
                 <!-- Output Mode -->
@@ -193,7 +191,7 @@
         </ScrollViewer>
 
         <!-- Pen Switches tab content -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}">
             <StackPanel>
                 <!-- All pen switches live in one card; each switch is a divider-separated section. -->
@@ -251,7 +249,7 @@
         </ScrollViewer>
 
         <!-- ExpressKeys tab content: one card per auxiliary button. -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenButtonsTab.IsChecked}">
             <StackPanel>
                 <!-- Header: section label + master enable toggle and clear-all (when there are buttons). -->
@@ -360,7 +358,7 @@
         </ScrollViewer>
 
         <!-- Dynamics tab content -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <!-- Master On/Off as a header row (not a card), plus a reset-everything action. -->
@@ -506,7 +504,7 @@
         </ScrollViewer>
 
         <!-- Hover tab content (#188) -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #HoverTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditHover}">
                 <!-- Master On/Off header row. -->
@@ -544,7 +542,7 @@
         </ScrollViewer>
 
         <!-- Filters tab content: one card per filter on the profile. -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="FILTERS" Classes="SectionLabel" Margin="0,0,0,8" />
@@ -594,7 +592,7 @@
         </ScrollViewer>
 
         <!-- JSON tab content -->
-        <Border Grid.Row="2" Classes="GlassPanel" Padding="16"
+        <Border Grid.Row="1" Grid.Column="1" Classes="GlassPanel" Padding="16"
                 IsVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11"

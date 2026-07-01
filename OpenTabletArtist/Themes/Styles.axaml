@@ -195,13 +195,17 @@
         <!-- Tab RadioButton (for dialog tabs) -->
         <!-- Real-tab look: flat header with a 2px accent underline on the selected tab (sits on the
              tab strip's baseline), instead of a pill button. -->
+        <!-- Vertical tab used by the tablet editor's left rail: a left accent bar + text,
+             with a soft fill on hover/selected. Stretches to fill the rail width. -->
         <ControlTheme x:Key="TabRadioButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border x:Name="Bd" Background="Transparent"
-                            Padding="12,8" Margin="0,0,0,-1"
-                            BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                            Padding="8,8"
+                            BorderThickness="2,0,0,0" BorderBrush="Transparent"
+                            CornerRadius="0,4,4,0">
                         <TextBlock x:Name="Label" Text="{TemplateBinding Content}"
                                    FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource TextMutedBrush}" />
@@ -212,10 +216,11 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </Style>
             <Style Selector="^:pointerover /template/ Border#Bd">
-                <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+                <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
             </Style>
             <Style Selector="^:checked /template/ Border#Bd">
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Label">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
