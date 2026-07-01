@@ -26,6 +26,15 @@ public sealed class DaemonPenInputSource
     /// with the current pressed/released state of each button. Pen-only reports don't fire it.</summary>
     public event Action<bool[]>? AuxButtons;
 
+    /// <summary>Wheel-button state per wheel (jagged: wheel → its buttons). Wheel-button reports only.</summary>
+    public event Action<bool[][]>? WheelButtons;
+
+    /// <summary>Absolute-wheel positions per wheel (touch rings). Absolute-wheel reports only.</summary>
+    public event Action<uint?[]>? WheelPositions;
+
+    /// <summary>Relative-wheel step deltas per wheel (scroll wheels). Relative-wheel reports only.</summary>
+    public event Action<int[]>? WheelDeltas;
+
     public async Task StartAsync()
     {
         _wantRunning = true;
@@ -78,5 +87,11 @@ public sealed class DaemonPenInputSource
             Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
         if (DeviceReportSample.TryParseAuxButtons(data, out var aux))
             Dispatcher.UIThread.Post(() => AuxButtons?.Invoke(aux));
+        if (DeviceReportSample.TryParseWheelButtons(data, out var wheelButtons))
+            Dispatcher.UIThread.Post(() => WheelButtons?.Invoke(wheelButtons));
+        if (DeviceReportSample.TryParseWheelPositions(data, out var wheelPositions))
+            Dispatcher.UIThread.Post(() => WheelPositions?.Invoke(wheelPositions));
+        if (DeviceReportSample.TryParseWheelDeltas(data, out var wheelDeltas))
+            Dispatcher.UIThread.Post(() => WheelDeltas?.Invoke(wheelDeltas));
     }
 }

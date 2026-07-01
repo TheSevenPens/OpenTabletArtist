@@ -470,17 +470,93 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Wheel tab content: clockwise / counter-clockwise rotation bindings per wheel. Reuses the
-             ExpressKeys binding-editor card; only shown when the tablet reports a wheel. -->
+        <!-- Wheel tab content: per-wheel rotation bindings (CW/CCW) + sensitivity, wheel buttons, and a
+             master enable / clear-all. Reuses the ExpressKeys binding-editor card. Only shown when the
+             tablet reports a wheel. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #WheelTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="WHEEL" Classes="SectionLabel" Margin="0,0,0,8" />
-                <TextBlock Text="Bind an action to each direction the wheel turns. The action repeats as the wheel passes each step."
+                <!-- Header: label + master enable toggle + clear-all (parity with ExpressKeys). -->
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                    <TextBlock Grid.Column="0" Text="WHEEL" Classes="SectionLabel" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
+                        <TextBlock Text="Wheel enabled" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ToggleSwitch IsChecked="{Binding WheelEnabled}" OnContent="" OffContent=""
+                                      MinWidth="0" VerticalAlignment="Center"
+                                      ToolTip.Tip="Turn all wheel bindings on or off. Your mappings are kept and restored when you turn them back on." />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearWheelBindingsCommand}"
+                            IsVisible="{Binding ShowWheelControls}"
+                            ToolTip.Tip="Remove every wheel binding"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                </Grid>
+
+                <TextBlock Text="Bind an action to each direction the wheel turns, plus its button. Sensitivity sets how far you turn before the action repeats."
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,0,0,10" TextWrapping="Wrap" />
-                <ItemsControl ItemsSource="{Binding WheelRows}"
-                              ItemTemplate="{StaticResource ButtonBindingCard}" />
+
+                <ItemsControl ItemsSource="{Binding Wheels}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,6">
+                                <TextBlock Text="{Binding Title}" Classes="SectionLabel"
+                                           IsVisible="{Binding ShowTitle}" Margin="0,0,0,8" />
+
+                                <!-- Live gauge: marker at the finger's position + direction while turning. -->
+                                <ctrl:WheelGauge Position="{Binding LivePosition}"
+                                                 TurningClockwise="{Binding TurningClockwise}"
+                                                 TurningCounterClockwise="{Binding TurningCounterClockwise}"
+                                                 AccentBrush="{DynamicResource AccentBrush}"
+                                                 Width="132" Height="132"
+                                                 HorizontalAlignment="Center" Margin="0,2,0,4" />
+                                <TextBlock Text="{Binding StepInfo}" FontSize="10"
+                                           IsVisible="{Binding HasStepInfo}" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
+
+                                <!-- Clockwise: binding card + sensitivity. -->
+                                <ContentControl Content="{Binding Clockwise}"
+                                                ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
+                                    <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                            TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                            IsEnabled="{Binding CanEdit}"
+                                            Value="{Binding ClockwiseThreshold, Mode=TwoWay}"
+                                            VerticalAlignment="Center" MinWidth="40" />
+                                    <TextBlock Grid.Column="2" Text="{Binding ClockwiseThresholdText}" FontSize="11"
+                                               Width="130" TextAlignment="Right" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </Grid>
+
+                                <!-- Counter-clockwise: binding card + sensitivity. -->
+                                <ContentControl Content="{Binding CounterClockwise}"
+                                                ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
+                                    <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                            TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                            IsEnabled="{Binding CanEdit}"
+                                            Value="{Binding CounterClockwiseThreshold, Mode=TwoWay}"
+                                            VerticalAlignment="Center" MinWidth="40" />
+                                    <TextBlock Grid.Column="2" Text="{Binding CounterClockwiseThresholdText}" FontSize="11"
+                                               Width="130" TextAlignment="Right" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                </Grid>
+
+                                <!-- Wheel button(s). -->
+                                <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
+                                              ItemTemplate="{StaticResource ButtonBindingCard}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
 
