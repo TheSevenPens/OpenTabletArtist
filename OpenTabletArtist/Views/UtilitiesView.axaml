@@ -6,8 +6,6 @@
     <!-- DataContext is the UtilitiesViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="DRIVER CLEANUP" />
-        <TextBlock Classes="PageSubtitle"
-                   Text="Find and remove conflicting manufacturer tablet drivers" />
 
         <!-- Detected conflicting drivers — one card each, with the full daemon message (#245). -->
         <StackPanel IsVisible="{Binding Conflicts.HasConflicts}" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">

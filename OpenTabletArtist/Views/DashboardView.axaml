@@ -7,7 +7,6 @@
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- Page Header -->
         <TextBlock Classes="PageTitle" Text="HOME" />
-        <TextBlock Classes="PageSubtitle" Text="Overview of your tablet configuration" />
 
         <StackPanel>
             <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->

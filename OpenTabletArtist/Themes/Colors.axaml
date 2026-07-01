@@ -71,7 +71,7 @@
             <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
             <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
             <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
-            <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+            <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
             <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
 
             <!-- Full-window backdrop layer behind content; flat themes have none (see Anime). -->
@@ -116,7 +116,7 @@
             <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="{StaticResource Accent}" />
             <SolidColorBrush x:Key="AccentButtonFillHoverBrush" Color="{StaticResource Accent}" />
             <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="{StaticResource TextInverse}" />
-            <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+            <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
             <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
 
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
@@ -196,7 +196,7 @@
             <!-- Softer, glowier cards: rounder corners and a diffuse pink glow instead of a grey drop.
                  Blur kept ≤16 so the glow's rendered extent fits inside the content padding and isn't
                  clipped by the scroll viewport on the left/right; alpha bumped to keep it prominent. -->
-            <CornerRadius x:Key="CardCornerRadius">22</CornerRadius>
+            <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
             <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
 
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
