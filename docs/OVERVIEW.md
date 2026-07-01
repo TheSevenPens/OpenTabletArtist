@@ -1,47 +1,60 @@
-# OpenTabletArtist  — Overview
+Introduction to OpenTabletArtist (OTA)
 
-## What Is This?
+OTA is an alternative user experience for OpenTabletDriver (OTD) that prioritizes the needs of artists to get set up quickly and in a familiar environment so that they can be productive with their creative apps.
 
-OpenTabletArtist simplifies the experience of using OpenTabletDriver for artists.
 
-This is not a fork of OpenTabletDriver. It is a standalone desktop app (Avalonia UI 12, .NET 10) that:
+How OTA Works
 
-- References OTD as a git submodule pinned to a specific version (currently `v0.6.7`)
-- Builds the OTD daemon from that submodule and auto-starts it
-- Communicates with the daemon via named pipe (StreamJsonRpc)
-- Uses OTD's typed models (`Settings`, `Profile`, `BindingSettings`) directly for type-safe writes
+OTD has two components: the first is the OTD daemon, which is the actual driver—the component that talks to the tablet and communicates with the operating system. There is a separate OTD user interface that talks to the daemon; this interface lets the user configure the daemon as needed.
 
-## Why Does This Exist?
+OpenTabletArtist is actually just another user interface that talks to the very same OTD daemon.
 
-OpenTabletDriver's current UI is functional but utilitarian. The OTD team is actively building a new UX using Avalonia. This prototype exists to explore an alternative direction — one rooted in modern web aesthetics — and to demonstrate what's possible when beauty is treated as a first-class requirement.
+In this way, OTA is not a true driver; it is just an experience layer—one that is optimized for artists.
 
-Specific goals:
+Key Benefits of OTA
 
-- **Demonstrate a premium visual experience** for tablet driver configuration, using glassmorphism, smooth transitions, and a refined dark/light theme system.
-- **Iterate rapidly** on UI ideas. Originally built with Svelte + Vite, then rebuilt as WPF, then converted to Avalonia UI for cross-platform potential, and most recently upgraded to Avalonia 12.
-- **Validate the architecture** of a standalone app communicating with the OTD daemon, proving that the daemon's JSON-RPC interface is flexible enough to support diverse UI approaches.
-- **Serve as a conversation piece** — a tangible artifact that the OTD community and team can react to, critique, and draw inspiration from.
+The user interface is highly optimized for artists.
+The user interface is much more similar to the traditional drawing tablet driver interfaces you are used to from Wacom or XP-Pen.
+The user interface guides you to the correct recommended configuration for artists, and if a configuration isn't right, it will tell you how to fix it with a single click.
+The user interface contains many new enhancements that will simplify your typical workflows—for example, when you are configuring ExpressKeys or dials.
+The user interface speaks in a language that is less technical and more natural for an artist.
+The user interface will detect if you are missing components and let you download and install them automatically. With OpenTabletDriver, this is something you have to discover through documentation, and the steps to install are completely manual.
+And finally, the user interface is just very pretty. OTA starts with a theme called Sakura, which is quite beautiful, but if you want, you can switch to other, more standard-looking themes.
 
-## What This Is Not
 
-- **Not a production-ready replacement.** This is a prototype. It does not implement every OTD feature, does not handle every edge case, and is not optimized for distribution.
-- **Not a criticism of the existing UX.** The current OTD interface serves its users well. This project explores a different aesthetic direction, not a correction.
-- **Not a permanent fork.** The goal is to produce ideas and demonstrate possibilities, not to maintain a parallel codebase indefinitely.
 
-## Design Philosophy
+Relationship to OpenTabletDriver (OTD):
 
-1. **Beauty is the feature.** Every panel, every transition, every color choice is intentional. The UI should feel like a premium creative tool — because the people using it are creators.
-2. **Glass and light.** The glassmorphism design language (frosted glass panels, depth through blur, subtle borders) creates a sense of layered depth without visual heaviness.
-3. **Respect for both modes.** Dark and light themes are first-class citizens, each carefully tuned — not an afterthought toggle.
-4. **Fast feedback loops.** Avalonia with XAML Hot Reload enables rapid visual iteration.
+The OTA project is an independent, personal testing tool. **No code is currently being contributed back to the official OTD project.**
 
-## Target Audience
+While the work done here is intended to serve as inspiration for OTD developers—particularly concerning user experience improvements—there is **no expectation** that any features from the OTA project will be integrated into OpenTabletDriver.
 
-The primary audience is **creatives** — digital artists, illustrators, and designers who use drawing tablets as their main input device. These users care about pressure sensitivity, tilt, and a configuration experience that doesn't feel like a developer tool. They are not gamers (osu! players) or technical power users — they want things to work without reading a terminal.
+Who Should Use OpenTabletArtist? (Target Audience)
 
-Today, setting up OTD for creative work on Windows is an involved process: installing vmulti, adding the Windows Ink plugin, switching output modes, configuring the drawing app. See the [SevenPens OTD Windows install guide](https://docs.sevenpens.com/drawtab/guides/drivers/opentabletdriver/otd-windows-install) for what this currently looks like. This prototype aims to make that experience dramatically simpler.
 
-Secondary audiences:
-- OTD contributors and maintainers evaluating UX directions
-- UX designers exploring driver/configuration UI patterns
-- Developers interested in building Avalonia desktop apps that integrate with an existing daemon process and its native types
+**Who Should Use OpenTabletArtist?**
+
+ **1. Happy Current Users (Wacom, Huion, etc.):**
+If you are an artist currently using a proprietary driver (Wacom, Huion, XP-Pen, etc.) and are satisfied with its performance, you likely do not need to switch to OpenTabletArtist.
+
+ **2. Users with Very Old Tablets (Recommended):**
+If you own a very old tablet, OpenTabletArtist is highly recommended because it offers a much simpler, streamlined experience compared to the full OpenTabletDriver.
+
+ **3. Current OTD Artists (Recommended for testing):**
+If you are an artist currently using OpenTabletDriver (OTD), even if you are satisfied, we encourage you to experiment with OpenTabletArtist. You may find the user experience (UX) to be significantly improved and better suited to your workflow.
+
+**4. osu! Players:**
+
+If your primary use case is playing osu!, OpenTabletArtist is generally not recommended.
+
+**Advice to osu! Players:**
+
+* **OpenTabletArtist is NOT recommended for osu!:** The project clearly focuses on artists, meaning OpenTabletArtist is likely the wrong choice for high-level competitive gaming.
+* **Reasoning:** OpenTabletArtist is designed for simplicity for artists and **lacks the comprehensive power and advanced configuration** needed to master every technical aspect of OTD for high-level competitive play. Many features necessary for high-level osu! are missing.
+
+**Community Involvement and Feedback:**
+* **Feedback:** Submit bug reports and suggestions directly to the GitHub repository.
+* **File Information:** Detailed project file information can be found in the GitHub repository.
+* **Community:** Join the drawing tablet Discord for direct conversation and interaction with the developers and community.
+
+In summary, OpenTabletArtist represents a significant leap forward in user interface design compared to OTD, making it more visually appealing, better structured, and more user-friendly for digital artists, while inviting the community to participate in its development.
