@@ -44,6 +44,11 @@
                                 <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsConnected}" />
                                 <TextBlock Text="{Binding DaemonStatusText}" FontSize="11"
                                            Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                <!-- Version read off the connected daemon's binary (#296). -->
+                                <TextBlock Text="{Binding DaemonVersion, StringFormat='v{0}'}" FontSize="11"
+                                           Margin="6,0,0,0" IsVisible="{Binding HasDaemonVersion}"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           ToolTip.Tip="Version of the connected OpenTabletDriver daemon" />
                             </StackPanel>
 
                             <!-- Daemon ownership indicator (one of three states while connected) -->
@@ -122,6 +127,21 @@
                     <TextBlock Text="{Binding DaemonOperationError}" FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource WarningBrush}" />
                 </StackPanel>
+
+                <!-- Auto-connect ran past the timeout: it's still retrying in the background, so say
+                     so (with an immediate Retry) rather than a silent "Not connected" (#296). -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0"
+                      IsVisible="{Binding ConnectStalled}">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="warning" />
+                        <TextBlock Text="Couldn't reach the daemon — still retrying in the background."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource WarningBrush}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Retry" Command="{Binding RefreshConnectionCommand}"
+                            Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                </Grid>
                 </StackPanel>
             </Border>
 

@@ -30,6 +30,10 @@ public interface IConnectionState : INotifyPropertyChanged
     bool IsAppOwnedDaemon { get; }
     bool IsForeignDaemon { get; }
     string DaemonSourcePath { get; }
+    /// <summary>Version stamped on the connected daemon's executable (read best-effort from its file
+    /// via the pipe-server PID; empty when not connected or the path/version couldn't be read). (#296)</summary>
+    string DaemonVersion { get; }
+    bool HasDaemonVersion { get; }
     bool ShowAppOwnedDaemon { get; }
     bool ShowForeignDaemonWarning { get; }
     bool ShowDaemonSourceUnknown { get; }
@@ -128,6 +132,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isAppOwnedDaemon;
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
+    [ObservableProperty] private string _daemonVersion = "";
+    public bool HasDaemonVersion => !string.IsNullOrEmpty(DaemonVersion);
+    partial void OnDaemonVersionChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersion));
     [ObservableProperty] private string _daemonStatusText = "Not connected";
     [ObservableProperty] private bool _isDaemonExeMissing;
 
@@ -152,6 +159,29 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </summary>
     public TimeSpan DaemonOperationTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    // --- Connect progress (#296) ---
+    /// <summary>Seconds elapsed on the in-flight connect/lifecycle activity — surfaced as
+    /// "…(12s)" so a slow connect looks like progress rather than a frozen spinner. Reset to 0
+    /// whenever the activity indicator is not showing.</summary>
+    [ObservableProperty] private int _connectElapsedSeconds;
+
+    /// <summary>Human phase for the current connect attempt (e.g. "Starting the daemon…",
+    /// "Waiting for the daemon to respond…"). Empty when a lifecycle op drives the indicator
+    /// instead (that path uses <see cref="DaemonOperationStatus"/>).</summary>
+    [ObservableProperty] private string _connectPhase = "";
+
+    /// <summary>An auto-connect ran past <see cref="DaemonOperationTimeout"/> without reaching the
+    /// daemon. The background loop keeps retrying, so we say so plainly (with a Retry affordance)
+    /// instead of silently flipping to a bare "Not connected".</summary>
+    [ObservableProperty] private bool _connectStalled;
+
+    // Ticks the elapsed-seconds counter while the activity indicator is up. Created lazily on the
+    // UI thread (first activity) and guarded so headless tests without a Dispatcher degrade to a
+    // static 0 rather than throwing.
+    private readonly Stopwatch _connectStopwatch = new();
+    private DispatcherTimer? _connectTicker;
+    private bool _activityTiming;
+
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
     public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
@@ -165,8 +195,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Show the indeterminate activity indicator for either a lifecycle op or the initial connect.</summary>
     public bool ShowDaemonActivity => IsDaemonBusy || IsConnecting;
 
-    /// <summary>Phase text for the activity indicator.</summary>
-    public string DaemonActivityText => IsDaemonBusy ? DaemonOperationStatus : "Connecting…";
+    /// <summary>Phase text for the activity indicator, with the elapsed seconds appended once the
+    /// counter is running (#296) so a slow connect reads as progress.</summary>
+    public string DaemonActivityText
+    {
+        get
+        {
+            var phase = IsDaemonBusy ? DaemonOperationStatus
+                      : string.IsNullOrEmpty(ConnectPhase) ? "Connecting…" : ConnectPhase;
+            return ConnectElapsedSeconds > 0 ? $"{phase}  ·  {ConnectElapsedSeconds}s" : phase;
+        }
+    }
 
     /// <summary>Offer "Start" only when not connected and not already mid-connect.</summary>
     public bool ShowStartButton => !IsConnected && !IsConnecting;
@@ -213,6 +252,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsDaemonRunning = true;
             // Connected, so the exe clearly isn't missing — clear the flag and its stale message.
             IsDaemonExeMissing = false;
+            // Any prior "still retrying" / connect-phase state is now moot.
+            ConnectStalled = false;
+            ConnectPhase = "";
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             UpdateDaemonSource();
             Connected?.Invoke();
@@ -226,6 +268,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsAppOwnedDaemon = false;
             IsForeignDaemon = false;
             DaemonSourcePath = "";
+            DaemonVersion = "";
             HasTablet = false;
             TabletName = "";
             DetectedTablets = [];
@@ -261,6 +304,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     partial void OnConnectionStatusChanged(string value) => UpdateDaemonActivity();
     partial void OnIsDaemonBusyChanged(bool value) => UpdateDaemonActivity();
     partial void OnDaemonOperationStatusChanged(string value) => UpdateDaemonActivity();
+    partial void OnConnectPhaseChanged(string value) => OnPropertyChanged(nameof(DaemonActivityText));
+    partial void OnConnectElapsedSecondsChanged(int value) => OnPropertyChanged(nameof(DaemonActivityText));
 
     /// <summary>Recompute the daemon status text + activity indicators from the connect/op state.</summary>
     private void UpdateDaemonActivity()
@@ -270,6 +315,43 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(ShowDaemonActivity));
         OnPropertyChanged(nameof(DaemonActivityText));
         OnPropertyChanged(nameof(ShowStartButton));
+        SyncActivityTimer();
+    }
+
+    /// <summary>Start/stop the elapsed-seconds ticker on the edges of <see cref="ShowDaemonActivity"/>,
+    /// so the counter reflects one contiguous connect/op rather than accumulating across attempts.</summary>
+    private void SyncActivityTimer()
+    {
+        var active = ShowDaemonActivity;
+        if (active == _activityTiming) return;
+        _activityTiming = active;
+        try
+        {
+            if (active)
+            {
+                _connectStopwatch.Restart();
+                ConnectElapsedSeconds = 0;
+                _connectTicker ??= CreateActivityTicker();
+                _connectTicker.Start();
+            }
+            else
+            {
+                _connectTicker?.Stop();
+                _connectStopwatch.Stop();
+                ConnectElapsedSeconds = 0;
+            }
+        }
+        catch
+        {
+            // No Dispatcher (headless tests) — the elapsed counter just stays at 0; everything else works.
+        }
+    }
+
+    private DispatcherTimer CreateActivityTicker()
+    {
+        var ticker = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        ticker.Tick += (_, _) => ConnectElapsedSeconds = (int)_connectStopwatch.Elapsed.TotalSeconds;
+        return ticker;
     }
 
     partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();
@@ -292,11 +374,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
         IsDaemonExeMissing = false;
 
+        ConnectStalled = false;
         if (!IsDaemonRunning)
         {
             // No flat delay: the pipe connect below already waits for the daemon's pipe to come up,
             // so a fixed sleep only adds latency (and risks eating the connect timeout). (#246)
+            ConnectPhase = "Starting the daemon…";
             _daemonLifecycle.Launch();
+            ConnectPhase = "Waiting for the daemon to respond…";
+        }
+        else
+        {
+            ConnectPhase = "Connecting to the daemon…";
         }
 
         ConnectionStatus = "Connecting...";
@@ -325,6 +414,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         if (!DaemonReachable()) { SetDaemonExeMissing(); return Task.CompletedTask; }
         IsDaemonExeMissing = false;
+        ConnectStalled = false;
+        ConnectPhase = "Connecting to the daemon…";
         ConnectionStatus = "Connecting...";
         var connect = _daemon.ConnectAsync(_cts.Token);
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
@@ -336,15 +427,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private int _connectAttempt;
 
     /// <summary>A fired-and-forgotten connect (startup / Refresh) keeps retrying in the background;
-    /// if it hasn't landed within the timeout, drop the "Connecting…" indicator back to
-    /// "Not connected" so the card isn't stuck on a spinner. A later success flips it via the
-    /// Connected callback. Only the latest attempt may clear the status.</summary>
+    /// if it hasn't landed within the timeout, drop the "Connecting…" spinner but flag the attempt as
+    /// stalled so the card shows "Couldn't reach the daemon — still retrying" with a Retry button,
+    /// instead of a silent "Not connected" that looks like nothing happened (#296). A later success
+    /// flips it via the Connected callback. Only the latest attempt may clear the status.</summary>
     private async Task MonitorConnectAttemptAsync(int attempt)
     {
         if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout)
             && attempt == _connectAttempt
             && !IsConnected && ConnectionStatus == "Connecting...")
         {
+            ConnectStalled = true;
             ConnectionStatus = "Disconnected";
         }
     }
@@ -747,11 +840,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsAppOwnedDaemon = false;
             IsForeignDaemon = false;
             DaemonSourcePath = "";
+            DaemonVersion = "";
             return;
         }
 
         var actual = GetConnectedDaemonPath();
         DaemonSourcePath = actual ?? "";
+        // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report
+        // it). Best-effort: cross-session/elevated processes may hide their path, leaving it blank. (#296)
+        DaemonVersion = actual != null ? ReadExecutableVersion(actual) : "";
 
         if (actual == null)
         {
@@ -769,6 +866,23 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         var pid = _daemon.GetServerProcessId();
         return pid == null ? null : _daemonLifecycle.GetProcessPath(pid.Value);
+    }
+
+    /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
+    /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
+    private static string ReadExecutableVersion(string path)
+    {
+        try
+        {
+            var info = FileVersionInfo.GetVersionInfo(path);
+            var version = (info.ProductVersion ?? info.FileVersion ?? "").Trim();
+            var plus = version.IndexOf('+');
+            return plus >= 0 ? version[..plus] : version;
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     public void Dispose()
