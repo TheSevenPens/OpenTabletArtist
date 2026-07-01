@@ -19,19 +19,24 @@ Several items once listed here have shipped and are no longer "future":
 - **Paired Tablets ordering** — detected tablet first, then most-recently-seen (persisted), then never-seen (#137/#138).
 - **Plugins page** — read-only list of installed daemon plugins with active/installed status.
 - **Simplified iconography** — replaced the Windows-only Segoe MDL2 icon font with text labels + colored status dots (#150).
-- **System tray & background mode** — a tray icon reflects daemon status and offers Show / Start-or-Stop / Restart / Quit; closing the window minimizes to the tray (#72).
+- **System tray & background mode** — a tray icon reflects daemon status and offers Show / Start-or-Stop / Restart / Quit; closing the window minimizes to the tray (#72). Fully covers the "daemon visibility & control from outside the app" ask ([#57](https://github.com/TheSevenPens/OpenTabletArtist/issues/57)).
+- **Console / Log Viewer** — the *Log* page streams daemon logs with level filtering, level-colored entries, an auto-scroll toggle, and copy (text / Markdown / HTML). Free-text search is the one remaining follow-up ([#275](https://github.com/TheSevenPens/OpenTabletArtist/issues/275)). ([#65](https://github.com/TheSevenPens/OpenTabletArtist/issues/65))
+- **Broader settings write-back** — express-key, pen-switch, and wheel bindings, pen dynamics, hover limit, and calibration all write back to the daemon with debouncing, extending the initial output-mode/mapping write-back. Full filter add/remove/reorder remains ([#64](https://github.com/TheSevenPens/OpenTabletArtist/issues/64)). ([#62](https://github.com/TheSevenPens/OpenTabletArtist/issues/62))
+- **Express-key (auxiliary button) bindings** — editable per-button bindings (keyboard key, multi-key combo, mouse button, mouse scroll) with a live press highlight, a master enable toggle, and clear-all.
+- **Tablet wheel bindings** — a *Wheel* tab for tablets that report a wheel / touch ring: bind clockwise and counter-clockwise rotation and the wheel button (same editor as express keys), per-direction sensitivity (activation threshold) with step-size info, a live circular gauge (position marker + rotation direction), and a master enable / clear-all. ([PR #273](https://github.com/TheSevenPens/OpenTabletArtist/pull/273), [PR #274](https://github.com/TheSevenPens/OpenTabletArtist/pull/274))
+- **Active Area tab** — read-only visualization of the tablet's full vs. effective (used) area, drawn to scale, with usage stats (area %, per-axis %, mm dimensions, and both diagonals) and a note that the area auto-matches the display's proportions. The interactive editor (drag/resize/rotate) remains ([#59](https://github.com/TheSevenPens/OpenTabletArtist/issues/59)).
+- **Display hardware details** — each monitor now shows its connector/port (HDMI / DisplayPort / USB-C / Internal / …) and the GPU driving it, in the display picker and a per-display list on the *Display Mapping* tab.
+- **Tablet-settings layout** — the per-tablet tabs moved to a vertical left rail, and the old *Screen Mapping* tab was split into focused **Output Mode**, **Display Mapping**, and **Calibration** tabs.
+- **Window fit on scaled/low-res displays** — the window clamps to the current screen's working area (DPI-aware) on open, so it no longer overruns the top edge or hides under the taskbar (e.g. 1080p at 150% scale).
 
 ## Near-Term (Polish the Prototype)
 
-- **Daemon Visibility & Control From Outside the App** — Surface daemon status/control when the app window is closed (tray icon, etc.). ([#57](https://github.com/TheSevenPens/OpenTabletArtist/issues/57))
 - **Investigate App Shutdown Cleanliness** — Ensure the app exits within ~500ms on window close with no lingering file locks. ([#58](https://github.com/TheSevenPens/OpenTabletArtist/issues/58))
 - **Interactive Area Mapper** — Make the area visualization draggable/resizable/rotatable with snap guides and a live readout. ([#59](https://github.com/TheSevenPens/OpenTabletArtist/issues/59))
 - **Guided Setup for Creatives (Windows)** — First-run wizard chaining vmulti + Windows Ink + output-mode setup for creatives. ([#60](https://github.com/TheSevenPens/OpenTabletArtist/issues/60))
 - **Advanced Settings Toggle** — Reveal hidden settings (rotation, clipping, area limiting) behind an Advanced expander. ([#61](https://github.com/TheSevenPens/OpenTabletArtist/issues/61))
-- **Broader Settings Write-Back** — Extend write-back beyond output mode/display to bindings, filters, and per-profile tweaks. ([#62](https://github.com/TheSevenPens/OpenTabletArtist/issues/62))
-- **Bindings Page** — Configure pen tip/eraser/button bindings with a visual pen and per-button editors. ([#63](https://github.com/TheSevenPens/OpenTabletArtist/issues/63))
-- **Filters Page** — View, reorder, toggle, and configure the daemon's filter pipeline. ([#64](https://github.com/TheSevenPens/OpenTabletArtist/issues/64))
-- **Console / Log Viewer** — Stream live daemon logs with level coloring, filtering, and pause/resume. ([#65](https://github.com/TheSevenPens/OpenTabletArtist/issues/65))
+- **Bindings Page (remaining)** — Express-key, pen-switch, and wheel bindings ship; still to do are pen tip/eraser *pressure-threshold* controls and a visual pen. ([#63](https://github.com/TheSevenPens/OpenTabletArtist/issues/63))
+- **Filters Page** — A read-only filter list ships; make it reorderable/toggleable with per-filter settings and add/remove. ([#64](https://github.com/TheSevenPens/OpenTabletArtist/issues/64))
 - **Tablet Detection UX** — A 'Detect Tablets' button with scanning feedback and auto-select of new tablets. ([#66](https://github.com/TheSevenPens/OpenTabletArtist/issues/66))
 
 ## Mid-Term (Deepen the Experience)
