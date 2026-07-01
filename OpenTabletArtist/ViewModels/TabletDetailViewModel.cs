@@ -1095,6 +1095,11 @@ public partial class ButtonBinding : ObservableObject
     private void ApplyIfChanged()
     {
         if (_suppressApply || _applyBinding == null) return;
+        // The type dropdown can momentarily push an empty SelectedKind while the cards rebuild (an
+        // Avalonia SelectedValue quirk). Ignore it — otherwise a *bound* card oscillates None↔its
+        // binding and loops the save→reload→rebuild cycle, hanging the app. A real "None" selection
+        // has SelectedKind == "None", not empty, so it's unaffected.
+        if (string.IsNullOrEmpty(SelectedKind)) return;
         // A real type with no value yet isn't applied — the user must pick one. (Also skips the
         // pickers' transient null during init.)
         if (IsKeyboard && string.IsNullOrEmpty(SelectedKey)) return;
