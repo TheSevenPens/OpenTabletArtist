@@ -60,5 +60,36 @@ public static class DeviceReportSample
         return true;
     }
 
+    /// <summary>Wheel-button state per wheel (OTD's <c>IWheelButtonReport.WheelButtons</c> is a jagged
+    /// bool[][]: outer = wheel, inner = that wheel's buttons). Only wheel-button reports carry it.</summary>
+    public static bool TryParseWheelButtons(JObject data, out bool[][] wheelButtons)
+    {
+        wheelButtons = Array.Empty<bool[]>();
+        if (data["Data"]?["WheelButtons"] is not JArray arr) return false;
+        wheelButtons = arr.Select(w =>
+            w is JArray inner ? inner.Select(t => t.Value<bool>()).ToArray() : Array.Empty<bool>()).ToArray();
+        return true;
+    }
+
+    /// <summary>Absolute-wheel positions per wheel (touch rings). Each entry is a 0..max reading or null
+    /// (no touch / no change). From <c>IAbsoluteAnalogReport.AnalogPositions</c>.</summary>
+    public static bool TryParseWheelPositions(JObject data, out uint?[] positions)
+    {
+        positions = Array.Empty<uint?>();
+        if (data["Data"]?["AnalogPositions"] is not JArray arr) return false;
+        positions = arr.Select(t => t.Type == JTokenType.Null ? (uint?)null : t.Value<uint>()).ToArray();
+        return true;
+    }
+
+    /// <summary>Relative-wheel step deltas per wheel (scroll-wheel style). From
+    /// <c>IRelativeAnalogReport.AnalogDeltas</c> — sign gives direction, 0 means no movement.</summary>
+    public static bool TryParseWheelDeltas(JObject data, out int[] deltas)
+    {
+        deltas = Array.Empty<int>();
+        if (data["Data"]?["AnalogDeltas"] is not JArray arr) return false;
+        deltas = arr.Select(t => t.Value<int>()).ToArray();
+        return true;
+    }
+
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 }

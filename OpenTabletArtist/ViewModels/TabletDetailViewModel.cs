@@ -212,6 +212,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             _penInput = new DaemonPenInputSource(penInput);
             _penInput.Sample += OnPenSample;
             _penInput.AuxButtons += OnAuxButtons;
+            _penInput.WheelButtons += OnWheelButtons;
+            _penInput.WheelPositions += OnWheelPositions;
+            _penInput.WheelDeltas += OnWheelDeltas;
         }
 
         // Live-refresh the detection banner + tablet-dependent actions as tablets connect/disconnect
@@ -224,6 +227,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
         Displays = DisplayEnumerator.Enumerate();
         LoadAuxEnabledState();
+        LoadWheelEnabledState();
         RefreshFromProfile();
         RefreshDetectionStatus();
         // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
@@ -371,8 +375,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         NoAuxButtons = newAuxButtons.Count == 0;
         ShowAuxControls = newAuxButtons.Count > 0 && _applyAction != null;
 
-        // Wheel bindings — clockwise / counter-clockwise rotation per wheel.
-        RefreshWheelRows();
+        // Wheel bindings — rotation (CW/CCW) + wheel buttons + thresholds per wheel.
+        RefreshWheels();
 
         // Filters + raw JSON view (also refreshed after a dynamics toggle/edit persists, so the
         // Filters tab reflects the DynamicsFilter's enabled state without a manual Refresh).
@@ -562,61 +566,258 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         });
     }
 
-    // ── Wheel tab: bind each wheel's clockwise / counter-clockwise rotation ──────
-    // Reuses the ExpressKeys ButtonBinding editor — each rotation direction is a single OTD
-    // PluginSettingStore, exactly what AuxKeyBinding.Read/MakeBinding already handle. Starting simple
-    // (just the two rotation directions); wheel buttons, thresholds, and step size can follow.
-    [ObservableProperty] private List<ButtonBinding> _wheelRows = new();
-    public bool HasWheels => WheelRows.Count > 0;
-    public bool NoWheels => WheelRows.Count == 0;
+    // ── Wheel tab: rotation bindings (CW/CCW), wheel buttons, thresholds, live flash ──
+    // Reuses the ExpressKeys ButtonBinding editor — each rotation/button is a single OTD
+    // PluginSettingStore, exactly what AuxKeyBinding.Read/MakeBinding handle.
+    private const string WheelEnabledKey = "WheelBindingsEnabled";
+    private const string WheelBackupKey = "WheelBindingsBackup";
 
-    partial void OnWheelRowsChanged(List<ButtonBinding> value)
+    [ObservableProperty] private List<WheelEditor> _wheels = new();
+    public bool HasWheels => Wheels.Count > 0;
+    public bool NoWheels => Wheels.Count == 0;
+    public bool ShowWheelControls => Wheels.Count > 0 && _applyAction != null;
+
+    /// <summary>Master enable for all wheel bindings (stash/restore, like ExpressKeys).</summary>
+    [ObservableProperty] private bool _wheelEnabled = true;
+    private bool _suppressWheelEnabledApply;
+
+    partial void OnWheelsChanged(List<WheelEditor> value)
     {
         OnPropertyChanged(nameof(HasWheels));
         OnPropertyChanged(nameof(NoWheels));
+        OnPropertyChanged(nameof(ShowWheelControls));
     }
 
-    private void RefreshWheelRows()
+    private void LoadWheelEnabledState()
     {
-        var wheels = _profile.BindingSettings?.WheelBindings;
-        var rows = new List<ButtonBinding>();
-        if (wheels != null)
+        _suppressWheelEnabledApply = true;
+        WheelEnabled = AppSettings.Get(WheelEnabledKey) != "false";
+        _suppressWheelEnabledApply = false;
+    }
+
+    /// <summary>Live wheel bindings, or the stashed set while wheels are suspended (so the greyed
+    /// editor still shows what will come back).</summary>
+    private List<WheelBindingSettings> EffectiveWheelBindings()
+    {
+        if (!WheelEnabled)
         {
-            bool multi = wheels.Count > 1;
-            for (int w = 0; w < wheels.Count; w++)
+            var backup = AppSettings.Get(WheelBackupKey);
+            if (!string.IsNullOrEmpty(backup))
             {
-                rows.Add(MakeWheelRow(w, clockwise: true, wheels[w].ClockwiseRotation, multi));
-                rows.Add(MakeWheelRow(w, clockwise: false, wheels[w].CounterClockwiseRotation, multi));
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<List<WheelBindingSettings>>(backup);
+                    if (restored != null) return restored;
+                }
+                catch { /* corrupt stash — fall through to live */ }
             }
         }
-        WheelRows = rows;
+        return _profile.BindingSettings.WheelBindings;
     }
 
-    private ButtonBinding MakeWheelRow(int wheelIndex, bool clockwise, PluginSettingStore? store, bool multiWheel)
+    private void RefreshWheels()
+    {
+        var wheels = EffectiveWheelBindings();
+        var canEdit = _applyAction != null && WheelEnabled;
+        var list = new List<WheelEditor>();
+        bool multi = wheels.Count > 1;
+        for (int w = 0; w < wheels.Count; w++)
+        {
+            var ws = wheels[w];
+            int wi = w;
+            // Physical rotation runs opposite to OTD's reported direction on tested rings (the Wacom
+            // Intuos Pro ring's position increments counter-clockwise), so our "Clockwise" maps to
+            // OTD's CounterClockwiseRotation and vice versa. WheelEditor's live flash is inverted to
+            // match, and PersistThresholdsAsync swaps the threshold fields the same way.
+            var cw = MakeWheelRow(wi, "Clockwise", ws.CounterClockwiseRotation, canEdit,
+                (_, b) => ApplyWheelRotationAsync(wi, false, b));
+            var ccw = MakeWheelRow(wi, "Counter-clockwise", ws.ClockwiseRotation, canEdit,
+                (_, b) => ApplyWheelRotationAsync(wi, true, b));
+            var buttons = new List<ButtonBinding>();
+            for (int b = 0; b < ws.WheelButtons.Count; b++)
+            {
+                int bi = b;
+                var label = ws.WheelButtons.Count > 1 ? $"Button {b + 1}" : "Wheel button";
+                buttons.Add(MakeWheelRow(wi, label, ws.WheelButtons[b], canEdit,
+                    (_, bind) => ApplyWheelButtonAsync(wi, bi, bind)));
+            }
+            list.Add(new WheelEditor(
+                wheelIndex: wi,
+                title: multi ? $"Wheel {w + 1}" : "Wheel",
+                showTitle: multi,
+                clockwise: cw, counterClockwise: ccw, buttons: buttons,
+                clockwiseThreshold: ws.CounterClockwiseActivationThreshold,       // physical CW ↔ OTD CCW
+                counterClockwiseThreshold: ws.ClockwiseActivationThreshold,
+                stepSizeDegrees: ws.StepSize,
+                applyThreshold: canEdit ? ApplyWheelThresholdAsync : null));
+        }
+        Wheels = list;
+    }
+
+    private ButtonBinding MakeWheelRow(int wheelIndex, string label, PluginSettingStore? store,
+        bool canEdit, Func<int, AuxBinding, Task> apply)
     {
         var binding = AuxKeyBinding.ReadBinding(store); // null = a binding this editor can't model
-        var dir = clockwise ? "Clockwise" : "Counter-clockwise";
-        var label = multiWheel ? $"Wheel {wheelIndex + 1} · {dir}" : dir;
         return new ButtonBinding(
             index: wheelIndex,
             binding: binding ?? AuxBinding.Unbound,
             isOtherBinding: binding == null,
             otherLabel: binding == null ? GetBindingName(store) : "",
-            canEdit: _applyAction != null,
-            applyBinding: (_, b) => ApplyWheelBindingAsync(wheelIndex, clockwise, b),
+            canEdit: canEdit,
+            applyBinding: apply,
             label: label);
     }
 
-    private async Task ApplyWheelBindingAsync(int wheelIndex, bool clockwise, AuxBinding binding)
+    private Task ApplyWheelRotationAsync(int wheelIndex, bool clockwise, AuxBinding binding)
     {
+        if (!WheelEnabled) return Task.CompletedTask;
         var store = AuxKeyBinding.MakeBinding(binding); // null = unbound
-        await ApplySettingsChange(p =>
+        return ApplySettingsChange(p =>
         {
-            var wheels = p.BindingSettings?.WheelBindings;
-            if (wheels == null || wheelIndex < 0 || wheelIndex >= wheels.Count) return;
+            var wheels = p.BindingSettings.WheelBindings;
+            if (wheelIndex < 0 || wheelIndex >= wheels.Count) return;
             if (clockwise) wheels[wheelIndex].ClockwiseRotation = store;
             else wheels[wheelIndex].CounterClockwiseRotation = store;
         });
+    }
+
+    private Task ApplyWheelButtonAsync(int wheelIndex, int buttonIndex, AuxBinding binding)
+    {
+        if (!WheelEnabled) return Task.CompletedTask;
+        var store = AuxKeyBinding.MakeBinding(binding); // null = unbound
+        return ApplySettingsChange(p =>
+        {
+            var wheels = p.BindingSettings.WheelBindings;
+            if (wheelIndex < 0 || wheelIndex >= wheels.Count) return;
+            var buttons = wheels[wheelIndex].WheelButtons;
+            if (buttonIndex >= 0 && buttonIndex < buttons.Count) buttons[buttonIndex] = store!;
+        });
+    }
+
+    // Thresholds change rapidly while a slider is dragged — debounce into one apply (and one rebuild)
+    // so the slider isn't yanked out from under the drag.
+    private readonly Dictionary<(int Wheel, bool Clockwise), double> _pendingThresholds = new();
+    private CancellationTokenSource? _wheelThresholdCts;
+
+    private Task ApplyWheelThresholdAsync(int wheelIndex, bool clockwise, double degrees)
+    {
+        _pendingThresholds[(wheelIndex, clockwise)] = degrees;
+        _wheelThresholdCts?.Cancel();
+        var cts = _wheelThresholdCts = new CancellationTokenSource();
+        _ = DebounceAsync(cts.Token);
+        return Task.CompletedTask;
+
+        async Task DebounceAsync(CancellationToken ct)
+        {
+            try { await Task.Delay(350, ct); }
+            catch (TaskCanceledException) { return; }
+            if (ct.IsCancellationRequested) return;
+            await Dispatcher.UIThread.InvokeAsync(PersistThresholdsAsync);
+        }
+    }
+
+    private async Task PersistThresholdsAsync()
+    {
+        if (_pendingThresholds.Count == 0 || !WheelEnabled) return;
+        var pending = new Dictionary<(int Wheel, bool Clockwise), double>(_pendingThresholds);
+        _pendingThresholds.Clear();
+        await ApplySettingsChange(p =>
+        {
+            var wheels = p.BindingSettings.WheelBindings;
+            foreach (var (key, deg) in pending)
+            {
+                if (key.Wheel < 0 || key.Wheel >= wheels.Count) continue;
+                // physical clockwise ↔ OTD CounterClockwise (see RefreshWheels)
+                if (key.Clockwise) wheels[key.Wheel].CounterClockwiseActivationThreshold = (float)deg;
+                else wheels[key.Wheel].ClockwiseActivationThreshold = (float)deg;
+            }
+        });
+    }
+
+    partial void OnWheelEnabledChanged(bool value)
+    {
+        if (_suppressWheelEnabledApply) return;
+        _ = SetWheelEnabledAsync(value);
+    }
+
+    private async Task SetWheelEnabledAsync(bool enabled)
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(WheelEnabledKey, enabled ? "true" : "false");
+        if (!enabled)
+        {
+            // Suspend: stash the current bindings, then clear them so the wheel does nothing.
+            AppSettings.Set(WheelBackupKey, JsonConvert.SerializeObject(_profile.BindingSettings.WheelBindings));
+            await ApplySettingsChange(ClearWheels);
+        }
+        else
+        {
+            // Resume: restore the stashed rotation/button bindings (if any), then drop the stash.
+            var backup = AppSettings.Get(WheelBackupKey);
+            await ApplySettingsChange(p =>
+            {
+                if (string.IsNullOrEmpty(backup)) return;
+                try
+                {
+                    var restored = JsonConvert.DeserializeObject<List<WheelBindingSettings>>(backup);
+                    if (restored == null) return;
+                    var wheels = p.BindingSettings.WheelBindings;
+                    for (int i = 0; i < wheels.Count && i < restored.Count; i++)
+                    {
+                        wheels[i].ClockwiseRotation = restored[i].ClockwiseRotation;
+                        wheels[i].CounterClockwiseRotation = restored[i].CounterClockwiseRotation;
+                        var live = wheels[i].WheelButtons;
+                        var saved = restored[i].WheelButtons;
+                        for (int b = 0; b < live.Count && b < saved.Count; b++) live[b] = saved[b];
+                    }
+                }
+                catch { /* corrupt stash — leave the (cleared) profile as-is */ }
+            });
+            AppSettings.Set(WheelBackupKey, "");
+        }
+    }
+
+    /// <summary>Remove every wheel binding (rotations + buttons). Also drops any suspended stash.</summary>
+    [RelayCommand]
+    private async Task ClearWheelBindings()
+    {
+        if (_applyAction == null) return;
+        AppSettings.Set(WheelBackupKey, "");
+        await ApplySettingsChange(ClearWheels);
+    }
+
+    private static void ClearWheels(Profile p)
+    {
+        foreach (var w in p.BindingSettings.WheelBindings)
+        {
+            w.ClockwiseRotation = null;
+            w.CounterClockwiseRotation = null;
+            for (int b = 0; b < w.WheelButtons.Count; b++) w.WheelButtons[b] = null!;
+        }
+    }
+
+    // ── Live wheel feedback: flash the matching rotation row / light a pressed wheel button ──
+    private void OnWheelButtons(bool[][] states)
+    {
+        for (int w = 0; w < Wheels.Count; w++)
+        {
+            var buttons = Wheels[w].Buttons;
+            var wheelStates = w < states.Length ? states[w] : Array.Empty<bool>();
+            for (int b = 0; b < buttons.Count; b++)
+                buttons[b].IsPressed = b < wheelStates.Length && wheelStates[b];
+        }
+    }
+
+    private void OnWheelPositions(uint?[] positions)
+    {
+        for (int w = 0; w < Wheels.Count && w < positions.Length; w++)
+            Wheels[w].OnAbsolutePosition(positions[w]);
+    }
+
+    private void OnWheelDeltas(int[] deltas)
+    {
+        for (int w = 0; w < Wheels.Count && w < deltas.Length; w++)
+            Wheels[w].OnRelativeDelta(deltas[w]);
     }
 
     partial void OnAuxButtonsEnabledChanged(bool value)

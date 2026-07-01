@@ -36,6 +36,7 @@ public partial class TabletDetailView : UserControl
         DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
         DisplayMappingTab.IsCheckedChanged += OnLiveTabChanged;
+        WheelTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
     }
 
@@ -46,6 +47,7 @@ public partial class TabletDetailView : UserControl
         DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
         DisplayMappingTab.IsCheckedChanged -= OnLiveTabChanged;
+        WheelTab.IsCheckedChanged -= OnLiveTabChanged;
         Vm?.StopLiveInput();
     }
 
@@ -58,7 +60,7 @@ public partial class TabletDetailView : UserControl
     {
         if (Vm is not { } vm) return;
         if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
-            || DisplayMappingTab.IsChecked == true) vm.StartLiveInput();
+            || DisplayMappingTab.IsChecked == true || WheelTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }
 }
