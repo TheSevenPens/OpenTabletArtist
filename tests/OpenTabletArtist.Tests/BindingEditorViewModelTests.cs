@@ -21,6 +21,29 @@ public class BindingEditorViewModelTests
     }
 
     [Fact]
+    public void Init_Mouse_OpensMouseTabPrefilled()
+    {
+        var binding = new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, "Right", AuxKeyBinding.None);
+        var vm = new BindingEditorViewModel(binding, "Wheel CW");
+
+        Assert.Equal(BindingEditorViewModel.MouseTab, vm.SelectedTabIndex);
+        Assert.Equal("Right", vm.SelectedMouseButton);
+        Assert.True(vm.CanSave);
+    }
+
+    [Fact]
+    public void Save_Mouse_ProducesMouseBinding()
+    {
+        var vm = new BindingEditorViewModel(AuxBinding.Unbound, "x")
+        { SelectedTabIndex = BindingEditorViewModel.MouseTab, SelectedMouseButton = "Left" };
+
+        vm.SaveCommand.Execute(null);
+
+        Assert.Equal(AuxKind.Mouse, vm.Result!.Kind);
+        Assert.Equal("Left", vm.Result.MouseButton);
+    }
+
+    [Fact]
     public void Init_Unbound_OpensKeyboardTab_CannotSaveYet()
     {
         var vm = new BindingEditorViewModel(AuxBinding.Unbound, "ExpressKey 1");
