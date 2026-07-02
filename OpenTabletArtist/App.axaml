@@ -17,6 +17,8 @@
             </ResourceDictionary.MergedDictionaries>
 
             <conv:InverseBoolConverter x:Key="InvBool" />
+            <conv:EnumEqualsConverter x:Key="EnumEquals" />
+            <conv:NotNullConverter x:Key="NotNull" />
             <conv:NonEmptyToBoolConverter x:Key="NonEmptyToBool" />
             <conv:AllFalseBoolConverter x:Key="AllFalseBool" />
             <conv:NotFirstAndSecondBoolConverter x:Key="NotFirstAndSecondBool" />
@@ -37,6 +39,7 @@
         <DataTemplate DataType="{x:Type vm:TestViewModel}"><views:TestView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:LogViewModel}"><views:LogView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DaemonViewModel}"><views:DaemonView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:WindowsInkViewModel}"><views:WindowsInkView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PluginsViewModel}"><views:PluginsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ThemeViewModel}"><views:ThemeView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>

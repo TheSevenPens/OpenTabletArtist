@@ -100,6 +100,10 @@
                                      IsChecked="{Binding IsDaemon, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Daemon}"
                                      Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="WINDOWS INK PLUGIN"
+                                     IsChecked="{Binding IsWindowsInk, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding WindowsInk}"
+                                     Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET COMPATIBILITY"
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"

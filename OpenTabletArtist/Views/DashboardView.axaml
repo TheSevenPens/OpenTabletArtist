@@ -11,6 +11,39 @@
         <StackPanel>
             <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->
 
+            <!-- Needs attention (#317): the health-check catalog, worst severity first. Hidden entirely
+                 when everything is healthy, so Home stays quiet when there's nothing to do. Each card's
+                 Fix button runs the relevant action in place or jumps to where the setting lives. -->
+            <StackPanel IsVisible="{Binding Health.HasIssues}" Margin="0,0,0,4">
+                <TextBlock Text="NEEDS ATTENTION" Classes="SectionLabel" Margin="0,0,0,8" />
+                <ItemsControl ItemsSource="{Binding Health.Issues}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="GlassPanel" Margin="0,0,0,8" Padding="16"
+                                    BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="statusMark" VerticalAlignment="Center"
+                                               Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
+                                               Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
+                                               Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
+                                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" Classes="CardTitle" FontSize="13" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detail}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="{Binding Remediation.ActionLabel}"
+                                            IsVisible="{Binding Remediation, Converter={StaticResource NotNull}}"
+                                            Command="{Binding $parent[ItemsControl].DataContext.RemediateCommand}"
+                                            CommandParameter="{Binding}"
+                                            Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12"
+                                            VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
             <!-- Conflicting-driver alert: shown only when the daemon flagged real conflicts (#245). -->
             <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
                     BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
@@ -201,93 +234,6 @@
                                    Margin="0,0,0,4"
                                    IsVisible="{Binding VmultiInstalling}" />
                     </WrapPanel>
-                </Grid>
-            </Border>
-
-            <!-- Windows Ink Status -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                        <!-- Title -->
-                        <TextBlock Classes="CardTitle" Text="Kuuube's Windows Ink plugin" FontSize="13"
-                                   TextWrapping="Wrap" />
-
-                        <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding WinInkInstalled}" />
-                            <TextBlock Text="{Binding WinInkInstallStatusText}" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-
-                        <!-- Active status: whether the active profile actually uses Windows Ink output mode -->
-                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
-                                    IsVisible="{Binding WinInkInstalled}">
-                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding HasWindowsInk}" />
-                            <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-
-                        <!-- Supported driver version vs running OTD version -->
-                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
-                                    IsVisible="{Binding WinInkInstalled}">
-                            <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                       Text="{Binding WinInkSupportedDriverVersion, StringFormat='Supported driver: v{0}'}" />
-                            <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0"
-                                       Text="{Binding CurrentOtdVersion, StringFormat='· OTD: v{0}'}" />
-                        </StackPanel>
-
-                        <!-- Compatibility mismatch warning -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                    IsVisible="{Binding WinInkVersionMismatch}">
-                            <TextBlock Classes="warning" />
-                            <TextBlock FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource WarningBrush}"
-                                       Text="{Binding CurrentOtdVersion, StringFormat='May be incompatible with OpenTabletDriver v{0}'}" />
-                        </StackPanel>
-
-                        <!-- Not-installed hint -->
-                        <TextBlock Text="Install to enable pressure &amp; tilt in drawing apps"
-                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
-                                   TextWrapping="Wrap" Margin="0,4,0,0"
-                                   IsVisible="{Binding !WinInkInstalled}" />
-
-                        <!-- Update-check result -->
-                        <TextBlock Text="{Binding WinInkUpdateCheckStatus}" FontSize="10" FontStyle="Italic"
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
-                                   IsVisible="{Binding HasWinInkUpdateCheckStatus}" />
-
-                        <!-- Action buttons -->
-                        <WrapPanel Margin="0,12,0,0">
-                            <Button Content="Install" Theme="{StaticResource AccentButton}"
-                                    Command="{Binding InstallWindowsInkCommand}"
-                                    Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                    IsVisible="{Binding ShowWinInkInstall}" />
-                            <Button Content="Check for Update" Theme="{StaticResource GhostButton}"
-                                    Command="{Binding CheckForWindowsInkUpdateCommand}"
-                                    Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                    IsVisible="{Binding ShowWinInkCheckUpdate}" />
-                            <Button Content="{Binding WinInkLatestVersion, StringFormat='Install Update (v{0})'}"
-                                    Theme="{StaticResource AccentButton}"
-                                    Command="{Binding InstallWindowsInkUpdateCommand}"
-                                    Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                    IsVisible="{Binding ShowWinInkInstallUpdate}" />
-                            <Button Content="Uninstall" Theme="{StaticResource DeleteButton}"
-                                    Command="{Binding UninstallWindowsInkCommand}"
-                                    Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                    IsVisible="{Binding ShowWinInkUninstall}" />
-                            <TextBlock Text="{Binding WinInkBusyStatus}" FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"
-                                       Margin="0,0,8,4"
-                                       IsVisible="{Binding WinInkBusy}" />
-                        </WrapPanel>
-                    </StackPanel>
-
-                    <!-- Refresh plugin info -->
-                    <Button Grid.Column="1" VerticalAlignment="Top" Content="Refresh"
-                            Command="{Binding RefreshWindowsInkCommand}"
-                            IsVisible="{Binding ShowWinInkRefresh}"
-                            ToolTip.Tip="Refresh plugin info"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
                 </Grid>
             </Border>
 

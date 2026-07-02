@@ -13,6 +13,27 @@ public class InverseBoolConverter : IValueConverter
         => value is true ? false : true;
 }
 
+/// <summary>True when the value's string form equals the ConverterParameter — used to light a status
+/// class from an enum (e.g. a health severity → the error/warning/neutral dot color). (#317)</summary>
+public class EnumEqualsConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => string.Equals(value?.ToString(), parameter?.ToString(), StringComparison.Ordinal);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>True when the value is non-null (drives IsVisible for an optional element). (#317)</summary>
+public class NotNullConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value != null;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
 public class NonEmptyToBoolConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
