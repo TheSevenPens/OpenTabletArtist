@@ -102,7 +102,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _conflicts = new DriverConflictMonitor(_session.Daemon, _session);
 
         // Health-check catalog (#317): shared source of the "Needs attention" issues for Home + pages.
-        _health = new HealthService(_session, _session);
+        // Takes the conflict monitor too so a conflicting driver surfaces as a health issue.
+        _health = new HealthService(_session, _session, _conflicts);
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
@@ -113,7 +114,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
         Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, TabletsOverview,
-            _conflicts, () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
+            () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);

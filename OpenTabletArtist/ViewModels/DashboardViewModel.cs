@@ -29,8 +29,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private readonly Action? _openVMulti;
 
     public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet,
-        HealthService health, TabletsOverviewViewModel tablets,
-        DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null,
+        HealthService health, TabletsOverviewViewModel tablets, Action? openDriverCleanup = null,
         Action? openWindowsInk = null, Action? openVMulti = null)
     {
         _session = session;
@@ -41,15 +40,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _openVMulti = openVMulti;
         Health = health;
         TabletsOverview = tablets;
-        Conflicts = conflicts ?? new DriverConflictMonitor();
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
     }
-
-    /// <summary>Conflicting-driver detection (#245); the Home alert card binds to this and the button
-    /// jumps to the Driver cleanup page.</summary>
-    public DriverConflictMonitor Conflicts { get; }
 
     /// <summary>The health-check catalog (#317); the Home "Needs attention" list binds to
     /// <c>Health.Issues</c>, and <see cref="RemediateCommand"/> dispatches each card's Fix button.</summary>
@@ -73,6 +67,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             case RemediationArea.VMulti:
                 _openVMulti?.Invoke(); // the fix lives on the VMulti Driver page now (#317)
                 break;
+            case RemediationArea.DriverCleanup:
+                _openDriverCleanup?.Invoke(); // remove the conflicting driver on the Driver cleanup page
+                break;
             case RemediationArea.Daemon:
                 if (issue.Id == "daemon.foreign") RestartDaemonCommand.Execute(null);
                 else RefreshConnectionCommand.Execute(null);
@@ -82,9 +79,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 break;
         }
     }
-
-    [RelayCommand]
-    private void OpenDriverCleanup() => _openDriverCleanup?.Invoke();
 
     // --- Connection + device state forwarded from the session (mirrored below) ---
     public bool IsConnected => _session.IsConnected;

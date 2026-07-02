@@ -28,6 +28,8 @@ public enum RemediationArea
     WindowsInk,
     /// <summary>The VMulti Driver page under Advanced (install / uninstall). (#317)</summary>
     VMulti,
+    /// <summary>The Driver cleanup page (remove a conflicting manufacturer driver). (#317)</summary>
+    DriverCleanup,
     /// <summary>A specific tablet's Pen Behavior (output mode) tab.</summary>
     TabletPenBehavior,
 }
@@ -70,6 +72,10 @@ public sealed record HealthInputs
     /// <summary>The VMulti virtual-pen driver is installed. Null = not yet detected (no issue raised until
     /// detection reports), so startup doesn't flash a false "not installed".</summary>
     public bool? VMultiInstalled { get; init; }
+    /// <summary>The daemon flagged a conflicting manufacturer tablet driver.</summary>
+    public bool HasDriverConflict { get; init; }
+    /// <summary>At least one conflicting driver blocks tablet detection (→ Broken instead of Misconfigured).</summary>
+    public bool BlockingDriverConflict { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
 }
 
@@ -136,6 +142,17 @@ public static class HealthEvaluator
                 "VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt " +
                 "through. Without it, pen pressure and tilt won't reach your apps.",
                 new Remediation("Fix", RemediationArea.VMulti)));
+        }
+
+        // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet ---
+        if (i.HasDriverConflict)
+        {
+            issues.Add(new HealthIssue("driver.conflict",
+                i.BlockingDriverConflict ? HealthSeverity.Broken : HealthSeverity.Misconfigured,
+                "Conflicting tablet driver detected",
+                "A manufacturer tablet driver (Wacom, Huion, XP-Pen, …) is present and can interfere " +
+                "with OpenTabletDriver detecting your tablet. Review and remove it in Driver cleanup.",
+                new Remediation("Fix", RemediationArea.DriverCleanup)));
         }
 
         // --- Recommendations ---

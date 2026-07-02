@@ -56,6 +56,7 @@ Surfaces:
 | `winink.notInstalled` | Broken | Windows Ink page |
 | `winink.versionMismatch` | Misconfigured | Windows Ink page |
 | `vmulti.notInstalled` | Broken | VMulti page |
+| `driver.conflict` | Broken if blocking, else Misconfigured | Driver cleanup page |
 | `tablet.notWinInk:<name>` | Misconfigured | that tablet's Pen Behavior |
 | `daemon.foreign` | Recommendation | Daemon |
 
@@ -77,13 +78,22 @@ VMulti's virtual HID device — see OTD's own README ("Windows Ink … and VMult
 - **`daemon.disconnected` is suppressed while a connect is in flight**, so startup doesn't flash a
   scary "not connected" card.
 
-## Deferred (phases 2–3)
+## Done in phase 2
 
-- **Local-in-tab unified cards** — render the shared `IssuesFor(...)` cards at the top of the relevant
-  page (replacing the bespoke local warnings like the Pen Behavior "needs Windows Ink / Fix"). The
-  per-tablet issue already dual-surfaces via that existing local Fix, so this is a consistency pass.
-- **Calibration-stale check** — needs the per-profile mapping-fingerprint plumbing currently living in
-  `TabletDetailViewModel`; extract a shared helper first.
-- **Fold `DriverConflictMonitor` into the framework** — it still renders as its own Home alert.
-- **Deep-link to a specific inner tab** (e.g. Calibration) — not needed yet because the tablet issue's
-  fix is on the default (Pen Behavior) tab; add a `SelectedTab` mechanism when calibration lands.
+- **Folded `DriverConflictMonitor` into the catalog** (`driver.conflict`) so Home has a *single*
+  attention area instead of a separate conflict alert card. Blocking conflicts → Broken, else
+  Misconfigured; Fix → the Driver cleanup page. `HealthService` subscribes to the monitor.
+
+## Decided against / skipped
+
+- **Local-in-tab unified cards — dropped.** Windows Ink and VMulti now live on dedicated pages that
+  already have full status + management, so re-showing a health card there would be redundant. The only
+  place local surfacing would add value is the tablet Pen Behavior "not using Windows Ink" warning,
+  which already has its own Fix affordance. Not worth a framework for one case.
+- **Calibration-stale check — skipped.** Already surfaced locally in the Calibration tab, needs
+  fingerprint plumbing to hoist, and it's a Recommendation not a blocker.
+
+## Someday
+
+- **Catalog growth** — more conditions worth detecting: tablet detected but has no profile, daemon
+  version mismatch vs. our bundled OTD, "working but not recommended" settings (the issue's gray areas).
