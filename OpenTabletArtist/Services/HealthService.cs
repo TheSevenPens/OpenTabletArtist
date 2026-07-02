@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +21,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
+    private readonly DriverConflictMonitor _conflicts;
 
     // VMulti detection is async P/Invoke owned by the VMulti page, so it's pushed in rather than read
     // here. Null until the first detection reports, so no false "not installed" on startup.
@@ -30,14 +32,18 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _hasIssues;
 
-    public HealthService(IConnectionState connection, IDeviceData device, WindowsInkPluginService? winInk = null)
+    public HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts,
+        WindowsInkPluginService? winInk = null)
     {
         _connection = connection;
         _device = device;
+        _conflicts = conflicts;
         _winInk = winInk ?? new WindowsInkPluginService();
 
         _device.DataLoaded += Reevaluate;
         _connection.PropertyChanged += OnConnectionChanged;
+        _conflicts.PropertyChanged += OnConflictsChanged;
+        _conflicts.Drivers.CollectionChanged += OnConflictDriversChanged;
         Reevaluate();
     }
 
@@ -49,6 +55,13 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             or nameof(IConnectionState.IsForeignDaemon))
             Reevaluate();
     }
+
+    private void OnConflictsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DriverConflictMonitor.HasConflicts)) Reevaluate();
+    }
+
+    private void OnConflictDriversChanged(object? sender, NotifyCollectionChangedEventArgs e) => Reevaluate();
 
     /// <summary>Feed the latest VMulti detection result (from the VMulti page) and re-evaluate.</summary>
     public void SetVMultiInstalled(bool installed)
@@ -106,6 +119,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             WinInkInstalled = installed,
             WinInkVersionMismatch = mismatch,
             VMultiInstalled = _vmultiInstalled,
+            HasDriverConflict = _conflicts.HasConflicts,
+            BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
             Tablets = tablets,
         };
     }
@@ -114,5 +129,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     {
         _device.DataLoaded -= Reevaluate;
         _connection.PropertyChanged -= OnConnectionChanged;
+        _conflicts.PropertyChanged -= OnConflictsChanged;
+        _conflicts.Drivers.CollectionChanged -= OnConflictDriversChanged;
     }
 }

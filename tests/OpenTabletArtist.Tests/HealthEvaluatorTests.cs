@@ -18,6 +18,8 @@ public class HealthEvaluatorTests
         WinInkInstalled = true,
         WinInkVersionMismatch = false,
         VMultiInstalled = true,
+        HasDriverConflict = false,
+        BlockingDriverConflict = false,
         Tablets = new List<TabletHealthInput> { new("Tablet A", Detected: true, OutputModeIsWinInk: true) },
     };
 
@@ -113,6 +115,24 @@ public class HealthEvaluatorTests
         var issues = HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = false, WinInkInstalled = false });
         Assert.True(Has(issues, "vmulti.notInstalled"));
         Assert.True(Has(issues, "winink.notInstalled"));
+    }
+
+    [Fact]
+    public void DriverConflict_NonBlocking_IsMisconfigured_WithCleanupTarget()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { HasDriverConflict = true }));
+        Assert.Equal("driver.conflict", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Equal(RemediationArea.DriverCleanup, issue.Remediation!.Area);
+    }
+
+    [Fact]
+    public void DriverConflict_Blocking_IsBroken()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(
+            Healthy() with { HasDriverConflict = true, BlockingDriverConflict = true }));
+        Assert.Equal("driver.conflict", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
     }
 
     [Fact]
