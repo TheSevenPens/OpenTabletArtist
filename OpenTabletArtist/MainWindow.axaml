@@ -43,16 +43,12 @@
                 <!-- Nav Items (labels in all caps). Most pages sit at the root; the less-common ones
                      are tucked under a collapsible ADVANCED group at the bottom. -->
                 <StackPanel Margin="8,0,8,0">
+                    <!-- HOME lands on the merged home + tablets page; the per-tablet children nest under
+                         it (paired ∪ connected). Click a child to edit it in-place; right-click to
+                         forget. Empty-state message when there are none. (#317) -->
                     <RadioButton Theme="{StaticResource NavButton}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
-                    <!-- TABLETS: a header that lands on the overview, with an always-shown child per
-                         tablet (paired ∪ connected). Click a child to edit it in-place; right-click to
-                         forget. Empty-state message when there are none. -->
-                    <RadioButton Theme="{StaticResource NavButton}" Content="TABLETS"
-                                 IsChecked="{Binding IsTabletsOverview, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletsOverview}"
-                                 Margin="0,2,0,0" />
                     <ItemsControl ItemsSource="{Binding Tablets}" Margin="12,0,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

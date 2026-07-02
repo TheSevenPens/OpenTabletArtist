@@ -51,7 +51,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public VMultiViewModel VMulti { get; }
     public ThemeViewModel Theme { get; } = new();
 
-    /// <summary>Landing page for the Tablets group (header click / nothing selected).</summary>
+    /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
+    /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; } = new();
 
     /// <summary>The per-tablet nav children — paired ∪ connected, ordered like the old list (detected
@@ -78,7 +79,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
-    public bool IsTabletsOverview => ReferenceEquals(CurrentPage, TabletsOverview);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
     public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
@@ -112,8 +112,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
-        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, _conflicts,
-            () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
+        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, TabletsOverview,
+            _conflicts, () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -144,7 +144,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (!_tabletDetails.TryGetValue(item.Name, out var vm))
         {
             var profile = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == item.Name);
-            if (profile == null) { CurrentPage = TabletsOverview; return; }
+            if (profile == null) { CurrentPage = Dashboard; return; }
             vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(item.Name));
             _tabletDetails[item.Name] = vm;
         }
@@ -167,7 +167,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             await _session.ApplyAndSaveSettingsAsync(settings); // reload rebuilds the list + prunes the VM
         }
         if (string.Equals(_selectedTabletName, name, StringComparison.OrdinalIgnoreCase))
-            CurrentPage = TabletsOverview;
+            CurrentPage = Dashboard;
     }
 
     /// <summary>Reconcile the per-tablet nav children + cached page VMs with the session's tablets.</summary>
@@ -185,7 +185,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             var vm = _tabletDetails[key];
             _tabletDetails.Remove(key);
-            if (ReferenceEquals(CurrentPage, vm)) CurrentPage = TabletsOverview;
+            if (ReferenceEquals(CurrentPage, vm)) CurrentPage = Dashboard;
             vm.Dispose();
         }
 
@@ -242,7 +242,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         OnPropertyChanged(nameof(IsDashboard));
-        OnPropertyChanged(nameof(IsTabletsOverview));
         OnPropertyChanged(nameof(IsPresets));
         OnPropertyChanged(nameof(IsConfigs));
         OnPropertyChanged(nameof(IsDriverCleanup));

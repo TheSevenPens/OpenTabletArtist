@@ -29,7 +29,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private readonly Action? _openVMulti;
 
     public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet,
-        HealthService health, DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null,
+        HealthService health, TabletsOverviewViewModel tablets,
+        DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null,
         Action? openWindowsInk = null, Action? openVMulti = null)
     {
         _session = session;
@@ -39,6 +40,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _openWindowsInk = openWindowsInk;
         _openVMulti = openVMulti;
         Health = health;
+        TabletsOverview = tablets;
         Conflicts = conflicts ?? new DriverConflictMonitor();
 
         _session.PropertyChanged += OnSessionPropertyChanged;
@@ -52,6 +54,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// <summary>The health-check catalog (#317); the Home "Needs attention" list binds to
     /// <c>Health.Issues</c>, and <see cref="RemediateCommand"/> dispatches each card's Fix button.</summary>
     public HealthService Health { get; }
+
+    /// <summary>The tablets overview (list + supported-tablets link), merged into Home so it's the single
+    /// landing page — the former standalone Tablets page (#307) was folded in here.</summary>
+    public TabletsOverviewViewModel TabletsOverview { get; }
 
     /// <summary>Perform an issue's fix: run the relevant command in place (install/update/reconnect) or
     /// navigate to the tablet whose setting needs changing.</summary>
