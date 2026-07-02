@@ -5,10 +5,8 @@ using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using OpenTabletDriver.Desktop;
-using OpenTabletDriver.Desktop.Profiles;
-using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Domain.Health;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
@@ -29,18 +27,22 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     // the modal dialog for a Home card's "Settings".
     private readonly Action<string> _navigateToTablet;
     private readonly Action? _openDriverCleanup;
+    // Jump to the Windows Ink Plugin page (Advanced) — where install/update now lives (#317).
+    private readonly Action? _openWindowsInk;
     private readonly VMultiDetector _vmulti = new();
     private readonly VMultiInstaller _vmultiInstaller = new();
-    private readonly WindowsInkPluginService _winInk = new();
     private readonly CancellationTokenSource _cts = new();
 
     public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet,
-        DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null)
+        HealthService health, DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null,
+        Action? openWindowsInk = null)
     {
         _session = session;
         _dialogs = dialogs;
         _navigateToTablet = navigateToTablet;
         _openDriverCleanup = openDriverCleanup;
+        _openWindowsInk = openWindowsInk;
+        Health = health;
         Conflicts = conflicts ?? new DriverConflictMonitor();
 
         _session.PropertyChanged += OnSessionPropertyChanged;
@@ -52,6 +54,31 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// <summary>Conflicting-driver detection (#245); the Home alert card binds to this and the button
     /// jumps to the Driver cleanup page.</summary>
     public DriverConflictMonitor Conflicts { get; }
+
+    /// <summary>The health-check catalog (#317); the Home "Needs attention" list binds to
+    /// <c>Health.Issues</c>, and <see cref="RemediateCommand"/> dispatches each card's Fix button.</summary>
+    public HealthService Health { get; }
+
+    /// <summary>Perform an issue's fix: run the relevant command in place (install/update/reconnect) or
+    /// navigate to the tablet whose setting needs changing.</summary>
+    [RelayCommand]
+    private void Remediate(HealthIssue? issue)
+    {
+        if (issue?.Remediation is not { } r) return;
+        switch (r.Area)
+        {
+            case RemediationArea.WindowsInk:
+                _openWindowsInk?.Invoke(); // the fix lives on the Windows Ink Plugin page now (#317)
+                break;
+            case RemediationArea.Daemon:
+                if (issue.Id == "daemon.foreign") RestartDaemonCommand.Execute(null);
+                else RefreshConnectionCommand.Execute(null);
+                break;
+            case RemediationArea.TabletPenBehavior:
+                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName);
+                break;
+        }
+    }
 
     [RelayCommand]
     private void OpenDriverCleanup() => _openDriverCleanup?.Invoke();
@@ -68,7 +95,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public bool HasDaemonVersion => _session.HasDaemonVersion;
     public bool CanStartDaemon => _session.CanStartDaemon;
     public bool HasTablet => _session.HasTablet;
-    public bool HasWindowsInk => _session.HasWindowsInk;
 
     // Lifecycle-operation feedback, forwarded from the session (mirrored via PropertyChanged).
     public bool IsDaemonBusy => _session.IsDaemonBusy;
@@ -87,10 +113,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public IAsyncRelayCommand RestartDaemonCommand => _session.RestartDaemonCommand;
     public IRelayCommand LaunchOtdUxCommand => _session.LaunchOtdUxCommand;
 
-    public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
-
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
-    [ObservableProperty] private string _windowsInkStatusText = "Not configured";
 
     /// <summary>One card per connected tablet (#190); empty when none, where the view shows the
     /// "No tablet detected" placeholder instead.</summary>
@@ -101,8 +124,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
         if (e.PropertyName is nameof(IDeviceData.HasTablet) or nameof(IDeviceData.TabletName))
             TabletStatusText = _session.HasTablet ? $"{_session.TabletName} detected" : "No tablet detected";
-        if (e.PropertyName == nameof(IDeviceData.HasWindowsInk))
-            WindowsInkStatusText = _session.HasWindowsInk ? "Plugin active" : "Plugin not active in current profile";
         // Active tablet switched (e.g. from the tray or Test/Diagnostics) → refresh the card badge.
         if (e.PropertyName == nameof(IDeviceData.ActiveTabletName))
             RebuildTabletCards();
@@ -111,10 +132,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private void OnSessionDataLoaded()
     {
         RebuildTabletCards();
-
-        // The Windows Ink card reflects the daemon's plugin directory from the last data load.
-        _winInkPluginDirectory = _winInk.GetPluginDirectoryPath(_session.PluginDirectory);
-        RefreshWindowsInkInstalledStatus();
     }
 
     // One card per connected tablet (#190). The active-tablet badge is only meaningful when there's a
@@ -315,252 +332,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         {
             _vmultiInstaller.StatusChanged -= onStatus;
             VmultiInstalling = false;
-        }
-    }
-
-    // --- Windows Ink plugin card ---
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkInstall))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkUninstall))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
-    private bool _winInkInstalled;
-    [ObservableProperty] private string _winInkInstallStatusText = "Checking...";
-    [ObservableProperty] private string _winInkPluginVersion = "";
-    [ObservableProperty] private string _winInkSupportedDriverVersion = "";
-    [ObservableProperty] private bool _winInkVersionMismatch;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
-    private bool _winInkUpdateAvailable;
-    [ObservableProperty] private string _winInkLatestVersion = "";
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasWinInkUpdateCheckStatus))]
-    private string _winInkUpdateCheckStatus = "";
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkInstall))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkUninstall))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkCheckUpdate))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkInstallUpdate))]
-    [NotifyPropertyChangedFor(nameof(ShowWinInkRefresh))]
-    private bool _winInkBusy;
-    [ObservableProperty] private string _winInkBusyStatus = "";
-
-    private PluginMetadata? _winInkLatest;
-    private string _winInkPluginDirectory = "";
-
-    public bool ShowWinInkInstall => !WinInkInstalled && !WinInkBusy;
-    public bool ShowWinInkUninstall => WinInkInstalled && !WinInkBusy;
-    public bool ShowWinInkCheckUpdate => WinInkInstalled && !WinInkUpdateAvailable && !WinInkBusy;
-    public bool ShowWinInkInstallUpdate => WinInkInstalled && WinInkUpdateAvailable && !WinInkBusy;
-    public bool ShowWinInkRefresh => !WinInkBusy;
-    public bool HasWinInkUpdateCheckStatus => !string.IsNullOrEmpty(WinInkUpdateCheckStatus);
-
-    private string? WinInkPluginParentDirectory =>
-        string.IsNullOrEmpty(_winInkPluginDirectory) ? null : Path.GetDirectoryName(_winInkPluginDirectory);
-
-    private void RefreshWindowsInkInstalledStatus()
-    {
-        var installed = _winInk.ReadInstalled(WinInkPluginParentDirectory);
-
-        if (installed == null)
-        {
-            WinInkInstalled = false;
-            WinInkInstallStatusText = "Not installed";
-            WinInkPluginVersion = "";
-            WinInkSupportedDriverVersion = "";
-            WinInkVersionMismatch = false;
-            WinInkUpdateAvailable = false;
-            WinInkUpdateCheckStatus = "";
-            return;
-        }
-
-        WinInkInstalled = true;
-        WinInkPluginVersion = installed.PluginVersion?.ToString() ?? "?";
-        WinInkInstallStatusText = $"v{WinInkPluginVersion} installed";
-        WinInkSupportedDriverVersion = installed.SupportedDriverVersion?.ToString() ?? "?";
-        WinInkVersionMismatch = !WindowsInkPluginService.IsCompatible(installed);
-
-        RecomputeWinInkUpdate();
-    }
-
-    private async Task FetchLatestWindowsInkAsync()
-    {
-        _winInkLatest = await _winInk.GetLatestCompatibleAsync();
-        WinInkLatestVersion = _winInkLatest?.PluginVersion?.ToString() ?? "";
-        RecomputeWinInkUpdate();
-    }
-
-    private void RecomputeWinInkUpdate()
-    {
-        if (!WinInkInstalled)
-        {
-            WinInkUpdateAvailable = false;
-            return;
-        }
-
-        var installed = _winInk.ReadInstalled(WinInkPluginParentDirectory);
-        WinInkUpdateAvailable = WinInkUpdateState.IsUpdateAvailable(
-            installed?.PluginVersion, _winInkLatest?.PluginVersion);
-    }
-
-    [RelayCommand]
-    private async Task CheckForWindowsInkUpdate()
-    {
-        if (WinInkBusy) return;
-        WinInkBusy = true;
-        WinInkBusyStatus = "Checking for updates...";
-        WinInkUpdateCheckStatus = "";
-        try
-        {
-            await FetchLatestWindowsInkAsync();
-            WinInkUpdateCheckStatus = WinInkUpdateAvailable
-                ? ""
-                : _winInkLatest == null
-                    ? "Couldn't reach the plugin repository"
-                    : $"Up to date (v{WinInkPluginVersion})";
-        }
-        finally
-        {
-            WinInkBusy = false;
-            WinInkBusyStatus = "";
-        }
-    }
-
-    [RelayCommand]
-    private async Task RefreshWindowsInk()
-    {
-        if (WinInkBusy) return;
-        WinInkBusy = true;
-        WinInkBusyStatus = "Refreshing...";
-        WinInkUpdateCheckStatus = "";
-        try
-        {
-            RefreshWindowsInkInstalledStatus();
-            await FetchLatestWindowsInkAsync();
-        }
-        finally
-        {
-            WinInkBusy = false;
-            WinInkBusyStatus = "";
-        }
-    }
-
-    [RelayCommand]
-    private async Task InstallWindowsInk() => await InstallOrUpgradeWindowsInkAsync(isUpgrade: false);
-
-    [RelayCommand]
-    private async Task InstallWindowsInkUpdate() => await InstallOrUpgradeWindowsInkAsync(isUpgrade: true);
-
-    private async Task InstallOrUpgradeWindowsInkAsync(bool isUpgrade)
-    {
-        if (WinInkBusy) return;
-        if (!_session.IsConnected)
-        {
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                "The OpenTabletDriver daemon isn't connected. Start it first, then try again.");
-            return;
-        }
-
-        WinInkBusy = true;
-        WinInkBusyStatus = isUpgrade ? "Finding latest version..." : "Finding plugin...";
-        WinInkUpdateCheckStatus = "";
-        try
-        {
-            _winInkLatest ??= await _winInk.GetLatestCompatibleAsync();
-            if (_winInkLatest == null)
-            {
-                await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                    $"Couldn't find a Windows Ink release compatible with OpenTabletDriver v{CurrentOtdVersion}.\n\n" +
-                    "Check your internet connection and try again.");
-                return;
-            }
-
-            WinInkBusyStatus = isUpgrade
-                ? $"Installing update v{_winInkLatest.PluginVersion}..."
-                : $"Installing v{_winInkLatest.PluginVersion}...";
-
-            var ok = await _session.Daemon.DownloadPluginAsync(_winInkLatest);
-            await _session.Daemon.LoadPluginsAsync();
-
-            RefreshWindowsInkInstalledStatus();
-            await FetchLatestWindowsInkAsync();
-
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                ok
-                    ? $"Windows Ink plugin v{WinInkPluginVersion} is now installed.\n\n" +
-                      "Set a tablet's output mode to \"Windows Ink\" to enable pressure and tilt."
-                    : "The plugin download did not complete successfully. Check the daemon log for details.");
-        }
-        catch (Exception ex)
-        {
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
-        }
-        finally
-        {
-            WinInkBusy = false;
-            WinInkBusyStatus = "";
-        }
-    }
-
-    [RelayCommand]
-    private async Task UninstallWindowsInk()
-    {
-        if (WinInkBusy) return;
-
-        var confirmed = await _dialogs.ShowConfirmAsync(
-            "Uninstall Windows Ink Plugin",
-            "This removes Kuuube's Windows Ink plugin from OpenTabletDriver.\n\n" +
-            "Any tablet using a Windows Ink output mode will fall back to a standard " +
-            "pointer mode, and pen pressure/tilt will stop working until you reinstall it.\n\n" +
-            "Do you want to proceed?");
-        if (!confirmed)
-            return;
-
-        WinInkBusy = true;
-        WinInkBusyStatus = "Uninstalling...";
-        try
-        {
-            bool ok;
-            try
-            {
-                ok = await _session.Daemon.UninstallPluginAsync(_winInkPluginDirectory);
-            }
-            catch
-            {
-                ok = TryDeletePluginDirectory(_winInkPluginDirectory);
-            }
-
-            await _session.Daemon.LoadPluginsAsync();
-            RefreshWindowsInkInstalledStatus();
-
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                ok && !WinInkInstalled
-                    ? "The Windows Ink plugin has been uninstalled."
-                    : "The plugin could not be fully removed. Check the daemon log for details.");
-        }
-        catch (Exception ex)
-        {
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin", $"Error: {ex.Message}");
-        }
-        finally
-        {
-            WinInkBusy = false;
-            WinInkBusyStatus = "";
-        }
-    }
-
-    private static bool TryDeletePluginDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, recursive: true);
-            return true;
-        }
-        catch
-        {
-            return false;
         }
     }
 

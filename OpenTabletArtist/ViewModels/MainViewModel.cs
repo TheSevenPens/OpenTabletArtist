@@ -21,6 +21,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppSession _session;
     private readonly IDialogService _dialogs;
     private readonly DriverConflictMonitor _conflicts;
+    private readonly HealthService _health;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -46,6 +47,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public LogViewModel Log { get; }
     public PluginsViewModel Plugins { get; }
     public DaemonViewModel Daemon { get; }
+    public WindowsInkViewModel WindowsInk { get; }
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Landing page for the Tablets group (header click / nothing selected).</summary>
@@ -67,7 +69,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, Daemon) || ReferenceEquals(page, Configs)
+        ReferenceEquals(page, Daemon) || ReferenceEquals(page, WindowsInk) || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
         || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
         || ReferenceEquals(page, Theme);
@@ -83,6 +85,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsLog => ReferenceEquals(CurrentPage, Log);
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
     public bool IsDaemon => ReferenceEquals(CurrentPage, Daemon);
+    public bool IsWindowsInk => ReferenceEquals(CurrentPage, WindowsInk);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -95,13 +98,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Conflicting-driver detection (#245), shared by the Driver cleanup page and the Home alert.
         _conflicts = new DriverConflictMonitor(_session.Daemon, _session);
 
+        // Health-check catalog (#317): shared source of the "Needs attention" issues for Home + pages.
+        _health = new HealthService(_session, _session);
+
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
-        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _conflicts, () => Navigate(DriverCleanup));
+        WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
+        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, _conflicts,
+            () => Navigate(DriverCleanup), () => Navigate(WindowsInk));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -239,6 +247,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsLog));
         OnPropertyChanged(nameof(IsPlugins));
         OnPropertyChanged(nameof(IsDaemon));
+        OnPropertyChanged(nameof(IsWindowsInk));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }
@@ -253,9 +262,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Test.Dispose();           // stops the daemon debug stream if running
         Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
+        WindowsInk.Dispose();     // unsubscribes DataLoaded + connection sync
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         DriverCleanup.Dispose();
         _conflicts.Dispose();
+        _health.Dispose();        // unsubscribes from DataLoaded + connection changes
     }
 }
 
