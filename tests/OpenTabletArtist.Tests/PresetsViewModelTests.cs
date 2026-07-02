@@ -15,6 +15,8 @@ public class PresetsViewModelTests
         public Settings? CurrentSettings { get; set; }
         public Settings? Applied { get; private set; }
         public Task ApplyAndSaveSettingsAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
+        public Task ApplyLiveOnlyAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
+        public Task RestoreDefaultAsync() => Task.CompletedTask;
     }
 
     private static string TempDir()

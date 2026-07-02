@@ -80,6 +80,11 @@ public interface ISettingsCoordinator
     Settings? CurrentSettings { get; }
     /// <summary>Applies settings to the daemon, persists to disk (best-effort), and reloads.</summary>
     Task ApplyAndSaveSettingsAsync(Settings settings);
+    /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
+    /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
+    Task ApplyLiveOnlyAsync(Settings settings);
+    /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).</summary>
+    Task RestoreDefaultAsync();
 }
 
 /// <summary>Tablet/device data produced by the session's data load (#41 PR 2).</summary>
@@ -717,6 +722,33 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
         SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
 
+        await LoadDataAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task ApplyLiveOnlyAsync(Settings settings)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        ProfileFilterMaintenance.CleanLegacyFilters(settings);
+        _settings = settings;
+        // Apply live, reload — but deliberately do NOT TrySave: this is a temporary override, so the
+        // saved settings.json default must stay intact (#320). No save chip either; the override cue owns
+        // the feedback.
+        await _daemon.SetSettingsAsync(settings);
+        await LoadDataAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task RestoreDefaultAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        // Re-read the saved default from disk (untouched by a live-only override) and apply it.
+        if (!string.IsNullOrEmpty(SettingsFilePath)
+            && _settingsStore.TryLoad(SettingsFilePath, out var def) && def != null)
+        {
+            _settings = def;
+            await _daemon.SetSettingsAsync(def);
+        }
         await LoadDataAsync();
     }
 

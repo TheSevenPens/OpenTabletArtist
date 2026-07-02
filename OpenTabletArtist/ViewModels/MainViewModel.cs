@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogs;
     private readonly DriverConflictMonitor _conflicts;
     private readonly HealthService _health;
+    private readonly ProfileSwitchService _profileSwitch;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -29,6 +30,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Daemon connection state + Start/Stop/Restart commands — surfaced for the tray menu (#72).</summary>
     public IConnectionState Connection => _session;
+
+    /// <summary>Active-profile override state (#320) — the shell binds this for the "Profile override" cue.</summary>
+    public ProfileSwitchService ProfileSwitch => _profileSwitch;
 
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
@@ -104,6 +108,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Health-check catalog (#317): shared source of the "Needs attention" issues for Home + pages.
         // Takes the conflict monitor too so a conflicting driver surfaces as a health issue.
         _health = new HealthService(_session, _session, _conflicts);
+
+        // Profile switching (#320): the shared live-only switch path used by hotkeys (and later per-app).
+        _profileSwitch = new ProfileSwitchService(_session, _settingsStore, () => _session.PresetDirectory);
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
