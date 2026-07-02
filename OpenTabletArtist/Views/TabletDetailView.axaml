@@ -73,7 +73,7 @@
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
             <StackPanel Width="150" Spacing="2">
-                <RadioButton Content="OUTPUT MODE" IsChecked="True" x:Name="OutputModeTab"
+                <RadioButton Content="PEN BEHAVIOR" IsChecked="True" x:Name="OutputModeTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="DISPLAY MAPPING" x:Name="DisplayMappingTab"
                              Theme="{StaticResource TabRadioButton}"
@@ -106,21 +106,24 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #OutputModeTab.IsChecked}">
             <StackPanel>
-                <!-- Output Mode -->
+                <!-- Movement: a plain-language Absolute vs Relative choice (both are Windows Ink modes). -->
                 <Border Classes="GlassPanel" Padding="16">
                     <StackPanel>
-                        <TextBlock Text="OUTPUT MODE" Classes="SectionLabel" />
-                        <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
-                            <TextBlock Grid.Column="0" Text="Windows Ink" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" Width="90" />
-                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAbsoluteMode}"
-                                          OnContent="Absolute" OffContent="Relative" />
-                        </Grid>
-                        <TextBlock Text="Absolute is recommended for drawing — the pen maps directly to your screen. Both modes use Windows Ink, so pressure &amp; tilt work either way."
-                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="90,2,0,0"
-                                   TextWrapping="Wrap" />
+                        <TextBlock Text="MOVEMENT" Classes="SectionLabel" />
+                        <StackPanel Margin="0,10,0,0" Spacing="8">
+                            <RadioButton GroupName="Movement" FontSize="13"
+                                         IsChecked="{Binding IsAbsoluteMode, Mode=TwoWay}">
+                                <TextBlock TextWrapping="Wrap"><Run Text="Normal pen movement (aka " /><Run Text="ABSOLUTE" FontWeight="Bold" /><Run Text=" mode) — good for artists" /></TextBlock>
+                            </RadioButton>
+                            <RadioButton GroupName="Movement" FontSize="13"
+                                         IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=TwoWay}">
+                                <TextBlock TextWrapping="Wrap"><Run Text="Mouse-like movement (aka " /><Run Text="RELATIVE" FontWeight="Bold" /><Run Text=" mode) — often used with games" /></TextBlock>
+                            </RadioButton>
+                        </StackPanel>
+
+                        <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                                   FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,8,0,0"
+                                   FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,12,0,0"
                                    TextWrapping="Wrap"
                                    IsVisible="{Binding CanFixOutputMode}" />
                         <Button Content="Fix" Theme="{StaticResource AccentButton}"
@@ -279,19 +282,22 @@
                         <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only)."
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,6,0,8" TextWrapping="Wrap" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0" Spacing="8">
-                            <ComboBox ItemsSource="{Binding CalibrationModeChoices}"
-                                      SelectedItem="{Binding SelectedCalibrationMode}"
-                                      IsVisible="{Binding CanCalibrate}" VerticalAlignment="Center" MinWidth="170"
-                                      ToolTip.Tip="Corners is quick and corrects perspective; a finer grid corrects localized distortion across the screen">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Label}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                        <StackPanel Spacing="10">
+                            <!-- Capture density: quick corner method or a finer grid. Radio buttons so
+                                 all options are visible at a glance (replaces the old dropdown). -->
+                            <StackPanel Spacing="6" IsVisible="{Binding CanCalibrate}">
+                                <RadioButton GroupName="CalibrationMode" Content="4 point" FontSize="13"
+                                             IsChecked="{Binding IsCalibration4Point, Mode=TwoWay}"
+                                             ToolTip.Tip="Quick — tap the four corners; corrects perspective (homography)" />
+                                <RadioButton GroupName="CalibrationMode" Content="9 point" FontSize="13"
+                                             IsChecked="{Binding IsCalibration9Point, Mode=TwoWay}"
+                                             ToolTip.Tip="A 3×3 grid; corrects localized distortion across the screen" />
+                                <RadioButton GroupName="CalibrationMode" Content="25 point" FontSize="13"
+                                             IsChecked="{Binding IsCalibration25Point, Mode=TwoWay}"
+                                             ToolTip.Tip="A 5×5 grid; the finest correction across the screen" />
+                            </StackPanel>
                             <Button Content="Calibrate…" Command="{Binding CalibrateCommand}"
-                                    IsEnabled="{Binding CanRunCalibration}"
+                                    IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Left"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
                                     ToolTip.Tip="Tap the targets to correct where the pen lands vs. where you see it (Absolute mode only)" />
                         </StackPanel>

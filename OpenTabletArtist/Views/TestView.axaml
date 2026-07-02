@@ -36,13 +36,13 @@
                 <TextBlock Text="Tablet" FontSize="12" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
                 <ComboBox ItemsSource="{Binding TabletNames}" SelectedItem="{Binding SelectedTablet}"
-                          MinWidth="200" />
+                          MinWidth="200" FontSize="13" />
             </StackPanel>
 
             <!-- Spell out which dynamics are actually altering the pen, so it's clear why the stroke
                  behaves as it does (#184). -->
             <WrapPanel Orientation="Horizontal" IsVisible="{Binding DynamicsActive}" Margin="0,6,0,0">
-                <TextBlock Text="Affecting your pen:" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"
+                <TextBlock Text="Affecting your pen:" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
                 <Border Classes="DynChip" IsVisible="{Binding CurveActive}">
                     <TextBlock Text="Pressure curve" />
@@ -53,82 +53,88 @@
                 <Border Classes="DynChip" IsVisible="{Binding PositionSmoothingActive}">
                     <TextBlock Text="Position smoothing" />
                 </Border>
-                <TextBlock Text="No curve or smoothing — behaves linear" FontSize="11" VerticalAlignment="Center"
+                <TextBlock Text="No curve or smoothing — behaves linear" FontSize="12" VerticalAlignment="Center"
                            IsVisible="{Binding DynamicsNoOp}" Foreground="{DynamicResource TextMutedBrush}" />
             </WrapPanel>
 
             <!-- Pointer-only mode paints nothing, so active dynamics are invisible — warn (#183). -->
             <TextBlock Text="Pointer-only mode doesn't draw, so you won't see the dynamics above. Pick a pressure Mode to see them."
                        IsVisible="{Binding PointerOnlyWithDynamics}" Margin="0,6,0,0"
-                       FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}" />
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}" />
 
-            <!-- Controls -->
-            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <ToggleSwitch OffContent="App input (Windows Ink)" OnContent="Driver input (OTD)"
-                              IsChecked="{Binding UseDriverInput}"
-                              VerticalAlignment="Center" Margin="0,0,20,0" />
-                <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
-                          MinWidth="170" VerticalAlignment="Center" Margin="0,0,20,0" />
-                <Button Content="Clear" Command="{Binding ClearCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="14,6" />
-                <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
-                        ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Test" />
-            </WrapPanel>
+            <!-- Controls + live readouts, grouped in one card so they read as a single panel instead
+                 of floating text over the themed backdrop. -->
+            <Border Classes="GlassPanel" Padding="16" Margin="0,12,0,0">
+                <StackPanel>
+                    <!-- Controls -->
+                    <WrapPanel Orientation="Horizontal">
+                        <ToggleSwitch OffContent="App input (Windows Ink)" OnContent="Driver input (OTD)"
+                                      IsChecked="{Binding UseDriverInput}" FontSize="13"
+                                      VerticalAlignment="Center" Margin="0,0,20,0" />
+                        <TextBlock Text="Mode" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
+                                  MinWidth="170" FontSize="13" VerticalAlignment="Center" Margin="0,0,20,0" />
+                        <Button Content="Clear" Command="{Binding ClearCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="14,6" />
+                        <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
+                                ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Test" />
+                    </WrapPanel>
 
-            <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
-                 shift the row; monospace values keep the digits from jittering. -->
-            <UniformGrid Columns="5" Margin="0,10,0,0">
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Canvas X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding CanvasXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
+                         shift the row; monospace values keep the digits from jittering. -->
+                    <UniformGrid Columns="5" Margin="0,14,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Canvas X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding CanvasXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Canvas Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding CanvasYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Pressure:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding PressureText}" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Raw X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding RawXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Raw Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding RawYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Twist:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding TwistText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Tilt X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding TiltXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Tilt Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding TiltYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Azimuth:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding AzimuthText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Altitude:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding AltitudeText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
+                             blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2"
+                                    ToolTip.Tip="Driver-reported hover height (0–255) — shown in Driver input, for tablets that report proximity.">
+                            <TextBlock Text="Hover:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding HoverText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                    </UniformGrid>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Canvas Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding CanvasYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Pressure:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding PressureText}" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Raw X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding RawXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Raw Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding RawYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Twist:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TwistText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Tilt X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TiltXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Tilt Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding TiltYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Azimuth:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding AzimuthText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Altitude:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding AltitudeText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-                <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
-                     blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
-                <StackPanel Orientation="Horizontal" Margin="0,2"
-                            ToolTip.Tip="Driver-reported hover height (0–255) — shown in Driver input, for tablets that report proximity.">
-                    <TextBlock Text="Hover:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <TextBlock Text="{Binding HoverText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
-                </StackPanel>
-            </UniformGrid>
+            </Border>
         </StackPanel>
 
         <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
@@ -141,7 +147,7 @@
                 <Border IsVisible="{Binding DriverCanvasDisabled}"
                         Background="#E6F5F5F0" Padding="32">
                     <TextBlock Text="{Binding DriverDisabledNote}"
-                               FontSize="13" MaxWidth="420" TextWrapping="Wrap"
+                               FontSize="12" MaxWidth="420" TextWrapping="Wrap"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                TextAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
