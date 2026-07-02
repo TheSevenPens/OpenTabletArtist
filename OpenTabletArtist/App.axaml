@@ -30,7 +30,6 @@
          its VM as DataContext directly (no per-view DataContext re-point). -->
     <Application.DataTemplates>
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:TabletsOverviewViewModel}"><views:TabletsOverviewView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TabletDetailViewModel}"><views:TabletDetailView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PresetsViewModel}"><views:PresetsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CustomTabletConfigsViewModel}"><views:CustomTabletConfigsView /></DataTemplate>
