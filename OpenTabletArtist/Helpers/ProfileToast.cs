@@ -28,16 +28,23 @@ public static class ProfileToast
     {
         Dismiss();
 
-        var accent = Brush("AccentBrush", Color.FromRgb(0x7C, 0x93, 0xFF));
+        // A HUD shown over arbitrary apps must not inherit translucent theme brushes (the backdrop bleeds
+        // through and the text washes out). Use a fixed opaque dark card with white text so it's legible
+        // over anything — light drawing canvas, browser, or the pink Sakura backdrop.
+        var accent = Brush("AccentBrush", Color.FromRgb(0x8F, 0xA6, 0xFF));
 
         var card = new Border
         {
-            Background = Brush("GlassBgBrush", Color.FromArgb(0xF2, 0x20, 0x22, 0x2A)),
+            Background = new SolidColorBrush(Color.FromRgb(0x22, 0x24, 0x30)),
             BorderBrush = accent,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(16, 12),
+            BorderThickness = new Thickness(1.5),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(18, 13),
             Opacity = 0,
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                Blur = 22, OffsetY = 5, Color = Color.FromArgb(0x66, 0, 0, 0),
+            }),
             Child = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -57,7 +64,7 @@ public static class ProfileToast
                         Text = message,
                         FontSize = 14,
                         FontWeight = FontWeight.SemiBold,
-                        Foreground = Brush("TextPrimaryBrush", Colors.White),
+                        Foreground = new SolidColorBrush(Color.FromRgb(0xF4, 0xF5, 0xFA)),
                         VerticalAlignment = VerticalAlignment.Center,
                     },
                 },
@@ -77,7 +84,8 @@ public static class ProfileToast
             ShowInTaskbar = false,
             Topmost = true,
             ShowActivated = false, // never grab focus from the app the user is drawing in
-            Content = new Border { Padding = new Thickness(6), Child = card },
+            // Outer padding leaves room for the card's drop shadow (transparent window would clip it).
+            Content = new Border { Padding = new Thickness(20), Child = card },
         };
 
         window.WindowDecorations = WindowDecorations.None;
