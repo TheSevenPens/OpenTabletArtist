@@ -28,13 +28,21 @@ public class HoverFilter : IPositionedPipelineElement<IDeviceReport>
      DefaultPropertyValue(false)]
     public bool NearProximityOnly { get; set; }
 
+    // #318: the hover-distance limiter is temporarily disabled while we validate its behavior — early
+    // user feedback suggested it wasn't clearly helping and could cause more confusion than it solves.
+    // While this is false the filter passes every report through unchanged, so it has no effect even
+    // on a profile that still has it enabled; the Hover tab in the UI is hidden to match. To bring the
+    // feature back, set this to true and unhide the Hover tab (TabletDetailView.axaml). A field (not a
+    // const) so the gating logic below stays compiled — re-enabling is a one-line change.
+    private static readonly bool LimiterEnabled = false;
+
     public PipelinePosition Position => PipelinePosition.PreTransform;
 
     public event Action<IDeviceReport>? Emit;
 
     public void Consume(IDeviceReport value)
     {
-        if (value is IProximityReport proximity)
+        if (LimiterEnabled && value is IProximityReport proximity)
         {
             // Hovering past the limit → drop the report so the cursor holds its last position.
             if (proximity.HoverDistance > MaxHoverDistance)

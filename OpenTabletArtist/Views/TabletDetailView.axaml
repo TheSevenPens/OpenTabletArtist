@@ -93,7 +93,11 @@
                              IsVisible="{Binding HasWheels}" />
                 <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="HOVER" x:Name="HoverTab"
+                <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
+                     tab (and its still-present content below) is unreachable while IsVisible=False, and
+                     the HoverFilter plugin is neutered so it has no effect. Set IsVisible back to True
+                     (and flip HoverFilter.LimiterEnabled) to restore. -->
+                <RadioButton Content="HOVER" x:Name="HoverTab" IsVisible="False"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="FILTERS" x:Name="FiltersTab"
                              Theme="{StaticResource TabRadioButton}" />
