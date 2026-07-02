@@ -19,6 +19,18 @@ public class PresetsViewModelTests
         public Task RestoreDefaultAsync() => Task.CompletedTask;
     }
 
+    private sealed class FakeProfileHotkeys : IProfileHotkeys
+    {
+        public HotkeyChord? GetChord(string snapshot) => null;
+        public HotkeySetResult SetHotkey(string snapshot, HotkeyChord chord) => HotkeySetResult.Ok;
+        public void ClearHotkey(string snapshot) { }
+        public void Sync(System.Collections.Generic.IEnumerable<string> snapshotNames) { }
+        public void RenameSnapshot(string oldName, string newName) { }
+    }
+
+    private static ProfileSwitchService NewSwitch() =>
+        new(new FakeSettingsCoordinator(), new SettingsFileStore(), () => "");
+
     private static string TempDir()
     {
         var d = Path.Combine(Path.GetTempPath(), $"otdpresets_{Guid.NewGuid():N}");
@@ -32,7 +44,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.LoadAsync();
@@ -49,7 +61,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData(), new FakeDialogService())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -68,7 +80,7 @@ public class PresetsViewModelTests
         try
         {
             var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
-            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData(), new FakeDialogService()) { PresetDirectory = dir };
+            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch()) { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);   // writes Snapshot.json
             await vm.LoadPresetCommand.ExecuteAsync("Snapshot");
@@ -84,7 +96,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService())
+            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -98,7 +110,7 @@ public class PresetsViewModelTests
     public void DataLoaded_PicksUpDirectoryFromSession()
     {
         var device = new FakeDeviceData { PresetDirectory = @"C:\some\presets" };
-        var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), device, new FakeDialogService());
+        var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), device, new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch());
         Assert.Equal("", vm.PresetDirectory);
 
         device.RaiseDataLoaded(); // handler sets PresetDirectory synchronously, then rescans (fire-and-forget)

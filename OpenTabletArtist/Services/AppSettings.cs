@@ -42,6 +42,18 @@ public static class AppSettings
     {
         var obj = Load();
         obj[key] = value;
+        Persist(obj);
+    }
+
+    /// <summary>Removes a key (no-op if absent). Used to clear a snapshot's hotkey mapping (#320).</summary>
+    public static void Remove(string key)
+    {
+        var obj = Load();
+        if (obj.Remove(key)) Persist(obj);
+    }
+
+    private static void Persist(Newtonsoft.Json.Linq.JObject obj)
+    {
         var dir = Path.GetDirectoryName(SettingsPath)!;
         if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         File.WriteAllText(SettingsPath, obj.ToString());

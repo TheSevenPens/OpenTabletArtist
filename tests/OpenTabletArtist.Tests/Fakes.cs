@@ -22,6 +22,8 @@ internal sealed class FakeDialogService : IDialogService
     public bool ConfirmResult { get; set; }
     /// <summary>Result returned by <see cref="ShowInputAsync"/> (default null = cancelled).</summary>
     public string? InputResult { get; set; }
+    /// <summary>Result returned by <see cref="ShowHotkeyCaptureAsync"/> (default null = cancelled).</summary>
+    public HotkeyChord? HotkeyResult { get; set; }
 
     public bool ShownDynamicsOnly { get; set; }
 
@@ -46,6 +48,8 @@ internal sealed class FakeDialogService : IDialogService
 
     public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
         => Task.FromResult(InputResult);
+
+    public Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null) => Task.FromResult(HotkeyResult);
 
     public Task ShowTextViewerAsync(string title, string content)
     {

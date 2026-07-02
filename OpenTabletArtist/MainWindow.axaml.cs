@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
@@ -13,11 +14,39 @@ public partial class MainWindow : Window
     private bool _allowClose;
     // One-time "still running in the tray" hint, persisted so it only shows on the first close (#72).
     private bool _trayHintShown = AppSettings.Get("TrayHintShown") == "true";
+    private ProfileSwitchService? _switchSub; // tracked so we can unsubscribe on DataContext change / close
 
     public MainWindow()
     {
         InitializeComponent();
-        Closed += (_, _) => (DataContext as MainViewModel)?.Dispose();
+        // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
+        // DataContextChanged from that assignment fired inside InitializeComponent, before we could
+        // handle it. Wire the switch subscription now for the current VM, and keep the handler for
+        // any later DataContext change. (#320)
+        OnDataContextChanged(this, EventArgs.Empty);
+        DataContextChanged += OnDataContextChanged;
+        Closed += (_, _) =>
+        {
+            if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
+            ProfileToast.Dismiss();
+            (DataContext as MainViewModel)?.Dispose();
+        };
+    }
+
+    // Follow the VM's ProfileSwitchService so a hotkey-driven switch pops a transient toast, even when
+    // the app is in the tray / behind the drawing app (#320).
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
+        _switchSub = (DataContext as MainViewModel)?.ProfileSwitch;
+        if (_switchSub != null) _switchSub.Switched += OnProfileSwitched;
+    }
+
+    private void OnProfileSwitched(string? snapshot)
+    {
+        // The Switched continuation may resume off the UI thread; marshal before touching windows.
+        Dispatcher.UIThread.Post(() => ProfileToast.Show(
+            snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”"));
     }
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
