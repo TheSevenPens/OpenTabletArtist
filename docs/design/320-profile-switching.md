@@ -1,6 +1,6 @@
 # 320 — Switching profiles (hotkeys + per-app auto-switch)
 
-**Status:** Design for review
+**Status:** Reviewed & approved (Cursor) — ready to implement Part 1
 **Issue:** #320
 **Related:** #167 (per-app settings — Part 2 *is* this), #321 (persistence model), #72 (tray/background mode, shipped)
 
@@ -49,8 +49,8 @@ apply to daemon **+ persist to `settings.json`** + reload). For profile switchin
 - An **auto-switch** (Part 2) must **not** persist — otherwise every app change would overwrite
   `settings.json` with that app's config, and your "real" settings would be lost. It needs a
   **live-apply-only** path (apply to the daemon, do **not** write `settings.json`). We don't have one yet.
-- A **hotkey switch** (Part 1) is a judgment call (see Open questions): treat it as a *temporary
-  override* (live-apply-only, reverts on restart) or a *sticky* change (persist)?
+- A **hotkey switch** (Part 1) is also **live-apply-only** (decided in review) — a temporary override
+  that reverts on restart, with a distinct "Profile override" cue.
 
 This also answers the issue's "which profile am I in while editing" question: **you always edit the
 live/active settings.** Under live-apply-only switching, edits made while an app-profile is active are
@@ -111,10 +111,40 @@ feel it mid-stroke). Mitigations: debounce + defer-until-pen-up.
 3. **Latency/mid-stroke spike** for Part 2.
 4. **Part 2** (per-app auto-switch, per #167) if the spike is green.
 
-## Open questions (for review)
+## Resolved by design review (Cursor, approved)
 
-- **Persist or live-apply-only on a hotkey switch?** (Temporary override vs sticky.) Recommendation:
-  live-apply-only for consistency with Part 2, with a clear "unsaved override" cue.
-- **Per-snapshot hotkeys, a cycle hotkey, or both** to start?
-- **Global hotkey mechanism**: RegisterHotKey (message-only window) — acceptable?
-- **Toast surface**: in-app overlay + tray balloon — enough, or is a Windows toast worth it?
+| Question | Decision |
+|---|---|
+| Persist or live-apply on a hotkey switch? | **Live-apply-only** (same as Part 2). A hotkey switch is a temporary "I'm drawing now" override, not a new default. Persisting would fight #321's auto-save (edits would land in the wrong on-disk file) and surprise users on restart. |
+| Per-snapshot vs cycle hotkeys? | **Per-snapshot bindings first** (map to Saved Settings cards). Cycle is a cheap later add once the switch service exists. |
+| Global hotkey mechanism? | **Message-only HWND + `RegisterHotKey`.** Standard, low-privilege, fires while minimized to the tray. Avoid `WH_KEYBOARD_LL` unless forced. |
+| Toast surface? | **In-app transient chip + tray balloon** for v1. Reuse the save-chip styling but with distinct copy/icon so it isn't confused with #321 "Saved". Skip native Windows toasts unless asked. |
+
+### The "profile override" cue
+While a live-only override is active (daemon ≠ what's on disk), show a **distinct, persistent
+"Profile override: <name>"** cue — separate from the #321 save chip — so it's legible that the active
+config isn't the saved default. Clears on RestoreDefault / explicit save.
+
+## Part 1 implementation requirements (from review)
+
+1. **Shared `ProfileSwitchService`** (name TBD) that both hotkeys and (later) `PerAppSwitcher` use:
+   load snapshot by name → `ApplyLiveOnlyAsync` / `RestoreDefaultAsync` → raise `ActiveSnapshotChanged`
+   for the toast + override cue. Hotkeys must **not** wire directly to `AppSession` from the Saved
+   Settings page.
+2. **Build `ApplyLiveOnlyAsync` + `RestoreDefaultAsync` now, with tests** — a variant of
+   `ApplyAndSaveSettingsAsync` that applies to the daemon + reloads but does **not** write
+   `settings.json`. Part 2's spike reuses this (not a throwaway). Include **restore-on-exit** on tray
+   Quit / window close.
+3. **Guard `PresetsViewModel.LoadPreset` / `UpdatePreset` while an override is active** — loading today
+   goes through the persist+reload path, and "Update snapshot" could capture the wrong (overridden)
+   config. Disable or warn, mirroring #167's stale-UI handling.
+4. **Hotkey mapping lifecycle** — snapshot rename/delete must update/invalidate `Hotkey:*` mappings
+   (mirror the dangling-snapshot handling in #167's `PerAppProfileStore`).
+5. **Chord conflicts** — `RegisterHotKey` fails if another app owns the chord; surface a clear error in
+   the capture UI, never fail silently.
+
+Small spike within Part 1: confirm hotkeys fire with **only the tray icon** visible (main window hidden).
+
+## Part 2 note (from review)
+No doc changes; keep the #167 pointer + the latency/mid-stroke spike as the gate. Run the spike with the
+debug stream **on and off** (the pen-defer path), per the #167 review.
