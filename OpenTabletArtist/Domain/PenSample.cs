@@ -6,6 +6,8 @@ namespace OpenTabletArtist.Domain;
 /// <see cref="Pressure"/> is 0..1; tilt/twist are in degrees. <see cref="RawX"/>/<see cref="RawY"/>
 /// carry the source's pre-normalization coordinates (tablet units for Driver input, control DIPs
 /// for App input) — shown in the readouts to help debug coordinate mapping.
+/// <see cref="HoverDistance"/> is the driver's 0–255 hover height (null for App input and for
+/// tablets/reports that don't carry proximity data).
 /// </summary>
 public readonly record struct PenSample(
     double X,
@@ -16,7 +18,8 @@ public readonly record struct PenSample(
     double TiltX,
     double TiltY,
     double Twist,
-    bool IsDown);
+    bool IsDown,
+    int? HoverDistance = null);
 
 /// <summary>Where the Test canvas gets its pen data.</summary>
 public enum PenInputSourceKind

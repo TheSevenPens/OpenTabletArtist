@@ -22,6 +22,20 @@ public class HoverProfileTests
         Assert.NotNull(read);
         Assert.Equal(80, read!.MaxHoverDistance);
         Assert.True(read.Enabled);
+        Assert.False(read.NearProximityOnly); // defaults off when not specified
+    }
+
+    [Fact]
+    public void Write_NearProximity_RoundTrips()
+    {
+        var settings = SettingsFor("Tab");
+
+        HoverProfile.Write(settings, "Tab", maxHoverDistance: 100, enable: true, nearProximityOnly: true);
+        var read = HoverProfile.Read(settings, "Tab");
+
+        Assert.NotNull(read);
+        Assert.True(read!.NearProximityOnly);
+        Assert.Equal(100, read.MaxHoverDistance);
     }
 
     [Fact]

@@ -36,6 +36,9 @@ public static class DeviceReportSample
         var tiltX = tilt?["X"]?.Value<double>() ?? 0;
         var tiltY = tilt?["Y"]?.Value<double>() ?? 0;
 
+        // Hover height (0–255) is only on proximity-carrying reports; null when absent.
+        int? hover = report?["HoverDistance"] is { } h ? h.Value<int>() : null;
+
         sample = new PenSample(
             X: Clamp01(x / maxX),
             Y: Clamp01(y / maxY),
@@ -45,7 +48,8 @@ public static class DeviceReportSample
             TiltX: tiltX,
             TiltY: tiltY,
             Twist: 0, // OTD device reports don't carry barrel twist
-            IsDown: pressure > 0);
+            IsDown: pressure > 0,
+            HoverDistance: hover);
         return true;
     }
 

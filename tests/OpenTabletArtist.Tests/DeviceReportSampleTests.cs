@@ -36,6 +36,23 @@ public class DeviceReportSampleTests
     }
 
     [Fact]
+    public void TryParse_ReadsHoverDistance_WhenPresent()
+    {
+        var r = Report();
+        r["Data"]!["HoverDistance"] = 42;
+
+        Assert.True(DeviceReportSample.TryParse(r, out var s));
+        Assert.Equal(42, s.HoverDistance);
+    }
+
+    [Fact]
+    public void TryParse_HoverDistanceNull_WhenAbsent()
+    {
+        Assert.True(DeviceReportSample.TryParse(Report(), out var s));
+        Assert.Null(s.HoverDistance);
+    }
+
+    [Fact]
     public void TryParse_ClampsToUnitRange()
     {
         var r = Report();

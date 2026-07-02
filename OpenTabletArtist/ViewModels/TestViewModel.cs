@@ -155,6 +155,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _azimuthText = "—";
     [ObservableProperty] private string _altitudeText = "—";
     [ObservableProperty] private string _twistText = "—";
+    /// <summary>Driver-reported hover height (0–255). Blank in App input (the OS pointer doesn't carry
+    /// it); numeric only in Driver input. The readout is always shown so the grid layout is stable.</summary>
+    [ObservableProperty] private string _hoverText = "—";
 
     /// <summary>Driver-mode samples; the view forwards these to the canvas.</summary>
     public event Action<PenSample>? DriverSample;
@@ -182,6 +185,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
         AzimuthText = DiagnosticsMath.TiltAzimuthDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
         AltitudeText = DiagnosticsMath.TiltAltitudeDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
         TwistText = s.Twist.ToString("0.0") + "°";
+        // Only refresh hover when the report actually carried it, so reports without proximity data
+        // don't blank out the last-known value mid-hover.
+        if (s.HoverDistance is { } hover) HoverText = hover.ToString("0");
     }
 
     private void OnDriverSample(PenSample s) => DriverSample?.Invoke(s);
@@ -283,6 +289,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
         // The position-source state depends on the toggle.
         OnPropertyChanged(nameof(DriverPositioned));
         OnPropertyChanged(nameof(DriverCanvasDisabled));
+        HoverText = "—"; // hover is driver-only; blank it in App input and don't carry a stale value across a switch
         if (!_active) return;
         _ = value ? _driver.StartAsync() : _driver.StopAsync();
     }
