@@ -31,18 +31,6 @@
                                 <TextBlock Text="{Binding LastModified}" FontSize="11"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,2,0,0" />
-                                <!-- Assigned global hotkey (#320), with an inline clear. -->
-                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
-                                            IsVisible="{Binding HasHotkey}">
-                                    <TextBlock Text="{Binding HotkeyDisplay, StringFormat='⌨ {0}'}" FontSize="11"
-                                               FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                                               VerticalAlignment="Center" />
-                                    <Button Content="✕" ToolTip.Tip="Clear hotkey"
-                                            Command="{Binding $parent[ItemsControl].DataContext.ClearHotkeyCommand}"
-                                            CommandParameter="{Binding Name}"
-                                            Theme="{StaticResource GhostButton}" Padding="6,1" FontSize="10"
-                                            VerticalAlignment="Center" />
-                                </StackPanel>
                             </StackPanel>
 
                             <WrapPanel Grid.Column="1" VerticalAlignment="Center">
@@ -52,11 +40,6 @@
                                         Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Update" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
-                                        CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
-                                <Button Content="Hotkey…" Theme="{StaticResource GhostButton}"
-                                        ToolTip.Tip="Assign a global keyboard shortcut that switches to this snapshot"
-                                        Command="{Binding $parent[ItemsControl].DataContext.AssignHotkeyCommand}"
                                         CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" FontSize="12" />
                                 <Button Content="Rename" Theme="{StaticResource GhostButton}"

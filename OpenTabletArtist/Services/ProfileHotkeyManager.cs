@@ -111,6 +111,10 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
     public void Dispose()
     {
         _hotkeys.HotkeyPressed -= OnHotkeyPressed;
-        _hotkeys.Dispose();
+        // Drop our own registrations but NOT the service — it's shared with the monitor-cycle hotkey and
+        // owned/disposed by the shell (#89).
+        foreach (var id in _idToSnapshot.Keys.ToList()) _hotkeys.Unregister(id);
+        _idToSnapshot.Clear();
+        _snapshotToId.Clear();
     }
 }
