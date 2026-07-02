@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
@@ -181,6 +182,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var p in ordered)
             Tablets.Add(new TabletNavItemViewModel(p.Tablet, p.IsDetected,
                 item => ForgetTabletByNameAsync(item.Name)));
+
+        // Rebuild the richer overview rows (same order) — status, last-seen, specs, navigable (#307).
+        var specByName = new Dictionary<string, DetectedTablet>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in _session.DetectedTablets) specByName[d.Name] = d;
+        TabletsOverview.Tablets = ordered
+            .Select(p =>
+            {
+                specByName.TryGetValue(p.Tablet, out var d);
+                var specs = d != null ? $"{d.Area} · {d.Pressure} pressure levels · {d.Buttons} buttons" : "";
+                return new TabletOverviewItemViewModel(p.Tablet, p.IsDetected, p.StatusText,
+                    p.LastSeenDetail, specs, () => NavigateToTabletByName(p.Tablet));
+            })
+            .ToList();
 
         OnPropertyChanged(nameof(HasTablets));
         TabletsOverview.HasTablets = ordered.Count > 0;
