@@ -112,6 +112,10 @@
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
                                      Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="PER-APP PROFILES"
+                                     IsChecked="{Binding IsPerApp, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
+                                     Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
                                      IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"

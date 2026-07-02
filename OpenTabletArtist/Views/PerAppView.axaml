@@ -1,0 +1,61 @@
+<UserControl x:Class="OpenTabletArtist.Views.PerAppView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- DataContext is the PerAppViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="820" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="PER-APP PROFILES" />
+
+        <Border Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18">
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource AccentBrush}"
+                       Text="Experimental — timing spike. This measures how fast the driver can switch profiles when you change apps, to decide if automatic per-app switching will feel smooth. It alternates between the two snapshots below on every app change and reports the switch time." />
+        </Border>
+
+        <!-- Not enough snapshots yet -->
+        <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasEnoughSnapshots}">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="Save two snapshots first" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Create at least two Saved Settings snapshots that differ noticeably (e.g. one changes pen dynamics, one changes the display mapping), then come back."
+                           FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                           HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel IsVisible="{Binding HasEnoughSnapshots}" Spacing="14">
+            <Border Classes="GlassPanel" Padding="18">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <StackPanel Grid.Column="0" Spacing="5">
+                            <TextBlock Text="SNAPSHOT A" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding SelectedA}"
+                                      HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="5">
+                            <TextBlock Text="SNAPSHOT B" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding SelectedB}"
+                                      HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox Content="Enable foreground watcher (alternates A / B on every app change)"
+                              IsChecked="{Binding Enabled}" IsEnabled="{Binding CanEnable}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="GlassPanel" Padding="18">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="LAST SWITCH" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <TextBlock Text="{Binding StatusLine}" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                               Text="Draw in your art app, then Alt-Tab to another app and back while a stroke is in progress — watch for any glitch. All timings are also written to perapp-spike.log." />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

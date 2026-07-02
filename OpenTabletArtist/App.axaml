@@ -33,6 +33,7 @@
         <DataTemplate DataType="{x:Type vm:TabletDetailViewModel}"><views:TabletDetailView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PresetsViewModel}"><views:PresetsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:HotkeysViewModel}"><views:HotkeysView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PerAppViewModel}"><views:PerAppView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CustomTabletConfigsViewModel}"><views:CustomTabletConfigsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DriverCleanupViewModel}"><views:DriverCleanupView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
