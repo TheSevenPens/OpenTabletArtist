@@ -113,6 +113,31 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>The capture options for the current selection (used when opening the overlay).</summary>
     public CalibrationOptions CalibrationOptions => SelectedCalibrationMode.ToOptions();
 
+    // Two-way bool per fixed choice, so the calibration card can present plain radio buttons instead of
+    // a dropdown. Setting one selects that mode; all stay in sync if the mode changes elsewhere.
+    public bool IsCalibration4Point
+    {
+        get => SelectedCalibrationMode == CalibrationModeChoices[0];
+        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[0]; }
+    }
+    public bool IsCalibration9Point
+    {
+        get => SelectedCalibrationMode == CalibrationModeChoices[1];
+        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[1]; }
+    }
+    public bool IsCalibration25Point
+    {
+        get => SelectedCalibrationMode == CalibrationModeChoices[2];
+        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[2]; }
+    }
+
+    partial void OnSelectedCalibrationModeChanged(CalibrationModeChoice value)
+    {
+        OnPropertyChanged(nameof(IsCalibration4Point));
+        OnPropertyChanged(nameof(IsCalibration9Point));
+        OnPropertyChanged(nameof(IsCalibration25Point));
+    }
+
     [RelayCommand]
     private async Task Calibrate()
     {

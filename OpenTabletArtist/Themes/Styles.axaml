@@ -284,6 +284,13 @@
         </ControlTheme>
     </Styles.Resources>
 
+    <!-- App-wide default font. Every window/popup gets Segoe UI, and text inherits it, so unstyled
+         content (labels, ComboBox/ToggleSwitch text, dropdown items) no longer falls back to the
+         Fluent theme's default family. Any explicit FontFamily on a style or control still wins. -->
+    <Style Selector=":is(TopLevel)">
+        <Setter Property="FontFamily" Value="Segoe UI" />
+    </Style>
+
     <!-- Glass Panel Style (applied via Classes="GlassPanel") -->
     <Style Selector="Border.GlassPanel">
         <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
