@@ -144,5 +144,17 @@
             </Border>
         </ScrollViewer>
     </Grid>
+
+    <!-- Settings auto-save indicator (#321): OTA has no Save button — every change is applied + saved
+         immediately. This quietly confirms that, and stays as a warning if a disk save failed (so a
+         live-but-unpersisted change isn't hidden). Overlays the content, bottom-right. -->
+    <Border VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,20"
+            IsVisible="{Binding Connection.ShowSaveStatus}"
+            Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+        <TextBlock Text="{Binding Connection.SaveStatusText}" Classes="saveStatus"
+                   Classes.failed="{Binding Connection.SaveFailed}"
+                   FontSize="11" TextWrapping="Wrap" MaxWidth="300" />
+    </Border>
     </Panel>
 </Window>

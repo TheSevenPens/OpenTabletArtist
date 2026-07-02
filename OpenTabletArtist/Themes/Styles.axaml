@@ -284,6 +284,16 @@
         </ControlTheme>
     </Styles.Resources>
 
+    <!-- Settings auto-save indicator text (#321): secondary while saving/saved, warning when a save
+         failed. Kept as classes (no local Foreground) so .failed wins by specificity in either theme. -->
+    <Style Selector="TextBlock.saveStatus">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.saveStatus.failed">
+        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
     <!-- App-wide default font. Every window/popup gets Segoe UI, and text inherits it, so unstyled
          content (labels, ComboBox/ToggleSwitch text, dropdown items) no longer falls back to the
          Fluent theme's default family. Any explicit FontFamily on a style or control still wins. -->
