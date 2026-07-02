@@ -81,14 +81,11 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
                     Name: name,
                     Path: file,
                     Content: content,
-                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss"),
-                    HotkeyDisplay: _hotkeys.GetChord(name)?.Display ?? ""));
+                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
             }
             catch { }
         }
         Presets = presetList;
-        // Reconcile hotkey registrations with the current snapshot set (drops dangling mappings, #320).
-        _hotkeys.Sync(presetList.Select(p => p.Name));
     }
 
     [RelayCommand]
@@ -146,33 +143,6 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);
-        await LoadAsync();
-    }
-
-    [RelayCommand]
-    private async Task AssignHotkey(string name)
-    {
-        var chord = await _dialogs.ShowHotkeyCaptureAsync(_hotkeys.GetChord(name));
-        if (chord == null) return;
-
-        switch (_hotkeys.SetHotkey(name, chord))
-        {
-            case HotkeySetResult.Conflict:
-                await _dialogs.ShowMessageAsync("Hotkey in use",
-                    $"\"{chord.Display}\" is already registered by another application. Pick a different combination.");
-                break;
-            case HotkeySetResult.Invalid:
-                await _dialogs.ShowMessageAsync("Hotkey not usable",
-                    "Use a modifier (Ctrl / Alt / Shift / Win) plus a letter, digit, or F-key.");
-                break;
-        }
-        await LoadAsync(); // refresh the displayed chord
-    }
-
-    [RelayCommand]
-    private async Task ClearHotkey(string name)
-    {
-        _hotkeys.ClearHotkey(name);
         await LoadAsync();
     }
 

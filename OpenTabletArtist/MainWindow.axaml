@@ -77,6 +77,10 @@
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
+                    <RadioButton Theme="{StaticResource NavButton}" Content="HOTKEYS"
+                                 IsChecked="{Binding IsHotkeys, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Hotkeys}"
+                                 Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="TEST DRAWING"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"

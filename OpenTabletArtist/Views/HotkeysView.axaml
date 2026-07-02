@@ -1,0 +1,94 @@
+<UserControl x:Class="OpenTabletArtist.Views.HotkeysView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- DataContext is the HotkeysViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="HOTKEYS" />
+
+        <TextBlock Text="Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. Assign a combination (a modifier plus a key) and it takes effect system-wide."
+                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   TextWrapping="Wrap" Margin="0,0,0,20" />
+
+        <!-- ── Tablet mapping ─────────────────────────────────────────────────── -->
+        <TextBlock Text="TABLET MAPPING" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"
+                   Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
+        <Border Classes="GlassPanel" Margin="0,0,0,24" Padding="16">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                    <TextBlock Classes="CardTitle" Text="Cycle mapped monitor" FontSize="14" TextWrapping="Wrap" />
+                    <TextBlock Text="Moves the active tablet's area to the next monitor (wraps around)."
+                               FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,2,0,0" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
+                                IsVisible="{Binding HasMonitorHotkey}">
+                        <TextBlock Text="{Binding MonitorHotkeyDisplay, StringFormat='⌨ {0}'}" FontSize="12"
+                                   FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                   VerticalAlignment="Center" />
+                        <Button Content="✕" ToolTip.Tip="Clear hotkey"
+                                Command="{Binding ClearMonitorHotkeyCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="6,1" FontSize="10"
+                                VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="No hotkey assigned" FontSize="11" FontStyle="Italic"
+                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
+                               IsVisible="{Binding !HasMonitorHotkey}" />
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="Assign…" Theme="{StaticResource AccentButton}"
+                        VerticalAlignment="Center" Padding="14,7" FontSize="12"
+                        Command="{Binding AssignMonitorHotkeyCommand}" />
+            </Grid>
+        </Border>
+
+        <!-- ── Profile switching ──────────────────────────────────────────────── -->
+        <TextBlock Text="PROFILE SWITCHING" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"
+                   Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
+        <TextBlock Text="Assign a hotkey to a saved snapshot to switch to it instantly. Save snapshots on the Saved Settings page."
+                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   TextWrapping="Wrap" Margin="2,0,0,10" />
+
+        <ItemsControl ItemsSource="{Binding Snapshots}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                                <TextBlock Classes="CardTitle" Text="{Binding Name}" FontSize="14" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
+                                            IsVisible="{Binding HasHotkey}">
+                                    <TextBlock Text="{Binding HotkeyDisplay, StringFormat='⌨ {0}'}" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                               VerticalAlignment="Center" />
+                                    <Button Content="✕" ToolTip.Tip="Clear hotkey"
+                                            Command="{Binding $parent[ItemsControl].DataContext.ClearProfileHotkeyCommand}"
+                                            CommandParameter="{Binding Name}"
+                                            Theme="{StaticResource GhostButton}" Padding="6,1" FontSize="10"
+                                            VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="No hotkey assigned" FontSize="11" FontStyle="Italic"
+                                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
+                                           IsVisible="{Binding !HasHotkey}" />
+                            </StackPanel>
+
+                            <Button Grid.Column="1" Content="Assign…" Theme="{StaticResource GhostButton}"
+                                    VerticalAlignment="Center" Padding="12,6" FontSize="12"
+                                    Command="{Binding $parent[ItemsControl].DataContext.AssignProfileHotkeyCommand}"
+                                    CommandParameter="{Binding Name}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Classes="GlassPanel" Padding="28" IsVisible="{Binding !HasSnapshots}">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="No snapshots to bind" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Save a snapshot on the Saved Settings page, then assign it a hotkey here."
+                           FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,0" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

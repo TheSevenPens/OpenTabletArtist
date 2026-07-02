@@ -23,7 +23,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DriverConflictMonitor _conflicts;
     private readonly HealthService _health;
     private readonly ProfileSwitchService _profileSwitch;
+    // One shared hotkey window holds every global hotkey; the managers each register their own ids on it.
+    private readonly GlobalHotkeyService _globalHotkeys;
     private readonly ProfileHotkeyManager _profileHotkeys;
+    private readonly MonitorCycleService _monitorCycle;
+    private readonly MonitorCycleHotkeys _monitorHotkeys;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -34,6 +38,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Active-profile override state (#320) — the shell binds this for the "Profile override" cue.</summary>
     public ProfileSwitchService ProfileSwitch => _profileSwitch;
+
+    /// <summary>Monitor-cycle switch events (#89) — the shell subscribes to show a toast on cycle.</summary>
+    public MonitorCycleService MonitorCycle => _monitorCycle;
 
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
@@ -46,6 +53,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DriverCleanupViewModel DriverCleanup { get; }
     public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
+    public HotkeysViewModel Hotkeys { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
@@ -85,6 +93,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
+    public bool IsHotkeys => ReferenceEquals(CurrentPage, Hotkeys);
     public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
@@ -110,16 +119,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Takes the conflict monitor too so a conflicting driver surfaces as a health issue.
         _health = new HealthService(_session, _session, _conflicts);
 
-        // Profile switching (#320): the shared live-only switch path used by hotkeys (and later per-app),
-        // plus the global-hotkey manager that registers per-snapshot chords and routes presses to it.
+        // Global hotkeys (#320, #89): one shared hotkey window; the profile-switch manager and the
+        // monitor-cycle manager each register their own chords on it and filter presses by their ids.
+        _globalHotkeys = new GlobalHotkeyService();
         _profileSwitch = new ProfileSwitchService(_session, _settingsStore, () => _session.PresetDirectory);
-        _profileHotkeys = new ProfileHotkeyManager(new GlobalHotkeyService(), _profileSwitch);
+        _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
+        _monitorCycle = new MonitorCycleService(_session, _session);
+        _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
+        Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
@@ -248,12 +261,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // programmatically), so the active item isn't hidden behind a collapsed group.
         if (IsAdvancedPage(newValue)) IsAdvancedExpanded = true;
 
+        // Rescan the Hotkeys page when opened so a snapshot saved on the Saved Settings page shows here.
+        if (ReferenceEquals(newValue, Hotkeys)) _ = Hotkeys.LoadAsync();
+
         // Highlight the selected tablet child (or none) in the sidebar.
         UpdateTabletSelection();
 
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         OnPropertyChanged(nameof(IsDashboard));
         OnPropertyChanged(nameof(IsPresets));
+        OnPropertyChanged(nameof(IsHotkeys));
         OnPropertyChanged(nameof(IsConfigs));
         OnPropertyChanged(nameof(IsDriverCleanup));
         OnPropertyChanged(nameof(IsDiagnostics));
@@ -274,6 +291,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         Presets.Dispose();        // unsubscribes DataLoaded
+        Hotkeys.Dispose();        // unsubscribes DataLoaded
         Test.Dispose();           // stops the daemon debug stream if running
         Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
@@ -283,7 +301,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         DriverCleanup.Dispose();
         _conflicts.Dispose();
         _health.Dispose();        // unsubscribes from DataLoaded + connection changes
-        _profileHotkeys.Dispose(); // unregisters global hotkeys + destroys the message-only window
+        _profileHotkeys.Dispose(); // drops its registrations + event hook (shared service, not disposed here)
+        _monitorHotkeys.Dispose(); // drops its registration + event hook
+        _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
     }
 }
 
@@ -316,8 +336,4 @@ public record ConfigurationItem(string Name, string FileName, string Path, strin
 /// Plain-property record so Avalonia bindings can resolve Name/LastModified directly
 /// (JObject indexer bindings stopped rendering for TextBlock.Text in Avalonia 12).
 /// </summary>
-public record PresetInfo(string Name, string Path, string Content, string LastModified, string HotkeyDisplay = "")
-{
-    /// <summary>This snapshot has a keyboard hotkey assigned (#320).</summary>
-    public bool HasHotkey => !string.IsNullOrEmpty(HotkeyDisplay);
-}
+public record PresetInfo(string Name, string Path, string Content, string LastModified);
