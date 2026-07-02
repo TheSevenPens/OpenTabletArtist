@@ -40,6 +40,7 @@
         <DataTemplate DataType="{x:Type vm:LogViewModel}"><views:LogView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DaemonViewModel}"><views:DaemonView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:WindowsInkViewModel}"><views:WindowsInkView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:VMultiViewModel}"><views:VMultiView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PluginsViewModel}"><views:PluginsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ThemeViewModel}"><views:ThemeView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>

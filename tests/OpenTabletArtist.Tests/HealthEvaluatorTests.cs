@@ -17,6 +17,7 @@ public class HealthEvaluatorTests
         ForeignDaemon = false,
         WinInkInstalled = true,
         WinInkVersionMismatch = false,
+        VMultiInstalled = true,
         Tablets = new List<TabletHealthInput> { new("Tablet A", Detected: true, OutputModeIsWinInk: true) },
     };
 
@@ -88,6 +89,30 @@ public class HealthEvaluatorTests
             Tablets = new List<TabletHealthInput> { new("Old tablet", Detected: false, OutputModeIsWinInk: false) },
         };
         Assert.Empty(HealthEvaluator.Evaluate(input));
+    }
+
+    [Fact]
+    public void VMultiNotInstalled_IsBroken_WithVMultiTarget()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = false }));
+        Assert.Equal("vmulti.notInstalled", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+        Assert.Equal(RemediationArea.VMulti, issue.Remediation!.Area);
+    }
+
+    [Fact]
+    public void VMultiUnknown_RaisesNoIssue()
+    {
+        // Null = detection hasn't reported yet → no false "not installed" at startup.
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = null }));
+    }
+
+    [Fact]
+    public void MissingVMultiAndWinInk_BothSurfaceAtOnce()
+    {
+        var issues = HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = false, WinInkInstalled = false });
+        Assert.True(Has(issues, "vmulti.notInstalled"));
+        Assert.True(Has(issues, "winink.notInstalled"));
     }
 
     [Fact]

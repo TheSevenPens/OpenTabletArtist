@@ -26,6 +26,8 @@ public enum RemediationArea
     Daemon,
     /// <summary>The Windows Ink Plugin page under Advanced (install / update). (#317)</summary>
     WindowsInk,
+    /// <summary>The VMulti Driver page under Advanced (install / uninstall). (#317)</summary>
+    VMulti,
     /// <summary>A specific tablet's Pen Behavior (output mode) tab.</summary>
     TabletPenBehavior,
 }
@@ -65,6 +67,9 @@ public sealed record HealthInputs
     public bool WinInkInstalled { get; init; }
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
     public bool WinInkVersionMismatch { get; init; }
+    /// <summary>The VMulti virtual-pen driver is installed. Null = not yet detected (no issue raised until
+    /// detection reports), so startup doesn't flash a false "not installed".</summary>
+    public bool? VMultiInstalled { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
 }
 
@@ -119,6 +124,18 @@ public static class HealthEvaluator
         else
         {
             AddTabletWinInkIssues(issues, i);
+        }
+
+        // --- VMulti virtual-pen driver: a prerequisite for the Windows Ink output mode ---
+        // Independent of the Windows Ink plugin — both prerequisites surface at once when missing.
+        // Only fires on a definitive "not installed" (null = not yet detected).
+        if (i.VMultiInstalled == false)
+        {
+            issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
+                "VMulti driver not installed",
+                "VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt " +
+                "through. Without it, pen pressure and tilt won't reach your apps.",
+                new Remediation("Fix", RemediationArea.VMulti)));
         }
 
         // --- Recommendations ---

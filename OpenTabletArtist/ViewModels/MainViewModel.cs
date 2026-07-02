@@ -48,6 +48,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public PluginsViewModel Plugins { get; }
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
+    public VMultiViewModel VMulti { get; }
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Landing page for the Tablets group (header click / nothing selected).</summary>
@@ -69,7 +70,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, Daemon) || ReferenceEquals(page, WindowsInk) || ReferenceEquals(page, Configs)
+        ReferenceEquals(page, Daemon) || ReferenceEquals(page, WindowsInk) || ReferenceEquals(page, VMulti)
+        || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
         || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
         || ReferenceEquals(page, Theme);
@@ -86,6 +88,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
     public bool IsDaemon => ReferenceEquals(CurrentPage, Daemon);
     public bool IsWindowsInk => ReferenceEquals(CurrentPage, WindowsInk);
+    public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -108,8 +111,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
+        VMulti = new VMultiViewModel(dialogs, _health);
         Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, _conflicts,
-            () => Navigate(DriverCleanup), () => Navigate(WindowsInk));
+            () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -248,6 +252,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsPlugins));
         OnPropertyChanged(nameof(IsDaemon));
         OnPropertyChanged(nameof(IsWindowsInk));
+        OnPropertyChanged(nameof(IsVMulti));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }
@@ -263,6 +268,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
         WindowsInk.Dispose();     // unsubscribes DataLoaded + connection sync
+        VMulti.Dispose();         // cancels the VMulti install/uninstall token
         _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         DriverCleanup.Dispose();
         _conflicts.Dispose();

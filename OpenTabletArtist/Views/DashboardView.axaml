@@ -180,63 +180,6 @@
 
             <!-- Per-tablet status moved to the Tablets nav node (#247); Home no longer duplicates it. -->
 
-            <!-- VMulti Status -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Classes="CardTitle" Text="VMulti Driver" FontSize="13" TextWrapping="Wrap" />
-                            <Button Content="Refresh" Command="{Binding RefreshVmultiDetectionCommand}"
-                                    ToolTip.Tip="Refresh VMulti status"
-                                    Theme="{StaticResource GhostButton}" Padding="8,3" FontSize="11"
-                                    Margin="8,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding VmultiInstalled}" />
-                            <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
-                            <Run Text="Setup API: " /><Run Text="{Binding VmultiSetupApiStatus}" />
-                        </TextBlock>
-                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
-                            <Run Text="HID: " /><Run Text="{Binding VmultiHidStatus}" />
-                        </TextBlock>
-                        <!-- Install status text (shown during installation) -->
-                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="10"
-                                   Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"
-                                   IsVisible="{Binding VmultiInstalling}" />
-                        <TextBlock Text="Required for pressure &amp; tilt" FontSize="10"
-                                   Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
-                                   Margin="0,2,0,0"
-                                   IsVisible="{Binding !VmultiInstalled}" />
-                    </StackPanel>
-
-                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                        <!-- Browse button -->
-                        <Button Content="Browse" Theme="{StaticResource AccentButton}"
-                                Command="{Binding OpenFolderCommand}"
-                                CommandParameter="C:\Program Files\VMulti"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4" />
-                        <!-- Install button -->
-                        <Button Content="Install" Theme="{StaticResource AccentButton}"
-                                Command="{Binding InstallVmultiCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowInstallButton}" />
-                        <!-- Uninstall button -->
-                        <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
-                                Command="{Binding UninstallVmultiCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowUninstallButton}" />
-                        <!-- Progress indicator -->
-                        <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="11"
-                                   Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
-                                   Margin="0,0,0,4"
-                                   IsVisible="{Binding VmultiInstalling}" />
-                    </WrapPanel>
-                </Grid>
-            </Border>
-
         </StackPanel>
     </StackPanel>
 </UserControl>
