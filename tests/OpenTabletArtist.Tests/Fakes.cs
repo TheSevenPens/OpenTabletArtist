@@ -49,7 +49,7 @@ internal sealed class FakeDialogService : IDialogService
     public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
         => Task.FromResult(InputResult);
 
-    public Task<HotkeyChord?> ShowHotkeyCaptureAsync() => Task.FromResult(HotkeyResult);
+    public Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null) => Task.FromResult(HotkeyResult);
 
     public Task ShowTextViewerAsync(string title, string content)
     {

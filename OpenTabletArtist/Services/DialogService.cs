@@ -33,8 +33,9 @@ public interface IDialogService
     /// <summary>Prompts for a line of text; returns null if cancelled.</summary>
     Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "");
 
-    /// <summary>Captures a keyboard hotkey chord; returns null if cancelled. (#320)</summary>
-    Task<HotkeyChord?> ShowHotkeyCaptureAsync();
+    /// <summary>Opens the on-screen hotkey picker (optionally pre-filled with <paramref name="initial"/>);
+    /// returns the chosen chord, or null if cancelled. (#320)</summary>
+    Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null);
 
     /// <summary>Opens a read-only, scrollable monospace viewer (used for config JSON).</summary>
     Task ShowTextViewerAsync(string title, string content);
@@ -183,7 +184,11 @@ public class DialogService : IDialogService
     public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
         => Dialogs.ShowInputAsync(title, prompt, defaultValue);
 
-    public Task<HotkeyChord?> ShowHotkeyCaptureAsync() => Dialogs.ShowHotkeyCaptureAsync();
+    public async Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null)
+    {
+        var owner = Dialogs.GetMainWindow();
+        return owner != null ? await Views.HotkeyCaptureDialog.ShowAsync(owner, initial) : null;
+    }
 
     public async Task ShowTextViewerAsync(string title, string content)
     {

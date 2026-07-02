@@ -152,7 +152,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task AssignHotkey(string name)
     {
-        var chord = await _dialogs.ShowHotkeyCaptureAsync();
+        var chord = await _dialogs.ShowHotkeyCaptureAsync(_hotkeys.GetChord(name));
         if (chord == null) return;
 
         switch (_hotkeys.SetHotkey(name, chord))
