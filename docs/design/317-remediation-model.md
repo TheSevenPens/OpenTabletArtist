@@ -55,16 +55,25 @@ Surfaces:
 | `daemon.disconnected` | Broken | Daemon |
 | `winink.notInstalled` | Broken | Windows Ink page |
 | `winink.versionMismatch` | Misconfigured | Windows Ink page |
+| `vmulti.notInstalled` | Broken | VMulti page |
 | `tablet.notWinInk:<name>` | Misconfigured | that tablet's Pen Behavior |
 | `daemon.foreign` | Recommendation | Daemon |
 
+The pen-pressure setup chain is **three** prerequisites, all independent so they surface at once when
+missing: the **VMulti driver** (the virtual pen device), the **Windows Ink plugin**, and the tablet's
+**Pen Behavior** set to a Windows Ink mode. The Windows Ink plugin injects pressure/tilt *through*
+VMulti's virtual HID device — see OTD's own README ("Windows Ink … and VMulti system driver").
+
 ## Decisions / notes
 
-- **Windows Ink management moved to its own page** (Advanced → *Windows Ink Plugin*), off Home. Home
-  now just flags the issue and the Fix button navigates there — the direct-to-location model in action.
-- **VMulti is deliberately *not* a check.** VoiD's Windows Ink output mode uses Windows Ink injection,
-  not the VMulti virtual device, so "VMulti not installed" would be a false alarm for typical users.
-  It stays as its existing info card on Home.
+- **Windows Ink and VMulti management moved to their own pages** (Advanced → *Windows Ink Plugin*,
+  *VMulti Driver*), off Home. Home now just flags the issue and the Fix button navigates there — the
+  direct-to-location model in action.
+- **VMulti *is* a checked prerequisite** (corrected — an earlier draft wrongly excluded it). The Windows
+  Ink plugin injects pen input through VMulti's virtual HID device, so a missing VMulti driver breaks
+  pressure/tilt just like a missing plugin does. Its detection is async P/Invoke owned by the VMulti
+  page, which pushes the result into `HealthService.SetVMultiInstalled(...)`; the input is nullable so
+  no false "not installed" flashes before the first detection reports.
 - **`daemon.disconnected` is suppressed while a connect is in flight**, so startup doesn't flash a
   scary "not connected" card.
 

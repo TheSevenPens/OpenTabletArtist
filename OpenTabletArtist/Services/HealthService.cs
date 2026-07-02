@@ -21,6 +21,10 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
 
+    // VMulti detection is async P/Invoke owned by the VMulti page, so it's pushed in rather than read
+    // here. Null until the first detection reports, so no false "not installed" on startup.
+    private bool? _vmultiInstalled;
+
     /// <summary>Active issues, worst severity first (see <see cref="HealthEvaluator"/>).</summary>
     public ObservableCollection<HealthIssue> Issues { get; } = new();
 
@@ -44,6 +48,14 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             or nameof(IConnectionState.IsDaemonExeMissing)
             or nameof(IConnectionState.IsForeignDaemon))
             Reevaluate();
+    }
+
+    /// <summary>Feed the latest VMulti detection result (from the VMulti page) and re-evaluate.</summary>
+    public void SetVMultiInstalled(bool installed)
+    {
+        if (_vmultiInstalled == installed) return;
+        _vmultiInstalled = installed;
+        Reevaluate();
     }
 
     /// <summary>Force an immediate re-evaluation. Call after an action that changes health-relevant
@@ -93,6 +105,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             ForeignDaemon = _connection.IsForeignDaemon,
             WinInkInstalled = installed,
             WinInkVersionMismatch = mismatch,
+            VMultiInstalled = _vmultiInstalled,
             Tablets = tablets,
         };
     }

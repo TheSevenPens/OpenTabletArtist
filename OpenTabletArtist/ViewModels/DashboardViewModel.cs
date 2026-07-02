@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
@@ -27,28 +24,25 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     // the modal dialog for a Home card's "Settings".
     private readonly Action<string> _navigateToTablet;
     private readonly Action? _openDriverCleanup;
-    // Jump to the Windows Ink Plugin page (Advanced) — where install/update now lives (#317).
+    // Jump to the Windows Ink Plugin / VMulti pages (Advanced) — where those fixes now live (#317).
     private readonly Action? _openWindowsInk;
-    private readonly VMultiDetector _vmulti = new();
-    private readonly VMultiInstaller _vmultiInstaller = new();
-    private readonly CancellationTokenSource _cts = new();
+    private readonly Action? _openVMulti;
 
     public DashboardViewModel(AppSession session, IDialogService dialogs, Action<string> navigateToTablet,
         HealthService health, DriverConflictMonitor? conflicts = null, Action? openDriverCleanup = null,
-        Action? openWindowsInk = null)
+        Action? openWindowsInk = null, Action? openVMulti = null)
     {
         _session = session;
         _dialogs = dialogs;
         _navigateToTablet = navigateToTablet;
         _openDriverCleanup = openDriverCleanup;
         _openWindowsInk = openWindowsInk;
+        _openVMulti = openVMulti;
         Health = health;
         Conflicts = conflicts ?? new DriverConflictMonitor();
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
-
-        _ = InitVmultiAsync();
     }
 
     /// <summary>Conflicting-driver detection (#245); the Home alert card binds to this and the button
@@ -69,6 +63,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         {
             case RemediationArea.WindowsInk:
                 _openWindowsInk?.Invoke(); // the fix lives on the Windows Ink Plugin page now (#317)
+                break;
+            case RemediationArea.VMulti:
+                _openVMulti?.Invoke(); // the fix lives on the VMulti Driver page now (#317)
                 break;
             case RemediationArea.Daemon:
                 if (issue.Id == "daemon.foreign") RestartDaemonCommand.Execute(null);
@@ -165,182 +162,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
-    // --- VMulti driver card ---
-    [ObservableProperty] private bool _vmultiInstalled;
-    [ObservableProperty] private string _vmultiMessage = "Checking...";
-    [ObservableProperty] private string _vmultiHidStatus = "Checking...";
-    [ObservableProperty] private string _vmultiSetupApiStatus = "Checking...";
-    [ObservableProperty] private bool _vmultiInstalling;
-    [ObservableProperty] private string _vmultiInstallStatus = "";
-    [ObservableProperty] private bool _showInstallButton;
-    [ObservableProperty] private bool _showUninstallButton;
-
-    partial void OnVmultiInstalledChanged(bool value) => UpdateVmultiButtons();
-    partial void OnVmultiInstallingChanged(bool value) => UpdateVmultiButtons();
-
-    private void UpdateVmultiButtons()
-    {
-        ShowInstallButton = !VmultiInstalled && !VmultiInstalling;
-        ShowUninstallButton = VmultiInstalled && !VmultiInstalling;
-    }
-
-    private async Task InitVmultiAsync() => await RefreshVmultiDetection();
-
-    [RelayCommand]
-    private async Task RefreshVmultiDetection()
-    {
-        var (hidResult, setupResult) = await Task.Run(() =>
-            (_vmulti.DetectHid(), _vmulti.DetectSetupApi()));
-
-        VmultiHidStatus = hidResult.Message;
-        VmultiSetupApiStatus = setupResult.Message;
-        // "Installed" means a working driver — detection treats driverless leftover nodes (Code 28
-        // after an uninstall) as not installed, so the card flips to "Not installed" once the driver
-        // is gone instead of reporting the orphaned device nodes as installed.
-        VmultiInstalled = hidResult.Visible || setupResult.Installed;
-
-        if (hidResult.Functional)
-            VmultiMessage = "Installed & active";
-        else if (setupResult.Installed && !setupResult.Enabled)
-            VmultiMessage = "Installed but disabled";
-        else if (setupResult.Installed)
-            VmultiMessage = "Installed (not active in HID)";
-        else
-            VmultiMessage = "Not installed";
-
-        // Recompute explicitly: the OnVmultiInstalledChanged hook only fires when the value changes,
-        // so when detection legitimately leaves VmultiInstalled = false (its default), the buttons
-        // would otherwise never be initialized and the Install button wouldn't appear.
-        UpdateVmultiButtons();
-    }
-
-    [RelayCommand]
-    private void OpenFolder(string path)
-    {
-        if (Directory.Exists(path))
-            Process.Start("explorer.exe", path);
-    }
-
-    [RelayCommand]
-    private async Task InstallVmulti()
-    {
-        var confirmed = await _dialogs.ShowConfirmAsync(
-            "Install VMulti Driver",
-            "VMulti driver installation may restart your computer.\n\n" +
-            "Please save all work in other applications before continuing.\n\n" +
-            "Do you want to proceed?");
-
-        if (!confirmed)
-            return;
-
-        VmultiInstalling = true;
-        VmultiInstallStatus = "Starting...";
-
-        Action<string> onStatus = status =>
-            Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
-        _vmultiInstaller.StatusChanged += onStatus;
-
-        try
-        {
-            var installResult = await Task.Run(() => _vmultiInstaller.InstallAsync(_cts.Token));
-            VmultiInstallStatus = installResult.Message;
-            await RefreshVmultiDetection();
-
-            if (installResult.Success && installResult.RebootRecommended)
-            {
-                var restart = await _dialogs.ShowConfirmAsync(
-                    "Restart recommended",
-                    installResult.Message + "\n\nRestart now? Save your work in other apps first.");
-                if (restart)
-                    TryRestartWindows();
-            }
-            else
-            {
-                await _dialogs.ShowMessageAsync("VMulti Installation", installResult.Message);
-            }
-        }
-        catch (Exception ex)
-        {
-            VmultiInstallStatus = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _vmultiInstaller.StatusChanged -= onStatus;
-            VmultiInstalling = false;
-        }
-    }
-
-    // User-initiated Windows restart (offered after a VMulti uninstall, #112). Best-effort.
-    private static void TryRestartWindows()
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("shutdown", "/r /t 0")
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                });
-        }
-        catch { /* best-effort; user can restart manually */ }
-    }
-
-    [RelayCommand]
-    private async Task UninstallVmulti()
-    {
-        var confirmed = await _dialogs.ShowConfirmAsync(
-            "Uninstall VMulti Driver",
-            "This will uninstall the VMulti virtual driver.\n\n" +
-            "Your computer may need to restart to complete the removal.\n" +
-            "Please save all work in other applications before continuing.\n\n" +
-            "Do you want to proceed?");
-
-        if (!confirmed)
-            return;
-
-        VmultiInstalling = true;
-        VmultiInstallStatus = "Starting uninstall...";
-
-        Action<string> onStatus = status =>
-            Dispatcher.UIThread.InvokeAsync(() => VmultiInstallStatus = status);
-        _vmultiInstaller.StatusChanged += onStatus;
-
-        try
-        {
-            var uninstallResult = await Task.Run(() => _vmultiInstaller.UninstallAsync(_cts.Token));
-            VmultiInstallStatus = uninstallResult.Message;
-            await RefreshVmultiDetection();
-
-            if (uninstallResult.Success && uninstallResult.RebootRecommended)
-            {
-                var restart = await _dialogs.ShowConfirmAsync(
-                    "Restart recommended",
-                    uninstallResult.Message + "\n\nRestart now? Save your work in other apps first.");
-                if (restart)
-                    TryRestartWindows();
-            }
-            else
-            {
-                await _dialogs.ShowMessageAsync("VMulti Uninstallation", uninstallResult.Message);
-            }
-        }
-        catch (Exception ex)
-        {
-            VmultiInstallStatus = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _vmultiInstaller.StatusChanged -= onStatus;
-            VmultiInstalling = false;
-        }
-    }
-
     public void Dispose()
     {
         _session.PropertyChanged -= OnSessionPropertyChanged;
         _session.DataLoaded -= OnSessionDataLoaded;
-        _cts.Cancel();
-        _cts.Dispose();
     }
 }
 

@@ -104,6 +104,10 @@
                                      IsChecked="{Binding IsWindowsInk, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding WindowsInk}"
                                      Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="VMULTI DRIVER"
+                                     IsChecked="{Binding IsVMulti, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding VMulti}"
+                                     Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET COMPATIBILITY"
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
