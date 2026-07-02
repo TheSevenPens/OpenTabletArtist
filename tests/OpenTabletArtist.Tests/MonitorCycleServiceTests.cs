@@ -16,6 +16,7 @@ public class MonitorCycleServiceTests
         public Settings? SavedAndApplied { get; private set; }
         public Task ApplyAndSaveSettingsAsync(Settings s) { SavedAndApplied = s; return Task.CompletedTask; }
         public Task ApplyLiveOnlyAsync(Settings s) => Task.CompletedTask;
+        public Task ApplyEphemeralAsync(Settings s) => Task.CompletedTask;
         public Task RestoreDefaultAsync() => Task.CompletedTask;
     }
 

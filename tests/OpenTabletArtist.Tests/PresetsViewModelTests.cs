@@ -16,6 +16,7 @@ public class PresetsViewModelTests
         public Settings? Applied { get; private set; }
         public Task ApplyAndSaveSettingsAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
         public Task ApplyLiveOnlyAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
+        public Task ApplyEphemeralAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
         public Task RestoreDefaultAsync() => Task.CompletedTask;
     }
 
