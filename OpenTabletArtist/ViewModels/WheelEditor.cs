@@ -15,8 +15,9 @@ namespace OpenTabletArtist.ViewModels;
 public partial class WheelEditor : ObservableObject
 {
     private readonly Func<int, bool, double, Task>? _applyThreshold;
-    private readonly double _wheelSteps;   // StepCount (360 / step°); 0 when unknown/relative
+    private readonly double _wheelSteps;   // StepCount (360 / step°); 0 when unknown
     private int? _lastPosition;
+    private double _relAccum;               // running synthetic position for relative wheels (in steps)
     private CancellationTokenSource? _flashCts;
     private bool _suppress;
 
@@ -124,12 +125,25 @@ public partial class WheelEditor : ObservableObject
         _lastPosition = (int)pos;
     }
 
-    /// <summary>Relative-wheel step delta. Inverted to match the physical CW/CCW mapping used for the
-    /// binding stores (see TabletDetailViewModel.RefreshWheels).</summary>
+    /// <summary>Relative-wheel step delta (signed steps since the last report). Inverted to match the
+    /// physical CW/CCW mapping used for the binding stores (see TabletDetailViewModel.RefreshWheels).</summary>
     public void OnRelativeDelta(int delta)
     {
-        if (delta < 0) Flash(clockwise: true);
-        else if (delta > 0) Flash(clockwise: false);
+        if (delta == 0) return;
+        Flash(clockwise: delta < 0);
+
+        // Relative wheels report no absolute position, so accumulate the signed steps into a synthetic
+        // ring position — that drives the same moving marker + fading trail an absolute ring gets, so a
+        // relative wheel (e.g. the Wacom PTK-670, 24 steps/turn) animates instead of only flashing a
+        // direction (#308). Subtract the delta so the marker turns the same physical way you turn the
+        // wheel (OTD's delta sign runs opposite to physical rotation on tested relative wheels).
+        if (_wheelSteps > 0)
+        {
+            _relAccum -= delta;
+            double m = _relAccum % _wheelSteps;
+            if (m < 0) m += _wheelSteps;
+            LivePosition = m / _wheelSteps;
+        }
     }
 
     /// <summary>Clears live gauge/flash state when leaving the Wheel tab or stopping the stream.</summary>
@@ -137,6 +151,7 @@ public partial class WheelEditor : ObservableObject
     {
         _flashCts?.Cancel();
         _lastPosition = null;
+        _relAccum = 0;
         LivePosition = null;
         Clockwise.IsPressed = false;
         CounterClockwise.IsPressed = false;

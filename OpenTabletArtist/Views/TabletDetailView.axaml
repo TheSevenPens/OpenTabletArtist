@@ -441,62 +441,75 @@
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,0,0,10" TextWrapping="Wrap" />
 
+                <!-- One card per wheel: the live gauge on the left, and every mapping for that wheel
+                     (clockwise + counter-clockwise actions with sensitivity, and the wheel button)
+                     grouped on the right — so a wheel is a single self-contained unit (#310). -->
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="0,0,0,6">
-                                <TextBlock Text="{Binding Title}" Classes="SectionLabel"
-                                           IsVisible="{Binding ShowTitle}" Margin="0,0,0,8" />
+                            <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" Classes="SectionLabel"
+                                               IsVisible="{Binding ShowTitle}" Margin="0,0,0,10" />
 
-                                <!-- Live gauge: marker at the finger's position + direction while turning. -->
-                                <ctrl:WheelGauge Position="{Binding LivePosition}"
-                                                 TurningClockwise="{Binding TurningClockwise}"
-                                                 TurningCounterClockwise="{Binding TurningCounterClockwise}"
-                                                 AccentBrush="{DynamicResource AccentBrush}"
-                                                 Width="132" Height="132"
-                                                 HorizontalAlignment="Center" Margin="0,2,0,4" />
-                                <TextBlock Text="{Binding StepInfo}" FontSize="10"
-                                           IsVisible="{Binding HasStepInfo}" HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="18">
+                                        <!-- Live gauge: marker + fading trail + current angle. -->
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <ctrl:WheelGauge Position="{Binding LivePosition}"
+                                                             TurningClockwise="{Binding TurningClockwise}"
+                                                             TurningCounterClockwise="{Binding TurningCounterClockwise}"
+                                                             AccentBrush="{DynamicResource AccentBrush}"
+                                                             Width="132" Height="132" HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding StepInfo}" FontSize="10"
+                                                       IsVisible="{Binding HasStepInfo}"
+                                                       HorizontalAlignment="Center" TextAlignment="Center"
+                                                       MaxWidth="150" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
+                                        </StackPanel>
 
-                                <!-- Clockwise: binding card + sensitivity. -->
-                                <ContentControl Content="{Binding Clockwise}"
-                                                ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
-                                    <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                            TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                            IsEnabled="{Binding CanEdit}"
-                                            Value="{Binding ClockwiseThreshold, Mode=TwoWay}"
-                                            VerticalAlignment="Center" MinWidth="40" />
-                                    <TextBlock Grid.Column="2" Text="{Binding ClockwiseThresholdText}" FontSize="11"
-                                               Width="130" TextAlignment="Right" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                </Grid>
+                                        <!-- All mappings for this wheel. -->
+                                        <StackPanel Grid.Column="1" MinWidth="0">
+                                            <!-- Clockwise: binding card + sensitivity. -->
+                                            <ContentControl Content="{Binding Clockwise}"
+                                                            ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
+                                                <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                                        TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                                        IsEnabled="{Binding CanEdit}"
+                                                        Value="{Binding ClockwiseThreshold, Mode=TwoWay}"
+                                                        VerticalAlignment="Center" MinWidth="40" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ClockwiseThresholdText}" FontSize="11"
+                                                           Width="130" TextAlignment="Right" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </Grid>
 
-                                <!-- Counter-clockwise: binding card + sensitivity. -->
-                                <ContentControl Content="{Binding CounterClockwise}"
-                                                ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
-                                    <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                            TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                            IsEnabled="{Binding CanEdit}"
-                                            Value="{Binding CounterClockwiseThreshold, Mode=TwoWay}"
-                                            VerticalAlignment="Center" MinWidth="40" />
-                                    <TextBlock Grid.Column="2" Text="{Binding CounterClockwiseThresholdText}" FontSize="11"
-                                               Width="130" TextAlignment="Right" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                </Grid>
+                                            <!-- Counter-clockwise: binding card + sensitivity. -->
+                                            <ContentControl Content="{Binding CounterClockwise}"
+                                                            ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
+                                                <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                                        TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                                        IsEnabled="{Binding CanEdit}"
+                                                        Value="{Binding CounterClockwiseThreshold, Mode=TwoWay}"
+                                                        VerticalAlignment="Center" MinWidth="40" />
+                                                <TextBlock Grid.Column="2" Text="{Binding CounterClockwiseThresholdText}" FontSize="11"
+                                                           Width="130" TextAlignment="Right" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </Grid>
 
-                                <!-- Wheel button(s). -->
-                                <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
-                                              ItemTemplate="{StaticResource ButtonBindingCard}" />
-                            </StackPanel>
+                                            <!-- Wheel button(s). -->
+                                            <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
+                                                          ItemTemplate="{StaticResource ButtonBindingCard}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

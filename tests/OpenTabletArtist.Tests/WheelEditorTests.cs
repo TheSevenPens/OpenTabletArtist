@@ -48,6 +48,32 @@ public class WheelEditorTests
     }
 
     [Fact]
+    public void OnRelativeDelta_AccumulatesSyntheticPosition()
+    {
+        var editor = MakeEditor(stepSizeDegrees: 15); // 24 steps per turn (e.g. Wacom PTK-670)
+        Assert.Null(editor.LivePosition);             // no position until the wheel moves
+        editor.OnRelativeDelta(6);                    // reversed: -6 steps wraps to 18/24
+        Assert.Equal(0.75, editor.LivePosition!.Value, 3);
+    }
+
+    [Fact]
+    public void OnRelativeDelta_OppositeDirection_AccumulatesOtherWay()
+    {
+        var editor = MakeEditor(stepSizeDegrees: 15); // 24 steps per turn
+        editor.OnRelativeDelta(-6);                   // reversed: +6 steps → 6/24
+        Assert.Equal(0.25, editor.LivePosition!.Value, 3);
+    }
+
+    [Fact]
+    public void OnRelativeDelta_WithoutStepInfo_LeavesPositionNull()
+    {
+        var editor = MakeEditor(stepSizeDegrees: null); // steps/turn unknown → no synthetic position
+        editor.OnRelativeDelta(3);
+        Assert.Null(editor.LivePosition);
+        Assert.True(editor.CounterClockwise.IsPressed); // still flashes direction
+    }
+
+    [Fact]
     public void OnAbsolutePosition_WrappedDelta_FlashesMatchingDirection()
     {
         var editor = MakeEditor(stepSizeDegrees: 30); // 12 steps per turn
