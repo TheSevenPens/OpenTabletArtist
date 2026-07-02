@@ -61,11 +61,18 @@ public class VMultiInstaller
             // self-elevates and pops a visible cmd window. devcon creates the root-enumerated
             // pentablet\hid device and installs the driver from vmulti.inf. No `/r` — we don't want to
             // auto-reboot the user's machine; we surface "restart recommended" instead.
+            //
+            // Both the devcon.exe path AND the vmulti.inf path use %~dp0 (the batch's own directory):
+            // when we launch elevated via ShellExecute "runas", the UAC/AppInfo service commonly starts
+            // the process in C:\Windows\System32 and ignores WorkingDirectory, so a bare "vmulti.inf"
+            // wouldn't be found and devcon would fail with exit code 2. devcon output is teed to a log we
+            // read back on failure so the error is diagnosable instead of a bare exit code.
+            string logPath = Path.Combine(driverDir, "otd_install.log");
             string script = Path.Combine(driverDir, "otd_install_vmulti.bat");
             await File.WriteAllTextAsync(script, string.Join("\r\n", new[]
             {
                 "@echo off",
-                "\"%~dp0devcon.exe\" install vmulti.inf \"pentablet\\hid\"",
+                "\"%~dp0devcon.exe\" install \"%~dp0vmulti.inf\" \"pentablet\\hid\" > \"%~dp0otd_install.log\" 2>&1",
                 "exit /b %errorlevel%",
                 "",
             }), ct);
@@ -102,8 +109,10 @@ public class VMultiInstaller
             }
 
             StatusChanged?.Invoke("Installation may have failed.");
+            string detail = ReadInstallerLog(logPath);
             return new InstallResult(false,
-                $"The installer exited with code {process.ExitCode}. The driver may not be installed — check the VMulti status.");
+                $"The installer exited with code {process.ExitCode}. The driver may not be installed — check the VMulti status."
+                + detail);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
@@ -176,7 +185,9 @@ public class VMultiInstaller
             await File.WriteAllTextAsync(script, string.Join("\r\n", new[]
             {
                 "@echo off",
-                "\"%~dp0DIFxCmd.exe\" /u vmulti.inf",
+                // Absolute %~dp0 paths — an elevated ShellExecute launch may start us in System32 and
+                // ignore WorkingDirectory, so a bare "vmulti.inf" wouldn't be found (see InstallAsync).
+                "\"%~dp0DIFxCmd.exe\" /u \"%~dp0vmulti.inf\"",
                 "\"%~dp0devcon.exe\" remove \"pentablet\\hid\"",
                 "\"%~dp0devcon.exe\" remove \"djpnewton\\vmulti\"",
                 // Always succeed: devcon returns non-zero when a node was already gone, which isn't a
@@ -226,6 +237,30 @@ public class VMultiInstaller
         {
             try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
             catch { }
+        }
+    }
+
+    /// <summary>Best-effort read of the devcon log so a failure surfaces the real reason (missing INF,
+    /// signature rejection, etc.) rather than a bare exit code. Returns "" if the log is absent/empty;
+    /// otherwise a trimmed tail prefixed with two newlines, ready to append to the failure message.</summary>
+    private static string ReadInstallerLog(string logPath)
+    {
+        try
+        {
+            if (!File.Exists(logPath))
+                return "";
+            string text = File.ReadAllText(logPath).Trim();
+            if (text.Length == 0)
+                return "";
+            // Keep the message dialog-sized; devcon's failure reason is near the end of its output.
+            const int max = 600;
+            if (text.Length > max)
+                text = "…" + text[^max..];
+            return "\n\nDetails:\n" + text;
+        }
+        catch
+        {
+            return "";
         }
     }
 
