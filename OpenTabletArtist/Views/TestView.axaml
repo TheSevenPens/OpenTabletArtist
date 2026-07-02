@@ -121,6 +121,13 @@
                     <TextBlock Text="Altitude:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <TextBlock Text="{Binding AltitudeText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </StackPanel>
+                <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
+                     blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
+                <StackPanel Orientation="Horizontal" Margin="0,2"
+                            ToolTip.Tip="Driver-reported hover height (0–255) — shown in Driver input, for tablets that report proximity.">
+                    <TextBlock Text="Hover:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Text="{Binding HoverText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                </StackPanel>
             </UniformGrid>
         </StackPanel>
 

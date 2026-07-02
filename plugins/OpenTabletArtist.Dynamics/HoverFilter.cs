@@ -22,15 +22,27 @@ public class HoverFilter : IPositionedPipelineElement<IDeviceReport>
              "tracking once the pen lifts past it. 255 = no limit.")]
     public int MaxHoverDistance { get; set; } = 255;
 
+    [BooleanProperty("Near proximity only",
+         "Only track while the pen is in the tablet's near-proximity band (close to the surface), " +
+         "matching Wacom's default hover range. Tablets that don't report proximity ignore this."),
+     DefaultPropertyValue(false)]
+    public bool NearProximityOnly { get; set; }
+
     public PipelinePosition Position => PipelinePosition.PreTransform;
 
     public event Action<IDeviceReport>? Emit;
 
     public void Consume(IDeviceReport value)
     {
-        // Hovering past the limit → drop the report so the cursor holds its last position.
-        if (value is IProximityReport proximity && proximity.HoverDistance > MaxHoverDistance)
-            return;
+        if (value is IProximityReport proximity)
+        {
+            // Hovering past the limit → drop the report so the cursor holds its last position.
+            if (proximity.HoverDistance > MaxHoverDistance)
+                return;
+            // Near-proximity gate: only pass while the pen is in the tablet's close band (Wacom default).
+            if (NearProximityOnly && !proximity.NearProximity)
+                return;
+        }
 
         Emit?.Invoke(value);
     }

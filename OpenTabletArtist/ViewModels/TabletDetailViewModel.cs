@@ -409,6 +409,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _skipHoverPersist = true;
         MaxHoverDistance = hover?.MaxHoverDistance ?? DefaultMaxHoverDistance;
         HoverLimitEnabled = hover?.Enabled ?? false;
+        NearProximityOnly = hover?.NearProximityOnly ?? false;
         _skipHoverPersist = false;
         CanEditHover = _applyAction != null;
 
@@ -1145,6 +1146,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private bool _hoverLimitEnabled;
     [ObservableProperty] private bool _canEditHover;
     [ObservableProperty] private double _maxHoverDistance = DefaultMaxHoverDistance;
+    /// <summary>Only track while the pen is in the tablet's near-proximity band (Wacom's default). (#311)</summary>
+    [ObservableProperty] private bool _nearProximityOnly;
 
     public string MaxHoverDistanceText => ((int)MaxHoverDistance).ToString();
     /// <summary>Dim the hover controls when the limit is off so they read as inactive (like Dynamics).</summary>
@@ -1154,6 +1157,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _hoverPersistCts;
 
     partial void OnHoverLimitEnabledChanged(bool value) => SchedulePersistHover();
+    partial void OnNearProximityOnlyChanged(bool value) => SchedulePersistHover();
 
     partial void OnMaxHoverDistanceChanged(double value)
     {
@@ -1180,7 +1184,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private async Task PersistHoverAsync()
     {
         if (_applyAction == null || _settings == null) return;
-        HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled);
+        HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();
         await _applyAction(_settings);
     }
