@@ -19,6 +19,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
+        // DataContextChanged from that assignment fired inside InitializeComponent, before we could
+        // handle it. Wire the switch subscription now for the current VM, and keep the handler for
+        // any later DataContext change. (#320)
+        OnDataContextChanged(this, EventArgs.Empty);
         DataContextChanged += OnDataContextChanged;
         Closed += (_, _) =>
         {
