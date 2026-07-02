@@ -33,6 +33,9 @@ public interface IDialogService
     /// <summary>Prompts for a line of text; returns null if cancelled.</summary>
     Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "");
 
+    /// <summary>Captures a keyboard hotkey chord; returns null if cancelled. (#320)</summary>
+    Task<HotkeyChord?> ShowHotkeyCaptureAsync();
+
     /// <summary>Opens a read-only, scrollable monospace viewer (used for config JSON).</summary>
     Task ShowTextViewerAsync(string title, string content);
 }
@@ -179,6 +182,8 @@ public class DialogService : IDialogService
     public Task<bool> ShowConfirmAsync(string title, string message) => Dialogs.ShowConfirmAsync(title, message);
     public Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "")
         => Dialogs.ShowInputAsync(title, prompt, defaultValue);
+
+    public Task<HotkeyChord?> ShowHotkeyCaptureAsync() => Dialogs.ShowHotkeyCaptureAsync();
 
     public async Task ShowTextViewerAsync(string title, string content)
     {

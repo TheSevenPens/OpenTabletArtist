@@ -21,6 +21,8 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     private readonly ISettingsCoordinator _settings;
     private readonly IDeviceData _deviceData;
     private readonly IDialogService _dialogs;
+    private readonly IProfileHotkeys _hotkeys;
+    private readonly ProfileSwitchService _profileSwitch;
 
     [ObservableProperty] private List<PresetInfo> _presets = [];
     [ObservableProperty] private string _presetDirectory = "";
@@ -28,12 +30,15 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
-    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData, IDialogService dialogs)
+    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData,
+        IDialogService dialogs, IProfileHotkeys hotkeys, ProfileSwitchService profileSwitch)
     {
         _store = store;
         _settings = settings;
         _deviceData = deviceData;
         _dialogs = dialogs;
+        _hotkeys = hotkeys;
+        _profileSwitch = profileSwitch;
         _deviceData.DataLoaded += OnDataLoaded;
     }
 
@@ -71,15 +76,19 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
             {
                 var content = await File.ReadAllTextAsync(file);
                 var lastWrite = File.GetLastWriteTime(file);
+                var name = Path.GetFileNameWithoutExtension(file);
                 presetList.Add(new PresetInfo(
-                    Name: Path.GetFileNameWithoutExtension(file),
+                    Name: name,
                     Path: file,
                     Content: content,
-                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
+                    LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss"),
+                    HotkeyDisplay: _hotkeys.GetChord(name)?.Display ?? ""));
             }
             catch { }
         }
         Presets = presetList;
+        // Reconcile hotkey registrations with the current snapshot set (drops dangling mappings, #320).
+        _hotkeys.Sync(presetList.Select(p => p.Name));
     }
 
     [RelayCommand]
@@ -124,8 +133,46 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     {
         var settings = _settings.CurrentSettings;
         if (settings == null) return;
+
+        // Guard: while a live-only override is active, CurrentSettings is the override, not your saved
+        // default — updating would capture the wrong config. Make it a deliberate choice. (#320)
+        if (_profileSwitch.HasOverride)
+        {
+            var proceed = await _dialogs.ShowConfirmAsync("Update Snapshot",
+                $"A profile override (\"{_profileSwitch.ActiveSnapshot}\") is active, so this saves the " +
+                "currently-overridden settings into this snapshot — not your saved default.\n\nContinue?");
+            if (!proceed) return;
+        }
+
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);
+        await LoadAsync();
+    }
+
+    [RelayCommand]
+    private async Task AssignHotkey(string name)
+    {
+        var chord = await _dialogs.ShowHotkeyCaptureAsync();
+        if (chord == null) return;
+
+        switch (_hotkeys.SetHotkey(name, chord))
+        {
+            case HotkeySetResult.Conflict:
+                await _dialogs.ShowMessageAsync("Hotkey in use",
+                    $"\"{chord.Display}\" is already registered by another application. Pick a different combination.");
+                break;
+            case HotkeySetResult.Invalid:
+                await _dialogs.ShowMessageAsync("Hotkey not usable",
+                    "Use a modifier (Ctrl / Alt / Shift / Win) plus a letter, digit, or F-key.");
+                break;
+        }
+        await LoadAsync(); // refresh the displayed chord
+    }
+
+    [RelayCommand]
+    private async Task ClearHotkey(string name)
+    {
+        _hotkeys.ClearHotkey(name);
         await LoadAsync();
     }
 
@@ -146,6 +193,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
             if (!File.Exists(newPath))
             {
                 File.Move(oldPath, newPath);
+                _hotkeys.RenameSnapshot(name, newName); // carry the hotkey mapping across (#320)
                 await LoadAsync();
             }
             else
@@ -169,6 +217,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (!confirmed) return;
 
         File.Delete(path);
+        _hotkeys.ClearHotkey(name); // drop its hotkey mapping (#320)
         await LoadAsync();
     }
 

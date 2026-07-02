@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.Helpers;
 
@@ -164,4 +166,54 @@ public static class Dialogs
 
         return result;
     }
+
+    /// <summary>Captures a global-hotkey chord (#320): waits for a modifier + key press and returns it,
+    /// or null on Escape. Keeps waiting on an unregisterable press (bare key / unmapped key).</summary>
+    public static async Task<HotkeyChord?> ShowHotkeyCaptureAsync(Window? parent = null)
+    {
+        parent ??= GetMainWindow();
+        HotkeyChord? result = null;
+
+        var label = new TextBlock
+        {
+            Text = "Press a key combination…\n(Ctrl / Alt / Shift / Win + a letter, digit, or F-key. Esc to cancel.)",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 13,
+            Margin = new Thickness(24),
+        };
+        var dialog = new Window
+        {
+            Title = "Assign hotkey",
+            Width = 380,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Content = label,
+        };
+
+        dialog.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { dialog.Close(); e.Handled = true; return; }
+            if (IsModifierKey(e.Key)) return; // wait for the non-modifier key
+            e.Handled = true;
+            var chord = new HotkeyChord(e.KeyModifiers, e.Key);
+            if (!chord.IsRegisterable)
+            {
+                label.Text = "That won't work — use a modifier (Ctrl / Alt / Shift / Win) plus a letter, " +
+                             "digit, or F-key.\nPress a combination… (Esc to cancel.)";
+                return;
+            }
+            result = chord;
+            dialog.Close();
+        };
+
+        if (parent != null)
+            await dialog.ShowDialog(parent);
+
+        return result;
+    }
+
+    private static bool IsModifierKey(Key k) => k
+        is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+        or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.System;
 }
