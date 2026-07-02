@@ -8,7 +8,7 @@
     <LangVersion>14</LangVersion>
     <!-- Base version for dev builds; the release workflow overrides it with the tag (-p:Version=…).
          Surfaced in the sidebar footer via AssemblyInformationalVersion. -->
-    <Version>0.16.0</Version>
+    <Version>0.17.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
