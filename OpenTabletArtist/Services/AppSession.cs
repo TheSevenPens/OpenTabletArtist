@@ -22,6 +22,10 @@ namespace OpenTabletArtist.Services;
 /// (the daemon's Connected/Disconnected callbacks marshal via the dispatcher), so binders
 /// and subscribers never have to marshal. Later steps (#41) move settings + data-load here.
 /// </summary>
+/// <summary>State of the last settings auto-save (#321). OTA persists every change immediately; this
+/// drives a quiet indicator and, importantly, surfaces a failed disk write.</summary>
+public enum SettingsSaveState { None, Saving, Saved, Failed }
+
 public interface IConnectionState : INotifyPropertyChanged
 {
     bool IsConnected { get; }
@@ -53,6 +57,16 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>Set when a lifecycle op times out or fails; empty otherwise.</summary>
     string DaemonOperationError { get; }
     bool HasDaemonOperationError { get; }
+
+    // Settings auto-save feedback (#321): OTA applies + persists every settings change immediately (no
+    // Save button). These surface that quietly, and — critically — surface a disk-save failure so a
+    // change that's live but unpersisted doesn't silently vanish on the next restart.
+    /// <summary>The save indicator should be shown (Saving / Saved / failed).</summary>
+    bool ShowSaveStatus { get; }
+    /// <summary>The last settings save failed to write to disk (change is live but not persisted).</summary>
+    bool SaveFailed { get; }
+    /// <summary>Text for the save indicator.</summary>
+    string SaveStatusText { get; }
 
     IAsyncRelayCommand StartDaemonCommand { get; }
     IAsyncRelayCommand StopDaemonCommand { get; }
@@ -151,6 +165,45 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private string _daemonOperationError = "";
     public bool HasDaemonOperationError => !string.IsNullOrEmpty(DaemonOperationError);
     partial void OnDaemonOperationErrorChanged(string value) => OnPropertyChanged(nameof(HasDaemonOperationError));
+
+    // --- Settings auto-save feedback (#321) ---
+    [ObservableProperty] private SettingsSaveState _saveState;
+    public bool ShowSaveStatus => SaveState != SettingsSaveState.None;
+    public bool SaveFailed => SaveState == SettingsSaveState.Failed;
+    public string SaveStatusText => SaveState switch
+    {
+        SettingsSaveState.Saving => "Saving…",
+        SettingsSaveState.Saved => "Saved",
+        SettingsSaveState.Failed => "Couldn't save — your change is live but won't survive a restart",
+        _ => "",
+    };
+
+    private DispatcherTimer? _saveClearTimer;
+
+    partial void OnSaveStateChanged(SettingsSaveState value)
+    {
+        OnPropertyChanged(nameof(ShowSaveStatus));
+        OnPropertyChanged(nameof(SaveFailed));
+        OnPropertyChanged(nameof(SaveStatusText));
+
+        // "Saved" fades to nothing after a moment; "Saving"/"Failed" stay until the next save transition.
+        _saveClearTimer?.Stop();
+        if (value != SettingsSaveState.Saved) return;
+        try
+        {
+            _saveClearTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+            _saveClearTimer.Tick -= OnSaveClearTick;
+            _saveClearTimer.Tick += OnSaveClearTick;
+            _saveClearTimer.Start();
+        }
+        catch { /* no Dispatcher (headless tests) — the "Saved" text just lingers until the next save */ }
+    }
+
+    private void OnSaveClearTick(object? sender, EventArgs e)
+    {
+        _saveClearTimer?.Stop();
+        if (SaveState == SettingsSaveState.Saved) SaveState = SettingsSaveState.None;
+    }
 
     /// <summary>
     /// How long a Start/Restart waits for the connection to come up (and Stop waits for it to
@@ -647,11 +700,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         _settings = settings;
-        await _daemon.SetSettingsAsync(settings);
 
-        // Persist to disk (same as OTD's own UX Save). TODO(#21): surface TrySave failures.
-        if (!string.IsNullOrEmpty(SettingsFilePath))
-            _settingsStore.TrySave(settings, SettingsFilePath);
+        SaveState = SettingsSaveState.Saving;
+        bool saved;
+        try
+        {
+            await _daemon.SetSettingsAsync(settings);
+            // Persist to disk (same as OTD's own UX Save). Surface the result (#321/#21): a failed write
+            // means the change is live but won't survive a daemon restart, which we must not hide.
+            saved = string.IsNullOrEmpty(SettingsFilePath) || _settingsStore.TrySave(settings, SettingsFilePath);
+        }
+        catch
+        {
+            SaveState = SettingsSaveState.Failed;
+            throw; // keep the existing error-propagation contract for callers
+        }
+        SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
 
         await LoadDataAsync();
     }

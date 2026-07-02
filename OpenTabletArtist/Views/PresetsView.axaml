@@ -6,6 +6,11 @@
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="SAVED SETTINGS" />
 
+        <!-- Clarify the two persistence models so snapshots don't read as "the Save button" (#321). -->
+        <TextBlock Text="Your settings save automatically as you change them — there's no Save button. Snapshots are named backups of all your settings: save one now and restore it later (handy before experimenting)."
+                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   TextWrapping="Wrap" Margin="0,0,0,16" />
+
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
             <Button Content="Save Snapshot" Theme="{StaticResource AccentButton}"
                     Padding="14,7" FontSize="13"
@@ -55,11 +60,11 @@
         <Border Classes="GlassPanel" Padding="32"
                 IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No Snapshots" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Text="No snapshots yet" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Save your current settings as a snapshot"
+                <TextBlock Text="Save a named backup of your current settings to restore later."
                            FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
-                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+                           HorizontalAlignment="Center" TextAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
         </Border>
     </StackPanel>

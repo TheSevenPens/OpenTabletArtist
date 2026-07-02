@@ -107,6 +107,9 @@ internal sealed class FakeConnectionState : IConnectionState
     public string DaemonSourcePath => "";
     public string DaemonVersion => "";
     public bool HasDaemonVersion => false;
+    public bool ShowSaveStatus => false;
+    public bool SaveFailed => false;
+    public string SaveStatusText => "";
     public bool ShowAppOwnedDaemon => false;
     public bool ShowForeignDaemonWarning => false;
     public bool ShowDaemonSourceUnknown => false;
