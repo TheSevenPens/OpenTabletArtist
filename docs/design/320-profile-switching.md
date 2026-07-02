@@ -145,6 +145,35 @@ config isn't the saved default. Clears on RestoreDefault / explicit save.
 
 Small spike within Part 1: confirm hotkeys fire with **only the tray icon** visible (main window hidden).
 
+## Hotkey × tablet-binding interaction
+
+Profile hotkeys and OTD's tablet/pen/express-key bindings are **two different systems that share one
+keyboard-chord namespace**, so they can collide:
+
+- **OTD bindings are *output*.** Pressing a tablet/pen button makes the daemon *synthesize* keystrokes
+  via `SendInput` (e.g. an express key → `Ctrl+Z`).
+- **Profile hotkeys are *input capture*.** `RegisterHotKey` grabs a chord **system-wide** and consumes
+  it — once OTA registers `Ctrl+Alt+1`, no other app (and no tablet-button-emitted `Ctrl+Alt+1`) gets it.
+
+Consequences:
+
+1. **A profile hotkey steals its chord globally.** It must not overlap an app shortcut or a tablet
+   binding the user relies on. → require dedicated chords (2+ modifiers) and **warn on `RegisterHotKey`
+   conflicts** (requirement #5).
+2. **A tablet button bound to the hotkey chord *will* switch profiles** — `RegisterHotKey` doesn't
+   distinguish injected (`SendInput`) input, so an express key emitting `Ctrl+Alt+1` triggers the
+   switch. This is either intentional ("bind a tablet button to switch profiles") or an accidental
+   collision; the capture UI should make the chosen chord visible so the overlap is obvious.
+
+### Decision (Part 1)
+**Keyboard hotkeys only (`RegisterHotKey`).** Ship with conflict warnings + dedicated-chord guidance,
+and document the tablet-button-emits-chord behavior (the intentional path to "switch from the tablet").
+
+**Deferred — tablet-button trigger.** OTA already parses the daemon's aux/pen-button stream (it drives
+the ExpressKeys press highlight), so a *native* "press this unbound tablet button → switch profile"
+trigger is feasible and avoids consuming a keyboard chord entirely. It's a good follow-up but carries an
+**always-on debug-stream cost** (the stream is currently on-demand only), so it's out of Part 1 scope.
+
 ## Part 2 note (from review)
 No doc changes; keep the #167 pointer + the latency/mid-stroke spike as the gate. Run the spike with the
 debug stream **on and off** (the pen-defer path), per the #167 review.
