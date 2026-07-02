@@ -1,0 +1,30 @@
+OpenTabletArtist
+Copyright (C) 2026 OpenTabletArtist contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See the LICENSE file for the full license text.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+
+Third-party components
+======================
+
+OpenTabletDriver (LGPL-3.0)
+  https://github.com/OpenTabletDriver/OpenTabletDriver
+  Used as the tablet driver: OpenTabletArtist bundles and talks to the OTD
+  daemon and links its libraries (referenced via the external/OpenTabletDriver
+  submodule). Licensed under the GNU Lesser General Public License v3.0, which
+  is compatible with this program's GPL-3.0 license.
+
+VoiDPlugins — "Windows Ink" output-mode plugin (GPL-3.0)   [planned — see #319]
+  https://github.com/Kuuuube/VoiDPlugins
+  OpenTabletArtist plans to bundle the "Windows Ink" output-mode plugin from
+  VoiDPlugins so it is available without a separate download (issue #319). When
+  the plugin binary is bundled, the exact upstream release/commit it was built
+  from will be recorded alongside it so the corresponding source is always
+  available, as required by the GPL. VoiDPlugins is licensed under GPL-3.0.
