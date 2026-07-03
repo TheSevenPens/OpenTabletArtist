@@ -526,6 +526,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             rows.Add(new(PenSwitchKind.PenButton, i + 1, bindings.PenButtons[i], canEdit, ApplyPenSwitchBindingAsync));
         if (rows.Count > 0) rows[0].IsFirst = true; // suppresses the leading divider in the merged card
         PenSwitchRows = rows;
+
+        // Also expose each switch by slot, so the visual pen diagram can bind the tip/eraser/buttons to
+        // their positions and show only the buttons this pen actually has (#pen-switch-diagram).
+        PenTipRow = rows[0];
+        PenEraserRow = rows[1];
+        var buttons = rows.Skip(2).ToList();
+        PenButton1Row = buttons.ElementAtOrDefault(0);
+        PenButton2Row = buttons.ElementAtOrDefault(1);
+        PenButton3Row = buttons.ElementAtOrDefault(2);
     }
 
     private async Task ApplyPenSwitchBindingAsync(PenSwitchKind kind, int penButtonIndex, PluginSettingStore store)
@@ -934,6 +943,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
     [ObservableProperty] private List<PenSwitchRowViewModel> _penSwitchRows = [];
+    // Per-slot views for the visual pen diagram (button slots are null when the pen lacks that button).
+    [ObservableProperty] private PenSwitchRowViewModel? _penTipRow;
+    [ObservableProperty] private PenSwitchRowViewModel? _penEraserRow;
+    [ObservableProperty] private PenSwitchRowViewModel? _penButton1Row;
+    [ObservableProperty] private PenSwitchRowViewModel? _penButton2Row;
+    [ObservableProperty] private PenSwitchRowViewModel? _penButton3Row;
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];

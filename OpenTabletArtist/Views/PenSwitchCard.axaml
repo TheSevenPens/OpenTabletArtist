@@ -1,0 +1,45 @@
+<UserControl x:Class="OpenTabletArtist.Views.PenSwitchCard"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- One switch in the pen diagram (#pen-switch-diagram). DataContext is a PenSwitchRowViewModel,
+         supplied by the diagram which binds it to a slot (Tip / Eraser / Button N). Same data/commands
+         as the old list rows, just laid out as a compact callout card. -->
+    <Border Classes="GlassPanel" Padding="14" Width="240" BoxShadow="{DynamicResource CardShadow}">
+        <StackPanel Spacing="7">
+            <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
+
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Content="Auto" Theme="{StaticResource BindingModePill}"
+                        Classes.selected="{Binding IsAutoSelected}"
+                        Command="{Binding SetAutoCommand}" />
+                <Button Content="Legacy" Theme="{StaticResource BindingModePill}"
+                        Classes.selected="{Binding IsLegacySelected}"
+                        Command="{Binding SetLegacyCommand}" />
+                <Button Content="Other" Theme="{StaticResource BindingModePill}"
+                        Classes.selected="{Binding IsOtherSelected}"
+                        IsEnabled="{Binding IsOtherSelected}" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding BindingLabel}" FontSize="11"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       TextWrapping="Wrap" />
+
+            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsRecommended}">
+                <TextBlock Text="✓" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SuccessBrush}"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Using recommended setting" FontSize="10.5"
+                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsNotRecommended}">
+                <TextBlock Text="⚠" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource WarningBrush}"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Not recommended — use Auto instead" FontSize="10.5"
+                           Foreground="{DynamicResource WarningBrush}"
+                           VerticalAlignment="Center" TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
