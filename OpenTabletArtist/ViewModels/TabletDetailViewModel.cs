@@ -949,6 +949,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PenSwitchRowViewModel? _penButton1Row;
     [ObservableProperty] private PenSwitchRowViewModel? _penButton2Row;
     [ObservableProperty] private PenSwitchRowViewModel? _penButton3Row;
+
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;
     [ObservableProperty] private List<ButtonBinding> _auxButtons = [];

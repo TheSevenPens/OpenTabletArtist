@@ -344,82 +344,57 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pen Switches tab: a visual pen diagram with a callout card per switch (tip / eraser / buttons).
-             Data-driven — only the buttons this pen actually has are shown. Scaled to fit via a Viewbox. -->
-        <Viewbox Grid.Row="1" Grid.Column="1" Stretch="Uniform" StretchDirection="Both"
-                 MaxWidth="880" HorizontalAlignment="Center" VerticalAlignment="Top"
-                 IsVisible="{Binding #PenTipTab.IsChecked}">
-            <Canvas Width="780" Height="620">
-                <!-- Connectors (drawn first, so the pen + cards sit on top of the line ends). -->
-                <Canvas.Styles>
-                    <Style Selector="Polyline.connector">
-                        <Setter Property="Stroke" Value="#E24B4A" />
-                        <Setter Property="StrokeThickness" Value="3.5" />
-                        <Setter Property="StrokeLineCap" Value="Round" />
-                        <Setter Property="Fill" Value="{x:Null}" />
-                    </Style>
-                </Canvas.Styles>
-                <Polyline Classes="connector" Points="248,64 384,64" />                       <!-- Eraser card → eraser nub -->
-                <Polyline Classes="connector" Points="248,500 340,500 340,611 384,611" />      <!-- Pen tip card → tip nib -->
-                <Polyline Classes="connector" Points="402,380 460,380 460,120 532,120"
-                          IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" /> <!-- Button 3 card ↔ side button 3 -->
-                <Polyline Classes="connector" Points="402,430 492,430 492,300 532,300"
-                          IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" /> <!-- Button 2 card ↔ side button 2 -->
-                <Polyline Classes="connector" Points="402,480 532,480"
-                          IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" /> <!-- Button 1 card ↔ side button 1 -->
+        <!-- Pen Switches tab: reflowing rows — pen tip + eraser · a horizontal pen (tip to the left) ·
+             the buttons. Cards wrap when the window is narrow, so the layout survives resizing.
+             Data-driven: only the buttons this pen actually has appear (in the graphic and as cards). -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenTipTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <!-- Row 1: pen tip + eraser -->
+                    <WrapPanel HorizontalAlignment="Center">
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenTipRow}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenEraserRow}" />
+                    </WrapPanel>
 
-                <!-- ── Pen graphic ─────────────────────────────────────────────────────────
-                     Drawn top→bottom: eraser nub · barrel · tip cone · tip nib, then the three
-                     side buttons. The pink fill (#F7CFD8) is the pen body; #CF5E86 is the outline.
-                     Side buttons appear only for buttons this pen has (bound to PenButton{N}Row). -->
+                    <!-- Row 2: horizontal pen (tip left → eraser right). Decorative; no connectors. -->
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
+                        <Canvas Width="400" Height="80">
+                            <!-- tip nib (far left, under the cone) -->
+                            <Rectangle Canvas.Left="8" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                            <!-- tip cone (pointing left) -->
+                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="#F7CFD8"
+                                     Stroke="#CF5E86" StrokeThickness="2.5" StrokeJoin="Round" />
+                            <!-- barrel -->
+                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="272" Height="24"
+                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                            <!-- eraser nub (right) -->
+                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                            <!-- side buttons, clustered toward the tip (left) -->
+                            <Rectangle Canvas.Left="104" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="148" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="192" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        </Canvas>
+                    </Viewbox>
 
-                <!-- Eraser (the rounded nub on top). Centered on the barrel: Left = 390 (barrel centre) − Width/2. -->
-                <Rectangle Canvas.Left="378" Canvas.Top="52" Width="24" Height="40" RadiusX="6" RadiusY="6"
-                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
-
-                <!-- Barrel (the pen body) -->
-                <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468"
-                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
-
-                <!-- Tip nib (the little point at the very bottom). Drawn BEFORE the cone so the cone
-                     overlaps it (nib sits under the tip cone). -->
-                <Rectangle Canvas.Left="384" Canvas.Top="600" Width="12" Height="20" RadiusX="4" RadiusY="4"
-                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
-
-                <!-- Tip cone (the tapered end). Top corners inset from the barrel edges (372/408) so the
-                     cone — including its stroke — stays within the body's width instead of poking out. -->
-                <Polygon Points="375,538 405,538 399,606 381,606" Fill="#F7CFD8"
-                         Stroke="#CF5E86" StrokeThickness="2.5" StrokeJoin="Round" />
-
-                <!-- Side button 3 (top of the cluster) -->
-                <Rectangle Canvas.Left="378" Canvas.Top="360" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
-                           IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <!-- Side button 2 (middle) -->
-                <Rectangle Canvas.Left="378" Canvas.Top="410" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
-                           IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <!-- Side button 1 (bottom, nearest the tip) -->
-                <Rectangle Canvas.Left="378" Canvas.Top="460" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
-                           IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-
-                <!-- Callout cards -->
-                <!-- Eraser card (top-left) -->
-                <views:PenSwitchCard Canvas.Left="8" Canvas.Top="24" DataContext="{Binding PenEraserRow}" />
-                <!-- Pen tip card (bottom-left) -->
-                <views:PenSwitchCard Canvas.Left="8" Canvas.Top="428" DataContext="{Binding PenTipRow}" />
-                <!-- Button 3 card (top-right) -->
-                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="64" DataContext="{Binding PenButton3Row}"
-                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <!-- Button 2 card (middle-right) -->
-                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="246" DataContext="{Binding PenButton2Row}"
-                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <!-- Button 1 card (bottom-right) -->
-                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="428" DataContext="{Binding PenButton1Row}"
-                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-            </Canvas>
-        </Viewbox>
+                    <!-- Row 3: buttons (only those the pen has) -->
+                    <WrapPanel HorizontalAlignment="Center">
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton1Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton2Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton3Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </WrapPanel>
+                </StackPanel>
+        </ScrollViewer>
 
         <!-- ExpressKeys tab content: one card per auxiliary button. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"

@@ -18,7 +18,10 @@ public partial class TabletDetailView : UserControl
 {
     private Screens? _screens;
 
-    public TabletDetailView() => InitializeComponent();
+    public TabletDetailView()
+    {
+        InitializeComponent();
+    }
 
     private TabletDetailViewModel? Vm => DataContext as TabletDetailViewModel;
 
