@@ -386,8 +386,9 @@
                 <Rectangle Canvas.Left="384" Canvas.Top="600" Width="12" Height="20" RadiusX="4" RadiusY="4"
                            Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
 
-                <!-- Tip cone (the tapered end) -->
-                <Polygon Points="372,538 408,538 399,606 381,606" Fill="#F7D8C4"
+                <!-- Tip cone (the tapered end). Top corners inset from the barrel edges (372/408) so the
+                     cone — including its stroke — stays within the body's width instead of poking out. -->
+                <Polygon Points="375,538 405,538 399,606 381,606" Fill="#F7D8C4"
                          Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
 
                 <!-- Side button 3 (top of the cluster) -->
