@@ -128,7 +128,6 @@ Caveats:
 - **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
 - **Profiles are whole-configuration.** A profile is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up profiles with that in mind if you have multiple tablets.
 - **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.
-- **Wait for the pen to lift** (on by default) holds a switch until you finish the current stroke, so a mapping change can't jump the cursor mid-stroke.
 - **Elevated and Store (UWP) apps** may not report a usable executable path; matching falls back to the process name, and some packaged apps report an `ApplicationFrameHost`-style path — mapping by name still works in most cases.
 - **App-owned daemon only.** The feature is disabled (with a banner) while a daemon that OpenTabletArtist didn't start is running, because its settings and profile files may not match.
 

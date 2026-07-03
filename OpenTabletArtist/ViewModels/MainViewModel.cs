@@ -142,7 +142,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _perAppStore = PerAppProfileStore.ForApp();
         _perAppSwitcher = new PerAppSwitcher(
             new Win32ForegroundAppWatcher(),
-            new DaemonPenStateProvider(_session.Daemon),
             _perAppStore,
             new PerAppApplier(_session, _settingsStore, () => _session.PresetDirectory),
             new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),

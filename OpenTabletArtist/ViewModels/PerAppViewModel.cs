@@ -30,7 +30,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     private bool _suppress;   // guards store writes while we repopulate the UI from the store
 
     [ObservableProperty] private bool _enabled;
-    [ObservableProperty] private bool _deferUntilPenUp = true;
     [ObservableProperty] private List<string> _snapshotNames = [];
     [ObservableProperty] private List<string> _defaultOptions = [UseMyDefault];
     [ObservableProperty] private string _selectedDefault = UseMyDefault;
@@ -62,7 +61,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
         // Reflect persisted config.
         _enabled = _store.Config.Enabled;
-        _deferUntilPenUp = _switcher.DeferUntilPenUp;
     }
 
     private void OnConnectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -129,11 +127,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         if (value) _switcher.Start();
         else _ = _switcher.StopAsync();
         StatusLine = value ? "On — waiting for an app change…" : "Off.";
-    }
-
-    partial void OnDeferUntilPenUpChanged(bool value)
-    {
-        _switcher.DeferUntilPenUp = value;
     }
 
     partial void OnSelectedDefaultChanged(string value)

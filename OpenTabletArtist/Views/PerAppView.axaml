@@ -37,8 +37,6 @@
                 <StackPanel Spacing="14">
                     <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
                               FontWeight="SemiBold" />
-                    <CheckBox Content="Wait for the pen to lift before switching (avoids a mid-stroke jump)"
-                              IsChecked="{Binding DeferUntilPenUp}" Margin="0,-4,0,0" />
 
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
                         <TextBlock Grid.Column="0" Text="Default profile (unmapped apps)" VerticalAlignment="Center"
