@@ -2,7 +2,8 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
-             xmlns:conv="using:Avalonia.Data.Converters">
+             xmlns:conv="using:Avalonia.Data.Converters"
+             xmlns:otac="using:OpenTabletArtist.Converters">
 
     <UserControl.Styles>
         <!-- Express-key card lights up while its physical button is held. Only the border/background
@@ -43,9 +44,9 @@
         <!-- Header: tablet name, connection status, Refresh + Forget on one row. -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
-                <TextBlock Grid.Column="0" Text="{Binding TabletName}" FontSize="20" FontWeight="Bold"
-                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"
-                           TextWrapping="Wrap" MaxWidth="280" />
+                <TextBlock Grid.Column="0" Classes="PageTitle" Margin="0"
+                           Text="{Binding TabletName, Converter={x:Static otac:UpperCaseConverter.Instance}}"
+                           VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsTabletDetected}" />
                     <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
