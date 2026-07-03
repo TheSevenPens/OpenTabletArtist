@@ -162,8 +162,8 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         var snapshot = SnapshotNames.FirstOrDefault();
         if (snapshot == null)
         {
-            await _dialogs.ShowMessageAsync("No snapshots",
-                "Save at least one snapshot on the Saved Settings page first, then map apps to it.");
+            await _dialogs.ShowMessageAsync("No profiles",
+                "Save at least one profile on the Profiles page first, then map apps to it.");
             return;
         }
         _store.Upsert(new PerAppMapping(app.ExePath, app.ExeName, snapshot));
@@ -174,7 +174,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         StatusLine = snapshot == null ? "Active: your default settings" : $"Active: {snapshot}";
 
     private async void OnDangling(string snapshot) =>
-        await _dialogs.ShowMessageAsync("Missing snapshot",
+        await _dialogs.ShowMessageAsync("Missing profile",
             $"A mapping points at \"{snapshot}\", which no longer exists — using your default instead. " +
             "Re-assign that app on this page.");
 

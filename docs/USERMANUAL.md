@@ -20,7 +20,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar's top-level items are **Home**, **Tablets**, **Saved Settings**, **Test Drawing**, and **About**. A collapsible **Advanced** group holds **Daemon**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, **Plugins**, **Driver Cleanup**, and **Theme**.
+The sidebar's top-level items are **Home**, **Tablets**, **Profiles** (with **Per-App Profiles** nested under it), **Hotkeys**, **Test Drawing**, and **About**. A collapsible **Advanced** group holds **Daemon**, **Windows Ink Plugin**, **VMulti Driver**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, **Plugins**, **Driver Cleanup**, and **Theme**.
 
 **Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
 
@@ -65,46 +65,72 @@ Selecting a tablet in the sidebar opens its settings **in the right-hand pane** 
 
 A **Refresh** button in the page header reloads settings from the daemon (useful after making changes in the OTD UX).
 
-### Saved Settings
+### Profiles
 
-Saved copies of your entire OTD configuration. Cards show the snapshot name and file last-modified time, sorted newest first.
+A **profile** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the profile name and file last-modified time, sorted newest first. Profiles are what hotkeys and per-app switching apply.
+
+> Note: "profile" here means a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each OTA profile file contains the complete OTD `Settings` (all tablets).
 
 Toolbar:
 
-- **Save Snapshot** — Saves current settings with an auto-numbered name: `Snapshot`, `Snapshot 2`, `Snapshot 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
-- **Browse** — Opens the snapshots folder in Explorer.
+- **Save Profile** — Saves current settings with an auto-numbered name: `Profile`, `Profile 2`, `Profile 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
+- **Browse** — Opens the profiles folder in Explorer.
 
-Each snapshot card has:
+Each profile card has:
 
-- **Load** — Applies the snapshot's settings to the daemon.
-- **Update** — Overwrites the snapshot with the current settings.
+- **Load** — Applies the profile's settings to the daemon **and saves them as your default** (this is a permanent switch — see [Switching profiles](#switching-profiles)).
+- **Update** — Overwrites the profile with the current settings.
 - **Rename** — Prompts for a new name (simple text dialog, no file picker).
-- **Delete** — Removes the snapshot file after a confirmation prompt.
+- **Delete** — Removes the profile file after a confirmation prompt.
 
-The "No Snapshots" empty state appears only when the snapshots folder is actually empty.
+The "No profiles" empty state appears only when the profiles folder is actually empty.
+
+### Switching profiles
+
+There are several ways to change the active configuration, split by whether the change is **permanent** (rewrites your saved default) or **temporary** (a live override that's restored later).
+
+Whole-profile switches:
+
+| How | Where | Effect |
+|---|---|---|
+| **Load** a profile | Profiles page | **Permanent** — applies it and saves it as your default. |
+| **Profile hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a profile as a live override; a "Profile override" chip shows while active. Your saved default is untouched. |
+| **Per-app switching** | Per-App Profiles page | **Automatic + temporary** — the mapped profile is applied when its app comes to the foreground; unmapped apps use a default. An "App profile" chip shows the active one. Restored on disable/exit. |
+
+Monitor-mapping switches (change only which monitor the active profile maps to — all **permanent**):
+
+- **Cycle mapped monitor** hotkey (Hotkeys page).
+- **Switch Display** in the system-tray menu.
+- The display picker on a tablet's page.
+
+Notes:
+
+- Only **Load** is a permanent whole-profile switch; the hotkey and per-app methods are temporary and leave your on-disk default intact.
+- Per-app switching deliberately **does not** change the monitor mapping — set that once (tablet page / cycle-monitor hotkey) and it sticks across per-app switches.
+- There's currently no one-click "clear override / back to default" button for a hotkey-driven override — it clears when you switch again (per-app overrides restore automatically on disable/exit).
 
 ### Hotkeys
 
 Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. Assign a combination (a modifier — Ctrl / Alt / Shift / Win — plus a letter, digit, or F-key) with the on-screen picker, and it takes effect system-wide.
 
 - **Cycle mapped monitor** — moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
-- **Profile switching** — assign a hotkey to a Saved Settings snapshot to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Profile override" chip shows while one is active.
+- **Profile switching** — assign a hotkey to a profile to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Profile override" chip shows while one is active.
 
 ### Per-App Profiles
 
-Automatically applies a Saved Settings snapshot when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a snapshot, and switching to that app reconfigures the tablet; unmapped apps use a configurable default.
+Automatically applies a profile when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a profile, and switching to that app reconfigures the tablet; unmapped apps use a configurable default. (Nested under **Profiles** in the sidebar.)
 
-To use it: create the snapshots you want first (Saved Settings), then on this page tick **Enable per-app profile switching**, pick a **Default profile** for unmapped apps, and **Add app…** to map a running application to a snapshot. An **App profile** chip in the main window shows which snapshot is currently applied.
+To use it: create the profiles you want first (Profiles page), then here tick **Enable per-app profile switching**, pick a **Default profile** for unmapped apps, and **Add app…** to map a running application to a profile. An **App profile** chip in the main window shows which profile is currently applied.
 
 Caveats:
 
 - **Switches are temporary.** They're applied live to the daemon only — your saved default settings file is never overwritten, the settings editor keeps showing/editing your default, and your default is restored when you disable the feature or quit the app.
 - **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
-- **Snapshots are whole-configuration.** A snapshot is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up snapshots with that in mind if you have multiple tablets.
+- **Profiles are whole-configuration.** A profile is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up profiles with that in mind if you have multiple tablets.
 - **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.
 - **Wait for the pen to lift** (on by default) holds a switch until you finish the current stroke, so a mapping change can't jump the cursor mid-stroke.
 - **Elevated and Store (UWP) apps** may not report a usable executable path; matching falls back to the process name, and some packaged apps report an `ApplicationFrameHost`-style path — mapping by name still works in most cases.
-- **App-owned daemon only.** The feature is disabled (with a banner) while a daemon that OpenTabletArtist didn't start is running, because its profiles and snapshot files may not match.
+- **App-owned daemon only.** The feature is disabled (with a banner) while a daemon that OpenTabletArtist didn't start is running, because its settings and profile files may not match.
 
 ### Custom Tablet Compatibility
 

@@ -6,7 +6,7 @@
     <StackPanel MaxWidth="860" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="PER-APP PROFILES" />
 
-        <TextBlock Text="Automatically switch to a saved snapshot when you change apps — like Wacom/XP-Pen/Huion drivers. Switches are temporary (your saved default is never overwritten) and only happen while OpenTabletArtist is running."
+        <TextBlock Text="Automatically switch to a saved profile when you change apps — like Wacom/XP-Pen/Huion drivers. Switches are temporary (your saved default is never overwritten) and only happen while OpenTabletArtist is running."
                    FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,18" />
 
@@ -16,16 +16,16 @@
                 BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18"
                 IsVisible="{Binding IsForeignDaemon}">
             <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource WarningBrush}"
-                       Text="Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running — its profiles and snapshot files may not match. Stop that daemon (or let OpenTabletArtist manage it) to use this feature." />
+                       Text="Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running — its settings and profile files may not match yours. Stop that daemon (or let OpenTabletArtist manage it) to use this feature." />
         </Border>
 
         <!-- Need snapshots first -->
         <Border Classes="GlassPanel" Padding="24"
                 IsVisible="{Binding !HasEnoughSnapshots}" IsEnabled="{Binding CanUse}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="Save a snapshot first" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="Save a profile first" FontSize="15" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Per-app profiles map applications to Saved Settings snapshots. Create at least one on the Saved Settings page, then come back."
+                <TextBlock Text="Per-app switching maps applications to saved profiles. Create at least one on the Profiles page, then come back."
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                            HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
             </StackPanel>
@@ -73,7 +73,7 @@
                                     <TextBlock Text="{Binding PathDisplay}" FontSize="11"
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                                    <TextBlock Text="⚠ snapshot missing" FontSize="11" FontWeight="SemiBold"
+                                    <TextBlock Text="⚠ profile missing" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource WarningBrush}" Margin="0,3,0,0"
                                                IsVisible="{Binding IsMissing}" />
                                 </StackPanel>
@@ -95,7 +95,7 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No apps mapped yet" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                    <TextBlock Text="Add an app and pick which snapshot it should use."
+                    <TextBlock Text="Add an app and pick which profile it should use."
                                FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
                                HorizontalAlignment="Center" Margin="0,6,0,0" />
                 </StackPanel>

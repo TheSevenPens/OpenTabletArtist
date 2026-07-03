@@ -98,7 +98,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
         || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
-        || ReferenceEquals(page, PerApp)
         || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).

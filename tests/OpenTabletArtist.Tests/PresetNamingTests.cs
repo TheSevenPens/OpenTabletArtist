@@ -8,37 +8,37 @@ public class PresetNamingTests
     [Fact]
     public void Empty_ReturnsBaseName()
     {
-        Assert.Equal("Snapshot", PresetNaming.NextSnapshotName([]));
+        Assert.Equal("Profile", PresetNaming.NextSnapshotName([]));
     }
 
     [Fact]
-    public void BaseTaken_ReturnsSnapshot2()
+    public void BaseTaken_ReturnsProfile2()
     {
-        Assert.Equal("Snapshot 2", PresetNaming.NextSnapshotName(["Snapshot"]));
+        Assert.Equal("Profile 2", PresetNaming.NextSnapshotName(["Profile"]));
     }
 
     [Fact]
     public void SequentialNames_ReturnNextNumber()
     {
-        Assert.Equal("Snapshot 3", PresetNaming.NextSnapshotName(["Snapshot", "Snapshot 2"]));
+        Assert.Equal("Profile 3", PresetNaming.NextSnapshotName(["Profile", "Profile 2"]));
     }
 
     [Fact]
     public void LowestGap_IsReused()
     {
-        // "Snapshot 2" is free even though "Snapshot 3" exists.
-        Assert.Equal("Snapshot 2", PresetNaming.NextSnapshotName(["Snapshot", "Snapshot 3"]));
+        // "Profile 2" is free even though "Profile 3" exists.
+        Assert.Equal("Profile 2", PresetNaming.NextSnapshotName(["Profile", "Profile 3"]));
     }
 
     [Fact]
     public void Comparison_IsCaseInsensitive()
     {
-        Assert.Equal("Snapshot 2", PresetNaming.NextSnapshotName(["snapshot"]));
+        Assert.Equal("Profile 2", PresetNaming.NextSnapshotName(["profile"]));
     }
 
     [Fact]
     public void UnrelatedNames_AreIgnored()
     {
-        Assert.Equal("Snapshot", PresetNaming.NextSnapshotName(["Foo", "Bar", "My Preset"]));
+        Assert.Equal("Profile", PresetNaming.NextSnapshotName(["Foo", "Bar", "My Preset"]));
     }
 }

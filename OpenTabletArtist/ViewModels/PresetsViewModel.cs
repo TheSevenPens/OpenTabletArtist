@@ -102,7 +102,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (settings == null) return;
         if (!Directory.Exists(PresetDirectory)) Directory.CreateDirectory(PresetDirectory);
 
-        // Pick the lowest "Snapshot N" name not already taken (lowest gap is reused).
+        // Pick the lowest "Profile N" name not already taken (lowest gap is reused).
         // Date/time is shown separately on each card from the file's last-write time.
         var existing = Directory.EnumerateFiles(PresetDirectory, "*.json")
                                 .Select(Path.GetFileNameWithoutExtension)
@@ -135,9 +135,9 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         // default — updating would capture the wrong config. Make it a deliberate choice. (#320)
         if (_profileSwitch.HasOverride)
         {
-            var proceed = await _dialogs.ShowConfirmAsync("Update Snapshot",
+            var proceed = await _dialogs.ShowConfirmAsync("Update Profile",
                 $"A profile override (\"{_profileSwitch.ActiveSnapshot}\") is active, so this saves the " +
-                "currently-overridden settings into this snapshot — not your saved default.\n\nContinue?");
+                "currently-overridden settings into this profile — not your saved default.\n\nContinue?");
             if (!proceed) return;
         }
 
@@ -153,8 +153,8 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (!File.Exists(oldPath)) return;
 
         var newName = await _dialogs.ShowInputAsync(
-            "Rename Snapshot",
-            "Enter a new name for this snapshot:",
+            "Rename Profile",
+            "Enter a new name for this profile:",
             name);
 
         if (!string.IsNullOrWhiteSpace(newName) && newName != name)
@@ -169,7 +169,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
             else
             {
                 await _dialogs.ShowMessageAsync("Rename",
-                    $"A snapshot named \"{newName}\" already exists.");
+                    $"A profile named \"{newName}\" already exists.");
             }
         }
     }
@@ -181,8 +181,8 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (!File.Exists(path)) return;
 
         var confirmed = await _dialogs.ShowConfirmAsync(
-            "Delete Snapshot",
-            $"Delete the snapshot \"{name}\"?\n\nThis cannot be undone.");
+            "Delete Profile",
+            $"Delete the profile \"{name}\"?\n\nThis cannot be undone.");
 
         if (!confirmed) return;
 
