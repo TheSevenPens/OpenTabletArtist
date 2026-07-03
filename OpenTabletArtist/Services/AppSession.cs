@@ -83,6 +83,11 @@ public interface ISettingsCoordinator
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
     Task ApplyLiveOnlyAsync(Settings settings);
+    /// <summary>Applies settings to the daemon ONLY — no disk save, no reload, and (unlike
+    /// <see cref="ApplyLiveOnlyAsync"/>) does <b>not</b> mutate <see cref="CurrentSettings"/>. For automatic
+    /// per-app switching (#167): the editor keeps showing/persisting the user's default while the daemon
+    /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).</summary>
+    Task ApplyEphemeralAsync(Settings settings);
     /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).</summary>
     Task RestoreDefaultAsync();
 }
@@ -736,6 +741,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // the feedback.
         await _daemon.SetSettingsAsync(settings);
         await LoadDataAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task ApplyEphemeralAsync(Settings settings)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        ProfileFilterMaintenance.CleanLegacyFilters(settings);
+        // Per-app switch (#167): apply to the daemon ONLY. Deliberately does NOT touch _settings, TrySave,
+        // or reload — CurrentSettings must stay on the user's default so the editor edits the default, not
+        // the transient per-app snapshot. Live pen streams read daemon reports, so they still update.
+        await _daemon.SetSettingsAsync(settings);
     }
 
     /// <inheritdoc />

@@ -112,6 +112,10 @@
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
                                      Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="PER-APP PROFILES"
+                                     IsChecked="{Binding IsPerApp, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
+                                     Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
                                      IsChecked="{Binding IsDiagnostics, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Diagnostics}"
@@ -148,19 +152,30 @@
             </Border>
         </ScrollViewer>
 
-        <!-- Active-profile override cue (#320): a live-only profile switch (hotkey / per-app) runs a
-             temporary override on the daemon, NOT your saved default. Persistent while overridden, so
-             it's clear the active config isn't what's on disk. Pinned to the content area's bottom-left
-             (Grid.Column 1) — NOT the window's, so it can't overlap the sidebar's bottom nav items when
-             the ADVANCED group is expanded on a short window. Mirrors the bottom-right save chip. -->
-        <Border Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="24,0,0,20"
-                IsVisible="{Binding ProfileSwitch.HasOverride}"
-                Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-            <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Profile override: {0}'}"
-                       FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                       TextWrapping="Wrap" MaxWidth="280" />
-        </Border>
+        <!-- Bottom-left status cues, pinned to the content area (Grid.Column 1) — NOT the window's, so
+             they can't overlap the sidebar's bottom nav items on a short window. Stacked so the per-app
+             (#167) and override (#320) chips never collide when both are active. Mirrors the save chip. -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                    Margin="24,0,0,20" Spacing="8">
+            <!-- Active per-app profile (#167): a mapped app is in focus and its snapshot is applied live. -->
+            <Border IsVisible="{Binding PerAppSwitch.HasActiveProfile}"
+                    Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+                <TextBlock Text="{Binding PerAppSwitch.ActiveProfile, StringFormat='App profile: {0}'}"
+                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                           TextWrapping="Wrap" MaxWidth="280" />
+            </Border>
+
+            <!-- Active-profile override cue (#320): a live-only hotkey switch runs a temporary override on
+                 the daemon, NOT your saved default. Persistent while overridden. -->
+            <Border IsVisible="{Binding ProfileSwitch.HasOverride}"
+                    Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+                <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Profile override: {0}'}"
+                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                           TextWrapping="Wrap" MaxWidth="280" />
+            </Border>
+        </StackPanel>
     </Grid>
 
     <!-- Settings auto-save indicator (#321): OTA has no Save button — every change is applied + saved

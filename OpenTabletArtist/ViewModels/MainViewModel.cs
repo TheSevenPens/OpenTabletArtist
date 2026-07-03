@@ -28,6 +28,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ProfileHotkeyManager _profileHotkeys;
     private readonly MonitorCycleService _monitorCycle;
     private readonly MonitorCycleHotkeys _monitorHotkeys;
+    private readonly PerAppProfileStore _perAppStore;
+    private readonly PerAppSwitcher _perAppSwitcher;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -42,6 +44,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Monitor-cycle switch events (#89) — the shell subscribes to show a toast on cycle.</summary>
     public MonitorCycleService MonitorCycle => _monitorCycle;
 
+    /// <summary>Per-app switch state (#167) — the shell binds this for the "App profile" cue.</summary>
+    public PerAppSwitcher PerAppSwitch => _perAppSwitcher;
+
+    /// <summary>Restore the user's default before exit if a per-app snapshot is applied (#167). Awaited by
+    /// the tray's Quit while the daemon is still connected, so no per-app snapshot lingers after close.</summary>
+    public Task ShutdownRestorePerAppAsync() => _perAppSwitcher.StopAsync();
+
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
     // coordinator, and open the per-tablet dialog through the dialog service.
@@ -54,6 +63,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
     public HotkeysViewModel Hotkeys { get; }
+    public PerAppViewModel PerApp { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
@@ -88,12 +98,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
         || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
+        || ReferenceEquals(page, PerApp)
         || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
     public bool IsHotkeys => ReferenceEquals(CurrentPage, Hotkeys);
+    public bool IsPerApp => ReferenceEquals(CurrentPage, PerApp);
     public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
@@ -126,6 +138,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
+        // Per-app profile switching (#167): a foreground watcher + pen-state provider drive the switch
+        // policy, applying snapshots ephemerally (editor stays on the user's default).
+        _perAppStore = PerAppProfileStore.ForApp();
+        _perAppSwitcher = new PerAppSwitcher(
+            new Win32ForegroundAppWatcher(),
+            new DaemonPenStateProvider(_session.Daemon),
+            _perAppStore,
+            new PerAppApplier(_session, _settingsStore, () => _session.PresetDirectory),
+            new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),
+            ownExeName: System.Diagnostics.Process.GetCurrentProcess().ProcessName + ".exe");
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
@@ -133,6 +155,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
+        PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs, _session);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
@@ -263,6 +286,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Rescan the Hotkeys page when opened so a snapshot saved on the Saved Settings page shows here.
         if (ReferenceEquals(newValue, Hotkeys)) _ = Hotkeys.LoadAsync();
+        // Same for the Per-App spike page's snapshot pickers.
+        if (ReferenceEquals(newValue, PerApp)) _ = PerApp.LoadAsync();
 
         // Highlight the selected tablet child (or none) in the sidebar.
         UpdateTabletSelection();
@@ -271,6 +296,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsDashboard));
         OnPropertyChanged(nameof(IsPresets));
         OnPropertyChanged(nameof(IsHotkeys));
+        OnPropertyChanged(nameof(IsPerApp));
         OnPropertyChanged(nameof(IsConfigs));
         OnPropertyChanged(nameof(IsDriverCleanup));
         OnPropertyChanged(nameof(IsDiagnostics));
@@ -292,6 +318,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         Presets.Dispose();        // unsubscribes DataLoaded
         Hotkeys.Dispose();        // unsubscribes DataLoaded
+        PerApp.Dispose();         // unsubscribes DataLoaded + spike events
         Test.Dispose();           // stops the daemon debug stream if running
         Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
@@ -304,6 +331,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys.Dispose(); // drops its registrations + event hook (shared service, not disposed here)
         _monitorHotkeys.Dispose(); // drops its registration + event hook
         _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
+        _perAppSwitcher.Dispose(); // stops the foreground watcher + pen stream
     }
 }
 

@@ -83,6 +83,29 @@ Each snapshot card has:
 
 The "No Snapshots" empty state appears only when the snapshots folder is actually empty.
 
+### Hotkeys
+
+Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. Assign a combination (a modifier — Ctrl / Alt / Shift / Win — plus a letter, digit, or F-key) with the on-screen picker, and it takes effect system-wide.
+
+- **Cycle mapped monitor** — moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
+- **Profile switching** — assign a hotkey to a Saved Settings snapshot to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Profile override" chip shows while one is active.
+
+### Per-App Profiles
+
+Automatically applies a Saved Settings snapshot when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a snapshot, and switching to that app reconfigures the tablet; unmapped apps use a configurable default.
+
+To use it: create the snapshots you want first (Saved Settings), then on this page tick **Enable per-app profile switching**, pick a **Default profile** for unmapped apps, and **Add app…** to map a running application to a snapshot. An **App profile** chip in the main window shows which snapshot is currently applied.
+
+Caveats:
+
+- **Switches are temporary.** They're applied live to the daemon only — your saved default settings file is never overwritten, the settings editor keeps showing/editing your default, and your default is restored when you disable the feature or quit the app.
+- **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
+- **Snapshots are whole-configuration.** A snapshot is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up snapshots with that in mind if you have multiple tablets.
+- **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.
+- **Wait for the pen to lift** (on by default) holds a switch until you finish the current stroke, so a mapping change can't jump the cursor mid-stroke.
+- **Elevated and Store (UWP) apps** may not report a usable executable path; matching falls back to the process name, and some packaged apps report an `ApplicationFrameHost`-style path — mapping by name still works in most cases.
+- **App-owned daemon only.** The feature is disabled (with a banner) while a daemon that OpenTabletArtist didn't start is running, because its profiles and snapshot files may not match.
+
 ### Custom Tablet Compatibility
 
 Lists tablet config JSON files in `%AppData%\OpenTabletDriver\Configurations\` (the folder is created on app startup if missing). Each row shows the tablet's friendly name (read from the JSON `Name` field, falling back to a manufacturer-folder + filename combo). Per-row **View** opens the formatted JSON in a read-only viewer; **Delete** removes the file after a confirmation prompt. The panel header has a **Refresh** icon to rescan and an **Open Folder** button.

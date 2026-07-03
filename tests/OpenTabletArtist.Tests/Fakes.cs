@@ -51,6 +51,10 @@ internal sealed class FakeDialogService : IDialogService
 
     public Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null) => Task.FromResult(HotkeyResult);
 
+    /// <summary>Result returned by <see cref="ShowProcessPickerAsync"/> (default null = cancelled).</summary>
+    public OpenTabletArtist.Domain.AppIdentity? ProcessPickerResult { get; set; }
+    public Task<OpenTabletArtist.Domain.AppIdentity?> ShowProcessPickerAsync() => Task.FromResult(ProcessPickerResult);
+
     public Task ShowTextViewerAsync(string title, string content)
     {
         LastTextViewer = (title, content);

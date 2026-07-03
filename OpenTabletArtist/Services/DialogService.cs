@@ -39,6 +39,10 @@ public interface IDialogService
 
     /// <summary>Opens a read-only, scrollable monospace viewer (used for config JSON).</summary>
     Task ShowTextViewerAsync(string title, string content);
+
+    /// <summary>Lets the user pick a running windowed application; returns its identity, or null if
+    /// cancelled. Used to add a per-app profile mapping (#167).</summary>
+    Task<Domain.AppIdentity?> ShowProcessPickerAsync();
 }
 
 /// <inheritdoc />
@@ -189,6 +193,8 @@ public class DialogService : IDialogService
         var owner = Dialogs.GetMainWindow();
         return owner != null ? await Views.HotkeyCaptureDialog.ShowAsync(owner, initial) : null;
     }
+
+    public Task<Domain.AppIdentity?> ShowProcessPickerAsync() => Dialogs.ShowProcessPickerAsync();
 
     public async Task ShowTextViewerAsync(string title, string content)
     {

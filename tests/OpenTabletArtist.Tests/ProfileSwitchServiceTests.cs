@@ -16,6 +16,8 @@ public class ProfileSwitchServiceTests
         public int SaveCalls;
         public Task ApplyAndSaveSettingsAsync(Settings settings) { SaveCalls++; return Task.CompletedTask; }
         public Task ApplyLiveOnlyAsync(Settings settings) { LiveOnlyCalls++; return Task.CompletedTask; }
+        public int EphemeralCalls;
+        public Task ApplyEphemeralAsync(Settings settings) { EphemeralCalls++; return Task.CompletedTask; }
         public Task RestoreDefaultAsync() { RestoreCalls++; return Task.CompletedTask; }
     }
 
