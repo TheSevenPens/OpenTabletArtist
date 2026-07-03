@@ -48,12 +48,12 @@
                             CornerRadius="12"
                             Padding="8,8,16,8">
                         <Grid ColumnDefinitions="Auto,12,*">
-                            <!-- Active indicator bar -->
+                            <!-- Active indicator bar. Always laid out (only its colour changes when
+                                 checked) so selecting a row can't grow its height and nudge the label. -->
                             <Border x:Name="Indicator"
                                     Width="3" Height="20"
                                     CornerRadius="2"
-                                    Background="{DynamicResource AccentBrush}"
-                                    IsVisible="False"
+                                    Background="Transparent"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Left"
                                     Margin="-4,0,0,0" />
@@ -87,7 +87,7 @@
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             </Style>
             <Style Selector="^:checked /template/ Border#Indicator">
-                <Setter Property="IsVisible" Value="True" />
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             </Style>
         </ControlTheme>
 
