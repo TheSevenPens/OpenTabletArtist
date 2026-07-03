@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
@@ -39,7 +40,7 @@ public interface IPerAppApplier
 /// ignore-own-window, dangling-snapshot→default). Headless and fully unit-testable; the real watcher /
 /// pen provider / applier / debouncer are injected. UI-thread only in production.
 /// </summary>
-public sealed class PerAppSwitcher : IDisposable
+public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
 {
     private readonly IForegroundAppWatcher _watcher;
     private readonly IPenStateProvider _pen;
@@ -57,6 +58,14 @@ public sealed class PerAppSwitcher : IDisposable
     /// <summary>Hold a switch that lands mid-stroke until the pen lifts (set from the spike outcome — a
     /// mapping change mid-stroke jumps the cursor). On by default.</summary>
     public bool DeferUntilPenUp { get; set; } = true;
+
+    /// <summary>The active per-app snapshot (null = user default / none) — bound by the shell for the
+    /// "App profile" cue, and mirrored by the <see cref="ActiveProfileChanged"/> event for the page.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActiveProfile))]
+    private string? _activeProfile;
+
+    public bool HasActiveProfile => !string.IsNullOrEmpty(ActiveProfile);
 
     /// <summary>The active per-app profile (null = user default / none) — for the UI status + cue.</summary>
     public event Action<string?>? ActiveProfileChanged;
@@ -99,6 +108,7 @@ public sealed class PerAppSwitcher : IDisposable
             await _applier.ApplyDefaultAsync();
         _hasApplied = false;
         _current = null;
+        ActiveProfile = null;
         ActiveProfileChanged?.Invoke(null);
     }
 
@@ -149,10 +159,12 @@ public sealed class PerAppSwitcher : IDisposable
             _current = null;
             DanglingSnapshot?.Invoke(target);
             await _applier.ApplyDefaultAsync();
+            ActiveProfile = null;
             ActiveProfileChanged?.Invoke(null);
             return;
         }
 
+        ActiveProfile = target;
         ActiveProfileChanged?.Invoke(target);
     }
 

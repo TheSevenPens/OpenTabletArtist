@@ -44,6 +44,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Monitor-cycle switch events (#89) — the shell subscribes to show a toast on cycle.</summary>
     public MonitorCycleService MonitorCycle => _monitorCycle;
 
+    /// <summary>Per-app switch state (#167) — the shell binds this for the "App profile" cue.</summary>
+    public PerAppSwitcher PerAppSwitch => _perAppSwitcher;
+
     /// <summary>Restore the user's default before exit if a per-app snapshot is applied (#167). Awaited by
     /// the tray's Quit while the daemon is still connected, so no per-app snapshot lingers after close.</summary>
     public Task ShutdownRestorePerAppAsync() => _perAppSwitcher.StopAsync();
