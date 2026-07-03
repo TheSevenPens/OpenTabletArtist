@@ -909,6 +909,23 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     }
 
     public string TabletName { get; }
+
+    /// <summary>Brand line for the header — the first word of the name (e.g. "Wacom"), shown small above
+    /// the model. Empty when the name is a single word, so the header shows the model alone.</summary>
+    public string TabletBrand
+    {
+        get { var i = TabletName.IndexOf(' '); return i > 0 ? TabletName[..i] : ""; }
+    }
+
+    /// <summary>Model line for the header — everything after the first word (e.g. "PTK-670"), or the whole
+    /// name when it's a single word.</summary>
+    public string TabletModel
+    {
+        get { var i = TabletName.IndexOf(' '); return i > 0 ? TabletName[(i + 1)..].TrimStart() : TabletName; }
+    }
+
+    public bool HasTabletBrand => TabletBrand.Length > 0;
+
     [ObservableProperty] private string _outputModeShort = "";
     [ObservableProperty] private string _outputModePath = "";
     [ObservableProperty] private bool _canFixOutputMode;
