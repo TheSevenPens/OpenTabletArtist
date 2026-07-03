@@ -4,53 +4,91 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// Experimental Per-App Profiles page (#167) — currently a TIMING SPIKE, not the full feature. Lets the
-/// user pick two snapshots and enable a foreground watcher that toggles between them on every app switch,
-/// showing the measured latency so we can decide (go/no-go) whether OTD's whole-Settings apply is fast
-/// enough to switch on focus changes. If the spike passes, this page grows into the real mapping UI.
+/// Per-App Profiles page (#167): automatically applies a saved snapshot when the foreground app changes.
+/// Owns the enable toggle, the default profile, and the app→snapshot mapping list; drives the headless
+/// <see cref="PerAppSwitcher"/> and persists via <see cref="PerAppProfileStore"/>. Switches are ephemeral
+/// (the daemon runs the per-app snapshot; the editor keeps your default). Rescans snapshots on data load
+/// and when the page is shown.
 /// </summary>
 public partial class PerAppViewModel : ObservableObject, IDisposable
 {
-    private readonly PerAppSpikeService _spike;
+    // Sentinel shown in the default-profile dropdown for "no snapshot → the user's on-disk default".
+    public const string UseMyDefault = "Use my default settings";
+
+    private readonly PerAppSwitcher _switcher;
+    private readonly PerAppProfileStore _store;
     private readonly IDeviceData _device;
+    private readonly IDialogService _dialogs;
+    private bool _suppress;   // guards store writes while we repopulate the UI from the store
 
     [ObservableProperty] private bool _enabled;
+    [ObservableProperty] private bool _deferUntilPenUp = true;
     [ObservableProperty] private List<string> _snapshotNames = [];
-    [ObservableProperty] private string? _selectedA;
-    [ObservableProperty] private string? _selectedB;
-    [ObservableProperty] private string _statusLine = "Not running.";
+    [ObservableProperty] private List<string> _defaultOptions = [UseMyDefault];
+    [ObservableProperty] private string _selectedDefault = UseMyDefault;
+    [ObservableProperty] private List<PerAppMappingRow> _mappings = [];
+    [ObservableProperty] private string _statusLine = "Off.";
 
-    public bool CanEnable => !string.IsNullOrEmpty(SelectedA) && !string.IsNullOrEmpty(SelectedB);
-    public bool HasEnoughSnapshots => SnapshotNames.Count >= 2;
+    public bool HasEnoughSnapshots => SnapshotNames.Count >= 1;
+    public bool HasMappings => Mappings.Count > 0;
 
-    public PerAppViewModel(PerAppSpikeService spike, IDeviceData device)
+    public PerAppViewModel(PerAppSwitcher switcher, PerAppProfileStore store, IDeviceData device,
+        IDialogService dialogs)
     {
-        _spike = spike;
+        _switcher = switcher;
+        _store = store;
         _device = device;
-        _spike.Measured += OnMeasured;
+        _dialogs = dialogs;
+
+        _switcher.ActiveProfileChanged += OnActiveChanged;
+        _switcher.DanglingSnapshot += OnDangling;
         _device.DataLoaded += OnDataLoaded;
+
+        // Reflect persisted config.
+        _enabled = _store.Config.Enabled;
+        _deferUntilPenUp = _switcher.DeferUntilPenUp;
     }
 
     private void OnDataLoaded() => _ = LoadSafelyAsync();
+    private async Task LoadSafelyAsync() { try { await LoadAsync(); } catch { } }
 
-    private async Task LoadSafelyAsync()
-    {
-        try { await LoadAsync(); } catch { /* snapshot rescan failure must not surface */ }
-    }
-
+    /// <summary>Rescan snapshots and rebuild the pickers/mappings from the store.</summary>
     public Task LoadAsync()
     {
-        SnapshotNames = SnapshotNamesFromDisk();
-        OnPropertyChanged(nameof(HasEnoughSnapshots));
-        // Drop selections that no longer exist.
-        if (SelectedA != null && !SnapshotNames.Contains(SelectedA)) SelectedA = null;
-        if (SelectedB != null && !SnapshotNames.Contains(SelectedB)) SelectedB = null;
+        _suppress = true;
+        try
+        {
+            SnapshotNames = SnapshotNamesFromDisk();
+            DefaultOptions = new List<string> { UseMyDefault }.Concat(SnapshotNames).ToList();
+            SelectedDefault = _store.Config.DefaultSnapshot is { } d && SnapshotNames.Contains(d)
+                ? d : UseMyDefault;
+            RebuildMappings();
+            OnPropertyChanged(nameof(HasEnoughSnapshots));
+        }
+        finally { _suppress = false; }
+
+        // Resume a persisted-enabled config once the daemon is up (LoadAsync runs on data load).
+        if (Enabled && !_switcher.IsRunning)
+        {
+            _switcher.Start();
+            StatusLine = "On — waiting for an app change…";
+        }
         return Task.CompletedTask;
+    }
+
+    private void RebuildMappings()
+    {
+        Mappings = _store.Config.Mappings
+            .Select(m => new PerAppMappingRow(m, SnapshotNames, OnRowSnapshotChanged, OnRowRemove))
+            .ToList();
+        OnPropertyChanged(nameof(HasMappings));
     }
 
     private List<string> SnapshotNamesFromDisk()
@@ -60,33 +98,110 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         return Directory.GetFiles(dir, "*.json")
             .OrderByDescending(File.GetLastWriteTime)
             .Select(Path.GetFileNameWithoutExtension)
-            .Where(n => !string.IsNullOrEmpty(n))
-            .Cast<string>()
-            .ToList();
-    }
-
-    partial void OnSelectedAChanged(string? value) => Reconfigure();
-    partial void OnSelectedBChanged(string? value) => Reconfigure();
-
-    private void Reconfigure()
-    {
-        _spike.Configure(SelectedA ?? "", SelectedB ?? "");
-        OnPropertyChanged(nameof(CanEnable));
-        // Disabling the two pickers out from under an enabled run: turn it off cleanly.
-        if (Enabled && !CanEnable) Enabled = false;
+            .Where(n => !string.IsNullOrEmpty(n)).Cast<string>().ToList();
     }
 
     partial void OnEnabledChanged(bool value)
     {
-        _spike.SetEnabled(value && CanEnable);
-        StatusLine = value ? "Watching foreground app… switch apps to trigger a measurement." : "Not running.";
+        if (_suppress) return;
+        _store.SetEnabled(value);
+        if (value) _switcher.Start();
+        else _ = _switcher.StopAsync();
+        StatusLine = value ? "On — waiting for an app change…" : "Off.";
     }
 
-    private void OnMeasured(string line) => StatusLine = line;
+    partial void OnDeferUntilPenUpChanged(bool value)
+    {
+        _switcher.DeferUntilPenUp = value;
+    }
+
+    partial void OnSelectedDefaultChanged(string value)
+    {
+        if (_suppress) return;
+        _store.SetDefaultSnapshot(value == UseMyDefault ? null : value);
+    }
+
+    private void OnRowSnapshotChanged(PerAppMappingRow row)
+    {
+        if (_suppress) return;
+        _store.Upsert(new PerAppMapping(row.ExePath, row.ExeName, row.SelectedSnapshot ?? "", row.Enabled));
+    }
+
+    private void OnRowRemove(PerAppMappingRow row)
+    {
+        _store.Remove(row.ExeName);
+        RebuildMappings();
+    }
+
+    [RelayCommand]
+    private async Task AddApp()
+    {
+        var app = await _dialogs.ShowProcessPickerAsync();
+        if (app == null) return;
+        var snapshot = SnapshotNames.FirstOrDefault();
+        if (snapshot == null)
+        {
+            await _dialogs.ShowMessageAsync("No snapshots",
+                "Save at least one snapshot on the Saved Settings page first, then map apps to it.");
+            return;
+        }
+        _store.Upsert(new PerAppMapping(app.ExePath, app.ExeName, snapshot));
+        RebuildMappings();
+    }
+
+    private void OnActiveChanged(string? snapshot) =>
+        StatusLine = snapshot == null ? "Active: your default settings" : $"Active: {snapshot}";
+
+    private async void OnDangling(string snapshot) =>
+        await _dialogs.ShowMessageAsync("Missing snapshot",
+            $"A mapping points at \"{snapshot}\", which no longer exists — using your default instead. " +
+            "Re-assign that app on this page.");
 
     public void Dispose()
     {
-        _spike.Measured -= OnMeasured;
+        _switcher.ActiveProfileChanged -= OnActiveChanged;
+        _switcher.DanglingSnapshot -= OnDangling;
         _device.DataLoaded -= OnDataLoaded;
     }
+}
+
+/// <summary>One app→snapshot row on the Per-App page. Its snapshot dropdown writes back to the store via
+/// the supplied callback; a missing snapshot is flagged for a warning badge.</summary>
+public partial class PerAppMappingRow : ObservableObject
+{
+    private readonly Action<PerAppMappingRow> _onChanged;
+    private readonly Action<PerAppMappingRow> _onRemove;
+
+    public string ExeName { get; }
+    public string ExePath { get; }
+    public bool Enabled { get; }
+    public IReadOnlyList<string> SnapshotOptions { get; }
+
+    [ObservableProperty] private string? _selectedSnapshot;
+
+    /// <summary>The mapped snapshot no longer exists in the snapshot list.</summary>
+    public bool IsMissing => !string.IsNullOrEmpty(_selectedSnapshot) && !SnapshotOptions.Contains(_selectedSnapshot);
+
+    public string PathDisplay => string.IsNullOrEmpty(ExePath) ? ExeName : ExePath;
+
+    public PerAppMappingRow(PerAppMapping mapping, IReadOnlyList<string> snapshotOptions,
+        Action<PerAppMappingRow> onChanged, Action<PerAppMappingRow> onRemove)
+    {
+        ExeName = mapping.ExeName;
+        ExePath = mapping.ExePath;
+        Enabled = mapping.Enabled;
+        SnapshotOptions = snapshotOptions;
+        _selectedSnapshot = mapping.SnapshotName;
+        _onChanged = onChanged;
+        _onRemove = onRemove;
+    }
+
+    partial void OnSelectedSnapshotChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsMissing));
+        _onChanged(this);
+    }
+
+    [RelayCommand]
+    private void Remove() => _onRemove(this);
 }

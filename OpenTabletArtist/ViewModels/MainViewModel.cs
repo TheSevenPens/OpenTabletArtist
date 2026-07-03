@@ -28,7 +28,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ProfileHotkeyManager _profileHotkeys;
     private readonly MonitorCycleService _monitorCycle;
     private readonly MonitorCycleHotkeys _monitorHotkeys;
-    private readonly PerAppSpikeService _perAppSpike;
+    private readonly PerAppProfileStore _perAppStore;
+    private readonly PerAppSwitcher _perAppSwitcher;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -130,8 +131,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
-        // Per-app switching timing spike (#167): a foreground watcher wired to the same live-switch path.
-        _perAppSpike = new PerAppSpikeService(new Win32ForegroundAppWatcher(), _profileSwitch);
+        // Per-app profile switching (#167): a foreground watcher + pen-state provider drive the switch
+        // policy, applying snapshots ephemerally (editor stays on the user's default).
+        _perAppStore = PerAppProfileStore.ForApp();
+        _perAppSwitcher = new PerAppSwitcher(
+            new Win32ForegroundAppWatcher(),
+            new DaemonPenStateProvider(_session.Daemon),
+            _perAppStore,
+            new PerAppApplier(_session, _settingsStore, () => _session.PresetDirectory),
+            new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),
+            ownExeName: System.Diagnostics.Process.GetCurrentProcess().ProcessName + ".exe");
 
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
@@ -139,7 +148,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
-        PerApp = new PerAppViewModel(_perAppSpike, _session);
+        PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
@@ -315,7 +324,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys.Dispose(); // drops its registrations + event hook (shared service, not disposed here)
         _monitorHotkeys.Dispose(); // drops its registration + event hook
         _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
-        _perAppSpike.Dispose();    // stops the foreground watcher + restores default if it was enabled
+        _perAppSwitcher.Dispose(); // stops the foreground watcher + pen stream
     }
 }
 

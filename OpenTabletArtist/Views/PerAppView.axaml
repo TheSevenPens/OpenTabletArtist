@@ -3,57 +3,91 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- DataContext is the PerAppViewModel, supplied by the typed-nav DataTemplate (#15). -->
-    <StackPanel MaxWidth="820" HorizontalAlignment="Left">
+    <StackPanel MaxWidth="860" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="PER-APP PROFILES" />
 
-        <Border Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18">
-            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource AccentBrush}"
-                       Text="Experimental — timing spike. This measures how fast the driver can switch profiles when you change apps, to decide if automatic per-app switching will feel smooth. It alternates between the two snapshots below on every app change and reports the switch time." />
-        </Border>
+        <TextBlock Text="Automatically switch to a saved snapshot when you change apps — like Wacom/XP-Pen/Huion drivers. Switches are temporary (your saved default is never overwritten) and only happen while OpenTabletArtist is running."
+                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   TextWrapping="Wrap" Margin="0,0,0,18" />
 
-        <!-- Not enough snapshots yet -->
+        <!-- Need snapshots first -->
         <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasEnoughSnapshots}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="Save two snapshots first" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="Save a snapshot first" FontSize="15" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Create at least two Saved Settings snapshots that differ noticeably (e.g. one changes pen dynamics, one changes the display mapping), then come back."
+                <TextBlock Text="Per-app profiles map applications to Saved Settings snapshots. Create at least one on the Saved Settings page, then come back."
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                            HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
             </StackPanel>
         </Border>
 
         <StackPanel IsVisible="{Binding HasEnoughSnapshots}" Spacing="14">
+            <!-- Master controls -->
             <Border Classes="GlassPanel" Padding="18">
                 <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <StackPanel Grid.Column="0" Spacing="5">
-                            <TextBlock Text="SNAPSHOT A" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
-                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding SelectedA}"
-                                      HorizontalAlignment="Stretch" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="5">
-                            <TextBlock Text="SNAPSHOT B" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
-                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding SelectedB}"
-                                      HorizontalAlignment="Stretch" />
-                        </StackPanel>
+                    <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
+                              FontWeight="SemiBold" />
+                    <CheckBox Content="Wait for the pen to lift before switching (avoids a mid-stroke jump)"
+                              IsChecked="{Binding DeferUntilPenUp}" Margin="0,-4,0,0" />
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
+                        <TextBlock Grid.Column="0" Text="Default profile (unmapped apps)" VerticalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding DefaultOptions}"
+                                  SelectedItem="{Binding SelectedDefault}" HorizontalAlignment="Left" MinWidth="260" />
                     </Grid>
 
-                    <CheckBox Content="Enable foreground watcher (alternates A / B on every app change)"
-                              IsChecked="{Binding Enabled}" IsEnabled="{Binding CanEnable}" />
+                    <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7">
+                        <TextBlock Text="{Binding StatusLine}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
+                    </Border>
                 </StackPanel>
             </Border>
 
-            <Border Classes="GlassPanel" Padding="18">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="LAST SWITCH" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
-                               Foreground="{DynamicResource TextMutedBrush}" />
-                    <TextBlock Text="{Binding StatusLine}" FontSize="14" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                               Text="Draw in your art app, then Alt-Tab to another app and back while a stroke is in progress — watch for any glitch. All timings are also written to perapp-spike.log." />
+            <!-- Mappings -->
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Text="APP MAPPINGS" FontSize="11" FontWeight="SemiBold"
+                           LetterSpacing="0.5" Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Add app…" Theme="{StaticResource AccentButton}"
+                        Padding="14,7" FontSize="12" Command="{Binding AddAppCommand}" />
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding Mappings}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Classes="CardTitle" Text="{Binding ExeName}" FontSize="14" />
+                                    <TextBlock Text="{Binding PathDisplay}" FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                    <TextBlock Text="⚠ snapshot missing" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource WarnBrush}" Margin="0,3,0,0"
+                                               IsVisible="{Binding IsMissing}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="170"
+                                          ItemsSource="{Binding SnapshotOptions}"
+                                          SelectedItem="{Binding SelectedSnapshot}" />
+
+                                <Button Grid.Column="2" Content="Remove" Theme="{StaticResource DeleteButton}"
+                                        VerticalAlignment="Center" Padding="12,6" FontSize="12"
+                                        Command="{Binding RemoveCommand}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasMappings}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No apps mapped yet" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                    <TextBlock Text="Add an app and pick which snapshot it should use."
+                               FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                               HorizontalAlignment="Center" Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
         </StackPanel>
