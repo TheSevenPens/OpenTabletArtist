@@ -370,7 +370,7 @@
                 <!-- Pen graphic -->
                 <Rectangle Canvas.Left="382" Canvas.Top="52" Width="16" Height="24" RadiusX="6" RadiusY="6"
                            Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
-                <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468" RadiusX="14" RadiusY="14"
+                <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468"
                            Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
                 <Polygon Points="372,538 408,538 399,606 381,606" Fill="#F7D8C4"
                          Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
