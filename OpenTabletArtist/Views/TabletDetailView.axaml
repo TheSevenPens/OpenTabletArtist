@@ -381,13 +381,14 @@
                 <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468"
                            Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
 
+                <!-- Tip nib (the little point at the very bottom). Drawn BEFORE the cone so the cone
+                     overlaps it (nib sits under the tip cone). -->
+                <Rectangle Canvas.Left="384" Canvas.Top="600" Width="12" Height="20" RadiusX="4" RadiusY="4"
+                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+
                 <!-- Tip cone (the tapered end) -->
                 <Polygon Points="372,538 408,538 399,606 381,606" Fill="#F7D8C4"
                          Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
-
-                <!-- Tip nib (the little point at the very bottom) -->
-                <Rectangle Canvas.Left="384" Canvas.Top="604" Width="12" Height="15" RadiusX="4" RadiusY="4"
-                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
 
                 <!-- Side button 3 (top of the cluster) -->
                 <Rectangle Canvas.Left="378" Canvas.Top="360" Width="24" Height="40" RadiusX="7" RadiusY="7"
