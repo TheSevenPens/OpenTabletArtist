@@ -4,15 +4,15 @@
 
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="SAVED SETTINGS" />
+        <TextBlock Classes="PageTitle" Text="PROFILES" />
 
-        <!-- Clarify the two persistence models so snapshots don't read as "the Save button" (#321). -->
-        <TextBlock Text="Your settings save automatically as you change them — there's no Save button. Snapshots are named backups of all your settings: save one now and restore it later (handy before experimenting)."
+        <!-- Clarify the two persistence models so profiles don't read as "the Save button" (#321). -->
+        <TextBlock Text="Your settings save automatically as you change them — there's no Save button. A profile is a named backup of all your settings: save one now and restore it later (handy before experimenting, or as a per-app profile)."
                    FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,16" />
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <Button Content="Save Snapshot" Theme="{StaticResource AccentButton}"
+            <Button Content="Save Profile" Theme="{StaticResource AccentButton}"
                     Padding="14,7" FontSize="13"
                     Command="{Binding SavePresetCommand}" />
             <Button Content="Browse" Theme="{StaticResource GhostButton}"
@@ -60,7 +60,7 @@
         <Border Classes="GlassPanel" Padding="32"
                 IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No snapshots yet" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Text="No profiles yet" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Save a named backup of your current settings to restore later."
                            FontSize="13" Foreground="{DynamicResource TextMutedBrush}"

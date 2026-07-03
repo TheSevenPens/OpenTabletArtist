@@ -30,7 +30,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     private bool _suppress;   // guards store writes while we repopulate the UI from the store
 
     [ObservableProperty] private bool _enabled;
-    [ObservableProperty] private bool _deferUntilPenUp = true;
     [ObservableProperty] private List<string> _snapshotNames = [];
     [ObservableProperty] private List<string> _defaultOptions = [UseMyDefault];
     [ObservableProperty] private string _selectedDefault = UseMyDefault;
@@ -62,7 +61,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
         // Reflect persisted config.
         _enabled = _store.Config.Enabled;
-        _deferUntilPenUp = _switcher.DeferUntilPenUp;
     }
 
     private void OnConnectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -131,11 +129,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         StatusLine = value ? "On — waiting for an app change…" : "Off.";
     }
 
-    partial void OnDeferUntilPenUpChanged(bool value)
-    {
-        _switcher.DeferUntilPenUp = value;
-    }
-
     partial void OnSelectedDefaultChanged(string value)
     {
         if (_suppress) return;
@@ -162,8 +155,8 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         var snapshot = SnapshotNames.FirstOrDefault();
         if (snapshot == null)
         {
-            await _dialogs.ShowMessageAsync("No snapshots",
-                "Save at least one snapshot on the Saved Settings page first, then map apps to it.");
+            await _dialogs.ShowMessageAsync("No profiles",
+                "Save at least one profile on the Profiles page first, then map apps to it.");
             return;
         }
         _store.Upsert(new PerAppMapping(app.ExePath, app.ExeName, snapshot));
@@ -174,7 +167,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         StatusLine = snapshot == null ? "Active: your default settings" : $"Active: {snapshot}";
 
     private async void OnDangling(string snapshot) =>
-        await _dialogs.ShowMessageAsync("Missing snapshot",
+        await _dialogs.ShowMessageAsync("Missing profile",
             $"A mapping points at \"{snapshot}\", which no longer exists — using your default instead. " +
             "Re-assign that app on this page.");
 

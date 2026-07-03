@@ -73,10 +73,15 @@
                                Margin="20,4,8,2" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding !HasTablets}" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="SAVED SETTINGS"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="PROFILES"
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
+                    <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). -->
+                    <RadioButton Theme="{StaticResource NavButton}" Content="PER-APP PROFILES"
+                                 IsChecked="{Binding IsPerApp, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
+                                 Margin="12,2,0,0" />
                     <RadioButton Theme="{StaticResource NavButton}" Content="HOTKEYS"
                                  IsChecked="{Binding IsHotkeys, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Hotkeys}"
@@ -111,10 +116,6 @@
                         <RadioButton Theme="{StaticResource NavButton}" Content="CUSTOM TABLET COMPATIBILITY"
                                      IsChecked="{Binding IsConfigs, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Configs}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="PER-APP PROFILES"
-                                     IsChecked="{Binding IsPerApp, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="DIAGNOSTICS"
                                      IsChecked="{Binding IsDiagnostics, Mode=OneWay}"

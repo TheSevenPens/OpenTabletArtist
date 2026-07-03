@@ -98,7 +98,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         || ReferenceEquals(page, Configs)
         || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
         || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
-        || ReferenceEquals(page, PerApp)
         || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
@@ -143,7 +142,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _perAppStore = PerAppProfileStore.ForApp();
         _perAppSwitcher = new PerAppSwitcher(
             new Win32ForegroundAppWatcher(),
-            new DaemonPenStateProvider(_session.Daemon),
             _perAppStore,
             new PerAppApplier(_session, _settingsStore, () => _session.PresetDirectory),
             new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),
