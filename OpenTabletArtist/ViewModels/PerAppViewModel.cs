@@ -19,9 +19,6 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class PerAppViewModel : ObservableObject, IDisposable
 {
-    // Sentinel shown in the default-profile dropdown for "no snapshot → the user's on-disk default".
-    public const string UseMyDefault = "Use my default settings";
-
     private readonly PerAppSwitcher _switcher;
     private readonly PerAppProfileStore _store;
     private readonly IDeviceData _device;
@@ -31,8 +28,9 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _enabled;
     [ObservableProperty] private List<string> _snapshotNames = [];
-    [ObservableProperty] private List<string> _defaultOptions = [UseMyDefault];
-    [ObservableProperty] private string _selectedDefault = UseMyDefault;
+    // Fallback for unmapped apps: revert to the live "Current settings" (true), or a specific profile.
+    [ObservableProperty] private bool _fallbackToCurrent = true;
+    [ObservableProperty] private string? _fallbackProfile;
     [ObservableProperty] private List<PerAppMappingRow> _mappings = [];
     [ObservableProperty] private string _statusLine = "Off.";
 
@@ -83,9 +81,10 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         try
         {
             SnapshotNames = SnapshotNamesFromDisk();
-            DefaultOptions = new List<string> { UseMyDefault }.Concat(SnapshotNames).ToList();
-            SelectedDefault = _store.Config.DefaultSnapshot is { } d && SnapshotNames.Contains(d)
-                ? d : UseMyDefault;
+            // Reflect the stored fallback: null default → "Current settings"; a name → that profile.
+            var def = _store.Config.DefaultSnapshot;
+            FallbackToCurrent = def is null || !SnapshotNames.Contains(def);
+            FallbackProfile = FallbackToCurrent ? SnapshotNames.FirstOrDefault() : def;
             RebuildMappings();
             OnPropertyChanged(nameof(HasEnoughSnapshots));
         }
@@ -129,10 +128,17 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         StatusLine = value ? "On — waiting for an app change…" : "Off.";
     }
 
-    partial void OnSelectedDefaultChanged(string value)
+    partial void OnFallbackToCurrentChanged(bool value)
     {
         if (_suppress) return;
-        _store.SetDefaultSnapshot(value == UseMyDefault ? null : value);
+        // "Current settings" → no stored default; else the chosen profile (default the picker if empty).
+        _store.SetDefaultSnapshot(value ? null : FallbackProfile ?? SnapshotNames.FirstOrDefault());
+    }
+
+    partial void OnFallbackProfileChanged(string? value)
+    {
+        if (_suppress) return;
+        if (!FallbackToCurrent && value != null) _store.SetDefaultSnapshot(value);
     }
 
     private void OnRowSnapshotChanged(PerAppMappingRow row)
@@ -164,7 +170,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     }
 
     private void OnActiveChanged(string? snapshot) =>
-        StatusLine = snapshot == null ? "Active: your default settings" : $"Active: {snapshot}";
+        StatusLine = snapshot == null ? "Active: Current settings" : $"Active: {snapshot}";
 
     private async void OnDangling(string snapshot) =>
         await _dialogs.ShowMessageAsync("Missing profile",

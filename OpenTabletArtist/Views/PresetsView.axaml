@@ -6,20 +6,36 @@
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="PROFILES" />
 
-        <!-- Clarify the two persistence models so profiles don't read as "the Save button" (#321). -->
-        <TextBlock Text="Your settings save automatically as you change them — there's no Save button. A profile is a named backup of all your settings: save one now and restore it later (handy before experimenting, or as a per-app profile)."
-                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
-                   TextWrapping="Wrap" Margin="0,0,0,16" />
+        <!-- The live config (settings.json), made visible: it's what per-app / hotkey switches revert to,
+             and every profile below is a saved copy of it. Accent-outlined to set it apart. -->
+        <Border Classes="GlassPanel" Margin="0,0,0,18" Padding="16"
+                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Classes="CardTitle" Text="Current settings" FontSize="15" VerticalAlignment="Center" />
+                    <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="10" Padding="8,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="In use now" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="The configuration your tablet is using right now. It saves automatically as you edit it on the Tablet pages — everything below is a saved copy you can switch back to (or use as a per-app profile)."
+                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" Margin="0,6,0,12" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Save as profile" Theme="{StaticResource AccentButton}"
+                            Padding="14,7" FontSize="13" Command="{Binding SavePresetCommand}" />
+                    <Button Content="Browse" Theme="{StaticResource GhostButton}"
+                            Padding="14,7" FontSize="13" Margin="8,0,0,0"
+                            Command="{Binding OpenFolderCommand}"
+                            CommandParameter="{Binding PresetDirectory}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <Button Content="Save Profile" Theme="{StaticResource AccentButton}"
-                    Padding="14,7" FontSize="13"
-                    Command="{Binding SavePresetCommand}" />
-            <Button Content="Browse" Theme="{StaticResource GhostButton}"
-                    Padding="14,7" FontSize="13" Margin="8,0,0,0"
-                    Command="{Binding OpenFolderCommand}"
-                    CommandParameter="{Binding PresetDirectory}" />
-        </StackPanel>
+        <TextBlock Text="SAVED PROFILES" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"
+                   Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8"
+                   IsVisible="{Binding HasPresets}" />
 
         <ItemsControl ItemsSource="{Binding Presets}">
             <ItemsControl.ItemTemplate>

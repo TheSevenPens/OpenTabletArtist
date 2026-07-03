@@ -67,18 +67,20 @@ A **Refresh** button in the page header reloads settings from the daemon (useful
 
 ### Profiles
 
+At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what per-app and hotkey switches revert to, and every **profile** below is a *saved copy* of it.
+
 A **profile** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the profile name and file last-modified time, sorted newest first. Profiles are what hotkeys and per-app switching apply.
 
 > Note: "profile" here means a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each OTA profile file contains the complete OTD `Settings` (all tablets).
 
-Toolbar:
+On the Current settings card:
 
-- **Save Profile** — Saves current settings with an auto-numbered name: `Profile`, `Profile 2`, `Profile 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
+- **Save as profile** — Saves the current settings as a copy with an auto-numbered name: `Profile`, `Profile 2`, `Profile 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
 - **Browse** — Opens the profiles folder in Explorer.
 
 Each profile card has:
 
-- **Load** — Applies the profile's settings to the daemon **and saves them as your default** (this is a permanent switch — see [Switching profiles](#switching-profiles)).
+- **Load** — Applies the profile and makes it your **Current settings** (this is a permanent switch — see [Switching profiles](#switching-profiles)).
 - **Update** — Overwrites the profile with the current settings.
 - **Rename** — Prompts for a new name (simple text dialog, no file picker).
 - **Delete** — Removes the profile file after a confirmation prompt.
@@ -87,15 +89,15 @@ The "No profiles" empty state appears only when the profiles folder is actually 
 
 ### Switching profiles
 
-There are several ways to change the active configuration, split by whether the change is **permanent** (rewrites your saved default) or **temporary** (a live override that's restored later).
+There are several ways to change the active configuration, split by whether the change is **permanent** (rewrites your Current settings) or **temporary** (a live override that's restored later).
 
 Whole-profile switches:
 
 | How | Where | Effect |
 |---|---|---|
-| **Load** a profile | Profiles page | **Permanent** — applies it and saves it as your default. |
-| **Profile hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a profile as a live override; a "Profile override" chip shows while active. Your saved default is untouched. |
-| **Per-app switching** | Per-App Profiles page | **Automatic + temporary** — the mapped profile is applied when its app comes to the foreground; unmapped apps use a default. An "App profile" chip shows the active one. Restored on disable/exit. |
+| **Load** a profile | Profiles page | **Permanent** — applies it and makes it your Current settings. |
+| **Profile hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a profile as a live override; a "Profile override" chip shows while active. Your Current settings are untouched. |
+| **Per-app switching** | Per-App Profiles page | **Automatic + temporary** — the mapped profile is applied when its app comes to the foreground; unmapped apps fall back to your Current settings (or a profile you choose). An "App profile" chip shows the active one. Restored on disable/exit. |
 
 Monitor-mapping switches (change only which monitor the active profile maps to — all **permanent**):
 
@@ -105,9 +107,9 @@ Monitor-mapping switches (change only which monitor the active profile maps to �
 
 Notes:
 
-- Only **Load** is a permanent whole-profile switch; the hotkey and per-app methods are temporary and leave your on-disk default intact.
+- Only **Load** is a permanent whole-profile switch; the hotkey and per-app methods are temporary and leave your Current settings intact.
 - Per-app switching deliberately **does not** change the monitor mapping — set that once (tablet page / cycle-monitor hotkey) and it sticks across per-app switches.
-- There's currently no one-click "clear override / back to default" button for a hotkey-driven override — it clears when you switch again (per-app overrides restore automatically on disable/exit).
+- There's currently no one-click "back to Current settings" button for a hotkey-driven override — it clears when you switch again (per-app overrides restore automatically on disable/exit).
 
 ### Hotkeys
 
@@ -118,13 +120,13 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 
 ### Per-App Profiles
 
-Automatically applies a profile when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a profile, and switching to that app reconfigures the tablet; unmapped apps use a configurable default. (Nested under **Profiles** in the sidebar.)
+Automatically applies a profile when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a profile, and switching to that app reconfigures the tablet. (Nested under **Profiles** in the sidebar.)
 
-To use it: create the profiles you want first (Profiles page), then here tick **Enable per-app profile switching**, pick a **Default profile** for unmapped apps, and **Add app…** to map a running application to a profile. An **App profile** chip in the main window shows which profile is currently applied.
+To use it: create the profiles you want first (Profiles page), then here tick **Enable per-app profile switching**, choose what unmapped apps use — your **Current settings** (default) or a specific profile — and **Add app…** to map a running application to a profile. An **App profile** chip in the main window shows which profile is currently applied.
 
 Caveats:
 
-- **Switches are temporary.** They're applied live to the daemon only — your saved default settings file is never overwritten, the settings editor keeps showing/editing your default, and your default is restored when you disable the feature or quit the app.
+- **Switches are temporary.** They're applied live to the daemon only — your Current settings (`settings.json`) are never overwritten, the editor keeps showing/editing them, and they're restored when you disable the feature or quit the app.
 - **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
 - **Profiles are whole-configuration.** A profile is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up profiles with that in mind if you have multiple tablets.
 - **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.

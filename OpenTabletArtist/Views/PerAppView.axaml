@@ -38,12 +38,30 @@
                     <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
                               FontWeight="SemiBold" />
 
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
-                        <TextBlock Grid.Column="0" Text="Default profile (unmapped apps)" VerticalAlignment="Center"
-                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding DefaultOptions}"
-                                  SelectedItem="{Binding SelectedDefault}" HorizontalAlignment="Left" MinWidth="260" />
-                    </Grid>
+                    <!-- Fallback for apps that aren't mapped: revert to the live Current settings, or a profile. -->
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="For apps you haven't mapped, use" FontSize="13" FontWeight="SemiBold" />
+
+                        <RadioButton GroupName="fallback" IsChecked="{Binding FallbackToCurrent, Mode=TwoWay}">
+                            <StackPanel>
+                                <TextBlock FontSize="13">
+                                    <Run Text="Current settings" />
+                                    <Run Text=" — what's live in OpenTabletDriver now"
+                                         Foreground="{DynamicResource TextMutedBrush}" />
+                                </TextBlock>
+                                <TextBlock Text="Unmapped apps return the tablet to your normal configuration."
+                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,1,0,0" />
+                            </StackPanel>
+                        </RadioButton>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <RadioButton GroupName="fallback" Content="A specific profile" FontSize="13"
+                                         IsChecked="{Binding !FallbackToCurrent}" VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding FallbackProfile}"
+                                      IsEnabled="{Binding !FallbackToCurrent}" MinWidth="160" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7">
                         <TextBlock Text="{Binding StatusLine}" FontSize="12" FontWeight="SemiBold"
