@@ -306,10 +306,10 @@
         <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <!-- Corner radius + shadow are theme-driven so the Anime skin can make cards rounder/glowier. -->
+        <!-- Corner radius is theme-driven so the Anime skin can make cards rounder. Cards are flat —
+             no drop shadow / glow (BoxShadow removed). -->
         <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
         <Setter Property="Padding" Value="24" />
-        <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}" />
     </Style>
 
     <!-- Page Title -->

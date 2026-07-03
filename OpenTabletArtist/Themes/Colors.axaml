@@ -149,6 +149,15 @@
             <Color x:Key="SystemAccentColorDark2">#A41667</Color>
             <Color x:Key="SystemAccentColorDark3">#81104F</Color>
 
+            <!-- Fluent's RadioButton checked fill uses its own keys (not SystemAccentColor), so without
+                 these the selected radio stays Fluent-blue even in Sakura. Point them at the pink accent. -->
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed" Color="{StaticResource SystemAccentColorDark1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed" Color="{StaticResource SystemAccentColorDark1}" />
+
             <Color x:Key="BgBase">#FCE3EE</Color>
             <Color x:Key="BgElevated">#FFF1F7</Color>
             <Color x:Key="BgSurface">#FFFFFF</Color>

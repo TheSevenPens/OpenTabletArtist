@@ -370,38 +370,38 @@
 
                 <!-- ── Pen graphic ─────────────────────────────────────────────────────────
                      Drawn top→bottom: eraser nub · barrel · tip cone · tip nib, then the three
-                     side buttons. The peach fill (#F7D8C4) is the pen body; #D9662E is the outline.
+                     side buttons. The pink fill (#F7CFD8) is the pen body; #CF5E86 is the outline.
                      Side buttons appear only for buttons this pen has (bound to PenButton{N}Row). -->
 
                 <!-- Eraser (the rounded nub on top). Centered on the barrel: Left = 390 (barrel centre) − Width/2. -->
                 <Rectangle Canvas.Left="378" Canvas.Top="52" Width="24" Height="40" RadiusX="6" RadiusY="6"
-                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
 
                 <!-- Barrel (the pen body) -->
                 <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468"
-                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
 
                 <!-- Tip nib (the little point at the very bottom). Drawn BEFORE the cone so the cone
                      overlaps it (nib sits under the tip cone). -->
                 <Rectangle Canvas.Left="384" Canvas.Top="600" Width="12" Height="20" RadiusX="4" RadiusY="4"
-                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                           Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
 
                 <!-- Tip cone (the tapered end). Top corners inset from the barrel edges (372/408) so the
                      cone — including its stroke — stays within the body's width instead of poking out. -->
-                <Polygon Points="375,538 405,538 399,606 381,606" Fill="#F7D8C4"
-                         Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
+                <Polygon Points="375,538 405,538 399,606 381,606" Fill="#F7CFD8"
+                         Stroke="#CF5E86" StrokeThickness="2.5" StrokeJoin="Round" />
 
                 <!-- Side button 3 (top of the cluster) -->
                 <Rectangle Canvas.Left="378" Canvas.Top="360" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                            IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 <!-- Side button 2 (middle) -->
                 <Rectangle Canvas.Left="378" Canvas.Top="410" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                            IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 <!-- Side button 1 (bottom, nearest the tip) -->
                 <Rectangle Canvas.Left="378" Canvas.Top="460" Width="24" Height="40" RadiusX="7" RadiusY="7"
-                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                            IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
                 <!-- Callout cards -->

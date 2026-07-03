@@ -5,7 +5,7 @@
     <!-- One switch in the pen diagram (#pen-switch-diagram). DataContext is a PenSwitchRowViewModel,
          supplied by the diagram which binds it to a slot (Tip / Eraser / Button N). Same data/commands
          as the old list rows, just laid out as a compact callout card. -->
-    <Border Classes="GlassPanel" Padding="14" Width="240" BoxShadow="{DynamicResource CardShadow}">
+    <Border Classes="GlassPanel" Padding="14" Width="240">
         <StackPanel Spacing="7">
             <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
 
