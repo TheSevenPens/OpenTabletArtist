@@ -352,20 +352,21 @@
             <Canvas Width="780" Height="620">
                 <!-- Connectors (drawn first, so the pen + cards sit on top of the line ends). -->
                 <Canvas.Styles>
-                    <Style Selector="Line.connector">
+                    <Style Selector="Polyline.connector">
                         <Setter Property="Stroke" Value="#E24B4A" />
                         <Setter Property="StrokeThickness" Value="3.5" />
                         <Setter Property="StrokeLineCap" Value="Round" />
+                        <Setter Property="Fill" Value="{x:Null}" />
                     </Style>
                 </Canvas.Styles>
-                <Line Classes="connector" StartPoint="248,80" EndPoint="372,92" />
-                <Line Classes="connector" StartPoint="248,486" EndPoint="386,580" />
-                <Line Classes="connector" StartPoint="532,120" EndPoint="402,380"
-                      IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Line Classes="connector" StartPoint="532,300" EndPoint="402,430"
-                      IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Line Classes="connector" StartPoint="532,482" EndPoint="402,480"
-                      IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Polyline Classes="connector" Points="248,64 384,64" />
+                <Polyline Classes="connector" Points="248,500 340,500 340,611 384,611" />
+                <Polyline Classes="connector" Points="402,380 460,380 460,120 532,120"
+                          IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Polyline Classes="connector" Points="402,430 492,430 492,300 532,300"
+                          IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Polyline Classes="connector" Points="402,480 532,480"
+                          IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
                 <!-- Pen graphic -->
                 <Rectangle Canvas.Left="382" Canvas.Top="52" Width="16" Height="24" RadiusX="6" RadiusY="6"
