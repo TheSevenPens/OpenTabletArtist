@@ -1,6 +1,6 @@
 # OpenTabletArtist
 
-A Windows companion app for [OpenTabletDriver](https://opentabletdriver.net/) — configure your tablet's display mapping, pen dynamics, express keys, and more from a friendly UI.
+A Windows companion app for [OpenTabletDriver](https://opentabletdriver.net/) — configure your tablet's display mapping, pen dynamics, and express keys from a friendly UI, save named profiles, and switch between them with global hotkeys or automatically per application.
 
 📖 **[User Manual](docs/USERMANUAL.md)** — start here.
 
