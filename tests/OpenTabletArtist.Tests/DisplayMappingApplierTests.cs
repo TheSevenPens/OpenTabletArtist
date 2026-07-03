@@ -1,3 +1,4 @@
+using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletArtist.Domain;
 using Xunit;
@@ -101,5 +102,38 @@ public class DisplayMappingApplierTests
         p.AbsoluteModeSettings.Display.Y = 300;
 
         Assert.Null(DisplayMappingApplier.CurrentlyMapped(p, displays));
+    }
+
+    [Fact]
+    public void PreserveAreaMapping_KeepsCurrentMonitor_ButNotOtherSettings()
+    {
+        // Snapshot maps the tablet to monitor 2 and turns on aspect lock; current has it on monitor 1.
+        var snapshot = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("T") } };
+        DisplayMappingApplier.ApplyToProfile(snapshot.Profiles[0], (100f, 100f), Display(2, 1920, 0, 2560, 1440));
+        snapshot.Profiles[0].AbsoluteModeSettings.LockAspectRatio = true;
+
+        var current = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("T") } };
+        DisplayMappingApplier.ApplyToProfile(current.Profiles[0], (100f, 100f), Display(1, 0, 0, 1920, 1080));
+
+        DisplayMappingApplier.PreserveAreaMapping(snapshot, current);
+
+        var displays = new[] { Display(1, 0, 0, 1920, 1080), Display(2, 1920, 0, 2560, 1440) };
+        // Monitor now follows current (1), not the snapshot's baked-in monitor (2)…
+        Assert.Equal(1, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
+        // …while a non-mapping setting from the snapshot is left untouched.
+        Assert.True(snapshot.Profiles[0].AbsoluteModeSettings.LockAspectRatio);
+    }
+
+    [Fact]
+    public void PreserveAreaMapping_IgnoresUnmatchedTablets()
+    {
+        var snapshot = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("A") } };
+        DisplayMappingApplier.ApplyToProfile(snapshot.Profiles[0], (100f, 100f), Display(2, 1920, 0, 2560, 1440));
+        var current = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("B") } }; // different tablet
+
+        DisplayMappingApplier.PreserveAreaMapping(snapshot, current); // no match → snapshot untouched
+
+        var displays = new[] { Display(1, 0, 0, 1920, 1080), Display(2, 1920, 0, 2560, 1440) };
+        Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
     }
 }

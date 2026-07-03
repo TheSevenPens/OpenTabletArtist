@@ -40,6 +40,13 @@ public sealed class PerAppApplier : IPerAppApplier
         if (string.IsNullOrEmpty(dir)) return false;
         var path = Path.Combine(dir, snapshotName + ".json");
         if (!_store.TryLoad(path, out var settings) || settings == null) return false; // dangling → caller falls back
+
+        // Keep the tablet on the monitor the user currently has it on rather than the one frozen into the
+        // snapshot — moving an app between displays shouldn't yank the tablet to a stale monitor (#167).
+        // The monitor is governed by the live settings (tablet page / cycle-monitor hotkey).
+        if (_settings.CurrentSettings is { } current)
+            OpenTabletArtist.Domain.DisplayMappingApplier.PreserveAreaMapping(settings, current);
+
         // The snapshot exists; treat a daemon hiccup as best-effort (don't misreport it as "missing").
         try { await _settings.ApplyEphemeralAsync(settings); } catch { }
         return true;
