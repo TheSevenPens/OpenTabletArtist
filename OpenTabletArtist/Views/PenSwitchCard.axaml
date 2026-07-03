@@ -2,11 +2,11 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- One switch in the pen diagram (#pen-switch-diagram). DataContext is a PenSwitchRowViewModel,
-         supplied by the diagram which binds it to a slot (Tip / Eraser / Button N). Same data/commands
-         as the old list rows, just laid out as a compact callout card. -->
-    <Border Classes="GlassPanel" Padding="14" Width="240" BoxShadow="{DynamicResource CardShadow}">
-        <StackPanel Spacing="7">
+    <!-- One switch on the Pen Switches tab. DataContext is a PenSwitchRowViewModel, bound by the tab to
+         a slot (Tip / Eraser / Button N). Same data/commands as the old list rows, laid out as a compact
+         card that the rows layout flows into WrapPanels (tip + eraser, then the buttons). -->
+    <Border Classes="GlassPanel" Padding="12,10" MaxWidth="240" HorizontalAlignment="Left">
+        <StackPanel Spacing="4">
             <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
 
             <StackPanel Orientation="Horizontal" Spacing="6">
