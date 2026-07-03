@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
              xmlns:conv="using:Avalonia.Data.Converters"
-             xmlns:otac="using:OpenTabletArtist.Converters">
+             xmlns:otac="using:OpenTabletArtist.Converters"
+             xmlns:views="using:OpenTabletArtist.Views">
 
     <UserControl.Styles>
         <!-- Express-key card lights up while its physical button is held. Only the border/background
@@ -343,63 +344,60 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pen Switches tab content -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenTipTab.IsChecked}">
-            <StackPanel>
-                <!-- All pen switches live in one card; each switch is a divider-separated section. -->
-                <Border Classes="GlassPanel" Padding="16">
-                    <ItemsControl ItemsSource="{Binding PenSwitchRows}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <Border Height="1" Background="{DynamicResource DividerBrush}"
-                                        Margin="0,16,0,16" IsVisible="{Binding !IsFirst}" />
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-                                            <Button Content="Auto" Theme="{StaticResource BindingModePill}"
-                                                    Classes.selected="{Binding IsAutoSelected}"
-                                                    Command="{Binding SetAutoCommand}" />
-                                            <Button Content="Legacy" Theme="{StaticResource BindingModePill}"
-                                                    Classes.selected="{Binding IsLegacySelected}"
-                                                    Command="{Binding SetLegacyCommand}" />
-                                            <Button Content="Other" Theme="{StaticResource BindingModePill}"
-                                                    Classes.selected="{Binding IsOtherSelected}"
-                                                    IsEnabled="{Binding IsOtherSelected}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="{Binding BindingLabel}"
-                                                   FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                                   VerticalAlignment="Center" TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis" MaxWidth="220"
-                                                   HorizontalAlignment="Right" />
-                                    </Grid>
-                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsRecommended}">
-                                        <TextBlock Text="✓" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource SuccessBrush}"
-                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
-                                        <TextBlock Text="Using recommended setting" FontSize="10"
-                                                   Foreground="{DynamicResource SuccessBrush}"
-                                                   VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsNotRecommended}">
-                                        <TextBlock Text="⚠" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource WarningBrush}"
-                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
-                                        <TextBlock Text="Not recommended — use Auto mode instead" FontSize="10"
-                                                   Foreground="{DynamicResource WarningBrush}"
-                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
+        <!-- Pen Switches tab: a visual pen diagram with a callout card per switch (tip / eraser / buttons).
+             Data-driven — only the buttons this pen actually has are shown. Scaled to fit via a Viewbox. -->
+        <Viewbox Grid.Row="1" Grid.Column="1" Stretch="Uniform" StretchDirection="Both"
+                 MaxWidth="880" HorizontalAlignment="Center" VerticalAlignment="Top"
+                 IsVisible="{Binding #PenTipTab.IsChecked}">
+            <Canvas Width="780" Height="620">
+                <!-- Connectors (drawn first, so the pen + cards sit on top of the line ends). -->
+                <Canvas.Styles>
+                    <Style Selector="Polyline.connector">
+                        <Setter Property="Stroke" Value="#E24B4A" />
+                        <Setter Property="StrokeThickness" Value="3.5" />
+                        <Setter Property="StrokeLineCap" Value="Round" />
+                        <Setter Property="Fill" Value="{x:Null}" />
+                    </Style>
+                </Canvas.Styles>
+                <Polyline Classes="connector" Points="248,64 384,64" />
+                <Polyline Classes="connector" Points="248,500 340,500 340,611 384,611" />
+                <Polyline Classes="connector" Points="402,380 460,380 460,120 532,120"
+                          IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Polyline Classes="connector" Points="402,430 492,430 492,300 532,300"
+                          IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Polyline Classes="connector" Points="402,480 532,480"
+                          IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+
+                <!-- Pen graphic -->
+                <Rectangle Canvas.Left="382" Canvas.Top="52" Width="16" Height="24" RadiusX="6" RadiusY="6"
+                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                <Rectangle Canvas.Left="372" Canvas.Top="72" Width="36" Height="468"
+                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                <Polygon Points="372,538 408,538 399,606 381,606" Fill="#F7D8C4"
+                         Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
+                <Rectangle Canvas.Left="384" Canvas.Top="604" Width="12" Height="15" RadiusX="4" RadiusY="4"
+                           Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
+                <Rectangle Canvas.Left="378" Canvas.Top="360" Width="24" Height="40" RadiusX="7" RadiusY="7"
+                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Rectangle Canvas.Left="378" Canvas.Top="410" Width="24" Height="40" RadiusX="7" RadiusY="7"
+                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Rectangle Canvas.Left="378" Canvas.Top="460" Width="24" Height="40" RadiusX="7" RadiusY="7"
+                           Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
+                           IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+
+                <!-- Callout cards -->
+                <views:PenSwitchCard Canvas.Left="8" Canvas.Top="24" DataContext="{Binding PenEraserRow}" />
+                <views:PenSwitchCard Canvas.Left="8" Canvas.Top="428" DataContext="{Binding PenTipRow}" />
+                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="64" DataContext="{Binding PenButton3Row}"
+                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="246" DataContext="{Binding PenButton2Row}"
+                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <views:PenSwitchCard Canvas.Left="532" Canvas.Top="428" DataContext="{Binding PenButton1Row}"
+                                     IsVisible="{Binding $parent[Canvas].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+            </Canvas>
+        </Viewbox>
 
         <!-- ExpressKeys tab content: one card per auxiliary button. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
