@@ -10,8 +10,18 @@
                    FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,18" />
 
+        <!-- Foreign-daemon guard: this feature writes to whatever daemon is connected; snapshots only
+             match the app-owned daemon (#167). -->
+        <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18"
+                IsVisible="{Binding IsForeignDaemon}">
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource WarningBrush}"
+                       Text="Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running — its profiles and snapshot files may not match. Stop that daemon (or let OpenTabletArtist manage it) to use this feature." />
+        </Border>
+
         <!-- Need snapshots first -->
-        <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasEnoughSnapshots}">
+        <Border Classes="GlassPanel" Padding="24"
+                IsVisible="{Binding !HasEnoughSnapshots}" IsEnabled="{Binding CanUse}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="Save a snapshot first" FontSize="15" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
@@ -21,7 +31,7 @@
             </StackPanel>
         </Border>
 
-        <StackPanel IsVisible="{Binding HasEnoughSnapshots}" Spacing="14">
+        <StackPanel IsVisible="{Binding HasEnoughSnapshots}" IsEnabled="{Binding CanUse}" Spacing="14">
             <!-- Master controls -->
             <Border Classes="GlassPanel" Padding="18">
                 <StackPanel Spacing="14">
@@ -64,7 +74,7 @@
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
                                     <TextBlock Text="⚠ snapshot missing" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource WarnBrush}" Margin="0,3,0,0"
+                                               Foreground="{DynamicResource WarningBrush}" Margin="0,3,0,0"
                                                IsVisible="{Binding IsMissing}" />
                                 </StackPanel>
 

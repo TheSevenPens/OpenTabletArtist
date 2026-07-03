@@ -29,6 +29,7 @@ public sealed class AppTray : IDisposable
     private readonly IDeviceData _deviceData;
     private readonly ISettingsCoordinator _settingsCoord;
     private readonly IDialogService _dialogs;
+    private readonly Func<Task>? _onQuitAsync; // restore per-app default before exit (#167)
 
     private readonly TrayIcon _tray;
     private readonly NativeMenuItem _activeTabletItem;
@@ -49,7 +50,8 @@ public sealed class AppTray : IDisposable
     private string _activeTabletSignature = "";
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
-        IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord, IDialogService dialogs)
+        IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord, IDialogService dialogs,
+        Func<Task>? onQuitAsync = null)
     {
         _desktop = desktop;
         _window = window;
@@ -57,6 +59,7 @@ public sealed class AppTray : IDisposable
         _deviceData = deviceData;
         _settingsCoord = settingsCoord;
         _dialogs = dialogs;
+        _onQuitAsync = onQuitAsync;
 
         _tray = new TrayIcon { ToolTipText = "OpenTabletArtist", IsVisible = true };
         try
@@ -272,9 +275,15 @@ public sealed class AppTray : IDisposable
 
     private void ShowWindow() => _window.BringToFront();
 
-    private void Quit()
+    private async void Quit()
     {
         _window.AllowCloseForQuit();
+        // Restore the user's default while the daemon is still connected, so no per-app snapshot lingers
+        // after exit (#167). Awaited on the UI thread (no blocking); bounded so a stuck RPC can't hang Quit.
+        if (_onQuitAsync != null)
+        {
+            try { await Task.WhenAny(_onQuitAsync(), Task.Delay(2000)); } catch { }
+        }
         Dispose();
         _desktop.Shutdown(); // closes the window (→ MainViewModel.Dispose) and exits the app
     }

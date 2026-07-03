@@ -44,6 +44,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Monitor-cycle switch events (#89) — the shell subscribes to show a toast on cycle.</summary>
     public MonitorCycleService MonitorCycle => _monitorCycle;
 
+    /// <summary>Restore the user's default before exit if a per-app snapshot is applied (#167). Awaited by
+    /// the tray's Quit while the daemon is still connected, so no per-app snapshot lingers after close.</summary>
+    public Task ShutdownRestorePerAppAsync() => _perAppSwitcher.StopAsync();
+
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
     // coordinator, and open the per-tablet dialog through the dialog service.
@@ -148,7 +152,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
-        PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs);
+        PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs, _session);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);

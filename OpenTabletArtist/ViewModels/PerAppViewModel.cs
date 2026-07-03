@@ -26,6 +26,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     private readonly PerAppProfileStore _store;
     private readonly IDeviceData _device;
     private readonly IDialogService _dialogs;
+    private readonly IConnectionState _connection;
     private bool _suppress;   // guards store writes while we repopulate the UI from the store
 
     [ObservableProperty] private bool _enabled;
@@ -39,21 +40,39 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     public bool HasEnoughSnapshots => SnapshotNames.Count >= 1;
     public bool HasMappings => Mappings.Count > 0;
 
+    /// <summary>Per-app switching writes to whatever daemon is connected; a foreign daemon's snapshot
+    /// paths/filter stores may not match, so the feature is app-owned-daemon only (#167), same pattern as
+    /// plugin install. When true, the controls are disabled and a banner explains why.</summary>
+    public bool IsForeignDaemon => _connection.IsForeignDaemon;
+    public bool CanUse => !IsForeignDaemon;
+
     public PerAppViewModel(PerAppSwitcher switcher, PerAppProfileStore store, IDeviceData device,
-        IDialogService dialogs)
+        IDialogService dialogs, IConnectionState connection)
     {
         _switcher = switcher;
         _store = store;
         _device = device;
         _dialogs = dialogs;
+        _connection = connection;
 
         _switcher.ActiveProfileChanged += OnActiveChanged;
         _switcher.DanglingSnapshot += OnDangling;
         _device.DataLoaded += OnDataLoaded;
+        _connection.PropertyChanged += OnConnectionChanged;
 
         // Reflect persisted config.
         _enabled = _store.Config.Enabled;
         _deferUntilPenUp = _switcher.DeferUntilPenUp;
+    }
+
+    private void OnConnectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(IConnectionState.IsForeignDaemon) or nameof(IConnectionState.IsConnected)))
+            return;
+        OnPropertyChanged(nameof(IsForeignDaemon));
+        OnPropertyChanged(nameof(CanUse));
+        // A foreign daemon connecting while enabled: turn the feature off (which restores the default).
+        if (IsForeignDaemon && Enabled) Enabled = false;
     }
 
     private void OnDataLoaded() => _ = LoadSafelyAsync();
@@ -74,8 +93,9 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         }
         finally { _suppress = false; }
 
-        // Resume a persisted-enabled config once the daemon is up (LoadAsync runs on data load).
-        if (Enabled && !_switcher.IsRunning)
+        // Resume a persisted-enabled config once the daemon is up (LoadAsync runs on data load), unless a
+        // foreign daemon is connected (feature is app-owned-only).
+        if (Enabled && !IsForeignDaemon && !_switcher.IsRunning)
         {
             _switcher.Start();
             StatusLine = "On — waiting for an app change…";
@@ -104,6 +124,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     partial void OnEnabledChanged(bool value)
     {
         if (_suppress) return;
+        if (value && IsForeignDaemon) { _enabled = false; OnPropertyChanged(nameof(Enabled)); return; }
         _store.SetEnabled(value);
         if (value) _switcher.Start();
         else _ = _switcher.StopAsync();
@@ -162,6 +183,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         _switcher.ActiveProfileChanged -= OnActiveChanged;
         _switcher.DanglingSnapshot -= OnDangling;
         _device.DataLoaded -= OnDataLoaded;
+        _connection.PropertyChanged -= OnConnectionChanged;
     }
 }
 
