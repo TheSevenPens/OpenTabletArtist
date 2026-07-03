@@ -360,11 +360,11 @@
                 </Canvas.Styles>
                 <Line Classes="connector" StartPoint="248,80" EndPoint="372,92" />
                 <Line Classes="connector" StartPoint="248,486" EndPoint="386,580" />
-                <Line Classes="connector" StartPoint="532,120" EndPoint="402,212"
+                <Line Classes="connector" StartPoint="532,120" EndPoint="402,380"
                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Line Classes="connector" StartPoint="532,300" EndPoint="402,308"
+                <Line Classes="connector" StartPoint="532,300" EndPoint="402,430"
                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Line Classes="connector" StartPoint="532,482" EndPoint="402,404"
+                <Line Classes="connector" StartPoint="532,482" EndPoint="402,480"
                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
                 <!-- Pen graphic -->
@@ -376,13 +376,13 @@
                          Stroke="#D9662E" StrokeThickness="2.5" StrokeJoin="Round" />
                 <Rectangle Canvas.Left="384" Canvas.Top="604" Width="12" Height="15" RadiusX="4" RadiusY="4"
                            Fill="#F7D8C4" Stroke="#D9662E" StrokeThickness="2.5" />
-                <Rectangle Canvas.Left="378" Canvas.Top="190" Width="24" Height="44" RadiusX="7" RadiusY="7"
+                <Rectangle Canvas.Left="378" Canvas.Top="360" Width="24" Height="40" RadiusX="7" RadiusY="7"
                            Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
                            IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Rectangle Canvas.Left="378" Canvas.Top="286" Width="24" Height="44" RadiusX="7" RadiusY="7"
+                <Rectangle Canvas.Left="378" Canvas.Top="410" Width="24" Height="40" RadiusX="7" RadiusY="7"
                            Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
                            IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                <Rectangle Canvas.Left="378" Canvas.Top="382" Width="24" Height="44" RadiusX="7" RadiusY="7"
+                <Rectangle Canvas.Left="378" Canvas.Top="460" Width="24" Height="40" RadiusX="7" RadiusY="7"
                            Fill="#EFC1A2" Stroke="#D9662E" StrokeThickness="2"
                            IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
