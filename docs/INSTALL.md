@@ -13,11 +13,12 @@ requires is handled for you — usually one click, one UAC prompt.
 - **Windows 10 or 11, 64-bit (x64).** 32-bit Windows and Windows on ARM are not supported.
 - **A supported tablet.** Check the list at [opentabletdriver.net/Tablets](https://opentabletdriver.net/Tablets).
   If your tablet is marked **Zadig WinUSB**, it needs extra steps that this guide does **not** cover.
-- **An internet connection during setup.** The VMulti driver, the Windows Ink plugin, and the driver
-  cleanup tool are downloaded the first time you install them from inside the app.
+- **An internet connection for part of setup.** The core pieces — the app, its driver, and the VMulti
+  driver — are included in the download and install offline. Only the Windows Ink plugin and the
+  optional driver-cleanup tool are fetched from the internet the first time you install them.
 
 You do **not** need to install the .NET runtime or OpenTabletDriver — the download is self-contained
-and includes everything.
+and includes everything (including the VMulti driver).
 
 ## Step 1 — Download and run
 
@@ -62,7 +63,8 @@ Restart if the cleanup tool asks you to, then reopen OpenTabletArtist.
 
 ## Step 4 — Install the VMulti driver
 
-Pressure and tilt on Windows require the **VMulti** virtual driver.
+Pressure and tilt on Windows require the **VMulti** virtual driver. It's included in the download, so
+this installs offline.
 
 1. Go to the **VMulti Driver** page (under **Advanced**). If it isn't installed, **Home** also flags it.
 2. Click **Install**. Approve the single UAC prompt.
