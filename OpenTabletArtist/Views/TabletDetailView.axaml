@@ -86,6 +86,10 @@
             <StackPanel Width="150" Spacing="2">
                 <RadioButton Content="PEN BEHAVIOR" IsChecked="True" x:Name="OutputModeTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="PEN INPUTS" x:Name="PenTipTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="PEN DYNAMICS" x:Name="DynamicsTab"
+                             Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="DISPLAY MAPPING" x:Name="DisplayMappingTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasAreaMapping}" />
@@ -95,15 +99,11 @@
                 <RadioButton Content="CALIBRATION" x:Name="CalibrationTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasAreaMapping}" />
-                <RadioButton Content="PEN SWITCHES" x:Name="PenTipTab"
-                             Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="BUTTONS" x:Name="PenButtonsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="WHEELS" x:Name="WheelTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasWheels}" />
-                <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
-                             Theme="{StaticResource TabRadioButton}" />
                 <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
                      tab (and its still-present content below) is unreachable while IsVisible=False, and
                      the HoverFilter plugin is neutered so it has no effect. Set IsVisible back to True
@@ -354,29 +354,31 @@
                         <views:PenSwitchCard Margin="6" DataContext="{Binding PenEraserRow}" />
                     </WrapPanel>
 
-                    <!-- Row 2: horizontal pen (tip left → eraser right). Decorative; no connectors. -->
+                    <!-- Row 2: horizontal pen (tip left → eraser right). Decorative; no connectors.
+                         Canvas is 400 wide × 80 tall. Eraser is drawn first (lowest z) so the barrel end
+                         overlaps its left edge; nib X/W are bound to the tuning sliders below. -->
                     <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
                         <Canvas Width="400" Height="80">
+                            <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
+                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
                             <!-- tip nib (far left, under the cone) -->
-                            <Rectangle Canvas.Left="8" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
                                        Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
                             <!-- tip cone (pointing left) -->
                             <Polygon Points="72,28 72,52 26,45 26,35" Fill="#F7CFD8"
                                      Stroke="#CF5E86" StrokeThickness="2.5" StrokeJoin="Round" />
                             <!-- barrel -->
-                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="272" Height="24"
-                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
-                            <!-- eraser nub (right) -->
-                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
                                        Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
                             <!-- side buttons, clustered toward the tip (left) -->
-                            <Rectangle Canvas.Left="104" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
                                        Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                                        IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="148" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                            <Rectangle Canvas.Left="130" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
                                        Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                                        IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="192" Canvas.Top="32" Width="34" Height="16" RadiusX="6" RadiusY="6"
+                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
                                        Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
                                        IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                         </Canvas>
