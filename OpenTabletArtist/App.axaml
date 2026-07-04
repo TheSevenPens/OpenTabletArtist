@@ -45,6 +45,7 @@
         <DataTemplate DataType="{x:Type vm:WindowsInkViewModel}"><views:WindowsInkView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:VMultiViewModel}"><views:VMultiView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PluginsViewModel}"><views:PluginsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OpenTabletDriverViewModel}"><views:OpenTabletDriverView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ThemeViewModel}"><views:ThemeView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
     </Application.DataTemplates>
