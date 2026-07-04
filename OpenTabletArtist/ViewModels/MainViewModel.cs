@@ -20,6 +20,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
     private readonly TabletAutoMapper _autoMapper;
+    private readonly WindowsInkAutoSetup _winInkAutoSetup;
     private readonly IDialogService _dialogs;
     private readonly DriverConflictMonitor _conflicts;
     private readonly HealthService _health;
@@ -134,6 +135,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // First-detection auto-mapping (#362): map a brand-new tablet to the primary display so it
         // doesn't span every monitor out of the box. Only ever acts once per tablet (persisted).
         _autoMapper = new TabletAutoMapper(_session);
+
+        // Windows Ink auto-setup: install the plugin if missing and switch tablets to Windows Ink
+        // (once VMulti is functional), so the user never has to configure Windows Ink themselves.
+        _winInkAutoSetup = new WindowsInkAutoSetup(_session);
 
         // Global hotkeys (#320, #89): one shared hotkey window; the profile-switch manager and the
         // monitor-cycle manager each register their own chords on it and filter presses by their ids.
@@ -317,6 +322,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _session.DataLoaded -= RebuildTablets;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
+        _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
         foreach (var vm in _tabletDetails.Values) vm.Dispose(); // unsubscribe per-tablet detection
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
