@@ -12,7 +12,7 @@
                 BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Classes="CardTitle" Text="Current settings" FontSize="15" VerticalAlignment="Center" />
+                    <TextBlock Classes="CardTitle" Text="Current settings" VerticalAlignment="Center" />
                     <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="10" Padding="8,2"
                             VerticalAlignment="Center">
                         <TextBlock Text="In use now" FontSize="11" FontWeight="SemiBold"
@@ -43,7 +43,7 @@
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                                <TextBlock Classes="CardTitle" Text="{Binding Name}" FontSize="14" TextWrapping="Wrap" />
+                                <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding LastModified}" FontSize="11"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,2,0,0" />

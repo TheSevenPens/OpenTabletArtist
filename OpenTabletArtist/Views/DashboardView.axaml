@@ -27,7 +27,7 @@
                                                Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
                                                Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
                                     <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" Classes="CardTitle" FontSize="13" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Detail}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                                     </StackPanel>
@@ -51,7 +51,7 @@
                 <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="CardTitle" Text="OpenTabletDriver Daemon" FontSize="13"
+                            <TextBlock Classes="CardTitle" Text="OpenTabletDriver Daemon"
                                        TextWrapping="Wrap" />
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsConnected}" />
@@ -208,7 +208,7 @@
             <Border Classes="GlassPanel" Margin="0,10,0,0" Padding="16">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                        <TextBlock Classes="CardTitle" Text="Supported tablets" FontSize="13" />
+                        <TextBlock Classes="CardTitle" Text="Supported tablets" />
                         <TextBlock Text="Browse the full list of tablets OpenTabletDriver supports on the OTD website."
                                    FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />

@@ -50,10 +50,10 @@
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MaxWidth="360">
                     <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
                                IsVisible="{Binding HasTabletBrand}"
-                               FontFamily="Segoe UI" FontSize="18" FontWeight="Light"
+                               FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
                                Foreground="{DynamicResource TextPrimaryBrush}" />
                     <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
-                               FontFamily="Segoe UI" FontSize="30" FontWeight="Light"
+                               FontFamily="Segoe UI, Inter" FontSize="30" FontWeight="Light"
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                TextWrapping="Wrap" Margin="0,-2,0,0" />
                 </StackPanel>
@@ -208,7 +208,7 @@
                                                        Foreground="{DynamicResource AccentBrush}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="1">
-                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="12.5" FontWeight="SemiBold"
+                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                             <TextBlock Text="{Binding DetailSubLine}" FontSize="11"
                                                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
@@ -247,19 +247,19 @@
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontSize="15" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <TextBlock Text="width × height" FontSize="10" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontSize="15" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <TextBlock Text="active area" FontSize="10" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontSize="15" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <TextBlock Text="full tablet area" FontSize="10" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
@@ -301,13 +301,13 @@
                             <!-- Capture density: quick corner method or a finer grid. Radio buttons so
                                  all options are visible at a glance (replaces the old dropdown). -->
                             <StackPanel Spacing="6" IsVisible="{Binding CanCalibrate}">
-                                <RadioButton GroupName="CalibrationMode" Content="4 point" FontSize="13"
+                                <RadioButton GroupName="CalibrationMode" Content="4 point" FontSize="11"
                                              IsChecked="{Binding IsCalibration4Point, Mode=TwoWay}"
                                              ToolTip.Tip="Quick — tap the four corners; corrects perspective (homography)" />
-                                <RadioButton GroupName="CalibrationMode" Content="9 point" FontSize="13"
+                                <RadioButton GroupName="CalibrationMode" Content="9 point" FontSize="11"
                                              IsChecked="{Binding IsCalibration9Point, Mode=TwoWay}"
                                              ToolTip.Tip="A 3×3 grid; corrects localized distortion across the screen" />
-                                <RadioButton GroupName="CalibrationMode" Content="25 point" FontSize="13"
+                                <RadioButton GroupName="CalibrationMode" Content="25 point" FontSize="11"
                                              IsChecked="{Binding IsCalibration25Point, Mode=TwoWay}"
                                              ToolTip.Tip="A 5×5 grid; the finest correction across the screen" />
                             </StackPanel>
@@ -592,18 +592,18 @@
                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Min node" FontSize="12" Width="70"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InputMinimumText}" FontSize="12"
-                                                   FontFamily="Consolas, Cascadia Code" HorizontalAlignment="Center"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding OutputMinimumText}" FontSize="12"
-                                                   FontFamily="Consolas, Cascadia Code" HorizontalAlignment="Center"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Max node" FontSize="12" Width="70"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputMaximumText}" FontSize="12"
-                                                   FontFamily="Consolas, Cascadia Code" HorizontalAlignment="Center"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding OutputMaximumText}" FontSize="12"
-                                                   FontFamily="Consolas, Cascadia Code" HorizontalAlignment="Center"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </Grid>
                                 </StackPanel>
@@ -746,7 +746,7 @@
         <Border Grid.Row="1" Grid.Column="1" Classes="GlassPanel" Padding="16"
                 IsVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
-                     FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11"
+                     FontFamily="{DynamicResource MonoFontFamily}" FontSize="11"
                      Foreground="{DynamicResource TextSecondaryBrush}"
                      Background="Transparent" BorderThickness="0"
                      TextWrapping="NoWrap"

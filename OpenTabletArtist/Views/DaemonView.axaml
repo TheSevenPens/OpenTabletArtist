@@ -10,7 +10,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="Embedded OpenTabletDriver Version" FontSize="13"
+                    <TextBlock Classes="CardTitle" Text="Embedded OpenTabletDriver Version"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0" FontSize="11"
                                Foreground="{DynamicResource TextSecondaryBrush}" />

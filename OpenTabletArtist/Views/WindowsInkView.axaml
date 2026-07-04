@@ -15,7 +15,7 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <!-- Title -->
-                    <TextBlock Classes="CardTitle" Text="Kuuube's Windows Ink plugin" FontSize="13"
+                    <TextBlock Classes="CardTitle" Text="Kuuube's Windows Ink plugin"
                                TextWrapping="Wrap" />
 
                     <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->

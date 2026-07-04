@@ -11,7 +11,7 @@
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="CardTitle" Text="Configurations Folder" FontSize="13" TextWrapping="Wrap" />
+                        <TextBlock Classes="CardTitle" Text="Configurations Folder" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding ConfigurationsDirectory}" FontSize="10"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Margin="0,4,0,0" />

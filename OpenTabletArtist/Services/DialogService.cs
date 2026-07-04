@@ -207,7 +207,7 @@ public class DialogService : IDialogService
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = Avalonia.Media.TextWrapping.NoWrap,
-            FontFamily = new Avalonia.Media.FontFamily("Consolas, Courier New, monospace"),
+            FontFamily = new Avalonia.Media.FontFamily("Cascadia Mono, Consolas, monospace"),
             FontSize = 12,
         };
 

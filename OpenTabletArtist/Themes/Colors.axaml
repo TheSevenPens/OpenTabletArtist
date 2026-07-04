@@ -34,6 +34,12 @@
          by default (a no-op for every theme); the Custom skin sets it at runtime when an image is chosen. -->
     <SolidColorBrush x:Key="BackdropScrimBrush" Color="Transparent" />
 
+    <!-- Canonical monospace family for code / numeric readouts (Log, Diagnostics, JSON, dynamics values).
+         One definition so these don't drift into several different Consolas/Cascadia spellings. Consolas
+         first — it ships on every Windows and is what most of these readouts already used, so the look
+         stays familiar; Cascadia Mono / the generic monospace are fallbacks. -->
+    <FontFamily x:Key="MonoFontFamily">Consolas, Cascadia Mono, monospace</FontFamily>
+
     <ResourceDictionary.ThemeDictionaries>
 
         <!-- ===== Light ===== -->

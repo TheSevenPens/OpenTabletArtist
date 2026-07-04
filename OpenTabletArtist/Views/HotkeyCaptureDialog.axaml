@@ -122,7 +122,7 @@
                             <DataTemplate>
                                 <Panel VerticalAlignment="Center" Margin="3,0">
                                     <TextBlock Text="+" IsVisible="{Binding IsSeparator}"
-                                               FontSize="15" VerticalAlignment="Center"
+                                               FontSize="14" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextSecondaryBrush}" />
                                     <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="34" Padding="12,0"
                                             Background="{DynamicResource GlassBgBrush}"

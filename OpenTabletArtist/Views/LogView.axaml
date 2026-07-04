@@ -62,16 +62,16 @@
                         <DataTemplate>
                             <Grid ColumnDefinitions="Auto,52,Auto,*" ColumnSpacing="10">
                                 <TextBlock Grid.Column="0" Text="{Binding Time}"
-                                           FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                                           FontFamily="{DynamicResource MonoFontFamily}" FontSize="12"
                                            Foreground="{DynamicResource TextMutedBrush}" />
                                 <TextBlock Grid.Column="1" Text="{Binding Level}"
-                                           FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                                           FontFamily="{DynamicResource MonoFontFamily}" FontSize="12"
                                            FontWeight="SemiBold" Foreground="{Binding LevelBrush}" />
                                 <TextBlock Grid.Column="2" Text="{Binding Group}"
-                                           FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                                           FontFamily="{DynamicResource MonoFontFamily}" FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Grid.Column="3" Text="{Binding Message}"
-                                           FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                                           FontFamily="{DynamicResource MonoFontFamily}" FontSize="12"
                                            Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                             </Grid>
                         </DataTemplate>
