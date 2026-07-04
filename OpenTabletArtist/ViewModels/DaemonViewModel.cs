@@ -1,24 +1,20 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop;
-using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// View model for the OTD page (under the sidebar's Advanced group) — details about the bundled
-/// OpenTabletDriver engine. Currently the embedded OTD version + a launcher for OTD's own UX, moved
-/// here off the Home dashboard.
+/// View model for the Daemon page (Advanced → OpenTabletDriver → Daemon): the full daemon status +
+/// controls (via the shared <see cref="DaemonStatusViewModel"/>), the embedded OpenTabletDriver version,
+/// and a launcher for OTD's own UX. The status card moved here off the Home dashboard, which now shows
+/// the daemon only when there's a problem.
 /// </summary>
-public partial class DaemonViewModel : ObservableObject
+public sealed class DaemonViewModel
 {
-    private readonly IConnectionState _connection;
+    public DaemonViewModel(DaemonStatusViewModel status) => Status = status;
 
-    public DaemonViewModel(IConnectionState connection) => _connection = connection;
+    /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
+    public DaemonStatusViewModel Status { get; }
 
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
-
-    /// <summary>Launches OTD's own WPF UX (forwarded from the session).</summary>
-    public IRelayCommand LaunchOtdUxCommand => _connection.LaunchOtdUxCommand;
 }

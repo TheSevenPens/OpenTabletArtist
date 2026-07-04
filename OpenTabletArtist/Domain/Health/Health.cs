@@ -91,23 +91,10 @@ public static class HealthEvaluator
     {
         var issues = new List<HealthIssue>();
 
-        // --- Daemon reachability (hard prerequisites) ---
-        if (i.DaemonExeMissing)
-        {
-            issues.Add(new HealthIssue("daemon.missing", HealthSeverity.Broken,
-                "Driver daemon not found",
-                "The OpenTabletDriver daemon isn't running and its executable wasn't found, so the app " +
-                "can't control your tablet.",
-                new Remediation("Fix", RemediationArea.Daemon)));
-        }
-        else if (!i.DaemonConnected && !i.DaemonConnecting)
-        {
-            issues.Add(new HealthIssue("daemon.disconnected", HealthSeverity.Broken,
-                "Not connected to the daemon",
-                "The app isn't connected to the OpenTabletDriver daemon, so tablet settings can't be " +
-                "read or changed.",
-                new Remediation("Fix", RemediationArea.Daemon)));
-        }
+        // --- Daemon reachability (not-connected / exe-missing) is surfaced by the Home daemon problem
+        //     card + the Daemon page, not here, so it can morph through the connecting state and offer
+        //     an "Open daemon page" action. Only the "external daemon" recommendation stays a health
+        //     item (see below). ---
 
         // --- Windows Ink plugin: installed + compatible + actually used ---
         if (!i.WinInkInstalled)
