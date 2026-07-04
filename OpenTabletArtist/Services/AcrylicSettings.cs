@@ -11,6 +11,7 @@ public static class AcrylicSettings
 {
     private const string TintKey = "Acrylic:TintOpacity";
     private const string MaterialKey = "Acrylic:MaterialOpacity";
+    private const string SidebarKey = "Acrylic:SidebarOpacity";
 
     /// <summary>0..1 — how strongly the tint color colors the frosted surface.</summary>
     public static double TintOpacity
@@ -25,6 +26,14 @@ public static class AcrylicSettings
     {
         get => GetDouble(MaterialKey, 0.75);
         set => AppSettings.Set(MaterialKey, value.ToString("0.###", CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>0..1 — opacity of the sidebar (left pane) background in the translucent skins
+    /// (Sakura + Custom). Lower lets more of the backdrop show through behind the nav.</summary>
+    public static double SidebarOpacity
+    {
+        get => GetDouble(SidebarKey, 0.85);
+        set => AppSettings.Set(SidebarKey, value.ToString("0.###", CultureInfo.InvariantCulture));
     }
 
     private static double GetDouble(string key, double fallback) =>

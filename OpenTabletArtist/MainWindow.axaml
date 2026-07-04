@@ -16,9 +16,13 @@
 
     <Panel>
         <!-- Full-window backdrop layer. Transparent in Light/Dark; the sakura image in the Anime
-             skin (#anime). Sits behind everything so the translucent sidebar + glass cards show it
-             through. -->
+             skin (#anime), or the user's chosen image in the Custom skin. Sits behind everything so
+             the translucent sidebar + glass cards show it through. -->
         <Border Background="{DynamicResource AppBackdropBrush}" />
+
+        <!-- Dimming scrim over the backdrop image (Custom skin only; transparent otherwise) so text on
+             the translucent panels stays legible regardless of the chosen photo. -->
+        <Border Background="{DynamicResource BackdropScrimBrush}" />
 
         <!-- Falling sakura petals — only animates in the Sakura skin and when enabled in Settings
              (#207). Hit-test invisible; sits above the backdrop, behind the sidebar/content. -->

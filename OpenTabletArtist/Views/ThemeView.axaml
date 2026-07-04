@@ -37,28 +37,65 @@
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,2,0,0" />
 
-                <!-- Sakura-only: toggle the falling-petal animation (#207). -->
+                <!-- Sakura + Custom: toggle the falling-petal animation (#207). -->
                 <CheckBox IsChecked="{Binding PetalsEnabled}"
                           IsVisible="{Binding ShowPetalsToggle}"
                           Content="Falling petals" FontSize="13" Margin="0,12,0,0"
-                          ToolTip.Tip="Animate drifting cherry-blossom petals in the Sakura theme" />
+                          ToolTip.Tip="Animate drifting petals over the backdrop" />
             </StackPanel>
         </Border>
 
-        <!-- Sakura-only card-opacity control: drives the global card glass alpha, so every card
-             (including this one) re-tints live as you drag. -->
-        <Border Classes="GlassPanel" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}">
+        <!-- Custom-only: the accent colour that derives the whole scheme + an optional background image. -->
+        <Border Classes="GlassPanel" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Card opacity" FontSize="16" Margin="0,0,0,4" />
-                <TextBlock Text="Set how opaque the cards are — lower lets more of the sakura backdrop show through. Applies to every card live."
+                <TextBlock Classes="CardTitle" Text="Custom look" FontSize="16" Margin="0,0,0,4" />
+                <TextBlock Text="Pick an accent colour — the whole scheme (buttons, highlights, controls) is derived from it. Add a background image to fill the window behind the panels."
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,0,0,12" />
-                <Grid ColumnDefinitions="130,*,44" ColumnSpacing="12">
-                    <TextBlock Grid.Column="0" Text="Opacity" FontSize="13" VerticalAlignment="Center"
+
+                <Grid ColumnDefinitions="120,*" VerticalAlignment="Center" Margin="0,0,0,12">
+                    <TextBlock Grid.Column="0" Text="Accent colour" FontSize="13" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <Slider Grid.Column="1" Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}"
+                    <ColorPicker Grid.Column="1" HorizontalAlignment="Left"
+                                 Color="{Binding AccentColor, Mode=TwoWay}"
+                                 ToolTip.Tip="The colour the rest of the scheme is derived from" />
+                </Grid>
+
+                <Grid ColumnDefinitions="120,*,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0" Text="Background image" FontSize="13" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding BackgroundImageLabel}" FontSize="12"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <Button Grid.Column="2" Content="Choose image…" Click="OnChooseImage" />
+                    <Button Grid.Column="3" Content="Clear"
+                            Command="{Binding ClearBackgroundImageCommand}"
+                            IsEnabled="{Binding HasBackgroundImage}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Sakura + Custom translucency: card + sidebar background opacity. Each slider drives a global
+             brush, so the whole app (including this page) re-tints live as you drag. -->
+        <Border Classes="GlassPanel" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}">
+            <StackPanel>
+                <TextBlock Classes="CardTitle" Text="Translucency" FontSize="16" Margin="0,0,0,4" />
+                <TextBlock Text="Set how opaque the cards and the left pane are — lower lets more of the backdrop show through. Applies live."
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           TextWrapping="Wrap" Margin="0,0,0,12" />
+                <Grid ColumnDefinitions="130,*,44" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Cards" FontSize="13" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <Slider Grid.Row="0" Grid.Column="1" Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}"
                             VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding CardOpacity, StringFormat='0.00'}"
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding CardOpacity, StringFormat='0.00'}"
+                               FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Left pane" FontSize="13" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <Slider Grid.Row="1" Grid.Column="1" Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}"
+                            VerticalAlignment="Center" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SidebarOpacity, StringFormat='0.00'}"
                                FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                 </Grid>
             </StackPanel>
