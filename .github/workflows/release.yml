@@ -67,6 +67,32 @@ jobs:
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item "plugins/OpenTabletArtist.Dynamics/bin/Release/net8.0/OpenTabletArtist.Dynamics.dll" $dest
 
+      # Bundle the Windows Ink plugin (newest compatible from the OTD Plugin-Repository) for offline
+      # install (#364). Best-effort: a repo/layout change must never fail the release — the app still
+      # installs it online. The bundle is the plugin DLLs + the manifest saved as metadata.json (what an
+      # online install writes), so the app copies it straight into the daemon's plugin dir.
+      - name: Bundle the Windows Ink plugin for offline install
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tmp = Join-Path $env:RUNNER_TEMP 'winink'
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          Invoke-WebRequest 'https://github.com/OpenTabletDriver/Plugin-Repository/archive/refs/heads/master.zip' -OutFile "$tmp/pr.zip"
+          Expand-Archive "$tmp/pr.zip" "$tmp/pr" -Force
+          # Pick the newest WindowsInk.json by its version folder (Repository/<version>/<owner>/...).
+          $meta = Get-ChildItem "$tmp/pr" -Recurse -Filter WindowsInk.json |
+            Sort-Object { [version]($_.FullName -replace '.*Repository[\\/]([0-9.]+)[\\/].*','$1') } -Descending |
+            Select-Object -First 1
+          if (-not $meta) { throw 'No WindowsInk.json found in the plugin repository' }
+          $json = Get-Content $meta.FullName -Raw | ConvertFrom-Json
+          $dest = 'publish/OpenTabletArtist/BundledPlugins/WindowsInk'
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Invoke-WebRequest $json.DownloadUrl -OutFile "$tmp/winink.zip"
+          Expand-Archive "$tmp/winink.zip" $dest -Force
+          Copy-Item $meta.FullName (Join-Path $dest 'metadata.json')
+          Write-Host "Bundled Windows Ink plugin v$($json.PluginVersion) (supports OTD $($json.SupportedDriverVersion))"
+
       # Bundle the VMulti driver so users can install it offline — the installer prefers this copy
       # (Bundled/VMulti.Driver.zip next to the app) and only downloads as a fallback (#364).
       - name: Bundle the VMulti driver for offline install
