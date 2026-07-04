@@ -74,30 +74,18 @@ this installs offline.
 
 After the restart, reopen OpenTabletArtist. The VMulti Driver page should show **Installed**.
 
-## Step 5 — Install the Windows Ink plugin
+## Step 5 — Windows Ink (automatic)
 
-Windows Ink is how pressure and tilt reach your drawing apps on Windows.
+Windows Ink is how pressure and tilt reach your drawing apps — but **you don't need to set it up.**
+OpenTabletArtist installs the Windows Ink plugin for you and, once VMulti is in place (Step 4), switches
+your tablet to Windows Ink automatically.
 
-1. Go to the **Windows Ink Plugin** page (under **Advanced**). **Home** flags it too if it's missing.
-2. Click **Install**. OTA installs the newest compatible plugin — downloading it if you're online, or
-   using the copy bundled with the app if you're not.
-3. When it finishes, OTA offers to **set your connected tablet(s) to Windows Ink mode** — accept it and
-   you can skip the next step.
+> If you ever want to check it, the tablet's **Screen Mapping** tab has an **Absolute / Relative**
+> toggle (keep **Absolute** for drawing — it carries pressure and tilt; Relative behaves like a mouse),
+> and the plugin itself lives on the **Windows Ink Plugin** page under **Advanced**. You shouldn't need
+> either in normal use.
 
-## Step 6 — Turn on Windows Ink for your tablet
-
-If you accepted the offer at the end of Step 5, your tablet is already on Windows Ink and you can skip
-to Step 7. Otherwise, enable it per tablet:
-
-1. Click your tablet under **Tablets** in the sidebar.
-2. On the **Screen Mapping** tab, the output mode is an **Absolute / Relative** toggle. Keep
-   **Absolute** (it carries pressure and tilt). If a warning says the tablet isn't on a Windows Ink
-   mode, click its **Fix** button to switch it.
-
-> Absolute mode is what you want for drawing — it maps the tablet to a fixed area of the screen and
-> carries pressure and tilt. Relative mode behaves like a mouse and has no pressure.
-
-## Step 7 — Map the tablet to a display
+## Step 6 — Map the tablet to a display
 
 The first time OTA sees a tablet on a multi-monitor setup, it **auto-maps it to your primary display**
 so the pointer doesn't span every monitor. If that's the display you want, you're done — otherwise pick
@@ -114,12 +102,12 @@ on screen with no stretching. A live pen dot tracks over the tablet area so you 
 > your changes to the driver automatically. (Named **Profiles** are a separate feature for saving and
 > switching whole configurations.)
 
-## Step 8 — Configure your drawing app
+## Step 7 — Configure your drawing app
 
 Each drawing app has its own tablet/stylus setting. Turn on **Windows Ink** in your app's tablet
 settings. Instructions vary per app; Krita is a good, free app to start with.
 
-## Step 9 — Test it
+## Step 8 — Test it
 
 Open the **Test Drawing** page and draw with the pen. You should see the stroke respond to pressure
 (and tilt/twist if your pen supports them). The page also shows live readouts and, when Pen Dynamics
