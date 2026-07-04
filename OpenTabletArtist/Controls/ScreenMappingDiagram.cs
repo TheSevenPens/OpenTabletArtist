@@ -14,8 +14,7 @@ namespace OpenTabletArtist.Controls;
 /// <summary>
 /// The whole display-mapping picture in one view (#250/#252): the connected displays across the top
 /// (click to select — Windows-Display-Settings style), the tablet's full + effective area below, and
-/// an L-shaped arrow from the effective area up to the selected display. A live pen dot tracks the
-/// pen over the tablet (size/opacity by pressure).
+/// an L-shaped arrow from the effective area up to the selected display.
 /// </summary>
 public sealed class ScreenMappingDiagram : Control
 {
@@ -33,7 +32,6 @@ public sealed class ScreenMappingDiagram : Control
     private static readonly IBrush TabletFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
     private static readonly IPen TabletBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
     private static readonly IBrush EffFill = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush DotRing = Brushes.White;
     private static readonly IBrush Label = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0x99, 0x33, 0x33, 0x33));
     private static readonly Typeface Face = new("Segoe UI");
@@ -49,27 +47,18 @@ public sealed class ScreenMappingDiagram : Control
         AvaloniaProperty.Register<ScreenMappingDiagram, int?>(nameof(SelectedNumber), defaultBindingMode: BindingMode.TwoWay);
     public static readonly StyledProperty<TabletAreaInfo?> AreaProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, TabletAreaInfo?>(nameof(Area));
-    public static readonly StyledProperty<double?> LiveXProperty =
-        AvaloniaProperty.Register<ScreenMappingDiagram, double?>(nameof(LiveX));
-    public static readonly StyledProperty<double?> LiveYProperty =
-        AvaloniaProperty.Register<ScreenMappingDiagram, double?>(nameof(LiveY));
-    public static readonly StyledProperty<double?> PressureProperty =
-        AvaloniaProperty.Register<ScreenMappingDiagram, double?>(nameof(Pressure));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(AccentBrush));
 
     public IReadOnlyList<DisplayInfo>? Displays { get => GetValue(DisplaysProperty); set => SetValue(DisplaysProperty, value); }
     public int? SelectedNumber { get => GetValue(SelectedNumberProperty); set => SetValue(SelectedNumberProperty, value); }
     public TabletAreaInfo? Area { get => GetValue(AreaProperty); set => SetValue(AreaProperty, value); }
-    public double? LiveX { get => GetValue(LiveXProperty); set => SetValue(LiveXProperty, value); }
-    public double? LiveY { get => GetValue(LiveYProperty); set => SetValue(LiveYProperty, value); }
-    public double? Pressure { get => GetValue(PressureProperty); set => SetValue(PressureProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
 
     static ScreenMappingDiagram()
     {
         AffectsRender<ScreenMappingDiagram>(DisplaysProperty, SelectedNumberProperty, AreaProperty,
-            LiveXProperty, LiveYProperty, PressureProperty, AccentBrushProperty);
+            AccentBrushProperty);
         AffectsMeasure<ScreenMappingDiagram>(DisplaysProperty, AreaProperty);
     }
 
@@ -165,14 +154,6 @@ public sealed class ScreenMappingDiagram : Control
                 new Point(endX, endY), new Point(endX - 6, endY + 11), new Point(endX + 6, endY + 11)
             }, true);
             ctx.DrawGeometry(accentBrush, null, head);
-        }
-
-        // Live pen dot over the full tablet area.
-        if (LiveX is double lx && LiveY is double ly)
-        {
-            var p = new Point(fullRect.X + Clamp01(lx) * fullRect.Width, fullRect.Y + Clamp01(ly) * fullRect.Height);
-            double pr = Clamp01(Pressure ?? 0);
-            ctx.DrawEllipse(new SolidColorBrush(accent, 0.6 + 0.4 * pr), new Pen(DotRing, 1.5), p, 3 + pr * 5, 3 + pr * 5);
         }
 
         if (area != null)
