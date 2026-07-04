@@ -1,6 +1,7 @@
 <UserControl x:Class="OpenTabletArtist.Views.PenSwitchCard"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- One switch on the Pen Switches tab. DataContext is a PenSwitchRowViewModel, bound by the tab to
          a slot (Tip / Eraser / Button N). Same data/commands as the old list rows, laid out as a compact
@@ -25,21 +26,10 @@
                        Foreground="{DynamicResource TextSecondaryBrush}"
                        TextWrapping="Wrap" />
 
-            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsRecommended}">
-                <TextBlock Text="✓" FontSize="11" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SuccessBrush}"
-                           VerticalAlignment="Center" Margin="0,0,6,0" />
-                <TextBlock Text="Using recommended setting" FontSize="10.5"
-                           Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsNotRecommended}">
-                <TextBlock Text="⚠" FontSize="11" FontWeight="SemiBold"
-                           Foreground="{DynamicResource WarningBrush}"
-                           VerticalAlignment="Center" Margin="0,0,6,0" />
-                <TextBlock Text="Not recommended — use Auto instead" FontSize="10.5"
-                           Foreground="{DynamicResource WarningBrush}"
-                           VerticalAlignment="Center" TextWrapping="Wrap" />
-            </StackPanel>
+            <c:StatusBadge Kind="Success" Text="Using recommended setting"
+                           IsVisible="{Binding IsRecommended}" />
+            <c:StatusBadge Kind="Warning" Text="Not recommended — use Auto instead"
+                           IsVisible="{Binding IsNotRecommended}" />
         </StackPanel>
     </Border>
 </UserControl>
