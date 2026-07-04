@@ -13,6 +13,23 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
         </Style>
+        <!-- Calibration card that's currently in use: accent outline (overrides the GlassPanel border). -->
+        <Style Selector="Border.GlassPanel.calCurrent">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <!-- "In use" pill shown on the current calibration card. -->
+        <Style Selector="Border.calBadge">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.calBadge > TextBlock">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Resources>
@@ -287,58 +304,76 @@
         <!-- Calibration tab content (#252). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #CalibrationTab.IsChecked}">
-            <StackPanel>
-                <Border Classes="GlassPanel" Padding="16"
-                        IsVisible="{Binding HasAreaMapping}">
-                    <StackPanel>
-                        <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
-                        <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only)."
-                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="0,6,0,8" TextWrapping="Wrap" />
+            <StackPanel MaxWidth="900" HorizontalAlignment="Left" IsVisible="{Binding HasAreaMapping}">
+                <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
+                <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only). Choose a density, then tap the targets on screen."
+                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,6,0,12" TextWrapping="Wrap" />
+
+                <!-- One card per calibration density; START begins that mode. The card of the calibration
+                     currently in use gets an accent outline + "In use" badge. -->
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" IsVisible="{Binding CanCalibrate}">
+                    <Border Grid.Column="0" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
                         <StackPanel Spacing="10">
-                            <!-- Capture density: quick corner method or a finer grid. Radio buttons so
-                                 all options are visible at a glance (replaces the old dropdown). -->
-                            <StackPanel Spacing="6" IsVisible="{Binding CanCalibrate}">
-                                <RadioButton GroupName="CalibrationMode" Content="4 point" FontSize="11"
-                                             IsChecked="{Binding IsCalibration4Point, Mode=TwoWay}"
-                                             ToolTip.Tip="Quick — tap the four corners; corrects perspective (homography)" />
-                                <RadioButton GroupName="CalibrationMode" Content="9 point" FontSize="11"
-                                             IsChecked="{Binding IsCalibration9Point, Mode=TwoWay}"
-                                             ToolTip.Tip="A 3×3 grid; corrects localized distortion across the screen" />
-                                <RadioButton GroupName="CalibrationMode" Content="25 point" FontSize="11"
-                                             IsChecked="{Binding IsCalibration25Point, Mode=TwoWay}"
-                                             ToolTip.Tip="A 5×5 grid; the finest correction across the screen" />
-                            </StackPanel>
-                            <Button Content="Calibrate…" Command="{Binding CalibrateCommand}"
-                                    IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Left"
-                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
-                                    ToolTip.Tip="Tap the targets to correct where the pen lands vs. where you see it (Absolute mode only)" />
-                        </StackPanel>
-                        <TextBlock Text="Calibration is available in Absolute mode."
-                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="0,8,0,0" IsVisible="{Binding !CanCalibrate}" />
-                        <!-- Absolute mode, but the tablet isn't connected — calibration needs live pen taps (#177). -->
-                        <TextBlock Text="Connect this tablet to calibrate."
-                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
-                        <!-- Calibration state: whether it's active, which mode, and a way to clear it. -->
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
-                                    IsVisible="{Binding CanCalibrate}">
-                            <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}"
-                                       VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding CalibrationStatusText}" FontSize="11" VerticalAlignment="Center"
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
+                            </Grid>
+                            <ctrl:CalibrationDots Points="4" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="Standard — best for most setups." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}"
-                                    IsVisible="{Binding CanClearCalibration}"
-                                    Theme="{StaticResource GhostButton}" Padding="10,4" FontSize="11"
-                                    VerticalAlignment="Center"
-                                    ToolTip.Tip="Remove the calibration and return the pointer to its uncorrected default" />
+                            <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
+                                    IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
                         </StackPanel>
-                        <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
-                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
-                                   Margin="0,4,0,0" IsVisible="{Binding CalibrationStale}" />
-                    </StackPanel>
-                </Border>
+                    </Border>
+                    <Border Grid.Column="1" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
+                            </Grid>
+                            <ctrl:CalibrationDots Points="9" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="For harder cases — corrects distortion across the screen." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
+                                    IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent25Point}"><TextBlock Text="In use" /></Border>
+                            </Grid>
+                            <ctrl:CalibrationDots Points="25" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="For extreme distortion — the finest correction." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[2]}"
+                                    IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="Calibration is available in Absolute mode." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
+                <TextBlock Text="Connect this tablet to calibrate." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
+
+                <!-- Current calibration state + a way to clear it. -->
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,14,0,0" IsVisible="{Binding CanCalibrate}">
+                    <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding CalibrationStatusText}" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
+                            Theme="{StaticResource GhostButton}" Padding="10,4" FontSize="11" VerticalAlignment="Center"
+                            ToolTip.Tip="Remove the calibration and return the pointer to its uncorrected default" />
+                </StackPanel>
+                <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
+                           FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           Margin="0,4,0,0" IsVisible="{Binding CalibrationStale}" />
             </StackPanel>
         </ScrollViewer>
 
