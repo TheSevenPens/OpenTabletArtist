@@ -4,6 +4,133 @@
         xmlns:conv="using:OpenTabletArtist.Converters">
 
     <Styles.Resources>
+        <!-- Local converter instance so the ControlThemes below can hide empty title/description lines. -->
+        <conv:NonEmptyToBoolConverter x:Key="NonEmpty" />
+
+        <!-- ===== Reusable UX components (default ControlThemes) =====================================
+             These back the TemplatedControls in OpenTabletArtist.Controls, consolidating settings-UI
+             patterns that were hand-assembled across the views. -->
+
+        <!-- SettingCard: glass panel + optional title/description header + content slot. -->
+        <ControlTheme x:Key="{x:Type c:SettingCard}" TargetType="c:SettingCard">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Classes="GlassPanel">
+                        <StackPanel>
+                            <TextBlock x:Name="PART_Title" Classes="CardTitle" FontSize="16"
+                                       Text="{TemplateBinding Title}" Margin="0,0,0,12"
+                                       IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
+                            <TextBlock Text="{TemplateBinding Description}" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                       Margin="0,0,0,12"
+                                       IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <!-- When there's a description, tighten the title→description gap (title no longer owns the
+                 full header spacing). -->
+            <Style Selector="^[HasDescription=True] /template/ TextBlock#PART_Title">
+                <Setter Property="Margin" Value="0,0,0,4" />
+            </Style>
+        </ControlTheme>
+
+        <!-- LabeledField: fixed-width caption column + an arbitrary control. -->
+        <ControlTheme x:Key="{x:Type c:LabeledField}" TargetType="c:LabeledField">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}" FontSize="13"
+                                   Width="{TemplateBinding LabelWidth}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          VerticalAlignment="Center" HorizontalAlignment="Left" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
+        <!-- LabeledSlider: caption + slider + optional live numeric readout. -->
+        <ControlTheme x:Key="{x:Type c:LabeledSlider}" TargetType="c:LabeledSlider">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}" FontSize="13"
+                                   Width="{TemplateBinding LabelWidth}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <Slider Grid.Column="1" x:Name="PART_Slider" VerticalAlignment="Center"
+                                Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                TickFrequency="{TemplateBinding TickFrequency}"
+                                IsSnapToTickEnabled="{TemplateBinding IsSnapToTickEnabled}"
+                                TickPlacement="{TemplateBinding TickPlacement}"
+                                Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="2" x:Name="PART_Value" Text="{TemplateBinding ValueText}"
+                                   Width="{TemplateBinding ValueWidth}" MinWidth="36"
+                                   IsVisible="{TemplateBinding ShowValue}" FontSize="12" TextAlignment="Right"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+            <!-- Monospace readout (primary colour, fixed-width digits) for VM-formatted values. -->
+            <Style Selector="^[Monospace=True] /template/ TextBlock#PART_Value">
+                <Setter Property="FontFamily" Value="Consolas, Cascadia Code" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            </Style>
+        </ControlTheme>
+
+        <!-- ToggleSetting: checkbox + optional muted description line. -->
+        <ControlTheme x:Key="{x:Type c:ToggleSetting}" TargetType="c:ToggleSetting">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <StackPanel>
+                        <CheckBox Content="{TemplateBinding Label}" FontSize="13"
+                                  IsChecked="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                        <TextBlock Text="{TemplateBinding Description}" FontSize="11" Margin="28,2,0,0"
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                   IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
+        <!-- StatusBadge: glyph + text, coloured by Kind. -->
+        <ControlTheme x:Key="{x:Type c:StatusBadge}" TargetType="c:StatusBadge">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="PART_Glyph" FontSize="11" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock x:Name="PART_Text" Text="{TemplateBinding Text}" FontSize="10.5"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Glyph">
+                <Setter Property="Text" Value="✓" />
+                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+            </Style>
+            <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Text">
+                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+            </Style>
+            <Style Selector="^[Kind=Warning] /template/ TextBlock#PART_Glyph">
+                <Setter Property="Text" Value="⚠" />
+                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+            </Style>
+            <Style Selector="^[Kind=Warning] /template/ TextBlock#PART_Text">
+                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+            </Style>
+            <Style Selector="^[Kind=Error] /template/ TextBlock#PART_Glyph">
+                <Setter Property="Text" Value="✕" />
+                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+            </Style>
+            <Style Selector="^[Kind=Error] /template/ TextBlock#PART_Text">
+                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+            </Style>
+        </ControlTheme>
+
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
              Green check + text when detected; amber warning otherwise; optional "Dynamics on" chip. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">

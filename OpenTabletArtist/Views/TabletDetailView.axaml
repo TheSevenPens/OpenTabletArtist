@@ -487,36 +487,24 @@
                                             <!-- Clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding Clockwise}"
                                                             ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
-                                                <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                                        TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                                        IsEnabled="{Binding CanEdit}"
-                                                        Value="{Binding ClockwiseThreshold, Mode=TwoWay}"
-                                                        VerticalAlignment="Center" MinWidth="40" />
-                                                <TextBlock Grid.Column="2" Text="{Binding ClockwiseThresholdText}" FontSize="11"
-                                                           Width="130" TextAlignment="Right" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                            </Grid>
+                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,10"
+                                                                Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                                                TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                                                IsEnabled="{Binding CanEdit}"
+                                                                Value="{Binding ClockwiseThreshold}"
+                                                                ValueTextOverride="{Binding ClockwiseThresholdText}"
+                                                                Monospace="True" ValueWidth="130" />
 
                                             <!-- Counter-clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding CounterClockwise}"
                                                             ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="12,0,2,10">
-                                                <TextBlock Grid.Column="0" Text="Sensitivity" FontSize="11" Width="72"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                                <Slider Grid.Column="1" Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                                        TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                                        IsEnabled="{Binding CanEdit}"
-                                                        Value="{Binding CounterClockwiseThreshold, Mode=TwoWay}"
-                                                        VerticalAlignment="Center" MinWidth="40" />
-                                                <TextBlock Grid.Column="2" Text="{Binding CounterClockwiseThresholdText}" FontSize="11"
-                                                           Width="130" TextAlignment="Right" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                            </Grid>
+                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,10"
+                                                                Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
+                                                                TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
+                                                                IsEnabled="{Binding CanEdit}"
+                                                                Value="{Binding CounterClockwiseThreshold}"
+                                                                ValueTextOverride="{Binding CounterClockwiseThresholdText}"
+                                                                Monospace="True" ValueWidth="130" />
 
                                             <!-- Wheel button(s). -->
                                             <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
@@ -582,22 +570,14 @@
                                         </WrapPanel>
                                     </Grid>
 
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
-                                        <TextBlock Grid.Column="0" Text="Softness" FontSize="12" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="70"
-                                                   ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
-                                        <!-- Capped at ±0.95 (±1.0 is mathematically degenerate); the end
-                                             ticks sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
-                                        <Slider Grid.Column="1" Minimum="-0.95" Maximum="0.95"
-                                                Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
-                                                Value="{Binding Softness, Mode=TwoWay}" VerticalAlignment="Center"
-                                                MinWidth="40"
-                                                ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
-                                        <TextBlock Grid.Column="2" Text="{Binding SoftnessText}" FontSize="12"
-                                                   FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
-                                                   Width="40" TextAlignment="Right"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    </Grid>
+                                    <!-- Capped at ±0.95 (±1.0 is mathematically degenerate); the end ticks
+                                         sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
+                                    <ctrl:LabeledSlider Label="Softness" LabelWidth="70" Margin="0,0,0,8"
+                                                        Minimum="-0.95" Maximum="0.95"
+                                                        Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
+                                                        Value="{Binding Softness}" ValueTextOverride="{Binding SoftnessText}"
+                                                        Monospace="True" ValueWidth="40"
+                                                        ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
 
                                     <CheckBox Content="Cut below input minimum (dead zone)"
                                               IsChecked="{Binding CutBelowMinimum}" FontSize="12" Margin="0,0,0,8"
@@ -636,30 +616,18 @@
                         <StackPanel>
                             <TextBlock Text="SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                        ToolTip.Tip="EMA smoothing trades a little lag for steadier output. Position steadies wobbly lines; pressure evens out pressure jitter." />
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,4">
-                                <TextBlock Grid.Column="0" Text="Position" FontSize="12" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
-                                <Slider Grid.Column="1" Minimum="0" Maximum="1"
-                                        Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
-                                        Value="{Binding PositionSmoothing, Mode=TwoWay}" VerticalAlignment="Center"
-                                        MinWidth="40" />
-                                <TextBlock Grid.Column="2" Text="{Binding PositionSmoothingText}" FontSize="12"
-                                           FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
-                                           Width="44" TextAlignment="Right"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                <TextBlock Grid.Column="0" Text="Pressure" FontSize="12" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" Width="80" />
-                                <Slider Grid.Column="1" Minimum="0" Maximum="1"
-                                        Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
-                                        Value="{Binding PressureSmoothing, Mode=TwoWay}" VerticalAlignment="Center"
-                                        MinWidth="40" />
-                                <TextBlock Grid.Column="2" Text="{Binding PressureSmoothingText}" FontSize="12"
-                                           FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
-                                           Width="44" TextAlignment="Right"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </Grid>
+                            <ctrl:LabeledSlider Label="Position" LabelWidth="80" Margin="0,8,0,4"
+                                                Minimum="0" Maximum="1"
+                                                Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
+                                                Value="{Binding PositionSmoothing}"
+                                                ValueTextOverride="{Binding PositionSmoothingText}"
+                                                Monospace="True" ValueWidth="44" />
+                            <ctrl:LabeledSlider Label="Pressure" LabelWidth="80"
+                                                Minimum="0" Maximum="1"
+                                                Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
+                                                Value="{Binding PressureSmoothing}"
+                                                ValueTextOverride="{Binding PressureSmoothingText}"
+                                                Monospace="True" ValueWidth="44" />
                         </StackPanel>
                     </Border>
 
@@ -695,18 +663,12 @@
                         <TextBlock Text="Stops the cursor tracking once the pen lifts past this distance — useful to keep a raised pen from dragging the cursor. Drawing is unaffected."
                                    FontSize="12" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <TextBlock Grid.Column="0" Text="Max hover" FontSize="12" VerticalAlignment="Center"
-                                       Width="80" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <Slider Grid.Column="1" Minimum="1" Maximum="{Binding HoverDistanceMax}"
-                                    Value="{Binding MaxHoverDistance, Mode=TwoWay}" VerticalAlignment="Center"
-                                    MinWidth="40"
-                                    ToolTip.Tip="Lower = the cursor stops sooner as you lift the pen. Higher = allow more hover (255 = no limit)." />
-                            <TextBlock Grid.Column="2" Text="{Binding MaxHoverDistanceText}" FontSize="12"
-                                       FontFamily="Consolas, Cascadia Code" VerticalAlignment="Center"
-                                       Width="40" TextAlignment="Right"
-                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                        </Grid>
+                        <ctrl:LabeledSlider Label="Max hover" LabelWidth="80"
+                                            Minimum="1" Maximum="{Binding HoverDistanceMax}"
+                                            Value="{Binding MaxHoverDistance}"
+                                            ValueTextOverride="{Binding MaxHoverDistanceText}"
+                                            Monospace="True" ValueWidth="40"
+                                            ToolTip.Tip="Lower = the cursor stops sooner as you lift the pen. Higher = allow more hover (255 = no limit)." />
                         <TextBlock Text="Hover distance is 0–255. Not all tablets report it — check the Diagnostics page for your tablet's live hover values to pick a limit."
                                    FontSize="10" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,10,0,0" />
