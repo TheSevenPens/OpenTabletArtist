@@ -74,6 +74,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
     public VMultiViewModel VMulti { get; }
+    /// <summary>The OpenTabletDriver hub page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
+    public OpenTabletDriverViewModel OpenTabletDriver { get; }
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
@@ -96,25 +98,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, Daemon) || ReferenceEquals(page, WindowsInk) || ReferenceEquals(page, VMulti)
-        || ReferenceEquals(page, Configs)
-        || ReferenceEquals(page, Diagnostics) || ReferenceEquals(page, Log)
-        || ReferenceEquals(page, Plugins) || ReferenceEquals(page, DriverCleanup)
-        || ReferenceEquals(page, Theme);
+        ReferenceEquals(page, OpenTabletDriver) || ReferenceEquals(page, VMulti)
+        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
     public bool IsHotkeys => ReferenceEquals(CurrentPage, Hotkeys);
     public bool IsPerApp => ReferenceEquals(CurrentPage, PerApp);
-    public bool IsConfigs => ReferenceEquals(CurrentPage, Configs);
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
-    public bool IsDiagnostics => ReferenceEquals(CurrentPage, Diagnostics);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
-    public bool IsLog => ReferenceEquals(CurrentPage, Log);
-    public bool IsPlugins => ReferenceEquals(CurrentPage, Plugins);
-    public bool IsDaemon => ReferenceEquals(CurrentPage, Daemon);
-    public bool IsWindowsInk => ReferenceEquals(CurrentPage, WindowsInk);
+    // Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins are tabs inside the hub now, so the
+    // single hub entry drives the sidebar highlight instead of a per-page flag.
+    public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
     public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
@@ -168,11 +164,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
         Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, TabletsOverview,
-            () => Navigate(DriverCleanup), () => Navigate(WindowsInk), () => Navigate(VMulti));
+            () => Navigate(DriverCleanup), OpenWindowsInk, () => Navigate(VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
         Daemon = new DaemonViewModel(_session);
+
+        // The "OpenTabletDriver" hub page groups the engine pages behind one sidebar entry, with its own
+        // secondary tab rail (like a tablet's page). It shares the sub-view models built above.
+        OpenTabletDriver = new OpenTabletDriverViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins);
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -191,6 +191,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void Navigate(object page) => CurrentPage = page as ObservableObject;
+
+    // Deep-link to the Windows Ink tab of the OpenTabletDriver hub (a health-issue "Fix" target).
+    private void OpenWindowsInk()
+    {
+        OpenTabletDriver.SelectedTab = 1; // 1 = Windows Ink Plugin
+        Navigate(OpenTabletDriver);
+    }
 
     /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
     [RelayCommand]
@@ -277,8 +284,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnCurrentPageChanged(ObservableObject? oldValue, ObservableObject? newValue)
     {
-        // Stop the debug stream when leaving the Diagnostics page.
-        if (ReferenceEquals(oldValue, Diagnostics) && !ReferenceEquals(newValue, Diagnostics))
+        // Stop the debug stream when leaving the OpenTabletDriver hub (which hosts Diagnostics). The
+        // hub view also stops it on tab-switch; this covers navigating away from the hub entirely.
+        if (ReferenceEquals(oldValue, OpenTabletDriver) && !ReferenceEquals(newValue, OpenTabletDriver))
             _ = Diagnostics.StopDebuggingAsync();
 
         // Start/stop the Test page's driver-input source so the daemon debug stream is only on
@@ -305,14 +313,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsPresets));
         OnPropertyChanged(nameof(IsHotkeys));
         OnPropertyChanged(nameof(IsPerApp));
-        OnPropertyChanged(nameof(IsConfigs));
         OnPropertyChanged(nameof(IsDriverCleanup));
-        OnPropertyChanged(nameof(IsDiagnostics));
         OnPropertyChanged(nameof(IsTest));
-        OnPropertyChanged(nameof(IsLog));
-        OnPropertyChanged(nameof(IsPlugins));
-        OnPropertyChanged(nameof(IsDaemon));
-        OnPropertyChanged(nameof(IsWindowsInk));
+        OnPropertyChanged(nameof(IsOtd));
         OnPropertyChanged(nameof(IsVMulti));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
