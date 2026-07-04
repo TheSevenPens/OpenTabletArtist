@@ -22,6 +22,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogs;
     private readonly HealthService _health;
     private readonly WindowsInkPluginService _winInk = new();
+    private readonly SetupActions _setup;
 
     private PluginMetadata? _winInkLatest;
     private string _winInkPluginDirectory = "";
@@ -31,6 +32,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
         _session = session;
         _dialogs = dialogs;
         _health = health;
+        _setup = new SetupActions(session, session);
 
         _session.PropertyChanged += OnSessionPropertyChanged;
         _session.DataLoaded += OnSessionDataLoaded;
@@ -232,11 +234,40 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
             RefreshWindowsInkInstalledStatus();
             await FetchLatestWindowsInkAsync();
 
-            await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                ok
-                    ? $"Windows Ink plugin v{WinInkPluginVersion} is now installed.\n\n" +
-                      "Set a tablet's output mode to \"Windows Ink\" to enable pressure and tilt."
-                    : "The plugin download did not complete successfully. Check the daemon log for details.");
+            if (!ok)
+            {
+                await _dialogs.ShowMessageAsync("Windows Ink Plugin",
+                    "The plugin download did not complete successfully. Check the daemon log for details.");
+            }
+            else
+            {
+                // The plugin only delivers pressure/tilt once a tablet is on a Windows Ink output mode.
+                // Offer to set that here (#361) so install → enable is one flow, not two disconnected steps.
+                var pending = _setup.DetectedTabletsNotOnWindowsInk();
+                if (pending.Count > 0)
+                {
+                    var who = pending.Count == 1 ? $"\"{pending[0]}\"" : $"your {pending.Count} connected tablets";
+                    var setNow = await _dialogs.ShowConfirmAsync("Windows Ink Plugin",
+                        $"Windows Ink plugin v{WinInkPluginVersion} is installed.\n\n" +
+                        $"Set {who} to Windows Ink mode now so pressure and tilt reach your apps?");
+                    if (setNow)
+                    {
+                        var n = await _setup.SetDetectedTabletsToWindowsInkAsync();
+                        _health.Refresh();
+                        await _dialogs.ShowMessageAsync("Windows Ink Plugin",
+                            n > 0
+                                ? (n == 1 ? "Your tablet is now set to Windows Ink mode."
+                                          : $"{n} tablets are now set to Windows Ink mode.")
+                                : "No change was needed.");
+                    }
+                }
+                else
+                {
+                    await _dialogs.ShowMessageAsync("Windows Ink Plugin",
+                        $"Windows Ink plugin v{WinInkPluginVersion} is now installed.\n\n" +
+                        "Set a tablet's output mode to \"Windows Ink\" to enable pressure and tilt.");
+                }
+            }
         }
         catch (Exception ex)
         {

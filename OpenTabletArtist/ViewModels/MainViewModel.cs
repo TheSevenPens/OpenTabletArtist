@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
+    private readonly TabletAutoMapper _autoMapper;
     private readonly IDialogService _dialogs;
     private readonly DriverConflictMonitor _conflicts;
     private readonly HealthService _health;
@@ -129,6 +130,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Health-check catalog (#317): shared source of the "Needs attention" issues for Home + pages.
         // Takes the conflict monitor too so a conflicting driver surfaces as a health issue.
         _health = new HealthService(_session, _session, _conflicts);
+
+        // First-detection auto-mapping (#362): map a brand-new tablet to the primary display so it
+        // doesn't span every monitor out of the box. Only ever acts once per tablet (persisted).
+        _autoMapper = new TabletAutoMapper(_session);
 
         // Global hotkeys (#320, #89): one shared hotkey window; the profile-switch manager and the
         // monitor-cycle manager each register their own chords on it and filter presses by their ids.
@@ -311,6 +316,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _session.DataLoaded -= RebuildTablets;
+        _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         foreach (var vm in _tabletDetails.Values) vm.Dispose(); // unsubscribe per-tablet detection
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
