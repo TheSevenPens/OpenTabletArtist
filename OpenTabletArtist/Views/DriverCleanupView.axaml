@@ -19,7 +19,7 @@
                     <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
                             BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
                         <StackPanel Spacing="6">
-                            <TextBlock Text="{Binding Name}" Classes="CardTitle" FontSize="14" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Name}" Classes="CardTitle" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Impact}" FontSize="12" FontWeight="SemiBold"
                                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding ProcessesText}" FontSize="11" IsVisible="{Binding HasProcesses}"
@@ -43,7 +43,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" FontSize="13" />
+                    <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
                     <TextBlock Text="Removes leftover bits from previous tablet drivers"
                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,4,0,0" TextWrapping="Wrap"

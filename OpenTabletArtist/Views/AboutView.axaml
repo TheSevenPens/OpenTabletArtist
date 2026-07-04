@@ -8,7 +8,7 @@
 
         <Border Classes="GlassPanel">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="What is this?" FontSize="16" Margin="0,0,0,12" />
+                <TextBlock Classes="CardTitle" Text="What is this?" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     A simpler way of using OpenTabletDriver on Windows.
@@ -21,7 +21,7 @@
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Source code" FontSize="16" Margin="0,0,0,12" />
+                <TextBlock Classes="CardTitle" Text="Source code" Margin="0,0,0,12" />
                 <!-- Clickable link: opens the GitHub repo in the default browser -->
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
@@ -38,7 +38,7 @@
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Releases" FontSize="16" Margin="0,0,0,6" />
+                <TextBlock Classes="CardTitle" Text="Releases" Margin="0,0,0,6" />
                 <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22" Margin="0,0,0,10"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     Download the latest build and read the release notes.
@@ -56,7 +56,7 @@
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="User manual" FontSize="16" Margin="0,0,0,6" />
+                <TextBlock Classes="CardTitle" Text="User manual" Margin="0,0,0,6" />
                 <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22" Margin="0,0,0,10"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     Learn how to set up and use the app.

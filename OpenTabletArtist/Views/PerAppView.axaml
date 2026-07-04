@@ -23,7 +23,7 @@
         <Border Classes="GlassPanel" Padding="24"
                 IsVisible="{Binding !HasEnoughSnapshots}" IsEnabled="{Binding CanUse}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="Save a profile first" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="Save a profile first" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Per-app switching maps applications to saved profiles. Create at least one on the Profiles page, then come back."
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
@@ -85,7 +85,7 @@
                         <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                                    <TextBlock Classes="CardTitle" Text="{Binding ExeName}" FontSize="14" />
+                                    <TextBlock Classes="CardTitle" Text="{Binding ExeName}" />
                                     <TextBlock Text="{Binding PathDisplay}" FontSize="11"
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />

@@ -87,50 +87,50 @@
                     <UniformGrid Columns="5" Margin="0,14,0,0">
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Canvas X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding CanvasXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding CanvasXText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Canvas Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding CanvasYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding CanvasYText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Pressure:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding PressureText}" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding PressureText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Raw X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding RawXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding RawXText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Raw Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding RawYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding RawYText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Twist:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TwistText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding TwistText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Tilt X:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TiltXText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding TiltXText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Tilt Y:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TiltYText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding TiltYText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Azimuth:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding AzimuthText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding AzimuthText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Altitude:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding AltitudeText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding AltitudeText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                         <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
                              blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
                         <StackPanel Orientation="Horizontal" Margin="0,2"
                                     ToolTip.Tip="Driver-reported hover height (0–255) — shown in Driver input, for tablets that report proximity.">
                             <TextBlock Text="Hover:" Width="62" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding HoverText}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding HoverText}" FontFamily="{DynamicResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                     </UniformGrid>
                 </StackPanel>

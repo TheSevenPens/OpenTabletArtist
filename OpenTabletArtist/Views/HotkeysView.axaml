@@ -16,7 +16,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,24" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="Cycle mapped monitor" FontSize="14" TextWrapping="Wrap" />
+                    <TextBlock Classes="CardTitle" Text="Cycle mapped monitor" TextWrapping="Wrap" />
                     <TextBlock Text="Moves the active tablet's area to the next monitor (wraps around)."
                                FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
@@ -54,7 +54,7 @@
                     <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                                <TextBlock Classes="CardTitle" Text="{Binding Name}" FontSize="14" TextWrapping="Wrap" />
+                                <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
                                             IsVisible="{Binding HasHotkey}">
                                     <TextBlock Text="{Binding HotkeyDisplay, StringFormat='⌨ {0}'}" FontSize="12"
@@ -83,7 +83,7 @@
 
         <Border Classes="GlassPanel" Padding="28" IsVisible="{Binding !HasSnapshots}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No profiles to bind" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="No profiles to bind" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Save a profile on the Profiles page, then assign it a hotkey here."
                            FontSize="12" Foreground="{DynamicResource TextMutedBrush}"

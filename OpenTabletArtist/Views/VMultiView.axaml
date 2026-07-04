@@ -15,7 +15,7 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Classes="CardTitle" Text="VMulti Driver" FontSize="13" TextWrapping="Wrap" />
+                        <TextBlock Classes="CardTitle" Text="VMulti Driver" TextWrapping="Wrap" />
                         <Button Content="Refresh" Command="{Binding RefreshVmultiDetectionCommand}"
                                 ToolTip.Tip="Refresh VMulti status"
                                 Theme="{StaticResource GhostButton}" Padding="8,3" FontSize="11"
