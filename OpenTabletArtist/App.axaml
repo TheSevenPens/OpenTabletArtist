@@ -7,6 +7,8 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- Theme for the ColorPicker control (Custom theme accent picker); not bundled in FluentTheme. -->
+        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
         <StyleInclude Source="avares://OpenTabletArtist/Themes/Styles.axaml" />
     </Application.Styles>
 

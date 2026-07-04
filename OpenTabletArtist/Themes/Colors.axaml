@@ -30,6 +30,10 @@
     <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
     <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
 
+    <!-- Dimming scrim drawn over the backdrop image so text stays legible on a busy photo. Transparent
+         by default (a no-op for every theme); the Custom skin sets it at runtime when an image is chosen. -->
+    <SolidColorBrush x:Key="BackdropScrimBrush" Color="Transparent" />
+
     <ResourceDictionary.ThemeDictionaries>
 
         <!-- ===== Light ===== -->
@@ -211,6 +215,89 @@
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
                         Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
+        </ResourceDictionary>
+
+        <!-- ===== Custom (user-tunable skin) =====
+             A dark translucent skin the user drives from the Theme page: one accent colour derives the
+             whole scheme, and an optional background image fills the window behind the glass panels (with
+             a dimming scrim for legibility). The values here are DEFAULTS — ThemeViewModel.ApplyCustom
+             overrides the accent-derived brushes + backdrop live via app.Resources. Keyed by the custom
+             CustomVariant, which inherits Dark so anything not overridden (incl. Fluent control resources)
+             resolves dark and text stays light over a photo. Panels stay translucent so the backdrop
+             shows through. -->
+        <ResourceDictionary x:Key="{x:Static svc:ThemeService.CustomVariant}">
+            <!-- Default accent (the app's shared indigo); replaced live when the user picks a colour. -->
+            <Color x:Key="Accent">#6366F1</Color>
+            <Color x:Key="AccentMuted">#1F6366F1</Color>
+            <Color x:Key="NavActive">#306366F1</Color>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+
+            <!-- Fluent's native-control accent ramp (toggles, checkboxes, selection, sliders, focus). -->
+            <Color x:Key="SystemAccentColor">#6366F1</Color>
+            <Color x:Key="SystemAccentColorLight1">#7C7EF4</Color>
+            <Color x:Key="SystemAccentColorLight2">#9698F7</Color>
+            <Color x:Key="SystemAccentColorLight3">#B6B7FA</Color>
+            <Color x:Key="SystemAccentColorDark1">#4F52D4</Color>
+            <Color x:Key="SystemAccentColorDark2">#4043A8</Color>
+            <Color x:Key="SystemAccentColorDark3">#303281</Color>
+
+            <!-- Fluent's RadioButton checked fill uses its own keys, not SystemAccentColor. -->
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed" Color="{StaticResource SystemAccentColorDark1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed" Color="{StaticResource SystemAccentColorDark1}" />
+
+            <Color x:Key="BgBase">#13131C</Color>
+            <Color x:Key="BgElevated">#1B1B28</Color>
+            <Color x:Key="BgSurface">#232336</Color>
+            <!-- Dark translucent glass so a background image shows through the panels. -->
+            <Color x:Key="GlassBg">#59202430</Color>
+            <Color x:Key="GlassBgHover">#73262A38</Color>
+            <Color x:Key="GlassBorder">#26FFFFFF</Color>
+            <Color x:Key="TextPrimary">#F2FFFFFF</Color>
+            <Color x:Key="TextSecondary">#C8FFFFFF</Color>
+            <Color x:Key="TextMuted">#8CFFFFFF</Color>
+            <Color x:Key="Divider">#22FFFFFF</Color>
+
+            <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+            <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+            <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+            <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+            <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+
+            <!-- Dark translucent sidebar so the backdrop glows through. -->
+            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0" Color="#73181820" />
+                <GradientStop Offset="1" Color="#73101018" />
+            </LinearGradientBrush>
+
+            <!-- Accent buttons: filled indigo gradient with white text (overridden live to the accent). -->
+            <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#7C7EF4" />
+                <GradientStop Offset="1" Color="#6366F1" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="#FFFFFF" />
+            <LinearGradientBrush x:Key="AccentButtonFillHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#9092F7" />
+                <GradientStop Offset="1" Color="#787BF4" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="#FFFFFF" />
+
+            <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
+            <BoxShadows x:Key="CardShadow">0 4 16 0 #40000000</BoxShadows>
+
+            <!-- No image by default → a transparent backdrop (the window's BgBase shows). ApplyCustom
+                 swaps in the user's image + a scrim when one is chosen. -->
+            <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>
