@@ -97,9 +97,9 @@
                              IsVisible="{Binding HasAreaMapping}" />
                 <RadioButton Content="PEN SWITCHES" x:Name="PenTipTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="EXPRESSKEYS" x:Name="PenButtonsTab"
+                <RadioButton Content="BUTTONS" x:Name="PenButtonsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="WHEEL" x:Name="WheelTab"
+                <RadioButton Content="WHEELS" x:Name="WheelTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasWheels}" />
                 <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
