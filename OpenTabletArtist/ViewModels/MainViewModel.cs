@@ -77,6 +77,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public VMultiViewModel VMulti { get; }
     /// <summary>The OpenTabletDriver hub page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
     public OpenTabletDriverViewModel OpenTabletDriver { get; }
+    public StartupViewModel Startup { get; } = new();
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
@@ -100,7 +101,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
         ReferenceEquals(page, OpenTabletDriver) || ReferenceEquals(page, VMulti)
-        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Theme);
+        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Startup)
+        || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
@@ -113,6 +115,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // single hub entry drives the sidebar highlight instead of a per-page flag.
     public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
     public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
+    public bool IsStartup => ReferenceEquals(CurrentPage, Startup);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -327,6 +330,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsOtd));
         OnPropertyChanged(nameof(IsVMulti));
+        OnPropertyChanged(nameof(IsStartup));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }

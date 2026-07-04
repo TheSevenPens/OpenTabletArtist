@@ -92,7 +92,7 @@
                                  IsChecked="{Binding IsHotkeys, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Hotkeys}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="TEST DRAWING"
+                    <RadioButton Theme="{StaticResource NavButton}" Content="SCRIBBLE"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
                                  Margin="0,2,0,0" />
@@ -120,6 +120,10 @@
                         <RadioButton Theme="{StaticResource NavButton}" Content="DRIVER CLEANUP"
                                      IsChecked="{Binding IsDriverCleanup, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding DriverCleanup}"
+                                     Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavButton}" Content="STARTUP"
+                                     IsChecked="{Binding IsStartup, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Startup}"
                                      Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavButton}" Content="THEME"
                                      IsChecked="{Binding IsTheme, Mode=OneWay}"

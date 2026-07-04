@@ -1,0 +1,24 @@
+<UserControl x:Class="OpenTabletArtist.Views.StartupView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- DataContext is the StartupViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="STARTUP" />
+
+        <!-- Startup (#360): launch with Windows so hotkeys / per-app switching are ready at login. -->
+        <c:SettingCard Title="Startup" IsVisible="{Binding StartupSupported}">
+            <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
+                             Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
+                             IsChecked="{Binding StartWithWindows}" />
+        </c:SettingCard>
+
+        <!-- Fallback when the run-at-startup mechanism isn't available (non-Windows). -->
+        <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding !StartupSupported}">
+            <TextBlock Text="Run at startup isn't available on this platform."
+                       FontSize="13" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+        </Border>
+    </StackPanel>
+</UserControl>
