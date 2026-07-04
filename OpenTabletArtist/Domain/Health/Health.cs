@@ -76,6 +76,8 @@ public sealed record HealthInputs
     public bool HasDriverConflict { get; init; }
     /// <summary>At least one conflicting driver blocks tablet detection (→ Broken instead of Misconfigured).</summary>
     public bool BlockingDriverConflict { get; init; }
+    /// <summary>The app itself is running elevated (as Administrator), which breaks Windows Ink + per-app switching.</summary>
+    public bool RunningElevated { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
 }
 
@@ -153,6 +155,17 @@ public static class HealthEvaluator
                 "A manufacturer tablet driver (Wacom, Huion, XP-Pen, …) is present and can interfere " +
                 "with OpenTabletDriver detecting your tablet. Review and remove it in Driver cleanup.",
                 new Remediation("Fix", RemediationArea.DriverCleanup)));
+        }
+
+        // --- Running elevated: no in-app fix (relaunching unelevated is a manual step), so it's an
+        //     informational recommendation with no Fix button. ---
+        if (i.RunningElevated)
+        {
+            issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
+                "Running as administrator",
+                "OpenTabletArtist is running as administrator, which can break Windows Ink pressure/tilt " +
+                "and per-app profile switching. Close it and reopen it normally (not \"Run as administrator\").",
+                Remediation: null));
         }
 
         // --- Recommendations ---
