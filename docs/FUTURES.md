@@ -28,10 +28,10 @@ Several items once listed here have shipped and are no longer "future":
 - **Display hardware details** — each monitor now shows its connector/port (HDMI / DisplayPort / USB-C / Internal / …) and the GPU driving it, in the display picker and a per-display list on the *Display Mapping* tab.
 - **Tablet-settings layout** — the per-tablet tabs moved to a vertical left rail, and the old *Screen Mapping* tab was split into focused **Output Mode**, **Display Mapping**, and **Calibration** tabs.
 - **Window fit on scaled/low-res displays** — the window clamps to the current screen's working area (DPI-aware) on open, so it no longer overruns the top edge or hides under the taskbar (e.g. 1080p at 150% scale).
+- **Clean, prompt shutdown** — the disposal chain tears down the session RPC/pipe, hotkey window, foreground watcher, and timers on exit; the process then force-terminates so the `.exe` lock releases at once (no multi-second lock blocking rebuilds), and the tray icon is removed rather than left to ghost. ([#58](https://github.com/TheSevenPens/OpenTabletArtist/issues/58))
 
 ## Near-Term (Polish the Prototype)
 
-- **Investigate App Shutdown Cleanliness** — Ensure the app exits within ~500ms on window close with no lingering file locks. ([#58](https://github.com/TheSevenPens/OpenTabletArtist/issues/58))
 - **Interactive Area Mapper** — Make the area visualization draggable/resizable/rotatable with snap guides and a live readout. ([#59](https://github.com/TheSevenPens/OpenTabletArtist/issues/59))
 - **Guided Setup for Creatives (Windows)** — First-run wizard chaining vmulti + Windows Ink + output-mode setup for creatives. ([#60](https://github.com/TheSevenPens/OpenTabletArtist/issues/60))
 - **Advanced Settings Toggle** — Reveal hidden settings (rotation, clipping, area limiting) behind an Advanced expander. ([#61](https://github.com/TheSevenPens/OpenTabletArtist/issues/61))

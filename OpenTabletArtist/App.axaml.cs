@@ -34,6 +34,10 @@ public partial class App : Application
                 _tray = new AppTray(desktop, window, vm.Connection, vm.DeviceData, vm.SettingsCoordinator,
                     vm.Dialogs, vm.ShutdownRestorePerAppAsync);
 
+            // Remove the tray icon as part of a clean exit, so it doesn't ghost in the notification
+            // area after Quit (Windows only clears an orphaned icon on hover otherwise). (#58)
+            desktop.Exit += (_, _) => _tray?.Dispose();
+
             // When a second instance is launched, it signals this (primary) one to surface instead of
             // opening a duplicate window (#191). The signal arrives off the UI thread — marshal first.
             Program.Instance.ListenForActivation(() =>
