@@ -41,7 +41,9 @@
                 </StackPanel>
 
                 <!-- Nav Items (labels in all caps). Most pages sit at the root; the less-common ones
-                     are tucked under a collapsible ADVANCED group at the bottom. -->
+                     are tucked under a collapsible ADVANCED group at the bottom. Scrolls when the list
+                     is taller than the window (e.g. many tablets, or ADVANCED expanded on a short window). -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,0,8,0">
                     <!-- HOME lands on the merged home + tablets page; the per-tablet children nest under
                          it (paired ∪ connected). Click a child to edit it in-place; right-click to
@@ -139,6 +141,7 @@
                                      Margin="0,2,0,0" />
                     </StackPanel>
                 </StackPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 

@@ -46,7 +46,7 @@
                     <Border x:Name="Bd"
                             Background="Transparent"
                             CornerRadius="12"
-                            Padding="8,8,16,8">
+                            Padding="8,3.92,16,3.92">
                         <Grid ColumnDefinitions="Auto,12,*">
                             <!-- Active indicator bar. Always laid out (only its colour changes when
                                  checked) so selecting a row can't grow its height and nudge the label. -->
@@ -99,7 +99,7 @@
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="12" Padding="8,8,16,8">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="12" Padding="8,3.92,16,3.92">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" x:Name="Label"
                                        Text="{TemplateBinding Content}"
