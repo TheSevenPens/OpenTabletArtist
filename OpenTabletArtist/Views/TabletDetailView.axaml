@@ -172,14 +172,12 @@
                                         Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
-                        <TextBlock Text="Click a display to map the tablet to it, then Apply. Move the pen to see it live."
+                        <TextBlock Text="Click a display to map the tablet to it, then Apply."
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
                                    TextWrapping="Wrap" />
                         <ctrl:ScreenMappingDiagram Displays="{Binding Displays}"
                                                    SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
                                                    Area="{Binding TabletArea}"
-                                                   LiveX="{Binding LivePenX}" LiveY="{Binding LivePenY}"
-                                                   Pressure="{Binding LivePressure}"
                                                    AccentBrush="{DynamicResource AccentBrush}"
                                                    Height="320" />
                         <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
