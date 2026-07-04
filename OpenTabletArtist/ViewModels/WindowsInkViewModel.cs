@@ -22,6 +22,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogs;
     private readonly HealthService _health;
     private readonly WindowsInkPluginService _winInk = new();
+    private readonly WindowsInkBundledInstaller _bundledWinInk = new();
     private readonly SetupActions _setup;
 
     private PluginMetadata? _winInkLatest;
@@ -216,20 +217,23 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
         try
         {
             _winInkLatest ??= await _winInk.GetLatestCompatibleAsync();
-            if (_winInkLatest == null)
+
+            WinInkBusyStatus = _winInkLatest != null
+                ? (isUpgrade ? $"Installing update v{_winInkLatest.PluginVersion}..."
+                             : $"Installing v{_winInkLatest.PluginVersion}...")
+                : "Installing bundled plugin...";
+
+            // Online first: the daemon downloads the newest compatible release from the plugin repo.
+            bool ok = _winInkLatest != null && await _session.Daemon.DownloadPluginAsync(_winInkLatest);
+            if (ok) await _session.Daemon.LoadPluginsAsync();
+
+            // Offline fallback (#364): if the repo was unreachable or the download failed, install the
+            // copy bundled with the app so setup still works without internet.
+            if (!ok && _bundledWinInk.EnsureInstalled(_session.PluginDirectory) != PluginInstallOutcome.None)
             {
-                await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                    $"Couldn't find a Windows Ink release compatible with OpenTabletDriver v{CurrentOtdVersion}.\n\n" +
-                    "Check your internet connection and try again.");
-                return;
+                await _session.Daemon.LoadPluginsAsync();
+                ok = true;
             }
-
-            WinInkBusyStatus = isUpgrade
-                ? $"Installing update v{_winInkLatest.PluginVersion}..."
-                : $"Installing v{_winInkLatest.PluginVersion}...";
-
-            var ok = await _session.Daemon.DownloadPluginAsync(_winInkLatest);
-            await _session.Daemon.LoadPluginsAsync();
 
             RefreshWindowsInkInstalledStatus();
             await FetchLatestWindowsInkAsync();
@@ -237,7 +241,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
             if (!ok)
             {
                 await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                    "The plugin download did not complete successfully. Check the daemon log for details.");
+                    "Couldn't install the Windows Ink plugin. Check your internet connection and try again.");
             }
             else
             {

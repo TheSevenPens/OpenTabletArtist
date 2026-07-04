@@ -13,9 +13,10 @@ requires is handled for you — usually one click, one UAC prompt.
 - **Windows 10 or 11, 64-bit (x64).** 32-bit Windows and Windows on ARM are not supported.
 - **A supported tablet.** Check the list at [opentabletdriver.net/Tablets](https://opentabletdriver.net/Tablets).
   If your tablet is marked **Zadig WinUSB**, it needs extra steps that this guide does **not** cover.
-- **An internet connection for part of setup.** The core pieces — the app, its driver, and the VMulti
-  driver — are included in the download and install offline. Only the Windows Ink plugin and the
-  optional driver-cleanup tool are fetched from the internet the first time you install them.
+- **An internet connection is optional.** Everything needed to draw — the app, its driver, the VMulti
+  driver, and the Windows Ink plugin — is included in the download and installs offline. OTA still
+  checks online for a newer Windows Ink plugin and uses that when available; only the optional
+  driver-cleanup tool always requires the internet.
 
 You do **not** need to install the .NET runtime or OpenTabletDriver — the download is self-contained
 and includes everything (including the VMulti driver).
@@ -78,7 +79,8 @@ After the restart, reopen OpenTabletArtist. The VMulti Driver page should show *
 Windows Ink is how pressure and tilt reach your drawing apps on Windows.
 
 1. Go to the **Windows Ink Plugin** page (under **Advanced**). **Home** flags it too if it's missing.
-2. Click **Install**. OTA downloads and installs the plugin for you.
+2. Click **Install**. OTA installs the newest compatible plugin — downloading it if you're online, or
+   using the copy bundled with the app if you're not.
 3. When it finishes, OTA offers to **set your connected tablet(s) to Windows Ink mode** — accept it and
    you can skip the next step.
 
