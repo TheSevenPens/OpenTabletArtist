@@ -121,6 +121,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             VMultiInstalled = _vmultiInstalled,
             HasDriverConflict = _conflicts.HasConflicts,
             BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
+            RunningElevated = ProcessElevation.IsElevated,
             Tablets = tablets,
         };
     }

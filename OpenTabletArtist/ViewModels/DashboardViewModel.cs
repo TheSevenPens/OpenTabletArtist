@@ -41,7 +41,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         TabletsOverview = tablets;
 
         _session.PropertyChanged += OnSessionPropertyChanged;
+
+        // Assign the backing field directly so reading the current state here doesn't fire the change
+        // handler (which would rewrite the registry) at construction.
+        _startWithWindows = StartupService.IsEnabled;
     }
+
+    /// <summary>Whether the run-at-startup toggle is available (Windows only) — hides the card elsewhere.</summary>
+    public bool StartupSupported => StartupService.IsSupported;
+
+    /// <summary>Launch OpenTabletArtist when Windows starts (per-user Run key). (#360)</summary>
+    [ObservableProperty] private bool _startWithWindows;
+
+    partial void OnStartWithWindowsChanged(bool value) => StartupService.SetEnabled(value);
 
     /// <summary>The health-check catalog (#317); the Home "Needs attention" list binds to
     /// <c>Health.Issues</c>, and <see cref="RemediateCommand"/> dispatches each card's Fix button.</summary>

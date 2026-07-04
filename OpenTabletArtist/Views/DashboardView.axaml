@@ -221,6 +221,13 @@
                 </Grid>
             </Border>
 
+            <!-- Startup (#360): launch with Windows so hotkeys / per-app switching are ready at login. -->
+            <c:SettingCard Title="Startup" Margin="0,12,0,0" IsVisible="{Binding StartupSupported}">
+                <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
+                                 Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
+                                 IsChecked="{Binding StartWithWindows}" />
+            </c:SettingCard>
+
         </StackPanel>
     </StackPanel>
 </UserControl>

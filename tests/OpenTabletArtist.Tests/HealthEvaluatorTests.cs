@@ -110,6 +110,15 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void RunningElevated_IsMisconfigured_WithNoFix()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { RunningElevated = true }));
+        Assert.Equal("app.elevated", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Null(issue.Remediation); // informational — no in-app fix, so no Fix button
+    }
+
+    [Fact]
     public void MissingVMultiAndWinInk_BothSurfaceAtOnce()
     {
         var issues = HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = false, WinInkInstalled = false });
