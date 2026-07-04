@@ -67,6 +67,15 @@ jobs:
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item "plugins/OpenTabletArtist.Dynamics/bin/Release/net8.0/OpenTabletArtist.Dynamics.dll" $dest
 
+      # Bundle the VMulti driver so users can install it offline — the installer prefers this copy
+      # (Bundled/VMulti.Driver.zip next to the app) and only downloads as a fallback (#364).
+      - name: Bundle the VMulti driver for offline install
+        shell: pwsh
+        run: |
+          $dest = "publish/OpenTabletArtist/Bundled"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip" -OutFile "$dest/VMulti.Driver.zip"
+
       - name: Package zip
         shell: pwsh
         run: Compress-Archive -Path publish/OpenTabletArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force

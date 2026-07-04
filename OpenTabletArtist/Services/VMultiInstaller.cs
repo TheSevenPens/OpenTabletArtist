@@ -13,6 +13,39 @@ public class VMultiInstaller
     public event Action<string>? StatusChanged;
     public event Action<int>? ProgressChanged;
 
+    /// <summary>The VMulti package bundled next to the app in a release (<c>Bundled/VMulti.Driver.zip</c>),
+    /// or null in a dev build that doesn't bundle it — in which case the installer downloads it instead.</summary>
+    private static string? BundledVMultiZip()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Bundled", "VMulti.Driver.zip");
+        return File.Exists(path) ? path : null;
+    }
+
+    /// <summary>Produces <c>VMulti.Driver.zip</c> in <paramref name="tempDir"/>: copies the bundled copy
+    /// (offline install), or downloads it as a fallback. Throws <see cref="HttpRequestException"/> if the
+    /// download is needed but fails.</summary>
+    private async Task<string> AcquirePackageAsync(string tempDir, CancellationToken ct)
+    {
+        string zipPath = Path.Combine(tempDir, "VMulti.Driver.zip");
+
+        if (BundledVMultiZip() is { } bundled)
+        {
+            StatusChanged?.Invoke("Preparing bundled VMulti driver...");
+            File.Copy(bundled, zipPath, overwrite: true);
+            return zipPath;
+        }
+
+        StatusChanged?.Invoke("Downloading VMulti driver...");
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenTabletArtist/1.0");
+        using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+        await using var fileStream = File.Create(zipPath);
+        await response.Content.CopyToAsync(fileStream, ct);
+        await fileStream.FlushAsync(ct);
+        return zipPath;
+    }
+
     /// <summary>
     /// Downloads and extracts the VMulti package, then installs the driver in-app: an elevated,
     /// hidden devcon call creates the root-enumerated <c>pentablet\hid</c> device from
@@ -26,23 +59,11 @@ public class VMultiInstaller
         try
         {
             Directory.CreateDirectory(tempDir);
-            string zipPath = Path.Combine(tempDir, "VMulti.Driver.zip");
 
-            // Step 1: Download
-            StatusChanged?.Invoke("Downloading VMulti driver...");
+            // Step 1: Get the VMulti package — the copy bundled next to the app (offline install), or
+            // download it as a fallback (dev builds don't bundle it).
             ProgressChanged?.Invoke(10);
-
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenTabletArtist/1.0");
-
-            using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-
-            await using var fileStream = File.Create(zipPath);
-            await response.Content.CopyToAsync(fileStream, ct);
-            await fileStream.FlushAsync(ct);
-            fileStream.Close();
-
+            string zipPath = await AcquirePackageAsync(tempDir, ct);
             ProgressChanged?.Invoke(40);
 
             // Step 2: Extract
@@ -120,6 +141,11 @@ public class VMultiInstaller
             StatusChanged?.Invoke("Installation cancelled.");
             return new InstallResult(false, "Installation was cancelled (admin permission denied).");
         }
+        catch (HttpRequestException)
+        {
+            return new InstallResult(false,
+                "Couldn't download the VMulti driver. Check your internet connection and try again.");
+        }
         catch (Exception ex)
         {
             StatusChanged?.Invoke("Installation failed.");
@@ -146,23 +172,11 @@ public class VMultiInstaller
         try
         {
             Directory.CreateDirectory(tempDir);
-            string zipPath = Path.Combine(tempDir, "VMulti.Driver.zip");
 
-            // Step 1: Download (we need the uninstall batch file from the package)
-            StatusChanged?.Invoke("Downloading VMulti package...");
+            // Step 1: Get the VMulti package (we need its driver files + devcon). Bundled copy first,
+            // download as a fallback.
             ProgressChanged?.Invoke(10);
-
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenTabletArtist/1.0");
-
-            using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-
-            await using var fileStream = File.Create(zipPath);
-            await response.Content.CopyToAsync(fileStream, ct);
-            await fileStream.FlushAsync(ct);
-            fileStream.Close();
-
+            string zipPath = await AcquirePackageAsync(tempDir, ct);
             ProgressChanged?.Invoke(40);
 
             // Step 2: Extract
@@ -227,6 +241,11 @@ public class VMultiInstaller
         {
             StatusChanged?.Invoke("Uninstallation cancelled.");
             return new InstallResult(false, "Uninstallation was cancelled (admin permission denied).");
+        }
+        catch (HttpRequestException)
+        {
+            return new InstallResult(false,
+                "Couldn't download the VMulti package. Check your internet connection and try again.");
         }
         catch (Exception ex)
         {
