@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
     private readonly AppSession _session;
+    private readonly DaemonStatusViewModel _daemonStatus;
     private readonly TabletAutoMapper _autoMapper;
     private readonly WindowsInkAutoSetup _winInkAutoSetup;
     private readonly IDialogService _dialogs;
@@ -76,6 +77,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public VMultiViewModel VMulti { get; }
     /// <summary>The OpenTabletDriver hub page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
     public OpenTabletDriverViewModel OpenTabletDriver { get; }
+    public StartupViewModel Startup { get; } = new();
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
@@ -99,7 +101,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The pages tucked under the ADVANCED group.</summary>
     private bool IsAdvancedPage(object? page) =>
         ReferenceEquals(page, OpenTabletDriver) || ReferenceEquals(page, VMulti)
-        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Theme);
+        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Startup)
+        || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
@@ -112,6 +115,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // single hub entry drives the sidebar highlight instead of a per-page flag.
     public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
     public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
+    public bool IsStartup => ReferenceEquals(CurrentPage, Startup);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -163,12 +167,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
-        Dashboard = new DashboardViewModel(_session, dialogs, NavigateToTabletByName, _health, TabletsOverview,
+        // Shared daemon status/control surface for the Home problem card + the Daemon page.
+        _daemonStatus = new DaemonStatusViewModel(_session, OpenDaemonPage);
+        Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
             () => Navigate(DriverCleanup), OpenWindowsInk, () => Navigate(VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
-        Daemon = new DaemonViewModel(_session);
+        Daemon = new DaemonViewModel(_daemonStatus);
 
         // The "OpenTabletDriver" hub page groups the engine pages behind one sidebar entry, with its own
         // secondary tab rail (like a tablet's page). It shares the sub-view models built above.
@@ -196,6 +202,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void OpenWindowsInk()
     {
         OpenTabletDriver.SelectedTab = 1; // 1 = Windows Ink Plugin
+        Navigate(OpenTabletDriver);
+    }
+
+    // Deep-link to the Daemon tab of the OpenTabletDriver hub (the Home daemon card's "Open daemon page").
+    private void OpenDaemonPage()
+    {
+        OpenTabletDriver.SelectedTab = 0; // 0 = Daemon
         Navigate(OpenTabletDriver);
     }
 
@@ -317,6 +330,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsOtd));
         OnPropertyChanged(nameof(IsVMulti));
+        OnPropertyChanged(nameof(IsStartup));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }
@@ -326,6 +340,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _session.DataLoaded -= RebuildTablets;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
+        _daemonStatus.Dispose();  // unsubscribes from session PropertyChanged
         foreach (var vm in _tabletDetails.Values) vm.Dispose(); // unsubscribe per-tablet detection
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes

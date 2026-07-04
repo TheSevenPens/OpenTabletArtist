@@ -31,27 +31,15 @@ public class HealthEvaluatorTests
         Assert.Empty(HealthEvaluator.Evaluate(Healthy()));
     }
 
+    // Daemon reachability (not-connected / exe-missing) is no longer a health issue — it's owned by the
+    // Home daemon problem card + Daemon page. Only the "external daemon" recommendation remains here.
     [Fact]
-    public void DaemonExeMissing_IsBroken()
+    public void ExternalDaemon_IsRecommendation()
     {
-        var issues = HealthEvaluator.Evaluate(Healthy() with { DaemonConnected = false, DaemonExeMissing = true });
-        var issue = Assert.Single(issues, x => x.Id == "daemon.missing");
-        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { ForeignDaemon = true }));
+        Assert.Equal("daemon.foreign", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
         Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
-    }
-
-    [Fact]
-    public void Disconnected_WhileConnecting_IsSuppressed()
-    {
-        var issues = HealthEvaluator.Evaluate(Healthy() with { DaemonConnected = false, DaemonConnecting = true });
-        Assert.False(Has(issues, "daemon.disconnected"));
-    }
-
-    [Fact]
-    public void Disconnected_NotConnecting_IsBroken()
-    {
-        var issues = HealthEvaluator.Evaluate(Healthy() with { DaemonConnected = false, DaemonConnecting = false });
-        Assert.True(Has(issues, "daemon.disconnected"));
     }
 
     [Fact]
@@ -142,14 +130,6 @@ public class HealthEvaluatorTests
             Healthy() with { HasDriverConflict = true, BlockingDriverConflict = true }));
         Assert.Equal("driver.conflict", issue.Id);
         Assert.Equal(HealthSeverity.Broken, issue.Severity);
-    }
-
-    [Fact]
-    public void ForeignDaemon_IsRecommendation()
-    {
-        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { ForeignDaemon = true }));
-        Assert.Equal("daemon.foreign", issue.Id);
-        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
     }
 
     [Fact]

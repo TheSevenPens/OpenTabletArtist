@@ -99,8 +99,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// disabled — prompt the user to connect it (#177).</summary>
     public bool ShowConnectToCalibrateHint => CanCalibrate && !IsTabletDetected;
 
-    /// <summary>Calibration capture presets: the current corner method (→ homography, #195) or a finer
-    /// grid (→ bilinear offsets, #196). The user picks one before calibrating.</summary>
+    /// <summary>Calibration capture presets: the corner method (→ homography, #195) or a finer grid
+    /// (→ bilinear offsets, #196). Each backs a calibration card whose START button begins that mode.</summary>
     public IReadOnlyList<CalibrationModeChoice> CalibrationModeChoices { get; } = new List<CalibrationModeChoice>
     {
         new("4 point", CalibrationMode.Corners, 0, 0),
@@ -108,42 +108,26 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         new("25 point", CalibrationMode.Grid, 5, 5),
     };
 
-    [ObservableProperty] private CalibrationModeChoice _selectedCalibrationMode;
+    // Point count of the calibration currently applied to this profile (0 = none), so each card can show
+    // whether it's the one in use.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCurrent4Point))]
+    [NotifyPropertyChangedFor(nameof(IsCurrent9Point))]
+    [NotifyPropertyChangedFor(nameof(IsCurrent25Point))]
+    private int _currentCalibrationPoints;
 
-    /// <summary>The capture options for the current selection (used when opening the overlay).</summary>
-    public CalibrationOptions CalibrationOptions => SelectedCalibrationMode.ToOptions();
+    public bool IsCurrent4Point => CurrentCalibrationPoints == 4;
+    public bool IsCurrent9Point => CurrentCalibrationPoints == 9;
+    public bool IsCurrent25Point => CurrentCalibrationPoints == 25;
 
-    // Two-way bool per fixed choice, so the calibration card can present plain radio buttons instead of
-    // a dropdown. Setting one selects that mode; all stay in sync if the mode changes elsewhere.
-    public bool IsCalibration4Point
-    {
-        get => SelectedCalibrationMode == CalibrationModeChoices[0];
-        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[0]; }
-    }
-    public bool IsCalibration9Point
-    {
-        get => SelectedCalibrationMode == CalibrationModeChoices[1];
-        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[1]; }
-    }
-    public bool IsCalibration25Point
-    {
-        get => SelectedCalibrationMode == CalibrationModeChoices[2];
-        set { if (value) SelectedCalibrationMode = CalibrationModeChoices[2]; }
-    }
-
-    partial void OnSelectedCalibrationModeChanged(CalibrationModeChoice value)
-    {
-        OnPropertyChanged(nameof(IsCalibration4Point));
-        OnPropertyChanged(nameof(IsCalibration9Point));
-        OnPropertyChanged(nameof(IsCalibration25Point));
-    }
-
+    /// <summary>Start calibrating in the chosen mode — each calibration card's START button passes its
+    /// <see cref="CalibrationModeChoice"/>. Reloads afterward so the status + stale hint stay coherent (#147).</summary>
     [RelayCommand]
-    private async Task Calibrate()
+    private async Task StartCalibration(CalibrationModeChoice? choice)
     {
-        if (_onCalibrate == null) return;
-        await _onCalibrate(CalibrationOptions);
-        await Refresh(); // reload so the stale-calibration hint + settings stay coherent (#147)
+        if (_onCalibrate == null || choice == null) return;
+        await _onCalibrate(choice.ToOptions());
+        await Refresh();
     }
 
     /// <summary>True when a calibration exists but was captured against a different area mapping than
@@ -171,6 +155,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 CalibrationProfile.CalibrationModel.Grid => $"Calibrated — {(cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0)} point",
                 _ => "Calibrated — 4 point (legacy)",
             };
+        CurrentCalibrationPoints = !IsCalibrated ? 0 : cal!.Model switch
+        {
+            CalibrationProfile.CalibrationModel.Homography => 4,
+            CalibrationProfile.CalibrationModel.Grid => (cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0),
+            _ => 4,
+        };
     }
 
     /// <summary>Remove the calibration filter, returning the pointer to its uncorrected default.</summary>
@@ -236,7 +226,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _forgetAction = forgetAction;
         _onCalibrate = onCalibrate;
         DynamicsOnly = dynamicsOnly;
-        SelectedCalibrationMode = CalibrationModeChoices[0]; // default: Corners
 
         if (penInput != null)
         {
@@ -276,7 +265,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _profile = new Profile();
         TabletName = "Design Tablet";
         Displays = [];
-        SelectedCalibrationMode = CalibrationModeChoices[0];
     }
 
     private static string? GetPluginFriendlyName(string? path) =>

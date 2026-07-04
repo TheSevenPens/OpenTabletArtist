@@ -6,6 +6,118 @@
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Classes="PageTitle" Text="DAEMON" />
 
+        <!-- Full daemon status + controls (moved here from Home). Bound to the shared status VM so the
+             Home problem card and this page stay in sync. Home shows the daemon only when there's a
+             problem; this page always shows the full picture. -->
+        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+            <StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" MinWidth="0">
+                        <TextBlock Classes="CardTitle" Text="OpenTabletDriver Daemon" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding Status.IsConnected}" />
+                            <TextBlock Text="{Binding Status.DaemonStatusText}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                            <!-- Version read off the connected daemon's binary (#296). -->
+                            <TextBlock Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}" FontSize="11"
+                                       Margin="6,0,0,0" IsVisible="{Binding Status.HasDaemonVersion}"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       ToolTip.Tip="Version of the connected OpenTabletDriver daemon" />
+                        </StackPanel>
+
+                        <!-- Daemon ownership indicator (one of three states while connected) -->
+
+                        <!-- App-owned: connected to this project's build -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding Status.ShowAppOwnedDaemon}">
+                            <TextBlock Classes="success" />
+                            <TextBlock FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SuccessBrush}"
+                                       Text="App-owned daemon"
+                                       ToolTip.Tip="{Binding Status.DaemonSourcePath}" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <!-- External: connected to an OTD instance that isn't this project's build -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding Status.ShowForeignDaemonWarning}">
+                            <TextBlock Classes="warning" />
+                            <TextBlock FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WarningBrush}"
+                                       Text="External daemon (not app-owned) — click Restart to use this project's build"
+                                       ToolTip.Tip="{Binding Status.DaemonSourcePath}" />
+                        </StackPanel>
+
+                        <!-- Unknown: connected but couldn't read the daemon's exe path -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding Status.ShowDaemonSourceUnknown}">
+                            <TextBlock Classes="neutral" />
+                            <TextBlock FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Text="Daemon source unknown" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                        <!-- Refresh button -->
+                        <Button Content="Refresh" Command="{Binding Status.RefreshCommand}"
+                                ToolTip.Tip="Check daemon status"
+                                IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,0" />
+                        <!-- Start button: show when NOT connected and not mid-connect -->
+                        <Button Content="Start" Theme="{StaticResource AccentButton}"
+                                Command="{Binding Status.StartDaemonCommand}"
+                                IsVisible="{Binding Status.ShowStartButton}"
+                                IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                Padding="12,6" FontSize="12" />
+                        <!-- Restart button: show when connected -->
+                        <Button Content="Restart" Theme="{StaticResource AccentButton}"
+                                Command="{Binding Status.RestartDaemonCommand}"
+                                IsVisible="{Binding Status.IsConnected}"
+                                IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                Padding="12,6" FontSize="12" />
+                        <!-- Stop button: show when connected -->
+                        <Button Content="Stop" Theme="{StaticResource DeleteButton}"
+                                Command="{Binding Status.StopDaemonCommand}"
+                                IsVisible="{Binding Status.IsConnected}"
+                                IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                Padding="12,6" FontSize="12" Margin="6,0,0,0" />
+                    </WrapPanel>
+                </Grid>
+
+                <!-- Activity: indeterminate progress + phase text while a lifecycle op runs OR while
+                     the initial connect is in flight. -->
+                <StackPanel IsVisible="{Binding Status.ShowDaemonActivity}" Margin="0,12,0,0">
+                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,6"
+                                 Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="{Binding Status.DaemonActivityText}" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+
+                <!-- Error: shown when a lifecycle op times out or fails -->
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                            IsVisible="{Binding Status.HasDaemonOperationError}">
+                    <TextBlock Classes="warning" />
+                    <TextBlock Text="{Binding Status.DaemonOperationError}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource WarningBrush}" />
+                </StackPanel>
+
+                <!-- Auto-connect ran past the timeout: it's still retrying in the background, so say
+                     so (with an immediate Retry) rather than a silent "Not connected" (#296). -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0"
+                      IsVisible="{Binding Status.ConnectStalled}">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="warning" />
+                        <TextBlock Text="Couldn't reach the daemon — still retrying in the background."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource WarningBrush}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Retry" Command="{Binding Status.RefreshCommand}"
+                            Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
         <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
         <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -18,7 +130,7 @@
 
                 <!-- Launch OTD's own UX -->
                 <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
-                        Command="{Binding LaunchOtdUxCommand}"
+                        Command="{Binding Status.LaunchOtdUxCommand}"
                         VerticalAlignment="Center"
                         Padding="12,6" FontSize="12" />
             </Grid>
