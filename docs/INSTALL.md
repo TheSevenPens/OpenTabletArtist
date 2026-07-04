@@ -139,7 +139,7 @@ All of these live under the tablet's tabs or the sidebar — configure them any 
 - **Hotkeys** — global shortcuts to switch profiles or cycle the tablet's mapped monitor.
 - **Profiles / Per-App Profiles** — save named configurations and switch them by hotkey or
   automatically per foreground application.
-- **Theme** — appearance (Light / Dark / Sakura / Custom).
+- **Theme** — appearance (System / Light / Dark / Sakura / Custom).
 
 ## Keeping OpenTabletArtist running
 
