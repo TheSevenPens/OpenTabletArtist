@@ -28,7 +28,8 @@ and includes everything.
 4. Open the folder and run **`OpenTabletArtist.exe`**.
 
 > **Do not run OpenTabletArtist as Administrator.** Running elevated interferes with Windows Ink
-> and per-app switching. Just double-click it normally.
+> and per-app switching. Just double-click it normally — if you do launch it elevated, OTA flags a
+> warning in Home's **Needs attention** list.
 
 On launch, OTA starts its bundled driver automatically and connects to it. The **Home** page shows a
 **Daemon running** status once it's connected. If it says *Not connected*, click **Start**, then the
@@ -76,10 +77,13 @@ Windows Ink is how pressure and tilt reach your drawing apps on Windows.
 
 1. Go to the **Windows Ink Plugin** page (under **Advanced**). **Home** flags it too if it's missing.
 2. Click **Install**. OTA downloads and installs the plugin for you.
+3. When it finishes, OTA offers to **set your connected tablet(s) to Windows Ink mode** — accept it and
+   you can skip the next step.
 
 ## Step 6 — Turn on Windows Ink for your tablet
 
-Installing the plugin doesn't switch your tablet to it — you enable it per tablet:
+If you accepted the offer at the end of Step 5, your tablet is already on Windows Ink and you can skip
+to Step 7. Otherwise, enable it per tablet:
 
 1. Click your tablet under **Tablets** in the sidebar.
 2. On the **Screen Mapping** tab, the output mode is an **Absolute / Relative** toggle. Keep
@@ -91,10 +95,12 @@ Installing the plugin doesn't switch your tablet to it — you enable it per tab
 
 ## Step 7 — Map the tablet to a display
 
-By default the tablet isn't mapped to a specific monitor. Set it once:
+The first time OTA sees a tablet on a multi-monitor setup, it **auto-maps it to your primary display**
+so the pointer doesn't span every monitor. If that's the display you want, you're done — otherwise pick
+a different one:
 
-1. On the tablet's **Screen Mapping** tab, the diagram shows your monitors along the top and the
-   tablet's active area below.
+1. Click your tablet under **Tablets**, then open the **Screen Mapping** tab. The diagram shows your
+   monitors along the top and the tablet's active area below.
 2. **Click the monitor** you want to draw on, then click **Apply mapping**.
 
 OTA maps the tablet to that whole display **aspect-locked**, so a circle on the tablet draws a circle
@@ -137,9 +143,9 @@ OpenTabletArtist must be running for your tablet to work — including hotkeys a
 
 - **Closing the window minimizes it to the system tray**; the app keeps running. Reopen it from the
   tray icon. Use the tray's **Quit** to actually exit.
-- There is currently **no built-in "start at Windows startup" option.** To launch it automatically,
-  create a shortcut to `OpenTabletArtist.exe`, press <kbd>Win</kbd>+<kbd>R</kbd>, type
-  `shell:startup`, and drop the shortcut into that folder.
+- To launch it automatically at sign-in, turn on **Start OpenTabletArtist when Windows starts** on the
+  **Home** page. It starts minimized to the tray, so hotkeys and per-app switching are ready without
+  opening it yourself.
 
 ## Where your settings live
 
