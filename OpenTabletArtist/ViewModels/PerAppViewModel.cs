@@ -26,13 +26,23 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     private readonly IConnectionState _connection;
     private bool _suppress;   // guards store writes while we repopulate the UI from the store
 
+    /// <summary>Dropdown sentinel: an app (or the unmapped fallback) uses the live Current settings
+    /// rather than a saved profile. Maps to a null snapshot in the store.</summary>
+    public const string CurrentSettingsOption = "Current settings";
+
     [ObservableProperty] private bool _enabled;
     [ObservableProperty] private List<string> _snapshotNames = [];
-    // Fallback for unmapped apps: revert to the live "Current settings" (true), or a specific profile.
-    [ObservableProperty] private bool _fallbackToCurrent = true;
-    [ObservableProperty] private string? _fallbackProfile;
+    // Target dropdown options shared by the "All other apps" card and every app card: Current settings
+    // (the live config) followed by the saved profiles.
+    [ObservableProperty] private List<string> _targetOptions = [CurrentSettingsOption];
+    // What unmapped apps use (the "All other apps" card). CurrentSettingsOption ⇔ a null stored default.
+    [ObservableProperty] private string _unmappedTarget = CurrentSettingsOption;
     [ObservableProperty] private List<PerAppMappingRow> _mappings = [];
     [ObservableProperty] private string _statusLine = "Off.";
+
+    /// <summary>Dropdown selection → stored snapshot name (Current settings ⇒ null).</summary>
+    internal static string? TargetToSnapshot(string? target) =>
+        string.IsNullOrEmpty(target) || target == CurrentSettingsOption ? null : target;
 
     public bool HasEnoughSnapshots => SnapshotNames.Count >= 1;
     public bool HasMappings => Mappings.Count > 0;
@@ -88,10 +98,12 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         try
         {
             SnapshotNames = SnapshotNamesFromDisk();
-            // Reflect the stored fallback: null default → "Current settings"; a name → that profile.
+            var options = new List<string> { CurrentSettingsOption };
+            options.AddRange(SnapshotNames);
+            TargetOptions = options;
+            // Reflect the stored fallback: null (or a dangling name) → Current settings; a name → profile.
             var def = _store.Config.DefaultSnapshot;
-            FallbackToCurrent = def is null || !SnapshotNames.Contains(def);
-            FallbackProfile = FallbackToCurrent ? SnapshotNames.FirstOrDefault() : def;
+            UnmappedTarget = def != null && SnapshotNames.Contains(def) ? def : CurrentSettingsOption;
             RebuildMappings();
             OnPropertyChanged(nameof(HasEnoughSnapshots));
         }
@@ -110,7 +122,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     private void RebuildMappings()
     {
         Mappings = _store.Config.Mappings
-            .Select(m => new PerAppMappingRow(m, SnapshotNames, OnRowSnapshotChanged, OnRowRemove))
+            .Select(m => new PerAppMappingRow(m, TargetOptions, OnRowSnapshotChanged, OnRowRemove))
             .ToList();
         OnPropertyChanged(nameof(HasMappings));
     }
@@ -135,23 +147,16 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         StatusLine = value ? "On — waiting for an app change…" : "Off.";
     }
 
-    partial void OnFallbackToCurrentChanged(bool value)
+    partial void OnUnmappedTargetChanged(string value)
     {
         if (_suppress) return;
-        // "Current settings" → no stored default; else the chosen profile (default the picker if empty).
-        _store.SetDefaultSnapshot(value ? null : FallbackProfile ?? SnapshotNames.FirstOrDefault());
-    }
-
-    partial void OnFallbackProfileChanged(string? value)
-    {
-        if (_suppress) return;
-        if (!FallbackToCurrent && value != null) _store.SetDefaultSnapshot(value);
+        _store.SetDefaultSnapshot(TargetToSnapshot(value));
     }
 
     private void OnRowSnapshotChanged(PerAppMappingRow row)
     {
         if (_suppress) return;
-        _store.Upsert(new PerAppMapping(row.ExePath, row.ExeName, row.SelectedSnapshot ?? "", row.Enabled));
+        _store.Upsert(new PerAppMapping(row.ExePath, row.ExeName, TargetToSnapshot(row.SelectedSnapshot), row.Enabled));
     }
 
     private void OnRowRemove(PerAppMappingRow row)
@@ -193,8 +198,9 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     }
 }
 
-/// <summary>One app→snapshot row on the Per-App page. Its snapshot dropdown writes back to the store via
-/// the supplied callback; a missing snapshot is flagged for a warning badge.</summary>
+/// <summary>One app row on the Per-App page. Its target dropdown (Current settings + saved profiles)
+/// writes back to the store via the supplied callback; a target pointing at a deleted profile is flagged
+/// for a warning badge.</summary>
 public partial class PerAppMappingRow : ObservableObject
 {
     private readonly Action<PerAppMappingRow> _onChanged;
@@ -207,8 +213,9 @@ public partial class PerAppMappingRow : ObservableObject
 
     [ObservableProperty] private string? _selectedSnapshot;
 
-    /// <summary>The mapped snapshot no longer exists in the snapshot list.</summary>
-    public bool IsMissing => !string.IsNullOrEmpty(SelectedSnapshot) && !SnapshotOptions.Contains(SelectedSnapshot);
+    /// <summary>The mapped target is a saved profile that no longer exists (Current settings is never missing).</summary>
+    public bool IsMissing => SelectedSnapshot != PerAppViewModel.CurrentSettingsOption
+        && !string.IsNullOrEmpty(SelectedSnapshot) && !SnapshotOptions.Contains(SelectedSnapshot);
 
     public string PathDisplay => string.IsNullOrEmpty(ExePath) ? ExeName : ExePath;
 
@@ -219,7 +226,7 @@ public partial class PerAppMappingRow : ObservableObject
         ExePath = mapping.ExePath;
         Enabled = mapping.Enabled;
         SnapshotOptions = snapshotOptions;
-        _selectedSnapshot = mapping.SnapshotName;
+        _selectedSnapshot = mapping.SnapshotName ?? PerAppViewModel.CurrentSettingsOption;
         _onChanged = onChanged;
         _onRemove = onRemove;
     }
