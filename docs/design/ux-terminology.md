@@ -73,15 +73,16 @@ the follow-up (tracked separately):
 
 | Concept | Today | Target |
 |---|---|---|
-| Tabbed page | "hub" / hub page (`OpenTabletDriverView`, and `TabletDetailView` implicitly) | **tabbed page** |
+| Tabbed page | **done** — "hub" removed from code; `OpenTabletDriverView`/`TabletDetailView` are the tabbed pages | **tabbed page** |
 | Page-nav entry | **done** — `NavNode` theme, `TabletNavNodeViewModel` | **node** (leaf / group / parent) |
 | Group node | **done** — `NavGroupNode` theme (the ADVANCED toggle) | **group node** |
-| Subpage-nav entry | `TabRadioButton`, `OtdHubTab` | **tab** (already aligned) |
+| Subpage-nav entry | **done** — `TabRadioButton`, `OtdTab` | **tab** |
 | Complex header | **done** — the shared `Controls/ComplexHeader` control, used by both tabbed pages | a named, shared **complex header** |
 
-Done so far (phases 1–3):
+Done (phases 1–4):
 - The **OpenTabletDriver** tabbed page now has a **complex header**, shown as a breadcrumb (`OPENTABLETDRIVER › <subpage>`); its subpages no longer carry their own title.
 - The **tablet** tabbed page's header (name + Refresh + Forget) is the rich end of the *complex header* spectrum and is now built with the shared `ComplexHeader` control.
 - The page navigation bar uses the **node** vocabulary: `NavNode` (leaf/parent nodes), `NavGroupNode` (the ADVANCED group node), and `TabletNavNodeViewModel` (per-tablet child nodes).
+- "Hub" is gone from the code: the enum is `OtdTab`, and comments call it the OpenTabletDriver **tabbed page**.
 
-Still pending: the "hub" → **tabbed page** rename in code (final phase).
+The code now matches this document. (A possible future step — a data-driven **node tree** for the page navigation bar — is tracked in #414.)

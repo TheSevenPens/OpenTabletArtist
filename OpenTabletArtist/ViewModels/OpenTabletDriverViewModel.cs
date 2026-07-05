@@ -4,11 +4,12 @@ using OpenTabletArtist.Domain;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
-/// The "OpenTabletDriver" hub page: a single sidebar entry whose content area has its own secondary tab
-/// rail (like a tablet's page), hosting the underlying OTD engine pages — Daemon, Windows Ink Plugin,
+/// The "OpenTabletDriver" tabbed page: a single sidebar node whose content area has its own subpage
+/// navigation (tab rail, like a tablet's page), hosting the OTD subpages — Daemon, Windows Ink Plugin,
 /// Custom Tablet Compatibility, Diagnostics, Log, Plugins. It doesn't own those view models; it just
 /// holds the shared instances so each tab can display the existing view. <see cref="SelectedTab"/> lets
 /// callers deep-link to a specific tab (e.g. a health-issue "Fix" opening the Windows Ink tab).
+/// See docs/design/ux-terminology.md.
 /// </summary>
 public partial class OpenTabletDriverViewModel : ObservableObject
 {
@@ -32,5 +33,5 @@ public partial class OpenTabletDriverViewModel : ObservableObject
     public PluginsViewModel Plugins { get; }
 
     /// <summary>Tab to preselect for deep-links (#393).</summary>
-    [ObservableProperty] private OtdHubTab _selectedTab = OtdHubTab.Daemon;
+    [ObservableProperty] private OtdTab _selectedTab = OtdTab.Daemon;
 }

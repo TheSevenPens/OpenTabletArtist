@@ -75,7 +75,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
     public VMultiViewModel VMulti { get; }
-    /// <summary>The OpenTabletDriver hub page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
+    /// <summary>The OpenTabletDriver tabbed page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
     public OpenTabletDriverViewModel OpenTabletDriver { get; }
     public StartupViewModel Startup { get; } = new();
     public ThemeViewModel Theme { get; } = new();
@@ -112,8 +112,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsPerApp => ReferenceEquals(CurrentPage, PerApp);
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
-    // Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins are tabs inside the hub now, so the
-    // single hub entry drives the sidebar highlight instead of a per-page flag.
+    // Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins are tabs inside the tabbed page now,
+    // so the single OpenTabletDriver node drives the sidebar highlight instead of a per-page flag.
     public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
     public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
     public bool IsStartup => ReferenceEquals(CurrentPage, Startup);
@@ -177,8 +177,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Plugins = new PluginsViewModel(_session, _session);
         Daemon = new DaemonViewModel(_daemonStatus);
 
-        // The "OpenTabletDriver" hub page groups the engine pages behind one sidebar entry, with its own
-        // secondary tab rail (like a tablet's page). It shares the sub-view models built above.
+        // The "OpenTabletDriver" tabbed page groups the subpages behind one sidebar node, with its own
+        // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         OpenTabletDriver = new OpenTabletDriverViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins);
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
@@ -199,17 +199,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Navigate(object page) => CurrentPage = page as ObservableObject;
 
-    // Deep-link to the Windows Ink tab of the OpenTabletDriver hub (a health-issue "Fix" target).
+    // Deep-link to the Windows Ink tab of the OpenTabletDriver tabbed page (a health-issue "Fix" target).
     private void OpenWindowsInk()
     {
-        OpenTabletDriver.SelectedTab = OtdHubTab.WindowsInk;
+        OpenTabletDriver.SelectedTab = OtdTab.WindowsInk;
         Navigate(OpenTabletDriver);
     }
 
-    // Deep-link to the Daemon tab of the OpenTabletDriver hub (the Home daemon card's "Open daemon page").
+    // Deep-link to the Daemon tab of the OpenTabletDriver tabbed page (the Home daemon card's "Open daemon page").
     private void OpenDaemonPage()
     {
-        OpenTabletDriver.SelectedTab = OtdHubTab.Daemon;
+        OpenTabletDriver.SelectedTab = OtdTab.Daemon;
         Navigate(OpenTabletDriver);
     }
 
@@ -298,8 +298,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnCurrentPageChanged(ObservableObject? oldValue, ObservableObject? newValue)
     {
-        // Stop the debug stream when leaving the OpenTabletDriver hub (which hosts Diagnostics). The
-        // hub view also stops it on tab-switch; this covers navigating away from the hub entirely.
+        // Stop the debug stream when leaving the OpenTabletDriver tabbed page (which hosts Diagnostics).
+        // The tabbed-page view also stops it on tab-switch; this covers navigating away entirely.
         if (ReferenceEquals(oldValue, OpenTabletDriver) && !ReferenceEquals(newValue, OpenTabletDriver))
             _ = Diagnostics.StopDebuggingAsync();
 
