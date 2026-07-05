@@ -37,6 +37,29 @@
             </Style>
         </ControlTheme>
 
+        <!-- ComplexHeader: a tabbed page's header — a title (plain or custom) on the left + optional
+             trailing actions/status on the right. See docs/design/ux-terminology.md. -->
+        <ControlTheme x:Key="{x:Type c:ComplexHeader}" TargetType="c:ComplexHeader">
+            <Setter Property="Margin" Value="0,0,0,20" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <!-- Title slot: custom TitleContent, else the plain Title in the PageTitle look. -->
+                        <ContentControl Grid.Column="0" VerticalAlignment="Center"
+                                        Content="{TemplateBinding TitleContent}"
+                                        IsVisible="{TemplateBinding HasTitleContent}" />
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="PageTitle" Margin="0"
+                                   Text="{TemplateBinding Title}"
+                                   IsVisible="{TemplateBinding HasTitleText}" />
+                        <!-- Trailing actions / status. -->
+                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
         <!-- LabeledField: fixed-width caption column + an arbitrary control. -->
         <ControlTheme x:Key="{x:Type c:LabeledField}" TargetType="c:LabeledField">
             <Setter Property="Template">

@@ -59,38 +59,44 @@
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Header: tablet name, connection status, Refresh + Forget on one row. -->
+        <!-- Complex header (see docs/design/ux-terminology.md): tablet name (brand/model) + connection
+             status + Refresh/Forget, then an optional refresh-warning line. -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
-                <!-- Header title: brand (first word) small, over the model (rest) large — matches the
-                     PageTitle look (Segoe UI Light, uppercase) but split across two lines. -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" MaxWidth="360">
-                    <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
-                               IsVisible="{Binding HasTabletBrand}"
-                               FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
-                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                    <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
-                               FontFamily="Segoe UI, Inter" FontSize="30" FontWeight="Light"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               TextWrapping="Wrap" Margin="0,-2,0,0" />
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsTabletDetected}" />
-                    <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               VerticalAlignment="Center" TextWrapping="Wrap" MinWidth="0" />
-                </StackPanel>
-                <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}"
-                        ToolTip.Tip="Reload settings from daemon"
-                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
-                        VerticalAlignment="Center" />
-                <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
-                <Button Grid.Column="3" Content="Forget" Command="{Binding ForgetCommand}"
-                        IsVisible="{Binding ShowForget}"
-                        ToolTip.Tip="Remove this tablet's saved settings"
-                        Theme="{StaticResource DeleteButton}" Padding="12,6" FontSize="12"
-                        VerticalAlignment="Center" />
-            </Grid>
+            <ctrl:ComplexHeader Margin="0">
+                <ctrl:ComplexHeader.TitleContent>
+                    <!-- brand (first word) small, over the model (rest) large — the PageTitle look
+                         (Segoe UI Light, uppercase) split across two lines. -->
+                    <StackPanel VerticalAlignment="Center" MaxWidth="360">
+                        <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
+                                   IsVisible="{Binding HasTabletBrand}"
+                                   FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
+                                   FontFamily="Segoe UI, Inter" FontSize="30" FontWeight="Light"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap" Margin="0,-2,0,0" />
+                    </StackPanel>
+                </ctrl:ComplexHeader.TitleContent>
+                <!-- Trailing: connection status + Refresh + Forget. -->
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="0">
+                        <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsTabletDetected}" />
+                        <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" MinWidth="0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="Reload settings from daemon"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                    <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
+                    <Button Grid.Column="2" Content="Forget" Command="{Binding ForgetCommand}"
+                            IsVisible="{Binding ShowForget}"
+                            ToolTip.Tip="Remove this tablet's saved settings"
+                            Theme="{StaticResource DeleteButton}" Padding="12,6" FontSize="12"
+                            VerticalAlignment="Center" />
+                </Grid>
+            </ctrl:ComplexHeader>
             <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
