@@ -60,6 +60,12 @@ These are what make the model coherent — hold them when adding or renaming UI:
 4. **Two distinct headers, one shared atom.** A leaf's header is *just a title*; a tabbed page has a
    distinct **complex header**. Both always contain a **title** — the title is the shared atom.
 
+**Subpage titles on a tabbed page.** The active subpage's title may be surfaced by the *complex header*
+as a breadcrumb (`tabbed page › subpage`) instead of being repeated in the subpage body — this is how the
+**OpenTabletDriver** page works (`OPENTABLETDRIVER › DAEMON`), which keeps one title in a consistent spot
+and reclaims the vertical space. The **tablet** page is a deliberate exception: it keeps its rich complex
+header, and its subpages use small section labels.
+
 ## Current code → target term
 
 The vocabulary above is the target. Today's code differs in places; these are the renames to make in
@@ -71,8 +77,10 @@ the follow-up (tracked separately):
 | Page-nav entry | `NavButton`, `TabletNavItemViewModel` | **node** (leaf / group / parent) |
 | Group node | `NavGroupHeader` (the ADVANCED toggle) | **group node** |
 | Subpage-nav entry | `TabRadioButton`, `OtdHubTab` | **tab** (already aligned) |
-| Complex header | ad-hoc header markup on `TabletDetailView`; **absent** on `OpenTabletDriverView` | a named, shared **complex header** — and OpenTabletDriver needs a title added |
+| Complex header | **done** — the shared `Controls/ComplexHeader` control, used by both tabbed pages | a named, shared **complex header** |
 
-Known inconsistencies to fix alongside the rename:
-- The **OpenTabletDriver** tabbed page has **no header** today; it should get a title ("OpenTabletDriver") — nothing more complex is needed.
-- The **tablet** tabbed page's header (name + Refresh + Forget) is the rich end of the *complex header* spectrum; it stays, but should be recognized as a *complex header*.
+Done so far (phases 1–2):
+- The **OpenTabletDriver** tabbed page now has a **complex header**, shown as a breadcrumb (`OPENTABLETDRIVER › <subpage>`); its subpages no longer carry their own title.
+- The **tablet** tabbed page's header (name + Refresh + Forget) is the rich end of the *complex header* spectrum and is now built with the shared `ComplexHeader` control.
+
+Still pending: the page-nav **node** vocabulary and the "hub" → **tabbed page** rename (later phases).
