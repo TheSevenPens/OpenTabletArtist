@@ -80,7 +80,9 @@ internal sealed class FakeDeviceData : IDeviceData
     public string PresetDirectory { get; set; } = "";
     public string PluginDirectory { get; set; } = "";
     public string SettingsFilePath => "";
-    public (float Width, float Height)? GetTabletDigitizer(string tabletName) => null;
+    public Dictionary<string, (float Width, float Height)> Digitizers { get; } = new();
+    public (float Width, float Height)? GetTabletDigitizer(string tabletName) =>
+        Digitizers.TryGetValue(tabletName, out var d) ? d : null;
 
     public event Action? DataLoaded;
     public void RaiseDataLoaded() => DataLoaded?.Invoke();

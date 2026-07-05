@@ -309,6 +309,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         DetectionText = IsTabletDetected
             ? "Detected"
             : "Not currently detected — showing this tablet's saved settings.";
+        // Detection changing is exactly when the digitizer specs (dis)appear, so recompute the active
+        // area too. This self-heals "Active-area details aren't available" on reconnect — no restart.
+        RefreshTabletArea();
     }
 
     [RelayCommand]
@@ -1109,11 +1112,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void RefreshTabletArea()
     {
         var t = _profile.AbsoluteModeSettings?.Tablet;
-        if (t != null && _tabletDigitizer is { } dig && dig.Width > 0 && dig.Height > 0)
+        // Read the digitizer live: its specs can arrive after this (cached) view-model was created — e.g.
+        // when the tablet (re)connects — so we don't rely only on the value captured at construction.
+        // That snapshot is the fallback (e.g. the tray dialog has no live device data). Previously only
+        // the snapshot was used, so a tablet whose specs weren't ready when its page was first opened
+        // stayed stuck on "Active-area details aren't available" until an app restart.
+        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+        if (t != null && dig is { } d && d.Width > 0 && d.Height > 0)
         {
             var mapped = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
             TabletArea = new TabletAreaInfo(
-                FullWidth: dig.Width, FullHeight: dig.Height,
+                FullWidth: d.Width, FullHeight: d.Height,
                 EffWidth: t.Width, EffHeight: t.Height, EffCenterX: t.X, EffCenterY: t.Y,
                 HasDisplay: mapped != null,
                 DisplayNumber: mapped?.Number ?? 0, DisplayName: mapped?.Name ?? "",
