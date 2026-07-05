@@ -13,7 +13,8 @@ public partial class MainWindow : Window
 {
     private bool _allowClose;
     // One-time "still running in the tray" hint, persisted so it only shows on the first close (#72).
-    private bool _trayHintShown = AppSettings.Get("TrayHintShown") == "true";
+    // Skipped for --background sign-in launches (#381).
+    private bool _trayHintShown = Program.LaunchInBackground || AppSettings.Get("TrayHintShown") == "true";
     private ProfileSwitchService? _switchSub;  // tracked so we can unsubscribe on DataContext change / close
     private MonitorCycleService? _cycleSub;    // ditto, for the monitor-cycle toast (#89)
 

@@ -30,7 +30,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity) or nameof(HasDaemonOperationError)
             or nameof(ConnectStalled) or nameof(IsDaemonExeMissing))
             OnPropertyChanged(nameof(ShowDaemonProblem));
-        if (e.PropertyName is nameof(IsConnected) or nameof(DaemonStatusText))
+        if (e.PropertyName is nameof(IsConnected) or nameof(DaemonStatusText) or nameof(ConnectStalled))
             OnPropertyChanged(nameof(HomeProblemText));
     }
 
@@ -66,7 +66,15 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     /// <summary>Home-card wording. On Home the daemon card stands alone (no "OpenTabletDriver Daemon"
     /// heading above it, unlike the Daemon page), so the subject is spelled out: "Not connected" reads as
     /// "Not connected to daemon".</summary>
-    public string HomeProblemText => IsConnected ? DaemonStatusText : "Not connected to daemon";
+    public string HomeProblemText
+    {
+        get
+        {
+            if (IsConnected) return DaemonStatusText;
+            if (ConnectStalled) return "Still trying to reach the daemon…";
+            return "Not connected to daemon";
+        }
+    }
 
     /// <summary>"Fix" = start the daemon if needed and (re)connect. Same as the Start control.</summary>
     public IAsyncRelayCommand FixCommand => _session.StartDaemonCommand;

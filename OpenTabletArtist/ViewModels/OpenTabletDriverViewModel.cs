@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -30,7 +31,6 @@ public partial class OpenTabletDriverViewModel : ObservableObject
     public LogViewModel Log { get; }
     public PluginsViewModel Plugins { get; }
 
-    /// <summary>Tab to preselect: 0 Daemon · 1 Windows Ink · 2 Custom Tablet Compatibility · 3 Diagnostics
-    /// · 4 Log · 5 Plugins. Set before navigating here to deep-link to a tab.</summary>
-    [ObservableProperty] private int _selectedTab;
+    /// <summary>Tab to preselect for deep-links (#393).</summary>
+    [ObservableProperty] private OtdHubTab _selectedTab = OtdHubTab.Daemon;
 }

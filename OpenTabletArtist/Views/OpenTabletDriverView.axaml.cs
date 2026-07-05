@@ -1,21 +1,24 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
 
 /// <summary>
-/// Hosts the OpenTabletDriver hub's secondary tab rail. Reacts to <see cref="OpenTabletDriverViewModel.SelectedTab"/>
-/// so callers can deep-link to a tab (e.g. a health "Fix" opening Windows Ink), and preserves the
-/// Diagnostics lifecycle the shell used to own: the debug stream is stopped when the Diagnostics tab is
-/// left or the hub is closed (its Start is user-driven inside the Diagnostics page).
+/// Hosts the OpenTabletDriver hub's secondary tab rail. Lazily mounts each engine page on first
+/// selection (#388). Reacts to <see cref="OpenTabletDriverViewModel.SelectedTab"/> for deep-links.
 /// </summary>
 public partial class OpenTabletDriverView : UserControl
 {
     private OpenTabletDriverViewModel? _vm;
+    private readonly Dictionary<OtdHubTab, object> _mounted = new();
+    private bool _syncingTab;
 
     public OpenTabletDriverView() => InitializeComponent();
 
@@ -23,43 +26,120 @@ public partial class OpenTabletDriverView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         _vm = DataContext as OpenTabletDriverViewModel;
-        SelectTab(_vm?.SelectedTab ?? 0); // honor a deep-link target
         if (_vm != null) _vm.PropertyChanged += OnVmPropertyChanged;
-        DiagnosticsTab.IsCheckedChanged += OnDiagnosticsTabChanged;
+        WireTabHandlers();
+        ShowTab(_vm?.SelectedTab ?? OtdHubTab.Daemon);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        DiagnosticsTab.IsCheckedChanged -= OnDiagnosticsTabChanged;
+        UnwireTabHandlers();
         if (_vm != null) _vm.PropertyChanged -= OnVmPropertyChanged;
-        _ = _vm?.Diagnostics.StopDebuggingAsync(); // leaving the hub → stop the debug stream
+        _ = _vm?.Diagnostics.StopDebuggingAsync();
         _vm = null;
+        _mounted.Clear();
     }
 
-    // Deep-link while the hub is already open (e.g. a second health Fix).
+    private void WireTabHandlers()
+    {
+        DaemonTab.IsCheckedChanged += OnDaemonTabChecked;
+        WinInkTab.IsCheckedChanged += OnWinInkTabChecked;
+        ConfigsTab.IsCheckedChanged += OnConfigsTabChecked;
+        DiagnosticsTab.IsCheckedChanged += OnDiagnosticsTabChanged;
+        LogTab.IsCheckedChanged += OnLogTabChecked;
+        PluginsTab.IsCheckedChanged += OnPluginsTabChecked;
+    }
+
+    private void UnwireTabHandlers()
+    {
+        DaemonTab.IsCheckedChanged -= OnDaemonTabChecked;
+        WinInkTab.IsCheckedChanged -= OnWinInkTabChecked;
+        ConfigsTab.IsCheckedChanged -= OnConfigsTabChecked;
+        DiagnosticsTab.IsCheckedChanged -= OnDiagnosticsTabChanged;
+        LogTab.IsCheckedChanged -= OnLogTabChecked;
+        PluginsTab.IsCheckedChanged -= OnPluginsTabChecked;
+    }
+
+    private void OnDaemonTabChecked(object? sender, RoutedEventArgs e)
+    {
+        if (_syncingTab || DaemonTab.IsChecked != true) return;
+        ShowTab(OtdHubTab.Daemon);
+    }
+
+    private void OnWinInkTabChecked(object? sender, RoutedEventArgs e)
+    {
+        if (_syncingTab || WinInkTab.IsChecked != true) return;
+        ShowTab(OtdHubTab.WindowsInk);
+    }
+
+    private void OnConfigsTabChecked(object? sender, RoutedEventArgs e)
+    {
+        if (_syncingTab || ConfigsTab.IsChecked != true) return;
+        ShowTab(OtdHubTab.CustomTabletConfigs);
+    }
+
+    private void OnLogTabChecked(object? sender, RoutedEventArgs e)
+    {
+        if (_syncingTab || LogTab.IsChecked != true) return;
+        ShowTab(OtdHubTab.Log);
+    }
+
+    private void OnPluginsTabChecked(object? sender, RoutedEventArgs e)
+    {
+        if (_syncingTab || PluginsTab.IsChecked != true) return;
+        ShowTab(OtdHubTab.Plugins);
+    }
+
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(OpenTabletDriverViewModel.SelectedTab)) SelectTab(_vm?.SelectedTab ?? 0);
+        if (e.PropertyName == nameof(OpenTabletDriverViewModel.SelectedTab))
+            ShowTab(_vm?.SelectedTab ?? OtdHubTab.Daemon);
     }
 
-    // Stop the debug stream when the Diagnostics tab is left (its Start is user-driven).
     private void OnDiagnosticsTabChanged(object? sender, RoutedEventArgs e)
     {
-        if (DiagnosticsTab.IsChecked != true) _ = _vm?.Diagnostics.StopDebuggingAsync();
+        if (_syncingTab) return;
+        if (DiagnosticsTab.IsChecked == true)
+            ShowTab(OtdHubTab.Diagnostics);
+        else
+            _ = _vm?.Diagnostics.StopDebuggingAsync();
     }
 
-    private void SelectTab(int index)
+    private void ShowTab(OtdHubTab tab)
     {
-        var tab = index switch
+        if (_vm == null) return;
+        if (!_mounted.TryGetValue(tab, out var content))
         {
-            1 => WinInkTab,
-            2 => ConfigsTab,
-            3 => DiagnosticsTab,
-            4 => LogTab,
-            5 => PluginsTab,
+            content = tab switch
+            {
+                OtdHubTab.WindowsInk => _vm.WindowsInk,
+                OtdHubTab.CustomTabletConfigs => _vm.Configs,
+                OtdHubTab.Diagnostics => _vm.Diagnostics,
+                OtdHubTab.Log => _vm.Log,
+                OtdHubTab.Plugins => _vm.Plugins,
+                _ => _vm.Daemon,
+            };
+            _mounted[tab] = content;
+        }
+        TabHost.Content = content;
+        if (_vm.SelectedTab != tab) _vm.SelectedTab = tab;
+        _syncingTab = true;
+        SelectTabRadio(tab);
+        _syncingTab = false;
+    }
+
+    private void SelectTabRadio(OtdHubTab tab)
+    {
+        var radio = tab switch
+        {
+            OtdHubTab.WindowsInk => WinInkTab,
+            OtdHubTab.CustomTabletConfigs => ConfigsTab,
+            OtdHubTab.Diagnostics => DiagnosticsTab,
+            OtdHubTab.Log => LogTab,
+            OtdHubTab.Plugins => PluginsTab,
             _ => DaemonTab,
         };
-        tab.IsChecked = true;
+        radio.IsChecked = true;
     }
 }

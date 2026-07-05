@@ -86,6 +86,13 @@
 
             <!-- Full-window backdrop layer behind content; flat themes have none (see Anime). -->
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
+
+            <Color x:Key="PenDiagramFill">#D8DCE8</Color>
+            <Color x:Key="PenDiagramButtonFill">#C8CDE0</Color>
+            <Color x:Key="PenDiagramStroke">#6366F1</Color>
+            <SolidColorBrush x:Key="PenDiagramFillBrush" Color="{StaticResource PenDiagramFill}" />
+            <SolidColorBrush x:Key="PenDiagramButtonFillBrush" Color="{StaticResource PenDiagramButtonFill}" />
+            <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
         </ResourceDictionary>
 
         <!-- ===== Dark ===== -->
@@ -130,6 +137,13 @@
             <BoxShadows x:Key="CardShadow">0 2 12 0 #14000000</BoxShadows>
 
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
+
+            <Color x:Key="PenDiagramFill">#3A3A50</Color>
+            <Color x:Key="PenDiagramButtonFill">#4A4A64</Color>
+            <Color x:Key="PenDiagramStroke">#7C7EF4</Color>
+            <SolidColorBrush x:Key="PenDiagramFillBrush" Color="{StaticResource PenDiagramFill}" />
+            <SolidColorBrush x:Key="PenDiagramButtonFillBrush" Color="{StaticResource PenDiagramButtonFill}" />
+            <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
         </ResourceDictionary>
 
         <!-- ===== Anime (experimental skin, #anime) =====
@@ -221,6 +235,13 @@
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
                         Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
+
+            <Color x:Key="PenDiagramFill">#F7CFD8</Color>
+            <Color x:Key="PenDiagramButtonFill">#EEB6C6</Color>
+            <Color x:Key="PenDiagramStroke">#CF5E86</Color>
+            <SolidColorBrush x:Key="PenDiagramFillBrush" Color="{StaticResource PenDiagramFill}" />
+            <SolidColorBrush x:Key="PenDiagramButtonFillBrush" Color="{StaticResource PenDiagramButtonFill}" />
+            <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
         </ResourceDictionary>
 
         <!-- ===== Custom (user-tunable skin) =====
@@ -304,6 +325,13 @@
             <!-- No image by default → a transparent backdrop (the window's BgBase shows). ApplyCustom
                  swaps in the user's image + a scrim when one is chosen. -->
             <SolidColorBrush x:Key="AppBackdropBrush" Color="Transparent" />
+
+            <Color x:Key="PenDiagramFill">#3A3A50</Color>
+            <Color x:Key="PenDiagramButtonFill">#4A4A64</Color>
+            <Color x:Key="PenDiagramStroke">#6366F1</Color>
+            <SolidColorBrush x:Key="PenDiagramFillBrush" Color="{StaticResource PenDiagramFill}" />
+            <SolidColorBrush x:Key="PenDiagramButtonFillBrush" Color="{StaticResource PenDiagramButtonFill}" />
+            <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

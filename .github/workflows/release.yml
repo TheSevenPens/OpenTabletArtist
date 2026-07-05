@@ -73,7 +73,6 @@ jobs:
       # online install writes), so the app copies it straight into the daemon's plugin dir.
       - name: Bundle the Windows Ink plugin for offline install
         shell: pwsh
-        continue-on-error: true
         run: |
           $ErrorActionPreference = 'Stop'
           $tmp = Join-Path $env:RUNNER_TEMP 'winink'

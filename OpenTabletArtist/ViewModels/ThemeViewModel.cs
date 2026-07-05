@@ -56,6 +56,7 @@ public partial class ThemeViewModel : ObservableObject
     private static readonly Color SakuraFrostTint = Color.Parse("#FDF1F7"); // soft sakura white
     private static readonly Color CustomFrostTint = Color.Parse("#202430"); // neutral dark
     [ObservableProperty] private double _cardOpacity = AcrylicSettings.MaterialOpacity;
+    [ObservableProperty] private double _tintOpacity = AcrylicSettings.TintOpacity;
 
     // Sidebar (left pane) background: a vertical gradient rebuilt live at the chosen opacity. The base
     // stop colours differ per skin (soft pink for Sakura, near-black for Custom).
@@ -87,6 +88,12 @@ public partial class ThemeViewModel : ObservableObject
     partial void OnCardOpacityChanged(double value)
     {
         AcrylicSettings.MaterialOpacity = value;
+        RefreshSkin();
+    }
+
+    partial void OnTintOpacityChanged(double value)
+    {
+        AcrylicSettings.TintOpacity = value;
         RefreshSkin();
     }
 
@@ -232,7 +239,9 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>A translucent card-frost brush: the given tint at the current card opacity.</summary>
     private SolidColorBrush FrostBrush(Color tint)
     {
-        var a = (byte)(Math.Clamp(CardOpacity, 0, 1) * 255);
+        var material = Math.Clamp(CardOpacity, 0, 1);
+        var tintStrength = Math.Clamp(TintOpacity, 0, 1);
+        var a = (byte)(material * tintStrength * 255);
         return new SolidColorBrush(Color.FromArgb(a, tint.R, tint.G, tint.B));
     }
 

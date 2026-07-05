@@ -92,7 +92,7 @@
                         VerticalAlignment="Center" />
             </Grid>
             <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
-                       Foreground="#e87930" TextWrapping="Wrap"
+                       Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
 
@@ -155,7 +155,7 @@
 
                         <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                         <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                                   FontSize="10" Foreground="#e87930" FontStyle="Italic" Margin="0,12,0,0"
+                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
                                    TextWrapping="Wrap"
                                    IsVisible="{Binding CanFixOutputMode}" />
                         <Button Content="Fix" Theme="{StaticResource AccentButton}"
@@ -312,8 +312,8 @@
 
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
                      currently in use gets an accent outline + "In use" badge. -->
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" IsVisible="{Binding CanCalibrate}">
-                    <Border Grid.Column="0" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
+                <WrapPanel Orientation="Horizontal" IsVisible="{Binding CanCalibrate}">
+                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -327,7 +327,7 @@
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="1" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
+                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -341,7 +341,7 @@
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
+                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -355,7 +355,7 @@
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
                         </StackPanel>
                     </Border>
-                </Grid>
+                </WrapPanel>
 
                 <TextBlock Text="Calibration is available in Absolute mode." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
@@ -396,25 +396,25 @@
                         <Canvas Width="400" Height="80">
                             <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
                             <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
                             <!-- tip nib (far left, under the cone) -->
                             <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
                             <!-- tip cone (pointing left) -->
-                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="#F7CFD8"
-                                     Stroke="#CF5E86" StrokeThickness="2.5" StrokeJoin="Round" />
+                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" StrokeJoin="Round" />
                             <!-- barrel -->
                             <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                       Fill="#F7CFD8" Stroke="#CF5E86" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
                             <!-- side buttons, clustered toward the tip (left) -->
                             <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
                                        IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             <Rectangle Canvas.Left="130" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
                                        IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="#EEB6C6" Stroke="#CF5E86" StrokeThickness="2"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
                                        IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                         </Canvas>
                     </Viewbox>
@@ -745,11 +745,11 @@
                                                        TextWrapping="Wrap" VerticalAlignment="Center" />
                                             <!-- Stale leftover from an older app/plugin name: inert, should be cleaned. -->
                                             <Border IsVisible="{Binding IsLegacy}"
-                                                    Background="#33e87930" BorderBrush="#e87930" BorderThickness="1"
+                                                    Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                                                     CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
                                                     ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically.">
                                                 <TextBlock Text="Legacy" FontSize="10" FontWeight="SemiBold"
-                                                           Foreground="#e87930" />
+                                                           Foreground="{DynamicResource WarningBrush}" />
                                             </Border>
                                         </StackPanel>
                                         <TextBlock Text="{Binding FullPath}" FontSize="11"

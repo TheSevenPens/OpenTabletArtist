@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using OpenTabletArtist.Helpers;
 
 namespace OpenTabletArtist.Controls;
 
@@ -70,7 +71,7 @@ public class TabletVisualizer : Control
             var text = new FormattedText("No tablet data",
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Segoe UI", FontStyle.Italic),
+                AppFonts.UiTypeface(FontStyle.Italic),
                 12, new SolidColorBrush(Color.FromArgb(100, 148, 163, 184)));
             context.DrawText(text, new Point((w - text.Width) / 2, (h - text.Height) / 2));
             return;

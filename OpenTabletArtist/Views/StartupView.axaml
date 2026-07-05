@@ -9,9 +9,14 @@
 
         <!-- Startup (#360): launch with Windows so hotkeys / per-app switching are ready at login. -->
         <c:SettingCard Title="Startup" IsVisible="{Binding StartupSupported}">
-            <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
-                             Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
-                             IsChecked="{Binding StartWithWindows}" />
+            <StackPanel Spacing="10">
+                <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
+                                 Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
+                                 IsChecked="{Binding StartWithWindows}" />
+                <TextBlock Text="{Binding RegistryMessage}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource WarningBrush}"
+                           IsVisible="{Binding HasRegistryMessage}" />
+            </StackPanel>
         </c:SettingCard>
 
         <!-- Fallback when the run-at-startup mechanism isn't available (non-Windows). -->

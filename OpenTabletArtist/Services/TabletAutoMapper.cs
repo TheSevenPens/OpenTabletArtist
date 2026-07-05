@@ -48,9 +48,22 @@ public sealed class TabletAutoMapper : IDisposable
         foreach (var t in firstTime)
         {
             if (!unmapped.Contains(t)) continue;
-            try { await _setup.MapTabletToPrimaryAsync(t); }
-            catch { /* best-effort — a mapping failure shouldn't disrupt the session */ }
+            try
+            {
+                if (!await _setup.MapTabletToPrimaryAsync(t))
+                    RollbackSeen(t);
+            }
+            catch
+            {
+                RollbackSeen(t); // mapping failed — allow retry on a later session (#404)
+            }
         }
+    }
+
+    private void RollbackSeen(string tablet)
+    {
+        if (!_seen.Remove(tablet)) return;
+        SaveSeen();
     }
 
     private static HashSet<string> LoadSeen()

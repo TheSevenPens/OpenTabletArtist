@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Controls;
@@ -19,7 +20,7 @@ public sealed class ActiveAreaDiagram : Control
     private static readonly IBrush FullFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
     private static readonly IPen FullBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
     private static readonly IBrush FullLabel = new SolidColorBrush(Color.FromArgb(0xDD, 0xFF, 0xFF, 0xFF));
-    private static readonly Typeface Face = new("Segoe UI");
+    private static Typeface UiFace => AppFonts.UiTypeface();
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
 
     public static readonly StyledProperty<TabletAreaInfo?> AreaProperty =
@@ -88,5 +89,5 @@ public sealed class ActiveAreaDiagram : Control
     }
 
     private static FormattedText Text(string s, double size, IBrush brush) =>
-        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, size, brush);
+        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
 }

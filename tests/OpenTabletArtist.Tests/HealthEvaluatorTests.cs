@@ -12,8 +12,6 @@ public class HealthEvaluatorTests
     private static HealthInputs Healthy() => new()
     {
         DaemonConnected = true,
-        DaemonConnecting = false,
-        DaemonExeMissing = false,
         ForeignDaemon = false,
         WinInkInstalled = true,
         WinInkVersionMismatch = false,

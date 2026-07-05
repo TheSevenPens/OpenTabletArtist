@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Media;
+using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Controls;
@@ -38,7 +39,7 @@ public sealed class PressureCurveChart : Control
     private static readonly IBrush LiveDotBrush = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
     private static readonly IPen LiveGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0x10, 0xB9, 0x81)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
-    private static readonly Typeface ChartTypeface = new("Segoe UI");
+    private static Typeface ChartTypeface => AppFonts.UiTypeface();
     private const double ChartFontSize = 11;
 
     public static readonly StyledProperty<PressureCurveSettings> CurveProperty =

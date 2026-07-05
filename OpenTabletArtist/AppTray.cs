@@ -282,7 +282,7 @@ public sealed class AppTray : IDisposable
         // after exit (#167). Awaited on the UI thread (no blocking); bounded so a stuck RPC can't hang Quit.
         if (_onQuitAsync != null)
         {
-            try { await Task.WhenAny(_onQuitAsync(), Task.Delay(2000)); } catch { }
+            try { await Task.WhenAny(_onQuitAsync(), Task.Delay(5000)); } catch { }
         }
         Dispose();
         _desktop.Shutdown(); // closes the window (→ MainViewModel.Dispose) and exits the app

@@ -113,8 +113,6 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         return new HealthInputs
         {
             DaemonConnected = _connection.IsConnected,
-            DaemonConnecting = _connection.ConnectionStatus == "Connecting...",
-            DaemonExeMissing = _connection.IsDaemonExeMissing,
             ForeignDaemon = _connection.IsForeignDaemon,
             WinInkInstalled = installed,
             WinInkVersionMismatch = mismatch,
