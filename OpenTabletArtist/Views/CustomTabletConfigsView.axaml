@@ -5,8 +5,6 @@
 
     <!-- DataContext is the CustomTabletConfigsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="CUSTOM TABLET COMPATIBILITY" />
-
         <Border Classes="GlassPanel" Padding="16">
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">

@@ -5,8 +5,6 @@
     <!-- DataContext is the WindowsInkViewModel, supplied by the typed-nav DataTemplate (#15). Moved off
          the Home page (#317): Home flags a missing/misconfigured plugin and directs you here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="WINDOWS INK PLUGIN" />
-
         <TextBlock Text="The Windows Ink plugin (by Kuuube) delivers pen pressure and tilt to your drawing apps. Install it, keep it up to date, and set a tablet's Pen Behavior to a Windows Ink mode to use it."
                    FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,12" />
