@@ -30,6 +30,17 @@
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+        <!-- Connection status bar across the top of the tablet header: full-width, solid colour by
+             state — orange when the tablet isn't detected, green when it is. -->
+        <Style Selector="Border.tabletStatusBar">
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Border.tabletStatusBar.connected">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Resources>
@@ -59,9 +70,14 @@
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header (see docs/design/ux-terminology.md): tablet name (brand/model) + connection
-             status + Refresh/Forget, then an optional refresh-warning line. -->
+        <!-- Complex header (see docs/design/ux-terminology.md): a full-width connection-status bar,
+             then the tablet name (brand/model) + Refresh/Forget, then an optional refresh-warning line. -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
+            <!-- Connection status bar spanning the header — solid green when detected, orange when not. -->
+            <Border Classes="tabletStatusBar" Classes.connected="{Binding IsTabletDetected}">
+                <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </Border>
             <ctrl:ComplexHeader Margin="0">
                 <ctrl:ComplexHeader.TitleContent>
                     <!-- brand (first word) small, over the model (rest) large — the PageTitle look
@@ -77,25 +93,18 @@
                                    TextWrapping="Wrap" Margin="0,-2,0,0" />
                     </StackPanel>
                 </ctrl:ComplexHeader.TitleContent>
-                <!-- Trailing: connection status + Refresh + Forget. -->
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsTabletDetected}" />
-                        <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center" TextWrapping="Wrap" MinWidth="0" />
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}"
+                <!-- Trailing: Refresh + Forget (connection status moved to the bar above). -->
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <Button Content="Refresh" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
-                            VerticalAlignment="Center" />
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
                     <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
-                    <Button Grid.Column="2" Content="Forget" Command="{Binding ForgetCommand}"
+                    <Button Content="Forget" Command="{Binding ForgetCommand}"
                             IsVisible="{Binding ShowForget}"
                             ToolTip.Tip="Remove this tablet's saved settings"
-                            Theme="{StaticResource DeleteButton}" Padding="12,6" FontSize="12"
-                            VerticalAlignment="Center" />
-                </Grid>
+                            Theme="{StaticResource DeleteButton}" Padding="12,6" FontSize="12" />
+                </StackPanel>
             </ctrl:ComplexHeader>
             <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
@@ -317,51 +326,53 @@
                            Margin="0,6,0,12" TextWrapping="Wrap" />
 
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
-                     currently in use gets an accent outline + "In use" badge. -->
-                <WrapPanel Orientation="Horizontal" IsVisible="{Binding CanCalibrate}">
-                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
+                     currently in use gets an accent outline + "In use" badge. Equal-size cards
+                     (UniformGrid); the START button sits directly below the diagram with the explanatory
+                     text last, so the button is at a consistent height across the cards. -->
+                <UniformGrid Columns="3" IsVisible="{Binding CanCalibrate}">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
                                 <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="4" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="Standard — best for most setups." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
+                            <TextBlock Text="Standard — best for most setups." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
                                 <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="9" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="For harder cases — corrects distortion across the screen." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
+                            <TextBlock Text="For harder cases — corrects distortion across the screen." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border MinWidth="200" MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
                                 <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent25Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="25" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="For extreme distortion — the finest correction." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[2]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
+                            <TextBlock Text="For extreme distortion — the finest correction." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
-                </WrapPanel>
+                </UniformGrid>
 
                 <TextBlock Text="Calibration is available in Absolute mode." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
