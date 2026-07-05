@@ -2,11 +2,15 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is OpenTabletDriverViewModel. Like a tablet's page: a secondary tab rail on the left
-         and the selected engine page's view on the right (lazy-mounted on first visit, #388). -->
-    <Grid ColumnDefinitions="Auto,*">
-        <!-- Tab rail — vertical, to the left of the content. -->
-        <Border Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
+    <!-- A tabbed page (see docs/design/ux-terminology.md): a complex header (its title) at the top,
+         then a subpage navigation (tab rail) on the left and the selected subpage on the right
+         (lazy-mounted on first visit, #388). -->
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
+        <!-- Complex header — for this tabbed page it's just the title (#TBD). -->
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Classes="PageTitle" Text="OPENTABLETDRIVER" />
+
+        <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
+        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="210" Spacing="2">
                 <RadioButton Content="DAEMON" IsChecked="True" x:Name="DaemonTab"
@@ -24,6 +28,6 @@
             </StackPanel>
         </Border>
 
-        <ContentControl x:Name="TabHost" Grid.Column="1" />
+        <ContentControl x:Name="TabHost" Grid.Row="1" Grid.Column="1" />
     </Grid>
 </UserControl>
