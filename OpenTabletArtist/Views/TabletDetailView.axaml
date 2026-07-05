@@ -396,25 +396,25 @@
                         <Canvas Width="400" Height="80">
                             <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
                             <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
                             <!-- tip nib (far left, under the cone) -->
                             <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
                             <!-- tip cone (pointing left) -->
                             <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
-                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" StrokeJoin="Round" />
+                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
                             <!-- barrel -->
                             <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2.5" />
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
                             <!-- side buttons, clustered toward the tip (left) -->
                             <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
                                        IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="130" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
+                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
                                        IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="2"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
                                        IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                         </Canvas>
                     </Viewbox>

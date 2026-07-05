@@ -1,8 +1,10 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
@@ -21,6 +23,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Show the app version next to the name in the title bar, reusing the same formatter as the
+        // sidebar footer / About page (strips +build metadata, ensures a leading "v").
+        Title = $"OpenTabletArtist  {AppVersionInfo.Format(
+            Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}";
         // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
         // DataContextChanged from that assignment fired inside InitializeComponent, before we could
         // handle it. Wire the switch subscription now for the current VM, and keep the handler for
