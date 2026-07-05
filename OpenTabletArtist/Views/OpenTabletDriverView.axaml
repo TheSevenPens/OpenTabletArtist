@@ -7,8 +7,10 @@
          then a subpage navigation (tab rail) on the left and the selected subpage on the right
          (lazy-mounted on first visit, #388). -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header — for this tabbed page it's just the title. -->
-        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="OPENTABLETDRIVER" />
+        <!-- Complex header — a breadcrumb of the tabbed page + the active subpage
+             ("OPENTABLETDRIVER › DAEMON"), set in code-behind on tab change. The subpages no longer
+             carry their own title (it lives here). -->
+        <c:ComplexHeader x:Name="Header" Grid.Row="0" Grid.ColumnSpan="2" />
 
         <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"

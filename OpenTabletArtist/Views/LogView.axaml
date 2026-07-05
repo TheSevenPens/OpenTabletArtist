@@ -4,8 +4,6 @@
 
     <!-- DataContext is the LogViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel HorizontalAlignment="Stretch">
-        <TextBlock Classes="PageTitle" Text="LOG" />
-
         <!-- Toolbar: level filter, search, auto-scroll, copy/clear -->
         <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="14" VerticalAlignment="Center">

@@ -123,23 +123,24 @@ public partial class OpenTabletDriverView : UserControl
             _mounted[tab] = content;
         }
         TabHost.Content = content;
+        // Complex header shows the breadcrumb "OPENTABLETDRIVER › <subpage>" — the subpage name comes
+        // from the tab's own label, so it stays in sync with the rail.
+        Header.Title = $"OPENTABLETDRIVER › {RadioFor(tab).Content}";
         if (_vm.SelectedTab != tab) _vm.SelectedTab = tab;
         _syncingTab = true;
         SelectTabRadio(tab);
         _syncingTab = false;
     }
 
-    private void SelectTabRadio(OtdHubTab tab)
+    private void SelectTabRadio(OtdHubTab tab) => RadioFor(tab).IsChecked = true;
+
+    private RadioButton RadioFor(OtdHubTab tab) => tab switch
     {
-        var radio = tab switch
-        {
-            OtdHubTab.WindowsInk => WinInkTab,
-            OtdHubTab.CustomTabletConfigs => ConfigsTab,
-            OtdHubTab.Diagnostics => DiagnosticsTab,
-            OtdHubTab.Log => LogTab,
-            OtdHubTab.Plugins => PluginsTab,
-            _ => DaemonTab,
-        };
-        radio.IsChecked = true;
-    }
+        OtdHubTab.WindowsInk => WinInkTab,
+        OtdHubTab.CustomTabletConfigs => ConfigsTab,
+        OtdHubTab.Diagnostics => DiagnosticsTab,
+        OtdHubTab.Log => LogTab,
+        OtdHubTab.Plugins => PluginsTab,
+        _ => DaemonTab,
+    };
 }
