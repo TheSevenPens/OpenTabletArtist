@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 
 namespace OpenTabletArtist.Controls;
 
@@ -43,9 +44,20 @@ public class ComplexHeader : ContentControl
     {
         base.OnPropertyChanged(change);
         if (change.Property == TitleProperty || change.Property == TitleContentProperty)
-        {
-            HasTitleContent = TitleContent != null;
-            HasTitleText = TitleContent == null && !string.IsNullOrEmpty(Title);
-        }
+            UpdateTitleFlags();
+    }
+
+    // Re-sync when the template is applied, so the title slots have the right visibility at bind time
+    // even if Title/TitleContent were set before the property-changed handler ran (load-order safety).
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+        UpdateTitleFlags();
+    }
+
+    private void UpdateTitleFlags()
+    {
+        HasTitleContent = TitleContent != null;
+        HasTitleText = TitleContent == null && !string.IsNullOrEmpty(Title);
     }
 }
