@@ -147,6 +147,31 @@ public class TabletDetailViewModelTests
         Assert.Contains(nameof(vm.ShowConnectToCalibrateHint), changed);
     }
 
+    // Regression: the digitizer specs can arrive after the (cached) VM was created — e.g. when a tablet
+    // reconnects. The active area must recover on the next DataLoaded, not stay stuck on "Active-area
+    // details aren't available" (which happened when only the construction-time snapshot was used).
+    [Fact]
+    public void ActiveArea_RecoversWhenDigitizerArrivesLater()
+    {
+        var settings = AbsoluteSettingsWith("T");
+        var prof = settings.Profiles.First();
+        prof.AbsoluteModeSettings = new AbsoluteModeSettings
+        {
+            Tablet = new AreaSettings { Width = 50, Height = 30, X = 25, Y = 15 },
+        };
+
+        var device = new FakeDeviceData();
+        var vm = new TabletDetailViewModel(
+            prof, settings, tabletDigitizer: null, deviceData: device, isDetected: () => true);
+
+        Assert.Null(vm.TabletArea); // nothing captured at construction and none available yet
+
+        device.Digitizers["T"] = (100f, 60f); // specs arrive as the tablet finishes connecting
+        device.RaiseDataLoaded();
+
+        Assert.NotNull(vm.TabletArea);
+    }
+
     // #177: detection alone isn't enough — a connected tablet in a non-Absolute mode still can't be
     // calibrated (calibration only corrects an Absolute mapping).
     [Fact]
