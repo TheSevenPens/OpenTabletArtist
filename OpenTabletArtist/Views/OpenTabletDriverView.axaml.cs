@@ -11,13 +11,13 @@ using OpenTabletArtist.ViewModels;
 namespace OpenTabletArtist.Views;
 
 /// <summary>
-/// Hosts the OpenTabletDriver hub's secondary tab rail. Lazily mounts each engine page on first
-/// selection (#388). Reacts to <see cref="OpenTabletDriverViewModel.SelectedTab"/> for deep-links.
+/// Hosts the OpenTabletDriver tabbed page's subpage navigation (tab rail). Lazily mounts each subpage
+/// on first selection (#388). Reacts to <see cref="OpenTabletDriverViewModel.SelectedTab"/> for deep-links.
 /// </summary>
 public partial class OpenTabletDriverView : UserControl
 {
     private OpenTabletDriverViewModel? _vm;
-    private readonly Dictionary<OtdHubTab, object> _mounted = new();
+    private readonly Dictionary<OtdTab, object> _mounted = new();
     private bool _syncingTab;
 
     public OpenTabletDriverView() => InitializeComponent();
@@ -28,7 +28,7 @@ public partial class OpenTabletDriverView : UserControl
         _vm = DataContext as OpenTabletDriverViewModel;
         if (_vm != null) _vm.PropertyChanged += OnVmPropertyChanged;
         WireTabHandlers();
-        ShowTab(_vm?.SelectedTab ?? OtdHubTab.Daemon);
+        ShowTab(_vm?.SelectedTab ?? OtdTab.Daemon);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -64,60 +64,60 @@ public partial class OpenTabletDriverView : UserControl
     private void OnDaemonTabChecked(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab || DaemonTab.IsChecked != true) return;
-        ShowTab(OtdHubTab.Daemon);
+        ShowTab(OtdTab.Daemon);
     }
 
     private void OnWinInkTabChecked(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab || WinInkTab.IsChecked != true) return;
-        ShowTab(OtdHubTab.WindowsInk);
+        ShowTab(OtdTab.WindowsInk);
     }
 
     private void OnConfigsTabChecked(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab || ConfigsTab.IsChecked != true) return;
-        ShowTab(OtdHubTab.CustomTabletConfigs);
+        ShowTab(OtdTab.CustomTabletConfigs);
     }
 
     private void OnLogTabChecked(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab || LogTab.IsChecked != true) return;
-        ShowTab(OtdHubTab.Log);
+        ShowTab(OtdTab.Log);
     }
 
     private void OnPluginsTabChecked(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab || PluginsTab.IsChecked != true) return;
-        ShowTab(OtdHubTab.Plugins);
+        ShowTab(OtdTab.Plugins);
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(OpenTabletDriverViewModel.SelectedTab))
-            ShowTab(_vm?.SelectedTab ?? OtdHubTab.Daemon);
+            ShowTab(_vm?.SelectedTab ?? OtdTab.Daemon);
     }
 
     private void OnDiagnosticsTabChanged(object? sender, RoutedEventArgs e)
     {
         if (_syncingTab) return;
         if (DiagnosticsTab.IsChecked == true)
-            ShowTab(OtdHubTab.Diagnostics);
+            ShowTab(OtdTab.Diagnostics);
         else
             _ = _vm?.Diagnostics.StopDebuggingAsync();
     }
 
-    private void ShowTab(OtdHubTab tab)
+    private void ShowTab(OtdTab tab)
     {
         if (_vm == null) return;
         if (!_mounted.TryGetValue(tab, out var content))
         {
             content = tab switch
             {
-                OtdHubTab.WindowsInk => _vm.WindowsInk,
-                OtdHubTab.CustomTabletConfigs => _vm.Configs,
-                OtdHubTab.Diagnostics => _vm.Diagnostics,
-                OtdHubTab.Log => _vm.Log,
-                OtdHubTab.Plugins => _vm.Plugins,
+                OtdTab.WindowsInk => _vm.WindowsInk,
+                OtdTab.CustomTabletConfigs => _vm.Configs,
+                OtdTab.Diagnostics => _vm.Diagnostics,
+                OtdTab.Log => _vm.Log,
+                OtdTab.Plugins => _vm.Plugins,
                 _ => _vm.Daemon,
             };
             _mounted[tab] = content;
@@ -132,15 +132,15 @@ public partial class OpenTabletDriverView : UserControl
         _syncingTab = false;
     }
 
-    private void SelectTabRadio(OtdHubTab tab) => RadioFor(tab).IsChecked = true;
+    private void SelectTabRadio(OtdTab tab) => RadioFor(tab).IsChecked = true;
 
-    private RadioButton RadioFor(OtdHubTab tab) => tab switch
+    private RadioButton RadioFor(OtdTab tab) => tab switch
     {
-        OtdHubTab.WindowsInk => WinInkTab,
-        OtdHubTab.CustomTabletConfigs => ConfigsTab,
-        OtdHubTab.Diagnostics => DiagnosticsTab,
-        OtdHubTab.Log => LogTab,
-        OtdHubTab.Plugins => PluginsTab,
+        OtdTab.WindowsInk => WinInkTab,
+        OtdTab.CustomTabletConfigs => ConfigsTab,
+        OtdTab.Diagnostics => DiagnosticsTab,
+        OtdTab.Log => LogTab,
+        OtdTab.Plugins => PluginsTab,
         _ => DaemonTab,
     };
 }

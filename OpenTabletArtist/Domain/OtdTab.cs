@@ -1,7 +1,7 @@
 namespace OpenTabletArtist.Domain;
 
-/// <summary>Tabs on the OpenTabletDriver hub page (#388, #393).</summary>
-public enum OtdHubTab
+/// <summary>Tabs of the OpenTabletDriver tabbed page (#388, #393). See docs/design/ux-terminology.md.</summary>
+public enum OtdTab
 {
     Daemon = 0,
     WindowsInk = 1,
