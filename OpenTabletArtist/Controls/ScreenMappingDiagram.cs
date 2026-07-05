@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Media;
+using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Controls;
@@ -34,7 +35,7 @@ public sealed class ScreenMappingDiagram : Control
     private static readonly IBrush EffFill = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
     private static readonly IBrush Label = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0x99, 0x33, 0x33, 0x33));
-    private static readonly Typeface Face = new("Segoe UI");
+    private static Typeface UiFace => AppFonts.UiTypeface();
 
     // The connector/effective-area accent; bound to the theme accent so it's pink in Sakura, etc.
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
@@ -191,7 +192,7 @@ public sealed class ScreenMappingDiagram : Control
     }
 
     private static FormattedText Text(string s, double size, IBrush brush) =>
-        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, size, brush);
+        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 

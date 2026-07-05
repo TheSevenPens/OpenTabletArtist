@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- DataContext is OpenTabletDriverViewModel. Like a tablet's page: a secondary tab rail on the left
-         and the selected engine page's existing view on the right (resolved by its typed DataTemplate). -->
+         and the selected engine page's view on the right (lazy-mounted on first visit, #388). -->
     <Grid ColumnDefinitions="Auto,*">
         <!-- Tab rail — vertical, to the left of the content. -->
         <Border Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
@@ -24,14 +24,6 @@
             </StackPanel>
         </Border>
 
-        <!-- Content: the selected engine page's existing view (overlaid; only the active one is shown). -->
-        <Panel Grid.Column="1">
-            <ContentControl Content="{Binding Daemon}" IsVisible="{Binding #DaemonTab.IsChecked}" />
-            <ContentControl Content="{Binding WindowsInk}" IsVisible="{Binding #WinInkTab.IsChecked}" />
-            <ContentControl Content="{Binding Configs}" IsVisible="{Binding #ConfigsTab.IsChecked}" />
-            <ContentControl Content="{Binding Diagnostics}" IsVisible="{Binding #DiagnosticsTab.IsChecked}" />
-            <ContentControl Content="{Binding Log}" IsVisible="{Binding #LogTab.IsChecked}" />
-            <ContentControl Content="{Binding Plugins}" IsVisible="{Binding #PluginsTab.IsChecked}" />
-        </Panel>
+        <ContentControl x:Name="TabHost" Grid.Column="1" />
     </Grid>
 </UserControl>

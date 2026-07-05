@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using OpenTabletArtist.Helpers;
 
 namespace OpenTabletArtist.Controls;
 
@@ -21,7 +22,7 @@ public sealed class WheelGauge : Control
     private static readonly IBrush Track = new SolidColorBrush(Color.FromArgb(0x24, 0x88, 0x88, 0x90));
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0xAA, 0x88, 0x88, 0x90));
     private static readonly IBrush DotRing = Brushes.White;
-    private static readonly Typeface Face = new("Segoe UI");
+    private static Typeface UiFace => AppFonts.UiTypeface();
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
 
     public static readonly StyledProperty<double?> PositionProperty =
@@ -180,7 +181,7 @@ public sealed class WheelGauge : Control
 
     private static void DrawCentered(DrawingContext ctx, Point center, string text, double size, IBrush brush, double dy)
     {
-        var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Face, size, brush);
+        var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
         ctx.DrawText(ft, new Point(center.X - ft.Width / 2, center.Y - ft.Height / 2 + dy));
     }
 }

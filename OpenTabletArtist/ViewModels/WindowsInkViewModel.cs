@@ -225,14 +225,19 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
 
             // Online first: the daemon downloads the newest compatible release from the plugin repo.
             bool ok = _winInkLatest != null && await _session.Daemon.DownloadPluginAsync(_winInkLatest);
-            if (ok) await _session.Daemon.LoadPluginsAsync();
+            if (ok)
+            {
+                if (isUpgrade) await _session.RestartDaemonCommand.ExecuteAsync(null);
+                else await _session.Daemon.LoadPluginsAsync();
+            }
 
             // Offline fallback (#364): if the repo was unreachable or the download failed, install the
             // copy bundled with the app so setup still works without internet.
-            if (!ok && _bundledWinInk.EnsureInstalled(_session.PluginDirectory) != PluginInstallOutcome.None)
+            if (!ok)
             {
-                await _session.Daemon.LoadPluginsAsync();
-                ok = true;
+                var outcome = _bundledWinInk.EnsureInstalled(_session.PluginDirectory);
+                await PluginInstallApplier.ApplyAsync(_session, outcome);
+                ok = outcome != PluginInstallOutcome.None;
             }
 
             RefreshWindowsInkInstalledStatus();

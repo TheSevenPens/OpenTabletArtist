@@ -251,7 +251,7 @@ Building only the app project, or only running the test suite, does **not** prod
 ### "No Tablet Detected" even though my tablet is plugged in
 
 1. Make sure the daemon is running (Advanced → OpenTabletDriver → Daemon).
-2. Wait a few seconds — the app polls for changes every 3 seconds.
+2. Wait a few seconds — the app reconciles with the daemon every 30 seconds (and immediately on connect).
 3. Click the refresh icon to force an immediate check.
 
 ### Build fails with "file is locked by OpenTabletArtist"

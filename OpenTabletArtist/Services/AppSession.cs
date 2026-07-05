@@ -671,19 +671,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _pluginEnsured = true;
         var dir = PluginDirectory;
         var outcome = await Task.Run(() => _pluginInstaller.EnsureInstalled(dir));
-        switch (outcome)
-        {
-            case PluginInstallOutcome.Installed:
-                // Fresh directory the daemon hadn't loaded at startup — a load imports it.
-                await _daemon.LoadPluginsAsync();
-                break;
-            case PluginInstallOutcome.Updated:
-                // The daemon already loaded the old assembly at startup, and LoadPlugins won't
-                // replace an already-loaded directory, so restart it to pick up the new DLL
-                // (Codex #98). On reconnect the plugin is up to date, so this can't loop.
-                await RestartDaemon();
-                break;
-        }
+        await PluginInstallApplier.ApplyAsync(this, outcome);
     }
 
     /// <summary>Low-frequency fallback reconciliation. Detection itself is event-driven (#170); this

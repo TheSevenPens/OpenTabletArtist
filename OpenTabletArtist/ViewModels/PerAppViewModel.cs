@@ -72,7 +72,14 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     }
 
     private void OnDataLoaded() => _ = LoadSafelyAsync();
-    private async Task LoadSafelyAsync() { try { await LoadAsync(); } catch { } }
+    private async Task LoadSafelyAsync()
+    {
+        try { await LoadAsync(); }
+        catch (Exception ex)
+        {
+            StatusLine = $"Couldn't refresh per-app settings: {ex.Message}";
+        }
+    }
 
     /// <summary>Rescan snapshots and rebuild the pickers/mappings from the store.</summary>
     public Task LoadAsync()
@@ -201,7 +208,7 @@ public partial class PerAppMappingRow : ObservableObject
     [ObservableProperty] private string? _selectedSnapshot;
 
     /// <summary>The mapped snapshot no longer exists in the snapshot list.</summary>
-    public bool IsMissing => !string.IsNullOrEmpty(_selectedSnapshot) && !SnapshotOptions.Contains(_selectedSnapshot);
+    public bool IsMissing => !string.IsNullOrEmpty(SelectedSnapshot) && !SnapshotOptions.Contains(SelectedSnapshot);
 
     public string PathDisplay => string.IsNullOrEmpty(ExePath) ? ExeName : ExePath;
 

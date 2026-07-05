@@ -59,10 +59,6 @@ public sealed record HealthInputs
 {
     /// <summary>Connected to the daemon right now.</summary>
     public bool DaemonConnected { get; init; }
-    /// <summary>A connect attempt is in flight (suppresses the "not connected" issue during startup).</summary>
-    public bool DaemonConnecting { get; init; }
-    /// <summary>The daemon exe wasn't found and nothing is running — a hard blocker.</summary>
-    public bool DaemonExeMissing { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>

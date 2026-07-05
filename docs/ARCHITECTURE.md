@@ -232,6 +232,8 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Theming.** Light, Dark, and a custom **Sakura** (`Anime`) variant are implemented via `ResourceDictionary.ThemeDictionaries` in `Themes/Colors.axaml` (theme-overridable keys — accent/glass/backdrop — live **only** in the per-variant dictionaries, since a top-level key would shadow them). `Services/ThemeService` persists the user's choice (`AppSettings`) and applies it through `Application.RequestedThemeVariant` — "System" follows the OS; Sakura defaults on. The selector lives on the **Theme** page (`SettingsViewModel` / `SettingsView`), which also hosts the Sakura falling-petals toggle (`AnimationSettings` + `SakuraPetals`) and the frosted-glass card-opacity slider (`AcrylicSettings`, which drives the global `GlassBgBrush`). Custom-drawn controls still use fixed colors and could be re-tuned per variant.
 
+**Settings card convention (#389).** New settings pages should use `Controls/SettingCard` (+ `ToggleSetting`, `LabeledField`, etc.) instead of hand-rolled `GlassPanel` cards. Existing pages migrate opportunistically when otherwise touched; Theme and Startup are the reference implementations.
+
 **Glassmorphism polish.** Current glass panels use semi-transparent backgrounds with box shadows. True acrylic blur effects could be added for deeper visual fidelity.
 
 **OTD as submodule.** OpenTabletDriver is included as a git submodule at `external/OpenTabletDriver`, pinned to v0.6.7. The Avalonia app references `OpenTabletDriver.Desktop`, `OpenTabletDriver`, and `OpenTabletDriver.Plugin` as project references, giving type-safe access to Settings, Profile, BindingSettings, etc. The daemon is also built from the submodule and auto-started by the app.

@@ -4,7 +4,7 @@ namespace OpenTabletArtist.Concurrency;
 /// Serializes async work so only one runs at a time, and coalesces to "latest wins":
 /// if newer work is requested while an operation waits for the gate, the older queued
 /// operation is skipped. This prevents overlapping <c>LoadDataAsync</c> calls (Connected
-/// handler, the 3s poll, and explicit Refresh) from interleaving or applying stale data
+/// handler, the 30s fallback poll, and explicit Refresh) from interleaving or applying stale data
 /// after newer data. See #19.
 /// </summary>
 public sealed class LatestOnlyGate : IDisposable

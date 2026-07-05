@@ -3,9 +3,8 @@ using System.Globalization;
 namespace OpenTabletArtist.Services;
 
 /// <summary>
-/// Experimental frosted-glass (acrylic) tuning for the cards. Just the two material knobs the Theme
-/// page exposes for now — tint + material opacity — persisted via <see cref="AppSettings"/> so a
-/// tuning session survives restarts. (Rolling the chosen material onto every card is a follow-up.)
+/// Experimental frosted-glass (acrylic) tuning for the cards. Tint + material opacity (+ sidebar
+/// opacity) are persisted via <see cref="AppSettings"/> and exposed on the Theme page.
 /// </summary>
 public static class AcrylicSettings
 {

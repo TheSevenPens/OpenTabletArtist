@@ -28,7 +28,8 @@ public partial class App : Application
 
             var window = new MainWindow();
             desktop.MainWindow = window;
-            window.Show();
+            if (!Program.LaunchInBackground)
+                window.Show();
 
             if (window.DataContext is ViewModels.MainViewModel vm)
                 _tray = new AppTray(desktop, window, vm.Connection, vm.DeviceData, vm.SettingsCoordinator,

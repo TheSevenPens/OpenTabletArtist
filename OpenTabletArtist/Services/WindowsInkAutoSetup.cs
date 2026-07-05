@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace OpenTabletArtist.Services;
@@ -7,7 +9,8 @@ namespace OpenTabletArtist.Services;
 /// Windows Ink plugin when it's missing, and switches any detected tablet that isn't already on a
 /// Windows Ink mode onto Windows Ink Absolute. The mode switch is gated on VMulti being functional
 /// (enabling Windows Ink without it breaks the pointer) and the plugin being present (the mode's plugin
-/// must exist). Runs only on a connected, app-owned daemon; everything is best-effort so a failure just
+/// must exist). Respects per-tablet opt-outs when the user deliberately chose another output mode (#380).
+/// Runs only on a connected, app-owned daemon; everything is best-effort so a failure just
 /// leaves the existing manual controls (Advanced → Windows Ink Plugin, the tablet's Fix button) in play.
 /// </summary>
 public sealed class WindowsInkAutoSetup : System.IDisposable
@@ -19,13 +22,21 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
     private readonly VMultiDetector _vmulti = new();
 
     private bool _busy;
-    private bool _installAttempted; // don't re-attempt a failed install on every 3s poll
+    private int _installAttempts; // bounded retries per session (#397)
 
     public WindowsInkAutoSetup(AppSession session)
     {
         _session = session;
         _setup = new SetupActions(session, session);
         _session.DataLoaded += OnDataLoaded;
+        _session.PropertyChanged += OnSessionPropertyChanged;
+    }
+
+    private void OnSessionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Fresh connect → allow another install attempt (#397).
+        if (e.PropertyName == nameof(AppSession.IsConnected) && _session.IsConnected)
+            _installAttempts = 0;
     }
 
     private async void OnDataLoaded()
@@ -46,8 +57,8 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
     private async Task EnsurePluginInstalledAsync()
     {
         if (_winInk.ReadInstalled(_session.PluginDirectory) != null) return; // already installed
-        if (_installAttempted) return;                                       // tried once this session
-        _installAttempted = true;
+        if (_installAttempts >= 3) return;                                   // bounded retries (#397)
+        _installAttempts++;
 
         // Online first (newest compatible from the plugin repo), then the copy bundled with the app.
         var latest = await _winInk.GetLatestCompatibleAsync();
@@ -56,8 +67,8 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
             await _session.Daemon.LoadPluginsAsync();
             return;
         }
-        if (_bundled.EnsureInstalled(_session.PluginDirectory) != PluginInstallOutcome.None)
-            await _session.Daemon.LoadPluginsAsync();
+        var outcome = _bundled.EnsureInstalled(_session.PluginDirectory);
+        await PluginInstallApplier.ApplyAsync(_session, outcome);
     }
 
     private async Task EnsureWindowsInkEnabledAsync()
@@ -67,9 +78,30 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
         // to Windows Ink would stop the pointer — so leave the tablet alone until VMulti is functional.
         if (_winInk.ReadInstalled(_session.PluginDirectory) == null) return;
         if (!_vmulti.DetectHid().Functional) return;
-        if (_setup.DetectedTabletsNotOnWindowsInk().Count == 0) return;
-        await _setup.SetDetectedTabletsToWindowsInkAsync();
+
+        var pending = _setup.DetectedTabletsNotOnWindowsInk()
+            .Where(t => !WinInkAutoOptOut.IsOptedOut(t))
+            .ToList();
+        if (pending.Count == 0) return;
+
+        if (_session.CurrentSettings is not { } settings) return;
+        int changed = 0;
+        foreach (var name in pending)
+        {
+            var prof = settings.Profiles.FirstOrDefault(p =>
+                string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
+            if (prof == null) continue;
+            prof.OutputMode ??= new OpenTabletDriver.Desktop.Reflection.PluginSettingStore(
+                "VoiDPlugins.OutputMode.WinInkAbsoluteMode", true);
+            prof.OutputMode.Path = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
+            changed++;
+        }
+        if (changed > 0) await _session.ApplyAndSaveSettingsAsync(settings);
     }
 
-    public void Dispose() => _session.DataLoaded -= OnDataLoaded;
+    public void Dispose()
+    {
+        _session.DataLoaded -= OnDataLoaded;
+        _session.PropertyChanged -= OnSessionPropertyChanged;
+    }
 }

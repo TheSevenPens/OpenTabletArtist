@@ -201,6 +201,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             p.OutputMode ??= new PluginSettingStore(path, true);
             p.OutputMode.Path = path;
         });
+        if (path.Contains("WinInk", StringComparison.OrdinalIgnoreCase))
+            WinInkAutoOptOut.Clear(_profile.Tablet);
+        else
+            WinInkAutoOptOut.OptOut(_profile.Tablet);
     }
 
     public TabletDetailViewModel(Profile profile, Settings? settings,
@@ -513,10 +517,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         for (int i = 0; i < bindings.PenButtons.Count; i++)
             rows.Add(new(PenSwitchKind.PenButton, i + 1, bindings.PenButtons[i], canEdit, ApplyPenSwitchBindingAsync));
         if (rows.Count > 0) rows[0].IsFirst = true; // suppresses the leading divider in the merged card
-        PenSwitchRows = rows;
 
-        // Also expose each switch by slot, so the visual pen diagram can bind the tip/eraser/buttons to
-        // their positions and show only the buttons this pen actually has (#pen-switch-diagram).
+        // Expose each switch by slot so the visual pen diagram can bind tip/eraser/buttons (#pen-switch-diagram).
         PenTipRow = rows[0];
         PenEraserRow = rows[1];
         var buttons = rows.Skip(2).ToList();
@@ -930,7 +932,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isWinInkRelative;
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
-    [ObservableProperty] private List<PenSwitchRowViewModel> _penSwitchRows = [];
     // Per-slot views for the visual pen diagram (button slots are null when the pen lacks that button).
     [ObservableProperty] private PenSwitchRowViewModel? _penTipRow;
     [ObservableProperty] private PenSwitchRowViewModel? _penEraserRow;

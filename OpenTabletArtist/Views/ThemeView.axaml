@@ -70,6 +70,8 @@
             <StackPanel Spacing="10">
                 <c:LabeledSlider Label="Cards" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
+                <c:LabeledSlider Label="Tint strength" LabelWidth="130"
+                                 Minimum="0.15" Maximum="1" Value="{Binding TintOpacity}" />
                 <c:LabeledSlider Label="Left pane" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
             </StackPanel>

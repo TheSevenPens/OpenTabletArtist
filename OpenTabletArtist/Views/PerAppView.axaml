@@ -57,7 +57,8 @@
 
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <RadioButton GroupName="fallback" Content="A specific profile" FontSize="13"
-                                         IsChecked="{Binding !FallbackToCurrent}" VerticalAlignment="Center" />
+                                         IsChecked="{Binding FallbackToCurrent, Converter={StaticResource InvBool}, Mode=TwoWay}"
+                                         VerticalAlignment="Center" />
                             <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding FallbackProfile}"
                                       IsEnabled="{Binding !FallbackToCurrent}" MinWidth="160" />
                         </StackPanel>

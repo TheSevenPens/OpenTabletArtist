@@ -201,14 +201,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // Deep-link to the Windows Ink tab of the OpenTabletDriver hub (a health-issue "Fix" target).
     private void OpenWindowsInk()
     {
-        OpenTabletDriver.SelectedTab = 1; // 1 = Windows Ink Plugin
+        OpenTabletDriver.SelectedTab = OtdHubTab.WindowsInk;
         Navigate(OpenTabletDriver);
     }
 
     // Deep-link to the Daemon tab of the OpenTabletDriver hub (the Home daemon card's "Open daemon page").
     private void OpenDaemonPage()
     {
-        OpenTabletDriver.SelectedTab = 0; // 0 = Daemon
+        OpenTabletDriver.SelectedTab = OtdHubTab.Daemon;
         Navigate(OpenTabletDriver);
     }
 
