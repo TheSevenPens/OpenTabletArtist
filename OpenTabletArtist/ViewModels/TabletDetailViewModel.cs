@@ -307,8 +307,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         IsTabletDetected = _isDetectedProbe?.Invoke() ?? false;
         DetectionText = IsTabletDetected
-            ? "Connected"
-            : "Not currently connected — showing this tablet's saved settings.";
+            ? "Detected"
+            : "Not currently detected — showing this tablet's saved settings.";
     }
 
     [RelayCommand]
@@ -320,7 +320,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             // The tablet/profile is gone (unplugged or removed since it was opened). Keep showing the
             // last-known data rather than blanking it, but warn it may be stale.
-            RefreshWarning = "This tablet is no longer connected — showing the last known settings.";
+            RefreshWarning = "This tablet is no longer detected — showing the last known settings.";
             RefreshDetectionStatus();
             return;
         }
