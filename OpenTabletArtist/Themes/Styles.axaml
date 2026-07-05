@@ -60,6 +60,38 @@
             </Setter>
         </ControlTheme>
 
+        <!-- SelectableCard: a RadioButton rendered as a selectable option card (card-style pickers, e.g.
+             Pen Behavior). The checked card is made obvious with an accent outline + a "Current mode"
+             badge; hovering an unchecked card hints with a muted accent border. -->
+        <ControlTheme x:Key="SelectableCard" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="PART_Card" Classes="GlassPanel" Padding="16">
+                        <Panel>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              VerticalAlignment="Top" />
+                            <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="8"
+                                    Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False">
+                                <TextBlock Text="Current mode" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                            </Border>
+                        </Panel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover:not(:checked) /template/ Border#PART_Card">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentMutedBrush}" />
+            </Style>
+            <Style Selector="^:checked /template/ Border#PART_Card">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
+            <Style Selector="^:checked /template/ Border#PART_Badge">
+                <Setter Property="IsVisible" Value="True" />
+            </Style>
+        </ControlTheme>
+
         <!-- LabeledField: fixed-width caption column + an arbitrary control. -->
         <ControlTheme x:Key="{x:Type c:LabeledField}" TargetType="c:LabeledField">
             <Setter Property="Template">

@@ -153,33 +153,42 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #OutputModeTab.IsChecked}">
             <StackPanel>
-                <!-- Movement: a plain-language Absolute vs Relative choice (both are Windows Ink modes). -->
-                <Border Classes="GlassPanel" Padding="16">
-                    <StackPanel>
-                        <TextBlock Text="MOVEMENT" Classes="SectionLabel" />
-                        <StackPanel Margin="0,10,0,0" Spacing="8">
-                            <RadioButton GroupName="Movement" FontSize="13"
-                                         IsChecked="{Binding IsAbsoluteMode, Mode=TwoWay}">
-                                <TextBlock TextWrapping="Wrap"><Run Text="Normal pen movement (aka " /><Run Text="ABSOLUTE" FontWeight="Bold" /><Run Text=" mode) — good for artists" /></TextBlock>
-                            </RadioButton>
-                            <RadioButton GroupName="Movement" FontSize="13"
-                                         IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=TwoWay}">
-                                <TextBlock TextWrapping="Wrap"><Run Text="Mouse-like movement (aka " /><Run Text="RELATIVE" FontWeight="Bold" /><Run Text=" mode) — often used with games" /></TextBlock>
-                            </RadioButton>
+                <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
+                     the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
+                <TextBlock Text="MOVEMENT" Classes="SectionLabel" />
+                <TextBlock Text="How the pen maps to the screen." FontSize="12" Margin="0,4,0,0"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <UniformGrid Columns="2" Margin="0,12,0,0">
+                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}" Margin="0,0,12,0"
+                                 IsChecked="{Binding IsAbsoluteMode, Mode=TwoWay}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
+                            <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
+                    </RadioButton>
+                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}"
+                                 IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=TwoWay}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
+                            <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </RadioButton>
+                </UniformGrid>
 
-                        <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
-                        <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
-                                   TextWrapping="Wrap"
-                                   IsVisible="{Binding CanFixOutputMode}" />
-                        <Button Content="Fix" Theme="{StaticResource AccentButton}"
-                                Command="{Binding FixOutputModeCommand}"
-                                Padding="12,6" FontSize="11" Margin="0,6,0,0"
-                                HorizontalAlignment="Left"
-                                IsVisible="{Binding CanFixOutputMode}" />
-                    </StackPanel>
-                </Border>
+                <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
+                <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
+                           FontSize="10" Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding CanFixOutputMode}" />
+                <Button Content="Fix" Theme="{StaticResource AccentButton}"
+                        Command="{Binding FixOutputModeCommand}"
+                        Padding="12,6" FontSize="11" Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        IsVisible="{Binding CanFixOutputMode}" />
             </StackPanel>
         </ScrollViewer>
 
