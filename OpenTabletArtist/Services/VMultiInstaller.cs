@@ -232,11 +232,10 @@ public class VMultiInstaller
             await process.WaitForExitAsync(ct);
             ProgressChanged?.Invoke(100);
 
-            var message = process.ExitCode == 0
-                ? "VMulti was removed. A restart is recommended to finish cleaning it up."
-                : "VMulti removal finished with warnings. Check Device Manager — the card will show the detected state.";
             StatusChanged?.Invoke("VMulti driver removed.");
-            return new InstallResult(true, message, RebootRecommended: true);
+            return new InstallResult(true,
+                "VMulti was removed. A restart is recommended to finish cleaning it up.",
+                RebootRecommended: true);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {

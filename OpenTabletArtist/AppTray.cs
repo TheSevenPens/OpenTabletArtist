@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -282,7 +283,14 @@ public sealed class AppTray : IDisposable
         // after exit (#167). Awaited on the UI thread (no blocking); bounded so a stuck RPC can't hang Quit.
         if (_onQuitAsync != null)
         {
-            try { await Task.WhenAny(_onQuitAsync(), Task.Delay(5000)); } catch { }
+            try
+            {
+                var restore = _onQuitAsync();
+                var delay = Task.Delay(5000);
+                if (await Task.WhenAny(restore, delay) == delay)
+                    Trace.TraceWarning("Per-app restore on quit timed out after 5s; a snapshot may remain applied.");
+            }
+            catch { }
         }
         Dispose();
         _desktop.Shutdown(); // closes the window (→ MainViewModel.Dispose) and exits the app
