@@ -84,9 +84,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; } = new();
 
-    /// <summary>The per-tablet nav children — paired ∪ connected, ordered like the old list (detected
-    /// first, then most-recently-seen). Rebuilt on each data load; clicking one shows its page.</summary>
-    public ObservableCollection<TabletNavItemViewModel> Tablets { get; } = new();
+    /// <summary>The per-tablet child nodes under the Tablets parent node — paired ∪ connected, ordered
+    /// like the old list (detected first, then most-recently-seen). Rebuilt on each data load; clicking
+    /// one shows its page.</summary>
+    public ObservableCollection<TabletNavNodeViewModel> Tablets { get; } = new();
     public bool HasTablets => Tablets.Count > 0;
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
@@ -214,7 +215,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
     [RelayCommand]
-    private void NavigateToTablet(TabletNavItemViewModel item)
+    private void NavigateToTablet(TabletNavNodeViewModel item)
     {
         if (!_tabletDetails.TryGetValue(item.Name, out var vm))
         {
@@ -267,7 +268,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Rebuild the lightweight nav-item list (order shifts as detection/last-seen change).
         Tablets.Clear();
         foreach (var p in ordered)
-            Tablets.Add(new TabletNavItemViewModel(p.Tablet, p.IsDetected,
+            Tablets.Add(new TabletNavNodeViewModel(p.Tablet, p.IsDetected,
                 item => ForgetTabletByNameAsync(item.Name)));
 
         // Rebuild the richer overview rows (same order) — status, last-seen, specs, navigable (#307).
@@ -363,14 +364,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 }
 
-/// <summary>One tablet in the sidebar's Tablets group — name + live connection status + selection.
-/// Forget is a command on the item itself (a right-click context menu lives in a popup where an
-/// ancestor binding back to the shell isn't reliable).</summary>
-public partial class TabletNavItemViewModel : ObservableObject
+/// <summary>A child node under the Tablets parent node in the page navigation bar (see
+/// docs/design/ux-terminology.md) — name + live connection status + selection. Forget is a command on
+/// the node itself (a right-click context menu lives in a popup where an ancestor binding back to the
+/// shell isn't reliable).</summary>
+public partial class TabletNavNodeViewModel : ObservableObject
 {
-    private readonly Func<TabletNavItemViewModel, Task> _forget;
+    private readonly Func<TabletNavNodeViewModel, Task> _forget;
 
-    public TabletNavItemViewModel(string name, bool isDetected, Func<TabletNavItemViewModel, Task> forget)
+    public TabletNavNodeViewModel(string name, bool isDetected, Func<TabletNavNodeViewModel, Task> forget)
     {
         Name = name;
         _isDetected = isDetected;

@@ -188,8 +188,9 @@
             </Style>
         </ControlTheme>
 
-        <!-- Nav Item Button -->
-        <ControlTheme x:Key="NavButton" TargetType="RadioButton">
+        <!-- Nav Node — a leaf or parent node in the page navigation bar (a selectable page
+             destination). See docs/design/ux-terminology.md. -->
+        <ControlTheme x:Key="NavNode" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -241,10 +242,11 @@
             </Style>
         </ControlTheme>
 
-        <!-- Nav Group Header — a collapsible section header in the sidebar (e.g. "ADVANCED").
-             Looks like a nav row (so the label aligns) but muted, with a chevron that flips when
-             expanded. IsChecked drives expand/collapse. -->
-        <ControlTheme x:Key="NavGroupHeader" TargetType="ToggleButton">
+        <!-- Nav Group Node — a group node in the page navigation bar: a collapsible section that only
+             groups child nodes (e.g. "ADVANCED"), opening nothing itself. Looks like a nav node (so the
+             label aligns) but muted, with a chevron that flips when expanded. IsChecked drives
+             expand/collapse. See docs/design/ux-terminology.md. -->
+        <ControlTheme x:Key="NavGroupNode" TargetType="ToggleButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
