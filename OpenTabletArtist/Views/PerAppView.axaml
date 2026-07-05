@@ -38,37 +38,27 @@
                     <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
                               FontWeight="SemiBold" />
 
-                    <!-- Fallback for apps that aren't mapped: revert to the live Current settings, or a profile. -->
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="For apps you haven't mapped, use" FontSize="13" FontWeight="SemiBold" />
-
-                        <RadioButton GroupName="fallback" IsChecked="{Binding FallbackToCurrent, Mode=TwoWay}">
-                            <StackPanel>
-                                <TextBlock FontSize="13">
-                                    <Run Text="Current settings" />
-                                    <Run Text=" — what's live in OpenTabletDriver now"
-                                         Foreground="{DynamicResource TextMutedBrush}" />
-                                </TextBlock>
-                                <TextBlock Text="Unmapped apps return the tablet to your normal configuration."
-                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                           TextWrapping="Wrap" Margin="0,1,0,0" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <RadioButton GroupName="fallback" Content="A specific profile" FontSize="13"
-                                         IsChecked="{Binding FallbackToCurrent, Converter={StaticResource InvBool}, Mode=TwoWay}"
-                                         VerticalAlignment="Center" />
-                            <ComboBox ItemsSource="{Binding SnapshotNames}" SelectedItem="{Binding FallbackProfile}"
-                                      IsEnabled="{Binding !FallbackToCurrent}" MinWidth="160" />
-                        </StackPanel>
-                    </StackPanel>
-
                     <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7">
                         <TextBlock Text="{Binding StatusLine}" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
                     </Border>
                 </StackPanel>
+            </Border>
+
+            <!-- Catch-all card: what any app that isn't mapped below should use. Same dropdown (Current
+                 settings + saved profiles) as every app card — one consistent way to target the live
+                 config or a profile, even for unmapped apps. -->
+            <Border Classes="GlassPanel" Padding="16">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                        <TextBlock Classes="CardTitle" Text="All other apps" />
+                        <TextBlock Text="Used whenever the focused app isn't one of the mapped apps below."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,2,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="170"
+                              ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding UnmappedTarget}" />
+                </Grid>
             </Border>
 
             <!-- Mappings -->

@@ -30,6 +30,18 @@ public class PerAppProfileStoreTests
     }
 
     [Fact]
+    public void Resolve_MatchedCurrentSettingsMapping_WinsOverDefault()
+    {
+        var s = new Mem().Store();
+        s.SetDefaultSnapshot("Fallback");
+        s.Upsert(new PerAppMapping("", "krita.exe", SnapshotName: null)); // explicitly "Current settings"
+
+        // A matched mapping targeting Current settings (null) must win over the default, not fall through.
+        Assert.Null(s.Resolve(App("krita.exe")));
+        Assert.Equal("Fallback", s.Resolve(App("other.exe"))); // unmapped still uses the default
+    }
+
+    [Fact]
     public void Resolve_NullWhenNoMatchAndNoDefault()
     {
         var s = new Mem().Store();

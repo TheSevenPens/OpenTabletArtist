@@ -139,7 +139,7 @@ public class TabletDetailViewModelTests
         vm.RefreshDetectionStatus();
 
         Assert.True(vm.IsTabletDetected);
-        Assert.Equal("Connected", vm.DetectionText);
+        Assert.Equal("Detected", vm.DetectionText);
         Assert.True(vm.CanRunCalibration);
         Assert.False(vm.ShowConnectToCalibrateHint);
         // The dependent gates re-notify so the button/hint update without reopening the dialog.

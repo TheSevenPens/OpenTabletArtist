@@ -6,9 +6,11 @@ using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
 
-/// <summary>One app→snapshot mapping (#167). <see cref="ExePath"/> is the full image path (may be empty
-/// for elevated/UWP apps); <see cref="ExeName"/> is the portable fallback match key.</summary>
-public record PerAppMapping(string ExePath, string ExeName, string SnapshotName, bool Enabled = true);
+/// <summary>One app→target mapping (#167). <see cref="ExePath"/> is the full image path (may be empty
+/// for elevated/UWP apps); <see cref="ExeName"/> is the portable fallback match key.
+/// <see cref="SnapshotName"/> is the saved profile to apply, or <c>null</c> to use the live Current
+/// settings for this app (i.e. don't switch to a saved profile).</summary>
+public record PerAppMapping(string ExePath, string ExeName, string? SnapshotName, bool Enabled = true);
 
 /// <summary>The whole per-app config: master enable, an optional default snapshot for unmapped apps
 /// (null = the user's on-disk default), and the mappings.</summary>
@@ -43,8 +45,9 @@ public sealed class PerAppProfileStore
     public static PerAppProfileStore ForApp() =>
         new(() => AppSettings.Get(Key), v => AppSettings.Set(Key, v));
 
-    /// <summary>The snapshot to apply for <paramref name="app"/>, or null to use the user's on-disk
-    /// default. Exact path wins over name; unmapped apps fall back to the configured default snapshot.</summary>
+    /// <summary>The snapshot to apply for <paramref name="app"/>, or null to use the live Current
+    /// settings. Exact path wins over name. A matched mapping wins even when it targets Current settings
+    /// (null); only an unmapped app falls back to the configured default (itself null = Current settings).</summary>
     public string? Resolve(AppIdentity app)
     {
         var byPath = !string.IsNullOrEmpty(app.ExePath)
@@ -53,7 +56,9 @@ public sealed class PerAppProfileStore
             : null;
         var match = byPath ?? Config.Mappings.FirstOrDefault(m => m.Enabled &&
             string.Equals(m.ExeName, app.ExeName, StringComparison.OrdinalIgnoreCase));
-        return match?.SnapshotName ?? Config.DefaultSnapshot;
+        // A matched mapping's target wins — including null (Current settings). Distinguish "matched, use
+        // current" from "no match" so the former doesn't silently fall through to the default.
+        return match != null ? match.SnapshotName : Config.DefaultSnapshot;
     }
 
     // ── Mutations (each persists) ────────────────────────────────────────────────

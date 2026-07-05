@@ -49,7 +49,7 @@ public class PerAppViewModelTests
     }
 
     [Fact]
-    public async Task FallbackToCurrentFalse_PersistsFallbackProfile()
+    public async Task UnmappedTarget_Profile_PersistsAsDefault_CurrentSettingsClearsIt()
     {
         var dir = TempDirWith("Painting", "Gaming");
         try
@@ -60,10 +60,12 @@ public class PerAppViewModelTests
             var vm = NewVm(store, device);
 
             await vm.LoadAsync();
-            vm.FallbackToCurrent = false;
-            vm.FallbackProfile = "Gaming";
 
+            vm.UnmappedTarget = "Gaming";
             Assert.Equal("Gaming", store.Config.DefaultSnapshot);
+
+            vm.UnmappedTarget = PerAppViewModel.CurrentSettingsOption;
+            Assert.Null(store.Config.DefaultSnapshot);
         }
         finally
         {
@@ -72,7 +74,7 @@ public class PerAppViewModelTests
     }
 
     [Fact]
-    public async Task LoadAsync_RestoresSpecificProfileFallback()
+    public async Task LoadAsync_RestoresUnmappedTargetFromStoredDefault()
     {
         var dir = TempDirWith("Painting", "Gaming");
         try
@@ -85,8 +87,7 @@ public class PerAppViewModelTests
 
             await vm.LoadAsync();
 
-            Assert.False(vm.FallbackToCurrent);
-            Assert.Equal("Gaming", vm.FallbackProfile);
+            Assert.Equal("Gaming", vm.UnmappedTarget);
         }
         finally
         {
