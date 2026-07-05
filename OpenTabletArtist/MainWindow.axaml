@@ -44,21 +44,22 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- Nav Items (labels in all caps). Most pages sit at the root; the less-common ones
-                     are tucked under a collapsible ADVANCED group at the bottom. Scrolls when the list
-                     is taller than the window (e.g. many tablets, or ADVANCED expanded on a short window). -->
+                <!-- The page navigation bar: nodes (labels in all caps) that select a page. Most sit at
+                     the root; the less-common ones are grouped under a collapsible ADVANCED group node.
+                     Scrolls when taller than the window (many tablets, or ADVANCED expanded). See
+                     docs/design/ux-terminology.md. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,0,8,0">
-                    <!-- HOME lands on the merged home + tablets page; the per-tablet children nest under
-                         it (paired ∪ connected). Click a child to edit it in-place; right-click to
-                         forget. Empty-state message when there are none. (#317) -->
-                    <RadioButton Theme="{StaticResource NavButton}" Content="HOME"
+                    <!-- HOME is a parent node: a leaf node (opens the merged home + tablets page) that
+                         also has per-tablet child nodes nested under it (paired ∪ connected). Click a
+                         child to open its page; right-click to forget. Empty-state when there are none. (#317) -->
+                    <RadioButton Theme="{StaticResource NavNode}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
                     <ItemsControl ItemsSource="{Binding Tablets}" Margin="12,0,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <RadioButton Theme="{StaticResource NavButton}" Content="{Binding Name}"
+                                <RadioButton Theme="{StaticResource NavNode}" Content="{Binding Name}"
                                              IsChecked="{Binding IsSelected, Mode=OneWay}"
                                              Command="{Binding $parent[ItemsControl].DataContext.NavigateToTabletCommand}"
                                              CommandParameter="{Binding}"
@@ -79,53 +80,53 @@
                                Margin="20,4,8,2" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding !HasTablets}" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="PROFILES"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="PROFILES"
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
                     <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). -->
-                    <RadioButton Theme="{StaticResource NavButton}" Content="PER-APP PROFILES"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="PER-APP PROFILES"
                                  IsChecked="{Binding IsPerApp, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
                                  Margin="12,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="HOTKEYS"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="HOTKEYS"
                                  IsChecked="{Binding IsHotkeys, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Hotkeys}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="SCRIBBLE"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="SCRIBBLE"
                                  IsChecked="{Binding IsTest, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
                                  Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavButton}" Content="ABOUT"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="ABOUT"
                                  IsChecked="{Binding IsAbout, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
                                  Margin="0,2,0,0" />
 
-                    <!-- ADVANCED group: collapsible header + indented children (auto-expands when one
-                         of its pages is active, via IsAdvancedExpanded). -->
-                    <ToggleButton Theme="{StaticResource NavGroupHeader}" Content="ADVANCED"
+                    <!-- ADVANCED is a group node: a collapsible node that only groups its child nodes
+                         (auto-expands when one of its pages is active, via IsAdvancedExpanded). -->
+                    <ToggleButton Theme="{StaticResource NavGroupNode}" Content="ADVANCED"
                                   IsChecked="{Binding IsAdvancedExpanded, Mode=TwoWay}"
                                   Margin="0,8,0,0" />
                     <StackPanel IsVisible="{Binding IsAdvancedExpanded}" Margin="12,0,0,0">
-                        <!-- OpenTabletDriver hub: one entry that opens a page with its own secondary tab
-                             rail (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins). -->
-                        <RadioButton Theme="{StaticResource NavButton}" Content="OPENTABLETDRIVER"
+                        <!-- OpenTabletDriver: a leaf node opening a tabbed page (its own subpage
+                             navigation: Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins). -->
+                        <RadioButton Theme="{StaticResource NavNode}" Content="OPENTABLETDRIVER"
                                      IsChecked="{Binding IsOtd, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding OpenTabletDriver}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="VMULTI DRIVER"
+                        <RadioButton Theme="{StaticResource NavNode}" Content="VMULTI DRIVER"
                                      IsChecked="{Binding IsVMulti, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding VMulti}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="DRIVER CLEANUP"
+                        <RadioButton Theme="{StaticResource NavNode}" Content="DRIVER CLEANUP"
                                      IsChecked="{Binding IsDriverCleanup, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding DriverCleanup}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="STARTUP"
+                        <RadioButton Theme="{StaticResource NavNode}" Content="STARTUP"
                                      IsChecked="{Binding IsStartup, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Startup}"
                                      Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavButton}" Content="THEME"
+                        <RadioButton Theme="{StaticResource NavNode}" Content="THEME"
                                      IsChecked="{Binding IsTheme, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Theme}"
                                      Margin="0,2,0,0" />
