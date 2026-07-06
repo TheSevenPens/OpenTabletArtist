@@ -99,6 +99,20 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// disabled — prompt the user to connect it (#177).</summary>
     public bool ShowConnectToCalibrateHint => CanCalibrate && !IsTabletDetected;
 
+    /// <summary>Which display the calibration overlay opens on — the tablet's currently-mapped display —
+    /// so the user knows which screen to watch. Recomputed whenever the mapping/displays change (via
+    /// <see cref="RefreshTabletArea"/>).</summary>
+    public string CalibrationDisplayText
+    {
+        get
+        {
+            var mapped = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
+            return mapped != null
+                ? $"Calibration opens on Display {mapped.Number} ({mapped.Name}) — where your tablet is mapped."
+                : "Calibration opens on the display your tablet is mapped to.";
+        }
+    }
+
     /// <summary>Calibration capture presets: the corner method (→ homography, #195) or a finer grid
     /// (→ bilinear offsets, #196). Each backs a calibration card whose START button begins that mode.</summary>
     public IReadOnlyList<CalibrationModeChoice> CalibrationModeChoices { get; } = new List<CalibrationModeChoice>
@@ -1132,6 +1146,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             TabletArea = null;
         }
+        // The mapped display drives where the calibration overlay pops up (Calibration tab hint).
+        OnPropertyChanged(nameof(CalibrationDisplayText));
     }
 
     // ── Active Area tab: read-out of the full vs. effective (used) area ──────────

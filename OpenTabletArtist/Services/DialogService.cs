@@ -78,7 +78,12 @@ public class DialogService : IDialogService
             onCalibrate: options =>
             {
                 var owner = Dialogs.GetMainWindow();
-                return owner != null ? ShowCalibrationAsync(profile, owner, options) : Task.CompletedTask;
+                if (owner == null) return Task.CompletedTask;
+                // Resolve the profile live (by tablet name) so the overlay follows the CURRENT display
+                // mapping. The VM swaps its _profile on refresh (#124), so a captured reference goes stale
+                // after a remap and would open the overlay on the previously-mapped display.
+                var current = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName) ?? profile;
+                return ShowCalibrationAsync(current, owner, options);
             },
             // Express-key / wheel binding editor, owned by the main window (the page has no window).
             editBinding: async (binding, title) =>
@@ -114,8 +119,11 @@ public class DialogService : IDialogService
             // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
             () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
             // Open the pointer-calibration overlay owned by the settings dialog (#127), using the
-            // capture mode the user picked (corners → homography, or a finer grid; #195/#196).
-            (owner, options) => ShowCalibrationAsync(profile, owner, options),
+            // capture mode the user picked (corners → homography, or a finer grid; #195/#196). Resolve
+            // the profile live (by name) so the overlay follows the current display mapping (#124).
+            (owner, options) => ShowCalibrationAsync(
+                _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName) ?? profile,
+                owner, options),
             // Live-refresh the detection banner + tablet-dependent actions while the dialog is open
             // (#177): the session reloads on the daemon's TabletsChanged push (#170) and raises DataLoaded.
             _session);
