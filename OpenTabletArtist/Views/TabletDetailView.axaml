@@ -334,6 +334,14 @@
                            FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,6,0,12" TextWrapping="Wrap" />
 
+                <!-- Which display the overlay pops up on (the tablet's mapped display), so the user knows
+                     where to look. -->
+                <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7"
+                        Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
+                    <TextBlock Text="{Binding CalibrationDisplayText}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
+                </Border>
+
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
                      currently in use gets an accent outline + "In use" badge. Equal-size cards
                      (UniformGrid); the START button sits directly below the diagram with the explanatory
