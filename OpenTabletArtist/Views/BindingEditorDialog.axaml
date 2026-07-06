@@ -162,6 +162,8 @@
             <StackPanel Orientation="Horizontal">
                 <RadioButton Classes="tab" Content="KEYBOARD" GroupName="type"
                              IsChecked="{Binding IsKeyboardTab, Mode=TwoWay}" />
+                <RadioButton Classes="tab" Content="MEDIA" GroupName="type"
+                             IsChecked="{Binding IsMediaTab, Mode=TwoWay}" />
                 <RadioButton Classes="tab" Content="MOUSE" GroupName="type"
                              IsChecked="{Binding IsMouseTab, Mode=TwoWay}" />
                 <RadioButton Classes="tab" Content="SCROLL" GroupName="type"
@@ -235,6 +237,27 @@
                                  IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Left}" />
                     <RadioButton Content="Scroll right" GroupName="sc"
                                  IsChecked="{Binding SelectedScroll, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Right}" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Media (consumer keys — stored as keyboard bindings, no modifiers). -->
+            <StackPanel Spacing="7" IsVisible="{Binding IsMediaTab}">
+                <TextBlock Text="MEDIA KEY" Classes="caption" />
+                <StackPanel Spacing="6">
+                    <RadioButton Content="Mute" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=Mute}" />
+                    <RadioButton Content="Volume down" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=VolumeDown}" />
+                    <RadioButton Content="Volume up" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=VolumeUp}" />
+                    <RadioButton Content="Play / Pause" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=PlayPause}" />
+                    <RadioButton Content="Previous track" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=PreviousSong}" />
+                    <RadioButton Content="Next track" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=NextSong}" />
+                    <RadioButton Content="Stop" GroupName="md"
+                                 IsChecked="{Binding SelectedMediaKey, Mode=TwoWay, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=StopSong}" />
                 </StackPanel>
             </StackPanel>
         </Panel>

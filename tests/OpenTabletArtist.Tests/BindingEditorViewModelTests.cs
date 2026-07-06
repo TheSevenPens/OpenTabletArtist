@@ -148,4 +148,37 @@ public class BindingEditorViewModelTests
         var chips = vm.ComboParts.Where(p => p.IsChip).Select(p => p.Text).ToList();
         Assert.Equal(new[] { "CTRL", "ALT", "E" }, chips);
     }
+
+    // A media key is stored as a keyboard binding but must open on the MEDIA tab, not KEYBOARD.
+    [Fact]
+    public void Init_MediaKey_OpensMediaTabPrefilled()
+    {
+        var binding = new AuxBinding(AuxKind.Keyboard, new AuxCombo(false, false, false, "Mute"),
+            AuxKeyBinding.None, AuxKeyBinding.None);
+        var vm = new BindingEditorViewModel(binding, "ExpressKey 1");
+
+        Assert.Equal(BindingEditorViewModel.MediaTab, vm.SelectedTabIndex);
+        Assert.Equal("Mute", vm.SelectedMediaKey);
+        Assert.True(vm.CanSave);
+    }
+
+    [Fact]
+    public void Save_Media_ProducesKeyboardBinding_NoModifiers()
+    {
+        var vm = new BindingEditorViewModel(AuxBinding.Unbound, "x")
+        { SelectedTabIndex = BindingEditorViewModel.MediaTab, SelectedMediaKey = "VolumeUp" };
+
+        vm.SaveCommand.Execute(null);
+
+        Assert.Equal(AuxKind.Keyboard, vm.Result!.Kind);
+        Assert.Equal("VolumeUp", vm.Result.Combo.Key);
+        Assert.False(vm.Result.Combo.Ctrl || vm.Result.Combo.Shift || vm.Result.Combo.Alt);
+    }
+
+    [Fact]
+    public void Numpad_IncludesKeypadEqual_LabelledEquals()
+    {
+        var vm = new BindingEditorViewModel(AuxBinding.Unbound, "x");
+        Assert.Contains(vm.NumpadRows.SelectMany(r => r), c => c.Value == "KeypadEqual" && c.Display == "=");
+    }
 }

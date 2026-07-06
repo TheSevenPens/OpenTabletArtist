@@ -15,7 +15,14 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class BindingEditorViewModel : ObservableObject
 {
-    public const int KeyboardTab = 0, MouseTab = 1, ScrollTab = 2;
+    public const int KeyboardTab = 0, MouseTab = 1, ScrollTab = 2, MediaTab = 3;
+
+    /// <summary>Media / consumer keys, surfaced on their own MEDIA tab. They're keyboard keys under the
+    /// hood, so a media binding is still an <see cref="AuxKind.Keyboard"/> binding (no modifiers).</summary>
+    private static readonly HashSet<string> MediaKeyValues = new(StringComparer.Ordinal)
+    {
+        "Mute", "VolumeDown", "VolumeUp", "PlayPause", "PreviousSong", "NextSong", "StopSong",
+    };
 
     public string Title { get; }
 
@@ -35,6 +42,7 @@ public partial class BindingEditorViewModel : ObservableObject
     [ObservableProperty] private KeyOption? _selectedKeyOption;
     [ObservableProperty] private string? _selectedMouseButton;
     [ObservableProperty] private string? _selectedScroll;
+    [ObservableProperty] private string? _selectedMediaKey;
 
     public BindingEditorViewModel(AuxBinding initial, string title)
     {
@@ -42,6 +50,11 @@ public partial class BindingEditorViewModel : ObservableObject
         BuildKeyboard();
         switch (initial.Kind)
         {
+            case AuxKind.Keyboard when initial.Combo.IsBound && MediaKeyValues.Contains(initial.Combo.Key):
+                // A media key is stored as a keyboard binding but lives on the MEDIA tab.
+                SelectedTabIndex = MediaTab;
+                SelectedMediaKey = initial.Combo.Key;
+                break;
             case AuxKind.Keyboard:
                 SelectedTabIndex = KeyboardTab;
                 Ctrl = initial.Combo.Ctrl;
@@ -70,6 +83,7 @@ public partial class BindingEditorViewModel : ObservableObject
         KeyboardTab => SelectedKeyOption != null,
         MouseTab => !string.IsNullOrEmpty(SelectedMouseButton),
         ScrollTab => !string.IsNullOrEmpty(SelectedScroll),
+        MediaTab => !string.IsNullOrEmpty(SelectedMediaKey),
         _ => false,
     };
 
@@ -78,6 +92,7 @@ public partial class BindingEditorViewModel : ObservableObject
     public bool IsKeyboardTab { get => SelectedTabIndex == KeyboardTab; set { if (value) SelectedTabIndex = KeyboardTab; } }
     public bool IsMouseTab { get => SelectedTabIndex == MouseTab; set { if (value) SelectedTabIndex = MouseTab; } }
     public bool IsScrollTab { get => SelectedTabIndex == ScrollTab; set { if (value) SelectedTabIndex = ScrollTab; } }
+    public bool IsMediaTab { get => SelectedTabIndex == MediaTab; set { if (value) SelectedTabIndex = MediaTab; } }
 
     partial void OnSelectedTabIndexChanged(int value)
     {
@@ -85,11 +100,13 @@ public partial class BindingEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(IsKeyboardTab));
         OnPropertyChanged(nameof(IsMouseTab));
         OnPropertyChanged(nameof(IsScrollTab));
+        OnPropertyChanged(nameof(IsMediaTab));
     }
 
     partial void OnSelectedKeyOptionChanged(KeyOption? value) { SaveCommand.NotifyCanExecuteChanged(); UpdateCombo(); }
     partial void OnSelectedMouseButtonChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
     partial void OnSelectedScrollChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
+    partial void OnSelectedMediaKeyChanged(string? value) => SaveCommand.NotifyCanExecuteChanged();
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private void Save()
@@ -100,6 +117,9 @@ public partial class BindingEditorViewModel : ObservableObject
                                           AuxKeyBinding.None, AuxKeyBinding.None),
             MouseTab => new AuxBinding(AuxKind.Mouse, AuxCombo.Unbound, SelectedMouseButton!, AuxKeyBinding.None),
             ScrollTab => new AuxBinding(AuxKind.Scroll, AuxCombo.Unbound, AuxKeyBinding.None, SelectedScroll!),
+            // A media key is a keyboard binding with no modifiers.
+            MediaTab => new AuxBinding(AuxKind.Keyboard, new AuxCombo(false, false, false, SelectedMediaKey!),
+                                       AuxKeyBinding.None, AuxKeyBinding.None),
             _ => AuxBinding.Unbound,
         };
         CloseRequested?.Invoke();
@@ -239,7 +259,7 @@ public partial class BindingEditorViewModel : ObservableObject
             new[]{ Key("7","Keypad7"), Key("8","Keypad8"), Key("9","Keypad9"), Key("+","Add") },
             new[]{ Key("4","Keypad4"), Key("5","Keypad5"), Key("6","Keypad6"), Sp(1) },
             new[]{ Key("1","Keypad1"), Key("2","Keypad2"), Key("3","Keypad3"), Sp(1) },
-            new[]{ Key("0","Keypad0",2), Key(".","Decimal"), Sp(1) },
+            new[]{ Key("0","Keypad0",2), Key(".","Decimal"), Key("=","KeypadEqual") },
         };
 
         var modifiers = new HashSet<string>
@@ -248,7 +268,8 @@ public partial class BindingEditorViewModel : ObservableObject
             "LeftAlt","RightAlt","LeftApplication","RightApplication","Application",
         };
         MoreKeys = KeyOptions
-            .Where(o => !_keyCaps.ContainsKey(o.Value) && !modifiers.Contains(o.Value))
+            .Where(o => !_keyCaps.ContainsKey(o.Value) && !modifiers.Contains(o.Value)
+                        && !MediaKeyValues.Contains(o.Value)) // media keys live on the MEDIA tab now
             .Select(o => Key(o.Display, o.Value))
             .ToList();
 
