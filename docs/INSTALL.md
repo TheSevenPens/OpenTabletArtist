@@ -1,25 +1,18 @@
 # Install OpenTabletArtist on Windows
 
-OpenTabletArtist (OTA) is a Windows app for artists who want pressure sensitivity and tilt
-from their drawing tablet. It bundles [OpenTabletDriver](https://opentabletdriver.net/) (OTD)
-and wraps it in a friendlier interface, so most of the manual setup that a raw OTD install
-requires is handled for you — usually one click, one UAC prompt.
+OpenTabletArtist (OTA) is an alternative UX for OpenTabletDriver (OTD) on Windows app. 
+It is designed for artists who want pressure sensitivity and tilt
+from their drawing tablet. 
 
-> This is the OpenTabletArtist install guide. For the underlying driver, OTA uses OpenTabletDriver;
-> you do **not** install OTD separately — it ships inside OpenTabletArtist.
+It bundles [OpenTabletDriver](https://opentabletdriver.net/) 
+and wraps it in a friendlier, artist-optimized interface, so installing and configuring OTD is dramatically simpler.
+
 
 ## Before you start
 
-- **Windows 10 or 11, 64-bit (x64).** 32-bit Windows and Windows on ARM are not supported.
+- **Windows 11, 64-bit (x64).** 32-bit Windows and Windows on ARM are not supported.
 - **A supported tablet.** Check the list at [opentabletdriver.net/Tablets](https://opentabletdriver.net/Tablets).
-  If your tablet is marked **Zadig WinUSB**, it needs extra steps that this guide does **not** cover.
-- **An internet connection is optional.** Everything needed to draw — the app, its driver, the VMulti
-  driver, and the Windows Ink plugin — is included in the download and installs offline. OTA still
-  checks online for a newer Windows Ink plugin and uses that when available; only the optional
-  driver-cleanup tool always requires the internet.
-
-You do **not** need to install the .NET runtime or OpenTabletDriver — the download is self-contained
-and includes everything (including the VMulti driver).
+  If your tablet is marked **Zadig WinUSB**, it needs extra steps that this guide and OTA does **not** cover.
 
 ## Step 1 — Download and run
 
@@ -33,21 +26,11 @@ and includes everything (including the VMulti driver).
 > and per-app switching. Just double-click it normally — if you do launch it elevated, OTA flags a
 > warning in Home's **Needs attention** list.
 
-On launch, OTA starts its bundled driver automatically and connects to it. The **Home** page shows a
+On launch, OTA starts the OTD daemon automatically and connects to it. The **Home** page shows a
 **Daemon running** status once it's connected. If it says *Not connected*, click **Start**, then the
 refresh icon.
 
-## Step 2 — Let OTA detect your tablet
-
-Plug in your tablet. OTA detects it automatically and it appears under **Tablets** in the sidebar
-(with a status dot). Moving the pen should now move the mouse pointer.
-
-- Don't worry yet about *which* monitor the pointer is on, or that pressure isn't working — both are
-  set up in the steps below.
-- If nothing is detected, wait a few seconds (it polls every ~3 s) or click the refresh icon. If it
-  still doesn't appear, a conflicting manufacturer driver is the most likely cause — see Step 3.
-
-## Step 3 — Remove conflicting tablet drivers
+## Step 2 — Remove conflicting tablet drivers
 
 Manufacturer drivers (Wacom, Huion, XP-Pen, Gaomon, Veikk, …) interfere with OpenTabletDriver and
 **must** be removed.
@@ -62,30 +45,27 @@ Manufacturer drivers (Wacom, Huion, XP-Pen, Gaomon, Veikk, …) interfere with O
 
 Restart if the cleanup tool asks you to, then reopen OpenTabletArtist.
 
-## Step 4 — Install the VMulti driver
+## Step 3 — Install the VMulti driver
 
-Pressure and tilt on Windows require the **VMulti** virtual driver. It's included in the download, so
-this installs offline.
+Pressure and tilt on Windows require the **VMulti** virtual driver. 
 
-1. Go to the **VMulti Driver** page (under **Advanced**). If it isn't installed, **Home** also flags it.
+1. If it isn't installed, the **Home** page will flag it.
 2. Click **Install**. Approve the single UAC prompt.
 3. When it offers to **restart Windows**, do it (recommended). VMulti isn't fully active until you
    restart.
 
 After the restart, reopen OpenTabletArtist. The VMulti Driver page should show **Installed**.
 
-## Step 5 — Windows Ink (automatic)
+## Step 4 — Let OTA detect your tablet
 
-Windows Ink is how pressure and tilt reach your drawing apps — but **you don't need to set it up.**
-OpenTabletArtist installs the Windows Ink plugin for you and, once VMulti is in place (Step 4), switches
-your tablet to Windows Ink automatically.
+Plug in your tablet. OTA detects it automatically and it appears under **Tablets** in the sidebar
+(with a status dot). Sometimes the detection happens very fast, but it can also take as long as about 7 seconds.
 
-> If you ever want to check it, the tablet's **Screen Mapping** tab has an **Absolute / Relative**
-> toggle (keep **Absolute** for drawing — it carries pressure and tilt; Relative behaves like a mouse),
-> and the plugin itself lives on the **Windows Ink Plugin** page under **Advanced**. You shouldn't need
-> either in normal use.
+Once  detected, moving the pen should now move the mouse pointer. Don't worry if it moves the pointer on the wrong monitor.
+We'll fix that in a moment.
 
-## Step 6 — Map the tablet to a display
+
+## Step 5 — Map the tablet to a display
 
 The first time OTA sees a tablet on a multi-monitor setup, it **auto-maps it to your primary display**
 so the pointer doesn't span every monitor. If that's the display you want, you're done — otherwise pick
@@ -95,28 +75,22 @@ a different one:
    monitors along the top and the tablet's active area below.
 2. **Click the monitor** you want to draw on, then click **Apply mapping**.
 
-OTA maps the tablet to that whole display **aspect-locked**, so a circle on the tablet draws a circle
-on screen with no stretching. A live pen dot tracks over the tablet area so you can confirm it.
 
-> Unlike raw OpenTabletDriver, there's no separate **Apply**/**Save** step to remember — OTA applies
-> your changes to the driver automatically. (Named **Profiles** are a separate feature for saving and
-> switching whole configurations.)
-
-## Step 7 — Configure your drawing app
-
-Each drawing app has its own tablet/stylus setting. Turn on **Windows Ink** in your app's tablet
-settings. Instructions vary per app; Krita is a good, free app to start with.
-
-## Step 8 — Test it
+## Step 6 — Test it with the built-in Scribble feature
 
 Open the **Scribble** page and draw with the pen. You should see the stroke respond to pressure
 (and tilt/twist if your pen supports them). The page also shows live readouts and, when Pen Dynamics
 is on, exactly what's affecting the stroke.
 
-At this point you're set up: the pointer tracks on one display with no distortion, and pressure and
-tilt work in your drawing app.
+You are almost done. 
 
-## Optional customization
+## Step 6 — Configure your drawing app
+
+Each drawing app has its own tablet/stylus setting. Turn on **Windows Ink** in your app's tablet
+settings. Instructions vary per app; Krita is a good, free app to start with. 
+
+
+## Optional OTA customization
 
 All of these live under the tablet's tabs or the sidebar — configure them any time:
 
