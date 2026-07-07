@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Domain.Health;
 using Xunit;
 
@@ -128,6 +129,57 @@ public class HealthEvaluatorTests
             Healthy() with { HasDriverConflict = true, BlockingDriverConflict = true }));
         Assert.Equal("driver.conflict", issue.Id);
         Assert.Equal(HealthSeverity.Broken, issue.Severity);
+    }
+
+    [Fact]
+    public void OffScreenMapping_IsMisconfigured_WithDisplayMappingTarget()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Wacom PTK-670", Detected: true, OutputModeIsWinInk: true,
+                    Mapping: DisplayMappingValidity.OffScreen),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.mappingOffScreen:Wacom PTK-670", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+        Assert.Equal("Wacom PTK-670", issue.Remediation.TabletName);
+    }
+
+    [Fact]
+    public void CustomMapping_IsRecommendation_WithDisplayMappingTarget()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: true,
+                    Mapping: DisplayMappingValidity.Custom),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.mappingCustom:Tablet A", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+    }
+
+    [Fact]
+    public void CleanOrNoMapping_RaisesNoMappingIssue()
+    {
+        foreach (var validity in new[] { DisplayMappingValidity.Clean, DisplayMappingValidity.None })
+        {
+            var input = Healthy() with
+            {
+                Tablets = new List<TabletHealthInput>
+                {
+                    new("Tablet A", Detected: true, OutputModeIsWinInk: true, Mapping: validity),
+                },
+            };
+            Assert.Empty(HealthEvaluator.Evaluate(input));
+        }
     }
 
     [Fact]

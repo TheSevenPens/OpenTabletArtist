@@ -95,6 +95,50 @@ public static class DisplayMappingApplier
     private static bool Approx(float a, float b) => System.Math.Abs(a - b) <= MatchTolerance;
 
     /// <summary>
+    /// Classify a profile's stored Absolute-mode display mapping for predictability, so the UI can flag
+    /// an unusual or broken mapping instead of silently rendering it. The stored Display area is the
+    /// output region in 0-based virtual-desktop coordinates (X/Y is its <em>centre</em>; see
+    /// <see cref="MappedCenter"/>). Coverage is measured against the union of connected monitors:
+    /// <list type="bullet">
+    /// <item><see cref="DisplayMappingValidity.Clean"/> — the area matches one whole monitor.</item>
+    /// <item><see cref="DisplayMappingValidity.Custom"/> — fully on-screen but not a single monitor
+    /// (a sub-region, or spanning several).</item>
+    /// <item><see cref="DisplayMappingValidity.OffScreen"/> — part of the area falls outside every
+    /// monitor, so the pen maps to space with no screen there.</item>
+    /// <item><see cref="DisplayMappingValidity.None"/> — no (or degenerate) mapping / no displays.</item>
+    /// </list>
+    /// </summary>
+    public static DisplayMappingValidity ClassifyMapping(Profile profile, IReadOnlyList<DisplayInfo> displays)
+    {
+        var disp = profile.AbsoluteModeSettings?.Display;
+        if (disp == null || disp.Width <= 0 || disp.Height <= 0 || displays is not { Count: > 0 })
+            return DisplayMappingValidity.None;
+
+        if (CurrentlyMapped(profile, displays) != null) return DisplayMappingValidity.Clean;
+
+        // Output rectangle in 0-based desktop coords (disp.X/Y is the centre).
+        float minX = displays.Min(d => d.X), minY = displays.Min(d => d.Y);
+        float left = disp.X - disp.Width / 2f, top = disp.Y - disp.Height / 2f;
+        float right = left + disp.Width, bottom = top + disp.Height;
+        float outputArea = disp.Width * disp.Height;
+
+        // How much of the output rectangle is covered by some monitor (monitors don't overlap in a
+        // normal extended desktop, so summing per-monitor intersection is exact enough).
+        float covered = 0f;
+        foreach (var d in displays)
+        {
+            float dl = d.X - minX, dt = d.Y - minY;
+            float ix = System.Math.Max(0f, System.Math.Min(right, dl + d.Width) - System.Math.Max(left, dl));
+            float iy = System.Math.Max(0f, System.Math.Min(bottom, dt + d.Height) - System.Math.Max(top, dt));
+            covered += ix * iy;
+        }
+
+        // Tolerate ~1% rounding before calling part of it off-screen.
+        bool fullyOnScreen = covered >= outputArea - System.Math.Max(1f, outputArea * 0.01f);
+        return fullyOnScreen ? DisplayMappingValidity.Custom : DisplayMappingValidity.OffScreen;
+    }
+
+    /// <summary>
     /// Copy the Absolute-mode area mapping (the Display <em>and</em> Tablet areas — the two are
     /// aspect-locked) from <paramref name="source"/> into <paramref name="target"/> for each matching
     /// tablet profile, leaving every other setting in <paramref name="target"/> untouched. Used so a
@@ -123,4 +167,18 @@ public static class DisplayMappingApplier
             to.Rotation = from.Rotation;
         }
     }
+}
+
+/// <summary>How a tablet's stored Absolute-mode display mapping relates to the connected monitors
+/// (see <see cref="DisplayMappingApplier.ClassifyMapping"/>).</summary>
+public enum DisplayMappingValidity
+{
+    /// <summary>No mapping to assess (no Absolute settings, a degenerate area, or no displays).</summary>
+    None,
+    /// <summary>Maps to exactly one whole monitor — the standard case.</summary>
+    Clean,
+    /// <summary>Fully on-screen but not a single monitor (a sub-region or spanning several).</summary>
+    Custom,
+    /// <summary>Part of the mapped area falls outside every monitor — the pen hits off-screen dead zones.</summary>
+    OffScreen,
 }

@@ -72,6 +72,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 Daemon.RestartDaemonCommand.Execute(null); // external daemon → restart to this app's build
                 break;
             case RemediationArea.TabletPenBehavior:
+            case RemediationArea.TabletDisplayMapping:
+                // Deep-link to the tablet's page; its Display Mapping / Pen Behavior tab carries the fix.
                 if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName);
                 break;
         }

@@ -2,6 +2,8 @@ using System.Collections.Generic;
 
 namespace OpenTabletArtist.Domain.Health;
 
+// DisplayMappingValidity lives in the parent Domain namespace (the display-mapping classifier).
+
 /// <summary>
 /// How serious a health issue is. Higher value = worse; the "Needs attention" list sorts by this
 /// (worst first) and colors the card accordingly. The three tiers mirror #317:
@@ -32,6 +34,8 @@ public enum RemediationArea
     DriverCleanup,
     /// <summary>A specific tablet's Pen Behavior (output mode) tab.</summary>
     TabletPenBehavior,
+    /// <summary>A specific tablet's Display Mapping tab (the mapped area isn't a clean single display).</summary>
+    TabletDisplayMapping,
 }
 
 /// <summary>A fix action for an issue: a button label + where it leads. <see cref="TabletName"/> is set
@@ -47,8 +51,11 @@ public sealed record HealthIssue(
     string Detail,
     Remediation? Remediation);
 
-/// <summary>Per-tablet inputs the checks read.</summary>
-public sealed record TabletHealthInput(string Name, bool Detected, bool OutputModeIsWinInk);
+/// <summary>Per-tablet inputs the checks read. <see cref="Mapping"/> is the display-mapping
+/// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>
+public sealed record TabletHealthInput(
+    string Name, bool Detected, bool OutputModeIsWinInk,
+    DisplayMappingValidity Mapping = DisplayMappingValidity.None);
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -129,6 +136,10 @@ public static class HealthEvaluator
                 new Remediation("Fix", RemediationArea.VMulti)));
         }
 
+        // --- Per-tablet display mapping: flag anything that isn't a clean single-display mapping, so the
+        //     pointer lands where the user expects. Off-screen (dead zones) is worse than a custom area. ---
+        AddTabletMappingIssues(issues, i);
+
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet ---
         if (i.HasDriverConflict)
         {
@@ -180,6 +191,30 @@ public static class HealthEvaluator
                     "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
                     "won't reach your apps.",
                     new Remediation("Fix", RemediationArea.TabletPenBehavior, t.Name)));
+            }
+        }
+    }
+
+    private static void AddTabletMappingIssues(List<HealthIssue> issues, HealthInputs i)
+    {
+        foreach (var t in i.Tablets)
+        {
+            switch (t.Mapping)
+            {
+                case DisplayMappingValidity.OffScreen:
+                    issues.Add(new HealthIssue($"tablet.mappingOffScreen:{t.Name}", HealthSeverity.Misconfigured,
+                        $"{t.Name}: mapped area is partly off-screen",
+                        "This tablet's mapped area extends beyond your displays, so part of the tablet maps " +
+                        "to space with no screen there and the pen reaches dead zones. Re-map it to a display.",
+                        new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
+                    break;
+                case DisplayMappingValidity.Custom:
+                    issues.Add(new HealthIssue($"tablet.mappingCustom:{t.Name}", HealthSeverity.Recommendation,
+                        $"{t.Name}: custom display mapping",
+                        "This tablet isn't mapped to a single whole display (a custom or multi-display area). " +
+                        "Re-map it to one display for a standard, undistorted 1:1 setup.",
+                        new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
+                    break;
             }
         }
     }

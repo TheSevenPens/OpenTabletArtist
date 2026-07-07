@@ -162,6 +162,49 @@ public class DisplayMappingApplierTests
     }
 
     [Fact]
+    public void ClassifyMapping_Clean_ForWholeMonitorMapping()
+    {
+        var displays = TwoMonitors();
+        var p = ProfileWithAbsolute();
+        DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), displays[1], displays);
+        Assert.Equal(DisplayMappingValidity.Clean, DisplayMappingApplier.ClassifyMapping(p, displays));
+    }
+
+    [Fact]
+    public void ClassifyMapping_Custom_ForOnScreenSubRegion()
+    {
+        var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
+        var p = ProfileWithAbsolute();
+        var d = p.AbsoluteModeSettings.Display;
+        d.Width = 800; d.Height = 600; d.X = 400; d.Y = 300; // fully inside the monitor, but not the whole one
+        Assert.Equal(DisplayMappingValidity.Custom, DisplayMappingApplier.ClassifyMapping(p, displays));
+    }
+
+    [Fact]
+    public void ClassifyMapping_OffScreen_WhenAreaExtendsBeyondDisplays()
+    {
+        var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
+        var p = ProfileWithAbsolute();
+        var d = p.AbsoluteModeSettings.Display;
+        // A large area centred so it spills well past the monitor's right and bottom edges.
+        d.Width = 2560; d.Height = 1440; d.X = 1500; d.Y = 800;
+        Assert.Equal(DisplayMappingValidity.OffScreen, DisplayMappingApplier.ClassifyMapping(p, displays));
+    }
+
+    [Fact]
+    public void ClassifyMapping_None_ForDegenerateAreaOrNoDisplays()
+    {
+        var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
+        Assert.Equal(DisplayMappingValidity.None,
+            DisplayMappingApplier.ClassifyMapping(ProfileWithAbsolute(), displays)); // default area is zero-size
+
+        var mapped = ProfileWithAbsolute();
+        DisplayMappingApplier.ApplyToProfile(mapped, (152f, 95f), displays[0], displays);
+        Assert.Equal(DisplayMappingValidity.None,
+            DisplayMappingApplier.ClassifyMapping(mapped, System.Array.Empty<DisplayInfo>()));
+    }
+
+    [Fact]
     public void PreserveAreaMapping_IgnoresUnmatchedTablets()
     {
         var displays = TwoMonitors();
