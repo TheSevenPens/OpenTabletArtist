@@ -620,9 +620,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 PluginDirectory = appInfo.PluginDirectory ?? "";
             }
 
-            // One-time migration: if we stripped orphaned filter stores above, persist the cleaned
-            // settings so they don't linger on disk. Best-effort — the in-memory cleanup has already
-            // fixed the display regardless.
+            // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
+            // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
+            // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
             if (staleFiltersRemoved && _settings != null)
             {
                 try
@@ -754,6 +754,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             await _daemon.SetSettingsAsync(def);
         }
         await LoadDataAsync();
+    }
+
+    /// <summary>Force the Pen Dynamics filter present + enabled across all profiles and persist — the Home
+    /// health-check "Fix" backing the always-on invariant (#dynamics-always-on). No-op if nothing changed.</summary>
+    public async Task EnsureDynamicsAndSaveAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings != null && PressureCurveProfile.EnsureEnabled(_settings))
+            await ApplyAndSaveSettingsAsync(_settings);
     }
 
     public (float Width, float Height)? GetTabletDigitizer(string tabletName)

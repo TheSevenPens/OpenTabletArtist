@@ -602,9 +602,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         PressureSmoothing = dynamics.PressureSmoothing;
         PositionSmoothing = dynamics.PositionSmoothing;
         SmoothAfterCurve = dynamics.SmoothAfterCurve;
-        PressureCurveEnabled = pc?.Enabled ?? false;
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
+        NotifyDynamicsStatus();
 
         // Hover limit (#188) — load without triggering a persist.
         var hover = HoverProfile.Read(_settings, _profile.Tablet ?? "");
@@ -1145,15 +1145,37 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // ── Pressure curve tab ──────────────────────────────────────
 
     [ObservableProperty] private PressureCurveSettings _curve = PressureCurveSettings.Default;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DynamicsControlsOpacity))]
-    private bool _pressureCurveEnabled;
     [ObservableProperty] private bool _canEditPressure;
 
-    /// <summary>Dim the curve/smoothing controls when Pen Dynamics is off so they read as inactive.
-    /// <c>IsEnabled</c> alone barely greys them, and the custom-drawn curve chart ignores
-    /// <c>IsEnabled</c> entirely, so without this it would still look fully interactive.</summary>
-    public double DynamicsControlsOpacity => PressureCurveEnabled ? 1.0 : 0.4;
+    // The Pen Dynamics filter is always enabled internally (#dynamics-always-on); there's no on/off toggle.
+    // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op) — this
+    // status line tells them, at a glance, whether the current settings actually affect the pen.
+    private PenDynamicsSettings CurrentDynamics =>
+        new(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
+
+    /// <summary>True when the curve/smoothing settings actually change the pen (not a linear no-op).</summary>
+    public bool DynamicsHasEffect => !CurrentDynamics.IsNoOp;
+
+    /// <summary>At-a-glance summary of what the dynamics are doing, replacing the old on/off toggle.</summary>
+    public string DynamicsStatusText
+    {
+        get
+        {
+            var d = CurrentDynamics;
+            if (d.IsNoOp) return "No pen dynamics applied — the curve is linear and smoothing is off.";
+            var parts = new System.Collections.Generic.List<string>(3);
+            if (d.CurveShapesPressure) parts.Add("pressure curve");
+            if (d.HasPressureSmoothing) parts.Add("pressure smoothing");
+            if (d.HasPositionSmoothing) parts.Add("position smoothing");
+            return "Affecting your pen: " + string.Join(", ", parts) + ".";
+        }
+    }
+
+    private void NotifyDynamicsStatus()
+    {
+        OnPropertyChanged(nameof(DynamicsHasEffect));
+        OnPropertyChanged(nameof(DynamicsStatusText));
+    }
 
     [ObservableProperty] private double _pressureSmoothing;
     [ObservableProperty] private double _positionSmoothing;
@@ -1168,12 +1190,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnPressureSmoothingChanged(double value)
     {
         OnPropertyChanged(nameof(PressureSmoothingText));
+        NotifyDynamicsStatus();
         SchedulePersist();
     }
 
     partial void OnPositionSmoothingChanged(double value)
     {
         OnPropertyChanged(nameof(PositionSmoothingText));
+        NotifyDynamicsStatus();
         SchedulePersist();
     }
 
@@ -1217,17 +1241,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(InputMaximumText));
         OnPropertyChanged(nameof(OutputMinimumText));
         OnPropertyChanged(nameof(OutputMaximumText));
+        NotifyDynamicsStatus();
         SchedulePersist();
     }
-
-    partial void OnPressureCurveEnabledChanged(bool value) => SchedulePersist();
 
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
-    /// <summary>Reset every dynamics setting — the curve, both smoothing amounts, and the order —
-    /// back to their no-op defaults (#185). Each setter schedules the debounced persist, so the
-    /// cleared state is written to the daemon. Leaves the On/Off toggle as the user set it.</summary>
+    /// <summary>Reset every dynamics setting — the curve, both smoothing amounts, and the order — back to
+    /// their no-op defaults (#185): this is how you "turn off" dynamics now that the filter is always
+    /// enabled. Each setter schedules the debounced persist, so the cleared (identity) state is written.</summary>
     [RelayCommand]
     private void ResetAllDynamics()
     {
@@ -1402,7 +1425,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         if (_applyAction == null || _settings == null) return;
         var dynamics = new PenDynamicsSettings(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
-        PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, PressureCurveEnabled);
+        // The filter is always enabled internally; users neutralize it with linear/zero settings, not a toggle.
+        PressureCurveProfile.Write(_settings, _profile.Tablet ?? "", dynamics, enable: true);
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
         // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
         UpdateFiltersDisplay();
