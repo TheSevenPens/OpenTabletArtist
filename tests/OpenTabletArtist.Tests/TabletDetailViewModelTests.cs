@@ -25,6 +25,18 @@ public class TabletDetailViewModelTests
         return settings;
     }
 
+    // Settings for tablet "T" carrying an absolute mapping of the given width, so two loads can be made
+    // to differ (a stand-in for an external editor changing the mapping).
+    private static Settings MappedSettings(string tablet, float width)
+    {
+        var settings = SettingsWith(tablet);
+        settings.Profiles.First().AbsoluteModeSettings = new AbsoluteModeSettings
+        {
+            Tablet = new AreaSettings { Width = width, Height = 30, X = 25, Y = 15 },
+        };
+        return settings;
+    }
+
     // Regression for #124: the dialog persists edits by mutating _profile then pushing _settings.
     // After an in-dialog Refresh, _settings must move to the reloaded settings the new _profile
     // lives in — otherwise edits push the stale pre-refresh settings object.
@@ -170,6 +182,74 @@ public class TabletDetailViewModelTests
         device.RaiseDataLoaded();
 
         Assert.NotNull(vm.TabletArea);
+    }
+
+    // External-change reconciliation: when the daemon's settings change outside OTA and the user has no
+    // unsaved edit here, the reload is adopted silently — no banner, and later persists push the new
+    // settings object (so we don't clobber the external change with the stale one).
+    [Fact]
+    public async Task ReconcileExternalChange_NoUnsavedEdit_AdoptsSilently()
+    {
+        var original = MappedSettings("T", 50);
+        var reloaded = MappedSettings("T", 80); // an external editor widened the mapping
+        Settings? pushed = null;
+
+        var vm = new TabletDetailViewModel(
+            original.Profiles.First(), original,
+            applyAction: s => { pushed = s; return Task.CompletedTask; });
+
+        vm.ReconcileExternalChange(reloaded, reloaded.Profiles.First());
+
+        Assert.False(vm.HasExternalChange);                    // adopted silently, no banner
+        await vm.FixOutputModeCommand.ExecuteAsync(null);      // any persist path goes through _settings
+        Assert.Same(reloaded, pushed);                         // now persisting through the adopted settings
+    }
+
+    // With an unsaved edit (a picked-but-unapplied display), an external change must NOT be silently
+    // adopted — it raises a non-destructive banner and keeps the user's in-progress state, until they
+    // choose Reload.
+    [Fact]
+    public async Task ReconcileExternalChange_WithUnsavedEdit_ShowsBanner_ThenReloadAdopts()
+    {
+        var original = MappedSettings("T", 50);
+        var reloaded = MappedSettings("T", 80);
+        Settings? pushed = null;
+
+        var vm = new TabletDetailViewModel(
+            original.Profiles.First(), original,
+            applyAction: s => { pushed = s; return Task.CompletedTask; });
+
+        vm.SelectedDisplayNumber = 999;           // an unsaved mapping selection
+        Assert.True(vm.MappingChangePending);
+
+        vm.ReconcileExternalChange(reloaded, reloaded.Profiles.First());
+
+        Assert.True(vm.HasExternalChange);                    // banner shown, not adopted
+        Assert.False(string.IsNullOrEmpty(vm.ExternalChangeText));
+        await vm.FixOutputModeCommand.ExecuteAsync(null);
+        Assert.Same(original, pushed);                        // still persisting through the un-adopted settings
+
+        pushed = null;
+        vm.ReloadExternalChangeCommand.Execute(null);         // user accepts the external change
+        Assert.False(vm.HasExternalChange);
+        await vm.FixOutputModeCommand.ExecuteAsync(null);
+        Assert.Same(reloaded, pushed);                        // now persisting through the adopted settings
+    }
+
+    // An identical reload (no real change) is a no-op: no banner, and it clears any prior one.
+    [Fact]
+    public void ReconcileExternalChange_SameValues_NoBanner()
+    {
+        var original = MappedSettings("T", 50);
+        var sameValues = MappedSettings("T", 50);
+
+        var vm = new TabletDetailViewModel(
+            original.Profiles.First(), original,
+            applyAction: _ => Task.CompletedTask);
+
+        vm.ReconcileExternalChange(sameValues, sameValues.Profiles.First());
+
+        Assert.False(vm.HasExternalChange);
     }
 
     // #177: detection alone isn't enough — a connected tablet in a non-Absolute mode still can't be
