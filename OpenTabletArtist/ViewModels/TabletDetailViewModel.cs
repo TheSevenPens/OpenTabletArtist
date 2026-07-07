@@ -69,6 +69,23 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>A display is selected, so "Apply" can map to it.</summary>
     public bool CanApplyDisplay => SelectedDisplayNumber != null && _applyAction != null;
 
+    /// <summary>How the stored display mapping relates to the connected monitors, so the tab can flag an
+    /// off-screen or custom mapping instead of silently rendering it. Recomputed via
+    /// <see cref="RefreshTabletArea"/> on every mapping/display change.</summary>
+    public DisplayMappingValidity MappingValidity => DisplayMappingApplier.ClassifyMapping(_profile, Displays);
+    public bool ShowMappingOffScreen => MappingValidity == DisplayMappingValidity.OffScreen;
+    public bool ShowMappingCustom => MappingValidity == DisplayMappingValidity.Custom;
+    public string MappingValidityText => MappingValidity switch
+    {
+        DisplayMappingValidity.OffScreen =>
+            "This tablet's mapped area extends beyond your displays — part of the tablet maps to off-screen " +
+            "space, so the pen reaches dead zones there. Pick a display below and Apply mapping to fix it.",
+        DisplayMappingValidity.Custom =>
+            "This tablet isn't mapped to a single whole display (a custom or multi-display area). Pick a " +
+            "display below and Apply mapping for a standard, undistorted 1:1 setup.",
+        _ => "",
+    };
+
     /// <summary>The selected display differs from the one currently applied, so the change still needs
     /// "Apply mapping" — drives the pending hint so it's obvious the selection isn't live yet (#179
     /// follow-up). Suppressed during the initial load so an as-opened profile doesn't read as pending
@@ -286,9 +303,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
         // pending flag for this initial, programmatic selection so it doesn't open "pending".
         _suppressMappingPending = true;
-        SelectedDisplayNumber = CurrentlyMappedNumber()
-            ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
-            ?? Displays.FirstOrDefault()?.Number;
+        SelectedDisplayNumber = DefaultSelectedDisplay();
         _suppressMappingPending = false;
     }
 
@@ -379,9 +394,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Move the display picker to the now-current mapping (suppress the pending flag for this
         // programmatic selection so it doesn't read as an unapplied change).
         _suppressMappingPending = true;
-        SelectedDisplayNumber = CurrentlyMappedNumber()
-            ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
-            ?? Displays.FirstOrDefault()?.Number;
+        SelectedDisplayNumber = DefaultSelectedDisplay();
         _suppressMappingPending = false;
         MappingChangePending = false; // the selection now matches the adopted mapping (any prior pick is discarded)
         RefreshDetectionStatus();
@@ -586,9 +599,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Displays = DisplayEnumerator.Enumerate();
         SelectedDisplayNumber =
             (keep != null && Displays.Any(d => d.Number == keep)) ? keep
-            : CurrentlyMappedNumber()
-              ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
-              ?? Displays.FirstOrDefault()?.Number;
+            : DefaultSelectedDisplay();
         RefreshTabletArea(); // displays changed → recompute the mapped-display side of the diagram
     }
 
@@ -601,6 +612,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The display the profile is currently mapped to (full-monitor match), or null.</summary>
     private int? CurrentlyMappedNumber() => DisplayMappingApplier.CurrentlyMapped(_profile, Displays)?.Number;
+
+    /// <summary>The display to pre-select in the picker. A clean mapping selects its monitor; a custom /
+    /// off-screen mapping selects nothing (so the diagram doesn't fake a clean pick — the warning guides
+    /// the user to choose); no mapping falls back to the primary as a sensible starting point.</summary>
+    private int? DefaultSelectedDisplay() => DisplayMappingApplier.ClassifyMapping(_profile, Displays) switch
+    {
+        DisplayMappingValidity.Clean => CurrentlyMappedNumber(),
+        DisplayMappingValidity.Custom or DisplayMappingValidity.OffScreen => null,
+        _ => Displays.FirstOrDefault(d => d.IsPrimary)?.Number ?? Displays.FirstOrDefault()?.Number,
+    };
 
     private void RefreshPenSwitchRows()
     {
@@ -1228,6 +1249,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
         // The mapped display drives where the calibration overlay pops up (Calibration tab hint).
         OnPropertyChanged(nameof(CalibrationDisplayText));
+        // The stored mapping's validity drives the Display Mapping tab's warning/note.
+        OnPropertyChanged(nameof(MappingValidity));
+        OnPropertyChanged(nameof(ShowMappingOffScreen));
+        OnPropertyChanged(nameof(ShowMappingCustom));
+        OnPropertyChanged(nameof(MappingValidityText));
     }
 
     // ── Active Area tab: read-out of the full vs. effective (used) area ──────────

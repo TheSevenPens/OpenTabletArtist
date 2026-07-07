@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Domain.Health;
 
 namespace OpenTabletArtist.Services;
@@ -102,12 +103,19 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             mismatch = !WindowsInkPluginService.IsCompatible(meta);
         }
 
+        // Enumerate monitors once so each tablet's mapping is classified against the same live display set.
+        var displays = DisplayEnumerator.Enumerate();
         var tablets = _device.Profiles
             .Select(p => new TabletHealthInput(
                 p.Tablet,
                 Detected: p.IsDetected,
                 OutputModeIsWinInk: (p.Profile.OutputMode?.Path ?? "")
-                    .Contains("WinInk", StringComparison.OrdinalIgnoreCase)))
+                    .Contains("WinInk", StringComparison.OrdinalIgnoreCase),
+                // Only flag a mapping for a detected tablet — a mapping warning for an unplugged tablet
+                // would be noise. ClassifyMapping is None when there's no Absolute area to assess.
+                Mapping: p.IsDetected
+                    ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
+                    : DisplayMappingValidity.None))
             .ToList();
 
         return new HealthInputs
