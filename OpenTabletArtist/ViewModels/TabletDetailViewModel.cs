@@ -232,16 +232,23 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             _ = SetOutputMode(WinInkRelativeModePath);
     }
 
-    /// <summary>The Output Mode toggle: on = Windows Ink Absolute, off = Windows Ink Relative.
-    /// Setting it switches the mode (also fixing a non-Windows-Ink mode to Windows Ink).</summary>
-    public bool IsAbsoluteMode
-    {
-        get => IsWinInkAbsolute;
-        set => _ = SetOutputMode(value ? WinInkAbsoluteModePath : WinInkRelativeModePath);
-    }
+    /// <summary>True when the profile is on Windows Ink Absolute — drives the Movement cards' checked state
+    /// (read-only / one-way). The mode is CHANGED via <see cref="SelectMovementCommand"/>, not by writing
+    /// this: two RadioButtons in a group both TwoWay-bound here (one inverted) fought each other into an
+    /// infinite apply↔reload loop, so selection is now command-driven and the checked state is display-only.</summary>
+    public bool IsAbsoluteMode => IsWinInkAbsolute;
+
+    /// <summary>User picked a Movement card (Absolute / Relative). Fires only on a real click — unlike a
+    /// TwoWay IsChecked binding, which the RadioButton group re-triggers on every reload. No-op if already
+    /// on that mode (<see cref="SetOutputMode"/> guards it).</summary>
+    [RelayCommand]
+    private void SelectMovement(string mode) =>
+        _ = SetOutputMode(mode == "absolute" ? WinInkAbsoluteModePath : WinInkRelativeModePath);
 
     private async Task SetOutputMode(string path)
     {
+        // Never re-apply the mode we're already on (also makes a redundant card click a no-op).
+        if (OutputModePath.Equals(path, StringComparison.OrdinalIgnoreCase)) return;
         await ApplySettingsChange(p =>
         {
             p.OutputMode ??= new PluginSettingStore(path, true);
