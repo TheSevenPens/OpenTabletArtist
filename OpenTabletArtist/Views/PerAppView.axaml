@@ -37,11 +37,6 @@
                 <StackPanel Spacing="14">
                     <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
                               FontWeight="SemiBold" />
-
-                    <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7">
-                        <TextBlock Text="{Binding StatusLine}" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
-                    </Border>
                 </StackPanel>
             </Border>
 
@@ -51,7 +46,7 @@
             <Border Classes="GlassPanel" Padding="16">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="CardTitle" Text="All other apps" />
+                        <TextBlock Classes="CardTitle" Text="Default for apps" />
                         <TextBlock Text="Used whenever the focused app isn't one of the mapped apps below."
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,2,0,0" TextWrapping="Wrap" />
