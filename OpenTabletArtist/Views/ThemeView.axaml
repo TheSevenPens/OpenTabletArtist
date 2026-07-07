@@ -44,11 +44,15 @@
 
         <!-- Custom-only: the accent colour that derives the whole scheme + an optional background image. -->
         <c:SettingCard Title="Custom look" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}"
-                       Description="Pick an accent colour — the whole scheme (buttons, highlights, controls) is derived from it. Add a background image to fill the window behind the panels.">
+                       Description="Pick an accent colour — the whole scheme (buttons, highlights, controls) is derived from it — and a base colour for the background behind the panels. Add a background image to fill the window instead.">
             <StackPanel Spacing="12">
                 <c:LabeledField Label="Accent colour">
                     <ColorPicker Color="{Binding AccentColor, Mode=TwoWay}"
                                  ToolTip.Tip="The colour the rest of the scheme is derived from" />
+                </c:LabeledField>
+                <c:LabeledField Label="Base colour">
+                    <ColorPicker Color="{Binding BaseColor, Mode=TwoWay}"
+                                 ToolTip.Tip="The background colour behind the panels and the left pane (when no image is set)" />
                 </c:LabeledField>
                 <c:LabeledField Label="Background image">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -63,17 +67,22 @@
             </StackPanel>
         </c:SettingCard>
 
-        <!-- Sakura + Custom translucency: card + sidebar background opacity. Each slider drives a global
-             brush, so the whole app (including this page) re-tints live as you drag. -->
-        <c:SettingCard Title="Translucency" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}"
-                       Description="Set how opaque the cards and the left pane are — lower lets more of the backdrop show through. Applies live.">
-            <StackPanel Spacing="10">
-                <c:LabeledSlider Label="Cards" LabelWidth="130"
+        <!-- Sakura + Custom: card tint/opacity + left-pane opacity, and a reset. Each control drives a
+             global brush, so the whole app (including this page) re-tints live as you change it. -->
+        <c:SettingCard Title="Cards &amp; translucency" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}"
+                       Description="Pick the card tint colour and how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
+            <StackPanel Spacing="12">
+                <c:LabeledField Label="Card colour">
+                    <ColorPicker Color="{Binding CardColor, Mode=TwoWay}"
+                                 ToolTip.Tip="The tint colour of the frosted cards" />
+                </c:LabeledField>
+                <c:LabeledSlider Label="Card opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
-                <c:LabeledSlider Label="Tint strength" LabelWidth="130"
-                                 Minimum="0.15" Maximum="1" Value="{Binding TintOpacity}" />
-                <c:LabeledSlider Label="Left pane" LabelWidth="130"
+                <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
+                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
+                        HorizontalAlignment="Left" Margin="0,4,0,0"
+                        ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
             </StackPanel>
         </c:SettingCard>
     </StackPanel>
