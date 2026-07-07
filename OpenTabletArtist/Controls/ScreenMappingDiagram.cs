@@ -15,7 +15,8 @@ namespace OpenTabletArtist.Controls;
 /// <summary>
 /// The whole display-mapping picture in one view (#250/#252): the connected displays across the top
 /// (click to select — Windows-Display-Settings style), the tablet's full + effective area below, and
-/// an L-shaped arrow from the effective area up to the selected display.
+/// red corner-to-corner lines from the effective area up to the selected display (Wacom-style, so the
+/// 1:1 correspondence between the active area and the screen is obvious).
 /// </summary>
 public sealed class ScreenMappingDiagram : Control
 {
@@ -39,6 +40,10 @@ public sealed class ScreenMappingDiagram : Control
 
     // The connector/effective-area accent; bound to the theme accent so it's pink in Sakura, etc.
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
+
+    // Corner-mapping lines (Wacom-style): a clear red, independent of the theme accent so the
+    // active-area↔display correspondence reads the same in every theme.
+    private static readonly IBrush MapLineBrush = new SolidColorBrush(Color.FromRgb(0xDC, 0x28, 0x28));
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
 
@@ -136,25 +141,17 @@ public sealed class ScreenMappingDiagram : Control
             ctx.DrawRectangle(EffFill, new Pen(accentBrush, 1.5), effRect);
         }
 
-        // ── Connector: from the effective area up to the selected display, arrowhead pointing up ──
+        // ── Connector: red lines joining each corner of the effective area to the matching corner of
+        //    the selected display (Wacom-style), so the 1:1 mapping is obvious. Corners map in place
+        //    (top-left→top-left, etc.); the effective area sits below the display, so the four lines
+        //    fan out into a frustum rather than crossing. ──
         if (selectedBox is { } selBox)
         {
-            var pen = new Pen(accentBrush, 2.5) { LineJoin = PenLineJoin.Round, LineCap = PenLineCap.Round };
-            double startX = effRect.Center.X, startY = fullRect.Top;
-            double endX = selBox.Center.X, endY = selBox.Bottom;
-            double midY = (startY + endY) / 2; // rise into the gap before jogging across
-            // Up from the tablet, across, then up into the display (arrowhead points up).
-            var path = new[]
-            {
-                new Point(startX, startY), new Point(startX, midY),
-                new Point(endX, midY), new Point(endX, endY + 9),
-            };
-            for (int i = 0; i < path.Length - 1; i++) ctx.DrawLine(pen, path[i], path[i + 1]);
-            var head = new PolylineGeometry(new[]
-            {
-                new Point(endX, endY), new Point(endX - 6, endY + 11), new Point(endX + 6, endY + 11)
-            }, true);
-            ctx.DrawGeometry(accentBrush, null, head);
+            var mapPen = new Pen(MapLineBrush, 1.5) { LineCap = PenLineCap.Round };
+            ctx.DrawLine(mapPen, effRect.TopLeft, selBox.TopLeft);
+            ctx.DrawLine(mapPen, effRect.TopRight, selBox.TopRight);
+            ctx.DrawLine(mapPen, effRect.BottomLeft, selBox.BottomLeft);
+            ctx.DrawLine(mapPen, effRect.BottomRight, selBox.BottomRight);
         }
 
         if (area != null)
