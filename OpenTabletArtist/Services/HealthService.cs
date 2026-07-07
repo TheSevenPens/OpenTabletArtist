@@ -45,7 +45,15 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         _connection.PropertyChanged += OnConnectionChanged;
         _conflicts.PropertyChanged += OnConflictsChanged;
         _conflicts.Drivers.CollectionChanged += OnConflictDriversChanged;
+        DeveloperSettings.Instance.PropertyChanged += OnDeveloperSettingsChanged;
         Reevaluate();
+    }
+
+    // Inducing/clearing a synthetic warning or forcing a real one from the Developer tab re-runs the
+    // catalog immediately (everything except the tab-visibility toggles affects health).
+    private void OnDeveloperSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (DeveloperSettings.AffectsHealth(e.PropertyName)) Reevaluate();
     }
 
     private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e)
@@ -86,14 +94,34 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     private void Reevaluate()
     {
-        var next = HealthEvaluator.Evaluate(GatherInputs());
+        var shown = HealthEvaluator.Evaluate(GatherInputs(applyDeveloper: true));
+
+        IReadOnlyList<HealthIssue> next;
+        if (!DeveloperSettings.Instance.HasActiveHealthOverride)
+        {
+            next = shown; // no developer overrides in play — nothing is synthetic
+        }
+        else
+        {
+            // Tag issues that are ONLY present because a Developer toggle forced them (i.e. not in the
+            // catalog computed from real state) so Home can offer the hidden right-click dismiss. An issue
+            // that's both real and forced stays untagged — dismissing couldn't remove it anyway.
+            var realIds = HealthEvaluator.Evaluate(GatherInputs(applyDeveloper: false))
+                .Select(i => i.Id).ToHashSet();
+            next = shown
+                .Select(i => realIds.Contains(i.Id) ? i : i with { IsDeveloperInduced = true })
+                .ToList();
+        }
+
         if (next.SequenceEqual(Issues)) return; // records compare by value — skip a no-op rebuild
         Issues.Clear();
         foreach (var issue in next) Issues.Add(issue);
         HasIssues = Issues.Count > 0;
     }
 
-    private HealthInputs GatherInputs()
+    // applyDeveloper=false yields the catalog from real state only (used to tell which shown issues are
+    // synthetic); true layers the Developer-tab induce/force overrides on top.
+    private HealthInputs GatherInputs(bool applyDeveloper)
     {
         bool installed = false, mismatch = false;
         var meta = _winInk.ReadInstalled(_device.PluginDirectory);
@@ -118,7 +146,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                     : DisplayMappingValidity.None))
             .ToList();
 
-        return new HealthInputs
+        var inputs = new HealthInputs
         {
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
@@ -130,6 +158,38 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             RunningElevated = ProcessElevation.IsElevated,
             Tablets = tablets,
         };
+        if (!applyDeveloper) return inputs;
+
+        var dev = DeveloperSettings.Instance;
+        var induced = new List<HealthSeverity>();
+        if (dev.InduceBroken) induced.Add(HealthSeverity.Broken);
+        if (dev.InduceMisconfigured) induced.Add(HealthSeverity.Misconfigured);
+        if (dev.InduceRecommendation) induced.Add(HealthSeverity.Recommendation);
+
+        // Force actual per-tablet warnings by adding a synthetic detected tablet so the real issues emit
+        // with their true copy (their Fix deep-links to "Sample Tablet", a harmless no-op when absent).
+        if (dev.ForceTabletNotWinInk)
+            tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: false));
+        if (dev.ForceTabletMappingOffScreen)
+            tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: true,
+                DisplayMappingValidity.OffScreen));
+        if (dev.ForceTabletMappingCustom)
+            tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: true,
+                DisplayMappingValidity.Custom));
+
+        // OR-in the scalar force flags so each real catalog entry appears with its exact UX.
+        return inputs with
+        {
+            DaemonConnected = inputs.DaemonConnected || dev.ForceForeignDaemon,
+            ForeignDaemon = inputs.ForeignDaemon || dev.ForceForeignDaemon,
+            WinInkInstalled = installed && !dev.ForceWinInkNotInstalled,
+            WinInkVersionMismatch = mismatch || dev.ForceWinInkVersionMismatch,
+            VMultiInstalled = dev.ForceVMultiNotInstalled ? false : _vmultiInstalled,
+            HasDriverConflict = inputs.HasDriverConflict || dev.ForceDriverConflict,
+            RunningElevated = inputs.RunningElevated || dev.ForceRunningElevated,
+            Tablets = tablets,
+            InducedSeverities = induced,
+        };
     }
 
     public void Dispose()
@@ -138,5 +198,6 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         _connection.PropertyChanged -= OnConnectionChanged;
         _conflicts.PropertyChanged -= OnConflictsChanged;
         _conflicts.Drivers.CollectionChanged -= OnConflictDriversChanged;
+        DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
     }
 }

@@ -292,6 +292,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_deviceData != null)
             _deviceData.DataLoaded += RefreshDetectionStatus;
 
+        // Show/hide the developer-only Filters/JSON tabs live as their Developer-tab toggles change.
+        DeveloperSettings.Instance.PropertyChanged += OnDeveloperSettingsChanged;
+
         TabletName = profile.Tablet ?? "Unknown Tablet";
         HasAreaMapping = profile.AbsoluteModeSettings != null;
 
@@ -305,6 +308,18 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _suppressMappingPending = true;
         SelectedDisplayNumber = DefaultSelectedDisplay();
         _suppressMappingPending = false;
+    }
+
+    /// <summary>Show the Filters tab — a developer-only view of the profile's raw filters, hidden unless
+    /// enabled on Advanced → Developer (users never need it).</summary>
+    public bool ShowFiltersTab => DeveloperSettings.Instance.ShowFiltersTab;
+    /// <summary>Show the JSON tab — the raw settings JSON, hidden unless enabled on Advanced → Developer.</summary>
+    public bool ShowJsonTab => DeveloperSettings.Instance.ShowJsonTab;
+
+    private void OnDeveloperSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DeveloperSettings.ShowFiltersTab)) OnPropertyChanged(nameof(ShowFiltersTab));
+        else if (e.PropertyName == nameof(DeveloperSettings.ShowJsonTab)) OnPropertyChanged(nameof(ShowJsonTab));
     }
 
     // Parameterless constructor for design-time
@@ -1390,6 +1405,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         if (_deviceData != null) _deviceData.DataLoaded -= RefreshDetectionStatus;
+        DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
         StopLiveInput();
     }
 }

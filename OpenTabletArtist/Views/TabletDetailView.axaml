@@ -159,10 +159,13 @@
                      (and flip HoverFilter.LimiterEnabled) to restore. -->
                 <RadioButton Content="HOVER" x:Name="HoverTab" IsVisible="False"
                              Theme="{StaticResource TabRadioButton}" />
+                <!-- Filters/JSON are developer-only views, hidden unless enabled on Advanced → Developer. -->
                 <RadioButton Content="FILTERS" x:Name="FiltersTab"
-                             Theme="{StaticResource TabRadioButton}" />
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding ShowFiltersTab}" />
                 <RadioButton Content="JSON" x:Name="JsonTab"
-                             Theme="{StaticResource TabRadioButton}" />
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding ShowJsonTab}" />
             </StackPanel>
         </Border>
 

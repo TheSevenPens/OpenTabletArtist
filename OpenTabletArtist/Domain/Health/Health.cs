@@ -36,6 +36,8 @@ public enum RemediationArea
     TabletPenBehavior,
     /// <summary>A specific tablet's Display Mapping tab (the mapped area isn't a clean single display).</summary>
     TabletDisplayMapping,
+    /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
+    DeveloperInducedWarning,
 }
 
 /// <summary>A fix action for an issue: a button label + where it leads. <see cref="TabletName"/> is set
@@ -49,7 +51,10 @@ public sealed record HealthIssue(
     HealthSeverity Severity,
     string Title,
     string Detail,
-    Remediation? Remediation);
+    Remediation? Remediation,
+    // True when this issue is only present because a Developer-tab toggle forced it (not genuinely true).
+    // Drives the hidden right-click "dismiss" on Home; always false for real issues. Set by HealthService.
+    bool IsDeveloperInduced = false);
 
 /// <summary>Per-tablet inputs the checks read. <see cref="Mapping"/> is the display-mapping
 /// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>
@@ -82,6 +87,9 @@ public sealed record HealthInputs
     /// <summary>The app itself is running elevated (as Administrator), which breaks Windows Ink + per-app switching.</summary>
     public bool RunningElevated { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
+    /// <summary>Synthetic warnings to emit, one per severity, induced from the Developer tab so the
+    /// "Needs attention" UI can be reviewed/screenshotted. Empty in normal use.</summary>
+    public IReadOnlyList<HealthSeverity> InducedSeverities { get; init; } = new List<HealthSeverity>();
 }
 
 /// <summary>
@@ -170,6 +178,17 @@ public static class HealthEvaluator
                 "You're connected to an OpenTabletDriver daemon this app didn't start. Restart it from " +
                 "the daemon card to use this app's bundled build.",
                 new Remediation("Fix", RemediationArea.Daemon)));
+        }
+
+        // --- Developer-induced synthetic warnings (Advanced → Developer): one per requested severity, so
+        //     the "Needs attention" cards can be reviewed at each tier. The Fix just clears the flag. ---
+        foreach (var sev in i.InducedSeverities)
+        {
+            issues.Add(new HealthIssue($"dev.induced.{sev}", sev,
+                $"[Developer] Induced {sev.ToString().ToLowerInvariant()} warning",
+                "A synthetic health warning induced from the Developer tab, for reviewing how issues " +
+                "render. Fixing it simply clears the Developer-tab flag that caused it to show.",
+                new Remediation("Clear", RemediationArea.DeveloperInducedWarning)));
         }
 
         issues.Sort((a, b) =>

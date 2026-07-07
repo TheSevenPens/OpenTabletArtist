@@ -76,7 +76,21 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 // Deep-link to the tablet's page; its Display Mapping / Pen Behavior tab carries the fix.
                 if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName);
                 break;
+            case RemediationArea.DeveloperInducedWarning:
+                // Synthetic warning from the Developer tab — "fixing" it just clears the induced flag.
+                Services.DeveloperSettings.Instance.ClearInduced(issue.Severity);
+                break;
         }
+    }
+
+    /// <summary>Hidden developer affordance: right-clicking a synthetic ("developer-induced") card on Home
+    /// clears whichever Developer-tab flag produced it. Ignored for real warnings, so they can't be
+    /// dismissed this way.</summary>
+    [RelayCommand]
+    private void DismissDeveloperIssue(HealthIssue? issue)
+    {
+        if (issue is { IsDeveloperInduced: true })
+            Services.DeveloperSettings.Instance.Dismiss(issue);
     }
 
     public bool HasTablet => _session.HasTablet;

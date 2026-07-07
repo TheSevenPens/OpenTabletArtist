@@ -78,6 +78,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The OpenTabletDriver tabbed page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
     public OpenTabletDriverViewModel OpenTabletDriver { get; }
     public StartupViewModel Startup { get; } = new();
+    public DeveloperViewModel Developer { get; } = new();
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
@@ -103,7 +104,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool IsAdvancedPage(object? page) =>
         ReferenceEquals(page, OpenTabletDriver) || ReferenceEquals(page, VMulti)
         || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Startup)
-        || ReferenceEquals(page, Theme);
+        || ReferenceEquals(page, Developer) || ReferenceEquals(page, Theme);
 
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
@@ -117,6 +118,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
     public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
     public bool IsStartup => ReferenceEquals(CurrentPage, Startup);
+    public bool IsDeveloper => ReferenceEquals(CurrentPage, Developer);
     public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
@@ -366,6 +368,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsOtd));
         OnPropertyChanged(nameof(IsVMulti));
         OnPropertyChanged(nameof(IsStartup));
+        OnPropertyChanged(nameof(IsDeveloper));
         OnPropertyChanged(nameof(IsTheme));
         OnPropertyChanged(nameof(IsAbout));
     }
