@@ -494,7 +494,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null || display == null) return;
 
         // Same mapping the tray's "Switch display" uses — aspect-locked, full-monitor (#187).
-        await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display));
+        await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display, Displays));
         MappingChangePending = false; // the selection is now the applied mapping
     }
 

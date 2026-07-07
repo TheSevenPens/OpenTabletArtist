@@ -268,7 +268,10 @@ public sealed class AppTray : IDisposable
         if (profile == null) return;
 
         var digitizer = _deviceData.GetTabletDigitizer(activeName);
-        if (!DisplayMappingApplier.ApplyToProfile(profile, digitizer, display)) return;
+        // Re-enumerate so the area is placed against the current monitor layout (the menu the click came
+        // from may be a moment stale); the full set is needed for OTD's virtual-screen coordinates.
+        var displays = DisplayEnumerator.Enumerate();
+        if (!DisplayMappingApplier.ApplyToProfile(profile, digitizer, display, displays)) return;
 
         try { await _settingsCoord.ApplyAndSaveSettingsAsync(settings); }
         catch { /* best-effort; the next data load will resync the menu's checkmark */ }

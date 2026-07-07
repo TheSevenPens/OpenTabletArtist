@@ -18,23 +18,47 @@ public static class DisplayMappingApplier
     private const float MatchTolerance = 1.5f;
 
     /// <summary>
+    /// The stored Display-area centre for <paramref name="display"/>, given the full
+    /// <paramref name="displays"/> set. OTD's Display area is in <em>0-based virtual-desktop</em>
+    /// coordinates: the desktop's min (top-left-most) corner is the origin, so each monitor's position
+    /// is its raw virtual-desktop position shifted by <c>-min</c>. Writing the raw monitor centre
+    /// (<c>monitor.X + width/2</c>) only matched when the desktop origin was already (0,0) — i.e. the
+    /// top-left-most monitor sat at 0. With a monitor at a negative offset (e.g. the primary not being
+    /// top-left, which duplicating displays can produce) the raw centre landed the mapping off to the
+    /// left / onto the wrong display. Shifting by <c>-min</c> places it correctly, matching OTD's own
+    /// area diagram (which draws the desktop from its min corner). (#displaydup)
+    /// </summary>
+    public static (float X, float Y) MappedCenter(DisplayInfo display, IReadOnlyList<DisplayInfo> displays)
+    {
+        float minX = displays is { Count: > 0 } ? displays.Min(d => d.X) : display.X;
+        float minY = displays is { Count: > 0 } ? displays.Min(d => d.Y) : display.Y;
+        return (
+            display.X - minX + display.Width / 2f,
+            display.Y - minY + display.Height / 2f);
+    }
+
+    /// <summary>
     /// Maps <paramref name="profile"/>'s active area to <paramref name="display"/>: the display area
     /// becomes the whole monitor and the tablet area becomes the largest centered sub-area matching
     /// the monitor's aspect ratio (so the 1:1 mapping is undistorted). Uses <paramref name="digitizer"/>
     /// as the full tablet size, falling back to the profile's current tablet width/height.
+    /// <paramref name="displays"/> is the full monitor set, needed to place the display area in OTD's
+    /// virtual-screen coordinates (see <see cref="MappedCenter"/>).
     /// </summary>
     /// <returns>true if a full mapping was written; false if the profile has no Absolute settings or
     /// the dimensions are degenerate (in which case only the display area may have been set).</returns>
-    public static bool ApplyToProfile(Profile profile, (float Width, float Height)? digitizer, DisplayInfo display)
+    public static bool ApplyToProfile(Profile profile, (float Width, float Height)? digitizer,
+        DisplayInfo display, IReadOnlyList<DisplayInfo> displays)
     {
         var abs = profile.AbsoluteModeSettings;
         if (abs == null) return false;
 
-        // Display area = the full selected monitor (centre-positioned, matching how OTD stores it).
+        // Display area = the full selected monitor, centre-positioned the way OTD's own UX stores it.
+        var (cx, cy) = MappedCenter(display, displays);
         abs.Display.Width = display.Width;
         abs.Display.Height = display.Height;
-        abs.Display.X = display.X + display.Width / 2f;
-        abs.Display.Y = display.Y + display.Height / 2f;
+        abs.Display.X = cx;
+        abs.Display.Y = cy;
 
         // Start from the full tablet digitizer area (fall back to the profile's stored area).
         float fullWidth = digitizer?.Width ?? abs.Tablet.Width;
@@ -58,10 +82,13 @@ public static class DisplayMappingApplier
         var disp = profile.AbsoluteModeSettings?.Display;
         if (disp == null) return null;
         foreach (var d in displays)
-            // ApplyToProfile stores the display area as centre = monitor centre, size = monitor size.
+        {
+            // Match against the same centre ApplyToProfile would store for this monitor.
+            var (cx, cy) = MappedCenter(d, displays);
             if (Approx(disp.Width, d.Width) && Approx(disp.Height, d.Height)
-                && Approx(disp.X, d.X + d.Width / 2f) && Approx(disp.Y, d.Y + d.Height / 2f))
+                && Approx(disp.X, cx) && Approx(disp.Y, cy))
                 return d;
+        }
         return null;
     }
 

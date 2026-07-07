@@ -58,7 +58,7 @@ public sealed class MonitorCycleService
         int idx = current == null ? -1 : IndexOf(displays, current.Number);
         var next = displays[(idx + 1) % displays.Count];
 
-        if (!DisplayMappingApplier.ApplyToProfile(profile, _device.GetTabletDigitizer(tabletName), next))
+        if (!DisplayMappingApplier.ApplyToProfile(profile, _device.GetTabletDigitizer(tabletName), next, displays))
         {
             Cycled?.Invoke($"Couldn't remap {tabletName}");
             return;

@@ -42,7 +42,7 @@ public class MonitorCycleServiceTests
                 Tablet = new AreaSettings { Width = 100, Height = 100 },
             },
         };
-        DisplayMappingApplier.ApplyToProfile(profile, (100f, 100f), display);
+        DisplayMappingApplier.ApplyToProfile(profile, (100f, 100f), display, TwoDisplays);
         return new Settings { Profiles = new ProfileCollection { profile } };
     }
 
