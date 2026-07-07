@@ -58,6 +58,22 @@ public class TabletAboutInfoTests
         Assert.Null(TabletAboutInfo.From(null, "A"));
     }
 
+    [Theory]
+    [InlineData(152, 95, "16:10  (1.600)")]    // exact 16:10
+    [InlineData(160, 90, "16:9  (1.778)")]     // exact 16:9
+    [InlineData(100, 100, "16:16  (1.000)")]   // square
+    [InlineData(160, 120, "16:12  (1.333)")]   // 4:3
+    public void FormatAspectRatio_CleanRatios_ShownExactly(double w, double h, string expected)
+        => Assert.Equal(expected, TabletAboutInfo.FormatAspectRatio(w, h));
+
+    [Fact]
+    public void FormatAspectRatio_NearButNotExact_IsPrefixedCloseTo()
+    {
+        // 223 × 125: normalized height = 16×125/223 = 8.97 → rounds to 9 but isn't a clean 16:9.
+        var s = TabletAboutInfo.FormatAspectRatio(223, 125);
+        Assert.StartsWith("close to 16:9", s);
+    }
+
     [Fact]
     public void Parse_OmitsAbsentOptionalSpecs()
     {
