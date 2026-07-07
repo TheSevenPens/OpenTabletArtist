@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         // sidebar footer / About page (strips +build metadata, ensures a leading "v").
         Title = $"OpenTabletArtist  {AppVersionInfo.Format(
             Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}";
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}  BETA";
         // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
         // DataContextChanged from that assignment fired inside InitializeComponent, before we could
         // handle it. Wire the switch subscription now for the current VM, and keep the handler for
