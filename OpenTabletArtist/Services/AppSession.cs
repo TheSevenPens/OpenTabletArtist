@@ -131,6 +131,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // fallback poll, Refresh). #19.
     private readonly LatestOnlyGate _loadGate = new();
 
+    // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
+    // daemon (the no-op guard: applying byte-identical settings is skipped), and a circuit-breaker that
+    // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
+    private string? _lastLoadedSettingsJson;
+    private readonly ApplyLoopBreaker _applyLoopBreaker = new();
+
     /// <summary>
     /// Fallback reconciliation interval. Detection is event-driven via the daemon's
     /// <c>TabletsChanged</c> push (#170); this poll is only a safety net in case an event is missed,
@@ -634,6 +640,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 catch { /* leave it; next save will retry the cleanup via the forward guard */ }
             }
 
+            // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
+            _lastLoadedSettingsJson = SerializeForCompare(_settings);
+
             DataLoaded?.Invoke();
 
             // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
@@ -695,6 +704,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // Verify up front so an off-thread caller fails before any side effects (daemon write,
         // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
         Dispatcher.UIThread.VerifyAccess();
+
+        // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
+        // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
+        // common "same value written back repeatedly" loop without a save flicker.
+        if (SerializeForCompare(settings) is { } json && json == _lastLoadedSettingsJson)
+            return;
+
+        // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
+        // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
+        if (!_applyLoopBreaker.Allow(Environment.TickCount64))
+        {
+            System.Diagnostics.Debug.WriteLine(
+                "AppSession: apply-loop breaker tripped — skipping ApplyAndSave to avoid a hang (a UI binding is looping).");
+            return;
+        }
+
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         _settings = settings;
@@ -716,6 +741,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
 
         await LoadDataAsync();
+    }
+
+    /// <summary>Deterministic string form of the settings for cheap equality comparison (the no-op apply
+    /// guard). Best-effort — returns null on any serialization failure, which just disables the guard for
+    /// that call (the circuit-breaker still backs it up).</summary>
+    private static string? SerializeForCompare(Settings? settings)
+    {
+        if (settings == null) return null;
+        try { return Newtonsoft.Json.JsonConvert.SerializeObject(settings); }
+        catch { return null; }
     }
 
     /// <inheritdoc />

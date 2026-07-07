@@ -269,6 +269,29 @@ public class TabletDetailViewModelTests
         Assert.False(vm.ShowConnectToCalibrateHint); // not absolute → the "connect" hint doesn't apply
     }
 
+    // Hardening (#applyloop): reloads must be side-effect-free. A data reload that reconciles into the VM —
+    // whether it's identical or an adopted external change — must NEVER trigger an apply/save. This guards
+    // the VM-level invariant behind the apply-loop class of bug (a loop needs a reload to re-trigger it).
+    [Fact]
+    public void ReconcileExternalChange_NeverTriggersAnApply()
+    {
+        var original = MappedSettings("T", 50);
+        int applies = 0;
+        var vm = new TabletDetailViewModel(
+            original.Profiles.First(), original,
+            applyAction: _ => { applies++; return Task.CompletedTask; });
+
+        // An identical reload (no real change) — reconciled, no apply.
+        var same = MappedSettings("T", 50);
+        vm.ReconcileExternalChange(same, same.Profiles.First());
+        Assert.Equal(0, applies);
+
+        // A genuine external change the VM adopts (RefreshFromProfile rebuilds every binding) — still no apply.
+        var changed = MappedSettings("T", 80);
+        vm.ReconcileExternalChange(changed, changed.Profiles.First());
+        Assert.Equal(0, applies);
+    }
+
     // Regression: the two Movement cards are command-driven (IsChecked is OneWay display-only). Selecting
     // the mode you're already on must NOT apply — the previous TwoWay-IsChecked design had the grouped
     // radios write back on every reload and fight into an infinite apply↔reload save loop.
