@@ -32,13 +32,12 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _enabled;
     [ObservableProperty] private List<string> _snapshotNames = [];
-    // Target dropdown options shared by the "All other apps" card and every app card: Current settings
+    // Target dropdown options shared by the "Default for apps" card and every app card: Current settings
     // (the live config) followed by the saved profiles.
     [ObservableProperty] private List<string> _targetOptions = [CurrentSettingsOption];
-    // What unmapped apps use (the "All other apps" card). CurrentSettingsOption ⇔ a null stored default.
+    // What unmapped apps use (the "Default for apps" card). CurrentSettingsOption ⇔ a null stored default.
     [ObservableProperty] private string _unmappedTarget = CurrentSettingsOption;
     [ObservableProperty] private List<PerAppMappingRow> _mappings = [];
-    [ObservableProperty] private string _statusLine = "Off.";
 
     /// <summary>Dropdown selection → stored snapshot name (Current settings ⇒ null).</summary>
     internal static string? TargetToSnapshot(string? target) =>
@@ -62,7 +61,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         _dialogs = dialogs;
         _connection = connection;
 
-        _switcher.ActiveProfileChanged += OnActiveChanged;
         _switcher.DanglingSnapshot += OnDangling;
         _device.DataLoaded += OnDataLoaded;
         _connection.PropertyChanged += OnConnectionChanged;
@@ -87,7 +85,8 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         try { await LoadAsync(); }
         catch (Exception ex)
         {
-            StatusLine = $"Couldn't refresh per-app settings: {ex.Message}";
+            // Fire-and-forget from DataLoaded — swallow so a bad reload can't crash, but don't lose it.
+            System.Diagnostics.Debug.WriteLine($"Per-app settings refresh failed: {ex}");
         }
     }
 
@@ -112,10 +111,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         // Resume a persisted-enabled config once the daemon is up (LoadAsync runs on data load), unless a
         // foreign daemon is connected (feature is app-owned-only).
         if (Enabled && !IsForeignDaemon && !_switcher.IsRunning)
-        {
             _switcher.Start();
-            StatusLine = "On — waiting for an app change…";
-        }
         return Task.CompletedTask;
     }
 
@@ -144,7 +140,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         _store.SetEnabled(value);
         if (value) _switcher.Start();
         else _ = _switcher.StopAsync();
-        StatusLine = value ? "On — waiting for an app change…" : "Off.";
     }
 
     partial void OnUnmappedTargetChanged(string value)
@@ -181,9 +176,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         RebuildMappings();
     }
 
-    private void OnActiveChanged(string? snapshot) =>
-        StatusLine = snapshot == null ? "Active: Current settings" : $"Active: {snapshot}";
-
     private async void OnDangling(string snapshot) =>
         await _dialogs.ShowMessageAsync("Missing profile",
             $"A mapping points at \"{snapshot}\", which no longer exists — using your default instead. " +
@@ -191,7 +183,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _switcher.ActiveProfileChanged -= OnActiveChanged;
         _switcher.DanglingSnapshot -= OnDangling;
         _device.DataLoaded -= OnDataLoaded;
         _connection.PropertyChanged -= OnConnectionChanged;
