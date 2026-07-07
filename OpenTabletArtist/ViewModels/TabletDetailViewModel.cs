@@ -393,8 +393,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var facts = new System.Collections.Generic.List<TabletFact>();
         if (!string.IsNullOrEmpty(a.Name)) facts.Add(new("Name", a.Name));
         if (a.WidthMm > 0 && a.HeightMm > 0)
+        {
             facts.Add(new("Active area",
                 $"{a.WidthMm:0.#} × {a.HeightMm:0.#} mm  ({a.WidthMm / 25.4:0.0} × {a.HeightMm / 25.4:0.0} in)"));
+            double diag = System.Math.Sqrt(a.WidthMm * a.WidthMm + a.HeightMm * a.HeightMm);
+            facts.Add(new("Active area diagonal", $"{diag:0.#} mm  ({diag / 25.4:0.0} in)"));
+            facts.Add(new("Active area aspect ratio", TabletAboutInfo.FormatAspectRatio(a.WidthMm, a.HeightMm)));
+        }
         if (a.LpMm is > 0 && a.Lpi is > 0)
             facts.Add(new("Digitizer resolution", $"{a.LpMm:N0} LPmm ({a.Lpi:N0} LPI)"));
         if (a.MaxPressure is > 0) facts.Add(new("Pressure levels", $"{a.MaxPressure:N0}"));

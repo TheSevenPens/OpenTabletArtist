@@ -29,6 +29,20 @@ public sealed record TabletAboutInfo
     public int? VendorId { get; init; }
     public int? ProductId { get; init; }
 
+    /// <summary>
+    /// Format the active-area aspect ratio normalized to 16 in the numerator (e.g. "16:10"; a square →
+    /// "16:16"), with the raw W/H division in parentheses. A ratio that lands near — but not exactly on —
+    /// a whole 16:N is prefixed "close to ", so an odd panel isn't misrepresented as a clean ratio.
+    /// </summary>
+    public static string FormatAspectRatio(double widthMm, double heightMm)
+    {
+        double ratio = widthMm / heightMm;
+        double normalizedHeight = 16.0 * heightMm / widthMm; // height when the width is scaled to 16
+        int rounded = (int)Math.Round(normalizedHeight);
+        bool exact = Math.Abs(normalizedHeight - rounded) < 0.02;
+        return $"{(exact ? "" : "close to ")}16:{rounded}  ({ratio:0.000})";
+    }
+
     /// <summary>Find <paramref name="tabletName"/> in the daemon's tablets array and parse its facts, or
     /// null if the array is empty / the tablet isn't currently reported (specs only exist while detected).</summary>
     public static TabletAboutInfo? From(JToken? tablets, string tabletName)
