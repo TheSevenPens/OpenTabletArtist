@@ -220,7 +220,11 @@
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Row="0" Text="DISPLAY MAPPING" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
+                            <!-- Apply mapping leads the row (primary action), then the display helpers. -->
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                                <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
+                                        ToolTip.Tip="Map the tablet to the selected display"
+                                        Theme="{StaticResource AccentButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
                                 <Button Content="Refresh Display Settings" Command="{Binding RefreshDisplaysCommand}"
                                         ToolTip.Tip="Refresh displays from Windows"
                                         Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
@@ -230,6 +234,16 @@
                                         Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
+                        <!-- A changed display selection isn't live until Apply mapping (#179 follow-up);
+                             sits directly under the button row. -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
+                                    IsVisible="{Binding MappingChangePending}">
+                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
+                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
                         <TextBlock Text="Click a display to map the tablet to it, then Apply."
                                    FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
                                    TextWrapping="Wrap" />
@@ -238,18 +252,6 @@
                                                    Area="{Binding TabletArea}"
                                                    AccentBrush="{DynamicResource AccentBrush}"
                                                    Height="320" />
-                        <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
-                                Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12"
-                                HorizontalAlignment="Left" Margin="0,10,0,0" />
-                        <!-- Make it obvious a changed display selection isn't live until applied (#179 follow-up). -->
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"
-                                    IsVisible="{Binding MappingChangePending}">
-                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
-                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                        </StackPanel>
 
                         <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->
                         <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,12" />
@@ -359,6 +361,24 @@
                                Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
                 </Border>
 
+                <!-- Current calibration status card — sits before the density options so the user sees
+                     the current state (and can clear it) first. -->
+                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding CalibrationStatusText}" FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
+                                    Theme="{StaticResource GhostButton}" Padding="10,4" FontSize="11" VerticalAlignment="Center"
+                                    ToolTip.Tip="Remove the calibration and return the pointer to its uncorrected default" />
+                        </StackPanel>
+                        <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
+                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                   IsVisible="{Binding CalibrationStale}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
                      currently in use gets an accent outline + "In use" badge. Equal-size cards
                      (UniformGrid); the START button sits directly below the diagram with the explanatory
@@ -412,19 +432,6 @@
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
                 <TextBlock Text="Connect this tablet to calibrate." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
-
-                <!-- Current calibration state + a way to clear it. -->
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,14,0,0" IsVisible="{Binding CanCalibrate}">
-                    <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding CalibrationStatusText}" FontSize="11" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
-                            Theme="{StaticResource GhostButton}" Padding="10,4" FontSize="11" VerticalAlignment="Center"
-                            ToolTip.Tip="Remove the calibration and return the pointer to its uncorrected default" />
-                </StackPanel>
-                <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
-                           FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
-                           Margin="0,4,0,0" IsVisible="{Binding CalibrationStale}" />
             </StackPanel>
         </ScrollViewer>
 
@@ -503,8 +510,23 @@
                             VerticalAlignment="Center" />
                 </Grid>
 
-                <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}"
-                              ItemTemplate="{StaticResource ButtonBindingCard}" />
+                <!-- Two columns (at most), each card ~half the pane so more buttons fit while staying
+                     comfortably wide. Each item is wrapped so the inter-column gutter can be set directly
+                     on the wrapper (a style on the generated container isn't reliably applied); the shared
+                     card template supplies the vertical gap between rows. -->
+                <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="2" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ButtonBindingCard}"
+                                            Margin="0,0,16,0" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <!-- Empty state when the tablet has no auxiliary buttons. -->
                 <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding NoAuxButtons}">
