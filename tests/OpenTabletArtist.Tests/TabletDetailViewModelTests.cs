@@ -268,4 +268,29 @@ public class TabletDetailViewModelTests
         Assert.False(vm.CanRunCalibration);
         Assert.False(vm.ShowConnectToCalibrateHint); // not absolute → the "connect" hint doesn't apply
     }
+
+    // Regression: the two Movement cards are command-driven (IsChecked is OneWay display-only). Selecting
+    // the mode you're already on must NOT apply — the previous TwoWay-IsChecked design had the grouped
+    // radios write back on every reload and fight into an infinite apply↔reload save loop.
+    [Fact]
+    public void SelectMovement_RedundantSelection_DoesNotApply_ButRealChangeDoes()
+    {
+        var settings = AbsoluteSettingsWith("T");
+        int applies = 0;
+        var vm = new TabletDetailViewModel(
+            settings.Profiles.First(), settings,
+            applyAction: _ => { applies++; return Task.CompletedTask; });
+
+        Assert.True(vm.IsAbsoluteMode);                    // loaded as Windows Ink Absolute
+
+        vm.SelectMovementCommand.Execute("absolute");      // already Absolute — no-op
+        Assert.Equal(0, applies);                          // no apply → no save loop
+
+        vm.SelectMovementCommand.Execute("relative");      // a genuine change to Relative
+        Assert.Equal(1, applies);                          // applied exactly once
+        Assert.False(vm.IsAbsoluteMode);
+
+        vm.SelectMovementCommand.Execute("relative");      // redundant again, now on Relative
+        Assert.Equal(1, applies);                          // still just the one
+    }
 }
