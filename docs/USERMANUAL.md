@@ -114,11 +114,11 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 
 Automatically applies a profile when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a profile, and switching to that app reconfigures the tablet. (Nested under **Profiles** in the sidebar.)
 
-To use it: create the profiles you want first (Profiles page), then here tick **Enable per-app profile switching**, choose what unmapped apps use — your **Current settings** (default) or a specific profile — and **Add app…** to map a running application to a profile. An **App profile** chip in the main window shows which profile is currently applied.
+To use it: create the profiles you want first (Profiles page), then here **Add app…** to map a running application to a profile. There's no separate on/off — switching turns on automatically as soon as at least one app is mapped to a saved profile (mapping an app to **Current settings** is a no-op and doesn't arm it). Use **Default for apps** to choose what unmapped apps get — your **Current settings** (default) or a specific profile. An **App profile** chip in the main window shows which profile is currently applied.
 
 Caveats:
 
-- **Switches are temporary.** They're applied live to the daemon only — your Current settings (`settings.json`) are never overwritten, the editor keeps showing/editing them, and they're restored when you disable the feature or quit the app.
+- **Switches are temporary.** They're applied live to the daemon only — your Current settings (`settings.json`) are never overwritten, the editor keeps showing/editing them, and they're restored when switching turns off (no app is mapped to a profile) or you quit the app.
 - **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
 - **Profiles are whole-configuration.** A profile is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up profiles with that in mind if you have multiple tablets.
 - **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.

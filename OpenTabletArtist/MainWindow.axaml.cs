@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private bool _trayHintShown = Program.LaunchInBackground || AppSettings.Get("TrayHintShown") == "true";
     private ProfileSwitchService? _switchSub;  // tracked so we can unsubscribe on DataContext change / close
     private MonitorCycleService? _cycleSub;    // ditto, for the monitor-cycle toast (#89)
+    private PerAppSwitcher? _perAppSub;        // ditto, for the automatic per-app switch toast (#167)
 
     public MainWindow()
     {
@@ -41,23 +42,28 @@ public partial class MainWindow : Window
         {
             if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
             if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
+            if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
             ProfileToast.Dismiss();
             (DataContext as MainViewModel)?.Dispose();
         };
     }
 
-    // Follow the VM's switch services so a hotkey-driven profile switch (#320) or monitor cycle (#89)
-    // pops a transient toast, even when the app is in the tray / behind the drawing app.
+    // Follow the VM's switch services so a hotkey-driven profile switch (#320), monitor cycle (#89), or an
+    // automatic per-app switch (#167) pops a transient toast, even when the app is in the tray / behind
+    // the drawing app.
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
         if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
+        if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
 
         var vm = DataContext as MainViewModel;
         _switchSub = vm?.ProfileSwitch;
         _cycleSub = vm?.MonitorCycle;
+        _perAppSub = vm?.PerAppSwitch;
         if (_switchSub != null) _switchSub.Switched += OnProfileSwitched;
         if (_cycleSub != null) _cycleSub.Cycled += OnMonitorCycled;
+        if (_perAppSub != null) _perAppSub.ActiveProfileChanged += OnPerAppSwitched;
     }
 
     private void OnProfileSwitched(string? snapshot)
@@ -69,6 +75,13 @@ public partial class MainWindow : Window
 
     private void OnMonitorCycled(string message) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(message));
+
+    // Automatic per-app switch: same transient toast as the hotkey paths, with a ⧉ glyph so it reads as an
+    // app-triggered change rather than a keyboard one. The switcher dedupes by target, so this only fires
+    // when the applied profile actually changes — not on every focus flip.
+    private void OnPerAppSwitched(string? snapshot) =>
+        Dispatcher.UIThread.Post(() => ProfileToast.Show(
+            snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”", glyph: "⧉"));
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;

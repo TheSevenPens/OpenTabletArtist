@@ -12,11 +12,12 @@ namespace OpenTabletArtist.Services;
 /// settings for this app (i.e. don't switch to a saved profile).</summary>
 public record PerAppMapping(string ExePath, string ExeName, string? SnapshotName, bool Enabled = true);
 
-/// <summary>The whole per-app config: master enable, an optional default snapshot for unmapped apps
-/// (null = the user's on-disk default), and the mappings.</summary>
-public record PerAppConfig(bool Enabled, string? DefaultSnapshot, IReadOnlyList<PerAppMapping> Mappings)
+/// <summary>The whole per-app config: an optional default snapshot for unmapped apps (null = the user's
+/// on-disk default) and the mappings. There's no explicit enable flag — the feature is implicitly on when
+/// a mapping targets a real profile (see <see cref="PerAppProfileStore.HasActiveMappings"/>).</summary>
+public record PerAppConfig(string? DefaultSnapshot, IReadOnlyList<PerAppMapping> Mappings)
 {
-    public static PerAppConfig Empty { get; } = new(false, null, Array.Empty<PerAppMapping>());
+    public static PerAppConfig Empty { get; } = new(null, Array.Empty<PerAppMapping>());
 }
 
 /// <summary>
@@ -62,7 +63,11 @@ public sealed class PerAppProfileStore
     }
 
     // ── Mutations (each persists) ────────────────────────────────────────────────
-    public void SetEnabled(bool enabled) => Mutate(Config with { Enabled = enabled });
+    /// <summary>The feature is implicitly on when at least one <em>enabled</em> mapping targets a real
+    /// saved profile. A mapping to "Current settings" (null snapshot) is a no-op — it applies the live
+    /// config that's already active — so it doesn't count; nor does a lone non-Current default.</summary>
+    public bool HasActiveMappings =>
+        Config.Mappings.Any(m => m.Enabled && !string.IsNullOrEmpty(m.SnapshotName));
 
     public void SetDefaultSnapshot(string? snapshot) => Mutate(Config with { DefaultSnapshot = snapshot });
 

@@ -32,13 +32,8 @@
         </Border>
 
         <StackPanel IsVisible="{Binding HasEnoughSnapshots}" IsEnabled="{Binding CanUse}" Spacing="14">
-            <!-- Master controls -->
-            <Border Classes="GlassPanel" Padding="18">
-                <StackPanel Spacing="14">
-                    <CheckBox Content="Enable per-app profile switching" IsChecked="{Binding Enabled}"
-                              FontWeight="SemiBold" />
-                </StackPanel>
-            </Border>
+            <!-- No explicit on/off: switching turns on by itself as soon as an app below is mapped to a
+                 saved profile (a mapping to "Current settings" is a no-op and doesn't arm it). -->
 
             <!-- Catch-all card: what any app that isn't mapped below should use. Same dropdown (Current
                  settings + saved profiles) as every app card — one consistent way to target the live
@@ -97,9 +92,9 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No apps mapped yet" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                    <TextBlock Text="Add an app and pick which profile it should use."
-                               FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
-                               HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Text="Map an app to a saved profile to start automatic switching — there's no separate on/off."
+                               FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                               HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
         </StackPanel>
