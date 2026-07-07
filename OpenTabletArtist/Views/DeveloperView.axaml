@@ -1,0 +1,72 @@
+<UserControl x:Class="OpenTabletArtist.Views.DeveloperView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- DataContext is the DeveloperViewModel; controls bind to the shared DeveloperSettings singleton
+         (Settings.*) so Home and any open tablet page observe the same state live. -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <TextBlock Classes="PageTitle" Text="DEVELOPER" />
+        <TextBlock Text="Testing aids for reviewing the app's UI. These aren't needed for normal use. Tip: right-click an induced card in Home's Needs attention list to dismiss it (real warnings can't be dismissed this way)."
+                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                   Margin="0,0,0,14" TextWrapping="Wrap" />
+
+        <!-- Induce health warnings so the Home "Needs attention" cards can be reviewed / screenshotted.
+             Each appears immediately on Home; its Fix button just clears the toggle here. -->
+        <c:SettingCard Title="Induce health warnings"
+                       Description="Turn one on to make a synthetic warning appear in Home's Needs attention list at that severity. Its Fix button simply clears the toggle.">
+            <StackPanel Spacing="10">
+                <c:ToggleSetting Label="Recommendation-level warning"
+                                 Description="The mildest tier — works, but not the recommended configuration."
+                                 IsChecked="{Binding Settings.InduceRecommendation}" />
+                <c:ToggleSetting Label="Misconfigured-level warning"
+                                 Description="Set up incorrectly; a feature won't behave as expected."
+                                 IsChecked="{Binding Settings.InduceMisconfigured}" />
+                <c:ToggleSetting Label="Broken-level warning"
+                                 Description="A prerequisite is missing; core functionality won't work."
+                                 IsChecked="{Binding Settings.InduceBroken}" />
+            </StackPanel>
+        </c:SettingCard>
+
+        <!-- Force each ACTUAL health warning to appear with its real title/body/Fix button, so the true
+             copy can be reviewed and screenshotted. These drive the real evaluator, so what you see is
+             exactly what a user would. Turn a toggle back off to clear its card. -->
+        <c:SettingCard Title="Trigger actual health warnings"
+                       Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
+            <StackPanel Spacing="10">
+                <c:ToggleSetting Label="Windows Ink plugin not installed"
+                                 IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
+                <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
+                                 IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
+                <c:ToggleSetting Label="VMulti driver not installed"
+                                 IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
+                <c:ToggleSetting Label="Conflicting tablet driver detected"
+                                 IsChecked="{Binding Settings.ForceDriverConflict}" />
+                <c:ToggleSetting Label="Running as administrator"
+                                 IsChecked="{Binding Settings.ForceRunningElevated}" />
+                <c:ToggleSetting Label="Using an external daemon"
+                                 IsChecked="{Binding Settings.ForceForeignDaemon}" />
+                <c:ToggleSetting Label="Tablet: not using Windows Ink"
+                                 Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
+                                 IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
+                <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
+                                 IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
+                <c:ToggleSetting Label="Tablet: custom display mapping"
+                                 IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+            </StackPanel>
+        </c:SettingCard>
+
+        <!-- Reveal the normally-hidden tablet-page tabs. Off by default; users never need these. -->
+        <c:SettingCard Title="Tablet page tabs"
+                       Description="Show extra diagnostic tabs on a tablet's page. Hidden by default because they're rarely useful.">
+            <StackPanel Spacing="10">
+                <c:ToggleSetting Label="Show the Filters tab"
+                                 Description="A raw view of the profile's output-mode filters."
+                                 IsChecked="{Binding Settings.ShowFiltersTab}" />
+                <c:ToggleSetting Label="Show the JSON tab"
+                                 Description="The tablet profile's raw settings JSON."
+                                 IsChecked="{Binding Settings.ShowJsonTab}" />
+            </StackPanel>
+        </c:SettingCard>
+    </StackPanel>
+</UserControl>

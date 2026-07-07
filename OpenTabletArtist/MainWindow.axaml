@@ -126,6 +126,10 @@
                                      IsChecked="{Binding IsStartup, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Startup}"
                                      Margin="0,2,0,0" />
+                        <RadioButton Theme="{StaticResource NavNode}" Content="DEVELOPER"
+                                     IsChecked="{Binding IsDeveloper, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Developer}"
+                                     Margin="0,2,0,0" />
                         <RadioButton Theme="{StaticResource NavNode}" Content="THEME"
                                      IsChecked="{Binding IsTheme, Mode=OneWay}"
                                      Command="{Binding NavigateCommand}" CommandParameter="{Binding Theme}"

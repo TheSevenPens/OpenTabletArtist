@@ -183,6 +183,29 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void InducedSeverities_EmitSyntheticIssues_WithClearRemediation()
+    {
+        var input = Healthy() with
+        {
+            InducedSeverities = new[] { HealthSeverity.Recommendation, HealthSeverity.Broken },
+        };
+        var issues = HealthEvaluator.Evaluate(input);
+
+        var broken = Assert.Single(issues, x => x.Id == "dev.induced.Broken");
+        Assert.Equal(HealthSeverity.Broken, broken.Severity);
+        Assert.Equal(RemediationArea.DeveloperInducedWarning, broken.Remediation!.Area);
+        Assert.True(Has(issues, "dev.induced.Recommendation"));
+        // Sorted worst-first: the Broken synthetic issue leads.
+        Assert.Equal("dev.induced.Broken", issues.First().Id);
+    }
+
+    [Fact]
+    public void NoInducedSeverities_AddNothing()
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy())); // Healthy() induces nothing
+    }
+
+    [Fact]
     public void Issues_SortedBySeverity_WorstFirst()
     {
         var input = Healthy() with
