@@ -133,6 +133,13 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
         // Enumerate monitors once so each tablet's mapping is classified against the same live display set.
         var displays = DisplayEnumerator.Enumerate();
+        // The dynamics filter is app-owned-only; on a foreign daemon we don't flag it (report it as active
+        // to suppress the check), same as the other app-owned-daemon features. A profile with no filter at
+        // all is fine (dynamics are simply inert) — only a filter that's present but *disabled* is flagged,
+        // i.e. the always-on invariant regressed (someone turned it off, so configured dynamics won't apply).
+        bool foreign = _connection.IsForeignDaemon;
+        static bool DynamicsOk(ProfileItem p) =>
+            PressureCurveProfile.ReadProfile(p.Profile) is null or { Enabled: true };
         var tablets = _device.Profiles
             .Select(p => new TabletHealthInput(
                 p.Tablet,
@@ -143,7 +150,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 // would be noise. ClassifyMapping is None when there's no Absolute area to assess.
                 Mapping: p.IsDetected
                     ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
-                    : DisplayMappingValidity.None))
+                    : DisplayMappingValidity.None,
+                DynamicsFilterActive: foreign || DynamicsOk(p)))
             .ToList();
 
         var inputs = new HealthInputs

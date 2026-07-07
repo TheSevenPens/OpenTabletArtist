@@ -83,6 +83,35 @@ public static class PressureCurveProfile
         };
     }
 
+    /// <summary>Ensure every profile carries the Pen Dynamics filter, present and enabled — the app's
+    /// "always on internally" invariant (#dynamics-always-on). A newly added store has empty settings, so
+    /// the daemon uses the filter's identity defaults (a no-op) until the user edits the curve/smoothing;
+    /// an existing store's settings are left untouched. Returns true if anything changed (so the caller
+    /// can persist once).</summary>
+    public static bool EnsureEnabled(Settings? settings)
+    {
+        if (settings?.Profiles == null) return false;
+        bool changed = false;
+        foreach (var profile in settings.Profiles)
+        {
+            if (profile.Filters == null) continue;
+            var store = profile.Filters.FirstOrDefault(f => f.Path == FilterTypeName);
+            if (store == null)
+            {
+                store = NewStore();
+                store.Enable = true;
+                profile.Filters.Add(store);
+                changed = true;
+            }
+            else if (!store.Enable)
+            {
+                store.Enable = true;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     private static PluginSettingStore? FindStore(Settings? settings, string tabletName) =>
         FindStore(settings?.Profiles?.FirstOrDefault(p => p.Tablet == tabletName)?.Filters);
 

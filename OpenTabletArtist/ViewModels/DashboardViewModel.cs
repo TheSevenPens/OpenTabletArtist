@@ -76,6 +76,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 // Deep-link to the tablet's page; its Display Mapping / Pen Behavior tab carries the fix.
                 if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName);
                 break;
+            case RemediationArea.TabletPenDynamics:
+                // Re-enable the always-on Pen Dynamics filter across profiles and persist.
+                _ = _session.EnsureDynamicsAndSaveAsync();
+                break;
             case RemediationArea.DeveloperInducedWarning:
                 // Synthetic warning from the Developer tab — "fixing" it just clears the induced flag.
                 Services.DeveloperSettings.Instance.ClearInduced(issue.Severity);

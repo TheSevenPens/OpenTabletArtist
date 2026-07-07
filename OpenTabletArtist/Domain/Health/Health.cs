@@ -36,6 +36,8 @@ public enum RemediationArea
     TabletPenBehavior,
     /// <summary>A specific tablet's Display Mapping tab (the mapped area isn't a clean single display).</summary>
     TabletDisplayMapping,
+    /// <summary>The Pen Dynamics filter is off/missing on a profile; fixing re-enables it (always-on invariant).</summary>
+    TabletPenDynamics,
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
 }
@@ -60,7 +62,10 @@ public sealed record HealthIssue(
 /// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>
 public sealed record TabletHealthInput(
     string Name, bool Detected, bool OutputModeIsWinInk,
-    DisplayMappingValidity Mapping = DisplayMappingValidity.None);
+    DisplayMappingValidity Mapping = DisplayMappingValidity.None,
+    // The Pen Dynamics filter is present + enabled on this profile. Defaults true so a check only fires
+    // when a detected tablet is definitively missing/disabled (the always-on invariant regressed).
+    bool DynamicsFilterActive = true);
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -148,6 +153,10 @@ public static class HealthEvaluator
         //     pointer lands where the user expects. Off-screen (dead zones) is worse than a custom area. ---
         AddTabletMappingIssues(issues, i);
 
+        // --- Per-tablet Pen Dynamics: the filter should always be enabled (inert until customized). If a
+        //     detected tablet's profile has it off/missing, the pen-dynamics settings won't apply. ---
+        AddTabletDynamicsIssues(issues, i);
+
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet ---
         if (i.HasDriverConflict)
         {
@@ -210,6 +219,22 @@ public static class HealthEvaluator
                     "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
                     "won't reach your apps.",
                     new Remediation("Fix", RemediationArea.TabletPenBehavior, t.Name)));
+            }
+        }
+    }
+
+    private static void AddTabletDynamicsIssues(List<HealthIssue> issues, HealthInputs i)
+    {
+        foreach (var t in i.Tablets)
+        {
+            if (t.Detected && !t.DynamicsFilterActive)
+            {
+                issues.Add(new HealthIssue($"tablet.dynamicsOff:{t.Name}", HealthSeverity.Recommendation,
+                    $"{t.Name}: Pen Dynamics filter is off",
+                    "OpenTabletArtist keeps the Pen Dynamics filter enabled so your pressure curve and " +
+                    "smoothing always apply. It's currently off or missing on this tablet, so those " +
+                    "settings won't take effect. Fixing re-enables it (no effect until you customize it).",
+                    new Remediation("Fix", RemediationArea.TabletPenDynamics, t.Name)));
             }
         }
     }

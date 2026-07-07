@@ -127,4 +127,41 @@ public class PressureCurveProfileTests
         Assert.Equal(0.3, d.PositionSmoothing, 5);
         Assert.False(d.SmoothAfterCurve);
     }
+
+    // ── EnsureEnabled: the "always on internally" invariant ──────────────────────
+
+    [Fact]
+    public void EnsureEnabled_AddsAnEnabledInertStore_WhenMissing()
+    {
+        var settings = SettingsFor("Tab");
+
+        Assert.True(PressureCurveProfile.EnsureEnabled(settings)); // changed
+        var read = PressureCurveProfile.Read(settings, "Tab");
+        Assert.NotNull(read);
+        Assert.True(read!.Value.Enabled);
+        Assert.True(read.Value.Dynamics.IsNoOp);                    // inert until customized
+    }
+
+    [Fact]
+    public void EnsureEnabled_ReEnablesADisabledStore_WithoutTouchingSettings()
+    {
+        var settings = SettingsFor("Tab");
+        PressureCurveProfile.Write(settings, "Tab", Dyn(softness: 0.4, posSmooth: 0.2), enable: false);
+
+        Assert.True(PressureCurveProfile.EnsureEnabled(settings)); // changed
+        var read = PressureCurveProfile.Read(settings, "Tab")!.Value;
+        Assert.True(read.Enabled);
+        Assert.Equal(0.4, read.Dynamics.Curve.Softness, 5);        // preserved
+        Assert.Equal(0.2, read.Dynamics.PositionSmoothing, 5);
+    }
+
+    [Fact]
+    public void EnsureEnabled_NoChange_WhenAlreadyPresentAndEnabled()
+    {
+        var settings = SettingsFor("Tab");
+        PressureCurveProfile.Write(settings, "Tab", Dyn(softness: 0.4), enable: true);
+
+        Assert.False(PressureCurveProfile.EnsureEnabled(settings)); // idempotent, no churn
+        Assert.Single(settings.Profiles.First().Filters, f => f.Path == PressureCurveProfile.FilterTypeName);
+    }
 }
