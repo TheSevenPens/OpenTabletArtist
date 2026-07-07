@@ -371,6 +371,54 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Detection changing is exactly when the digitizer specs (dis)appear, so recompute the active
         // area too. This self-heals "Active-area details aren't available" on reconnect — no restart.
         RefreshTabletArea();
+        RefreshAbout(); // the ABOUT facts come from the same specs, so recover them on reconnect too
+    }
+
+    /// <summary>Rebuild the ABOUT tab's fact list from the tablet's live specs (empty when not detected).</summary>
+    private void RefreshAbout()
+    {
+        var info = _deviceData != null ? TabletAboutInfo.From(_deviceData.Tablets, TabletName) : null;
+        TabletFacts = info != null ? BuildFacts(info) : System.Array.Empty<TabletFact>();
+    }
+
+    /// <summary>The tablet's spec read-out for the ABOUT tab. Each row is included only when known.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTabletFacts))]
+    private IReadOnlyList<TabletFact> _tabletFacts = System.Array.Empty<TabletFact>();
+
+    public bool HasTabletFacts => TabletFacts.Count > 0;
+
+    private static IReadOnlyList<TabletFact> BuildFacts(TabletAboutInfo a)
+    {
+        var facts = new System.Collections.Generic.List<TabletFact>();
+        if (!string.IsNullOrEmpty(a.Name)) facts.Add(new("Name", a.Name));
+        if (a.WidthMm > 0 && a.HeightMm > 0)
+            facts.Add(new("Active area",
+                $"{a.WidthMm:0.#} × {a.HeightMm:0.#} mm  ({a.WidthMm / 25.4:0.0} × {a.HeightMm / 25.4:0.0} in)"));
+        if (a.LpMm is > 0 && a.Lpi is > 0)
+            facts.Add(new("Digitizer resolution", $"{a.LpMm:N0} LPmm ({a.Lpi:N0} LPI)"));
+        if (a.MaxPressure is > 0) facts.Add(new("Pressure levels", $"{a.MaxPressure:N0}"));
+        if (a.PenButtons is { } pb) facts.Add(new("Pen buttons", pb.ToString()));
+        if (a.ExpressKeys is > 0) facts.Add(new("Buttons", a.ExpressKeys!.Value.ToString()));
+        if (a.MouseButtons is > 0) facts.Add(new("Mouse buttons", a.MouseButtons!.Value.ToString()));
+        if (a.WheelCount > 0) facts.Add(new("Touch ring / wheel", a.WheelCount == 1 ? "Yes" : a.WheelCount.ToString()));
+        if (a.StripCount > 0) facts.Add(new("Touch strips", a.StripCount.ToString()));
+        if (a.HasTouch) facts.Add(new("Touch input", "Supported"));
+        if (a.VendorId is { } vid && a.ProductId is { } pid)
+            facts.Add(new("USB ID (VID:PID)", $"{vid:X4}:{pid:X4}"));
+        return facts;
+    }
+
+    /// <summary>Open OpenTabletDriver's supported-tablets page (the ABOUT tab's Resources link).</summary>
+    [RelayCommand]
+    private void OpenSupportedTabletsPage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("https://opentabletdriver.net/Tablets") { UseShellExecute = true });
+        }
+        catch { /* best-effort; nothing to recover if no browser is available */ }
     }
 
     [RelayCommand]
@@ -1409,6 +1457,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         StopLiveInput();
     }
 }
+
+/// <summary>One label/value row in the tablet ABOUT tab's spec list.</summary>
+public sealed record TabletFact(string Label, string Value);
 
 /// <summary>A single filter on a tablet's profile, shown as a card in the Filters tab.</summary>
 public sealed class FilterCardViewModel
