@@ -319,8 +319,19 @@
 
                         <!-- Diagram + stats when we have digitizer specs. -->
                         <StackPanel IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                            <!-- Unit toggle for the length read-outs below (display-only; OTD works in mm). -->
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                                        Margin="0,0,0,6" VerticalAlignment="Center">
+                                <TextBlock Text="Units:" FontSize="11" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <ToggleSwitch IsChecked="{Binding UseImperialUnits}" MinWidth="0"
+                                              OnContent="Inches" OffContent="Millimeters"
+                                              ToolTip.Tip="Switch the active-area measurements between metric and imperial"
+                                              VerticalAlignment="Center" />
+                            </StackPanel>
                             <ctrl:ActiveAreaDiagram Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
+                                                    UseImperialUnits="{Binding UseImperialUnits}"
                                                     Height="320" />
                             <Grid ColumnDefinitions="*,*,*,*" Margin="0,12,0,0">
                                 <StackPanel Grid.Column="0" Spacing="2">

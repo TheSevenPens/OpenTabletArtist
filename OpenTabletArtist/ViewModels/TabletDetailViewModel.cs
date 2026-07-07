@@ -1268,15 +1268,35 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ActiveAreaDiagonalText));
     }
 
-    public string ActiveAreaFullText => TabletArea is { } a ? $"{a.FullWidth:0.#} × {a.FullHeight:0.#} mm" : "—";
-    public string ActiveAreaUsedText => TabletArea is { } a ? $"{a.EffWidth:0.#} × {a.EffHeight:0.#} mm" : "—";
+    /// <summary>Show active-area lengths in inches instead of millimetres (the tab's unit toggle). A
+    /// view-only display preference — OTD stores everything in mm, so nothing is converted on disk.</summary>
+    [ObservableProperty] private bool _useImperialUnits;
+
+    partial void OnUseImperialUnitsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ActiveAreaFullText));
+        OnPropertyChanged(nameof(ActiveAreaUsedText));
+        OnPropertyChanged(nameof(ActiveAreaDiagonalText));
+    }
+
+    public string ActiveAreaFullText => TabletArea is { } a ? FormatSize(a.FullWidth, a.FullHeight) : "—";
+    public string ActiveAreaUsedText => TabletArea is { } a ? FormatSize(a.EffWidth, a.EffHeight) : "—";
 
     /// <summary>Corner-to-corner size of the used vs. full area, e.g. "257 mm active · 269 mm full".</summary>
     public string ActiveAreaDiagonalText => TabletArea is { } a
-        ? $"{Diagonal(a.EffWidth, a.EffHeight):0.#} mm active  ·  {Diagonal(a.FullWidth, a.FullHeight):0.#} mm full"
+        ? $"{FormatLength(Diagonal(a.EffWidth, a.EffHeight))} active  ·  {FormatLength(Diagonal(a.FullWidth, a.FullHeight))} full"
         : "—";
 
     private static double Diagonal(double w, double h) => System.Math.Sqrt(w * w + h * h);
+
+    // Length display helpers: OTD's areas are millimetres; inches = mm / 25.4. Metric shows one decimal
+    // (e.g. "269 mm"), imperial two (inches are ~25× larger, so a decimal buys real precision, "10.59 in").
+    private const double MmPerInch = 25.4;
+    private string UnitLabel => UseImperialUnits ? "in" : "mm";
+    private string Num(double mm) =>
+        (UseImperialUnits ? mm / MmPerInch : mm).ToString(UseImperialUnits ? "0.##" : "0.#");
+    private string FormatLength(double mm) => $"{Num(mm)} {UnitLabel}";
+    private string FormatSize(double wMm, double hMm) => $"{Num(wMm)} × {Num(hMm)} {UnitLabel}";
 
     /// <summary>Share of the full digitizer area covered by the effective area (width×height).</summary>
     public string ActiveAreaUsagePercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a

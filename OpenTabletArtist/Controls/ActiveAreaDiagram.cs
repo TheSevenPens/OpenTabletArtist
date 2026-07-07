@@ -27,13 +27,17 @@ public sealed class ActiveAreaDiagram : Control
         AvaloniaProperty.Register<ActiveAreaDiagram, TabletAreaInfo?>(nameof(Area));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, IBrush?>(nameof(AccentBrush));
+    public static readonly StyledProperty<bool> UseImperialUnitsProperty =
+        AvaloniaProperty.Register<ActiveAreaDiagram, bool>(nameof(UseImperialUnits));
 
     public TabletAreaInfo? Area { get => GetValue(AreaProperty); set => SetValue(AreaProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
+    /// <summary>Label the effective-area size in inches instead of millimetres (matches the tab's toggle).</summary>
+    public bool UseImperialUnits { get => GetValue(UseImperialUnitsProperty); set => SetValue(UseImperialUnitsProperty, value); }
 
     static ActiveAreaDiagram()
     {
-        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty);
+        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty, UseImperialUnitsProperty);
         AffectsMeasure<ActiveAreaDiagram>(AreaProperty);
     }
 
@@ -67,7 +71,7 @@ public sealed class ActiveAreaDiagram : Control
                                    fullRect.Y + area.EffCenterY * sy - eh / 2, ew, eh);
             ctx.DrawRectangle(new SolidColorBrush(accent, 0.22), new Pen(new SolidColorBrush(accent), 2), effRect);
             if (effRect is { Height: > 26, Width: > 70 })
-                DrawCentered(ctx, effRect, $"{area.EffWidth:0.#} × {area.EffHeight:0.#} mm", 11.5, Brushes.White);
+                DrawCentered(ctx, effRect, FormatSize(area.EffWidth, area.EffHeight), 11.5, Brushes.White);
         }
         else
         {
@@ -90,4 +94,12 @@ public sealed class ActiveAreaDiagram : Control
 
     private static FormattedText Text(string s, double size, IBrush brush) =>
         new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
+
+    // Effective-area label in the current unit (OTD areas are mm; inches = mm / 25.4).
+    private string FormatSize(double wMm, double hMm)
+    {
+        if (!UseImperialUnits)
+            return $"{wMm:0.#} × {hMm:0.#} mm";
+        return $"{wMm / 25.4:0.##} × {hMm / 25.4:0.##} in";
+    }
 }
