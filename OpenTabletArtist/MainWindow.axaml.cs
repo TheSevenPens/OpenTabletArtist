@@ -34,6 +34,9 @@ public partial class MainWindow : Window
         // any later DataContext change. (#320)
         OnDataContextChanged(this, EventArgs.Empty);
         DataContextChanged += OnDataContextChanged;
+        // Regaining focus re-pulls settings so an external edit (e.g. the mapping changed in the OTD UX
+        // while we were in the background) is picked up promptly rather than on the next fallback poll.
+        Activated += (_, _) => (DataContext as MainViewModel)?.OnWindowActivated();
         Closed += (_, _) =>
         {
             if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;

@@ -24,7 +24,7 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="DIAGNOSTICS" x:Name="DiagnosticsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="LOG" x:Name="LogTab"
+                <RadioButton Content="CONSOLE" x:Name="LogTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="PLUGINS" x:Name="PluginsTab"
                              Theme="{StaticResource TabRadioButton}" />

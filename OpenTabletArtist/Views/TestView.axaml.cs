@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -93,6 +94,14 @@ public partial class TestView : UserControl
     }
 
     private void OnClearRequested() => PaintCanvas.Clear();
+
+    // Copy the current drawing to the clipboard as an image (Windows CF_DIB), so it can be pasted into
+    // another app. Best-effort: a snapshot/clipboard failure is a no-op.
+    private void OnCopy(object? sender, RoutedEventArgs e)
+    {
+        if (PaintCanvas.Snapshot() is { } snap)
+            ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height);
+    }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

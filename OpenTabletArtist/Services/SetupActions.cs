@@ -80,7 +80,7 @@ public sealed class SetupActions
         var primary = displays.FirstOrDefault(d => d.IsPrimary) ?? displays.FirstOrDefault();
         if (primary == null) return false;
 
-        if (!DisplayMappingApplier.ApplyToProfile(prof, _device.GetTabletDigitizer(tablet), primary))
+        if (!DisplayMappingApplier.ApplyToProfile(prof, _device.GetTabletDigitizer(tablet), primary, displays))
             return false;
         await _settings.ApplyAndSaveSettingsAsync(settings);
         return true;

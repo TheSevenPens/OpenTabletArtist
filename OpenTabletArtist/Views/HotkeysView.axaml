@@ -16,7 +16,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,24" Padding="16">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="Cycle mapped monitor" TextWrapping="Wrap" />
+                    <TextBlock Classes="CardTitle" Text="Display toggle" TextWrapping="Wrap" />
                     <TextBlock Text="Moves the active tablet's area to the next monitor (wraps around)."
                                FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />

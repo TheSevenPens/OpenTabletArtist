@@ -183,6 +183,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
+        // Then reconcile any open tablet page with the freshly-loaded settings so an external edit
+        // (e.g. via the OTD UX) is picked up. Subscribed after RebuildTablets so it runs on survivors.
+        _session.DataLoaded += ReconcileOpenTabletDetails;
         RebuildTablets();
 
         CurrentPage = Dashboard;
@@ -289,6 +292,37 @@ public partial class MainViewModel : ObservableObject, IDisposable
         UpdateTabletSelection();
     }
 
+    /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded
+    /// settings so a change made outside OTA (e.g. in the OTD UX) is picked up rather than showing stale
+    /// values. Runs after <see cref="RebuildTablets"/>, which has already dropped VMs for gone tablets.</summary>
+    private void ReconcileOpenTabletDetails()
+    {
+        var settings = _session.CurrentSettings;
+        if (settings == null) return;
+        foreach (var (name, vm) in _tabletDetails)
+        {
+            var profile = settings.Profiles.FirstOrDefault(p =>
+                string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
+            vm.ReconcileExternalChange(settings, profile);
+        }
+    }
+
+    // Throttle so rapid focus flicker doesn't spam the daemon; the reload itself is coalesced anyway.
+    private long _lastActivationReloadTick;
+
+    /// <summary>The window regained focus — re-pull settings so an external edit made while we were in
+    /// the background (e.g. the user changed the mapping in the OTD UX and alt-tabbed back) is reflected
+    /// promptly instead of waiting for the ~30s fallback poll. The reload flows through the session's
+    /// DataLoaded, which runs <see cref="ReconcileOpenTabletDetails"/>.</summary>
+    public void OnWindowActivated()
+    {
+        if (!_session.IsConnected) return;
+        var now = Environment.TickCount64;
+        if (now - _lastActivationReloadTick < 750) return;
+        _lastActivationReloadTick = now;
+        _ = _session.ReloadAsync();
+    }
+
     private void UpdateTabletSelection()
     {
         _selectedTabletName = _tabletDetails.FirstOrDefault(kv => ReferenceEquals(kv.Value, CurrentPage)).Key;
@@ -339,6 +373,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _session.DataLoaded -= RebuildTablets;
+        _session.DataLoaded -= ReconcileOpenTabletDetails;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
         _daemonStatus.Dispose();  // unsubscribes from session PropertyChanged

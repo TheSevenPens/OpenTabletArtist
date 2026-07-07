@@ -48,6 +48,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private readonly Func<bool>? _isDetectedProbe;
     private readonly (float Width, float Height)? _tabletDigitizer;
 
+    // External-change reconciliation: the same app-owned daemon can be edited by another client
+    // (notably the OTD UX changing a mapping). The daemon pushes no "settings changed" event on a
+    // successful apply, so the shell re-pulls (on window activation, TabletsChanged, and the poll) and
+    // calls ReconcileExternalChange. When a reload diverges from what this editor holds we adopt it
+    // silently — unless the user has an unsaved edit, where we stash it and surface a banner instead
+    // of discarding their in-progress change.
+    private Settings? _pendingExternalSettings;
+    private Profile? _pendingExternalProfile;
+
+    /// <summary>Non-empty when the daemon's settings changed outside OTA while the user had an unsaved
+    /// edit here; drives a header banner with a Reload action. Empty otherwise.</summary>
+    [ObservableProperty] private string _externalChangeText = "";
+    public bool HasExternalChange => !string.IsNullOrEmpty(ExternalChangeText);
+    partial void OnExternalChangeTextChanged(string value) => OnPropertyChanged(nameof(HasExternalChange));
+
     [ObservableProperty] private IReadOnlyList<DisplayInfo> _displays = [];
     [ObservableProperty] private int? _selectedDisplayNumber;
 
@@ -342,18 +357,83 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Reassign BOTH so later edits write to and push the same settings object the profile
-        // lives in — otherwise persists would mutate stale settings (#124).
+        if (settings == null) { RefreshDetectionStatus(); return; }
+        AdoptProfile(settings, profile);
+    }
+
+    /// <summary>Point the editor at a freshly-loaded settings/profile pair (from a manual Refresh or an
+    /// external-change reload) and rebuild every bound view from it. Both are reassigned together so
+    /// later edits push the same settings object the profile lives in — otherwise persists would mutate
+    /// stale settings (#124).</summary>
+    private void AdoptProfile(Settings settings, Profile profile)
+    {
         _settings = settings;
         _profile = profile;
-        // The profile must be a live reference inside the settings we now persist through; if a
-        // future refresh source returns a detached profile, edits would silently write elsewhere.
-        Debug.Assert(settings?.Profiles.Contains(profile) == true,
-            "Refreshed profile must be a reference inside the refreshed settings (#124).");
+        // The profile must be a live reference inside the settings we now persist through; if a future
+        // source returns a detached profile, edits would silently write elsewhere.
+        Debug.Assert(settings.Profiles.Contains(profile),
+            "Adopted profile must be a reference inside the adopted settings (#124).");
         RefreshWarning = null;
+        ClearExternalChange();
         RefreshFromProfile();
+        // Move the display picker to the now-current mapping (suppress the pending flag for this
+        // programmatic selection so it doesn't read as an unapplied change).
+        _suppressMappingPending = true;
+        SelectedDisplayNumber = CurrentlyMappedNumber()
+            ?? Displays.FirstOrDefault(d => d.IsPrimary)?.Number
+            ?? Displays.FirstOrDefault()?.Number;
+        _suppressMappingPending = false;
+        MappingChangePending = false; // the selection now matches the adopted mapping (any prior pick is discarded)
         RefreshDetectionStatus();
     }
+
+    /// <summary>Reconcile this editor with a fresh settings load from the session. Called by the shell
+    /// on every data load (the window-activation pull, TabletsChanged, and the fallback poll). It's a
+    /// no-op when the reload matches what we already show — including our own applies, since those
+    /// mutate <c>_profile</c> before pushing, so its live fingerprint already equals the reloaded one.
+    /// When it genuinely diverged (an external editor changed the daemon), adopt it silently, or — if
+    /// the user has an unsaved edit — raise a non-destructive banner instead of discarding it.</summary>
+    public void ReconcileExternalChange(Settings? freshSettings, Profile? freshProfile)
+    {
+        if (freshSettings == null || freshProfile == null) return; // tablet gone — detection banner owns that
+        var freshFp = ProfileFingerprint.Compute(freshProfile);
+        var ownFp = ProfileFingerprint.Compute(_profile);
+        if (freshFp.Length == 0 || ownFp.Length == 0) return; // can't compare → don't risk a false positive
+        if (freshFp == ownFp) { ClearExternalChange(); return; } // in sync (covers our own applies)
+
+        if (HasUnsavedEdit)
+        {
+            _pendingExternalSettings = freshSettings;
+            _pendingExternalProfile = freshProfile;
+            ExternalChangeText =
+                "These settings were changed outside OpenTabletArtist (for example in the OpenTabletDriver " +
+                "UX). Reload to use the current values — your unsaved change here will be discarded.";
+        }
+        else
+        {
+            AdoptProfile(freshSettings, freshProfile);
+        }
+    }
+
+    /// <summary>Adopt the externally-changed settings the banner is holding (the banner's Reload action).</summary>
+    [RelayCommand]
+    private void ReloadExternalChange()
+    {
+        if (_pendingExternalSettings != null && _pendingExternalProfile != null)
+            AdoptProfile(_pendingExternalSettings, _pendingExternalProfile);
+    }
+
+    private void ClearExternalChange()
+    {
+        _pendingExternalSettings = null;
+        _pendingExternalProfile = null;
+        if (ExternalChangeText.Length != 0) ExternalChangeText = "";
+    }
+
+    /// <summary>The user has a change here that isn't yet persisted, so an external reload must not
+    /// silently overwrite it. Currently just a picked-but-unapplied display mapping — every other edit
+    /// auto-applies immediately; extend this if more deferred edits are added.</summary>
+    private bool HasUnsavedEdit => MappingChangePending;
 
     private async Task ApplySettingsChange(Action<Profile> modify)
     {
@@ -494,7 +574,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null || display == null) return;
 
         // Same mapping the tray's "Switch display" uses — aspect-locked, full-monitor (#187).
-        await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display));
+        await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display, Displays));
         MappingChangePending = false; // the selection is now the applied mapping
     }
 
