@@ -31,9 +31,10 @@
 
         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
             <TextBlock Classes="PageTitle" Text="SCRIBBLE" />
-            <!-- Tablet status (detected name / not detected + dynamics indicator) #128/#129/#130 -->
+            <!-- Tablet status (detected name / not detected). The "Dynamics on" pill now lives with the
+                 "Affecting your pen" chips below, so it isn't shown on the banner. #128/#129/#130 -->
             <c:TabletStatusBanner Text="{Binding TabletStatusText}" IsDetected="{Binding TabletDetected}"
-                                  DynamicsOn="{Binding DynamicsActive}" Margin="0,8,0,0" />
+                                  Margin="0,8,0,0" />
 
             <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
@@ -49,6 +50,10 @@
             <WrapPanel Orientation="Horizontal" IsVisible="{Binding DynamicsActive}" Margin="0,6,0,0">
                 <TextBlock Text="Affecting your pen:" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
+                <!-- "Dynamics on" pill grouped with the specific-aspect chips (moved off the banner). -->
+                <Border Classes="DynChip">
+                    <TextBlock Text="Dynamics on" />
+                </Border>
                 <Border Classes="DynChip" IsVisible="{Binding CurveActive}">
                     <TextBlock Text="Pressure curve" />
                 </Border>
@@ -85,6 +90,9 @@
                         <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="14,6" FontSize="13" Margin="8,0,0,0"
                                 ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Test" />
+                        <Button Content="Copy" Click="OnCopy"
+                                Theme="{StaticResource GhostButton}" Padding="14,6" FontSize="13" Margin="8,0,0,0"
+                                ToolTip.Tip="Copy the drawing to the clipboard as an image" />
                     </WrapPanel>
 
                     <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
