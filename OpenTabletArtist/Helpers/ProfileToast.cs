@@ -23,8 +23,10 @@ public static class ProfileToast
     private static readonly TimeSpan Linger = TimeSpan.FromMilliseconds(1900);
     private static readonly TimeSpan Fade = TimeSpan.FromMilliseconds(200);
 
-    /// <summary>Show a toast with the given message (e.g. «Switched to "Portrait"»). Call on the UI thread.</summary>
-    public static void Show(string message)
+    /// <summary>Show a toast with the given message (e.g. «Switched to "Portrait"»). <paramref name="glyph"/>
+    /// is the leading icon — the default ⌨ marks a hotkey-driven switch; callers pass a different glyph for
+    /// other triggers (e.g. ⧉ for an automatic per-app switch). Call on the UI thread.</summary>
+    public static void Show(string message, string glyph = "⌨")
     {
         Dismiss();
 
@@ -54,7 +56,7 @@ public static class ProfileToast
                 {
                     new TextBlock
                     {
-                        Text = "⌨", // ⌨ keyboard glyph — this switch came from a hotkey
+                        Text = glyph, // ⌨ for a hotkey switch; a different glyph marks another trigger
                         FontSize = 22,
                         Foreground = accent,
                         VerticalAlignment = VerticalAlignment.Center,

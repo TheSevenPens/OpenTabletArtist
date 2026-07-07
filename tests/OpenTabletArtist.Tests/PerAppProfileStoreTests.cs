@@ -62,14 +62,33 @@ public class PerAppProfileStoreTests
     {
         var mem = new Mem();
         var a = mem.Store();
-        a.SetEnabled(true);
         a.SetDefaultSnapshot("Def");
         a.Upsert(new PerAppMapping("", "krita.exe", "Painting"));
 
         var b = mem.Store(); // reads the same backing string
-        Assert.True(b.Config.Enabled);
         Assert.Equal("Def", b.Config.DefaultSnapshot);
         Assert.Equal("Painting", b.Resolve(App("krita.exe")));
+    }
+
+    // Implicit enable: the feature is on only when a mapping targets a real profile. A mapping to Current
+    // settings (null snapshot) is a no-op, and a lone default doesn't count.
+    [Fact]
+    public void HasActiveMappings_OnlyWhenAMappingTargetsARealProfile()
+    {
+        var s = new Mem().Store();
+        Assert.False(s.HasActiveMappings);                                    // empty
+
+        s.SetDefaultSnapshot("Painting");
+        Assert.False(s.HasActiveMappings);                                    // default alone doesn't arm
+
+        s.Upsert(new PerAppMapping("", "krita.exe", null));                   // → Current settings
+        Assert.False(s.HasActiveMappings);                                    // no-op mapping doesn't arm
+
+        s.Upsert(new PerAppMapping("", "krita.exe", "Painting"));             // → a real profile
+        Assert.True(s.HasActiveMappings);
+
+        s.Upsert(new PerAppMapping("", "krita.exe", "Painting", Enabled: false)); // disabled row
+        Assert.False(s.HasActiveMappings);
     }
 
     [Fact]

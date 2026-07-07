@@ -30,7 +30,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     /// rather than a saved profile. Maps to a null snapshot in the store.</summary>
     public const string CurrentSettingsOption = "Current settings";
 
-    [ObservableProperty] private bool _enabled;
     [ObservableProperty] private List<string> _snapshotNames = [];
     // Target dropdown options shared by the "Default for apps" card and every app card: Current settings
     // (the live config) followed by the saved profiles.
@@ -64,9 +63,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         _switcher.DanglingSnapshot += OnDangling;
         _device.DataLoaded += OnDataLoaded;
         _connection.PropertyChanged += OnConnectionChanged;
-
-        // Reflect persisted config.
-        _enabled = _store.Config.Enabled;
     }
 
     private void OnConnectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -75,8 +71,18 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
             return;
         OnPropertyChanged(nameof(IsForeignDaemon));
         OnPropertyChanged(nameof(CanUse));
-        // A foreign daemon connecting while enabled: turn the feature off (which restores the default).
-        if (IsForeignDaemon && Enabled) Enabled = false;
+        // A foreign daemon suspends switching (its files may not match); it resumes when ours returns.
+        UpdateSwitcher();
+    }
+
+    /// <summary>Start or stop the headless switcher to match the implicit-enable rule: run whenever a
+    /// mapping targets a real profile and we're on the app-owned daemon. Idempotent — safe to call on
+    /// every mapping edit, data load, and connection change.</summary>
+    private void UpdateSwitcher()
+    {
+        bool shouldRun = !IsForeignDaemon && _store.HasActiveMappings;
+        if (shouldRun && !_switcher.IsRunning) _switcher.Start();
+        else if (!shouldRun && _switcher.IsRunning) _ = _switcher.StopAsync();
     }
 
     private void OnDataLoaded() => _ = LoadSafelyAsync();
@@ -108,10 +114,9 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         }
         finally { _suppress = false; }
 
-        // Resume a persisted-enabled config once the daemon is up (LoadAsync runs on data load), unless a
-        // foreign daemon is connected (feature is app-owned-only).
-        if (Enabled && !IsForeignDaemon && !_switcher.IsRunning)
-            _switcher.Start();
+        // Bring the switcher in line with the current mappings once the daemon is up (LoadAsync runs on
+        // data load): running iff a mapping targets a real profile and the daemon is app-owned.
+        UpdateSwitcher();
         return Task.CompletedTask;
     }
 
@@ -133,15 +138,6 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
             .Where(n => !string.IsNullOrEmpty(n)).Cast<string>().ToList();
     }
 
-    partial void OnEnabledChanged(bool value)
-    {
-        if (_suppress) return;
-        if (value && IsForeignDaemon) { _enabled = false; OnPropertyChanged(nameof(Enabled)); return; }
-        _store.SetEnabled(value);
-        if (value) _switcher.Start();
-        else _ = _switcher.StopAsync();
-    }
-
     partial void OnUnmappedTargetChanged(string value)
     {
         if (_suppress) return;
@@ -152,12 +148,14 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     {
         if (_suppress) return;
         _store.Upsert(new PerAppMapping(row.ExePath, row.ExeName, TargetToSnapshot(row.SelectedSnapshot), row.Enabled));
+        UpdateSwitcher(); // switching to/from Current settings can arm or disarm the feature
     }
 
     private void OnRowRemove(PerAppMappingRow row)
     {
         _store.Remove(row.ExeName);
         RebuildMappings();
+        UpdateSwitcher(); // removing the last profile-mapped app disarms and restores the default
     }
 
     [RelayCommand]
@@ -174,6 +172,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         }
         _store.Upsert(new PerAppMapping(app.ExePath, app.ExeName, snapshot));
         RebuildMappings();
+        UpdateSwitcher(); // the first profile-mapped app arms the feature
     }
 
     private async void OnDangling(string snapshot) =>
