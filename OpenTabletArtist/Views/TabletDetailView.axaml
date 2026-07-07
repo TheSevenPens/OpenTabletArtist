@@ -204,7 +204,7 @@
                             <TextBlock Grid.Row="0" Text="DISPLAY MAPPING" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                <Button Content="Refresh" Command="{Binding RefreshDisplaysCommand}"
+                                <Button Content="Refresh Display Settings" Command="{Binding RefreshDisplaysCommand}"
                                         ToolTip.Tip="Refresh displays from Windows"
                                         Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
                                 <Button Content="Display Settings"
