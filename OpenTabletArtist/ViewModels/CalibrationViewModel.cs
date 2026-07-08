@@ -78,6 +78,7 @@ public partial class CalibrationViewModel : ObservableObject
     private readonly DaemonPenInputSource _input;
     private readonly CalibrationProfile.CalibrationData? _original;
     private readonly List<Vector2> _measuredRaw = new();   // one per completed target
+    private readonly List<int> _tapSampleCounts = new();     // samples averaged for each completed tap (#460)
     private readonly List<Vector2> _tapAccum = new();        // raw samples for the in-progress tap
     private bool _wasDown;
 
@@ -105,6 +106,8 @@ public partial class CalibrationViewModel : ObservableObject
     public bool IsFailed => CurrentPhase == Phase.Failed;
     public bool ShowApply => IsConfirming;
     public bool ShowRedo => IsConfirming || IsFailed;
+    /// <summary>Undo removes just the last recorded point (#458) — available once at least one is captured.</summary>
+    public bool CanUndoPoint => _measuredRaw.Count > 0;
 
     /// <summary>Normalized target positions for the view to draw (in capture order).</summary>
     public IReadOnlyList<(double X, double Y)> Targets => _targets;
@@ -192,7 +195,9 @@ public partial class CalibrationViewModel : ObservableObject
     {
         var avg = new Vector2(_tapAccum.Average(p => p.X), _tapAccum.Average(p => p.Y));
         _measuredRaw.Add(avg);
+        _tapSampleCounts.Add(_tapAccum.Count);   // remember how many samples this tap averaged (#460)
         OnPropertyChanged(nameof(CapturedCount));
+        OnPropertyChanged(nameof(CanUndoPoint));
 
         if (_measuredRaw.Count >= _targets.Count)
             _ = FinishAsync();
@@ -231,12 +236,28 @@ public partial class CalibrationViewModel : ObservableObject
             return;
         }
 
+        // Attach the recorded points so the Calibration tab can show a positional report (#460).
+        data = data with { Report = BuildReport(targetsDesktop) };
+
         // Apply for the live preview ("move the pen around"). Apply == persist in this app; Cancel restores.
         CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, data);
         await _ctx.Apply(_ctx.Settings);
 
         CurrentPhase = Phase.Confirming;
         Instruction = "Move the pen around — does the cursor track the nib? Apply to keep, or Redo.";
+    }
+
+    // The recorded points paired with their on-screen targets (desktop px), for the tab report (#460).
+    private CalibrationReport BuildReport(IReadOnlyList<Vector2> targetsDesktop)
+    {
+        var points = new List<CalibrationReportPoint>(_measuredRaw.Count);
+        for (int i = 0; i < _measuredRaw.Count && i < targetsDesktop.Count; i++)
+            points.Add(new CalibrationReportPoint(
+                targetsDesktop[i].X, targetsDesktop[i].Y,
+                _measuredRaw[i].X, _measuredRaw[i].Y,
+                i < _tapSampleCounts.Count ? _tapSampleCounts[i] : 0));
+        var display = $"{_ctx.Display.DisplayTitle} ({_ctx.Display.Width}×{_ctx.Display.Height})";
+        return new CalibrationReport(display, DateTime.Now.ToString("yyyy-MM-dd HH:mm"), points);
     }
 
     // --- Commands ---
@@ -248,10 +269,33 @@ public partial class CalibrationViewModel : ObservableObject
     private async Task Redo()
     {
         _measuredRaw.Clear();
+        _tapSampleCounts.Clear();
         _tapAccum.Clear();
         CurrentTarget = 0;
         OnPropertyChanged(nameof(CapturedCount));
+        OnPropertyChanged(nameof(CanUndoPoint));
         await BypassCalibrationAsync(); // clear the preview correction before recapturing
+        CurrentPhase = Phase.Capturing;
+        UpdateInstruction();
+    }
+
+    /// <summary>Undo just the last recorded point (#458): pop it and re-arm that target. If we'd already
+    /// finished (Confirming/Failed), drop the preview correction so the re-tap is captured uncorrected.</summary>
+    [RelayCommand]
+    private async Task UndoLastPoint()
+    {
+        if (_measuredRaw.Count == 0) return;
+
+        bool wasPreviewing = CurrentPhase != Phase.Capturing;
+        _measuredRaw.RemoveAt(_measuredRaw.Count - 1);
+        if (_tapSampleCounts.Count > 0) _tapSampleCounts.RemoveAt(_tapSampleCounts.Count - 1);
+        _tapAccum.Clear();
+        CurrentTarget = _measuredRaw.Count;
+        OnPropertyChanged(nameof(CapturedCount));
+        OnPropertyChanged(nameof(CanUndoPoint));
+
+        if (wasPreviewing)
+            await BypassCalibrationAsync(); // we'd applied a preview; clear it so recapture is uncorrected
         CurrentPhase = Phase.Capturing;
         UpdateInstruction();
     }

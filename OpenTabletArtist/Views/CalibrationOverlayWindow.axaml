@@ -25,8 +25,12 @@
                     <Button x:Name="ApplyBtn" Content="Apply" IsVisible="{Binding ShowApply}" Command="{Binding ApplyCommand}"
                             Theme="{StaticResource AccentButton}" Padding="16,8"
                             ToolTip.Tip="Keep this calibration. Cancel reverts to the previous one." />
-                    <Button x:Name="RedoBtn" Content="Redo" IsVisible="{Binding ShowRedo}" Command="{Binding RedoCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="16,8" />
+                    <Button x:Name="UndoBtn" Content="Undo last point" IsVisible="{Binding CanUndoPoint}" Command="{Binding UndoLastPointCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="16,8"
+                            ToolTip.Tip="Remove just the most recently recorded point and re-tap that target." />
+                    <Button x:Name="RedoBtn" Content="Redo all" IsVisible="{Binding ShowRedo}" Command="{Binding RedoCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="16,8"
+                            ToolTip.Tip="Discard all recorded points and start over." />
                     <Button x:Name="ClearBtn" Content="Clear calibration" Command="{Binding ClearCommand}"
                             Theme="{StaticResource GhostButton}" Padding="16,8" />
                     <Button x:Name="CancelBtn" Content="Cancel (Esc)" Command="{Binding CancelCommand}"

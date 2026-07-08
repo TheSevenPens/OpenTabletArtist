@@ -519,6 +519,53 @@
                     </Border>
                 </UniformGrid>
 
+                <!-- Calibration report (#460): the recorded points from the last calibration (target px vs.
+                     measured raw tablet coords), persisted with it so they can be reviewed after the fact.
+                     Only shown when a calibration with stored points is active. -->
+                <Border Classes="GlassPanel" Margin="0,0,0,12" MaxWidth="620" HorizontalAlignment="Left"
+                        IsVisible="{Binding HasCalibrationReport}">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="CALIBRATION REPORT" Classes="SectionLabel" />
+                                <TextBlock Text="{Binding CalibrationReportSummary}" FontSize="11"
+                                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Copy" Command="{Binding CopyCalibrationReportCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Top"
+                                    ToolTip.Tip="Copy the report as tab-separated text for sharing or debugging" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="40,*,*,70">
+                            <TextBlock Grid.Column="0" Text="#" Classes="SectionLabel" />
+                            <TextBlock Grid.Column="1" Text="TARGET (PX)" Classes="SectionLabel" />
+                            <TextBlock Grid.Column="2" Text="MEASURED RAW" Classes="SectionLabel" />
+                            <TextBlock Grid.Column="3" Text="SAMPLES" Classes="SectionLabel" HorizontalAlignment="Right" />
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding CalibrationReportRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="40,*,*,70" Margin="0,0,0,3">
+                                        <TextBlock Grid.Column="0" Text="{Binding Index}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Target}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Raw}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Samples}" HorizontalAlignment="Right"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
                 <TextBlock Text="Connect this tablet to calibrate." Foreground="{DynamicResource TextMutedBrush}"
@@ -781,7 +828,7 @@
                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                               ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
 
-                                    <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto">
+                                    <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                         <TextBlock Grid.Row="0" Grid.Column="1" Text="Input" Classes="SectionLabel"
                                                    HorizontalAlignment="Center" />
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Output" Classes="SectionLabel"
@@ -802,6 +849,21 @@
                                         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding OutputMaximumText}"
                                                    FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <!-- Live row (#468): live input pressure + output after the curve. Green like the
+                                             live dot; "—" when the pen is up. Debug the activation point, wrapping, grounding. -->
+                                        <Border Grid.Row="3" Grid.ColumnSpan="3" Height="1" Margin="0,6,0,4"
+                                                Background="{DynamicResource DividerBrush}" />
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Live" Width="70"
+                                                   VerticalAlignment="Center" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SuccessBrush}" />
+                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LiveInputText}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SuccessBrush}" />
+                                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding LiveOutputText}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SuccessBrush}" />
                                     </Grid>
                                 </StackPanel>
                             </Grid>

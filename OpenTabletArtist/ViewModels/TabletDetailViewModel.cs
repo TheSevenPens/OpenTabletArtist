@@ -24,6 +24,10 @@ public enum TabletDetailTab
     DisplayMapping,
 }
 
+/// <summary>One row of the Calibration tab's positional report (#460): the target it was captured for
+/// (desktop px), the raw tablet coordinate the pen reported, and the samples averaged for the tap.</summary>
+public sealed record CalibrationReportRow(string Index, string Target, string Raw, string Samples);
+
 /// <summary>
 /// View model for a single tablet's settings — the tabbed editor (Screen Mapping, Pen Switches,
 /// ExpressKeys, Dynamics, Hover, Filters, JSON). Hosted either as an in-app page (the Tablets nav)
@@ -196,6 +200,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public bool CanClearCalibration => IsCalibrated && _applyAction != null;
     partial void OnIsCalibratedChanged(bool value) => OnPropertyChanged(nameof(CanClearCalibration));
 
+    // Positional report of the recorded points from the current calibration (#460). Shown as a card on
+    // the Calibration tab whenever a calibration with stored points is active.
+    [ObservableProperty] private bool _hasCalibrationReport;
+    [ObservableProperty] private string _calibrationReportSummary = "";
+    public ObservableCollection<CalibrationReportRow> CalibrationReportRows { get; } = new();
+
     private void RefreshCalibrationStatus()
     {
         var cal = CalibrationProfile.ReadProfile(_profile);
@@ -215,6 +225,44 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             CalibrationProfile.CalibrationModel.Grid => (cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0),
             _ => 4,
         };
+        UpdateCalibrationReport(IsCalibrated ? cal!.Report : null);
+    }
+
+    // Rebuild the report rows from the calibration's stored points (#460), or clear them if none.
+    private void UpdateCalibrationReport(CalibrationReport? report)
+    {
+        CalibrationReportRows.Clear();
+        if (report is null || report.Points.Count == 0)
+        {
+            HasCalibrationReport = false;
+            CalibrationReportSummary = "";
+            return;
+        }
+        for (int i = 0; i < report.Points.Count; i++)
+        {
+            var p = report.Points[i];
+            CalibrationReportRows.Add(new CalibrationReportRow(
+                (i + 1).ToString(),
+                $"{p.TargetX:0}, {p.TargetY:0}",
+                $"{p.RawX:0}, {p.RawY:0}",
+                p.Samples.ToString()));
+        }
+        CalibrationReportSummary = $"{report.DisplayName} · captured {report.CapturedAt}";
+        HasCalibrationReport = true;
+    }
+
+    /// <summary>Copy the calibration report as tab-separated text for sharing / debugging (#460).</summary>
+    [RelayCommand]
+    private void CopyCalibrationReport()
+    {
+        if (!HasCalibrationReport) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Calibration report — {CalibrationReportSummary}");
+        sb.AppendLine("#\tTarget (px)\tMeasured raw (tablet)\tSamples");
+        foreach (var r in CalibrationReportRows)
+            sb.Append(r.Index).Append('\t').Append(r.Target).Append('\t')
+              .Append(r.Raw).Append('\t').Append(r.Samples).Append('\n');
+        ClipboardText.TrySet(sb.ToString());
     }
 
     /// <summary>Remove the calibration filter, returning the pointer to its uncorrected default.</summary>
@@ -1268,6 +1316,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public string InputMaximumText => Curve.InputMaximum.ToString("0.00");
     public string OutputMaximumText => Curve.Maximum.ToString("0.00");
 
+    // Live pressure read-out (#468): the current input pressure and the output after the curve, for
+    // debugging the activation point (IAF), wrapping, and grounding. "—" when the pen is up.
+    public string LiveInputText => LivePressure is { } v ? v.ToString("0.00") : "—";
+    public string LiveOutputText => LivePressure is { } v ? PressureCurve.Apply(v, Curve).ToString("0.00") : "—";
+    public bool HasLivePressure => LivePressure is not null;
+
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
     partial void OnCurveChanged(PressureCurveSettings value)
@@ -1279,6 +1333,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(InputMaximumText));
         OnPropertyChanged(nameof(OutputMinimumText));
         OnPropertyChanged(nameof(OutputMaximumText));
+        OnPropertyChanged(nameof(LiveOutputText)); // output depends on the curve
         NotifyDynamicsStatus();
         SchedulePersist();
     }
@@ -1335,6 +1390,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         LivePenX = s.X;
         LivePenY = s.Y;
         LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
+    }
+
+    // Live input/output read-out (#468) tracks the live pressure.
+    partial void OnLivePressureChanged(double? value)
+    {
+        OnPropertyChanged(nameof(LiveInputText));
+        OnPropertyChanged(nameof(LiveOutputText));
+        OnPropertyChanged(nameof(HasLivePressure));
     }
 
     // Light up each aux-button card while its physical button is held (express-key live highlight).

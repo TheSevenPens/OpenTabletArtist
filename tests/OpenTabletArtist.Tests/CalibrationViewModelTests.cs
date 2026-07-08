@@ -165,4 +165,58 @@ public class CalibrationViewModelTests
 
         Assert.Null(CalibrationProfile.Read(settings, "T"));
     }
+
+    // ---- #458: undo the last recorded point ----
+
+    [Fact]
+    public void UndoLastPoint_PopsOnlyTheLastPoint_AndReArmsThatTarget()
+    {
+        var (vm, _, _) = NewVm();
+        Tap(vm, 0);
+        Tap(vm, 1);
+        Assert.Equal(2, vm.CapturedCount);
+        Assert.Equal(2, vm.CurrentTarget);
+        Assert.True(vm.CanUndoPoint);
+
+        vm.UndoLastPointCommand.Execute(null);
+
+        Assert.Equal(1, vm.CapturedCount);
+        Assert.Equal(1, vm.CurrentTarget);
+        Assert.True(vm.IsCapturing);
+
+        vm.UndoLastPointCommand.Execute(null);
+        Assert.Equal(0, vm.CapturedCount);
+        Assert.False(vm.CanUndoPoint);
+    }
+
+    [Fact]
+    public void UndoLastPoint_AfterFullCapture_ReturnsToCapturingAndDisablesPreview()
+    {
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
+        Assert.True(vm.IsConfirming);
+        Assert.True(CalibrationProfile.Read(settings, "T")!.Enabled); // preview is live
+
+        vm.UndoLastPointCommand.Execute(null);
+
+        Assert.True(vm.IsCapturing);
+        Assert.Equal(3, vm.CapturedCount);
+        Assert.Equal(3, vm.CurrentTarget);
+        var cal = CalibrationProfile.Read(settings, "T");
+        Assert.True(cal is null || !cal.Enabled); // preview correction dropped before recapture
+    }
+
+    // ---- #460: recorded points are persisted with the calibration ----
+
+    [Fact]
+    public void Capture_PersistsReport_OnePointPerTarget()
+    {
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
+
+        var cal = CalibrationProfile.Read(settings, "T");
+        Assert.NotNull(cal!.Report);
+        Assert.Equal(4, cal.Report!.Points.Count);
+        Assert.All(cal.Report.Points, p => Assert.Equal(5, p.Samples)); // 5 down-samples per Tap()
+    }
 }
