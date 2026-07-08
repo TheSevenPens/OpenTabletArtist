@@ -129,4 +129,44 @@ public class ProfileFilterMaintenanceTests
     {
         Assert.Equal(expected, ProfileFilterMaintenance.Classify(path));
     }
+
+    // #465: non-approved (third-party / driver-built-in) filters are disabled — but left in place —
+    // while our approved filters stay enabled.
+    [Fact]
+    public void DisableUnapproved_DisablesThirdPartyFilters_LeavesApprovedEnabled()
+    {
+        var settings = WithFilters(
+            PressureCurveProfile.FilterTypeName,               // approved (Pen Dynamics)
+            CalibrationProfile.FilterTypeName,                 // approved
+            "OpenTabletDriver.Filters.Noise.NoiseReduction");  // third-party → Unknown
+        foreach (var f in settings.Profiles.First().Filters) f.Enable = true;
+
+        var changed = ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
+
+        var filters = settings.Profiles.First().Filters;
+        Assert.True(changed);
+        Assert.Equal(3, filters.Count); // disabled, not removed
+        Assert.True(filters.First(f => f.Path == PressureCurveProfile.FilterTypeName).Enable);
+        Assert.True(filters.First(f => f.Path == CalibrationProfile.FilterTypeName).Enable);
+        Assert.False(filters.First(f => f.Path == "OpenTabletDriver.Filters.Noise.NoiseReduction").Enable);
+    }
+
+    [Fact]
+    public void DisableUnapproved_NoChange_WhenOnlyApprovedFiltersEnabled()
+    {
+        var settings = WithFilters(PressureCurveProfile.FilterTypeName, CalibrationProfile.FilterTypeName);
+        foreach (var f in settings.Profiles.First().Filters) f.Enable = true;
+
+        Assert.False(ProfileFilterMaintenance.DisableUnapprovedFilters(settings));
+        Assert.All(settings.Profiles.First().Filters, f => Assert.True(f.Enable));
+    }
+
+    [Fact]
+    public void DisableUnapproved_LeavesAnAlreadyDisabledThirdPartyFilter_Untouched()
+    {
+        var settings = WithFilters("OpenTabletDriver.Filters.Noise.NoiseReduction");
+        settings.Profiles.First().Filters.First().Enable = false; // already off
+
+        Assert.False(ProfileFilterMaintenance.DisableUnapprovedFilters(settings)); // nothing to change
+    }
 }

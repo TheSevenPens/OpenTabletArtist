@@ -107,6 +107,37 @@ public static class ProfileFilterMaintenance
         return changed;
     }
 
+    /// <summary>
+    /// Enforces "only approved filters run" (#465): disables any enabled filter store that isn't one of
+    /// this app's approved filters — i.e. a third-party / driver-built-in filter (<see cref="FilterOrigin.Unknown"/>).
+    /// The store is left in place but inert, so the pen behaves consistently regardless of what was
+    /// enabled elsewhere (e.g. the OTD UX). Approved filters (Pen Dynamics / Calibration / Hover) are
+    /// untouched, as are rename orphans (which <see cref="CleanLegacyFilters"/> removes). Callers apply
+    /// this only for the app-owned daemon, never a foreign one. Mutates <paramref name="settings"/>;
+    /// returns true if any filter was disabled.
+    /// </summary>
+    public static bool DisableUnapprovedFilters(Settings? settings)
+    {
+        if (settings?.Profiles == null) return false;
+
+        bool changed = false;
+        foreach (var profile in settings.Profiles)
+        {
+            var filters = profile?.Filters;
+            if (filters == null) continue;
+            foreach (var store in filters)
+            {
+                if (store is not { Enable: true }) continue;
+                if (Classify(store.Path) == FilterOrigin.Unknown)
+                {
+                    store.Enable = false;
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
     /// <summary>True when a path is one of our filters under an old namespace (so it's an orphan from
     /// a rename), and not a current path. Restricted to our own namespaces + class names so a
     /// coincidentally-named third-party filter is never matched.</summary>
