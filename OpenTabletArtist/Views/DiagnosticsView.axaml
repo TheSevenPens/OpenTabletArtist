@@ -7,7 +7,7 @@
     <!-- DataContext is the DiagnosticsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- Controls -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+        <Border Classes="GlassPanel" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="Current Tablet" />
@@ -69,7 +69,7 @@
             </Border>
 
             <!-- Stylus Info -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+            <Border Classes="GlassPanel" Margin="0,0,0,12"
                     IsVisible="{Binding IsDebugging}">
                 <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
                     <!-- Position -->
@@ -155,7 +155,7 @@
         </StackPanel>
 
         <!-- Not connected warning -->
-        <Border Classes="GlassPanel" Padding="16"
+        <Border Classes="GlassPanel"
                 IsVisible="{Binding !IsConnected}">
             <TextBlock Text="Daemon not connected. Connect first from Home."
                        FontSize="12" Foreground="{DynamicResource TextMutedBrush}"

@@ -20,7 +20,7 @@
         </c:SettingCard>
 
         <!-- Fallback when the run-at-startup mechanism isn't available (non-Windows). -->
-        <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding !StartupSupported}">
+        <Border Classes="GlassPanel" IsVisible="{Binding !StartupSupported}">
             <TextBlock Text="Run at startup isn't available on this platform."
                        FontSize="13" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextSecondaryBrush}" />

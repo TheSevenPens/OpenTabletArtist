@@ -7,7 +7,7 @@
         <!-- Full daemon status + controls (moved here from Home). Bound to the shared status VM so the
              Home problem card and this page stay in sync. Home shows the daemon only when there's a
              problem; this page always shows the full picture. -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+        <Border Classes="GlassPanel" Margin="0,0,0,12">
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0">
@@ -117,7 +117,7 @@
         </Border>
 
         <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16">
+        <Border Classes="GlassPanel" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="Embedded OpenTabletDriver Version"

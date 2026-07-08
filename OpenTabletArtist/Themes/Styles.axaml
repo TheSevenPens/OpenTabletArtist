@@ -7,6 +7,11 @@
         <!-- Local converter instance so the ControlThemes below can hide empty title/description lines. -->
         <conv:NonEmptyToBoolConverter x:Key="NonEmpty" />
 
+        <!-- Shared internal padding for every glass card (GlassPanel default + SelectableCard). One value
+             so cards stay consistent; kept deliberately tight. Roomy empty-state placeholders and the
+             flush (0-padding) log / paint surfaces opt out locally. -->
+        <Thickness x:Key="CardPadding">12</Thickness>
+
         <!-- ===== Reusable UX components (default ControlThemes) =====================================
              These back the TemplatedControls in OpenTabletArtist.Controls, consolidating settings-UI
              patterns that were hand-assembled across the views. -->
@@ -67,7 +72,7 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Name="PART_Card" Classes="GlassPanel" Padding="16">
+                    <Border Name="PART_Card" Classes="GlassPanel" Padding="{DynamicResource CardPadding}">
                         <Panel>
                             <ContentPresenter Content="{TemplateBinding Content}"
                                               ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -502,7 +507,7 @@
         <!-- Corner radius is theme-driven so the Anime skin can make cards rounder. Cards are flat —
              no drop shadow / glow (BoxShadow removed). -->
         <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
-        <Setter Property="Padding" Value="24" />
+        <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
     </Style>
 
     <!-- Page Title -->

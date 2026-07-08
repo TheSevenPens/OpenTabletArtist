@@ -13,7 +13,7 @@
         <!-- ── Tablet mapping ─────────────────────────────────────────────────── -->
         <TextBlock Text="TABLET MAPPING" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.5"
                    Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
-        <Border Classes="GlassPanel" Margin="0,0,0,24" Padding="16">
+        <Border Classes="GlassPanel" Margin="0,0,0,24">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="Display toggle" TextWrapping="Wrap" />
@@ -51,7 +51,7 @@
         <ItemsControl ItemsSource="{Binding Snapshots}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
@@ -81,7 +81,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Classes="GlassPanel" Padding="28" IsVisible="{Binding !HasSnapshots}">
+        <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasSnapshots}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No profiles to bind" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
