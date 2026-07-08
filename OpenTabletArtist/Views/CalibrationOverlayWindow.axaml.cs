@@ -101,7 +101,7 @@ public partial class CalibrationOverlayWindow : Window
 
         // The secondary (ghost) buttons are illegible with their default muted colours on this panel,
         // so colour them explicitly per mode.
-        foreach (var b in new[] { RedoBtn, ClearBtn, CancelBtn, ThemeToggle })
+        foreach (var b in new[] { UndoBtn, RedoBtn, ClearBtn, CancelBtn, ThemeToggle })
         {
             b.Foreground = _light ? LightBtnFg : DarkBtnFg;
             b.Background = _light ? LightBtnBg : DarkBtnBg;

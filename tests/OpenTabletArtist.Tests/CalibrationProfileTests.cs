@@ -155,4 +155,40 @@ public class CalibrationProfileTests
         Assert.NotEqual(a, c);
         Assert.Equal(a, CalibrationProfile.Fingerprint(input, output, 1)); // stable
     }
+
+    // Toggling Enabled (the on/off compare toggle) must preserve the model, payload, and report — the
+    // "with { Enabled = ... }" rewrite the tab does, so turning it off/on doesn't lose the calibration.
+    [Fact]
+    public void ToggleEnabled_PreservesModelPayloadAndReport()
+    {
+        var settings = SettingsFor("Tab");
+        var g = new CalibrationGrid(2, 2, -1, -1, 1, 1, new[]
+        {
+            Vector2.Zero, new Vector2(0.1f, 0), Vector2.Zero, new Vector2(0.1f, 0),
+        });
+        var report = new CalibrationReport("Display 1 (1920×1080)", "2026-07-08 14:22",
+            new[] { new CalibrationReportPoint(100, 200, 3000, 6000, 5) });
+        var data = CalibrationProfile.CalibrationData.ForGrid(g, enabled: true, "fp") with { Report = report };
+
+        CalibrationProfile.Write(settings, "Tab", data);
+        var read = CalibrationProfile.Read(settings, "Tab");
+
+        // Turn it off the way the tab toggle does, then read back.
+        CalibrationProfile.Write(settings, "Tab", read! with { Enabled = false });
+        var off = CalibrationProfile.Read(settings, "Tab");
+
+        Assert.NotNull(off);
+        Assert.False(off!.Enabled);
+        Assert.Equal(CalibrationProfile.CalibrationModel.Grid, off.Model);
+        Assert.Equal(2, off.Grid!.Cols);
+        Assert.NotNull(off.Report);
+        Assert.Single(off.Report!.Points);
+        Assert.Equal(report.Points[0], off.Report.Points[0]);
+
+        // And back on — still intact.
+        CalibrationProfile.Write(settings, "Tab", off with { Enabled = true });
+        var on = CalibrationProfile.Read(settings, "Tab");
+        Assert.True(on!.Enabled);
+        Assert.NotNull(on.Report);
+    }
 }

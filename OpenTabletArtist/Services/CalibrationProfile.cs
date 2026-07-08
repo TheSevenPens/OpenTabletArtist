@@ -35,7 +35,8 @@ public static class CalibrationProfile
         Matrix3x2 Transform, bool Enabled, string Fingerprint,
         CalibrationModel Model = CalibrationModel.Affine,
         Homography Homography = default,
-        CalibrationGrid? Grid = null)
+        CalibrationGrid? Grid = null,
+        CalibrationReport? Report = null)
     {
         public static CalibrationData ForHomography(Homography h, bool enabled, string fingerprint) =>
             new(Matrix3x2.Identity, enabled, fingerprint, CalibrationModel.Homography, h);
@@ -68,7 +69,8 @@ public static class CalibrationProfile
         };
         var homography = Homography.TryParse(GetStr("Homography")) ?? default;
         var grid = CalibrationGrid.TryParse(GetStr("Grid"));
-        return new CalibrationData(m, store.Enable, GetStr("MappingFingerprint"), model, homography, grid);
+        var report = CalibrationReport.TryParse(GetStr("Report"));
+        return new CalibrationData(m, store.Enable, GetStr("MappingFingerprint"), model, homography, grid, report);
     }
 
     /// <summary>Writes (and enables/disables) the affine calibration filter (legacy convenience).</summary>
@@ -103,6 +105,7 @@ public static class CalibrationProfile
             new("Homography", data.Model == CalibrationModel.Homography ? data.Homography.ToCsv() : ""),
             new("Grid", data.Model == CalibrationModel.Grid && data.Grid != null ? data.Grid.ToCsv() : ""),
             new("MappingFingerprint", data.Fingerprint),
+            new("Report", data.Report?.Serialize() ?? ""),   // recorded points for the tab report (#460)
         };
 
         EnsureBeforeDynamics(profile);

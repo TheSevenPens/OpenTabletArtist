@@ -134,4 +134,32 @@ public class CalibrationModelsTests
         Assert.Null(CalibrationGrid.TryParse(""));
         Assert.Null(CalibrationGrid.TryParse("2,2,-1,-1,1,1,0,0")); // says 2×2 but only one offset
     }
+
+    // --- Calibration report (#460) ---
+
+    [Fact]
+    public void CalibrationReport_RoundTripsThroughSerialize()
+    {
+        var report = new CalibrationReport("DELL U4323QE (3840×2160)", "2026-07-08 14:22", new[]
+        {
+            new CalibrationReportPoint(384f, 216f, 12840.5f, 7220f, 6),
+            new CalibrationReportPoint(1920f, 1080f, 30390f, 17810.25f, 8),
+        });
+
+        var parsed = CalibrationReport.TryParse(report.Serialize());
+
+        Assert.NotNull(parsed);
+        Assert.Equal("2026-07-08 14:22", parsed!.CapturedAt);
+        Assert.Equal(2, parsed.Points.Count);
+        Assert.Equal(report.Points[0], parsed.Points[0]);
+        Assert.Equal(report.Points[1], parsed.Points[1]);
+    }
+
+    [Fact]
+    public void CalibrationReport_TryParse_RejectsGarbageAndEmpty()
+    {
+        Assert.Null(CalibrationReport.TryParse(""));
+        Assert.Null(CalibrationReport.TryParse("only|two"));               // missing the points field
+        Assert.Null(CalibrationReport.TryParse("d|t|1,2,3,4"));            // a point needs 5 fields
+    }
 }
