@@ -4,84 +4,110 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the DeveloperViewModel; controls bind to the shared DeveloperSettings singleton
-         (Settings.*) so Home and any open tablet page observe the same state live. -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="DEVELOPER" />
-        <TextBlock Text="Testing aids for reviewing the app's UI. These aren't needed for normal use. Tip: right-click an induced card in Home's Needs attention list to dismiss it (real warnings can't be dismissed this way)."
-                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
-                   Margin="0,0,0,14" TextWrapping="Wrap" />
+         (Settings.*). Tabbed layout — a tab per topic — so the page stays short as options grow. -->
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
 
-        <!-- Induce health warnings so the Home "Needs attention" cards can be reviewed / screenshotted.
-             Each appears immediately on Home; its Fix button just clears the toggle here. -->
-        <c:SettingCard Title="Induce health warnings"
-                       Description="Turn one on to make a synthetic warning appear in Home's Needs attention list at that severity. Its Fix button simply clears the toggle.">
-            <StackPanel Spacing="10">
-                <c:ToggleSetting Label="Recommendation-level warning"
-                                 Description="The mildest tier — works, but not the recommended configuration."
-                                 IsChecked="{Binding Settings.InduceRecommendation}" />
-                <c:ToggleSetting Label="Misconfigured-level warning"
-                                 Description="Set up incorrectly; a feature won't behave as expected."
-                                 IsChecked="{Binding Settings.InduceMisconfigured}" />
-                <c:ToggleSetting Label="Broken-level warning"
-                                 Description="A prerequisite is missing; core functionality won't work."
-                                 IsChecked="{Binding Settings.InduceBroken}" />
-            </StackPanel>
-        </c:SettingCard>
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,16">
+            <TextBlock Classes="PageTitle" Text="DEVELOPER" />
+            <TextBlock Text="Testing aids for reviewing the app's UI. These aren't needed for normal use. Tip: right-click an induced card in Home's Needs attention list to dismiss it (real warnings can't be dismissed this way)."
+                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                       MaxWidth="900" HorizontalAlignment="Left" TextWrapping="Wrap" />
+        </StackPanel>
 
-        <!-- Force each ACTUAL health warning to appear with its real title/body/Fix button, so the true
-             copy can be reviewed and screenshotted. These drive the real evaluator, so what you see is
-             exactly what a user would. Turn a toggle back off to clear its card. -->
-        <c:SettingCard Title="Trigger actual health warnings"
-                       Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
-            <StackPanel Spacing="10">
-                <c:ToggleSetting Label="Windows Ink plugin not installed"
-                                 IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
-                <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
-                                 IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
-                <c:ToggleSetting Label="VMulti driver not installed"
-                                 IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
-                <c:ToggleSetting Label="Conflicting tablet driver detected"
-                                 IsChecked="{Binding Settings.ForceDriverConflict}" />
-                <c:ToggleSetting Label="Running as administrator"
-                                 IsChecked="{Binding Settings.ForceRunningElevated}" />
-                <c:ToggleSetting Label="Using an external daemon"
-                                 IsChecked="{Binding Settings.ForceForeignDaemon}" />
-                <c:ToggleSetting Label="Tablet: not using Windows Ink"
-                                 Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
-                                 IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
-                <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
-                                 IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
-                <c:ToggleSetting Label="Tablet: custom display mapping"
-                                 IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+        <!-- Tab rail — one tab per topic (matches the tablet page's rail). -->
+        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource DividerBrush}">
+            <StackPanel Width="170" Spacing="2">
+                <RadioButton Content="INDUCE WARNINGS" IsChecked="True" x:Name="InduceTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="ACTUAL WARNINGS" x:Name="ActualTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="SHORTCUT" x:Name="ShortcutTab"
+                             Theme="{StaticResource TabRadioButton}" />
             </StackPanel>
-        </c:SettingCard>
+        </Border>
 
-        <!-- Reveal the normally-hidden tablet-page tabs. Off by default; users never need these. -->
-        <c:SettingCard Title="Tablet page tabs"
-                       Description="Show extra diagnostic tabs on a tablet's page. Hidden by default because they're rarely useful.">
-            <StackPanel Spacing="10">
-                <c:ToggleSetting Label="Show the Filters tab"
-                                 Description="A raw view of the profile's output-mode filters."
-                                 IsChecked="{Binding Settings.ShowFiltersTab}" />
-                <c:ToggleSetting Label="Show the JSON tab"
-                                 Description="The tablet profile's raw settings JSON."
-                                 IsChecked="{Binding Settings.ShowJsonTab}" />
-            </StackPanel>
-        </c:SettingCard>
+        <!-- Induce health warnings: synthetic per-severity cards for reviewing the Needs-attention UI. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #InduceTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Induce health warnings"
+                           Description="Turn one on to make a synthetic warning appear in Home's Needs attention list at that severity. Its Fix button simply clears the toggle.">
+                <StackPanel Spacing="10">
+                    <c:ToggleSetting Label="Recommendation-level warning"
+                                     Description="The mildest tier — works, but not the recommended configuration."
+                                     IsChecked="{Binding Settings.InduceRecommendation}" />
+                    <c:ToggleSetting Label="Misconfigured-level warning"
+                                     Description="Set up incorrectly; a feature won't behave as expected."
+                                     IsChecked="{Binding Settings.InduceMisconfigured}" />
+                    <c:ToggleSetting Label="Broken-level warning"
+                                     Description="A prerequisite is missing; core functionality won't work."
+                                     IsChecked="{Binding Settings.InduceBroken}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
 
-        <!-- Registers a dev build (run from its output folder) under the Start menu so tooling keyed to
-             the installed-app list can find it. Easy to re-run when setting up another machine. -->
-        <c:SettingCard Title="Start-menu shortcut"
-                       Description="Create a per-user Start-menu shortcut to this app. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
-            <StackPanel Spacing="8">
-                <Button Content="Create Start-menu shortcut"
-                        Command="{Binding CreateStartMenuShortcutCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
-                        HorizontalAlignment="Left" />
-                <TextBlock Text="{Binding ShortcutStatus}" FontSize="11" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           IsVisible="{Binding HasShortcutStatus}" />
-            </StackPanel>
-        </c:SettingCard>
-    </StackPanel>
+        <!-- Trigger actual health warnings: force each real catalog warning with its true copy. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ActualTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Trigger actual health warnings"
+                           Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
+                <StackPanel Spacing="10">
+                    <c:ToggleSetting Label="Windows Ink plugin not installed"
+                                     IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
+                    <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
+                                     IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
+                    <c:ToggleSetting Label="VMulti driver not installed"
+                                     IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
+                    <c:ToggleSetting Label="Conflicting tablet driver detected"
+                                     IsChecked="{Binding Settings.ForceDriverConflict}" />
+                    <c:ToggleSetting Label="Running as administrator"
+                                     IsChecked="{Binding Settings.ForceRunningElevated}" />
+                    <c:ToggleSetting Label="Using an external daemon"
+                                     IsChecked="{Binding Settings.ForceForeignDaemon}" />
+                    <c:ToggleSetting Label="Tablet: not using Windows Ink"
+                                     Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
+                                     IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
+                    <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
+                                     IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
+                    <c:ToggleSetting Label="Tablet: custom display mapping"
+                                     IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Reveal the normally-hidden tablet-page tabs. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #TabletTabsTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Tablet page tabs"
+                           Description="Show extra diagnostic tabs on a tablet's page. Hidden by default because they're rarely useful.">
+                <StackPanel Spacing="10">
+                    <c:ToggleSetting Label="Show the Filters tab"
+                                     Description="A raw view of the profile's output-mode filters."
+                                     IsChecked="{Binding Settings.ShowFiltersTab}" />
+                    <c:ToggleSetting Label="Show the JSON tab"
+                                     Description="The tablet profile's raw settings JSON."
+                                     IsChecked="{Binding Settings.ShowJsonTab}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Register a dev build under the Start menu so automation / screenshot tooling can find it. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ShortcutTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Start-menu shortcut"
+                           Description="Create a per-user Start-menu shortcut to this app. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
+                <StackPanel Spacing="8">
+                    <Button Content="Create Start-menu shortcut"
+                            Command="{Binding CreateStartMenuShortcutCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding ShortcutStatus}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasShortcutStatus}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+    </Grid>
 </UserControl>
