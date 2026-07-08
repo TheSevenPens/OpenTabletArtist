@@ -586,6 +586,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
             bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(_settings);
+            // #465: on the app-owned daemon, disable any non-approved (third-party / driver-built-in)
+            // filter so only our Pen Dynamics / Calibration / Hover filters run and the pen stays
+            // consistent. Never touch a foreign daemon's filters. Persisted below if it changed anything.
+            bool unapprovedDisabled = !IsForeignDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(_settings);
             if (_settings != null)
             {
                 Profiles = _settings.Profiles
@@ -629,7 +633,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
             // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
             // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
-            if (staleFiltersRemoved && _settings != null)
+            if ((staleFiltersRemoved || unapprovedDisabled) && _settings != null)
             {
                 try
                 {
@@ -722,6 +726,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
+        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
         _settings = settings;
 
         SaveState = SettingsSaveState.Saving;
@@ -758,6 +763,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         Dispatcher.UIThread.VerifyAccess();
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
+        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
         _settings = settings;
         // Apply live, reload — but deliberately do NOT TrySave: this is a temporary override, so the
         // saved settings.json default must stay intact (#320). No save chip either; the override cue owns
@@ -771,6 +777,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         Dispatcher.UIThread.VerifyAccess();
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
+        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
         // Per-app switch (#167): apply to the daemon ONLY. Deliberately does NOT touch _settings, TrySave,
         // or reload — CurrentSettings must stay on the user's default so the editor edits the default, not
         // the transient per-app snapshot. Live pen streams read daemon reports, so they still update.
