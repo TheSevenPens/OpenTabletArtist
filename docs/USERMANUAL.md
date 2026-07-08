@@ -198,7 +198,12 @@ A single toggle — **Start OpenTabletArtist when Windows starts** — that laun
 
 ### Developer
 
-Testing aids, not needed for normal use. **Induce health warnings** adds a synthetic *Needs attention* card at each severity (for reviewing the card styling), and **Trigger actual health warnings** forces each real health check to appear with its true text and Fix button, so the warnings can be reviewed and screenshotted without reproducing the underlying problem. Right-clicking one of these induced cards on Home offers a hidden **Dismiss** (real warnings can't be dismissed this way). A **Tablet page tabs** section reveals the otherwise-hidden **Filters** and **JSON** tabs on a tablet's page.
+Testing aids, not needed for normal use. The page is organized into tabs, one per topic:
+
+- **Induce warnings** — adds a synthetic *Needs attention* card at each severity (for reviewing the card styling). Right-clicking one of these induced cards on Home offers a hidden **Dismiss** (real warnings can't be dismissed this way).
+- **Actual warnings** — forces each real health check to appear with its true text and Fix button, so the warnings can be reviewed and screenshotted without reproducing the underlying problem.
+- **Tablet tabs** — reveals the otherwise-hidden **Filters** and **JSON** tabs on a tablet's page.
+- **Shortcut** — creates a per-user Start-menu shortcut to the app. A dev build run from its build folder isn't a registered app; this registers it under its name so desktop-automation and screenshot tooling can find it.
 
 ### About
 
