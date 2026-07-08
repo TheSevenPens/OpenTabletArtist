@@ -228,7 +228,7 @@
                 <ControlTemplate>
                     <Border x:Name="Bd"
                             Background="Transparent"
-                            CornerRadius="12"
+                            CornerRadius="6"
                             Padding="8,3.92,16,3.92">
                         <Grid ColumnDefinitions="Auto,12,*">
                             <!-- Active indicator bar. Always laid out (only its colour changes when
@@ -283,7 +283,7 @@
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="12" Padding="8,3.92,16,3.92">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="8,3.92,16,3.92">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" x:Name="Label"
                                        Text="{TemplateBinding Content}"
@@ -380,13 +380,20 @@
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border x:Name="Bd" Background="Transparent"
-                            Padding="8,8"
-                            BorderThickness="2,0,0,0" BorderBrush="Transparent"
-                            CornerRadius="0,4,4,0">
-                        <TextBlock x:Name="Label" Text="{TemplateBinding Content}"
-                                   FontSize="12" FontWeight="Medium"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    <!-- Selected-item treatment mirrors the page nav's NavNode: a rounded (12) highlight
+                         plus an inset, rounded 3px accent indicator bar — so the current item reads the
+                         same across both navigation levels. The indicator is always laid out (only its
+                         colour changes when checked) so selecting can't shift the label. -->
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="8,3.92">
+                        <Grid ColumnDefinitions="Auto,8,*">
+                            <Border x:Name="Indicator" Width="3" Height="20" CornerRadius="2"
+                                    Background="Transparent" VerticalAlignment="Center"
+                                    HorizontalAlignment="Left" Margin="-4,0,0,0" />
+                            <TextBlock Grid.Column="2" x:Name="Label" Text="{TemplateBinding Content}"
+                                       FontSize="12" FontWeight="Medium"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -397,8 +404,10 @@
                 <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
             </Style>
             <Style Selector="^:checked /template/ Border#Bd">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+                <Setter Property="Background" Value="{DynamicResource NavActiveBrush}" />
+            </Style>
+            <Style Selector="^:checked /template/ Border#Indicator">
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Label">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
