@@ -178,7 +178,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #AboutTab.IsChecked}">
             <StackPanel>
-                <Border Classes="GlassPanel" Padding="16">
+                <Border Classes="GlassPanel">
                     <StackPanel>
                         <TextBlock Text="ABOUT THIS TABLET" Classes="SectionLabel" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
@@ -203,7 +203,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Classes="GlassPanel" Padding="16" Margin="0,12,0,0">
+                <Border Classes="GlassPanel" Margin="0,12,0,0">
                     <StackPanel Spacing="8">
                         <TextBlock Text="RESOURCES" Classes="SectionLabel" />
                         <Button Content="View supported tablets on opentabletdriver.net"
@@ -269,7 +269,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DisplayMappingTab.IsChecked}">
             <StackPanel>
-                <Border Classes="GlassPanel" Padding="16"
+                <Border Classes="GlassPanel"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <!-- Flags a mapping that isn't a clean single-monitor one (#displaymap): an off-screen
@@ -365,7 +365,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ActiveAreaTab.IsChecked}">
             <StackPanel>
-                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding HasAreaMapping}">
+                <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <TextBlock Text="ACTIVE AREA" Classes="SectionLabel" />
                         <TextBlock Text="The highlighted region is the part of your tablet that's currently mapped to the screen. It's sized automatically to match the selected display's proportions, so pen movement isn't stretched or squashed."
@@ -454,7 +454,7 @@
 
                 <!-- Current calibration status card — sits before the density options so the user sees
                      the current state (and can clear it) first. -->
-                <Border Classes="GlassPanel" Padding="16" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
+                <Border Classes="GlassPanel" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}" VerticalAlignment="Center" />
@@ -475,7 +475,7 @@
                      (UniformGrid); the START button sits directly below the diagram with the explanatory
                      text last, so the button is at a consistent height across the cards. -->
                 <UniformGrid Columns="3" IsVisible="{Binding CanCalibrate}">
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}" Padding="16">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -489,7 +489,7 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}" Padding="16">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -503,7 +503,7 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}" Padding="16">
+                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -620,7 +620,7 @@
                 </ItemsControl>
 
                 <!-- Empty state when the tablet has no auxiliary buttons. -->
-                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding NoAuxButtons}">
+                <Border Classes="GlassPanel" IsVisible="{Binding NoAuxButtons}">
                     <TextBlock Text="No auxiliary buttons configured" FontSize="12"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
@@ -661,7 +661,7 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                            <Border Classes="GlassPanel" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
                                                IsVisible="{Binding ShowTitle}" Margin="0,0,0,10" />
@@ -738,7 +738,7 @@
                 <StackPanel>
 
                     <!-- Pressure curve: chart + presets + softness + dead zone + node read-outs -->
-                    <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
 
@@ -809,7 +809,7 @@
                     </Border>
 
                     <!-- Pressure smoothing (EMA) -->
-                    <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="PRESSURE SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                        ToolTip.Tip="EMA smoothing of pressure — evens out pressure jitter, at a little lag." />
@@ -823,7 +823,7 @@
                     </Border>
 
                     <!-- Order (compact one-row card): how the curve and pressure smoothing interleave. -->
-                    <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0" Text="ORDER" Classes="SectionLabel" VerticalAlignment="Center"
                                        ToolTip.Tip="Whether pressure smoothing runs after the curve (default) or before it." />
@@ -850,7 +850,7 @@
                 <TextBlock Text="{Binding PositionDynamicsStatusText}" FontSize="11" TextWrapping="Wrap"
                            Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
 
-                <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10">
+                <Border Classes="GlassPanel" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Text="POSITION SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                    ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
@@ -877,7 +877,7 @@
                                   IsChecked="{Binding HoverLimitEnabled}" />
                 </Grid>
 
-                <Border Classes="GlassPanel" Padding="14" Margin="0,0,0,10"
+                <Border Classes="GlassPanel" Margin="0,0,0,10"
                         IsEnabled="{Binding HoverLimitEnabled}" Opacity="{Binding HoverControlsOpacity}">
                     <StackPanel>
                         <TextBlock Text="Stops the cursor tracking once the pen lifts past this distance — useful to keep a raised pen from dragging the cursor. Drawing is unaffected."
@@ -955,7 +955,7 @@
                 </ItemsControl>
 
                 <!-- Empty state when the profile has no filters. -->
-                <Border Classes="GlassPanel" Padding="16" IsVisible="{Binding !HasFilters}">
+                <Border Classes="GlassPanel" IsVisible="{Binding !HasFilters}">
                     <TextBlock Text="No filters configured" FontSize="12"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
@@ -963,7 +963,7 @@
         </ScrollViewer>
 
         <!-- JSON tab content -->
-        <Border Grid.Row="1" Grid.Column="1" Classes="GlassPanel" Padding="16"
+        <Border Grid.Row="1" Grid.Column="1" Classes="GlassPanel"
                 IsVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="{DynamicResource MonoFontFamily}" FontSize="11"

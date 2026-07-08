@@ -9,7 +9,7 @@
                    FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,12" />
 
-        <Border Classes="GlassPanel" Padding="16">
+        <Border Classes="GlassPanel">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <!-- Title -->

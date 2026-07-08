@@ -38,7 +38,7 @@
             <!-- Catch-all card: what any app that isn't mapped below should use. Same dropdown (Current
                  settings + saved profiles) as every app card — one consistent way to target the live
                  config or a profile, even for unmapped apps. -->
-            <Border Classes="GlassPanel" Padding="16">
+            <Border Classes="GlassPanel">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                         <TextBlock Classes="CardTitle" Text="Default for apps" />
@@ -63,7 +63,7 @@
             <ItemsControl ItemsSource="{Binding Mappings}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                        <Border Classes="GlassPanel" Margin="0,0,0,10">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                     <TextBlock Classes="CardTitle" Text="{Binding ExeName}" />

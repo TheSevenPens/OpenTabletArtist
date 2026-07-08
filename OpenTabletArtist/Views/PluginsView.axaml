@@ -5,7 +5,7 @@
     <!-- DataContext is the PluginsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- Header card: title + rescan/browse actions. -->
-        <Border Classes="GlassPanel" Padding="16">
+        <Border Classes="GlassPanel">
             <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
                 <TextBlock Grid.Row="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
                            VerticalAlignment="Center" />
@@ -29,7 +29,7 @@
         <ItemsControl ItemsSource="{Binding Plugins}" IsVisible="{Binding HasPlugins}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Padding="16" Margin="0,10,0,0">
+                    <Border Classes="GlassPanel" Margin="0,10,0,0">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0" Classes="statusMark"
                                        Classes.success="{Binding IsActive}" VerticalAlignment="Center" />

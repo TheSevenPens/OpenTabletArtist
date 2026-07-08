@@ -18,7 +18,7 @@
                 <ItemsControl ItemsSource="{Binding Health.Issues}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Margin="0,0,0,8" Padding="16"
+                            <Border Classes="GlassPanel" Margin="0,0,0,8"
                                     BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                     <TextBlock Grid.Column="0" Classes="statusMark" VerticalAlignment="Center"
@@ -49,7 +49,7 @@
                  problem or an op is in flight. It morphs to a "Connecting to daemon…" spinner while Fix
                  runs, then clears on success (or reverts to the error). The full status + controls +
                  version live on the Daemon page (Advanced → OpenTabletDriver). -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="16"
+            <Border Classes="GlassPanel" Margin="0,0,0,12"
                     BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
                     IsVisible="{Binding Daemon.ShowDaemonProblem}">
                 <Panel>
@@ -89,7 +89,7 @@
                           IsVisible="{Binding TabletsOverview.HasTablets}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Classes="GlassPanel" Margin="0,0,0,10" Padding="16">
+                        <Border Classes="GlassPanel" Margin="0,0,0,10">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
@@ -116,7 +116,7 @@
             </ItemsControl>
 
             <!-- No tablets at all → explicit empty state. -->
-            <Border Classes="GlassPanel" Padding="32" IsVisible="{Binding !TabletsOverview.HasTablets}">
+            <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !TabletsOverview.HasTablets}">
                 <StackPanel HorizontalAlignment="Center" Spacing="8">
                     <TextBlock Text="No tablets connected or remembered"
                                FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"
@@ -128,7 +128,7 @@
             </Border>
 
             <!-- Link out to OTD's supported-tablets list (#307). -->
-            <Border Classes="GlassPanel" Margin="0,10,0,0" Padding="16">
+            <Border Classes="GlassPanel" Margin="0,10,0,0">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                         <TextBlock Classes="CardTitle" Text="Supported tablets" />
