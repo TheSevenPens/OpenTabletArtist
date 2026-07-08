@@ -17,14 +17,15 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly AppSession _session;
     private readonly IDialogService _dialogs;
-    // Navigate the shell to a tablet's in-app settings page for a health-issue "Fix".
-    private readonly Action<string> _navigateToTablet;
+    // Navigate the shell to a tablet's in-app settings page for a health-issue "Fix", optionally
+    // deep-linking to the tab that carries the fix.
+    private readonly Action<string, TabletDetailTab?> _navigateToTablet;
     private readonly Action? _openDriverCleanup;
     private readonly Action? _openWindowsInk;
     private readonly Action? _openVMulti;
 
     public DashboardViewModel(AppSession session, DaemonStatusViewModel daemon, IDialogService dialogs,
-        Action<string> navigateToTablet, HealthService health, TabletsOverviewViewModel tablets,
+        Action<string, TabletDetailTab?> navigateToTablet, HealthService health, TabletsOverviewViewModel tablets,
         Action? openDriverCleanup = null, Action? openWindowsInk = null, Action? openVMulti = null)
     {
         _session = session;
@@ -72,9 +73,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 Daemon.RestartDaemonCommand.Execute(null); // external daemon → restart to this app's build
                 break;
             case RemediationArea.TabletPenBehavior:
+                // Deep-link to the tablet's page, on the Pen Behavior tab that carries the fix.
+                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName, TabletDetailTab.PenBehavior);
+                break;
             case RemediationArea.TabletDisplayMapping:
-                // Deep-link to the tablet's page; its Display Mapping / Pen Behavior tab carries the fix.
-                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName);
+                // Deep-link to the tablet's page, on the Display Mapping tab that carries the fix.
+                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName, TabletDetailTab.DisplayMapping);
                 break;
             case RemediationArea.TabletPenDynamics:
                 // Re-enable the always-on Pen Dynamics filter across profiles and persist.

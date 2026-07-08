@@ -32,6 +32,12 @@ public partial class TabletDetailView : UserControl
         // Focused Pen Dynamics editor (#133): open straight on the Dynamics tab.
         if (Vm?.DynamicsOnly == true) PressureDynamicsTab.IsChecked = true;
 
+        // Health-issue "Fix" deep-link: open on the tab that carries the fix (e.g. Display Mapping for an
+        // off-screen mapping) instead of the default About tab. Also handle a request that arrives while
+        // the page is already shown (re-navigation wouldn't re-attach the view).
+        if (Vm != null) Vm.TabRequested += OnTabRequested;
+        if (Vm?.ConsumePendingTab() is { } pending) SelectTab(pending);
+
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
         // Live device-report stream feeds the pressure dot (Dynamics), the aux-button highlight
@@ -45,6 +51,7 @@ public partial class TabletDetailView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        if (Vm != null) Vm.TabRequested -= OnTabRequested;
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
         PressureDynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
@@ -54,6 +61,25 @@ public partial class TabletDetailView : UserControl
 
     private void OnScreensChanged(object? sender, EventArgs e) =>
         Vm?.RefreshDisplaysCommand.Execute(null);
+
+    // A deep-link arriving while the page is already shown — clear the pending flag (we're handling it
+    // live) and switch tabs.
+    private void OnTabRequested(TabletDetailTab tab)
+    {
+        Vm?.ConsumePendingTab();
+        SelectTab(tab);
+    }
+
+    // Check the RadioButton for a deep-linked tab. Its content ScrollViewer is gated on IsChecked, so
+    // checking the tab shows it (and unchecks whatever was selected — they share the rail's group).
+    private void SelectTab(TabletDetailTab tab)
+    {
+        switch (tab)
+        {
+            case TabletDetailTab.DisplayMapping: DisplayMappingTab.IsChecked = true; break;
+            case TabletDetailTab.PenBehavior: OutputModeTab.IsChecked = true; break;
+        }
+    }
 
     private void OnLiveTabChanged(object? sender, RoutedEventArgs e) => UpdateLiveInput();
 

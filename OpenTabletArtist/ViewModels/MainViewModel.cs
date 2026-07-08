@@ -224,7 +224,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
     [RelayCommand]
-    private void NavigateToTablet(TabletNavNodeViewModel item)
+    private void NavigateToTablet(TabletNavNodeViewModel item) => ShowTablet(item, null);
+
+    /// <summary>Show a tablet's page, optionally deep-linking to a specific tab (a health-issue "Fix").</summary>
+    private void ShowTablet(TabletNavNodeViewModel item, TabletDetailTab? tab)
     {
         if (!_tabletDetails.TryGetValue(item.Name, out var vm))
         {
@@ -233,13 +236,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
             vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(item.Name));
             _tabletDetails[item.Name] = vm;
         }
+        // Request the tab before showing the page: a fresh page consumes it on attach; an already-open
+        // one switches via the VM's TabRequested event (re-navigation wouldn't re-attach the view).
+        if (tab is { } t) vm.RequestTab(t);
         CurrentPage = vm;
     }
 
-    private void NavigateToTabletByName(string name)
+    private void NavigateToTabletByName(string name, TabletDetailTab? tab = null)
     {
         var item = Tablets.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (item != null) NavigateToTablet(item);
+        if (item != null) ShowTablet(item, tab);
     }
 
     private async Task ForgetTabletByNameAsync(string name)

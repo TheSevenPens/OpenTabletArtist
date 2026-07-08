@@ -16,6 +16,14 @@ using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
+/// <summary>A tablet-page tab that a health-issue "Fix" can deep-link to (so the fix opens on the tab
+/// that carries it, not the default About tab). See <see cref="TabletDetailViewModel.RequestTab"/>.</summary>
+public enum TabletDetailTab
+{
+    PenBehavior,
+    DisplayMapping,
+}
+
 /// <summary>
 /// View model for a single tablet's settings — the tabbed editor (Screen Mapping, Pen Switches,
 /// ExpressKeys, Dynamics, Hover, Filters, JSON). Hosted either as an in-app page (the Tablets nav)
@@ -1125,6 +1133,32 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isWinInkRelative;
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
+
+    /// <summary>A tab the page should open on, set by a health-issue "Fix" deep-link (e.g. Display Mapping
+    /// for an off-screen mapping) so the fix lands on the tab that carries it rather than the default
+    /// About tab. The view reads and clears it on attach; <see cref="TabRequested"/> also fires so a page
+    /// that's already visible switches immediately.</summary>
+    public TabletDetailTab? PendingTab { get; private set; }
+
+    /// <summary>Raised when a specific tab is requested — handled by the view to switch a page that's
+    /// already shown (where re-navigation wouldn't re-attach it).</summary>
+    public event Action<TabletDetailTab>? TabRequested;
+
+    /// <summary>Ask the page to open on <paramref name="tab"/>. Call before navigating to it.</summary>
+    public void RequestTab(TabletDetailTab tab)
+    {
+        PendingTab = tab;
+        TabRequested?.Invoke(tab);
+    }
+
+    /// <summary>Read and clear the pending deep-link tab (one-shot, so navigating back later isn't
+    /// forced onto it again).</summary>
+    public TabletDetailTab? ConsumePendingTab()
+    {
+        var tab = PendingTab;
+        PendingTab = null;
+        return tab;
+    }
     // Per-slot views for the visual pen diagram (button slots are null when the pen lacks that button).
     [ObservableProperty] private PenSwitchRowViewModel? _penTipRow;
     [ObservableProperty] private PenSwitchRowViewModel? _penEraserRow;
