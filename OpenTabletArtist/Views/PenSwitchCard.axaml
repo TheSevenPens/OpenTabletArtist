@@ -22,7 +22,7 @@
                         IsEnabled="{Binding IsOtherSelected}" />
             </StackPanel>
 
-            <TextBlock Text="{Binding BindingLabel}" FontSize="11"
+            <TextBlock Text="{Binding BindingLabel}"
                        Foreground="{DynamicResource TextSecondaryBrush}"
                        TextWrapping="Wrap" />
 

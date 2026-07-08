@@ -135,9 +135,9 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         // default — updating would capture the wrong config. Make it a deliberate choice. (#320)
         if (_profileSwitch.HasOverride)
         {
-            var proceed = await _dialogs.ShowConfirmAsync("Update Profile",
+            var proceed = await _dialogs.ShowConfirmAsync("Update Preset",
                 $"A profile override (\"{_profileSwitch.ActiveSnapshot}\") is active, so this saves the " +
-                "currently-overridden settings into this profile — not your saved default.\n\nContinue?");
+                "currently-overridden settings into this preset — not your saved default.\n\nContinue?");
             if (!proceed) return;
         }
 
@@ -153,8 +153,8 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (!File.Exists(oldPath)) return;
 
         var newName = await _dialogs.ShowInputAsync(
-            "Rename Profile",
-            "Enter a new name for this profile:",
+            "Rename Preset",
+            "Enter a new name for this preset:",
             name);
 
         if (!string.IsNullOrWhiteSpace(newName) && newName != name)
@@ -181,7 +181,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
         if (!File.Exists(path)) return;
 
         var confirmed = await _dialogs.ShowConfirmAsync(
-            "Delete Profile",
+            "Delete Preset",
             $"Delete the profile \"{name}\"?\n\nThis cannot be undone.");
 
         if (!confirmed) return;

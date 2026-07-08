@@ -8,27 +8,27 @@
 
         <Border Classes="GlassPanel">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="What is this?" Margin="0,0,0,12" />
-                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22"
+                <TextBlock Classes="SectionLabel" Text="WHAT IS THIS?" Margin="0,0,0,12" />
+                <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     A simpler way of using OpenTabletDriver on Windows.
                 </TextBlock>
                 <!-- Version (moved here from the sidebar footer) -->
-                <TextBlock Text="{Binding AppVersionLabel}" FontSize="12" Margin="0,12,0,0"
+                <TextBlock Text="{Binding AppVersionLabel}" Margin="0,12,0,0"
                            Foreground="{DynamicResource TextMutedBrush}" />
             </StackPanel>
         </Border>
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Source code" Margin="0,0,0,12" />
+                <TextBlock Classes="SectionLabel" Text="SOURCE CODE" Margin="0,0,0,12" />
                 <!-- Clickable link: opens the GitHub repo in the default browser -->
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                         HorizontalAlignment="Left"
                         ToolTip.Tip="{Binding RepoUrl}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding RepoUrl}" FontSize="13"
+                        <TextBlock Text="{Binding RepoUrl}"
                                    Foreground="{DynamicResource AccentBrush}"
                                    TextDecorations="Underline" VerticalAlignment="Center" />
                     </StackPanel>
@@ -38,8 +38,8 @@
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="Releases" Margin="0,0,0,6" />
-                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22" Margin="0,0,0,10"
+                <TextBlock Classes="SectionLabel" Text="RELEASES" Margin="0,0,0,6" />
+                <TextBlock TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,10"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     Download the latest build and read the release notes.
                 </TextBlock>
@@ -47,7 +47,7 @@
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                         HorizontalAlignment="Left"
                         ToolTip.Tip="{Binding ReleasesUrl}">
-                    <TextBlock Text="View releases on GitHub" FontSize="13"
+                    <TextBlock Text="View releases on GitHub"
                                Foreground="{DynamicResource AccentBrush}"
                                TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>
@@ -56,8 +56,8 @@
 
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel>
-                <TextBlock Classes="CardTitle" Text="User manual" Margin="0,0,0,6" />
-                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22" Margin="0,0,0,10"
+                <TextBlock Classes="SectionLabel" Text="USER MANUAL" Margin="0,0,0,6" />
+                <TextBlock TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,10"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     Learn how to set up and use the app.
                 </TextBlock>
@@ -65,7 +65,7 @@
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                         HorizontalAlignment="Left"
                         ToolTip.Tip="{Binding UserManualUrl}">
-                    <TextBlock Text="Open the user manual" FontSize="13"
+                    <TextBlock Text="Open the user manual"
                                Foreground="{DynamicResource AccentBrush}"
                                TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>

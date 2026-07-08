@@ -68,8 +68,8 @@ public class PresetsViewModelTests
             await vm.SavePresetCommand.ExecuteAsync(null);
 
             Assert.True(vm.HasPresets);
-            Assert.Contains(vm.Presets, p => p.Name == "Profile");
-            Assert.True(File.Exists(Path.Combine(dir, "Profile.json")));
+            Assert.Contains(vm.Presets, p => p.Name == "Preset");
+            Assert.True(File.Exists(Path.Combine(dir, "Preset.json")));
         }
         finally { Directory.Delete(dir, true); }
     }
@@ -83,8 +83,8 @@ public class PresetsViewModelTests
             var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
             var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch()) { PresetDirectory = dir };
 
-            await vm.SavePresetCommand.ExecuteAsync(null);   // writes Profile.json
-            await vm.LoadPresetCommand.ExecuteAsync("Profile");
+            await vm.SavePresetCommand.ExecuteAsync(null);   // writes Preset.json
+            await vm.LoadPresetCommand.ExecuteAsync("Preset");
 
             Assert.NotNull(coordinator.Applied);
         }

@@ -20,7 +20,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar's top-level items are **Home**, **Tablets**, **Profiles**, **Hotkeys**, **Scribble**, and **About**. A collapsible **Advanced** group holds **OpenTabletDriver** (a hub with its own secondary tabs — **Daemon**, **Windows Ink Plugin**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, and **Plugins**), **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**.
+The sidebar's top-level items are **Home**, **Tablets**, **Presets**, **Hotkeys**, **Scribble**, and **About**. A collapsible **Advanced** group holds **OpenTabletDriver** (a hub with its own secondary tabs — **Daemon**, **Windows Ink Plugin**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, and **Plugins**), **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**.
 
 **Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
 
@@ -38,7 +38,7 @@ The landing page stays quiet when everything is healthy and surfaces things only
 Selecting a tablet in the sidebar opens its settings **in the right-hand pane** (no separate dialog), with a header showing the tablet name, live connection status, a **Refresh**, and a **Forget** button. The settings are organized into tabs — **About**, **Pen Behavior**, **Pen Inputs**, **Pressure Dynamics**, **Position Dynamics**, **Display Mapping**, **Active Area**, **Calibration**, **Buttons**, and **Wheels** (plus **Filters** and **JSON**, which are hidden unless enabled on the Developer page):
 
 - **About** — The first tab: a read-out of the tablet's specifications (name, active area in mm & inches, its diagonal and aspect ratio, digitizer resolution in LP/mm and LPI, pressure levels, pen/express/mouse button counts, touch ring/strip/touch support, and the USB VID:PID), shown for the connected tablet. It also has a **Resources** area (currently a link to OpenTabletDriver's supported-tablets list) that will grow to hold documentation and compatible-pen info over time.
-- **Pen Behavior** — The tablet's **output mode**, an **Absolute / Relative** toggle. Absolute is recommended for drawing since it carries pressure & tilt; a warning + **Fix** appears when the profile is on a non-Windows-Ink mode.
+- **Pen Behavior** — The tablet's **output mode**, an **Absolute / Relative** toggle. Absolute is recommended for drawing since it carries pressure & tilt; a warning + **Fix** appears when the tablet is on a non-Windows-Ink mode.
 - **Pen Inputs** — All the switches on the pen — tip, eraser, and barrel buttons — laid out over a diagram of the pen. Each shows a green check + "Adaptive Binding (recommended)" when already on Adaptive Binding; otherwise a Fix (tip/eraser) or Fix All (pen buttons) button sets it.
 Pen dynamics are split across two tabs — **Pressure Dynamics** and **Position Dynamics** — both enforced by the bundled *OpenTabletArtist – Pen Dynamics* filter so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one. There's **no on/off switch** — dynamics simply do nothing until you shape the curve or raise a smoothing slider (a linear curve with zero smoothing is a true no-op), and the filter stays enabled from then on. Each tab has a status line saying whether its settings actually affect the pen, and a **Reset** that returns that tab's controls to their no-op defaults.
 
@@ -55,45 +55,45 @@ Edits on both tabs are debounced and applied to the daemon automatically.
   - **9 point** (3×3 grid) for harder cases and **25 point** (5×5 grid) for extreme cases both fit a **per-node** correction that also handles **localized** distortion. The correction is tied to the current mapping — recalibrate if you change it.
 - **Buttons** — The tablet's auxiliary buttons, **fully editable**, one card each. Pick a binding **type** (None / Keyboard / Mouse button / Mouse scroll): Keyboard offers Ctrl/Shift/Alt modifiers + a key (a combo writes a Multi-Key binding); Mouse button is Left/Right/Middle/Back/Forward; Mouse scroll is a direction. **Pressing a physical button highlights its card live.** A **Buttons enabled** master toggle suspends all mappings (kept and restored when re-enabled), and **Clear all** removes every binding.
 - **Wheels** — Bindings for the tablet's wheel / dial controls, on hardware that has them.
-- **Filters** *(developer-only)* — The profile's input filters, one card each: friendly name, full type path, and enabled/disabled status. A stale filter left over from an older app name is flagged **Legacy** (and cleaned up automatically). Hidden unless enabled on the Developer page.
-- **JSON** *(developer-only)* — Raw JSON view of the profile data. Hidden unless enabled on the Developer page.
+- **Filters** *(developer-only)* — The tablet's input filters, one card each: friendly name, full type path, and enabled/disabled status. A stale filter left over from an older app name is flagged **Legacy** (and cleaned up automatically). Hidden unless enabled on the Developer page.
+- **JSON** *(developer-only)* — Raw JSON view of the tablet's raw settings. Hidden unless enabled on the Developer page.
 
 A **Refresh** button in the page header reloads settings from the daemon (useful after making changes in the OTD UX).
 
-### Profiles
+### Presets
 
-At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what hotkey switches revert to, and every **profile** below is a *saved copy* of it.
+At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what hotkey switches revert to, and every **preset** below is a *saved copy* of it.
 
-A **profile** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the profile name and file last-modified time, sorted newest first. Profiles are what **Load** and profile hotkeys apply.
+A **preset** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the preset name and file last-modified time, sorted newest first. Presets are what **Load** and preset hotkeys apply.
 
-> Note: "profile" here means a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each OTA profile file contains the complete OTD `Settings` (all tablets).
+> Note: a **preset** is a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each preset file contains the complete OTD `Settings` (all tablets).
 
 On the Current settings card:
 
-- **Save as profile** — Saves the current settings as a copy with an auto-numbered name: `Profile`, `Profile 2`, `Profile 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
-- **Browse** — Opens the profiles folder in Explorer.
+- **Save as preset** — Saves the current settings as a copy with an auto-numbered name: `Preset`, `Preset 2`, `Preset 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
+- **Browse** — Opens the presets folder in Explorer.
 
-Each profile card has:
+Each preset card has:
 
-- **Load** — Applies the profile and makes it your **Current settings** (this is a permanent switch — see [Switching profiles](#switching-profiles)).
-- **Update** — Overwrites the profile with the current settings.
+- **Load** — Applies the preset and makes it your **Current settings** (this is a permanent switch — see [Switching presets](#switching-presets)).
+- **Update** — Overwrites the preset with the current settings.
 - **Rename** — Prompts for a new name (simple text dialog, no file picker).
-- **Delete** — Removes the profile file after a confirmation prompt.
+- **Delete** — Removes the preset file after a confirmation prompt.
 
-The "No profiles" empty state appears only when the profiles folder is actually empty.
+The "No presets" empty state appears only when the presets folder is actually empty.
 
-### Switching profiles
+### Switching presets
 
 There are several ways to change the active configuration, split by whether the change is **permanent** (rewrites your Current settings) or **temporary** (a live override that's restored later).
 
-Whole-profile switches:
+Whole-preset switches:
 
 | How | Where | Effect |
 |---|---|---|
-| **Load** a profile | Profiles page | **Permanent** — applies it and makes it your Current settings. |
-| **Profile hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a profile as a live override; a "Profile override" chip shows while active. Your Current settings are untouched. |
+| **Load** a preset | Presets page | **Permanent** — applies it and makes it your Current settings. |
+| **Preset hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a preset as a live override; a "Preset override" chip shows while active. Your Current settings are untouched. |
 
-Monitor-mapping switches (change only which monitor the active profile maps to — all **permanent**):
+Monitor-mapping switches (change only which monitor the tablet maps to — all **permanent**):
 
 - **Cycle mapped monitor** hotkey (Hotkeys page).
 - **Switch Display** in the system-tray menu.
@@ -101,7 +101,7 @@ Monitor-mapping switches (change only which monitor the active profile maps to �
 
 Notes:
 
-- Only **Load** is a permanent whole-profile switch; the profile hotkey is temporary and leaves your Current settings intact.
+- Only **Load** is a permanent whole-preset switch; the preset hotkey is temporary and leaves your Current settings intact.
 - There's currently no one-click "back to Current settings" button for a hotkey-driven override — it clears when you switch again.
 
 ### Hotkeys
@@ -109,9 +109,9 @@ Notes:
 Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. Assign a combination (a modifier — Ctrl / Alt / Shift / Win — plus a letter, digit, or F-key) with the on-screen picker, and it takes effect system-wide.
 
 - **Cycle mapped monitor** — moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
-- **Profile switching** — assign a hotkey to a profile to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Profile override" chip shows while one is active.
+- **Preset switching** — assign a hotkey to a preset to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Preset override" chip shows while one is active.
 
-> **Per-App Profiles** (automatic profile switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→profile mappings are retained and may return in a later version.
+> **Per-App Presets** (automatic preset switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→preset mappings are retained and may return in a later version.
 
 ### Custom Tablet Compatibility
 
@@ -146,7 +146,7 @@ A paint canvas for confirming the pen is working — draw with the pen and watch
 
 ### Plugins
 
-A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter in a profile) or just **Installed**. The OpenTabletArtist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
+A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter on a tablet) or just **Installed**. The OpenTabletArtist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
 
 ### Log
 
@@ -169,7 +169,7 @@ Ownership is detected by resolving the process on the other end of the named pip
 Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
 
 - **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
-- **Output mode** — whether the active profile actually uses a Windows Ink mode ("Plugin active" / "Not configured").
+- **Output mode** — whether the tablet actually uses a Windows Ink mode ("Plugin active" / "Not configured").
 - **Supported driver vs OTD** — the plugin's declared supported driver version alongside the running OTD version. A warning indicator appears if the installed plugin doesn't declare support for the current OTD version (per OTD's own compatibility rule).
 - **Buttons** — **Install** (when not installed); **Check for Update** (when installed) which queries the official OTD Plugin-Repository — if a newer plugin version is found the button becomes **Install Update (vX)**, otherwise it reports "Up to date"; **Uninstall**; and a **Refresh** icon (top-right) that re-reads the installed plugin and re-checks the repository in one step. Install/update/uninstall are driven through the daemon's plugin RPC; the card updates its status as soon as each operation completes.
 

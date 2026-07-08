@@ -10,7 +10,7 @@
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,16">
             <TextBlock Classes="PageTitle" Text="DEVELOPER" />
             <TextBlock Text="Testing aids for reviewing the app's UI. These aren't needed for normal use. Tip: right-click an induced card in Home's Needs attention list to dismiss it (real warnings can't be dismissed this way)."
-                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                       Foreground="{DynamicResource TextMutedBrush}"
                        MaxWidth="900" HorizontalAlignment="Left" TextWrapping="Wrap" />
         </StackPanel>
 
@@ -86,14 +86,14 @@
                            Description="Unlike the warning toggles above, these make a real, persisted change to the active tablet's settings so a genuinely broken configuration can be reproduced and debugged. Each is reversible from the tablet's page.">
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" FontSize="13" />
+                        <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
                         <TextBlock Text="Moves the active tablet's display mapping so it straddles the desktop's right edge — about half the mapped area lands in dead space beyond every monitor. Trips the real &quot;mapped area is partly off-screen&quot; health check. Restore it by remapping the tablet to a display on its page (or the tray's Switch display)."
-                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                         <Button Content="Push active area off-screen"
                                 Command="{Binding PushMappingOffScreenCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
                                 HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        <TextBlock Text="{Binding ConfigErrorStatus}" FontSize="11" TextWrapping="Wrap"
+                        <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
                     </StackPanel>
@@ -125,9 +125,9 @@
                 <StackPanel Spacing="8">
                     <Button Content="Create Start-menu shortcut"
                             Command="{Binding CreateStartMenuShortcutCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
                             HorizontalAlignment="Left" />
-                    <TextBlock Text="{Binding ShortcutStatus}" FontSize="11" TextWrapping="Wrap"
+                    <TextBlock Text="{Binding ShortcutStatus}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding HasShortcutStatus}" />
                 </StackPanel>

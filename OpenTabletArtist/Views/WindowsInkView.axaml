@@ -6,20 +6,20 @@
          the Home page (#317): Home flags a missing/misconfigured plugin and directs you here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <TextBlock Text="The Windows Ink plugin (by Kuuube) delivers pen pressure and tilt to your drawing apps. Install it, keep it up to date, and set a tablet's Pen Behavior to a Windows Ink mode to use it."
-                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,12" />
 
         <Border Classes="GlassPanel">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <!-- Title -->
-                    <TextBlock Classes="CardTitle" Text="Kuuube's Windows Ink plugin"
+                    <TextBlock Classes="SectionLabel" Text="KUUUBE'S WINDOWS INK PLUGIN"
                                TextWrapping="Wrap" />
 
                     <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMarkWarn" Classes.success="{Binding WinInkInstalled}" />
-                        <TextBlock Text="{Binding WinInkInstallStatusText}" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{Binding WinInkInstallStatusText}" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
 
@@ -27,16 +27,16 @@
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 IsVisible="{Binding WinInkInstalled}">
                         <TextBlock Classes="statusMarkWarn" Classes.success="{Binding HasWindowsInk}" />
-                        <TextBlock Text="{Binding WindowsInkStatusText}" FontSize="11"
+                        <TextBlock Text="{Binding WindowsInkStatusText}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
 
                     <!-- Supported driver version vs running OTD version -->
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 IsVisible="{Binding WinInkInstalled}">
-                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                        <TextBlock Foreground="{DynamicResource TextMutedBrush}"
                                    Text="{Binding WinInkSupportedDriverVersion, StringFormat='Supported driver: v{0}'}" />
-                        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0"
+                        <TextBlock Foreground="{DynamicResource TextMutedBrush}" Margin="8,0,0,0"
                                    Text="{Binding CurrentOtdVersion, StringFormat='· OTD: v{0}'}" />
                     </StackPanel>
 
@@ -44,19 +44,19 @@
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                 IsVisible="{Binding WinInkVersionMismatch}">
                         <TextBlock Classes="warning" />
-                        <TextBlock FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap"
+                        <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
                                    Foreground="{DynamicResource WarningBrush}"
                                    Text="{Binding CurrentOtdVersion, StringFormat='May be incompatible with OpenTabletDriver v{0}'}" />
                     </StackPanel>
 
                     <!-- Not-installed hint -->
                     <TextBlock Text="Install to enable pressure &amp; tilt in drawing apps"
-                               FontSize="10" Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
+                               Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                TextWrapping="Wrap" Margin="0,4,0,0"
                                IsVisible="{Binding !WinInkInstalled}" />
 
                     <!-- Update-check result -->
-                    <TextBlock Text="{Binding WinInkUpdateCheckStatus}" FontSize="10" FontStyle="Italic"
+                    <TextBlock Text="{Binding WinInkUpdateCheckStatus}" FontStyle="Italic"
                                Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
                                IsVisible="{Binding HasWinInkUpdateCheckStatus}" />
 
@@ -64,22 +64,22 @@
                     <WrapPanel Margin="0,12,0,0">
                         <Button Content="Install" Theme="{StaticResource AccentButton}"
                                 Command="{Binding InstallWindowsInkCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                                Padding="12,6" Margin="0,0,8,4"
                                 IsVisible="{Binding ShowWinInkInstall}" />
                         <Button Content="Check for Update" Theme="{StaticResource GhostButton}"
                                 Command="{Binding CheckForWindowsInkUpdateCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                                Padding="12,6" Margin="0,0,8,4"
                                 IsVisible="{Binding ShowWinInkCheckUpdate}" />
                         <Button Content="{Binding WinInkLatestVersion, StringFormat='Install Update (v{0})'}"
                                 Theme="{StaticResource AccentButton}"
                                 Command="{Binding InstallWindowsInkUpdateCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                                Padding="12,6" Margin="0,0,8,4"
                                 IsVisible="{Binding ShowWinInkInstallUpdate}" />
                         <Button Content="Uninstall" Theme="{StaticResource DeleteButton}"
                                 Command="{Binding UninstallWindowsInkCommand}"
-                                Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                                Padding="12,6" Margin="0,0,8,4"
                                 IsVisible="{Binding ShowWinInkUninstall}" />
-                        <TextBlock Text="{Binding WinInkBusyStatus}" FontSize="11"
+                        <TextBlock Text="{Binding WinInkBusyStatus}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"
                                    Margin="0,0,8,4"
                                    IsVisible="{Binding WinInkBusy}" />
@@ -91,7 +91,7 @@
                         Command="{Binding RefreshWindowsInkCommand}"
                         IsVisible="{Binding ShowWinInkRefresh}"
                         ToolTip.Tip="Refresh plugin info"
-                        Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
+                        Theme="{StaticResource GhostButton}" Padding="12,6" />
             </Grid>
         </Border>
     </StackPanel>

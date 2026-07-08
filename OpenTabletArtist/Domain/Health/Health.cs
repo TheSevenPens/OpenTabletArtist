@@ -175,7 +175,7 @@ public static class HealthEvaluator
             issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
                 "Running as administrator",
                 "OpenTabletArtist is running as administrator, which can break Windows Ink pressure/tilt " +
-                "and per-app profile switching. Close it and reopen it normally (not \"Run as administrator\").",
+                "and per-app preset switching. Close it and reopen it normally (not \"Run as administrator\").",
                 Remediation: null));
         }
 

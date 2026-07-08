@@ -101,7 +101,7 @@
             <TextBlock Text="Assign a global hotkey" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}" />
             <TextBlock Text="Hold one or more modifiers, then pick a key — or just press the shortcut on your keyboard."
-                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
         </StackPanel>
 
         <!-- Footer -->
@@ -112,7 +112,7 @@
                 <Grid Grid.Column="0" HorizontalAlignment="Left">
                     <TextBlock Text="No shortcut yet" IsVisible="{Binding ComboEmpty}"
                                VerticalAlignment="Center"
-                               FontSize="12" FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}" />
+                               FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}" />
                     <ItemsControl ItemsSource="{Binding ComboParts}" IsVisible="{Binding !ComboEmpty}"
                                   VerticalAlignment="Center">
                         <ItemsControl.ItemsPanel>
@@ -122,13 +122,13 @@
                             <DataTemplate>
                                 <Panel VerticalAlignment="Center" Margin="3,0">
                                     <TextBlock Text="+" IsVisible="{Binding IsSeparator}"
-                                               FontSize="14" VerticalAlignment="Center"
+                                               VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextSecondaryBrush}" />
                                     <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="34" Padding="12,0"
                                             Background="{DynamicResource GlassBgBrush}"
                                             BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1.5"
                                             CornerRadius="7">
-                                        <TextBlock Text="{Binding Text}" FontSize="14" FontWeight="SemiBold"
+                                        <TextBlock Text="{Binding Text}" FontWeight="SemiBold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </Border>
@@ -139,9 +139,9 @@
                 </Grid>
 
                 <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDialogCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="12" Margin="0,0,8,0" />
+                        Theme="{StaticResource GhostButton}" Padding="16,8" Margin="0,0,8,0" />
                 <Button Grid.Column="2" Content="Save" Command="{Binding SaveCommand}"
-                        Theme="{StaticResource AccentButton}" Padding="22,8" FontSize="12" />
+                        Theme="{StaticResource AccentButton}" Padding="22,8" />
             </Grid>
         </StackPanel>
 
@@ -150,7 +150,7 @@
             <StackPanel Spacing="14" Margin="0,4,0,0">
                 <!-- Modifiers -->
                 <StackPanel Spacing="7">
-                    <TextBlock Text="MODIFIERS" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                    <TextBlock Text="MODIFIERS" FontWeight="SemiBold" LetterSpacing="0.5"
                                Foreground="{DynamicResource TextMutedBrush}" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <ToggleButton Content="Ctrl" Theme="{StaticResource ModifierToggle}"
@@ -167,13 +167,13 @@
                 <!-- Key block + numpad, aligned side by side. -->
                 <StackPanel Orientation="Horizontal" Spacing="20">
                     <StackPanel Spacing="7">
-                        <TextBlock Text="KEY" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                        <TextBlock Text="KEY" FontWeight="SemiBold" LetterSpacing="0.5"
                                    Foreground="{DynamicResource TextMutedBrush}" />
                         <ItemsControl ItemsSource="{Binding MainRows}" ItemTemplate="{StaticResource KeyRowTemplate}" />
                     </StackPanel>
 
                     <StackPanel Spacing="7" VerticalAlignment="Top">
-                        <TextBlock Text="NUMPAD" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5"
+                        <TextBlock Text="NUMPAD" FontWeight="SemiBold" LetterSpacing="0.5"
                                    Foreground="{DynamicResource TextMutedBrush}" />
                         <ItemsControl ItemsSource="{Binding NumpadRows}" ItemTemplate="{StaticResource KeyRowTemplate}" />
                     </StackPanel>

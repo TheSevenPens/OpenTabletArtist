@@ -52,15 +52,15 @@
                     Padding="16,12" Margin="0,0,0,10">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
+                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap"
+                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="Edit" Command="{Binding EditCommand}"
                             IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                            Theme="{StaticResource GhostButton}" Padding="16,7" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="16,7"
                             ToolTip.Tip="Change this binding" />
                 </Grid>
             </Border>
@@ -75,7 +75,7 @@
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
             <!-- Connection status bar spanning the header — solid green when detected, orange when not. -->
             <Border Classes="tabletStatusBar" Classes.connected="{Binding IsTabletDetected}">
-                <TextBlock Text="{Binding DetectionText}" FontSize="12" FontWeight="SemiBold"
+                <TextBlock Text="{Binding DetectionText}" FontWeight="SemiBold"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap" />
             </Border>
             <ctrl:ComplexHeader Margin="0">
@@ -98,15 +98,15 @@
                             VerticalAlignment="Center">
                     <Button Content="Refresh" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" />
+                            Theme="{StaticResource GhostButton}" Padding="12,6" />
                     <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
                     <Button Content="Forget" Command="{Binding ForgetCommand}"
                             IsVisible="{Binding ShowForget}"
                             ToolTip.Tip="Remove this tablet's saved settings"
-                            Theme="{StaticResource DeleteButton}" Padding="12,6" FontSize="12" />
+                            Theme="{StaticResource DeleteButton}" Padding="12,6" />
                 </StackPanel>
             </ctrl:ComplexHeader>
-            <TextBlock Text="{Binding RefreshWarning}" FontSize="11" FontStyle="Italic"
+            <TextBlock Text="{Binding RefreshWarning}" FontStyle="Italic"
                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <!-- Settings changed outside OTA (e.g. the OTD UX) while the user had an unsaved edit here.
@@ -117,12 +117,12 @@
                     CornerRadius="6" Padding="12,8" Margin="0,4,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ExternalChangeText}"
-                               Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                               Foreground="{DynamicResource WarningBrush}"
                                TextWrapping="Wrap" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reload"
                             Command="{Binding ReloadExternalChangeCommand}"
                             ToolTip.Tip="Discard your unsaved change and load the current settings"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
                             Margin="12,0,0,0" VerticalAlignment="Center" />
                 </Grid>
             </Border>
@@ -187,9 +187,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid ColumnDefinitions="150,*" Margin="0,0,0,9">
-                                        <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12"
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
                                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" FontWeight="SemiBold"
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                     </Grid>
                                 </DataTemplate>
@@ -197,7 +197,7 @@
                         </ItemsControl>
                         <!-- Specs only exist while the tablet is detected. -->
                         <TextBlock Text="Connect this tablet to see its specifications."
-                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                                   Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,10,0,0" TextWrapping="Wrap"
                                    IsVisible="{Binding !HasTabletFacts}" />
                     </StackPanel>
@@ -208,10 +208,10 @@
                         <TextBlock Text="RESOURCES" Classes="SectionLabel" />
                         <Button Content="View supported tablets on opentabletdriver.net"
                                 Command="{Binding OpenSupportedTabletsPageCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="10,6" FontSize="12"
+                                Theme="{StaticResource GhostButton}" Padding="10,6"
                                 HorizontalAlignment="Left" />
                         <TextBlock Text="Documentation and compatible-pen details will appear here in a future update."
-                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -224,7 +224,7 @@
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
                 <TextBlock Text="MOVEMENT" Classes="SectionLabel" />
-                <TextBlock Text="How the pen maps to the screen." FontSize="12" Margin="0,4,0,0"
+                <TextBlock Text="How the pen maps to the screen." Margin="0,4,0,0"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
@@ -235,7 +235,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
                             <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
-                                       FontSize="12" TextWrapping="Wrap"
+                                       TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
@@ -245,7 +245,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
                             <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
-                                       FontSize="12" TextWrapping="Wrap"
+                                       TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
@@ -253,12 +253,12 @@
 
                 <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                 <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                           FontSize="10" Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                           Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
                            TextWrapping="Wrap"
                            IsVisible="{Binding CanFixOutputMode}" />
                 <Button Content="Fix" Theme="{StaticResource AccentButton}"
                         Command="{Binding FixOutputModeCommand}"
-                        Padding="12,6" FontSize="11" Margin="0,6,0,0"
+                        Padding="12,6" Margin="0,6,0,0"
                         HorizontalAlignment="Left"
                         IsVisible="{Binding CanFixOutputMode}" />
             </StackPanel>
@@ -279,9 +279,9 @@
                                 Margin="0,0,0,12" Background="Transparent"
                                 BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⚠" FontSize="14" VerticalAlignment="Top"
+                                <TextBlock Text="⚠" VerticalAlignment="Top"
                                            Foreground="{DynamicResource WarningBrush}" />
-                                <TextBlock Text="{Binding MappingValidityText}" FontSize="12" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding MappingValidityText}" FontWeight="SemiBold"
                                            TextWrapping="Wrap" MaxWidth="360"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                             </StackPanel>
@@ -290,9 +290,9 @@
                                 Margin="0,0,0,12" Background="Transparent"
                                 BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="ⓘ" FontSize="14" VerticalAlignment="Top"
+                                <TextBlock Text="ⓘ" VerticalAlignment="Top"
                                            Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBlock Text="{Binding MappingValidityText}" FontSize="12"
+                                <TextBlock Text="{Binding MappingValidityText}"
                                            TextWrapping="Wrap" MaxWidth="360"
                                            Foreground="{DynamicResource TextMutedBrush}" />
                             </StackPanel>
@@ -304,28 +304,28 @@
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
                                 <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
                                         ToolTip.Tip="Map the tablet to the selected display"
-                                        Theme="{StaticResource AccentButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
+                                        Theme="{StaticResource AccentButton}" Padding="10,5" Margin="0,0,6,4" />
                                 <Button Content="Refresh Display Settings" Command="{Binding RefreshDisplaysCommand}"
                                         ToolTip.Tip="Refresh displays from Windows"
-                                        Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,6,4" />
+                                        Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,6,4" />
                                 <Button Content="Display Settings"
                                         Command="{Binding OpenDisplaySettingsCommand}"
                                         ToolTip.Tip="Open Windows Display Settings"
-                                        Theme="{StaticResource GhostButton}" Padding="10,5" FontSize="11" Margin="0,0,0,4" />
+                                        Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
                         <!-- A changed display selection isn't live until Apply mapping (#179 follow-up);
                              sits directly under the button row. -->
                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
                                     IsVisible="{Binding MappingChangePending}">
-                            <TextBlock Text="●" FontSize="11" VerticalAlignment="Center"
+                            <TextBlock Text="●" VerticalAlignment="Center"
                                        Foreground="{DynamicResource AccentBrush}" />
                             <TextBlock Text="Display selection changed — click Apply mapping to save it."
-                                       FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                         </StackPanel>
                         <TextBlock Text="Click a display to map the tablet to it, then Apply."
-                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
                                    TextWrapping="Wrap" />
                         <ctrl:ScreenMappingDiagram Displays="{Binding Displays}"
                                                    SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
@@ -341,14 +341,14 @@
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
                                         <Border Grid.Column="0" Width="24" Height="24" CornerRadius="5"
                                                 Background="{DynamicResource AccentMutedBrush}" VerticalAlignment="Top">
-                                            <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold"
+                                            <TextBlock Text="{Binding Number}" FontWeight="Bold"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                                        Foreground="{DynamicResource AccentBrush}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="1">
-                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="SemiBold"
+                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                            <TextBlock Text="{Binding DetailSubLine}" FontSize="11"
+                                            <TextBlock Text="{Binding DetailSubLine}"
                                                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Grid>
@@ -369,7 +369,7 @@
                     <StackPanel>
                         <TextBlock Text="ACTIVE AREA" Classes="SectionLabel" />
                         <TextBlock Text="The highlighted region is the part of your tablet that's currently mapped to the screen. It's sized automatically to match the selected display's proportions, so pen movement isn't stretched or squashed."
-                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,6,0,10" TextWrapping="Wrap" />
 
                         <!-- Diagram + stats when we have digitizer specs. -->
@@ -377,7 +377,7 @@
                             <!-- Unit toggle for the length read-outs below (display-only; OTD works in mm). -->
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
                                         Margin="0,0,0,6" VerticalAlignment="Center">
-                                <TextBlock Text="Units:" FontSize="11" VerticalAlignment="Center"
+                                <TextBlock Text="Units:" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextMutedBrush}" />
                                 <ToggleSwitch IsChecked="{Binding UseImperialUnits}" MinWidth="0"
                                               OnContent="Inches" OffContent="Millimeters"
@@ -392,42 +392,42 @@
                                 <StackPanel Grid.Column="0" Spacing="2">
                                     <TextBlock Text="{Binding ActiveAreaUsagePercentText}" FontSize="20" FontWeight="Bold"
                                                Foreground="{DynamicResource AccentBrush}" />
-                                    <TextBlock Text="of tablet area used" FontSize="10" TextWrapping="Wrap"
+                                    <TextBlock Text="of tablet area used" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontSize="14" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="width × height" FontSize="10" TextWrapping="Wrap"
+                                    <TextBlock Text="width × height" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontSize="14" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="active area" FontSize="10" TextWrapping="Wrap"
+                                    <TextBlock Text="active area" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontSize="14" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="full tablet area" FontSize="10" TextWrapping="Wrap"
+                                    <TextBlock Text="full tablet area" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextMutedBrush}" />
                                 </StackPanel>
                             </Grid>
                             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
-                                <TextBlock Text="Diagonal:" FontSize="11" FontWeight="SemiBold"
+                                <TextBlock Text="Diagonal:" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Text="{Binding ActiveAreaDiagonalText}" FontSize="11"
+                                <TextBlock Text="{Binding ActiveAreaDiagonalText}"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
                             <TextBlock Text="You'll be able to shrink or realign this area in a future update."
-                                       FontSize="10" FontStyle="Italic" Margin="0,12,0,0" TextWrapping="Wrap"
+                                       FontStyle="Italic" Margin="0,12,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextMutedBrush}" />
                         </StackPanel>
 
                         <!-- No digitizer specs for this tablet — nothing to draw. -->
                         <TextBlock Text="Active-area details aren't available for this tablet."
-                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Margin="0,4,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNull}}" />
                     </StackPanel>
@@ -441,14 +441,14 @@
             <StackPanel MaxWidth="900" HorizontalAlignment="Left" IsVisible="{Binding HasAreaMapping}">
                 <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
                 <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only). Choose a density, then tap the targets on screen."
-                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,6,0,12" TextWrapping="Wrap" />
 
                 <!-- Which display the overlay pops up on (the tablet's mapped display), so the user knows
                      where to look. -->
                 <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7"
                         Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
-                    <TextBlock Text="{Binding CalibrationDisplayText}" FontSize="12" FontWeight="SemiBold"
+                    <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
                                Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
                 </Border>
 
@@ -458,14 +458,14 @@
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Classes="statusMark" Classes.success="{Binding IsCalibrated}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding CalibrationStatusText}" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="{Binding CalibrationStatusText}" FontWeight="SemiBold"
                                        VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                             <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
-                                    Theme="{StaticResource GhostButton}" Padding="10,4" FontSize="11" VerticalAlignment="Center"
+                                    Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center"
                                     ToolTip.Tip="Remove the calibration and return the pointer to its uncorrected default" />
                         </StackPanel>
                         <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
-                                   FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                                    IsVisible="{Binding CalibrationStale}" />
                     </StackPanel>
                 </Border>
@@ -484,8 +484,8 @@
                             <ctrl:CalibrationDots Points="4" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
-                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
-                            <TextBlock Text="Standard — best for most setups." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" />
+                            <TextBlock Text="Standard — best for most setups." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
@@ -498,8 +498,8 @@
                             <ctrl:CalibrationDots Points="9" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
-                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
-                            <TextBlock Text="For harder cases — corrects distortion across the screen." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" />
+                            <TextBlock Text="For harder cases — corrects distortion across the screen." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
@@ -512,16 +512,16 @@
                             <ctrl:CalibrationDots Points="25" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[2]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
-                                    Theme="{StaticResource AccentButton}" Padding="14,7" FontSize="12" />
-                            <TextBlock Text="For extreme distortion — the finest correction." FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                    Theme="{StaticResource AccentButton}" Padding="14,7" />
+                            <TextBlock Text="For extreme distortion — the finest correction." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
                 </UniformGrid>
 
-                <TextBlock Text="Calibration is available in Absolute mode." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
-                <TextBlock Text="Connect this tablet to calibrate." FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                <TextBlock Text="Connect this tablet to calibrate." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
             </StackPanel>
         </ScrollViewer>
@@ -588,7 +588,7 @@
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
-                        <TextBlock Text="Buttons enabled" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Text="Buttons enabled" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ToggleSwitch IsChecked="{Binding AuxButtonsEnabled}" OnContent="" OffContent=""
                                       MinWidth="0" VerticalAlignment="Center"
@@ -597,7 +597,7 @@
                     <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearAuxButtonsCommand}"
                             IsVisible="{Binding ShowAuxControls}"
                             ToolTip.Tip="Remove every express-key mapping"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
                             VerticalAlignment="Center" />
                 </Grid>
 
@@ -621,7 +621,7 @@
 
                 <!-- Empty state when the tablet has no auxiliary buttons. -->
                 <Border Classes="GlassPanel" IsVisible="{Binding NoAuxButtons}">
-                    <TextBlock Text="No auxiliary buttons configured" FontSize="12"
+                    <TextBlock Text="No auxiliary buttons configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
             </StackPanel>
@@ -638,7 +638,7 @@
                     <TextBlock Grid.Column="0" Text="WHEEL" Classes="SectionLabel" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
-                        <TextBlock Text="Wheel enabled" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Text="Wheel enabled" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ToggleSwitch IsChecked="{Binding WheelEnabled}" OnContent="" OffContent=""
                                       MinWidth="0" VerticalAlignment="Center"
@@ -647,12 +647,12 @@
                     <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearWheelBindingsCommand}"
                             IsVisible="{Binding ShowWheelControls}"
                             ToolTip.Tip="Remove every wheel binding"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
                             VerticalAlignment="Center" />
                 </Grid>
 
                 <TextBlock Text="Bind an action to each direction the wheel turns, plus its button. Sensitivity sets how far you turn before the action repeats."
-                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                           Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,0,0,10" TextWrapping="Wrap" />
 
                 <!-- One card per wheel: the live gauge on the left, and every mapping for that wheel
@@ -674,7 +674,7 @@
                                                              TurningCounterClockwise="{Binding TurningCounterClockwise}"
                                                              AccentBrush="{DynamicResource AccentBrush}"
                                                              Width="132" Height="132" HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding StepInfo}" FontSize="10"
+                                            <TextBlock Text="{Binding StepInfo}"
                                                        IsVisible="{Binding HasStepInfo}"
                                                        HorizontalAlignment="Center" TextAlignment="Center"
                                                        MaxWidth="150" TextWrapping="Wrap"
@@ -727,12 +727,12 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
                     <TextBlock Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPressureDynamicsCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" VerticalAlignment="Center"
+                            Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
                             ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
                 </Grid>
 
                 <!-- Live status: whether the current settings actually change pressure. -->
-                <TextBlock Text="{Binding PressureDynamicsStatusText}" FontSize="11" TextWrapping="Wrap"
+                <TextBlock Text="{Binding PressureDynamicsStatusText}" TextWrapping="Wrap"
                            Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
 
                 <StackPanel>
@@ -752,17 +752,17 @@
 
                                 <StackPanel Grid.Column="1">
                                     <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,8">
-                                        <TextBlock Grid.Column="0" Text="Presets" FontSize="12" VerticalAlignment="Center"
+                                        <TextBlock Grid.Column="0" Text="Presets" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" Width="70" />
                                         <WrapPanel Grid.Column="1" Orientation="Horizontal">
                                             <Button Content="Linear" Command="{Binding ApplyPresetCommand}" CommandParameter="linear"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,6,4" />
+                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
                                             <Button Content="Soft" Command="{Binding ApplyPresetCommand}" CommandParameter="soft"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,6,4" />
+                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
                                             <Button Content="Firm" Command="{Binding ApplyPresetCommand}" CommandParameter="firm"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,6,4" />
+                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
                                             <Button Content="Reset" Command="{Binding ResetCurveCommand}"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" Margin="0,0,0,4"
+                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,0,4"
                                                     ToolTip.Tip="Reset the curve to the linear default" />
                                         </WrapPanel>
                                     </Grid>
@@ -777,7 +777,7 @@
                                                         ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
 
                                     <CheckBox Content="Cut below input minimum (dead zone)"
-                                              IsChecked="{Binding CutBelowMinimum}" FontSize="12" Margin="0,0,0,8"
+                                              IsChecked="{Binding CutBelowMinimum}" Margin="0,0,0,8"
                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                               ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
 
@@ -786,20 +786,20 @@
                                                    HorizontalAlignment="Center" />
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Output" Classes="SectionLabel"
                                                    HorizontalAlignment="Center" />
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Min node" FontSize="12" Width="70"
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Min node" Width="70"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InputMinimumText}" FontSize="12"
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InputMinimumText}"
                                                    FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding OutputMinimumText}" FontSize="12"
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding OutputMinimumText}"
                                                    FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Max node" FontSize="12" Width="70"
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Max node" Width="70"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputMaximumText}" FontSize="12"
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputMaximumText}"
                                                    FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding OutputMaximumText}" FontSize="12"
+                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding OutputMaximumText}"
                                                    FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </Grid>
@@ -843,11 +843,11 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
                     <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,5" FontSize="11" VerticalAlignment="Center"
+                            Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
                             ToolTip.Tip="Turn position smoothing back off" />
                 </Grid>
 
-                <TextBlock Text="{Binding PositionDynamicsStatusText}" FontSize="11" TextWrapping="Wrap"
+                <TextBlock Text="{Binding PositionDynamicsStatusText}" TextWrapping="Wrap"
                            Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
 
                 <Border Classes="GlassPanel" Margin="0,0,0,10">
@@ -881,7 +881,7 @@
                         IsEnabled="{Binding HoverLimitEnabled}" Opacity="{Binding HoverControlsOpacity}">
                     <StackPanel>
                         <TextBlock Text="Stops the cursor tracking once the pen lifts past this distance — useful to keep a raised pen from dragging the cursor. Drawing is unaffected."
-                                   FontSize="12" TextWrapping="Wrap"
+                                   TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10" />
                         <ctrl:LabeledSlider Label="Max hover" LabelWidth="80"
                                             Minimum="1" Maximum="{Binding HoverDistanceMax}"
@@ -890,17 +890,17 @@
                                             Monospace="True" ValueWidth="40"
                                             ToolTip.Tip="Lower = the cursor stops sooner as you lift the pen. Higher = allow more hover (255 = no limit)." />
                         <TextBlock Text="Hover distance is 0–255. Not all tablets report it — check the Diagnostics page for your tablet's live hover values to pick a limit."
-                                   FontSize="10" TextWrapping="Wrap"
+                                   TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,10,0,0" />
 
                         <!-- Near-proximity gate (#311): track only in the tablet's close band (Wacom default). -->
                         <Border Height="1" Background="{DynamicResource GlassBorderBrush}" Margin="0,14,0,12" />
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Near proximity only" FontSize="12"
+                                <TextBlock Text="Near proximity only"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <TextBlock Text="Only track while the pen is close to the surface — matches Wacom's default hover range. Needs a tablet that reports proximity."
-                                           FontSize="10" TextWrapping="Wrap"
+                                           TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" MinWidth="0"
@@ -925,7 +925,7 @@
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                                        TextWrapping="Wrap" VerticalAlignment="Center" />
                                             <!-- Stale leftover from an older app/plugin name: inert, should be cleaned. -->
@@ -933,18 +933,18 @@
                                                     Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                                                     CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
                                                     ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically.">
-                                                <TextBlock Text="Legacy" FontSize="10" FontWeight="SemiBold"
+                                                <TextBlock Text="Legacy" FontWeight="SemiBold"
                                                            Foreground="{DynamicResource WarningBrush}" />
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding FullPath}" FontSize="11"
+                                        <TextBlock Text="{Binding FullPath}"
                                                    Foreground="{DynamicResource TextMutedBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal"
                                                 VerticalAlignment="Center">
                                         <TextBlock Classes="statusMark" Classes.success="{Binding Enabled}" />
-                                        <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold"
+                                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
@@ -956,7 +956,7 @@
 
                 <!-- Empty state when the profile has no filters. -->
                 <Border Classes="GlassPanel" IsVisible="{Binding !HasFilters}">
-                    <TextBlock Text="No filters configured" FontSize="12"
+                    <TextBlock Text="No filters configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
             </StackPanel>
@@ -966,7 +966,7 @@
         <Border Grid.Row="1" Grid.Column="1" Classes="GlassPanel"
                 IsVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
-                     FontFamily="{DynamicResource MonoFontFamily}" FontSize="11"
+                     FontFamily="{DynamicResource MonoFontFamily}"
                      Foreground="{DynamicResource TextSecondaryBrush}"
                      Background="Transparent" BorderThickness="0"
                      TextWrapping="NoWrap"
