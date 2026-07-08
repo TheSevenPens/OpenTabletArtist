@@ -20,7 +20,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar's top-level items are **Home**, **Tablets**, **Profiles** (with **Per-App Profiles** nested under it), **Hotkeys**, **Scribble**, and **About**. A collapsible **Advanced** group holds **OpenTabletDriver** (a hub with its own secondary tabs — **Daemon**, **Windows Ink Plugin**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, and **Plugins**), **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**.
+The sidebar's top-level items are **Home**, **Tablets**, **Profiles**, **Hotkeys**, **Scribble**, and **About**. A collapsible **Advanced** group holds **OpenTabletDriver** (a hub with its own secondary tabs — **Daemon**, **Windows Ink Plugin**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, and **Plugins**), **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**.
 
 **Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
 
@@ -62,9 +62,9 @@ A **Refresh** button in the page header reloads settings from the daemon (useful
 
 ### Profiles
 
-At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what per-app and hotkey switches revert to, and every **profile** below is a *saved copy* of it.
+At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what hotkey switches revert to, and every **profile** below is a *saved copy* of it.
 
-A **profile** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the profile name and file last-modified time, sorted newest first. Profiles are what hotkeys and per-app switching apply.
+A **profile** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the profile name and file last-modified time, sorted newest first. Profiles are what **Load** and profile hotkeys apply.
 
 > Note: "profile" here means a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each OTA profile file contains the complete OTD `Settings` (all tablets).
 
@@ -92,7 +92,6 @@ Whole-profile switches:
 |---|---|---|
 | **Load** a profile | Profiles page | **Permanent** — applies it and makes it your Current settings. |
 | **Profile hotkey** | Hotkeys page | **Temporary** — a global keyboard shortcut applies a profile as a live override; a "Profile override" chip shows while active. Your Current settings are untouched. |
-| **Per-app switching** | Per-App Profiles page | **Automatic + temporary** — the mapped profile is applied when its app comes to the foreground; unmapped apps fall back to your Current settings (or a profile you choose). An "App profile" chip shows the active one. Restored on disable/exit. |
 
 Monitor-mapping switches (change only which monitor the active profile maps to — all **permanent**):
 
@@ -102,9 +101,8 @@ Monitor-mapping switches (change only which monitor the active profile maps to �
 
 Notes:
 
-- Only **Load** is a permanent whole-profile switch; the hotkey and per-app methods are temporary and leave your Current settings intact.
-- Per-app switching deliberately **does not** change the monitor mapping — set that once (tablet page / cycle-monitor hotkey) and it sticks across per-app switches.
-- There's currently no one-click "back to Current settings" button for a hotkey-driven override — it clears when you switch again (per-app overrides restore automatically on disable/exit).
+- Only **Load** is a permanent whole-profile switch; the profile hotkey is temporary and leaves your Current settings intact.
+- There's currently no one-click "back to Current settings" button for a hotkey-driven override — it clears when you switch again.
 
 ### Hotkeys
 
@@ -113,20 +111,7 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 - **Cycle mapped monitor** — moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
 - **Profile switching** — assign a hotkey to a profile to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Profile override" chip shows while one is active.
 
-### Per-App Profiles
-
-Automatically applies a profile when the foreground application changes — the way Wacom/XP-Pen/Huion drivers do. Map an app to a profile, and switching to that app reconfigures the tablet. (Nested under **Profiles** in the sidebar.)
-
-To use it: create the profiles you want first (Profiles page), then here **Add app…** to map a running application to a profile. There's no separate on/off — switching turns on automatically as soon as at least one app is mapped to a saved profile (mapping an app to **Current settings** is a no-op and doesn't arm it). Use **Default for apps** to choose what unmapped apps get — your **Current settings** (default) or a specific profile. An **App profile** chip in the main window shows which profile is currently applied.
-
-Caveats:
-
-- **Switches are temporary.** They're applied live to the daemon only — your Current settings (`settings.json`) are never overwritten, the editor keeps showing/editing them, and they're restored when switching turns off (no app is mapped to a profile) or you quit the app.
-- **It only works while OpenTabletArtist is running** (including minimized to the tray). There's no switching when the app is closed.
-- **Profiles are whole-configuration.** A profile is your entire OTD `Settings`, so a per-app switch affects *all* tablets, not just one — set up profiles with that in mind if you have multiple tablets.
-- **The monitor mapping is left alone.** A per-app switch does *not* change which monitor the tablet points at — only the current monitor mapping is kept (moving an app between displays won't yank the tablet to a stale monitor). Set the monitor from the tablet page or with the *Cycle mapped monitor* hotkey; that choice sticks across per-app switches.
-- **Elevated and Store (UWP) apps** may not report a usable executable path; matching falls back to the process name, and some packaged apps report an `ApplicationFrameHost`-style path — mapping by name still works in most cases.
-- **App-owned daemon only.** The feature is disabled (with a banner) while a daemon that OpenTabletArtist didn't start is running, because its settings and profile files may not match.
+> **Per-App Profiles** (automatic profile switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→profile mappings are retained and may return in a later version.
 
 ### Custom Tablet Compatibility
 
@@ -194,7 +179,7 @@ VMulti is the virtual pen device the Windows Ink plugin injects pressure and til
 
 ### Startup
 
-A single toggle — **Start OpenTabletArtist when Windows starts** — that launches the app minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself (per-user Run key; Windows only).
+A single toggle — **Start OpenTabletArtist when Windows starts** — that launches the app minimized to the tray at sign-in, so hotkeys are ready without opening it yourself (per-user Run key; Windows only).
 
 ### Developer
 

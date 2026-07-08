@@ -19,7 +19,7 @@
                                    Foreground="{DynamicResource AccentBrush}" />
                     </Border>
                 </StackPanel>
-                <TextBlock Text="The configuration your tablet is using right now. It saves automatically as you edit it on the Tablet pages — everything below is a saved copy you can switch back to (or use as a per-app profile)."
+                <TextBlock Text="The configuration your tablet is using right now. It saves automatically as you edit it on the Tablet pages — everything below is a saved copy you can switch back to."
                            FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                            TextWrapping="Wrap" Margin="0,6,0,12" />
                 <Button Content="Save as profile" Theme="{StaticResource AccentButton}"

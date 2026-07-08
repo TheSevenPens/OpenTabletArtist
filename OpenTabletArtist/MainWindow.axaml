@@ -84,9 +84,11 @@
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
-                    <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). -->
+                    <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). Hidden while
+                         the feature is disabled (FeatureFlags.PerAppProfiles); flip the flag to restore it. -->
                     <RadioButton Theme="{StaticResource NavNode}" Content="PER-APP PROFILES"
                                  IsChecked="{Binding IsPerApp, Mode=OneWay}"
+                                 IsVisible="{Binding ShowPerApp}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
                                  Margin="12,2,0,0" />
                     <RadioButton Theme="{StaticResource NavNode}" Content="HOTKEYS"

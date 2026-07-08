@@ -80,7 +80,9 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     /// every mapping edit, data load, and connection change.</summary>
     private void UpdateSwitcher()
     {
-        bool shouldRun = !IsForeignDaemon && _store.HasActiveMappings;
+        // Gated by the feature flag: while per-app switching is disabled the switcher never starts (and
+        // stops if it were running), so the feature is fully inert regardless of saved mappings (#167).
+        bool shouldRun = FeatureFlags.PerAppProfiles && !IsForeignDaemon && _store.HasActiveMappings;
         if (shouldRun && !_switcher.IsRunning) _switcher.Start();
         else if (!shouldRun && _switcher.IsRunning) _ = _switcher.StopAsync();
     }
