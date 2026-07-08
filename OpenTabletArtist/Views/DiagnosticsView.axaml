@@ -10,28 +10,28 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="Current Tablet" />
+                    <TextBlock Classes="SectionLabel" Text="CURRENT TABLET" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMark" Classes.success="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"
-                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap" />
-                        <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                        <TextBlock Text=" | " Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding IsDebugging}" />
-                        <TextBlock Text="{Binding DebugReportRate}" FontSize="11"
+                        <TextBlock Text="{Binding DebugReportRate}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsVisible="{Binding IsDebugging}" />
-                        <TextBlock Text=" | " FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                        <TextBlock Text=" | " Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding ReportCount, StringFormat='Reports: {0}'}"
-                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsVisible="{Binding IsDebugging}" />
                     </StackPanel>
 
                     <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
                                 IsVisible="{Binding ShowTabletPicker}">
-                        <TextBlock Text="Show" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Text="Show" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ComboBox ItemsSource="{Binding TabletNames}" SelectedItem="{Binding SelectedTablet}"
                                   MinWidth="200" />
@@ -42,11 +42,11 @@
                             IsEnabled="{Binding IsConnected}"
                             IsVisible="{Binding !IsDebugging}"
                             Theme="{StaticResource AccentButton}"
-                            Padding="12,6" FontSize="12" />
+                            Padding="12,6" />
                     <Button Content="Stop" Command="{Binding ToggleDebuggingCommand}"
                             IsVisible="{Binding IsDebugging}"
                             Theme="{StaticResource DeleteButton}"
-                            Padding="12,6" FontSize="12" />
+                            Padding="12,6" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -74,20 +74,20 @@
                 <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
                     <!-- Position -->
                     <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,12,0">
-                        <TextBlock Text="POSITION" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="POSITION" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugPenX, StringFormat='X: {0:F1}'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugPenX, StringFormat='X: {0:F1}'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <TextBlock Text="{Binding DebugPenY, StringFormat='Y: {0:F1}'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugPenY, StringFormat='Y: {0:F1}'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
                     </StackPanel>
                     <!-- Pressure -->
                     <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,12,0">
-                        <TextBlock Text="PRESSURE" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="PRESSURE" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugPressurePercent, StringFormat='{}{0:F1}%'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugPressurePercent, StringFormat='{}{0:F1}%'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource AccentBrush}" />
                         <!-- Pressure bar -->
@@ -106,47 +106,47 @@
                                 </Border.Width>
                             </Border>
                         </Border>
-                        <TextBlock Text="{Binding DebugPenPressure, StringFormat='{}{0:F0}'}" FontSize="10"
+                        <TextBlock Text="{Binding DebugPenPressure, StringFormat='{}{0:F0}'}"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
                     </StackPanel>
                     <!-- Tilt -->
                     <StackPanel Grid.Column="2" Grid.Row="0">
-                        <TextBlock Text="TILT" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="TILT" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}°'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltX, StringFormat='X: {0:F1}°'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}°'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltY, StringFormat='Y: {0:F1}°'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
-                        <TextBlock Text="{Binding DebugTiltAzimuth, StringFormat='Az: {0:F1}°'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltAzimuth, StringFormat='Az: {0:F1}°'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" />
-                        <TextBlock Text="{Binding DebugTiltAltitude, StringFormat='Alt: {0:F1}°'}" FontSize="12"
+                        <TextBlock Text="{Binding DebugTiltAltitude, StringFormat='Alt: {0:F1}°'}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
                     </StackPanel>
                     <!-- Proximity -->
                     <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,12,12,0">
-                        <TextBlock Text="PROXIMITY" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="PROXIMITY" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugNearProximity}" FontSize="12"
+                        <TextBlock Text="{Binding DebugNearProximity}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <!-- Hover Distance -->
                     <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,12,12,0">
-                        <TextBlock Text="HOVER DISTANCE" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="HOVER DISTANCE" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugHoverDistance}" FontSize="12"
+                        <TextBlock Text="{Binding DebugHoverDistance}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <!-- Buttons -->
                     <StackPanel Grid.Column="2" Grid.Row="1" Margin="0,12,0,0">
-                        <TextBlock Text="PEN BUTTONS" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="PEN BUTTONS" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding DebugPenButtons}" FontSize="12"
+                        <TextBlock Text="{Binding DebugPenButtons}"
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
@@ -158,7 +158,7 @@
         <Border Classes="GlassPanel"
                 IsVisible="{Binding !IsConnected}">
             <TextBlock Text="Daemon not connected. Connect first from Home."
-                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}"
+                       Foreground="{DynamicResource TextMutedBrush}"
                        HorizontalAlignment="Center" />
         </Border>
     </StackPanel>

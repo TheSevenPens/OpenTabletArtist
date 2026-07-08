@@ -27,14 +27,14 @@
                                                Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
                                     <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Detail}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                        <TextBlock Text="{Binding Detail}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                                     </StackPanel>
                                     <Button Grid.Column="2" Content="{Binding Remediation.ActionLabel}"
                                             IsVisible="{Binding Remediation, Converter={StaticResource NotNull}}"
                                             Command="{Binding $parent[ItemsControl].DataContext.RemediateCommand}"
                                             CommandParameter="{Binding}"
-                                            Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12"
+                                            Theme="{StaticResource AccentButton}" Padding="12,6"
                                             VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
@@ -55,7 +55,7 @@
                 <Panel>
                     <!-- Connecting… (morph) -->
                     <StackPanel IsVisible="{Binding Daemon.ShowDaemonActivity}">
-                        <TextBlock Text="{Binding Daemon.DaemonActivityText}" Classes="CardTitle" FontSize="13" />
+                        <TextBlock Text="{Binding Daemon.DaemonActivityText}" Classes="CardTitle" />
                         <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0"
                                      Foreground="{DynamicResource AccentBrush}" />
                     </StackPanel>
@@ -64,19 +64,19 @@
                           IsVisible="{Binding !Daemon.ShowDaemonActivity}">
                         <TextBlock Grid.Column="0" Classes="warning" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Daemon.HomeProblemText}" Classes="CardTitle" FontSize="13" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding Daemon.DaemonOperationError}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                            <TextBlock Text="{Binding Daemon.HomeProblemText}" Classes="CardTitle" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Daemon.DaemonOperationError}" Margin="0,4,0,0" TextWrapping="Wrap"
                                        IsVisible="{Binding Daemon.HasDaemonOperationError}"
                                        Foreground="{DynamicResource WarningBrush}" />
-                            <TextBlock Text="Open the daemon page to start it or see details." FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                            <TextBlock Text="Open the daemon page to start it or see details." Margin="0,4,0,0" TextWrapping="Wrap"
                                        IsVisible="{Binding Daemon.IsDaemonExeMissing}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                         <Button Grid.Column="2" Content="Fix" Command="{Binding Daemon.FixCommand}"
                                 IsVisible="{Binding Daemon.CanStartDaemon}" IsEnabled="{Binding !Daemon.IsDaemonBusy}"
-                                Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12" VerticalAlignment="Center" />
+                                Theme="{StaticResource AccentButton}" Padding="12,6" VerticalAlignment="Center" />
                         <Button Grid.Column="3" Content="Open daemon page" Command="{Binding Daemon.OpenDaemonPageCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" VerticalAlignment="Center" />
+                                Theme="{StaticResource GhostButton}" Padding="12,6" VerticalAlignment="Center" />
                     </Grid>
                 </Panel>
             </Border>
@@ -94,20 +94,20 @@
                                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Classes="statusMarkWarn" Classes.success="{Binding IsDetected}" />
-                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding StatusText}" FontSize="11" Margin="0,4,0,0"
+                                    <TextBlock Text="{Binding StatusText}" Margin="0,4,0,0"
                                                Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding SpecsText}" FontSize="11" Margin="0,2,0,0"
+                                    <TextBlock Text="{Binding SpecsText}" Margin="0,2,0,0"
                                                IsVisible="{Binding HasSpecs}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding LastSeenDetail}" FontSize="11" Margin="0,2,0,0"
+                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0"
                                                IsVisible="{Binding HasLastSeenDetail}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="Settings" Command="{Binding OpenCommand}"
-                                        Theme="{StaticResource AccentButton}" Padding="12,6" FontSize="12"
+                                        Theme="{StaticResource AccentButton}" Padding="12,6"
                                         VerticalAlignment="Center" />
                             </Grid>
                         </Border>
@@ -122,7 +122,7 @@
                                FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                     <TextBlock Text="Connect a tablet and it will appear here."
-                               FontSize="13" HorizontalAlignment="Center" TextAlignment="Center"
+                               HorizontalAlignment="Center" TextAlignment="Center"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </StackPanel>
             </Border>
@@ -131,15 +131,15 @@
             <Border Classes="GlassPanel" Margin="0,10,0,0">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                        <TextBlock Classes="CardTitle" Text="Supported tablets" />
+                        <TextBlock Classes="SectionLabel" Text="SUPPORTED TABLETS" />
                         <TextBlock Text="Browse the full list of tablets OpenTabletDriver supports on the OTD website."
-                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Margin="0,4,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="View list"
                             Command="{Binding TabletsOverview.OpenSupportedTabletsCommand}"
                             ToolTip.Tip="Open opentabletdriver.net/Tablets in your browser"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
                             VerticalAlignment="Center" />
                 </Grid>
             </Border>

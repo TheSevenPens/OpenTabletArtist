@@ -13,7 +13,7 @@
                 <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
                                  Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
                                  IsChecked="{Binding StartWithWindows}" />
-                <TextBlock Text="{Binding RegistryMessage}" FontSize="12" TextWrapping="Wrap"
+                <TextBlock Text="{Binding RegistryMessage}" TextWrapping="Wrap"
                            Foreground="{DynamicResource WarningBrush}"
                            IsVisible="{Binding HasRegistryMessage}" />
             </StackPanel>
@@ -22,7 +22,7 @@
         <!-- Fallback when the run-at-startup mechanism isn't available (non-Windows). -->
         <Border Classes="GlassPanel" IsVisible="{Binding !StartupSupported}">
             <TextBlock Text="Run at startup isn't available on this platform."
-                       FontSize="13" TextWrapping="Wrap"
+                       TextWrapping="Wrap"
                        Foreground="{DynamicResource TextSecondaryBrush}" />
         </Border>
     </StackPanel>

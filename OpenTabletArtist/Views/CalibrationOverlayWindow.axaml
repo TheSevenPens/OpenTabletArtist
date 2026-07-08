@@ -17,20 +17,20 @@
             <StackPanel Spacing="12">
                 <Button x:Name="ThemeToggle" Content="Light mode" Click="OnToggleTheme"
                         HorizontalAlignment="Right" Theme="{StaticResource GhostButton}"
-                        Padding="10,4" FontSize="11"
+                        Padding="10,4"
                         ToolTip.Tip="Switch the calibration overlay between light and dark (does not change the app theme)" />
-                <TextBlock x:Name="InstructionText" Text="{Binding Instruction}" Foreground="White" FontSize="14"
+                <TextBlock x:Name="InstructionText" Text="{Binding Instruction}" Foreground="White"
                            TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                     <Button x:Name="ApplyBtn" Content="Apply" IsVisible="{Binding ShowApply}" Command="{Binding ApplyCommand}"
-                            Theme="{StaticResource AccentButton}" Padding="16,8" FontSize="13"
+                            Theme="{StaticResource AccentButton}" Padding="16,8"
                             ToolTip.Tip="Keep this calibration. Cancel reverts to the previous one." />
                     <Button x:Name="RedoBtn" Content="Redo" IsVisible="{Binding ShowRedo}" Command="{Binding RedoCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                            Theme="{StaticResource GhostButton}" Padding="16,8" />
                     <Button x:Name="ClearBtn" Content="Clear calibration" Command="{Binding ClearCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                            Theme="{StaticResource GhostButton}" Padding="16,8" />
                     <Button x:Name="CancelBtn" Content="Cancel (Esc)" Command="{Binding CancelCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="16,8" FontSize="13" />
+                            Theme="{StaticResource GhostButton}" Padding="16,8" />
                 </StackPanel>
             </StackPanel>
         </Border>

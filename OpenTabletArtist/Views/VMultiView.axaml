@@ -8,35 +8,35 @@
         <TextBlock Classes="PageTitle" Text="VMULTI DRIVER" />
 
         <TextBlock Text="VMulti is a virtual pen device the Windows Ink plugin injects pressure and tilt through. It's required for pen pressure to reach your drawing apps. Installing or removing it may require a restart."
-                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,12" />
 
         <Border Classes="GlassPanel">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Classes="CardTitle" Text="VMulti Driver" TextWrapping="Wrap" />
+                        <TextBlock Classes="SectionLabel" Text="VMULTI DRIVER" TextWrapping="Wrap" />
                         <Button Content="Refresh" Command="{Binding RefreshVmultiDetectionCommand}"
                                 ToolTip.Tip="Refresh VMulti status"
-                                Theme="{StaticResource GhostButton}" Padding="8,3" FontSize="11"
+                                Theme="{StaticResource GhostButton}" Padding="8,3"
                                 Margin="8,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Classes="statusMarkWarn" Classes.success="{Binding VmultiInstalled}" />
-                        <TextBlock Text="{Binding VmultiMessage}" FontSize="11"
+                        <TextBlock Text="{Binding VmultiMessage}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-                    <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
+                    <TextBlock Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0">
                         <Run Text="Setup API: " /><Run Text="{Binding VmultiSetupApiStatus}" />
                     </TextBlock>
-                    <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
+                    <TextBlock Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0">
                         <Run Text="HID: " /><Run Text="{Binding VmultiHidStatus}" />
                     </TextBlock>
                     <!-- Install status text (shown during installation) -->
-                    <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="10"
+                    <TextBlock Text="{Binding VmultiInstallStatus}"
                                Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"
                                IsVisible="{Binding VmultiInstalling}" />
-                    <TextBlock Text="Required for pressure &amp; tilt" FontSize="10"
+                    <TextBlock Text="Required for pressure &amp; tilt"
                                Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                Margin="0,2,0,0"
                                IsVisible="{Binding !VmultiInstalled}" />
@@ -47,19 +47,19 @@
                     <Button Content="Browse" Theme="{StaticResource AccentButton}"
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="C:\Program Files\VMulti"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4" />
+                            Padding="12,6" Margin="0,0,8,4" />
                     <!-- Install button -->
                     <Button Content="Install" Theme="{StaticResource AccentButton}"
                             Command="{Binding InstallVmultiCommand}"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            Padding="12,6" Margin="0,0,8,4"
                             IsVisible="{Binding ShowInstallButton}" />
                     <!-- Uninstall button -->
                     <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
                             Command="{Binding UninstallVmultiCommand}"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            Padding="12,6" Margin="0,0,8,4"
                             IsVisible="{Binding ShowUninstallButton}" />
                     <!-- Progress indicator -->
-                    <TextBlock Text="{Binding VmultiInstallStatus}" FontSize="11"
+                    <TextBlock Text="{Binding VmultiInstallStatus}"
                                Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                Margin="0,0,0,4"
                                IsVisible="{Binding VmultiInstalling}" />

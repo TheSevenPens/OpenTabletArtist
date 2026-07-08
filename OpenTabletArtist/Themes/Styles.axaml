@@ -22,10 +22,11 @@
                 <ControlTemplate>
                     <Border Classes="GlassPanel">
                         <StackPanel>
-                            <TextBlock x:Name="PART_Title" Classes="CardTitle"
-                                       Text="{TemplateBinding Title}" Margin="0,0,0,12"
+                            <TextBlock x:Name="PART_Title" Classes="SectionLabel"
+                                       Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
+                                       Margin="0,0,0,12"
                                        IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
-                            <TextBlock Text="{TemplateBinding Description}" FontSize="11"
+                            <TextBlock Text="{TemplateBinding Description}"
                                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                        Margin="0,0,0,12"
                                        IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
@@ -79,7 +80,7 @@
                                               VerticalAlignment="Top" />
                             <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="8"
                                     Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False">
-                                <TextBlock Text="Current mode" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                                <TextBlock Text="Current mode" Foreground="White" FontWeight="SemiBold" />
                             </Border>
                         </Panel>
                     </Border>
@@ -102,7 +103,7 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}" FontSize="13"
+                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}"
                                    Width="{TemplateBinding LabelWidth}" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}"
@@ -118,7 +119,7 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}" FontSize="13"
+                        <TextBlock Grid.Column="0" Text="{TemplateBinding Label}"
                                    Width="{TemplateBinding LabelWidth}" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <Slider Grid.Column="1" x:Name="PART_Slider" VerticalAlignment="Center"
@@ -129,7 +130,7 @@
                                 Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
                         <TextBlock Grid.Column="2" x:Name="PART_Value" Text="{TemplateBinding ValueText}"
                                    Width="{TemplateBinding ValueWidth}" MinWidth="36"
-                                   IsVisible="{TemplateBinding ShowValue}" FontSize="12" TextAlignment="Right"
+                                   IsVisible="{TemplateBinding ShowValue}" TextAlignment="Right"
                                    VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                     </Grid>
                 </ControlTemplate>
@@ -146,9 +147,9 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <StackPanel>
-                        <CheckBox Content="{TemplateBinding Label}" FontSize="13"
+                        <CheckBox Content="{TemplateBinding Label}"
                                   IsChecked="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
-                        <TextBlock Text="{TemplateBinding Description}" FontSize="11" Margin="28,2,0,0"
+                        <TextBlock Text="{TemplateBinding Description}" Margin="28,2,0,0"
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                    IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
                     </StackPanel>
@@ -205,7 +206,7 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Classes="statusMarkWarn"
                                        Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
-                            <TextBlock Text="{TemplateBinding Text}" FontSize="12" FontWeight="SemiBold"
+                            <TextBlock Text="{TemplateBinding Text}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" TextWrapping="Wrap" />
                             <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
@@ -323,7 +324,6 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
             <Setter Property="FontFamily" Value="Segoe UI, Inter" />
-            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -353,7 +353,6 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
             <Setter Property="FontFamily" Value="Segoe UI, Inter" />
-            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -395,7 +394,7 @@
                                     Background="Transparent" VerticalAlignment="Center"
                                     HorizontalAlignment="Left" Margin="-4,0,0,0" />
                             <TextBlock Grid.Column="2" x:Name="Label" Text="{TemplateBinding Content}"
-                                       FontSize="12" FontWeight="Medium"
+                                       FontWeight="Medium"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
@@ -427,7 +426,6 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="10,5" />
-            <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -463,7 +461,6 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="16,8" />
             <Setter Property="FontFamily" Value="Segoe UI, Inter" />
-            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -510,6 +507,14 @@
         <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
     </Style>
 
+    <!-- Base content text size (#fontstd): plain TextBlocks default to the one content size
+         (ContentFontSize). Page titles (PageTitle), card titles (CardTitle), section labels
+         (SectionLabel), status dots and the nav themes set their own size and win (classed selector or
+         template-local value), so this only catches unclassed content text. -->
+    <Style Selector="TextBlock">
+        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
+    </Style>
+
     <!-- Page Title -->
     <Style Selector="TextBlock.PageTitle">
         <Setter Property="FontFamily" Value="Segoe UI, Inter" />
@@ -520,19 +525,21 @@
         <Setter Property="Margin" Value="0,0,0,20" />
     </Style>
 
-    <!-- Card Title — the heading at the top of a card/panel. Segoe UI Semibold, one size for every card
-         (was per-card, which drifted across 13/14/15/16). Override FontSize on the element only for a
-         deliberate exception. -->
+    <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning titles,
+         daemon status, option choices). At the content size but kept prominent by weight + primary colour,
+         so it reads above body text and the muted all-caps SectionLabel headings. (#fontstd) -->
     <Style Selector="TextBlock.CardTitle">
         <Setter Property="FontFamily" Value="Segoe UI, Inter" />
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 
-    <!-- Section Label -->
+    <!-- Section Label — the one descriptive card/section heading treatment (#fontstd): all-caps (text is
+         written upper-case), SemiBold, muted, at the content size. Card content/identity titles (names,
+         warnings, option choices) use the prominent CardTitle instead. -->
     <Style Selector="TextBlock.SectionLabel">
-        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>

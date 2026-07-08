@@ -4,7 +4,7 @@
 
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="PROFILES" />
+        <TextBlock Classes="PageTitle" Text="PRESETS" />
 
         <!-- The live config (settings.json), made visible: it's what per-app / hotkey switches revert to,
              and every profile below is a saved copy of it. Accent-outlined to set it apart. -->
@@ -12,30 +12,30 @@
                 BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Classes="CardTitle" Text="Current settings" VerticalAlignment="Center" />
+                    <TextBlock Classes="SectionLabel" Text="CURRENT SETTINGS" VerticalAlignment="Center" />
                     <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="10" Padding="8,2"
                             VerticalAlignment="Center">
-                        <TextBlock Text="In use now" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="In use now" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentBrush}" />
                     </Border>
                 </StackPanel>
                 <TextBlock Text="The configuration your tablet is using right now. It saves automatically as you edit it on the Tablet pages — everything below is a saved copy you can switch back to."
-                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            TextWrapping="Wrap" Margin="0,6,0,12" />
-                <Button Content="Save as profile" Theme="{StaticResource AccentButton}"
+                <Button Content="Save as preset" Theme="{StaticResource AccentButton}"
                         HorizontalAlignment="Left"
-                        Padding="14,7" FontSize="13" Command="{Binding SavePresetCommand}" />
+                        Padding="14,7" Command="{Binding SavePresetCommand}" />
             </StackPanel>
         </Border>
 
         <!-- Header row: section label + Browse (opens the folder where profiles are stored). -->
         <Grid ColumnDefinitions="*,Auto" Margin="2,0,0,8" IsVisible="{Binding HasPresets}">
-            <TextBlock Grid.Column="0" Text="SAVED PROFILES" FontSize="11" FontWeight="SemiBold"
+            <TextBlock Grid.Column="0" Text="SAVED PRESETS" FontWeight="SemiBold"
                        LetterSpacing="0.5" Foreground="{DynamicResource TextMutedBrush}"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1" Content="Browse" Theme="{StaticResource GhostButton}"
-                    Padding="12,5" FontSize="12" VerticalAlignment="Center"
-                    ToolTip.Tip="Open the folder where profiles are stored"
+                    Padding="12,5" VerticalAlignment="Center"
+                    ToolTip.Tip="Open the folder where presets are stored"
                     Command="{Binding OpenFolderCommand}"
                     CommandParameter="{Binding PresetDirectory}" />
         </Grid>
@@ -47,7 +47,7 @@
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding LastModified}" FontSize="11"
+                                <TextBlock Text="{Binding LastModified}"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,2,0,0" />
                             </StackPanel>
@@ -56,16 +56,16 @@
                                 <Button Content="Load" Theme="{StaticResource AccentButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.LoadPresetCommand}"
                                         CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
+                                        Margin="0,0,6,0" Padding="12,6" />
                                 <Button Content="Update" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
                                         CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
+                                        Margin="0,0,6,0" Padding="12,6" />
                                 <Button Content="Rename" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
                                         CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" FontSize="12" />
-                                <Button Content="Delete" Padding="12,6" FontSize="12"
+                                        Margin="0,0,6,0" Padding="12,6" />
+                                <Button Content="Delete" Padding="12,6"
                                         Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
                                         CommandParameter="{Binding Name}" Margin="0,0,0,4" />
@@ -79,10 +79,10 @@
         <Border Classes="GlassPanel" Padding="24"
                 IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No profiles yet" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Text="No presets yet" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="Save a named backup of your current settings to restore later."
-                           FontSize="13" Foreground="{DynamicResource TextMutedBrush}"
+                           Foreground="{DynamicResource TextMutedBrush}"
                            HorizontalAlignment="Center" TextAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
         </Border>

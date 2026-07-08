@@ -80,13 +80,13 @@
                                Margin="20,4,8,2" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding !HasTablets}" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="PROFILES"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="PRESETS"
                                  IsChecked="{Binding IsPresets, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
                                  Margin="0,2,0,0" />
                     <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). Hidden while
                          the feature is disabled (FeatureFlags.PerAppProfiles); flip the flag to restore it. -->
-                    <RadioButton Theme="{StaticResource NavNode}" Content="PER-APP PROFILES"
+                    <RadioButton Theme="{StaticResource NavNode}" Content="PER-APP PRESETS"
                                  IsChecked="{Binding IsPerApp, Mode=OneWay}"
                                  IsVisible="{Binding ShowPerApp}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
@@ -162,7 +162,7 @@
             <Border IsVisible="{Binding PerAppSwitch.HasActiveProfile}"
                     Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-                <TextBlock Text="{Binding PerAppSwitch.ActiveProfile, StringFormat='App profile: {0}'}"
+                <TextBlock Text="{Binding PerAppSwitch.ActiveProfile, StringFormat='App preset: {0}'}"
                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                            TextWrapping="Wrap" MaxWidth="280" />
             </Border>
@@ -172,7 +172,7 @@
             <Border IsVisible="{Binding ProfileSwitch.HasOverride}"
                     Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-                <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Profile override: {0}'}"
+                <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Preset override: {0}'}"
                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                            TextWrapping="Wrap" MaxWidth="280" />
             </Border>

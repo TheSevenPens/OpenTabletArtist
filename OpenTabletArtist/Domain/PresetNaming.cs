@@ -7,7 +7,7 @@ namespace OpenTabletArtist.Domain;
 public static class PresetNaming
 {
     /// <summary>The first profile is unnumbered; subsequent ones are "Profile 2", "Profile 3", ...</summary>
-    public const string BaseName = "Profile";
+    public const string BaseName = "Preset";
 
     /// <summary>
     /// Returns the lowest available profile name not already present in

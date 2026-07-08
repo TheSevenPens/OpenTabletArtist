@@ -12,16 +12,16 @@
                 <WrapPanel Grid.Row="1" Orientation="Horizontal">
                     <Button Content="Refresh" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Rescan the plugin folder"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,6,4" />
+                            Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4" />
                     <Button Content="Browse" Command="{Binding BrowseCommand}"
                             ToolTip.Tip="Open the plugin folder in File Explorer"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12" Margin="0,0,0,4" />
+                            Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,0,4" />
                 </WrapPanel>
             </Grid>
         </Border>
 
         <!-- Empty state -->
-        <TextBlock Text="{Binding EmptyMessage}" FontSize="11" FontStyle="Italic"
+        <TextBlock Text="{Binding EmptyMessage}" FontStyle="Italic"
                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,10,0,0"
                    IsVisible="{Binding !HasPlugins}" />
 
@@ -34,15 +34,15 @@
                             <TextBlock Grid.Column="0" Classes="statusMark"
                                        Classes.success="{Binding IsActive}" VerticalAlignment="Center" />
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding Version}" FontSize="11"
+                                <TextBlock Text="{Binding Version}"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            IsVisible="{Binding Version, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
                             <Border Grid.Column="2" Background="{DynamicResource AccentMutedBrush}"
                                     CornerRadius="10" Padding="10,3" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" />
                             </Border>
                         </Grid>

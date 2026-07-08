@@ -20,18 +20,18 @@
                             BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
                         <StackPanel Spacing="6">
                             <TextBlock Text="{Binding Name}" Classes="CardTitle" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding Impact}" FontSize="12" FontWeight="SemiBold"
+                            <TextBlock Text="{Binding Impact}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding ProcessesText}" FontSize="11" IsVisible="{Binding HasProcesses}"
+                            <TextBlock Text="{Binding ProcessesText}" IsVisible="{Binding HasProcesses}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                             <!-- Full daemon message — selectable so it can be copied for troubleshooting. -->
-                            <SelectableTextBlock Text="{Binding Detail}" FontSize="11"
+                            <SelectableTextBlock Text="{Binding Detail}"
                                                  Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                                  Margin="0,2,0,0" />
                             <Button Content="Open OpenTabletDriver FAQ" IsVisible="{Binding HasWiki}"
                                     Command="{Binding $parent[ItemsControl].DataContext.OpenUrlCommand}"
                                     CommandParameter="{Binding WikiUrl}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="11"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
                                     HorizontalAlignment="Left" Margin="0,4,0,0" />
                         </StackPanel>
                     </Border>
@@ -45,14 +45,14 @@
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
                     <TextBlock Text="Removes leftover bits from previous tablet drivers"
-                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,4,0,0" TextWrapping="Wrap"
                                IsVisible="{Binding !CleanupInstalled}" />
-                    <TextBlock Text="{Binding CleanupInstallPath}" FontSize="11"
+                    <TextBlock Text="{Binding CleanupInstallPath}"
                                Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,4,0,0" TextWrapping="Wrap"
                                IsVisible="{Binding CleanupInstalled}" />
-                    <TextBlock Text="{Binding CleanupStatus}" FontSize="10"
+                    <TextBlock Text="{Binding CleanupStatus}"
                                Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"
                                IsVisible="{Binding CleanupBusy}" />
                 </StackPanel>
@@ -61,7 +61,7 @@
                     <!-- When not installed: just an Install button -->
                     <Button Content="Install" Theme="{StaticResource AccentButton}"
                             Command="{Binding InstallCleanupCommand}"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            Padding="12,6" Margin="0,0,8,4"
                             IsEnabled="{Binding !CleanupBusy}"
                             IsVisible="{Binding !CleanupInstalled}" />
 
@@ -69,16 +69,16 @@
                     <Button Content="Browse" Theme="{StaticResource AccentButton}"
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="{Binding CleanupInstallPath}"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            Padding="12,6" Margin="0,0,8,4"
                             IsVisible="{Binding CleanupInstalled}" />
                     <Button Content="Run" Theme="{StaticResource AccentButton}"
                             Command="{Binding RunCleanupCommand}"
-                            Padding="12,6" FontSize="12" Margin="0,0,8,4"
+                            Padding="12,6" Margin="0,0,8,4"
                             IsEnabled="{Binding !CleanupBusy}"
                             IsVisible="{Binding CleanupInstalled}" />
                     <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
                             Command="{Binding UninstallCleanupCommand}"
-                            Padding="12,6" FontSize="12" Margin="0,0,0,4"
+                            Padding="12,6" Margin="0,0,0,4"
                             IsEnabled="{Binding !CleanupBusy}"
                             IsVisible="{Binding CleanupInstalled}" />
                 </WrapPanel>

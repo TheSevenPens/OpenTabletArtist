@@ -51,7 +51,7 @@ public static class Dialogs
                 {
                     new TextBlock
                     {
-                        Text = "Pick a running application to give its own profile:",
+                        Text = "Pick a running application to give its own preset:",
                         FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap,
                     },
                     list,
