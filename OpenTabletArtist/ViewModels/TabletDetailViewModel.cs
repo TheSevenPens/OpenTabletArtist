@@ -192,13 +192,38 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// the current one — it may no longer be accurate, so suggest recalibrating (#147).</summary>
     [ObservableProperty] private bool _calibrationStale;
 
-    /// <summary>An enabled calibration is active on this profile (drives the status indicator).</summary>
-    [ObservableProperty] private bool _isCalibrated;
-    /// <summary>Human-readable calibration state incl. the mode used ("Not calibrated" / "Calibrated — …").</summary>
+    /// <summary>A calibration is <em>stored</em> on this profile (enabled or not) — gates the enable
+    /// toggle, the Clear button, and the report card.</summary>
+    [ObservableProperty] private bool _hasCalibration;
+
+    /// <summary>Whether the stored calibration is currently applying its correction. Two-way bound to the
+    /// enable toggle so it can be turned off to compare with/without the calibration, without clearing or
+    /// recapturing it. Setting it from the UI rewrites the stored calibration with the new Enabled state.</summary>
+    [ObservableProperty] private bool _calibrationEnabled;
+
+    /// <summary>Human-readable calibration state ("Not calibrated" / "Calibrated — …" / "Calibration off — …").</summary>
     [ObservableProperty] private string _calibrationStatusText = "Not calibrated";
 
-    public bool CanClearCalibration => IsCalibrated && _applyAction != null;
-    partial void OnIsCalibratedChanged(bool value) => OnPropertyChanged(nameof(CanClearCalibration));
+    // Guards RefreshCalibrationStatus's assignment of CalibrationEnabled so reloading state doesn't
+    // re-trigger a write.
+    private bool _refreshingCalibration;
+
+    public bool CanClearCalibration => HasCalibration && _applyAction != null;
+    partial void OnHasCalibrationChanged(bool value) => OnPropertyChanged(nameof(CanClearCalibration));
+
+    partial void OnCalibrationEnabledChanged(bool value)
+    {
+        if (_refreshingCalibration) return;
+        _ = SetCalibrationEnabledAsync(value);
+    }
+
+    // Rewrite the stored calibration with the new enabled state, preserving its model/payload/report.
+    private async Task SetCalibrationEnabledAsync(bool enabled)
+    {
+        var cal = CalibrationProfile.ReadProfile(_profile);
+        if (cal == null) return;
+        await ApplySettingsChange(p => CalibrationProfile.Write(_settings, p.Tablet ?? "", cal with { Enabled = enabled }));
+    }
 
     // Positional report of the recorded points from the current calibration (#460). Shown as a card on
     // the Calibration tab whenever a calibration with stored points is active.
@@ -208,24 +233,35 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private void RefreshCalibrationStatus()
     {
-        var cal = CalibrationProfile.ReadProfile(_profile);
-        CalibrationStale = CalibrationProfile.IsStale(cal, CurrentMappingFingerprint());
-        IsCalibrated = cal is { Enabled: true };
-        CalibrationStatusText = !IsCalibrated
-            ? "Not calibrated"
-            : cal!.Model switch
-            {
-                CalibrationProfile.CalibrationModel.Homography => "Calibrated — 4 point (perspective)",
-                CalibrationProfile.CalibrationModel.Grid => $"Calibrated — {(cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0)} point",
-                _ => "Calibrated — 4 point (legacy)",
-            };
-        CurrentCalibrationPoints = !IsCalibrated ? 0 : cal!.Model switch
+        _refreshingCalibration = true;
+        try
         {
-            CalibrationProfile.CalibrationModel.Homography => 4,
-            CalibrationProfile.CalibrationModel.Grid => (cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0),
-            _ => 4,
-        };
-        UpdateCalibrationReport(IsCalibrated ? cal!.Report : null);
+            var cal = CalibrationProfile.ReadProfile(_profile);
+            HasCalibration = cal != null;
+            CalibrationStale = CalibrationProfile.IsStale(cal, CurrentMappingFingerprint());
+            CalibrationEnabled = cal is { Enabled: true };
+
+            static string ModeLabel(CalibrationProfile.CalibrationData c) => c.Model switch
+            {
+                CalibrationProfile.CalibrationModel.Homography => "4 point (perspective)",
+                CalibrationProfile.CalibrationModel.Grid => $"{(c.Grid?.Cols ?? 0) * (c.Grid?.Rows ?? 0)} point",
+                _ => "4 point (legacy)",
+            };
+            CalibrationStatusText = cal == null ? "Not calibrated"
+                : CalibrationEnabled ? $"Calibrated — {ModeLabel(cal)}"
+                : $"Calibration off — {ModeLabel(cal)}";
+
+            // "In use" badges reflect the active correction, so nothing is "in use" while it's off.
+            CurrentCalibrationPoints = !CalibrationEnabled || cal == null ? 0 : cal.Model switch
+            {
+                CalibrationProfile.CalibrationModel.Homography => 4,
+                CalibrationProfile.CalibrationModel.Grid => (cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0),
+                _ => 4,
+            };
+            // The report describes the stored capture — show it whether the correction is on or off.
+            UpdateCalibrationReport(cal?.Report);
+        }
+        finally { _refreshingCalibration = false; }
     }
 
     // Rebuild the report rows from the calibration's stored points (#460), or clear them if none.
