@@ -22,6 +22,8 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="ACTUAL WARNINGS" x:Name="ActualTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
+                             Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SHORTCUT" x:Name="ShortcutTab"
@@ -73,6 +75,28 @@
                                      IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
                     <c:ToggleSetting Label="Tablet: custom display mapping"
                                      IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Introduce REAL misconfigurations (persisted settings changes) for reproducing UX issues. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ConfigErrorsTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Introduce config errors"
+                           Description="Unlike the warning toggles above, these make a real, persisted change to the active tablet's settings so a genuinely broken configuration can be reproduced and debugged. Each is reversible from the tablet's page.">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" FontSize="13" />
+                        <TextBlock Text="Moves the active tablet's display mapping so it straddles the desktop's right edge — about half the mapped area lands in dead space beyond every monitor. Trips the real &quot;mapped area is partly off-screen&quot; health check. Restore it by remapping the tablet to a display on its page (or the tray's Switch display)."
+                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <Button Content="Push active area off-screen"
+                                Command="{Binding PushMappingOffScreenCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" FontSize="12"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding ConfigErrorStatus}" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
+                    </StackPanel>
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>

@@ -78,7 +78,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The OpenTabletDriver tabbed page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
     public OpenTabletDriverViewModel OpenTabletDriver { get; }
     public StartupViewModel Startup { get; } = new();
-    public DeveloperViewModel Developer { get; } = new();
+    /// <summary>Assigned in the constructor (not a field initializer) so its break-config commands can
+    /// reach the session's settings coordinator + device data.</summary>
+    public DeveloperViewModel Developer { get; }
     public ThemeViewModel Theme { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
@@ -178,6 +180,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
         Daemon = new DaemonViewModel(_daemonStatus);
+        // Developer page: its "introduce a real config error" commands act on the live tablet settings.
+        Developer = new DeveloperViewModel(_session, _session);
 
         // The "OpenTabletDriver" tabbed page groups the subpages behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
