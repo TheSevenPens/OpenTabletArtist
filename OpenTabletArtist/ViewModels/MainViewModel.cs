@@ -113,6 +113,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
     public bool IsHotkeys => ReferenceEquals(CurrentPage, Hotkeys);
     public bool IsPerApp => ReferenceEquals(CurrentPage, PerApp);
+    /// <summary>Whether the "Per-App Profiles" nav entry is shown. Hidden while the feature is disabled
+    /// (<see cref="FeatureFlags.PerAppProfiles"/>) so it can't be reached; flip the flag to bring it back.</summary>
+    public bool ShowPerApp => FeatureFlags.PerAppProfiles;
     public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
     // Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins are tabs inside the tabbed page now,
