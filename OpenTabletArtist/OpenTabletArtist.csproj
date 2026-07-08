@@ -58,6 +58,8 @@
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver\OpenTabletDriver.csproj" />
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Plugin\OpenTabletDriver.Plugin.csproj" />
+    <!-- The built-in tablet catalog (#155): DeviceConfigurationProvider reads the ~339 embedded configs. -->
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Configurations\OpenTabletDriver.Configurations.csproj" />
   </ItemGroup>
 
 </Project>

@@ -132,13 +132,13 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                         <TextBlock Classes="SectionLabel" Text="SUPPORTED TABLETS" />
-                        <TextBlock Text="Browse the full list of tablets OpenTabletDriver supports on the OTD website."
+                        <TextBlock Text="Browse the full list of tablets OpenTabletDriver supports — searchable, right here."
                                    Margin="0,4,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="View list"
                             Command="{Binding TabletsOverview.OpenSupportedTabletsCommand}"
-                            ToolTip.Tip="Open opentabletdriver.net/Tablets in your browser"
+                            ToolTip.Tip="Show the tablets OpenTabletDriver supports"
                             Theme="{StaticResource GhostButton}" Padding="12,6"
                             VerticalAlignment="Center" />
                 </Grid>
