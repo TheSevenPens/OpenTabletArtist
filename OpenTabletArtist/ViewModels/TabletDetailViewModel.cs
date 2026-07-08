@@ -1153,28 +1153,32 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private PenDynamicsSettings CurrentDynamics =>
         new(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
 
-    /// <summary>True when the curve/smoothing settings actually change the pen (not a linear no-op).</summary>
-    public bool DynamicsHasEffect => !CurrentDynamics.IsNoOp;
-
-    /// <summary>At-a-glance summary of what the dynamics are doing, replacing the old on/off toggle.</summary>
-    public string DynamicsStatusText
+    /// <summary>Status line for the Pressure Dynamics tab: whether the curve / pressure smoothing actually
+    /// change pressure (a linear curve with no pressure smoothing is a no-op).</summary>
+    public string PressureDynamicsStatusText
     {
         get
         {
             var d = CurrentDynamics;
-            if (d.IsNoOp) return "No pen dynamics applied — the curve is linear and smoothing is off.";
-            var parts = new System.Collections.Generic.List<string>(3);
-            if (d.CurveShapesPressure) parts.Add("pressure curve");
-            if (d.HasPressureSmoothing) parts.Add("pressure smoothing");
-            if (d.HasPositionSmoothing) parts.Add("position smoothing");
-            return "Affecting your pen: " + string.Join(", ", parts) + ".";
+            var parts = new System.Collections.Generic.List<string>(2);
+            if (d.CurveShapesPressure) parts.Add("curve");
+            if (d.HasPressureSmoothing) parts.Add("smoothing");
+            return parts.Count == 0
+                ? "No pressure dynamics applied — the curve is linear and pressure smoothing is off."
+                : "Affecting pressure: " + string.Join(", ", parts) + ".";
         }
     }
 
+    /// <summary>Status line for the Position Dynamics tab: whether position smoothing is steadying the pen.</summary>
+    public string PositionDynamicsStatusText =>
+        CurrentDynamics.HasPositionSmoothing
+            ? "Position smoothing is on — steadying wobbly lines (at a little lag)."
+            : "No position smoothing — the pen position passes through unchanged.";
+
     private void NotifyDynamicsStatus()
     {
-        OnPropertyChanged(nameof(DynamicsHasEffect));
-        OnPropertyChanged(nameof(DynamicsStatusText));
+        OnPropertyChanged(nameof(PressureDynamicsStatusText));
+        OnPropertyChanged(nameof(PositionDynamicsStatusText));
     }
 
     [ObservableProperty] private double _pressureSmoothing;
@@ -1248,17 +1252,20 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ResetCurve() => Curve = PressureCurveSettings.Default;
 
-    /// <summary>Reset every dynamics setting — the curve, both smoothing amounts, and the order — back to
-    /// their no-op defaults (#185): this is how you "turn off" dynamics now that the filter is always
-    /// enabled. Each setter schedules the debounced persist, so the cleared (identity) state is written.</summary>
+    /// <summary>Reset the Pressure Dynamics tab — curve, pressure smoothing, and the order — to their no-op
+    /// defaults (#185): this is how you "turn off" pressure dynamics now that the filter is always enabled.
+    /// Each setter schedules the debounced persist, so the cleared (identity) state is written.</summary>
     [RelayCommand]
-    private void ResetAllDynamics()
+    private void ResetPressureDynamics()
     {
         Curve = PressureCurveSettings.Default;
         PressureSmoothing = 0;
-        PositionSmoothing = 0;
         SmoothAfterCurve = true;
     }
+
+    /// <summary>Reset the Position Dynamics tab — position smoothing back to off (no-op).</summary>
+    [RelayCommand]
+    private void ResetPositionDynamics() => PositionSmoothing = 0;
 
     /// <summary>Quick-start curve presets (#103).</summary>
     [RelayCommand]

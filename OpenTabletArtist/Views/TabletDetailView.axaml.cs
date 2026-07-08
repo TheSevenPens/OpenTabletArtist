@@ -30,13 +30,13 @@ public partial class TabletDetailView : UserControl
         base.OnAttachedToVisualTree(e);
 
         // Focused Pen Dynamics editor (#133): open straight on the Dynamics tab.
-        if (Vm?.DynamicsOnly == true) DynamicsTab.IsChecked = true;
+        if (Vm?.DynamicsOnly == true) PressureDynamicsTab.IsChecked = true;
 
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
         // Live device-report stream feeds the pressure dot (Dynamics), the aux-button highlight
         // (ExpressKeys), and the wheel gauge (Wheel), so watch those tabs.
-        DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
+        PressureDynamicsTab.IsCheckedChanged += OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
         WheelTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
@@ -46,7 +46,7 @@ public partial class TabletDetailView : UserControl
     {
         base.OnDetachedFromVisualTree(e);
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
-        DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
+        PressureDynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
         WheelTab.IsCheckedChanged -= OnLiveTabChanged;
         Vm?.StopLiveInput();
@@ -60,7 +60,7 @@ public partial class TabletDetailView : UserControl
     private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
+        if (PressureDynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
             || WheelTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }
