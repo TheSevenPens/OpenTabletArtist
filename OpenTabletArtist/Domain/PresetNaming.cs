@@ -29,4 +29,25 @@ public static class PresetNaming
                 return candidate;
         }
     }
+
+    /// <summary>
+    /// Returns an available name for a duplicate of <paramref name="baseName"/>: "&lt;name&gt; copy",
+    /// then "&lt;name&gt; copy 2", "&lt;name&gt; copy 3", ... — the lowest not present in
+    /// <paramref name="existingNames"/>. Comparison is case-insensitive.
+    /// </summary>
+    public static string NextCopyName(string baseName, IEnumerable<string> existingNames)
+    {
+        var taken = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+
+        var first = $"{baseName} copy";
+        if (!taken.Contains(first))
+            return first;
+
+        for (int n = 2; ; n++)
+        {
+            var candidate = $"{baseName} copy {n}";
+            if (!taken.Contains(candidate))
+                return candidate;
+        }
+    }
 }

@@ -41,4 +41,32 @@ public class PresetNamingTests
     {
         Assert.Equal("Preset", PresetNaming.NextSnapshotName(["Foo", "Bar", "My Preset"]));
     }
+
+    // --- Duplicate naming ---
+
+    [Fact]
+    public void Copy_FirstDuplicate_AppendsCopy()
+    {
+        Assert.Equal("My Preset copy", PresetNaming.NextCopyName("My Preset", ["My Preset"]));
+    }
+
+    [Fact]
+    public void Copy_WhenCopyTaken_ReturnsNumbered()
+    {
+        Assert.Equal("My Preset copy 2",
+            PresetNaming.NextCopyName("My Preset", ["My Preset", "My Preset copy"]));
+    }
+
+    [Fact]
+    public void Copy_ReusesLowestGap()
+    {
+        Assert.Equal("My Preset copy 2",
+            PresetNaming.NextCopyName("My Preset", ["My Preset", "My Preset copy", "My Preset copy 3"]));
+    }
+
+    [Fact]
+    public void Copy_IsCaseInsensitive()
+    {
+        Assert.Equal("Preset copy 2", PresetNaming.NextCopyName("Preset", ["preset COPY"]));
+    }
 }

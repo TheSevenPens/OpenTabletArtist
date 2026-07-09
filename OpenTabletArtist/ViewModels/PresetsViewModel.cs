@@ -147,6 +147,24 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private async Task DuplicatePreset(string name)
+    {
+        var srcPath = Path.Combine(PresetDirectory, $"{name}.json");
+        if (!File.Exists(srcPath)) return;
+
+        // Copy the file verbatim under a fresh "<name> copy" name (numbered if taken). The duplicate is
+        // an independent preset with no hotkey mapping — unlike Rename, which carries one across.
+        var existing = Directory.EnumerateFiles(PresetDirectory, "*.json")
+                                .Select(Path.GetFileNameWithoutExtension)
+                                .Where(s => s != null)!
+                                .Cast<string>();
+        var newName = PresetNaming.NextCopyName(name, existing);
+
+        File.Copy(srcPath, Path.Combine(PresetDirectory, $"{newName}.json"));
+        await LoadAsync();
+    }
+
+    [RelayCommand]
     private async Task RenamePreset(string name)
     {
         var oldPath = Path.Combine(PresetDirectory, $"{name}.json");
