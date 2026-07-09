@@ -217,6 +217,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Navigate(Advanced);
     }
 
+    /// <summary>The ordered set of pages the "screenshot all pages" developer aid visits (#437): Home,
+    /// every visible root nav leaf, and each ADVANCED sub-tab. Each entry is a filename slug + the action
+    /// that navigates to it; the caller renders after each and restores the original page.</summary>
+    public IReadOnlyList<(string Slug, Action Navigate)> ScreenshotTargets()
+    {
+        var list = new List<(string, Action)> { ("home", () => CurrentPage = Dashboard) };
+        // Each tablet in the nav (a connected/known tablet's page).
+        foreach (var tablet in Tablets)
+        {
+            var name = tablet.Name;
+            list.Add(($"tablet-{Slugify(name)}", () => NavigateToTabletByName(name)));
+        }
+        foreach (var leaf in NavLeaves.Where(l => l.IsVisible))
+        {
+            var page = leaf.Page;
+            list.Add((Slugify(leaf.Label), () => CurrentPage = page));
+        }
+        foreach (AdvancedTab tab in System.Enum.GetValues<AdvancedTab>())
+        {
+            var t = tab;
+            list.Add(($"advanced-{Slugify(t.ToString())}", () => OpenAdvancedTab(t)));
+        }
+        return list;
+    }
+
+    private static string Slugify(string s) => s.ToLowerInvariant().Replace(' ', '-');
+
     /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
     [RelayCommand]
     private void NavigateToTablet(TabletNavNodeViewModel item) => ShowTablet(item, null);

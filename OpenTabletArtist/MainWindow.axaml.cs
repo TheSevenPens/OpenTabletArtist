@@ -1,14 +1,18 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
+using OpenTabletArtist.Views;
 
 namespace OpenTabletArtist;
 
@@ -178,4 +182,73 @@ public partial class MainWindow : Window
             this);
         Hide();
     }
+
+    // ── Developer screenshots (#437) ──────────────────────────────────────────────────────────────
+
+    // Capture the whole window UI (backdrop + sidebar + the current page), not just the content host —
+    // rendering the content alone drops the backdrop and leaves cards floating on transparent.
+    private Control? RootVisual => Content as Control;
+
+    // The nav-bar on-page capture control: render whatever page is currently shown.
+    private void OnCapturePage(object? sender, RoutedEventArgs e)
+    {
+        var path = RootVisual is { } v ? PageScreenshot.Render(v, RenderScaling, "page") : null;
+        _ = FlashCaptureButton(path is not null);
+    }
+
+    // Briefly confirm the capture on the button itself (no room for a status line in the nav).
+    private async Task FlashCaptureButton(bool ok)
+    {
+        var original = CapturePageButton.Content;
+        CapturePageButton.Content = ok ? "✓ Saved" : "✗ Failed";
+        await Task.Delay(1100);
+        CapturePageButton.Content = original;
+    }
+
+    /// <summary>Navigate every page in turn (Home, root nav leaves, each ADVANCED sub-tab), saving a
+    /// screenshot of each, then restore the original page. Returns how many were saved. Driven from the
+    /// Developer tab's "Screenshot all pages" button (which owns the visual + the shell it navigates).</summary>
+    public async Task<int> CaptureAllPagesAsync()
+    {
+        if (DataContext is not MainViewModel vm || RootVisual is not { } visual) return 0;
+        double scale = RenderScaling;
+        var originalPage = vm.CurrentPage;
+        var originalTab = vm.Advanced.SelectedTab;
+        int saved = 0;
+        try
+        {
+            foreach (var (slug, navigate) in vm.ScreenshotTargets())
+            {
+                navigate();
+                await Task.Delay(240); // let the page bind + lay out + a frame compose before rendering
+
+                // A tablet page: capture each of its visible sub-tabs, then restore the selected one.
+                if (vm.CurrentPage is TabletDetailViewModel
+                    && this.GetVisualDescendants().OfType<TabletDetailView>().FirstOrDefault() is { } tabletView)
+                {
+                    var tabs = tabletView.VisibleTabButtons();
+                    var selected = tabs.FirstOrDefault(t => t.IsChecked == true);
+                    foreach (var tab in tabs)
+                    {
+                        tab.IsChecked = true;
+                        await Task.Delay(200);
+                        if (PageScreenshot.Render(visual, scale, $"page-{slug}-{TabSlug(tab)}") is not null) saved++;
+                    }
+                    if (selected != null) selected.IsChecked = true;
+                    continue;
+                }
+
+                if (PageScreenshot.Render(visual, scale, $"page-{slug}") is not null) saved++;
+            }
+        }
+        finally
+        {
+            vm.Advanced.SelectedTab = originalTab;
+            vm.CurrentPage = originalPage;
+        }
+        return saved;
+    }
+
+    private static string TabSlug(RadioButton tab) =>
+        (tab.Content?.ToString() ?? "tab").ToLowerInvariant().Replace(' ', '-');
 }

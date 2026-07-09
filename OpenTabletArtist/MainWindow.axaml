@@ -50,6 +50,17 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
 
+                <!-- On-page screenshot control (#437): a developer aid, shown only when enabled on the
+                     Developer tab. Pinned to the bottom-left of the nav so you can capture whatever page
+                     you're currently viewing. -->
+                <Button DockPanel.Dock="Bottom" x:Name="CapturePageButton"
+                        Click="OnCapturePage"
+                        IsVisible="{Binding Developer.Settings.OnPageScreenshot}"
+                        Theme="{StaticResource GhostButton}"
+                        Margin="12,4,12,12" Padding="10,6" HorizontalAlignment="Left"
+                        Content="📷 Capture page"
+                        ToolTip.Tip="Save a PNG of the current page to Pictures\OpenTabletArtist" />
+
                 <!-- The page navigation bar: nodes (labels in all caps) that select a page. Most sit at
                      the root; the less-common ones are grouped under a collapsible ADVANCED group node.
                      Scrolls when taller than the window (many tablets, or ADVANCED expanded). See

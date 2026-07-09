@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -24,6 +26,11 @@ public partial class TabletDetailView : UserControl
     }
 
     private TabletDetailViewModel? Vm => DataContext as TabletDetailViewModel;
+
+    /// <summary>The tab rail's currently-visible tab buttons, in order (#437: the screenshot sweep checks
+    /// each in turn to capture every sub-tab of a connected tablet).</summary>
+    public IReadOnlyList<RadioButton> VisibleTabButtons() =>
+        TabRail.Children.OfType<RadioButton>().Where(r => r.IsVisible).ToList();
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {

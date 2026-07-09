@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -80,38 +81,20 @@ public partial class DeveloperView : UserControl
         }
     }
 
-    // #437: render the live app window to a PNG via RenderTargetBitmap. Done in code-behind because it
-    // needs the visual (the view model can't render). Captures at physical resolution (RenderScaling), so
-    // the PNG is crisp on scaled displays. Saved to Pictures\OpenTabletArtist with a timestamped name.
-    private void OnCaptureScreenshot(object? sender, RoutedEventArgs e)
+    // #437: screenshot every page. The window owns both the shell navigation and the page visual, so the
+    // loop lives on MainWindow; this button just drives it and reports the result.
+    private async void OnScreenshotAllPages(object? sender, RoutedEventArgs e)
     {
+        if (TopLevel.GetTopLevel(this) is not MainWindow window)
+        {
+            SetStatus("Couldn't reach the main window to capture pages.");
+            return;
+        }
         try
         {
-            var top = TopLevel.GetTopLevel(this);
-            var visual = (top as Window)?.Content as Control ?? top as Control;
-            if (visual is null || visual.Bounds.Width < 1 || visual.Bounds.Height < 1)
-            {
-                SetStatus("Nothing to capture yet — try again once the window is fully laid out.");
-                return;
-            }
-
-            double scale = top?.RenderScaling ?? 1.0;
-            var pixels = new PixelSize(
-                Math.Max(1, (int)Math.Ceiling(visual.Bounds.Width * scale)),
-                Math.Max(1, (int)Math.Ceiling(visual.Bounds.Height * scale)));
-
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "OpenTabletArtist");
-            Directory.CreateDirectory(dir);
-            var path = Path.Combine(dir, $"OTA-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-
-            using (var rtb = new RenderTargetBitmap(pixels, new Vector(96 * scale, 96 * scale)))
-            {
-                rtb.Render(visual);
-                rtb.Save(path);
-            }
-
-            SetStatus($"Saved {path} ({pixels.Width}×{pixels.Height}).");
+            SetStatus("Capturing every page…");
+            var count = await window.CaptureAllPagesAsync();
+            SetStatus($"Saved {count} page screenshot(s) to {PageScreenshot.Directory()}.");
         }
         catch (Exception ex)
         {
