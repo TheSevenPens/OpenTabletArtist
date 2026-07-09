@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Win32;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -137,12 +138,10 @@ public partial class CalibrationOverlayWindow : Window
         // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below.
         Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
 
-        // …and turn off the shell's pen/touch feedback on this window. Disabling the gesture (above) stops
-        // the ring + right-click, but at the ~1s press-and-hold dwell Windows still re-asserts the mouse
-        // cursor (the "other half" of the interaction). Disabling FEEDBACK_PEN_PRESSANDHOLD & friends
-        // suppresses that so the cursor stays hidden through the whole hold.
-        if (TryGetPlatformHandle() is { } handle && handle.Handle != IntPtr.Zero)
-            DisableShellPenFeedback(handle.Handle);
+        // …and turn off the shell's pen/touch visual feedback on this window (the same app-wide helper the
+        // main window uses). On its own this doesn't fully stop the cursor re-showing at the dwell — the
+        // SetCursor re-hide in the pulse timer handles that.
+        ShellPenFeedback.DisableFor(this);
 
         // Drive the pulse ring (~30 fps). A timer keeps full control of the breathing animation and
         // re-targets for free as the active target advances (we just reposition the ring).
@@ -200,40 +199,10 @@ public partial class CalibrationOverlayWindow : Window
         return IntPtr.Zero;
     }
 
-    // FEEDBACK_TYPE values (winuser.h) — the shell's per-interaction pen/touch visual feedback.
-    private const uint FeedbackTouchContactVisualization = 1;
-    private const uint FeedbackPenBarrelVisualization = 2;
-    private const uint FeedbackPenTap = 3;
-    private const uint FeedbackPenDoubleTap = 4;
-    private const uint FeedbackPenPressAndHold = 5;
-    private const uint FeedbackPenRightTap = 6;
-    private const uint FeedbackTouchTap = 7;
-    private const uint FeedbackTouchDoubleTap = 8;
-    private const uint FeedbackTouchPressAndHold = 9;
-    private const uint FeedbackTouchRightTap = 10;
-    private const uint FeedbackGesturePressAndTap = 11;
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowFeedbackSetting(IntPtr hwnd, uint feedback, uint dwFlags, uint size, ref int configuration);
-
     // Passing NULL hides the cursor (until the next WM_SETCURSOR, i.e. the next mouse-move). Used to
     // re-hide it during a still hold, where Windows shows it and no mouse-move follows to reset it.
     [DllImport("user32.dll")]
     private static extern IntPtr SetCursor(IntPtr hCursor);
-
-    private static void DisableShellPenFeedback(IntPtr hwnd)
-    {
-        int disabled = 0; // BOOL FALSE
-        uint[] all =
-        {
-            FeedbackTouchContactVisualization, FeedbackPenBarrelVisualization, FeedbackPenTap,
-            FeedbackPenDoubleTap, FeedbackPenPressAndHold, FeedbackPenRightTap, FeedbackTouchTap,
-            FeedbackTouchDoubleTap, FeedbackTouchPressAndHold, FeedbackTouchRightTap, FeedbackGesturePressAndTap,
-        };
-        foreach (var feedback in all)
-            SetWindowFeedbackSetting(hwnd, feedback, 0, sizeof(int), ref disabled);
-    }
 
     // Cover the mapped display. Move onto the target monitor (picked by containment of the display's
     // centre, robust to rounding / DPI — #179), then go FullScreen so the OS sizes the window to the

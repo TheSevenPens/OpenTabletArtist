@@ -21,6 +21,7 @@ public partial class HotkeyCaptureDialog : Window
     public HotkeyCaptureDialog(HotkeyCaptureViewModel vm)
     {
         InitializeComponent();
+        ShellPenFeedback.DisableOnOpen(this);
         DataContext = vm;
         vm.CloseRequested += OnCloseRequested;
 
