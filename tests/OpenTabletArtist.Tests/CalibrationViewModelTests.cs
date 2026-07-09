@@ -124,6 +124,49 @@ public class CalibrationViewModelTests
         Assert.True(vm.IsCapturing);
     }
 
+    // Feed a full hold on target i at a fixed pen tilt (#481).
+    private static void TapWithTilt(CalibrationViewModel vm, int targetIndex, float tiltX, float tiltY)
+    {
+        var t = vm.Targets[targetIndex];
+        var desktop = new Vector2((float)(Display.X + t.X * Display.Width), (float)(Display.Y + t.Y * Display.Height));
+        var raw = AbsolutePositionMapper.MapFromDesktop(desktop, Digi, Input, Output)!.Value;
+        for (int k = 0; k < CalibrationViewModel.HoldSamplesTarget; k++)
+            vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, tiltX, tiltY, 0, IsDown: true));
+    }
+
+    [Fact]
+    public void Capture_RecordsAveragedPenTilt()
+    {
+        var (vm, settings, _) = NewVm();
+        TapWithTilt(vm, 0, 15f, -5f);
+        TapWithTilt(vm, 1, 15f, -5f);
+        TapWithTilt(vm, 2, 15f, -5f);
+        TapWithTilt(vm, 3, 15f, -5f);
+
+        var report = CalibrationProfile.Read(settings, "T")!.Report!;
+        Assert.All(report.Points, p =>
+        {
+            Assert.True(p.HasTilt);
+            Assert.Equal(15f, p.TiltX, 2);
+            Assert.Equal(-5f, p.TiltY, 2);
+        });
+        var tilt = report.ComputeTilt();
+        Assert.NotNull(tilt);
+        Assert.Equal(4, tilt!.Value.Count);
+    }
+
+    [Fact]
+    public void Capture_WithoutTilt_LeavesTiltUnset()
+    {
+        // The default Tap() feeds TiltX/TiltY = 0 (a tablet that doesn't report tilt) → no tilt recorded.
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
+
+        var report = CalibrationProfile.Read(settings, "T")!.Report!;
+        Assert.All(report.Points, p => Assert.False(p.HasTilt));
+        Assert.Null(report.ComputeTilt());
+    }
+
     [Fact]
     public void CornersMode_WritesAffineModel()
     {

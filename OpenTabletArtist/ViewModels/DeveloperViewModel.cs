@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -110,31 +111,10 @@ public sealed partial class DeveloperViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateBadCalibration()
     {
-        var settings = _settings?.CurrentSettings;
-        if (settings == null) { ConfigErrorStatus = "No settings loaded yet — connect the daemon first."; return; }
-
-        var tabletName = _device?.ActiveTabletName ?? _device?.DetectedTablets.FirstOrDefault()?.Name;
-        if (string.IsNullOrEmpty(tabletName)) { ConfigErrorStatus = "No active tablet to calibrate."; return; }
-
-        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
-        var abs = profile?.AbsoluteModeSettings;
-        if (abs?.Tablet is not { } t || abs.Display is not { } disp
-            || t.Width <= 0 || t.Height <= 0 || disp.Width <= 0 || disp.Height <= 0)
-        { ConfigErrorStatus = $"{tabletName} needs an Absolute mapping with a known area + display first."; return; }
-
-        if (_device?.GetDigitizerSpec(tabletName) is not { } digi)
-        { ConfigErrorStatus = $"Couldn't read {tabletName}'s digitizer spec."; return; }
-
-        var input = new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
-        var output = new MappingArea(disp.X, disp.Y, disp.Width, disp.Height);
-
-        // The mapped display = the monitor whose top-left matches the output area's origin (as DialogService).
-        var originX = disp.X - disp.Width / 2;
-        var originY = disp.Y - disp.Height / 2;
-        var displays = DisplayEnumerator.Enumerate();
-        var display = displays.FirstOrDefault(d => Math.Abs(d.X - originX) <= 2 && Math.Abs(d.Y - originY) <= 2)
-                      ?? displays.FirstOrDefault(d => disp.X >= d.X && disp.X <= d.X + d.Width && disp.Y >= d.Y && disp.Y <= d.Y + d.Height);
-        if (display is null) { ConfigErrorStatus = "Couldn't match the mapped area to a connected display."; return; }
+        if (!TryResolveActiveCalibrationContext(out var ctx, out var error))
+        { ConfigErrorStatus = error; return; }
+        var (tabletName, digi, input, output, display) = ctx;
+        var settings = _settings!.CurrentSettings!;
 
         // Simulate a 4-corner capture (TL, TR, BR, BL, inset 10%) where each tap lands a few px off target,
         // so the fitted affine is slightly wrong. Same corner insets the real overlay uses.
@@ -181,11 +161,204 @@ public sealed partial class DeveloperViewModel : ObservableObject
             var measuredPx = AbsolutePositionMapper.MapToDesktop(measuredRaw[i], digi, input, output, false, false);
             float mx = float.NaN, my = float.NaN;
             if (measuredPx is { } m) { mx = m.X - ox; my = m.Y - oy; }
+            // A plausible natural hold (~65° altitude, leaning down-right) with a little jitter, so the
+            // tilt readout has data to show (#481).
+            float tiltX = 18f + (float)(rng.NextDouble() * 2 - 1) * 4f;
+            float tiltY = -12f + (float)(rng.NextDouble() * 2 - 1) * 4f;
             points.Add(new CalibrationReportPoint(
                 targetsDesktop[i].X - ox, targetsDesktop[i].Y - oy,
-                measuredRaw[i].X, measuredRaw[i].Y, mx, my, rng.Next(300, 620)));
+                measuredRaw[i].X, measuredRaw[i].Y, mx, my, rng.Next(300, 620), tiltX, tiltY));
         }
         var name = $"{display.DisplayTitle} ({display.Width}×{display.Height})";
         return new CalibrationReport(name, DateTime.Now.ToString("yyyy-MM-dd HH:mm"), points);
+    }
+
+    // The active tablet's calibration mapping context (tablet name + digitizer + input/output areas +
+    // the matched display). Shared by the config-error and capture export/import commands.
+    private readonly record struct ActiveCalibrationContext(
+        string TabletName, TabletDigitizerSpec Digitizer, MappingArea Input, MappingArea Output, DisplayInfo Display);
+
+    /// <summary>Resolve the active tablet's calibration context (Absolute mapping + digitizer + matched
+    /// display), or set <paramref name="error"/> explaining why it isn't available.</summary>
+    private bool TryResolveActiveCalibrationContext(out ActiveCalibrationContext ctx, out string error)
+    {
+        ctx = default;
+        var settings = _settings?.CurrentSettings;
+        if (settings == null) { error = "No settings loaded yet — connect the daemon first."; return false; }
+
+        var tabletName = _device?.ActiveTabletName ?? _device?.DetectedTablets.FirstOrDefault()?.Name;
+        if (string.IsNullOrEmpty(tabletName)) { error = "No active tablet."; return false; }
+
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        var abs = profile?.AbsoluteModeSettings;
+        if (abs?.Tablet is not { } t || abs.Display is not { } disp
+            || t.Width <= 0 || t.Height <= 0 || disp.Width <= 0 || disp.Height <= 0)
+        { error = $"{tabletName} needs an Absolute mapping with a known area + display first."; return false; }
+
+        if (_device?.GetDigitizerSpec(tabletName) is not { } digi)
+        { error = $"Couldn't read {tabletName}'s digitizer spec."; return false; }
+
+        var input = new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
+        var output = new MappingArea(disp.X, disp.Y, disp.Width, disp.Height);
+
+        // The mapped display = the monitor whose top-left matches the output area's origin (as DialogService).
+        var originX = disp.X - disp.Width / 2;
+        var originY = disp.Y - disp.Height / 2;
+        var displays = DisplayEnumerator.Enumerate();
+        var display = displays.FirstOrDefault(d => Math.Abs(d.X - originX) <= 2 && Math.Abs(d.Y - originY) <= 2)
+                      ?? displays.FirstOrDefault(d => disp.X >= d.X && disp.X <= d.X + d.Width && disp.Y >= d.Y && disp.Y <= d.Y + d.Height);
+        if (display is null) { error = "Couldn't match the mapped area to a connected display."; return false; }
+
+        ctx = new ActiveCalibrationContext(tabletName, digi, input, output, display);
+        error = "";
+        return true;
+    }
+
+    // ---- Calibration capture export / import (#484) — save a calibration's taps + solved model to a
+    // portable JSON, reload it later without re-tapping, and re-solve the same taps with a different
+    // algorithm to compare. Developer-only for now. Import is matching-only. ----
+
+    /// <summary>Status/summary for the last capture export/import action.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCaptureStatus))]
+    private string _captureStatus = "";
+
+    public bool HasCaptureStatus => !string.IsNullOrEmpty(CaptureStatus);
+
+    /// <summary>True once a capture has been imported and matched — reveals the apply / re-solve controls.</summary>
+    [ObservableProperty]
+    private bool _hasLoadedCapture;
+
+    /// <summary>Models offered for re-solve of the loaded capture (Grid only when the capture is a grid).</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _resolveModes = Array.Empty<string>();
+
+    [ObservableProperty]
+    private string _selectedResolveMode = "Affine";
+
+    // The imported capture, held so Apply / Re-solve reuse it without re-reading the file.
+    private CalibrationCapture? _loadedCapture;
+
+    /// <summary>A default file name for the export save dialog: <c>calibration-{N}point-{tablet}-{stamp}</c>
+    /// (the point count comes from the calibration being exported, e.g. 4/9/25).</summary>
+    public string SuggestedCaptureFileName
+    {
+        get
+        {
+            var tablet = _device?.ActiveTabletName;
+            string count = "";
+            if (!string.IsNullOrEmpty(tablet)
+                && CalibrationProfile.Read(_settings?.CurrentSettings, tablet)?.Report is { Points.Count: > 0 } report)
+                count = $"{report.Points.Count}point-";
+            return $"calibration-{count}{Sanitize(tablet ?? "tablet")}-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+        }
+    }
+
+    /// <summary>Build the export JSON for the active tablet's saved calibration, or null (with a status
+    /// set) if there's nothing to export. The view writes the returned text to the chosen file.</summary>
+    public string? BuildCaptureJson()
+    {
+        if (!TryResolveActiveCalibrationContext(out var ctx, out var error))
+        { CaptureStatus = error; return null; }
+
+        var cal = CalibrationProfile.Read(_settings!.CurrentSettings, ctx.TabletName);
+        if (cal == null)
+        { CaptureStatus = $"{ctx.TabletName} has no calibration to export — calibrate it first (or use Create a slightly-wrong calibration)."; return null; }
+        if (cal.Report == null || cal.Report.Points.Count == 0)
+        { CaptureStatus = $"{ctx.TabletName}'s calibration has no recorded taps to export (it predates point capture)."; return null; }
+
+        var capture = CalibrationCaptureService.Build(ctx.TabletName, ctx.Digitizer, ctx.Input, ctx.Output, ctx.Display, cal);
+        return capture.ToJson();
+    }
+
+    /// <summary>Report a completed export (the view writes the file, then calls this).</summary>
+    public void NoteCaptureExported(string path) =>
+        CaptureStatus = $"Exported calibration capture to {path}.";
+
+    /// <summary>Parse and match-check an imported capture; on success hold it and reveal apply/re-solve.</summary>
+    public void LoadCapture(string json, string fileName)
+    {
+        _loadedCapture = null;
+        HasLoadedCapture = false;
+
+        var capture = CalibrationCapture.FromJson(json);
+        if (capture == null)
+        { CaptureStatus = "Couldn't read that file as a calibration capture (invalid JSON)."; return; }
+        if (capture.SchemaVersion > CalibrationCapture.CurrentSchemaVersion)
+        { CaptureStatus = $"That capture is schema v{capture.SchemaVersion}, newer than this app supports (v{CalibrationCapture.CurrentSchemaVersion}). Update the app."; return; }
+        if (capture.Points.Count == 0)
+        { CaptureStatus = "That capture has no recorded taps."; return; }
+
+        if (!TryResolveActiveCalibrationContext(out var ctx, out var error))
+        { CaptureStatus = error; return; }
+
+        if (!CalibrationCaptureService.Matches(capture, ctx.Digitizer, ctx.Input, ctx.Output, ctx.Display.Number, out var reason))
+        {
+            CaptureStatus = $"This capture doesn't match {ctx.TabletName}'s current setup ({reason}). " +
+                            "Import is matching-only — re-map the tablet to the captured area, or re-capture.";
+            return;
+        }
+
+        _loadedCapture = capture;
+        HasLoadedCapture = true;
+        ResolveModes = capture.IsGrid
+            ? new[] { "Grid", "Affine", "Homography" }
+            : new[] { "Affine", "Homography" };
+        SelectedResolveMode = ResolveModes[0];
+        CaptureStatus = $"Loaded {fileName} — {capture.Mode.ToLowerInvariant()} capture, {capture.Points.Count} taps, " +
+                        $"captured {capture.CapturedAt}. Apply it as-is, or re-solve with a different model.";
+    }
+
+    /// <summary>Restore the capture's embedded solved model exactly (the known-good state).</summary>
+    [RelayCommand]
+    private async Task ApplyLoadedCapture()
+    {
+        if (_loadedCapture is not { } capture) { CaptureStatus = "Import a capture first."; return; }
+        if (!TryResolveActiveCalibrationContext(out var ctx, out var error)) { CaptureStatus = error; return; }
+        if (!CalibrationCaptureService.Matches(capture, ctx.Digitizer, ctx.Input, ctx.Output, ctx.Display.Number, out var reason))
+        {
+            CaptureStatus = $"Setup changed since import ({reason}) — re-import the capture.";
+            _loadedCapture = null; HasLoadedCapture = false; return;
+        }
+
+        var settings = _settings!.CurrentSettings!;
+        var fingerprint = CalibrationProfile.Fingerprint(ctx.Input, ctx.Output, ctx.Display.Number);
+        var data = CalibrationCaptureService.ToCalibrationData(capture, fingerprint);
+        if (data == null)
+        { CaptureStatus = "This capture has no embedded solved model — use Re-solve & apply instead."; return; }
+
+        CalibrationProfile.Write(settings, ctx.TabletName, data);
+        await _settings.ApplyAndSaveSettingsAsync(settings);
+        CaptureStatus = $"Applied the captured {data.Model} calibration to {ctx.TabletName}.";
+    }
+
+    /// <summary>Re-solve the loaded capture's taps with the selected model and apply it — the fast way to
+    /// compare algorithms on the same taps without re-tapping.</summary>
+    [RelayCommand]
+    private async Task ReSolveLoadedCapture()
+    {
+        if (_loadedCapture is not { } capture) { CaptureStatus = "Import a capture first."; return; }
+        if (!TryResolveActiveCalibrationContext(out var ctx, out var error)) { CaptureStatus = error; return; }
+        if (!CalibrationCaptureService.Matches(capture, ctx.Digitizer, ctx.Input, ctx.Output, ctx.Display.Number, out var reason))
+        {
+            CaptureStatus = $"Setup changed since import ({reason}) — re-import the capture.";
+            _loadedCapture = null; HasLoadedCapture = false; return;
+        }
+
+        var settings = _settings!.CurrentSettings!;
+        var fingerprint = CalibrationProfile.Fingerprint(ctx.Input, ctx.Output, ctx.Display.Number);
+        var data = CalibrationCaptureService.ReSolve(capture, SelectedResolveMode, fingerprint);
+        if (data == null)
+        { CaptureStatus = $"Couldn't solve a {SelectedResolveMode} model from the captured taps."; return; }
+
+        CalibrationProfile.Write(settings, ctx.TabletName, data);
+        await _settings.ApplyAndSaveSettingsAsync(settings);
+        CaptureStatus = $"Re-solved {ctx.TabletName} as {SelectedResolveMode} and applied it — move the pen to test accuracy.";
+    }
+
+    private static string Sanitize(string s)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '-');
+        return s.Replace(' ', '-');
     }
 }

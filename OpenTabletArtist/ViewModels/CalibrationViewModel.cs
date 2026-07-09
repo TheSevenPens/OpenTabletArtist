@@ -83,7 +83,9 @@ public partial class CalibrationViewModel : ObservableObject
     private readonly CalibrationProfile.CalibrationData? _original;
     private readonly List<Vector2> _measuredRaw = new();   // one per completed target
     private readonly List<int> _tapSampleCounts = new();     // samples averaged for each completed tap (#460)
+    private readonly List<Vector2> _measuredTilt = new();    // averaged pen tilt (TiltX, TiltY °) per tap (#481)
     private readonly List<Vector2> _tapAccum = new();        // raw samples for the in-progress hold
+    private readonly List<Vector2> _tiltAccum = new();       // tilt samples for the in-progress hold (#481)
 
     public CalibrationViewModel(Context ctx)
     {
@@ -188,6 +190,7 @@ public partial class CalibrationViewModel : ObservableObject
         if (onTarget)
         {
             _tapAccum.Add(raw);
+            _tiltAccum.Add(new Vector2((float)s.TiltX, (float)s.TiltY));   // pen tilt while held (#481)
             HoldProgress = Math.Min(1.0, (double)_tapAccum.Count / HoldSamplesTarget);
             if (_tapAccum.Count >= HoldSamplesTarget)
                 CommitTap();
@@ -195,6 +198,7 @@ public partial class CalibrationViewModel : ObservableObject
         else if (_tapAccum.Count > 0)
         {
             _tapAccum.Clear();
+            _tiltAccum.Clear();
             HoldProgress = 0;
         }
     }
@@ -204,7 +208,12 @@ public partial class CalibrationViewModel : ObservableObject
         var avg = new Vector2(_tapAccum.Average(p => p.X), _tapAccum.Average(p => p.Y));
         _measuredRaw.Add(avg);
         _tapSampleCounts.Add(_tapAccum.Count);   // remember how many samples this hold averaged (#460)
+        // Average the pen tilt over the hold — the natural angle the user drew at (#481).
+        _measuredTilt.Add(_tiltAccum.Count > 0
+            ? new Vector2(_tiltAccum.Average(t => t.X), _tiltAccum.Average(t => t.Y))
+            : new Vector2(float.NaN, float.NaN));
         _tapAccum.Clear();
+        _tiltAccum.Clear();
         HoldProgress = 0;
         OnPropertyChanged(nameof(CapturedCount));
         OnPropertyChanged(nameof(CanUndoPoint));
@@ -278,11 +287,13 @@ public partial class CalibrationViewModel : ObservableObject
             var measuredPx = AbsolutePositionMapper.MapToDesktop(raw, _ctx.Digitizer, _ctx.Input, _ctx.Output, false, false);
             float mx = float.NaN, my = float.NaN;
             if (measuredPx is { } m) { mx = m.X - ox; my = m.Y - oy; }
+            var tilt = i < _measuredTilt.Count ? _measuredTilt[i] : new Vector2(float.NaN, float.NaN);
             points.Add(new CalibrationReportPoint(
                 targetsDesktop[i].X - ox, targetsDesktop[i].Y - oy,
                 raw.X, raw.Y,
                 mx, my,
-                i < _tapSampleCounts.Count ? _tapSampleCounts[i] : 0));
+                i < _tapSampleCounts.Count ? _tapSampleCounts[i] : 0,
+                tilt.X, tilt.Y));
         }
         var display = $"{_ctx.Display.DisplayTitle} ({_ctx.Display.Width}×{_ctx.Display.Height})";
         return new CalibrationReport(display, DateTime.Now.ToString("yyyy-MM-dd HH:mm"), points);
@@ -298,7 +309,9 @@ public partial class CalibrationViewModel : ObservableObject
     {
         _measuredRaw.Clear();
         _tapSampleCounts.Clear();
+        _measuredTilt.Clear();
         _tapAccum.Clear();
+        _tiltAccum.Clear();
         HoldProgress = 0;
         CurrentTarget = 0;
         OnPropertyChanged(nameof(CapturedCount));
@@ -318,7 +331,9 @@ public partial class CalibrationViewModel : ObservableObject
         bool wasPreviewing = CurrentPhase != Phase.Capturing;
         _measuredRaw.RemoveAt(_measuredRaw.Count - 1);
         if (_tapSampleCounts.Count > 0) _tapSampleCounts.RemoveAt(_tapSampleCounts.Count - 1);
+        if (_measuredTilt.Count > 0) _measuredTilt.RemoveAt(_measuredTilt.Count - 1);
         _tapAccum.Clear();
+        _tiltAccum.Clear();
         HoldProgress = 0;
         CurrentTarget = _measuredRaw.Count;
         OnPropertyChanged(nameof(CapturedCount));

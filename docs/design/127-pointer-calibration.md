@@ -238,10 +238,15 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
     each with the **pixel-equivalent** of the raw tap and a **fit-quality** summary (RMS/max pointing
     error corrected, plus an outlier flag for a misfired tap) (#461). The report shows the *pre*-correction
     parallax (the raw tap vs. its target); the affine corner fit intentionally leaves a small residual.
+  - **Pen tilt captured** — each tap also records the averaged pen tilt (TiltX/TiltY °, when the tablet
+    reports it), surfaced as an altitude/azimuth summary on the report; the overlay nudges the user to
+    calibrate at their natural drawing angle (#481). Kept for future tilt-aware calibration/compensation.
   - **Stale hint** via a mapping fingerprint when the area mapping changes (#147).
+  - **Export / import a calibration** as versioned JSON (raw taps + solved model), with re-solve of the
+    same taps under a different model — Developer-only for now (#484).
   - Moved to a dedicated **Calibration** tab (from the Screen-Mapping tab).
 - **Later:** calibration from a guided setup (#60); auto-recapture prompt on area change (today it's a
-  passive stale hint); export/import calibration.
+  passive stale hint); user-facing export/import (beyond the Developer tab); tilt-aware calibration.
 
 ## Resolved decisions (design review, #146)
 

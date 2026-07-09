@@ -240,6 +240,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _calibrationFitText = "";
     [ObservableProperty] private bool _hasCalibrationFitWarning;
     [ObservableProperty] private string _calibrationFitWarning = "";
+    // Average pen tilt across the taps (#481) — surfaced so the natural drawing angle is visible.
+    [ObservableProperty] private bool _hasCalibrationTilt;
+    [ObservableProperty] private string _calibrationTiltText = "";
     public ObservableCollection<CalibrationReportRow> CalibrationReportRows { get; } = new();
 
     private void RefreshCalibrationStatus()
@@ -283,6 +286,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         CalibrationFitWarning = "";
         HasCalibrationFit = false;
         HasCalibrationFitWarning = false;
+        CalibrationTiltText = "";
+        HasCalibrationTilt = false;
         if (report is null || report.Points.Count == 0)
         {
             HasCalibrationReport = false;
@@ -322,6 +327,22 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 HasCalibrationFitWarning = true;
             }
         }
+
+        // Natural pen tilt across the taps (#481). Absent when the tablet doesn't report tilt.
+        if (report.ComputeTilt() is { } tilt)
+        {
+            CalibrationTiltText =
+                $"Pen tilt while calibrating: {tilt.AltitudeDeg:0}° from the surface, leaning {Compass(tilt.AzimuthDeg)}.";
+            HasCalibrationTilt = true;
+        }
+    }
+
+    // Azimuth (0° = +X / right, increasing toward +Y / down) → a rough compass word for the readout.
+    private static string Compass(float azimuthDeg)
+    {
+        string[] dirs = { "right", "down-right", "down", "down-left", "left", "up-left", "up", "up-right" };
+        int idx = (int)MathF.Round(azimuthDeg / 45f) & 7;
+        return dirs[idx];
     }
 
     /// <summary>Copy the calibration report as tab-separated text for sharing / debugging (#460).</summary>
@@ -337,6 +358,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
               .Append(r.Delta).Append('\t').Append(r.Raw).Append('\t').Append(r.Samples).Append('\n');
         if (HasCalibrationFit) sb.Append('\n').AppendLine(CalibrationFitText);
         if (HasCalibrationFitWarning) sb.AppendLine(CalibrationFitWarning);
+        if (HasCalibrationTilt) sb.AppendLine(CalibrationTiltText);
         ClipboardText.TrySet(sb.ToString());
     }
 

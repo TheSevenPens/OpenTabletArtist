@@ -156,6 +156,63 @@ public class CalibrationModelsTests
     }
 
     [Fact]
+    public void CalibrationReport_RoundTrips_WithTilt()
+    {
+        // Points carrying pen tilt serialize as 9 fields and round-trip (#481).
+        var report = new CalibrationReport("Main", "2026-07-09 09:00", new[]
+        {
+            new CalibrationReportPoint(384f, 216f, 12840.5f, 7220f, 390f, 220.5f, 6, 18f, -12f),
+            new CalibrationReportPoint(1920f, 1080f, 30390f, 17810.25f, 1912f, 1077f, 8, 20f, -10f),
+        });
+
+        var parsed = CalibrationReport.TryParse(report.Serialize());
+
+        Assert.NotNull(parsed);
+        Assert.Equal(report.Points[0], parsed!.Points[0]);
+        Assert.Equal(18f, parsed.Points[0].TiltX);
+        Assert.Equal(-12f, parsed.Points[0].TiltY);
+        Assert.True(parsed.Points[0].HasTilt);
+    }
+
+    [Fact]
+    public void CalibrationReport_LegacyPoints_HaveNoTilt()
+    {
+        // 7-field points (pre-#481) parse with NaN tilt and report HasTilt = false.
+        var parsed = CalibrationReport.TryParse("Main|t|100,200,3000,6000,101,201,5");
+        var p = Assert.Single(parsed!.Points);
+        Assert.False(p.HasTilt);
+        Assert.True(float.IsNaN(p.AltitudeDeg));
+        Assert.Null(parsed.ComputeTilt());
+    }
+
+    [Fact]
+    public void CalibrationReport_ComputeTilt_AveragesTapsWithTilt()
+    {
+        var report = new CalibrationReport("Main", "t", new[]
+        {
+            new CalibrationReportPoint(0, 0, 0, 0, 1, 1, 5, 20f, 0f),
+            new CalibrationReportPoint(0, 0, 0, 0, 1, 1, 5, 20f, 0f),
+            new CalibrationReportPoint(0, 0, 0, 0, 1, 1, 5, float.NaN, float.NaN), // no tilt → ignored
+        });
+
+        var tilt = report.ComputeTilt();
+
+        Assert.NotNull(tilt);
+        Assert.Equal(2, tilt!.Value.Count);                       // only the two tilted taps
+        Assert.Equal(TiltMath.Azimuth(20f, 0f), tilt.Value.AzimuthDeg, 3);
+        Assert.True(tilt.Value.AltitudeDeg < 90f);                // leaning, not upright
+    }
+
+    [Fact]
+    public void TiltMath_Upright_Is90Altitude_AndLeanDirectionIsAzimuth()
+    {
+        Assert.Equal(90f, TiltMath.Altitude(0f, 0f), 3);          // no tilt → perpendicular
+        Assert.Equal(0f, TiltMath.Azimuth(30f, 0f), 3);           // lean along +X → azimuth 0
+        Assert.Equal(90f, TiltMath.Azimuth(0f, 30f), 3);          // lean along +Y → azimuth 90
+        Assert.True(TiltMath.Altitude(45f, 0f) < 90f);
+    }
+
+    [Fact]
     public void CalibrationReport_ParsesLegacyFiveFieldPoints_WithoutPixelEquivalent()
     {
         // Reports written before #461 have 5 fields per point (tx,ty,rx,ry,n) and no pixel-equivalent.

@@ -552,6 +552,11 @@
                         <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
                                    Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                                    IsVisible="{Binding HasCalibrationFitWarning}" />
+                        <!-- Average natural pen tilt across the taps (#481). -->
+                        <TextBlock Text="{Binding CalibrationTiltText}" FontSize="12"
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                   IsVisible="{Binding HasCalibrationTilt}"
+                                   ToolTip.Tip="The average angle you held the pen at during calibration (altitude = angle above the tablet surface, 90° is straight up). Calibrating at your natural drawing tilt makes the result match how you actually draw." />
 
                         <!-- Fixed column widths so the numbers line up across rows and the target/measured
                              columns have real breathing room between them. -->
