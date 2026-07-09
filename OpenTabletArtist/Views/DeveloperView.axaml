@@ -93,10 +93,21 @@
                                 Command="{Binding PushMappingOffScreenCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
                                 HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
                     </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
+                        <TextBlock Text="Fabricates a real 4-point (perspective) calibration on the active tablet's mapped display, as if each corner were tapped a few pixels off. The pointer ends up slightly off, and the tablet's Calibration tab shows a populated report with small random deltas — handy for reviewing the report + fit-quality UI without a pen. Undo it with Clear calibration on that tab."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <Button Content="Create off calibration"
+                                Command="{Binding CreateBadCalibrationCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>
