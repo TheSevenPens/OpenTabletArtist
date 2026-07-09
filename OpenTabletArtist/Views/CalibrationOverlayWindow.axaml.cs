@@ -31,6 +31,7 @@ public partial class CalibrationOverlayWindow : Window
     private readonly List<Ellipse> _targets = new();
     private readonly List<Line> _crossH = new();
     private readonly List<Line> _crossV = new();
+    private readonly List<TextBlock> _labels = new();   // per-target number, shown under each ring
 
     // Active-target emphasis.
     private Rectangle? _dim;            // radial vignette darkening everything but the active target
@@ -108,6 +109,7 @@ public partial class CalibrationOverlayWindow : Window
         Panel.Background = _light ? LightPanelBg : DarkPanelBg;
         Panel.BorderBrush = _light ? LightPanelBorder : DarkPanelBorder;
         InstructionText.Foreground = _light ? LightText : DarkText;
+        ProgressLabel.Foreground = _light ? LightText : DarkText;
         // The natural-tilt tip (#481) reads as secondary — a muted variant of the instruction colour.
         HoldTip.Foreground = new SolidColorBrush(_light ? Color.FromArgb(0xB0, 0x20, 0x20, 0x28)
                                                         : Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
@@ -235,7 +237,7 @@ public partial class CalibrationOverlayWindow : Window
             Surface.Children.Add(_guideH);
             Surface.Children.Add(_guideV);
 
-            foreach (var _ in _vm.Targets)
+            for (int i = 0; i < _vm.Targets.Count; i++)
             {
                 var ring = new Ellipse
                 {
@@ -245,10 +247,18 @@ public partial class CalibrationOverlayWindow : Window
                 // Crosshair through the ring's centre so the user knows the exact point to aim at.
                 var h = new Line { StrokeThickness = 1.5, IsHitTestVisible = false };
                 var v = new Line { StrokeThickness = 1.5, IsHitTestVisible = false };
-                _targets.Add(ring); _crossH.Add(h); _crossV.Add(v);
+                // The target number, under the ring — so a specific point can be named when discussing
+                // where the calibration is off. Fixed width + centred so it sits centred under the ring.
+                var label = new TextBlock
+                {
+                    Text = (i + 1).ToString(), FontSize = 16, FontWeight = FontWeight.Bold,
+                    Width = 34, TextAlignment = TextAlignment.Center, IsHitTestVisible = false,
+                };
+                _targets.Add(ring); _crossH.Add(h); _crossV.Add(v); _labels.Add(label);
                 Surface.Children.Add(ring);
                 Surface.Children.Add(h);
                 Surface.Children.Add(v);
+                Surface.Children.Add(label);
             }
 
             // Pulse ring, on top, scaling about its own centre.
@@ -288,20 +298,35 @@ public partial class CalibrationOverlayWindow : Window
             Canvas.SetTop(el, cy - el.Height / 2);
 
             bool active = i == _vm.CurrentTarget && _vm.IsCapturing;
-            var brush = i < _vm.CapturedCount ? CapturedBrush
+            bool captured = i < _vm.CapturedCount;
+            var brush = captured ? CapturedBrush
                       : active ? ActiveBrush : PendingBrush;
             el.Stroke = brush;
             el.StrokeThickness = active ? 5 : 3;
+
+            // Dim targets that are neither active nor done, so the active one stands out among a full
+            // grid of otherwise equally-bright rings.
+            double opacity = active || captured ? 1.0 : 0.4;
+            el.Opacity = opacity;
 
             // Crosshair, centred on the target and colour-matched to its ring.
             var hLine = _crossH[i];
             hLine.StartPoint = new Point(cx - CrossArm, cy);
             hLine.EndPoint = new Point(cx + CrossArm, cy);
             hLine.Stroke = brush;
+            hLine.Opacity = opacity;
             var vLine = _crossV[i];
             vLine.StartPoint = new Point(cx, cy - CrossArm);
             vLine.EndPoint = new Point(cx, cy + CrossArm);
             vLine.Stroke = brush;
+            vLine.Opacity = opacity;
+
+            // Number under the ring, colour-matched and dimmed with its target.
+            var label = _labels[i];
+            label.Foreground = brush;
+            label.Opacity = opacity;
+            Canvas.SetLeft(label, cx - label.Width / 2);
+            Canvas.SetTop(label, cy + el.Height / 2 + 3);
         }
 
         // --- Active-target emphasis (only while capturing) ---

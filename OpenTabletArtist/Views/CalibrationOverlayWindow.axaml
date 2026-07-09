@@ -20,6 +20,10 @@
                         HorizontalAlignment="Right" Theme="{StaticResource GhostButton}"
                         Padding="10,4"
                         ToolTip.Tip="Switch the calibration overlay between light and dark (does not change the app theme)" />
+                <!-- Progress readout so the user can see how far through the capture they are. -->
+                <TextBlock x:Name="ProgressLabel" Text="{Binding ProgressText}" Foreground="White"
+                           FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"
+                           TextAlignment="Center" IsVisible="{Binding IsCapturing}" />
                 <TextBlock x:Name="InstructionText" Text="{Binding Instruction}" Foreground="White"
                            TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
                 <!-- #481: nudge users to calibrate at their natural pen angle, not bolt-upright. -->
