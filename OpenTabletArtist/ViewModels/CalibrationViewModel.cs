@@ -71,16 +71,19 @@ public partial class CalibrationViewModel : ObservableObject
         return list;
     }
 
-    private const double HitRadiusN = 0.06;   // accept a tap only this close to the active target
-    private const int MinSamplesPerTap = 4;    // average at least this many down-samples
+    private const double HitRadiusN = 0.06;   // accept samples only this close to the active target
+    /// <summary>Hold-to-average (#457): the pen must rest on the target long enough to gather this many
+    /// on-target samples, which are then averaged into the recorded point — a steady hold cancels jitter
+    /// far better than a quick tap. A filling ring shows the progress. Tunable; roughly 1–2 s of holding
+    /// at typical tablet report rates. (Public so the tests can drive a full hold.)</summary>
+    public const int HoldSamplesTarget = 600;
 
     private readonly Context _ctx;
     private readonly DaemonPenInputSource _input;
     private readonly CalibrationProfile.CalibrationData? _original;
     private readonly List<Vector2> _measuredRaw = new();   // one per completed target
     private readonly List<int> _tapSampleCounts = new();     // samples averaged for each completed tap (#460)
-    private readonly List<Vector2> _tapAccum = new();        // raw samples for the in-progress tap
-    private bool _wasDown;
+    private readonly List<Vector2> _tapAccum = new();        // raw samples for the in-progress hold
 
     public CalibrationViewModel(Context ctx)
     {
@@ -100,6 +103,9 @@ public partial class CalibrationViewModel : ObservableObject
     [ObservableProperty] private double _liveDotX;            // normalized 0..1 within the display
     [ObservableProperty] private double _liveDotY;
     [ObservableProperty] private bool _liveDotVisible;
+    /// <summary>0..1 progress of the current hold on the active target (#457); the overlay fills a ring
+    /// with it. Resets to 0 when the pen leaves the target or a point completes.</summary>
+    [ObservableProperty] private double _holdProgress;
 
     public bool IsCapturing => CurrentPhase == Phase.Capturing;
     public bool IsConfirming => CurrentPhase == Phase.Confirming;
@@ -173,29 +179,33 @@ public partial class CalibrationViewModel : ObservableObject
             LiveDotVisible = false;
         }
 
-        if (CurrentPhase != Phase.Capturing) { _wasDown = s.IsDown; return; }
+        if (CurrentPhase != Phase.Capturing) return;
 
-        bool nearTarget = LiveDotVisible && Near(LiveDotX, LiveDotY, _targets[CurrentTarget]);
-
-        if (s.IsDown && nearTarget)
-            _tapAccum.Add(raw);                 // collecting a tap on the active target
-
-        // Pen lifted: commit the tap if we gathered enough samples on-target.
-        if (_wasDown && !s.IsDown)
+        // Hold-to-average (#457): while the pen rests on the active target, accumulate on-target samples
+        // and fill the progress ring; commit once it's been held long enough. Leaving the target (lift or
+        // move away) before it fills abandons the partial hold — the ring resets and the user re-holds.
+        bool onTarget = s.IsDown && LiveDotVisible && Near(LiveDotX, LiveDotY, _targets[CurrentTarget]);
+        if (onTarget)
         {
-            if (_tapAccum.Count >= MinSamplesPerTap)
+            _tapAccum.Add(raw);
+            HoldProgress = Math.Min(1.0, (double)_tapAccum.Count / HoldSamplesTarget);
+            if (_tapAccum.Count >= HoldSamplesTarget)
                 CommitTap();
-            _tapAccum.Clear();
         }
-
-        _wasDown = s.IsDown;
+        else if (_tapAccum.Count > 0)
+        {
+            _tapAccum.Clear();
+            HoldProgress = 0;
+        }
     }
 
     private void CommitTap()
     {
         var avg = new Vector2(_tapAccum.Average(p => p.X), _tapAccum.Average(p => p.Y));
         _measuredRaw.Add(avg);
-        _tapSampleCounts.Add(_tapAccum.Count);   // remember how many samples this tap averaged (#460)
+        _tapSampleCounts.Add(_tapAccum.Count);   // remember how many samples this hold averaged (#460)
+        _tapAccum.Clear();
+        HoldProgress = 0;
         OnPropertyChanged(nameof(CapturedCount));
         OnPropertyChanged(nameof(CanUndoPoint));
 
@@ -284,6 +294,7 @@ public partial class CalibrationViewModel : ObservableObject
         _measuredRaw.Clear();
         _tapSampleCounts.Clear();
         _tapAccum.Clear();
+        HoldProgress = 0;
         CurrentTarget = 0;
         OnPropertyChanged(nameof(CapturedCount));
         OnPropertyChanged(nameof(CanUndoPoint));
@@ -303,6 +314,7 @@ public partial class CalibrationViewModel : ObservableObject
         _measuredRaw.RemoveAt(_measuredRaw.Count - 1);
         if (_tapSampleCounts.Count > 0) _tapSampleCounts.RemoveAt(_tapSampleCounts.Count - 1);
         _tapAccum.Clear();
+        HoldProgress = 0;
         CurrentTarget = _measuredRaw.Count;
         OnPropertyChanged(nameof(CapturedCount));
         OnPropertyChanged(nameof(CanUndoPoint));
@@ -343,11 +355,11 @@ public partial class CalibrationViewModel : ObservableObject
         {
             string[] corner = { "top-left", "top-right", "bottom-right", "bottom-left" };
             var where = CurrentTarget < corner.Length ? corner[CurrentTarget] : $"#{CurrentTarget + 1}";
-            Instruction = $"Tap the {where} target with your pen ({CurrentTarget + 1} of {total}). Press on it and lift.";
+            Instruction = $"Rest the pen on the {where} target and hold still until the ring fills ({CurrentTarget + 1} of {total}).";
         }
         else
         {
-            Instruction = $"Tap target {CurrentTarget + 1} of {total} with your pen. Press on it and lift.";
+            Instruction = $"Rest the pen on target {CurrentTarget + 1} of {total} and hold still until the ring fills.";
         }
     }
 }

@@ -38,15 +38,15 @@ public class CalibrationViewModelTests
         return (new CalibrationViewModel(ctx), settings, _ => { });
     }
 
-    // Feed a tap (several down-samples + a lift) whose raw maps exactly onto target index i.
+    // Feed a full hold (HoldSamplesTarget on-target down-samples) whose raw maps exactly onto target
+    // index i — the point commits once the hold fills (#457), no lift needed.
     private static void Tap(CalibrationViewModel vm, int targetIndex)
     {
         var t = vm.Targets[targetIndex];
         var desktop = new Vector2((float)(Display.X + t.X * Display.Width), (float)(Display.Y + t.Y * Display.Height));
         var raw = AbsolutePositionMapper.MapFromDesktop(desktop, Digi, Input, Output)!.Value;
-        for (int k = 0; k < 5; k++)
+        for (int k = 0; k < CalibrationViewModel.HoldSamplesTarget; k++)
             vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, 0, 0, 0, IsDown: true));
-        vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0, 0, 0, 0, IsDown: false)); // lift commits the tap
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class CalibrationViewModelTests
         var cal = CalibrationProfile.Read(settings, "T");
         Assert.NotNull(cal!.Report);
         Assert.Equal(4, cal.Report!.Points.Count);
-        Assert.All(cal.Report.Points, p => Assert.Equal(5, p.Samples)); // 5 down-samples per Tap()
+        Assert.All(cal.Report.Points, p => Assert.Equal(CalibrationViewModel.HoldSamplesTarget, p.Samples)); // full hold per Tap()
     }
 
     // ---- #461: each recorded point carries the pixel-equivalent + fit quality ----
@@ -259,8 +259,8 @@ public class CalibrationViewModelTests
             var t = vm.Targets[i];
             var desktop = new Vector2((float)(display.X + t.X * display.Width), (float)(display.Y + t.Y * display.Height));
             var raw = AbsolutePositionMapper.MapFromDesktop(desktop, Digi, Input, output)!.Value;
-            for (int k = 0; k < 5; k++) vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, 0, 0, 0, IsDown: true));
-            vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0, 0, 0, 0, IsDown: false));
+            for (int k = 0; k < CalibrationViewModel.HoldSamplesTarget; k++)
+                vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, 0, 0, 0, IsDown: true));
         }
 
         var report = CalibrationProfile.Read(settings, "T")!.Report!;

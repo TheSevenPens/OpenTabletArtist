@@ -28,6 +28,8 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SHORTCUT" x:Name="ShortcutTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="SCREENSHOT" x:Name="ScreenshotTab"
+                             Theme="{StaticResource TabRadioButton}" />
             </StackPanel>
         </Border>
 
@@ -141,6 +143,23 @@
                     <TextBlock Text="{Binding ShortcutStatus}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding HasShortcutStatus}" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Capture the live app UI to a PNG via RenderTargetBitmap (#437). Renders the actual controls,
+             so it's pixel-perfect and free of window-focus / occlusion / DPI issues that plague manual
+             capture. The render happens in code-behind (it needs the visual). -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ScreenshotTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Screenshot"
+                           Description="Render the app window to a PNG (the live UI with real tablet data), saved to your Pictures\OpenTabletArtist folder with a timestamped name. Developer-only.">
+                <StackPanel Spacing="8">
+                    <Button Content="Capture app window" Click="OnCaptureScreenshot"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
+                            HorizontalAlignment="Left" />
+                    <TextBlock x:Name="ScreenshotStatus" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}" IsVisible="False" />
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>
