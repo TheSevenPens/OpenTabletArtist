@@ -83,6 +83,7 @@ Each preset card has:
 
 - **Load** — Applies the preset and makes it your **Current settings** (this is a permanent switch — see [Switching presets](#switching-presets)).
 - **Update** — Overwrites the preset with the current settings.
+- **Duplicate** — Saves a copy of the preset under a new auto-named `<name> copy` (numbered if that's taken, e.g. `<name> copy 2`). The copy is independent — it doesn't carry the original's hotkey.
 - **Rename** — Prompts for a new name (simple text dialog, no file picker).
 - **Delete** — Removes the preset file after a confirmation prompt.
 

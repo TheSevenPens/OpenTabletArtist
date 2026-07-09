@@ -61,6 +61,11 @@
                                         Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
                                         CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" />
+                                <Button Content="Duplicate" Theme="{StaticResource GhostButton}"
+                                        Command="{Binding $parent[ItemsControl].DataContext.DuplicatePresetCommand}"
+                                        CommandParameter="{Binding Name}"
+                                        ToolTip.Tip="Save a copy of this preset"
+                                        Margin="0,0,6,0" Padding="12,6" />
                                 <Button Content="Rename" Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
                                         CommandParameter="{Binding Name}"
