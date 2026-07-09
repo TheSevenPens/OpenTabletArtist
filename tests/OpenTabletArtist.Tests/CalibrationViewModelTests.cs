@@ -125,13 +125,15 @@ public class CalibrationViewModelTests
     }
 
     [Fact]
-    public void CornersMode_WritesHomographyModel()
+    public void CornersMode_WritesAffineModel()
     {
+        // 4-point corners fit a least-squares affine (#483) — robust to tap noise, unlike an exact
+        // 4-point homography which overfits it and warps the corner neighbourhoods.
         var (vm, settings, _) = NewVm();
         Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3);
 
         var cal = CalibrationProfile.Read(settings, "T");
-        Assert.Equal(CalibrationProfile.CalibrationModel.Homography, cal!.Model);
+        Assert.Equal(CalibrationProfile.CalibrationModel.Affine, cal!.Model);
         Assert.True(cal.Enabled);
     }
 
