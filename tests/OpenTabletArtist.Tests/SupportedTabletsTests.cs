@@ -92,4 +92,32 @@ public class SupportedTabletsTests
         var desc = vm.Rows.Select(r => int.Parse(r.Buttons)).ToList();
         Assert.Equal(desc.OrderByDescending(x => x), desc);
     }
+
+    // Status + Notes are joined from the embedded TABLETS.md (#155).
+    [Fact]
+    public void Catalog_JoinsStatusAndNotes_FromTabletsMd()
+    {
+        var all = SupportedTabletsCatalog.All;
+        // Most tablets have a support status.
+        Assert.True(all.Count(t => t.Status.Length > 0) > all.Count / 2);
+        // Statuses come from the known TABLETS.md set.
+        string[] known = { "Supported", "Has Quirks", "Missing Features" };
+        Assert.All(all.Where(t => t.Status.Length > 0), t => Assert.Contains(t.Status, known));
+        // At least some tablets carry a note.
+        Assert.Contains(all, t => t.Notes.Length > 0);
+    }
+
+    [Fact]
+    public void DialogVm_SortByStatus_GroupsSupportedFirst()
+    {
+        var vm = new SupportedTabletsDialogViewModel(null);
+        vm.SortByCommand.Execute("Status");
+
+        var ranks = vm.Rows.Where(r => r.Status.Length > 0)
+            .Select(r => r.Status switch
+            {
+                "Supported" => 0, "Has Quirks" => 1, "Missing Features" => 2, _ => 3
+            }).ToList();
+        Assert.Equal(ranks.OrderBy(x => x), ranks); // ascending by support rank
+    }
 }

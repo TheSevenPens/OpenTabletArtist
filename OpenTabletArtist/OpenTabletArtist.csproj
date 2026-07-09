@@ -62,4 +62,10 @@
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Configurations\OpenTabletDriver.Configurations.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- OTD's hand-maintained tablet support table (#155): bundled so the Supported Tablets dialog can
+         show the same Status + Notes as opentabletdriver.net. Version-matched to the daemon submodule. -->
+    <EmbeddedResource Include="..\external\OpenTabletDriver\TABLETS.md" LogicalName="OpenTabletArtist.TABLETS.md" />
+  </ItemGroup>
+
 </Project>

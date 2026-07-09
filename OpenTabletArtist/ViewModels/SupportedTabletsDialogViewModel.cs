@@ -8,7 +8,7 @@ using OpenTabletArtist.Services;
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>Which column the Supported Tablets list is sorted by.</summary>
-public enum SupportedTabletSort { Name, Area, Pressure, Buttons }
+public enum SupportedTabletSort { Name, Area, Pressure, Buttons, Status }
 
 /// <summary>
 /// The Supported Tablets dialog (#155): the full OTD catalog with live search, a brand filter, sortable
@@ -49,6 +49,7 @@ public sealed partial class SupportedTabletsDialogViewModel : ObservableObject
     public string AreaHeader => "ACTIVE AREA" + Arrow(SupportedTabletSort.Area);
     public string PressureHeader => "PRESSURE" + Arrow(SupportedTabletSort.Pressure);
     public string ButtonsHeader => "BUTTONS" + Arrow(SupportedTabletSort.Buttons);
+    public string StatusHeader => "STATUS" + Arrow(SupportedTabletSort.Status);
 
     partial void OnSearchTextChanged(string value) => Rebuild();
     partial void OnSelectedBrandChanged(string value) => Rebuild();
@@ -88,6 +89,8 @@ public sealed partial class SupportedTabletsDialogViewModel : ObservableObject
                 ? filtered.OrderByDescending(t => t.PressureValue) : filtered.OrderBy(t => t.PressureValue),
             SupportedTabletSort.Buttons => _sortDescending
                 ? filtered.OrderByDescending(t => t.ButtonsValue) : filtered.OrderBy(t => t.ButtonsValue),
+            SupportedTabletSort.Status => _sortDescending
+                ? filtered.OrderByDescending(t => t.StatusRank) : filtered.OrderBy(t => t.StatusRank),
             _ => _sortDescending
                 ? filtered.OrderByDescending(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 : filtered.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase),
@@ -113,6 +116,7 @@ public sealed partial class SupportedTabletsDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(AreaHeader));
         OnPropertyChanged(nameof(PressureHeader));
         OnPropertyChanged(nameof(ButtonsHeader));
+        OnPropertyChanged(nameof(StatusHeader));
     }
 }
 
@@ -127,6 +131,8 @@ public sealed class SupportedTabletRow
         ActiveArea = data.ActiveArea;
         Pressure = data.Pressure;
         Buttons = data.Buttons;
+        Status = data.Status;
+        Notes = data.Notes;
     }
 
     public int Number { get; }
@@ -135,4 +141,13 @@ public sealed class SupportedTabletRow
     public string ActiveArea { get; }
     public string Pressure { get; }
     public string Buttons { get; }
+    public string Status { get; }
+    public string Notes { get; }
+
+    public bool HasStatus => Status.Length > 0;
+    public bool HasNotes => Notes.Length > 0;
+    // Pill colour classes: green Supported, amber Has Quirks, neutral Missing Features.
+    public bool IsSupported => Status == "Supported";
+    public bool IsQuirks => Status == "Has Quirks";
+    public bool IsMissing => Status == "Missing Features";
 }
