@@ -117,6 +117,9 @@ public interface IDeviceData : INotifyPropertyChanged
     string PluginDirectory { get; }
     string SettingsFilePath { get; }
     (float Width, float Height)? GetTabletDigitizer(string tabletName);
+    /// <summary>Full digitizer spec (mm dimensions + raw maxima) for a tablet, or null if unavailable.
+    /// Needed by flows that map between raw tablet units and the desktop (e.g. calibration).</summary>
+    Domain.TabletDigitizerSpec? GetDigitizerSpec(string tabletName);
     /// <summary>Raised (UI thread) after each successful data load.</summary>
     event Action? DataLoaded;
 }

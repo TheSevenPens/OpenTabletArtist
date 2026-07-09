@@ -91,6 +91,9 @@ internal sealed class FakeDeviceData : IDeviceData
     public Dictionary<string, (float Width, float Height)> Digitizers { get; } = new();
     public (float Width, float Height)? GetTabletDigitizer(string tabletName) =>
         Digitizers.TryGetValue(tabletName, out var d) ? d : null;
+    public Dictionary<string, OpenTabletArtist.Domain.TabletDigitizerSpec> DigitizerSpecs { get; } = new();
+    public OpenTabletArtist.Domain.TabletDigitizerSpec? GetDigitizerSpec(string tabletName) =>
+        DigitizerSpecs.TryGetValue(tabletName, out var d) ? d : (OpenTabletArtist.Domain.TabletDigitizerSpec?)null;
 
     public event Action? DataLoaded;
     public void RaiseDataLoaded() => DataLoaded?.Invoke();
