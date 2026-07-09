@@ -394,8 +394,8 @@
                                     Background="Transparent" VerticalAlignment="Center"
                                     HorizontalAlignment="Left" Margin="-4,0,0,0" />
                             <TextBlock Grid.Column="2" x:Name="Label" Text="{TemplateBinding Content}"
-                                       FontWeight="Medium"
-                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -415,7 +415,6 @@
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Label">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
             </Style>
         </ControlTheme>
 

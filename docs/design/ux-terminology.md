@@ -62,9 +62,15 @@ These are what make the model coherent — hold them when adding or renaming UI:
 
 **Subpage titles on a tabbed page.** The active subpage's title may be surfaced by the *complex header*
 as a breadcrumb (`tabbed page › subpage`) instead of being repeated in the subpage body — this is how the
-**OpenTabletDriver** page works (`OPENTABLETDRIVER › DAEMON`), which keeps one title in a consistent spot
-and reclaims the vertical space. The **tablet** page is a deliberate exception: it keeps its rich complex
-header, and its subpages use small section labels.
+**Advanced** page works (`ADVANCED › DAEMON`), which keeps one title in a consistent spot and reclaims
+the vertical space. The **tablet** page is a deliberate exception: it keeps its rich complex header, and
+its subpages use small section labels.
+
+**Advanced is a tabbed page.** The former collapsible **ADVANCED** *group node* (and the separate
+**OpenTabletDriver** tabbed page nested under it) were replaced by a single **Advanced** *leaf node* that
+opens one tabbed page. Its subpage navigation lists all the advanced subpages, grouped by owner with two
+non-interactive section labels — *OpenTabletDriver* (Daemon / Windows Ink / Configs / Diagnostics /
+Console / Plugins) and *OpenTabletArtist* (VMulti Driver / Driver Cleanup / Startup / Developer / Theme). The section labels organize a still-**flat** tab list; they aren't a third nav level.
 
 ## Current code → target term
 
@@ -73,16 +79,16 @@ the follow-up (tracked separately):
 
 | Concept | Today | Target |
 |---|---|---|
-| Tabbed page | **done** — "hub" removed from code; `OpenTabletDriverView`/`TabletDetailView` are the tabbed pages | **tabbed page** |
+| Tabbed page | **done** — "hub" removed from code; `AdvancedView`/`TabletDetailView` are the tabbed pages | **tabbed page** |
 | Page-nav entry | **done** — `NavNode` theme, `TabletNavNodeViewModel` | **node** (leaf / group / parent) |
-| Group node | **done** — `NavGroupNode` theme (the ADVANCED toggle) | **group node** |
-| Subpage-nav entry | **done** — `TabRadioButton`, `OtdTab` | **tab** |
+| Group node | historical — `NavGroupNode` theme was the ADVANCED toggle; ADVANCED is now a leaf node so it's currently unused | **group node** |
+| Subpage-nav entry | **done** — `TabRadioButton`, `AdvancedTab` | **tab** |
 | Complex header | **done** — the shared `Controls/ComplexHeader` control, used by both tabbed pages | a named, shared **complex header** |
 
 Done (phases 1–4):
-- The **OpenTabletDriver** tabbed page now has a **complex header**, shown as a breadcrumb (`OPENTABLETDRIVER › <subpage>`); its subpages no longer carry their own title.
+- The **Advanced** tabbed page has a **complex header**, shown as a breadcrumb (`ADVANCED › <subpage>`); its subpages no longer carry their own title.
 - The **tablet** tabbed page's header (name + Refresh + Forget) is the rich end of the *complex header* spectrum and is now built with the shared `ComplexHeader` control.
-- The page navigation bar uses the **node** vocabulary: `NavNode` (leaf/parent nodes), `NavGroupNode` (the ADVANCED group node), and `TabletNavNodeViewModel` (per-tablet child nodes).
-- "Hub" is gone from the code: the enum is `OtdTab`, and comments call it the OpenTabletDriver **tabbed page**.
+- The page navigation bar uses the **node** vocabulary: `NavNode` (leaf/parent nodes) and `TabletNavNodeViewModel` (per-tablet child nodes). ADVANCED is now a leaf node, so the `NavGroupNode` group-node theme is currently unused.
+- "Hub" is gone from the code: the enum is `AdvancedTab`, and comments call it the Advanced **tabbed page**.
 
 The code now matches this document. (A possible future step — a data-driven **node tree** for the page navigation bar — is tracked in #414.)

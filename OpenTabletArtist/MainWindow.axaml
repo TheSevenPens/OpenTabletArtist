@@ -110,39 +110,14 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
                                  Margin="0,2,0,0" />
 
-                    <!-- ADVANCED is a group node: a collapsible node that only groups its child nodes
-                         (auto-expands when one of its pages is active, via IsAdvancedExpanded). -->
-                    <ToggleButton Theme="{StaticResource NavGroupNode}" Content="ADVANCED"
-                                  IsChecked="{Binding IsAdvancedExpanded, Mode=TwoWay}"
-                                  Margin="0,8,0,0" />
-                    <StackPanel IsVisible="{Binding IsAdvancedExpanded}" Margin="12,0,0,0">
-                        <!-- OpenTabletDriver: a leaf node opening a tabbed page (its own subpage
-                             navigation: Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins). -->
-                        <RadioButton Theme="{StaticResource NavNode}" Content="OPENTABLETDRIVER"
-                                     IsChecked="{Binding IsOtd, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding OpenTabletDriver}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavNode}" Content="VMULTI DRIVER"
-                                     IsChecked="{Binding IsVMulti, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding VMulti}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavNode}" Content="DRIVER CLEANUP"
-                                     IsChecked="{Binding IsDriverCleanup, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding DriverCleanup}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavNode}" Content="STARTUP"
-                                     IsChecked="{Binding IsStartup, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Startup}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavNode}" Content="DEVELOPER"
-                                     IsChecked="{Binding IsDeveloper, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Developer}"
-                                     Margin="0,2,0,0" />
-                        <RadioButton Theme="{StaticResource NavNode}" Content="THEME"
-                                     IsChecked="{Binding IsTheme, Mode=OneWay}"
-                                     Command="{Binding NavigateCommand}" CommandParameter="{Binding Theme}"
-                                     Margin="0,2,0,0" />
-                    </StackPanel>
+                    <!-- ADVANCED is now a leaf node opening a tabbed page: its subpage navigation
+                         hosts OpenTabletDriver's own tabs (Daemon / Windows Ink / Configs / Diagnostics /
+                         Console / Plugins) plus OTA's own (VMulti / Driver Cleanup / Startup / Developer /
+                         Theme). This replaced the old collapsible group + the separate OPENTABLETDRIVER node. -->
+                    <RadioButton Theme="{StaticResource NavNode}" Content="ADVANCED"
+                                 IsChecked="{Binding IsAdvanced, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Advanced}"
+                                 Margin="0,8,0,0" />
                 </StackPanel>
                 </ScrollViewer>
             </DockPanel>

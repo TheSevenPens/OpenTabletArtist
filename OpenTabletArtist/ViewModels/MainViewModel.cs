@@ -75,8 +75,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
     public VMultiViewModel VMulti { get; }
-    /// <summary>The OpenTabletDriver tabbed page (Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins tabs).</summary>
-    public OpenTabletDriverViewModel OpenTabletDriver { get; }
+    /// <summary>The ADVANCED tabbed page: OpenTabletDriver's subpages (Daemon / Windows Ink /
+    /// Configs / Diagnostics / Console / Plugins) plus OTA's own advanced pages (VMulti / Driver Cleanup /
+    /// Startup / Developer / Theme), all as tabs behind one sidebar node.</summary>
+    public AdvancedViewModel Advanced { get; }
     public StartupViewModel Startup { get; } = new();
     /// <summary>Assigned in the constructor (not a field initializer) so its break-config commands can
     /// reach the session's settings coordinator + device data.</summary>
@@ -98,16 +100,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // no view-lookup converter, and no per-view DataContext re-point.
     [ObservableProperty] private ObservableObject? _currentPage;
 
-    /// <summary>Whether the sidebar's collapsible "ADVANCED" group is expanded. Collapsed by default;
-    /// auto-expands when one of its pages becomes active so the highlight is visible.</summary>
-    [ObservableProperty] private bool _isAdvancedExpanded;
-
-    /// <summary>The pages tucked under the ADVANCED group.</summary>
-    private bool IsAdvancedPage(object? page) =>
-        ReferenceEquals(page, OpenTabletDriver) || ReferenceEquals(page, VMulti)
-        || ReferenceEquals(page, DriverCleanup) || ReferenceEquals(page, Startup)
-        || ReferenceEquals(page, Developer) || ReferenceEquals(page, Theme);
-
     // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
@@ -116,15 +108,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Whether the "Per-App Profiles" nav entry is shown. Hidden while the feature is disabled
     /// (<see cref="FeatureFlags.PerAppProfiles"/>) so it can't be reached; flip the flag to bring it back.</summary>
     public bool ShowPerApp => FeatureFlags.PerAppProfiles;
-    public bool IsDriverCleanup => ReferenceEquals(CurrentPage, DriverCleanup);
     public bool IsTest => ReferenceEquals(CurrentPage, Test);
-    // Daemon / Windows Ink / Configs / Diagnostics / Log / Plugins are tabs inside the tabbed page now,
-    // so the single OpenTabletDriver node drives the sidebar highlight instead of a per-page flag.
-    public bool IsOtd => ReferenceEquals(CurrentPage, OpenTabletDriver);
-    public bool IsVMulti => ReferenceEquals(CurrentPage, VMulti);
-    public bool IsStartup => ReferenceEquals(CurrentPage, Startup);
-    public bool IsDeveloper => ReferenceEquals(CurrentPage, Developer);
-    public bool IsTheme => ReferenceEquals(CurrentPage, Theme);
+    // Every advanced subpage (the OTD tabs + VMulti / Driver Cleanup / Startup / Developer / Theme) is a
+    // tab inside the ADVANCED tabbed page now, so the single ADVANCED node drives the sidebar highlight.
+    public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
     public bool IsAbout => ReferenceEquals(CurrentPage, About);
 
     public MainViewModel()
@@ -176,10 +163,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
-        // Shared daemon status/control surface for the Home problem card + the Daemon page.
-        _daemonStatus = new DaemonStatusViewModel(_session, OpenDaemonPage);
+        // Shared daemon status/control surface for the Home problem card + the Daemon tab.
+        _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
-            () => Navigate(DriverCleanup), OpenWindowsInk, () => Navigate(VMulti));
+            () => OpenAdvancedTab(AdvancedTab.DriverCleanup),
+            () => OpenAdvancedTab(AdvancedTab.WindowsInk),
+            () => OpenAdvancedTab(AdvancedTab.VMulti));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -187,9 +176,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 
-        // The "OpenTabletDriver" tabbed page groups the subpages behind one sidebar node, with its own
+        // The ADVANCED tabbed page groups every advanced subpage behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
-        OpenTabletDriver = new OpenTabletDriverViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins);
+        Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
+            VMulti, DriverCleanup, Startup, Developer, Theme);
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -212,18 +202,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Navigate(object page) => CurrentPage = page as ObservableObject;
 
-    // Deep-link to the Windows Ink tab of the OpenTabletDriver tabbed page (a health-issue "Fix" target).
-    private void OpenWindowsInk()
+    /// <summary>Open the ADVANCED tabbed page on a specific tab — the deep-link target for health-issue
+    /// "Fix" buttons (Windows Ink, VMulti, Driver Cleanup) and the Home daemon card's "Open daemon page".</summary>
+    private void OpenAdvancedTab(AdvancedTab tab)
     {
-        OpenTabletDriver.SelectedTab = OtdTab.WindowsInk;
-        Navigate(OpenTabletDriver);
-    }
-
-    // Deep-link to the Daemon tab of the OpenTabletDriver tabbed page (the Home daemon card's "Open daemon page").
-    private void OpenDaemonPage()
-    {
-        OpenTabletDriver.SelectedTab = OtdTab.Daemon;
-        Navigate(OpenTabletDriver);
+        Advanced.SelectedTab = tab;
+        Navigate(Advanced);
     }
 
     /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
@@ -348,9 +332,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnCurrentPageChanged(ObservableObject? oldValue, ObservableObject? newValue)
     {
-        // Stop the debug stream when leaving the OpenTabletDriver tabbed page (which hosts Diagnostics).
+        // Stop the debug stream when leaving the ADVANCED tabbed page (which hosts Diagnostics).
         // The tabbed-page view also stops it on tab-switch; this covers navigating away entirely.
-        if (ReferenceEquals(oldValue, OpenTabletDriver) && !ReferenceEquals(newValue, OpenTabletDriver))
+        if (ReferenceEquals(oldValue, Advanced) && !ReferenceEquals(newValue, Advanced))
             _ = Diagnostics.StopDebuggingAsync();
 
         // Start/stop the Test page's driver-input source so the daemon debug stream is only on
@@ -359,10 +343,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _ = Test.ActivateAsync();
         else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
             _ = Test.DeactivateAsync();
-
-        // Keep the ADVANCED group open when navigating to one of its pages (e.g. from the tray or
-        // programmatically), so the active item isn't hidden behind a collapsed group.
-        if (IsAdvancedPage(newValue)) IsAdvancedExpanded = true;
 
         // Rescan the Hotkeys page when opened so a snapshot saved on the Saved Settings page shows here.
         if (ReferenceEquals(newValue, Hotkeys)) _ = Hotkeys.LoadAsync();
@@ -377,13 +357,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsPresets));
         OnPropertyChanged(nameof(IsHotkeys));
         OnPropertyChanged(nameof(IsPerApp));
-        OnPropertyChanged(nameof(IsDriverCleanup));
         OnPropertyChanged(nameof(IsTest));
-        OnPropertyChanged(nameof(IsOtd));
-        OnPropertyChanged(nameof(IsVMulti));
-        OnPropertyChanged(nameof(IsStartup));
-        OnPropertyChanged(nameof(IsDeveloper));
-        OnPropertyChanged(nameof(IsTheme));
+        OnPropertyChanged(nameof(IsAdvanced));
         OnPropertyChanged(nameof(IsAbout));
     }
 

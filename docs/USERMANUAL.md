@@ -25,7 +25,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar's top-level items are **Home**, **Tablets**, **Presets**, **Hotkeys**, **Scribble**, and **About**. A collapsible **Advanced** group holds **OpenTabletDriver** (a hub with its own secondary tabs — **Daemon**, **Windows Ink Plugin**, **Custom Tablet Compatibility**, **Diagnostics**, **Log**, and **Plugins**), **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**.
+The sidebar's top-level items are **Home**, **Tablets**, **Presets**, **Hotkeys**, **Scribble**, **About**, and **Advanced**. **Advanced** is a single **tabbed page** whose tabs are grouped by owner: OpenTabletDriver's own — **Daemon**, **Windows Ink Plugin**, **Configs** (custom tablet compatibility), **Diagnostics**, **Console**, and **Plugins** — and OpenTabletArtist's own — **VMulti Driver**, **Driver Cleanup**, **Startup**, **Developer**, and **Theme**. (Previously Advanced was a collapsible group and OpenTabletDriver was its own sub-page with those first six as tabs; that page was retired and its tabs folded into Advanced.)
 
 **Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
 
@@ -207,7 +207,7 @@ Click items in the sidebar to switch between pages. The active page is highlight
 
 ## Theme
 
-The **Theme** page (under **Advanced**) holds appearance preferences:
+The **Theme** tab (under **Advanced**) holds appearance preferences:
 
 - **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, and **Sakura** (a pink skin with a cherry-blossom backdrop and frosted-glass panels — the default). Applied immediately and remembered across restarts.
 - **Falling petals** *(Sakura only)* — toggles the drifting cherry-blossom animation.
@@ -232,7 +232,7 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
 
-- **Use the OTD UX**: Click **OTD UX** on the **Daemon** page (under Advanced) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
+- **Use the OTD UX**: Click **OTD UX** on the **Daemon** tab (Advanced → Daemon) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
 The app's own tray icon (above) can also Stop/Restart the daemon directly.
@@ -242,7 +242,7 @@ The app's own tray icon (above) can also Stop/Restart the daemon directly.
 ### "Not connected to daemon" on Home
 
 1. Click **Fix** on the "Not connected to daemon" card — it starts the daemon (built from the submodule) and connects, morphing into a "Connecting to daemon…" state while it works.
-2. If that doesn't resolve it, click **Open daemon page** (Advanced → OpenTabletDriver → Daemon) for the full controls — **Start**, **Restart**, and a **Refresh** to re-check the connection.
+2. If that doesn't resolve it, click **Open daemon page** (Advanced → Daemon) for the full controls — **Start**, **Restart**, and a **Refresh** to re-check the connection.
 3. The daemon auto-starts on app launch — if it didn't, check whether another OTD instance is already running.
 
 If the daemon page reports that **OpenTabletDriver.Daemon.exe wasn't found**, the daemon exe was never built. The app checks for it before every connection attempt and says so plainly instead of silently timing out. Build the whole solution so the daemon is produced:
@@ -255,7 +255,7 @@ Building only the app project, or only running the test suite, does **not** prod
 
 ### "No Tablet Detected" even though my tablet is plugged in
 
-1. Make sure the daemon is running (Advanced → OpenTabletDriver → Daemon).
+1. Make sure the daemon is running (Advanced → Daemon).
 2. Wait a few seconds — the app reconciles with the daemon every 30 seconds (and immediately on connect).
 3. Click the refresh icon to force an immediate check.
 
