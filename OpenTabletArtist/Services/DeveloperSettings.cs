@@ -50,6 +50,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     [ObservableProperty] private bool _forceTabletNotWinInk;
     [ObservableProperty] private bool _forceTabletMappingOffScreen;
     [ObservableProperty] private bool _forceTabletMappingCustom;
+    [ObservableProperty] private bool _forceTabletConfigOverride;
 
     /// <summary>True for any developer flag that changes the health catalog (everything except the
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
@@ -62,7 +63,8 @@ public sealed partial class DeveloperSettings : ObservableObject
         InduceRecommendation || InduceMisconfigured || InduceBroken
         || ForceWinInkNotInstalled || ForceWinInkVersionMismatch || ForceVMultiNotInstalled
         || ForceDriverConflict || ForceRunningElevated || ForceForeignDaemon
-        || ForceTabletNotWinInk || ForceTabletMappingOffScreen || ForceTabletMappingCustom;
+        || ForceTabletNotWinInk || ForceTabletMappingOffScreen || ForceTabletMappingCustom
+        || ForceTabletConfigOverride;
 
     partial void OnShowFiltersTabChanged(bool value)
     {
@@ -108,6 +110,8 @@ public sealed partial class DeveloperSettings : ObservableObject
                     ForceTabletMappingOffScreen = false;
                 else if (issue.Id.StartsWith("tablet.mappingCustom:", System.StringComparison.Ordinal))
                     ForceTabletMappingCustom = false;
+                else if (issue.Id.StartsWith("tablet.configOverride:", System.StringComparison.Ordinal))
+                    ForceTabletConfigOverride = false;
                 break;
         }
     }

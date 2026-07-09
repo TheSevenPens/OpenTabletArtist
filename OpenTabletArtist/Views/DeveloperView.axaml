@@ -79,6 +79,9 @@
                                      IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
                     <c:ToggleSetting Label="Tablet: custom display mapping"
                                      IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+                    <c:ToggleSetting Label="Tablet: using a custom config override"
+                                     Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
+                                     IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>

@@ -20,6 +20,8 @@
     <Color x:Key="WarningMuted">#1AF59E0B</Color>
     <Color x:Key="Error">#EF4444</Color>
     <Color x:Key="ErrorMuted">#1AEF4444</Color>
+    <Color x:Key="Info">#3B82F6</Color>
+    <Color x:Key="InfoMuted">#1A3B82F6</Color>
     <Color x:Key="TextInverse">#FFFFFF</Color>
 
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
@@ -28,6 +30,8 @@
     <SolidColorBrush x:Key="WarningMutedBrush" Color="{StaticResource WarningMuted}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
     <SolidColorBrush x:Key="ErrorMutedBrush" Color="{StaticResource ErrorMuted}" />
+    <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource Info}" />
+    <SolidColorBrush x:Key="InfoMutedBrush" Color="{StaticResource InfoMuted}" />
     <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
 
     <!-- Dimming scrim drawn over the backdrop image so text stays legible on a busy photo. Transparent

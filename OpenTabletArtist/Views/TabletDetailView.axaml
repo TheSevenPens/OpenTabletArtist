@@ -203,6 +203,26 @@
                     </StackPanel>
                 </Border>
 
+                <!-- #467: mirror the Home "using a custom config" card here, so the use of a config that
+                     overrides OTD's vetted built-in is obvious right where the tablet is inspected. -->
+                <Border Classes="GlassPanel" Margin="0,12,0,0"
+                        BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
+                        IsVisible="{Binding IsConfigOverride}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                        <Border Grid.Column="0" Classes="severityBar neutral" />
+                        <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
+                            <TextBlock Text="Using a custom tablet config" Classes="CardTitle" TextWrapping="Wrap" />
+                            <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="This tablet is driven by a custom configuration file that replaces OpenTabletDriver's built-in, vetted config of the same name. That's fine if you did it on purpose, but if the pen behaves oddly, removing the override to restore the built-in is worth trying." />
+                        </StackPanel>
+                        <Button Grid.Column="2" Content="Review"
+                                Command="{Binding ReviewConfigCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="12,6"
+                                VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
                 <Border Classes="GlassPanel" Margin="0,12,0,0">
                     <StackPanel Spacing="8">
                         <TextBlock Text="RESOURCES" Classes="SectionLabel" />

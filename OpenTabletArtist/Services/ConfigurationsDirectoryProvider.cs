@@ -1,12 +1,13 @@
+using System;
 using System.IO;
 
 namespace OpenTabletArtist.Services;
 
 /// <summary>
 /// Resolves the OpenTabletDriver tablet-configurations directory. Extracted so the Custom
-/// Tablet Configs page can be tested against a temp directory instead of the real
-/// <c>%AppData%\OpenTabletDriver\Configurations</c> folder (which isn't enumerable in
-/// sandboxed/restricted profiles — the long-standing source of environment-sensitive tests).
+/// Tablet Configs page can be tested against a temp directory instead of the real folder
+/// (which isn't enumerable in sandboxed/restricted profiles — the long-standing source of
+/// environment-sensitive tests).
 /// </summary>
 public interface IConfigurationsDirectoryProvider
 {
@@ -14,15 +15,30 @@ public interface IConfigurationsDirectoryProvider
     string GetOrCreate();
 }
 
-/// <inheritdoc />
+/// <summary>
+/// Resolves the config folder the daemon actually reads. The authoritative source is the daemon's
+/// <c>AppInfo.ConfigurationDirectory</c> (Windows: portable <c>userdata\Configurations</c> or
+/// <c>%LOCALAPPDATA%\OpenTabletDriver\Configurations</c>), supplied via <paramref name="daemonDirectory"/>.
+/// When the daemon isn't connected yet we fall back to the <b>Local</b>-AppData heuristic — matching OTD's
+/// own default, not the Roaming folder the old code guessed (which the daemon never reads).
+/// </summary>
 public class ConfigurationsDirectoryProvider : IConfigurationsDirectoryProvider
 {
+    private readonly Func<string?>? _daemonDirectory;
+
+    public ConfigurationsDirectoryProvider(Func<string?>? daemonDirectory = null)
+        => _daemonDirectory = daemonDirectory;
+
     public string GetOrCreate()
     {
-        // OTD reads tablet configs from %AppData%\OpenTabletDriver\Configurations.
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (string.IsNullOrEmpty(appData)) return "";
-        var dir = Path.Combine(appData, "OpenTabletDriver", "Configurations");
+        // Prefer the daemon's real path when known.
+        var dir = _daemonDirectory?.Invoke();
+        if (string.IsNullOrEmpty(dir))
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrEmpty(appData)) return "";
+            dir = Path.Combine(appData, "OpenTabletDriver", "Configurations");
+        }
         try
         {
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);

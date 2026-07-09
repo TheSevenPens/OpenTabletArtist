@@ -22,7 +22,7 @@ public interface IDialogService
     /// <summary>Builds a <see cref="TabletDetailViewModel"/> for the in-app Tablets page, wired to the
     /// session (apply/save, reload, detection, live pen input, calibration owned by the main window).
     /// <paramref name="onForget"/> removes the tablet's profile and is invoked by the page's Forget.</summary>
-    TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget);
+    TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null);
 
     /// <summary>Shows an informational message with an OK button.</summary>
     Task ShowMessageAsync(string title, string message);
@@ -57,7 +57,7 @@ public class DialogService : IDialogService
     public DialogService(AppSession session) => _session = session;
 
     /// <inheritdoc />
-    public TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget)
+    public TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null)
     {
         var tabletName = profile.Tablet;
         return new TabletDetailViewModel(
@@ -98,7 +98,9 @@ public class DialogService : IDialogService
                     : null;
             },
             // ABOUT tab → the in-app supported-tablets list, highlighting this tablet (#155).
-            openSupportedTablets: () => ShowSupportedTabletsAsync(tabletName));
+            openSupportedTablets: () => ShowSupportedTabletsAsync(tabletName),
+            // ABOUT tab → the config-override card's Review button navigates to the CONFIGS page (#467).
+            openConfigsPage: openConfigsPage);
     }
 
     public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)

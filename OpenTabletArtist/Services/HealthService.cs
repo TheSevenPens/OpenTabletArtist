@@ -140,6 +140,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         bool foreign = _connection.IsForeignDaemon;
         static bool DynamicsOk(ProfileItem p) =>
             PressureCurveProfile.ReadProfile(p.Profile) is null or { Enabled: true };
+        // Which built-in configs are shadowed by a user override file in the daemon's config folder (#467).
+        var overriddenConfigs = TabletConfigInspector.OverriddenBaseNames(_device.ConfigurationDirectory);
         var tablets = _device.Profiles
             .Select(p => new TabletHealthInput(
                 p.Tablet,
@@ -151,7 +153,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 Mapping: p.IsDetected
                     ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
                     : DisplayMappingValidity.None,
-                DynamicsFilterActive: foreign || DynamicsOk(p)))
+                DynamicsFilterActive: foreign || DynamicsOk(p),
+                ConfigIsOverride: overriddenConfigs.Contains(p.Tablet)))
             .ToList();
 
         var inputs = new HealthInputs
@@ -184,6 +187,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         if (dev.ForceTabletMappingCustom)
             tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: true,
                 DisplayMappingValidity.Custom));
+        if (dev.ForceTabletConfigOverride)
+            tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: true,
+                ConfigIsOverride: true));
 
         // OR-in the scalar force flags so each real catalog entry appears with its exact UX.
         return inputs with

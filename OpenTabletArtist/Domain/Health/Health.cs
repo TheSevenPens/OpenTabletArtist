@@ -38,6 +38,8 @@ public enum RemediationArea
     TabletDisplayMapping,
     /// <summary>The Pen Dynamics filter is off/missing on a profile; fixing re-enables it (always-on invariant).</summary>
     TabletPenDynamics,
+    /// <summary>The CONFIGS page under Advanced (a tablet is on a custom config override, #467).</summary>
+    Configs,
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
 }
@@ -65,7 +67,10 @@ public sealed record TabletHealthInput(
     DisplayMappingValidity Mapping = DisplayMappingValidity.None,
     // The Pen Dynamics filter is present + enabled on this profile. Defaults true so a check only fires
     // when a detected tablet is definitively missing/disabled (the always-on invariant regressed).
-    bool DynamicsFilterActive = true);
+    bool DynamicsFilterActive = true,
+    // This tablet is driven by a user config file that overrides OTD's vetted built-in of the same name
+    // (#467). Defaults false so the check only fires when an override is actually detected.
+    bool ConfigIsOverride = false);
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -157,6 +162,10 @@ public static class HealthEvaluator
         //     detected tablet's profile has it off/missing, the pen-dynamics settings won't apply. ---
         AddTabletDynamicsIssues(issues, i);
 
+        // --- Per-tablet config override: the tablet is running a custom config that shadows OTD's vetted
+        //     built-in. Often deliberate, but worth surfacing (support / odd-behaviour context). ---
+        AddTabletConfigOverrideIssues(issues, i);
+
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet ---
         if (i.HasDriverConflict)
         {
@@ -235,6 +244,22 @@ public static class HealthEvaluator
                     "smoothing always apply. It's currently off or missing on this tablet, so those " +
                     "settings won't take effect. Fixing re-enables it (no effect until you customize it).",
                     new Remediation("Fix", RemediationArea.TabletPenDynamics, t.Name)));
+            }
+        }
+    }
+
+    private static void AddTabletConfigOverrideIssues(List<HealthIssue> issues, HealthInputs i)
+    {
+        foreach (var t in i.Tablets)
+        {
+            if (t.Detected && t.ConfigIsOverride)
+            {
+                issues.Add(new HealthIssue($"tablet.configOverride:{t.Name}", HealthSeverity.Recommendation,
+                    $"{t.Name}: using a custom tablet config",
+                    "This tablet is driven by a custom configuration file that replaces OpenTabletDriver's " +
+                    "built-in, vetted config of the same name. That's fine if you did it on purpose, but if " +
+                    "the pen behaves oddly, removing the override to restore the built-in is worth trying.",
+                    new Remediation("Review", RemediationArea.Configs, t.Name)));
             }
         }
     }

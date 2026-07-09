@@ -153,7 +153,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
-        Configs = new CustomTabletConfigsViewModel(dialogs, new ConfigurationsDirectoryProvider());
+        Configs = new CustomTabletConfigsViewModel(dialogs,
+            new ConfigurationsDirectoryProvider(() => _session.ConfigurationDirectory));
         Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
         PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs, _session);
@@ -165,7 +166,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
             () => OpenAdvancedTab(AdvancedTab.DriverCleanup),
             () => OpenAdvancedTab(AdvancedTab.WindowsInk),
-            () => OpenAdvancedTab(AdvancedTab.VMulti));
+            () => OpenAdvancedTab(AdvancedTab.VMulti),
+            () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -226,7 +228,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             var profile = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == item.Name);
             if (profile == null) { CurrentPage = Dashboard; return; }
-            vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(item.Name));
+            vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(item.Name),
+                () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
             _tabletDetails[item.Name] = vm;
         }
         // Request the tab before showing the page: a fresh page consumes it on attach; an already-open

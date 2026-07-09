@@ -58,6 +58,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private readonly Func<CalibrationOptions, Task>? _onCalibrate;
     // Opens the built-in supported-tablets dialog for this tablet (the ABOUT tab's Resources link, #155).
     private readonly Func<Task>? _openSupportedTablets;
+    // Navigates to the CONFIGS page — the config-override card's Review button on the ABOUT tab (#467).
+    private readonly Action? _openConfigsPage;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
     private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
@@ -424,7 +426,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Func<Task>? forgetAction = null,
         Func<CalibrationOptions, Task>? onCalibrate = null,
         Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null,
-        Func<Task>? openSupportedTablets = null)
+        Func<Task>? openSupportedTablets = null,
+        Action? openConfigsPage = null)
     {
         _profile = profile;
         _settings = settings;
@@ -437,6 +440,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _forgetAction = forgetAction;
         _onCalibrate = onCalibrate;
         _openSupportedTablets = openSupportedTablets;
+        _openConfigsPage = openConfigsPage;
         DynamicsOnly = dynamicsOnly;
 
         if (penInput != null)
@@ -452,7 +456,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Live-refresh the detection banner + tablet-dependent actions as tablets connect/disconnect
         // while this view is open (#177, via the session's DataLoaded after a TabletsChanged push #170).
         if (_deviceData != null)
+        {
             _deviceData.DataLoaded += RefreshDetectionStatus;
+            _deviceData.DataLoaded += RefreshConfigOverride;   // config dir + files arrive/change on reload (#467)
+        }
 
         // Show/hide the developer-only Filters/JSON tabs live as their Developer-tab toggles change.
         DeveloperSettings.Instance.PropertyChanged += OnDeveloperSettingsChanged;
@@ -465,6 +472,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         LoadWheelEnabledState();
         RefreshFromProfile();
         RefreshDetectionStatus();
+        RefreshConfigOverride();
         // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
         // pending flag for this initial, programmatic selection so it doesn't open "pending".
         _suppressMappingPending = true;
@@ -583,6 +591,24 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         if (_openSupportedTablets != null) await _openSupportedTablets();
     }
+
+    // --- Config-override notice (#467): mirror the Home "Needs attention" card on the ABOUT tab, so the
+    // use of a custom config that shadows OTD's built-in is visible right where the tablet is inspected. ---
+
+    /// <summary>This tablet is driven by a user config file that overrides OTD's vetted built-in of the
+    /// same name — shows an attention card on the ABOUT tab (#467).</summary>
+    [ObservableProperty] private bool _isConfigOverride;
+
+    private void RefreshConfigOverride()
+    {
+        IsConfigOverride = _deviceData != null
+            && !string.IsNullOrEmpty(TabletName)
+            && TabletConfigInspector.OverriddenBaseNames(_deviceData.ConfigurationDirectory).Contains(TabletName);
+    }
+
+    /// <summary>Open the CONFIGS page to review/remove the override (the card's Review button).</summary>
+    [RelayCommand]
+    private void ReviewConfig() => _openConfigsPage?.Invoke();
 
     [RelayCommand]
     private async Task Refresh()
@@ -1687,7 +1713,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        if (_deviceData != null) _deviceData.DataLoaded -= RefreshDetectionStatus;
+        if (_deviceData != null)
+        {
+            _deviceData.DataLoaded -= RefreshDetectionStatus;
+            _deviceData.DataLoaded -= RefreshConfigOverride;
+        }
         DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
         StopLiveInput();
     }

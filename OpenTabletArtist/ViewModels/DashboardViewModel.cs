@@ -23,10 +23,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private readonly Action? _openDriverCleanup;
     private readonly Action? _openWindowsInk;
     private readonly Action? _openVMulti;
+    private readonly Action? _openConfigs;
 
     public DashboardViewModel(AppSession session, DaemonStatusViewModel daemon, IDialogService dialogs,
         Action<string, TabletDetailTab?> navigateToTablet, HealthService health, TabletsOverviewViewModel tablets,
-        Action? openDriverCleanup = null, Action? openWindowsInk = null, Action? openVMulti = null)
+        Action? openDriverCleanup = null, Action? openWindowsInk = null, Action? openVMulti = null,
+        Action? openConfigs = null)
     {
         _session = session;
         Daemon = daemon;
@@ -35,6 +37,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _openDriverCleanup = openDriverCleanup;
         _openWindowsInk = openWindowsInk;
         _openVMulti = openVMulti;
+        _openConfigs = openConfigs;
         Health = health;
         TabletsOverview = tablets;
 
@@ -83,6 +86,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             case RemediationArea.TabletPenDynamics:
                 // Re-enable the always-on Pen Dynamics filter across profiles and persist.
                 _ = _session.EnsureDynamicsAndSaveAsync();
+                break;
+            case RemediationArea.Configs:
+                // Open the CONFIGS page so the user can review/remove the override.
+                _openConfigs?.Invoke();
                 break;
             case RemediationArea.DeveloperInducedWarning:
                 // Synthetic warning from the Developer tab — "fixing" it just clears the induced flag.
