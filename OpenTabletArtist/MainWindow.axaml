@@ -149,13 +149,20 @@
         </Border>
 
         <!-- CONTENT AREA -->
+        <!-- The caption-clearance inset (#titlebar) is a MARGIN on the ScrollViewer, i.e. OUTSIDE the
+             scrollable content, so it stays reserved at every scroll position. (It used to be top padding
+             inside the Border, which scrolled away with the content — letting a tall page, or a tabbed
+             page's header with right-aligned buttons, slide up under the native min/max/close buttons.)
+             46px clears the full Windows 11 extended caption height (taller than the old 34px drag-strip
+             assumption); the drag strip below matches. -->
         <ScrollViewer Grid.Column="1"
+                      Margin="0,46,0,0"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <!-- Content padding. Kept above the Sakura cards' glow extent (16px blur, see CardShadow)
-                 so the soft glow isn't clipped by the scroll viewport on the left/right. Extra top space
-                 (#titlebar) clears the native caption buttons now that the client area reaches the top. -->
-            <Border Padding="20,44,20,18">
+            <!-- Content padding (top small since the caption clearance is the ScrollViewer margin above).
+                 L/R/bottom stay above the Sakura cards' glow extent (16px blur, see CardShadow) so the
+                 soft glow isn't clipped by the scroll viewport on those edges. -->
+            <Border Padding="20,8,20,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
@@ -201,7 +208,7 @@
     <!-- Title-bar drag strip (#titlebar): the top edge is app-coloured now, so this transparent strip
          gives the window its move/double-click-maximize behaviour. It stops short of the top-right so
          the native caption buttons still receive their clicks. -->
-    <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="34" Margin="0,0,150,0"
+    <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="46" Margin="0,0,150,0"
             Background="Transparent" PointerPressed="OnTitleBarPressed" DoubleTapped="OnTitleBarDoubleTapped" />
     </Panel>
 </Window>

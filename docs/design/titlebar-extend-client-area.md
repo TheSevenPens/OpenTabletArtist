@@ -79,8 +79,15 @@ All changes anchored with a `#titlebar` comment marker.
   ```
   When maximized, Windows over-sizes an extended-chrome window by the frame width; `OffScreenMargin`
   is non-zero only then and keeps content on-screen (verified: maximize no longer clips the edges).
-- **Content top padding** raised to clear the caption buttons now that content reaches the top
-  (`Padding="20,44,20,18"` on the content border).
+- **Caption clearance is a `Margin` on the content `ScrollViewer`** (`Margin="0,46,0,0"`), i.e. *outside*
+  the scrollable content, so the caption zone stays reserved at every scroll position. The inner content
+  border keeps a small `Padding="20,8,20,18"` (L/R/bottom stay above the card-glow blur). *Earlier this
+  clearance was top padding **inside** the scrolled border (`Padding="20,44,…"`), which scrolled away with
+  the content — letting a tall page, or a tabbed page's header with right-aligned buttons (the tablet
+  page's Refresh/Forget), slide up under the native min/max/close buttons. Moving it to the ScrollViewer
+  margin fixes that.* The **46px** must clear the **full** Windows 11 extended caption height — the old
+  34px drag-strip figure was too short, so scrolled content still caught the bottom of the caption
+  buttons. The drag strip's `Height` matches (46).
 - **Drag strip** (last child of the root panel): a transparent `Border` pinned to the top,
   `Height="34"`, `Margin="0,0,150,0"` so it stops short of the top-right and the native caption
   buttons still receive their clicks:
