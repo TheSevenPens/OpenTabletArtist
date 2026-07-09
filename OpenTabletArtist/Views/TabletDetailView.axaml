@@ -405,10 +405,30 @@
                                               ToolTip.Tip="Switch the active-area measurements between metric and imperial"
                                               VerticalAlignment="Center" />
                             </StackPanel>
-                            <ctrl:ActiveAreaDiagram Area="{Binding TabletArea}"
+                            <ctrl:ActiveAreaDiagram x:Name="ActiveAreaDiagramControl"
+                                                    Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
                                                     UseImperialUnits="{Binding UseImperialUnits}"
-                                                    Height="320" />
+                                                    Editable="True" Height="320" />
+
+                            <!-- Proportional resize + maximize (#199). Drag the area / a corner on the
+                                 diagram above; this slider is the same size control, for precision. -->
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12" Margin="0,10,0,0">
+                                <TextBlock Grid.Column="0" Text="Size" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <Slider Grid.Column="1" Minimum="10" Maximum="100"
+                                        Value="{Binding ActiveAreaSizePercent}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding ActiveAreaSizePercent, StringFormat={}{0:0}%}"
+                                           MinWidth="38" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <Button Grid.Column="3" Content="Maximize"
+                                        Command="{Binding MaximizeActiveAreaCommand}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                            </Grid>
+                            <TextBlock Text="Drag the highlighted area to move it, or drag a corner to resize — the shape stays locked to your display."
+                                       Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+
                             <Grid ColumnDefinitions="*,*,*,*" Margin="0,12,0,0">
                                 <StackPanel Grid.Column="0" Spacing="2">
                                     <TextBlock Text="{Binding ActiveAreaUsagePercentText}" FontSize="20" FontWeight="Bold"
@@ -441,9 +461,6 @@
                                 <TextBlock Text="{Binding ActiveAreaDiagonalText}"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
-                            <TextBlock Text="You'll be able to shrink or realign this area in a future update."
-                                       FontStyle="Italic" Margin="0,12,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
                         </StackPanel>
 
                         <!-- No digitizer specs for this tablet — nothing to draw. -->

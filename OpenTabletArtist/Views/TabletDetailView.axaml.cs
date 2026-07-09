@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
+using OpenTabletArtist.Controls;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -53,6 +54,9 @@ public partial class TabletDetailView : UserControl
         PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
         WheelTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
+
+        // Interactive active-area edits from the diagram → persist through the VM (#199).
+        ActiveAreaDiagramControl.AreaCommitted += OnActiveAreaCommitted;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -63,8 +67,12 @@ public partial class TabletDetailView : UserControl
         PressureDynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
         WheelTab.IsCheckedChanged -= OnLiveTabChanged;
+        ActiveAreaDiagramControl.AreaCommitted -= OnActiveAreaCommitted;
         Vm?.StopLiveInput();
     }
+
+    private void OnActiveAreaCommitted(object? sender, ActiveAreaEdit e) =>
+        _ = Vm?.CommitActiveArea(e.Width, e.Height, e.CenterX, e.CenterY);
 
     private void OnScreensChanged(object? sender, EventArgs e) =>
         Vm?.RefreshDisplaysCommand.Execute(null);

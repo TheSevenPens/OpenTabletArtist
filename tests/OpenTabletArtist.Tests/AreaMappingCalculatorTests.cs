@@ -53,6 +53,47 @@ public class AreaMappingCalculatorTests
     }
 
     [Fact]
+    public void ClampArea_KeepsCentre_WhenAreaFitsInBounds()
+    {
+        // A 100x56 area centred in a 300x170 tablet, no rotation → unchanged.
+        var a = AreaMappingCalculator.ClampArea(100f, 56f, 150f, 85f, 0, 300f, 170f, 10f);
+        Assert.Equal(100f, a.Width, Precision);
+        Assert.Equal(56f, a.Height, Precision);
+        Assert.Equal(150f, a.X, Precision);
+        Assert.Equal(85f, a.Y, Precision);
+    }
+
+    [Fact]
+    public void ClampArea_ClampsCentre_SoTheFootprintStaysInBounds()
+    {
+        // 100x56 area pushed to the far right — centre clamps so the right edge sits on the tablet edge.
+        var a = AreaMappingCalculator.ClampArea(100f, 56f, 999f, 85f, 0, 300f, 170f, 10f);
+        Assert.Equal(250f, a.X, Precision);   // 300 - 100/2
+        Assert.Equal(85f, a.Y, Precision);
+    }
+
+    [Fact]
+    public void ClampArea_ShrinksToFit_WhenTooBig_PreservingAspect()
+    {
+        // 600x336 (16:9-ish) into a 300x170 tablet → shrink to fit, aspect preserved.
+        var a = AreaMappingCalculator.ClampArea(600f, 336f, 150f, 85f, 0, 300f, 170f, 10f);
+        Assert.True(a.Width <= 300f && a.Height <= 170f);
+        Assert.Equal(600f / 336f, a.Width / a.Height, Precision);   // aspect kept
+    }
+
+    [Fact]
+    public void ClampArea_90_UsesTheRotatedFootprint()
+    {
+        // At 90°, a 170x96 area's footprint is 96 wide x 170 tall → it fits a 300x170 tablet, and the
+        // centre clamps against the SWAPPED extents.
+        var a = AreaMappingCalculator.ClampArea(170f, 96f, 999f, 999f, 90, 300f, 170f, 10f);
+        Assert.Equal(170f, a.Width, Precision);
+        Assert.Equal(96f, a.Height, Precision);
+        Assert.Equal(300f - 96f / 2f, a.X, Precision);   // footprint width = height (96)
+        Assert.Equal(170f - 170f / 2f, a.Y, Precision);  // footprint height = width (170)
+    }
+
+    [Fact]
     public void FitForRotation_90And270_FitTheRotatedBoundingBox_ToTheTablet()
     {
         // 300x170 tablet, 16:9 display, rotated 90°: the area keeps display aspect (Width/Height = 16/9)
