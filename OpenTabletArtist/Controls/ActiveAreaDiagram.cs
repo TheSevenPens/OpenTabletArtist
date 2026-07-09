@@ -118,7 +118,7 @@ public sealed class ActiveAreaDiagram : Control
         a.DisplayWidth > 0 && a.DisplayHeight > 0 ? a.DisplayWidth / a.DisplayHeight
         : a.EffHeight > 0 ? a.EffWidth / a.EffHeight : 1;
 
-    private float MinWidth(TabletAreaInfo a, int rot)
+    private float MinAreaWidth(TabletAreaInfo a, int rot)
     {
         var max = AreaMappingCalculator.FitForRotation((float)a.FullWidth, (float)a.FullHeight,
             (float)Math.Max(1, a.DisplayWidth), (float)Math.Max(1, a.DisplayHeight), rot);
@@ -181,7 +181,7 @@ public sealed class ActiveAreaDiagram : Control
             var now = ScreenToTablet(l, p);
             float cx = (float)(_grabX + (now.X - _grabTablet.X));
             float cy = (float)(_grabY + (now.Y - _grabTablet.Y));
-            result = AreaMappingCalculator.ClampArea((float)_grabW, (float)_grabH, cx, cy, rot, fullW, fullH, MinWidth(a, rot));
+            result = AreaMappingCalculator.ClampArea((float)_grabW, (float)_grabH, cx, cy, rot, fullW, fullH, MinAreaWidth(a, rot));
         }
         else
         {
@@ -193,7 +193,7 @@ public sealed class ActiveAreaDiagram : Control
             var centerScreen = new Point((_anchorScreen.X + moving.X) / 2, (_anchorScreen.Y + moving.Y) / 2);
             var tc = ScreenToTablet(l, centerScreen);
             result = AreaMappingCalculator.ClampArea((float)(w / l.Scale), (float)(h / l.Scale),
-                (float)tc.X, (float)tc.Y, rot, fullW, fullH, MinWidth(a, rot));
+                (float)tc.X, (float)tc.Y, rot, fullW, fullH, MinAreaWidth(a, rot));
         }
 
         _preview = new ActiveAreaEdit(result.Width, result.Height, result.X, result.Y);
