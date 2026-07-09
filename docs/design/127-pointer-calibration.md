@@ -48,9 +48,35 @@ position so the existing absolute transform then lands it on the intended pixel.
 |---|---|---|
 | Raw tablet units | `0..MaxX`, `0..MaxY` | `report.Position` at PreTransform |
 | Normalized tablet | `-1..1` | calibration math (resolution-independent, matches Kuuuube/OTD) |
-| Virtual-desktop px | OS pixels | calibration targets / what the user sees |
+| Virtual-desktop px | OS pixels | calibration targets during the solve / what the user sees |
+| Display-relative px | `0..Width`, `0..Height` | the persisted report's screen coordinates (#461) |
 
 Normalization (per Kuuuube): `u = raw / max * 2 - 1`, inverse `raw = (u + 1) / 2 * max`.
+
+### What's stored, and in which space
+
+When a calibration is saved (`CalibrationProfile.Write`, into the profile's filter store) the persisted
+coordinate data is:
+
+- **The transform** — `Homography` / `Grid` / affine `M11…M32` payloads — in **normalized tablet space
+  (`-1..1`)**. This is what the filter actually applies (normalize the raw report → transform →
+  denormalize). The raw tap is *not* recoverable from it.
+- **The report** (`Domain/CalibrationReport`), per recorded tap:
+  - **target** and **measured** (pixel-equivalent of the raw tap) — in **display-relative px**
+    (`0..Width`, `0..Height`), *not* virtual-desktop px, so they read naturally against the one display
+    that was calibrated instead of carrying its desktop offset (#461). The overlay solves in
+    virtual-desktop px, then `CalibrationViewModel.BuildReport` subtracts the display origin before
+    storing.
+  - **raw** — the **raw tablet digitizer units** (`0..MaxX`, `0..MaxY`) of the *averaged* tap. The report
+    is the only place the raw tap survives.
+  - the **sample count** averaged for the tap (not a coordinate). Individual samples are intentionally
+    dropped — only their per-tap mean is kept.
+- **Mapping fingerprint** — a staleness token (rounded input/output areas + display number), not meant to
+  be read as coordinates.
+
+The report retains enough (averaged raw + targets) to re-derive per-point error or even re-fit a
+different model **without re-tapping** — but only while the mapping is unchanged, since the solve inputs
+(digitizer maxima, input/output areas, display origin) live on the profile, not in the report.
 
 ## Transform model
 
@@ -200,7 +226,10 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
   - **Grid** calibration — 9-point (3×3) and 25-point (5×5) per-node bilinear correction (#196).
   - **Undo last point** during capture (#458).
   - **On/Off toggle** to compare with/without, without clearing.
-  - **Calibration report** — recorded taps persisted with the calibration and shown on the tab (#460).
+  - **Calibration report** — recorded taps persisted with the calibration and shown on the tab (#460),
+    each with the **pixel-equivalent** of the raw tap and a **fit-quality** summary (RMS/max pointing
+    error corrected, plus an outlier flag for a misfired tap) (#461). Post-correction residual is ~0 by
+    construction for the homography/grid models, so the report shows the *pre*-correction parallax.
   - **Stale hint** via a mapping fingerprint when the area mapping changes (#147).
   - Moved to a dedicated **Calibration** tab (from the Screen-Mapping tab).
 - **Later:** calibration from a guided setup (#60); auto-recapture prompt on area change (today it's a

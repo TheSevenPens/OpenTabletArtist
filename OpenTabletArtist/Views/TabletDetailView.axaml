@@ -523,10 +523,12 @@
                     </Border>
                 </UniformGrid>
 
-                <!-- Calibration report (#460): the recorded points from the last calibration (target px vs.
-                     measured raw tablet coords), persisted with it so they can be reviewed after the fact.
-                     Only shown when a calibration with stored points is active. -->
-                <Border Classes="GlassPanel" Margin="0,0,0,12" MaxWidth="620" HorizontalAlignment="Left"
+                <!-- Calibration report (#460): the recorded points from the last calibration. Each row pairs
+                     the on-screen target with the pixel-equivalent of where the uncorrected pen landed
+                     (MEASURED PX) and that tap's error in px (Δ, #461); the raw tablet coords are kept as a
+                     debugging detail. A fit line summarizes the pointing error corrected, and flags an
+                     outlier tap. Only shown when a calibration with stored points is active. -->
+                <Border Classes="GlassPanel" Margin="0,0,0,12" MaxWidth="820" HorizontalAlignment="Left"
                         IsVisible="{Binding HasCalibrationReport}">
                     <StackPanel Spacing="10">
                         <Grid ColumnDefinitions="*,Auto">
@@ -540,27 +542,49 @@
                                     ToolTip.Tip="Copy the report as tab-separated text for sharing or debugging" />
                         </Grid>
 
-                        <Grid ColumnDefinitions="40,*,*,70">
+                        <!-- Fit quality (#461): the pre-calibration pointing error the taps recorded. Post-
+                             correction residual is ~0 by construction (the homography/grid fit their points
+                             exactly), so this reads the parallax that was corrected. -->
+                        <TextBlock Text="{Binding CalibrationFitText}" FontSize="12"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   IsVisible="{Binding HasCalibrationFit}"
+                                   ToolTip.Tip="How far the uncorrected pen landed from each target, across all taps. This is the parallax the calibration removes — the post-correction residual is essentially zero." />
+                        <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
+                                   Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                   IsVisible="{Binding HasCalibrationFitWarning}" />
+
+                        <!-- Fixed column widths so the numbers line up across rows and the target/measured
+                             columns have real breathing room between them. -->
+                        <Grid ColumnDefinitions="34,132,132,110,168,56">
                             <TextBlock Grid.Column="0" Text="#" Classes="SectionLabel" />
                             <TextBlock Grid.Column="1" Text="TARGET (PX)" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="2" Text="MEASURED RAW" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="3" Text="SAMPLES" Classes="SectionLabel" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="2" Text="MEASURED (PX)" Classes="SectionLabel" />
+                            <TextBlock Grid.Column="3" Text="Δ (PX)" Classes="SectionLabel"
+                                       ToolTip.Tip="Signed offset of the measured point from the target (measured − target), in x, y pixels." />
+                            <TextBlock Grid.Column="4" Text="RAW" Classes="SectionLabel" />
+                            <TextBlock Grid.Column="5" Text="SAMPLES" Classes="SectionLabel" HorizontalAlignment="Right" />
                         </Grid>
 
                         <ItemsControl ItemsSource="{Binding CalibrationReportRows}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid ColumnDefinitions="40,*,*,70" Margin="0,0,0,3">
+                                    <Grid ColumnDefinitions="34,132,132,110,168,56" Margin="0,0,0,3">
                                         <TextBlock Grid.Column="0" Text="{Binding Index}"
                                                    FontFamily="{DynamicResource MonoFontFamily}"
                                                    Foreground="{DynamicResource TextMutedBrush}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Target}"
                                                    FontFamily="{DynamicResource MonoFontFamily}"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Raw}"
+                                        <TextBlock Grid.Column="2" Text="{Binding Measured}"
                                                    FontFamily="{DynamicResource MonoFontFamily}"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="3" Text="{Binding Samples}" HorizontalAlignment="Right"
+                                        <TextBlock Grid.Column="3" Text="{Binding Delta}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Grid.Column="4" Text="{Binding Raw}"
+                                                   FontFamily="{DynamicResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                        <TextBlock Grid.Column="5" Text="{Binding Samples}" HorizontalAlignment="Right"
                                                    FontFamily="{DynamicResource MonoFontFamily}"
                                                    Foreground="{DynamicResource TextMutedBrush}" />
                                     </Grid>
