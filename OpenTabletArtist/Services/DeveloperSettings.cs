@@ -15,6 +15,7 @@ public sealed partial class DeveloperSettings : ObservableObject
 
     private const string FiltersKey = "developer.showFiltersTab";
     private const string JsonKey = "developer.showJsonTab";
+    private const string OnPageScreenshotKey = "developer.onPageScreenshot";
 
     private readonly bool _loading;
 
@@ -23,6 +24,7 @@ public sealed partial class DeveloperSettings : ObservableObject
         _loading = true;
         ShowFiltersTab = AppSettings.Get(FiltersKey) == "true";
         ShowJsonTab = AppSettings.Get(JsonKey) == "true";
+        OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
         _loading = false;
     }
 
@@ -30,6 +32,9 @@ public sealed partial class DeveloperSettings : ObservableObject
     [ObservableProperty] private bool _showFiltersTab;
     /// <summary>Show the JSON tab on a tablet's page. Hidden by default — users never need it.</summary>
     [ObservableProperty] private bool _showJsonTab;
+    /// <summary>Show a small capture button at the bottom of the nav bar that screenshots the current
+    /// page (#437). Off by default — a developer aid.</summary>
+    [ObservableProperty] private bool _onPageScreenshot;
 
     // Induced health warnings, one per severity, for reviewing/screenshotting the "Needs attention" UI.
     // Session-only (not persisted): fixing one just clears its flag (see ClearInduced).
@@ -55,7 +60,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>True for any developer flag that changes the health catalog (everything except the
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
-        propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab));
+        propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot));
 
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
     /// Lets the health service skip the extra "what's real" pass in the normal (no-override) case.</summary>
@@ -74,6 +79,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnShowJsonTabChanged(bool value)
     {
         if (!_loading) AppSettings.Set(JsonKey, value ? "true" : "false");
+    }
+
+    partial void OnOnPageScreenshotChanged(bool value)
+    {
+        if (!_loading) AppSettings.Set(OnPageScreenshotKey, value ? "true" : "false");
     }
 
     /// <summary>Turn off the induced-warning flag of the given severity — the synthetic issue's Fix

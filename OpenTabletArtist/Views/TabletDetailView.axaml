@@ -132,7 +132,7 @@
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
-            <StackPanel Width="150" Spacing="2">
+            <StackPanel Width="150" Spacing="2" x:Name="TabRail">
                 <RadioButton Content="ABOUT" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="PEN BEHAVIOR" x:Name="OutputModeTab"

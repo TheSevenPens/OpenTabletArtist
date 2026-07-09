@@ -159,25 +159,12 @@ public partial class ThemeViewModel : ObservableObject
     // Application.Resources, which shadows the theme-dictionary entries of the same key. Everything set
     // here must be removed when leaving the skin so it never bleeds into Light/Dark/other skins.
 
-    // Keys ApplyCustom writes; cleared wholesale when switching skins.
-    private static readonly string[] CustomOverrideKeys =
-    {
-        "Accent", "AccentBrush", "AccentMutedBrush", "NavActiveBrush",
-        "SystemAccentColor", "SystemAccentColorLight1", "SystemAccentColorLight2", "SystemAccentColorLight3",
-        "SystemAccentColorDark1", "SystemAccentColorDark2", "SystemAccentColorDark3",
-        "RadioButtonOuterEllipseCheckedFill", "RadioButtonOuterEllipseCheckedFillPointerOver",
-        "RadioButtonOuterEllipseCheckedFillPressed", "RadioButtonOuterEllipseCheckedStroke",
-        "RadioButtonOuterEllipseCheckedStrokePointerOver", "RadioButtonOuterEllipseCheckedStrokePressed",
-        "AccentButtonFillBrush", "AccentButtonFillHoverBrush", "AccentButtonForegroundBrush",
-        "GlassBorderBrush", "CardShadow", "GlassBgBrush", "SidebarBgBrush",
-        "AppBackdropBrush", "BackdropScrimBrush",
-    };
-
-    /// <summary>Applies the current skin's live overrides, clearing any from a previously-selected skin.</summary>
+    /// <summary>Applies the current skin's live overrides, clearing any from a previously-selected skin.
+    /// The override keys live in <see cref="SkinOverrides"/> (shared with the screenshot tool, #437).</summary>
     private void RefreshSkin()
     {
         if (Application.Current is not { } app) return;
-        foreach (var k in CustomOverrideKeys) app.Resources.Remove(k);
+        SkinOverrides.Clear(app);
 
         if (IsSakura)
         {

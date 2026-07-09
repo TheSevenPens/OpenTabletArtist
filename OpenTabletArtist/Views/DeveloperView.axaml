@@ -207,12 +207,22 @@
              capture. The render happens in code-behind (it needs the visual). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ScreenshotTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Screenshot"
-                           Description="Render the app window to a PNG (the live UI with real tablet data), saved to your Pictures\OpenTabletArtist folder with a timestamped name. Developer-only.">
-                <StackPanel Spacing="8">
-                    <Button Content="Capture app window" Click="OnCaptureScreenshot"
-                            Theme="{StaticResource GhostButton}" Padding="12,6"
-                            HorizontalAlignment="Left" />
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Screenshots"
+                           Description="Developer aids for capturing the live UI to PNGs, saved to your Pictures\OpenTabletArtist folder with timestamped names.">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Screenshot all pages" FontWeight="SemiBold" />
+                        <TextBlock Text="Visit every page in turn — Home, each nav item, and every Advanced sub-tab — saving a PNG of each, then return to this page."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <Button Content="Screenshot all pages" Click="OnScreenshotAllPages"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <c:ToggleSetting Label="On-page screenshot control"
+                                     Description="Show a small Capture page button at the bottom of the nav bar, so you can screenshot whichever page you're currently viewing."
+                                     IsChecked="{Binding Settings.OnPageScreenshot}" />
+
                     <TextBlock x:Name="ScreenshotStatus" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}" IsVisible="False" />
                 </StackPanel>
