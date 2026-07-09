@@ -1553,9 +1553,39 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// the tablet has no absolute mapping / digitizer specs. (#250/#252)</summary>
     [ObservableProperty] private TabletAreaInfo? _tabletArea;
 
+    // ── Active-area rotation (#199) ──────────────────────────────────────────────────────────────
+    // Rotating the tablet's active area to match physically turning the tablet. OTD applies the TABLET
+    // (input) area's Rotation about its centre, and OTA's mapper already honours it — so this is just
+    // writing Tablet.Rotation through the normal apply path. Phase 1 supports 0° and 180° only; 90°/270°
+    // need the fit-to-swapped-aspect resize and are disabled in the UI for now.
+
+    /// <summary>Current active-area rotation in degrees, normalised to 0/90/180/270 (other angles set by
+    /// OTD's own UX read back as the nearest and simply leave no option selected).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRotation0), nameof(IsRotation90), nameof(IsRotation180), nameof(IsRotation270))]
+    private int _tabletRotation;
+
+    public bool IsRotation0 => TabletRotation == 0;
+    public bool IsRotation90 => TabletRotation == 90;
+    public bool IsRotation180 => TabletRotation == 180;
+    public bool IsRotation270 => TabletRotation == 270;
+
+    /// <summary>Set the active-area rotation and apply it. Phase 1 accepts only 0 and 180 (#199); the
+    /// 90/270 buttons are disabled in the UI, and this ignores anything else defensively.</summary>
+    [RelayCommand]
+    private async Task SetRotation(string? degrees)
+    {
+        if (!int.TryParse(degrees, out var deg) || (deg != 0 && deg != 180) || deg == TabletRotation) return;
+        await ApplySettingsChange(p =>
+        {
+            if (p.AbsoluteModeSettings?.Tablet is { } area) area.Rotation = deg;
+        });
+    }
+
     private void RefreshTabletArea()
     {
         var t = _profile.AbsoluteModeSettings?.Tablet;
+        TabletRotation = t != null ? (((int)Math.Round(t.Rotation)) % 360 + 360) % 360 : 0;
         // Read the digitizer live: its specs can arrive after this (cached) view-model was created — e.g.
         // when the tablet (re)connects — so we don't rely only on the value captured at construction.
         // That snapshot is the fallback (e.g. the tray dialog has no live device data). Previously only
@@ -1570,7 +1600,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 EffWidth: t.Width, EffHeight: t.Height, EffCenterX: t.X, EffCenterY: t.Y,
                 HasDisplay: mapped != null,
                 DisplayNumber: mapped?.Number ?? 0, DisplayName: mapped?.Name ?? "",
-                DisplayWidth: mapped?.Width ?? 0, DisplayHeight: mapped?.Height ?? 0);
+                DisplayWidth: mapped?.Width ?? 0, DisplayHeight: mapped?.Height ?? 0,
+                Rotation: t.Rotation);
         }
         else
         {
