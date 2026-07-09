@@ -43,6 +43,10 @@ public interface IDialogService
     /// <summary>Lets the user pick a running windowed application; returns its identity, or null if
     /// cancelled. Used to add a per-app profile mapping (#167).</summary>
     Task<Domain.AppIdentity?> ShowProcessPickerAsync();
+
+    /// <summary>Shows the built-in, searchable list of tablets OpenTabletDriver supports, highlighting
+    /// the connected tablet when <paramref name="detectedName"/> matches one (#155).</summary>
+    Task ShowSupportedTabletsAsync(string? detectedName);
 }
 
 /// <inheritdoc />
@@ -92,7 +96,9 @@ public class DialogService : IDialogService
                 return owner != null
                     ? await Views.BindingEditorDialog.ShowAsync(owner, binding, title)
                     : null;
-            });
+            },
+            // ABOUT tab → the in-app supported-tablets list, highlighting this tablet (#155).
+            openSupportedTablets: () => ShowSupportedTabletsAsync(tabletName));
     }
 
     public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
@@ -203,6 +209,12 @@ public class DialogService : IDialogService
     }
 
     public Task<Domain.AppIdentity?> ShowProcessPickerAsync() => Dialogs.ShowProcessPickerAsync();
+
+    public async Task ShowSupportedTabletsAsync(string? detectedName)
+    {
+        var owner = Dialogs.GetMainWindow();
+        if (owner != null) await Views.SupportedTabletsDialog.ShowAsync(owner, detectedName);
+    }
 
     public async Task ShowTextViewerAsync(string title, string content)
     {

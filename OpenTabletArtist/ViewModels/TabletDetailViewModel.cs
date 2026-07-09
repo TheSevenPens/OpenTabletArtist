@@ -53,6 +53,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // Opens the calibration overlay for the chosen options; the host supplies the owner window.
     // Null when calibration isn't available (the focused Pen Dynamics dialog hides Screen Mapping).
     private readonly Func<CalibrationOptions, Task>? _onCalibrate;
+    // Opens the built-in supported-tablets dialog for this tablet (the ABOUT tab's Resources link, #155).
+    private readonly Func<Task>? _openSupportedTablets;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
     private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
@@ -362,7 +364,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         IDeviceData? deviceData = null,
         Func<Task>? forgetAction = null,
         Func<CalibrationOptions, Task>? onCalibrate = null,
-        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null)
+        Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null,
+        Func<Task>? openSupportedTablets = null)
     {
         _profile = profile;
         _settings = settings;
@@ -374,6 +377,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _deviceData = deviceData;
         _forgetAction = forgetAction;
         _onCalibrate = onCalibrate;
+        _openSupportedTablets = openSupportedTablets;
         DynamicsOnly = dynamicsOnly;
 
         if (penInput != null)
@@ -513,16 +517,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return facts;
     }
 
-    /// <summary>Open OpenTabletDriver's supported-tablets page (the ABOUT tab's Resources link).</summary>
+    /// <summary>Show the built-in supported-tablets list in-app (the ABOUT tab's Resources link, #155),
+    /// highlighting this tablet.</summary>
     [RelayCommand]
-    private void OpenSupportedTabletsPage()
+    private async Task OpenSupportedTabletsPage()
     {
-        try
-        {
-            System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("https://opentabletdriver.net/Tablets") { UseShellExecute = true });
-        }
-        catch { /* best-effort; nothing to recover if no browser is available */ }
+        if (_openSupportedTablets != null) await _openSupportedTablets();
     }
 
     [RelayCommand]

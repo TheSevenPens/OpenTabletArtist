@@ -85,7 +85,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
-    public TabletsOverviewViewModel TabletsOverview { get; } = new();
+    public TabletsOverviewViewModel TabletsOverview { get; }
 
     /// <summary>The per-tablet child nodes under the Tablets parent node — paired ∪ connected, ordered
     /// like the old list (detected first, then most-recently-seen). Rebuilt on each data load; clicking
@@ -132,6 +132,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
+        TabletsOverview = new TabletsOverviewViewModel(dialogs); // #155: opens the supported-tablets dialog
 
         // Conflicting-driver detection (#245), shared by the Driver cleanup page and the Home alert.
         _conflicts = new DriverConflictMonitor(_session.Daemon, _session);

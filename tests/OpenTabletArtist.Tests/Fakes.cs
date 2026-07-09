@@ -60,6 +60,14 @@ internal sealed class FakeDialogService : IDialogService
         LastTextViewer = (title, content);
         return Task.CompletedTask;
     }
+
+    /// <summary>The detected-tablet name passed to the last <see cref="ShowSupportedTabletsAsync"/> call.</summary>
+    public string? LastSupportedTabletsDetectedName { get; private set; }
+    public Task ShowSupportedTabletsAsync(string? detectedName)
+    {
+        LastSupportedTabletsDetectedName = detectedName;
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>Minimal <see cref="IDeviceData"/> with settable data and a manual DataLoaded trigger.</summary>

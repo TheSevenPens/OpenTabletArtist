@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -14,20 +16,23 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class TabletsOverviewViewModel : ObservableObject
 {
-    /// <summary>OTD's supported-tablets page — surfaced so users can check whether their tablet (or
-    /// one they're considering) is supported, without leaving the app to go hunting for it.</summary>
-    public const string SupportedTabletsUrl = "https://opentabletdriver.net/Tablets";
+    private readonly IDialogService? _dialogs;
+
+    public TabletsOverviewViewModel(IDialogService? dialogs = null) => _dialogs = dialogs;
 
     [ObservableProperty] private bool _hasTablets;
 
     /// <summary>One row per known tablet, rebuilt by the shell on each data load.</summary>
     [ObservableProperty] private List<TabletOverviewItemViewModel> _tablets = [];
 
+    /// <summary>Show OTD's built-in supported-tablets catalog in an in-app dialog (#155), highlighting
+    /// the connected tablet — instead of opening the OTD website in a browser.</summary>
     [RelayCommand]
-    private void OpenSupportedTablets()
+    private async Task OpenSupportedTablets()
     {
-        try { Process.Start(new ProcessStartInfo(SupportedTabletsUrl) { UseShellExecute = true }); }
-        catch { }
+        if (_dialogs == null) return;
+        var detected = Tablets.FirstOrDefault(t => t.IsDetected)?.Name;
+        await _dialogs.ShowSupportedTabletsAsync(detected);
     }
 }
 
