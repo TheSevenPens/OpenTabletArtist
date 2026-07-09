@@ -86,29 +86,21 @@
                                Margin="20,4,8,2" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding !HasTablets}" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="PRESETS"
-                                 IsChecked="{Binding IsPresets, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Presets}"
-                                 Margin="0,2,0,0" />
-                    <!-- Per-app auto-switching lives under Profiles (it maps apps to profiles). Hidden while
-                         the feature is disabled (FeatureFlags.PerAppProfiles); flip the flag to restore it. -->
-                    <RadioButton Theme="{StaticResource NavNode}" Content="PER-APP PRESETS"
-                                 IsChecked="{Binding IsPerApp, Mode=OneWay}"
-                                 IsVisible="{Binding ShowPerApp}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding PerApp}"
-                                 Margin="12,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="HOTKEYS"
-                                 IsChecked="{Binding IsHotkeys, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Hotkeys}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="SCRIBBLE"
-                                 IsChecked="{Binding IsTest, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Test}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="ABOUT"
-                                 IsChecked="{Binding IsAbout, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding About}"
-                                 Margin="0,2,0,0" />
+                    <!-- The flat leaves between HOME and ADVANCED, data-driven (#477): PRESETS, PER-APP
+                         PRESETS (feature-gated → IsVisible), HOTKEYS, SCRIBBLE, ABOUT. Same NavNode look;
+                         each item carries its own label / target page / selection. -->
+                    <ItemsControl ItemsSource="{Binding NavLeaves}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <RadioButton Theme="{StaticResource NavNode}" Content="{Binding Label}"
+                                             IsVisible="{Binding IsVisible}"
+                                             IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                             Command="{Binding $parent[ItemsControl].DataContext.NavigateCommand}"
+                                             CommandParameter="{Binding Page}"
+                                             Margin="0,2,0,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <!-- ADVANCED is now a leaf node opening a tabbed page: its subpage navigation
                          hosts OpenTabletDriver's own tabs (Daemon / Windows Ink / Configs / Diagnostics /

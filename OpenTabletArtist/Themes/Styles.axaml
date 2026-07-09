@@ -280,42 +280,6 @@
             </Style>
         </ControlTheme>
 
-        <!-- Nav Group Node — a group node in the page navigation bar: a collapsible section that only
-             groups child nodes (e.g. "ADVANCED"), opening nothing itself. Looks like a nav node (so the
-             label aligns) but muted, with a chevron that flips when expanded. IsChecked drives
-             expand/collapse. See docs/design/ux-terminology.md. -->
-        <ControlTheme x:Key="NavGroupNode" TargetType="ToggleButton">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="8,3.92,16,3.92">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" x:Name="Label"
-                                       Text="{TemplateBinding Content}"
-                                       FontFamily="Segoe UI, Inter" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       VerticalAlignment="Center" Margin="20,0,0,0" />
-                            <TextBlock Grid.Column="1" x:Name="Chevron" Text="▾" FontSize="10"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       VerticalAlignment="Center"
-                                       RenderTransformOrigin="50%,50%" />
-                        </Grid>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
-            </Style>
-            <Style Selector="^:pointerover /template/ TextBlock#Label">
-                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-            </Style>
-            <!-- Expanded: flip the chevron to point up. -->
-            <Style Selector="^:checked /template/ TextBlock#Chevron">
-                <Setter Property="RenderTransform" Value="rotate(180deg)" />
-            </Style>
-        </ControlTheme>
-
         <!-- Accent Button -->
         <ControlTheme x:Key="AccentButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource AccentButtonFillBrush}" />

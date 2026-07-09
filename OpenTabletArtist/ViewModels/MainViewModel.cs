@@ -100,19 +100,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // no view-lookup converter, and no per-view DataContext re-point.
     [ObservableProperty] private ObservableObject? _currentPage;
 
-    // Sidebar highlight: each nav button binds IsChecked to one of these (converter-free).
+    // Sidebar highlight (converter-free): HOME and ADVANCED bind IsChecked to these; the flat leaves
+    // between them (PRESETS … ABOUT) are data-driven via NavLeaves (#477), each carrying its own
+    // IsSelected. Every advanced subpage is a tab inside the ADVANCED tabbed page, so the single ADVANCED
+    // node drives its highlight.
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
-    public bool IsPresets => ReferenceEquals(CurrentPage, Presets);
-    public bool IsHotkeys => ReferenceEquals(CurrentPage, Hotkeys);
-    public bool IsPerApp => ReferenceEquals(CurrentPage, PerApp);
-    /// <summary>Whether the "Per-App Profiles" nav entry is shown. Hidden while the feature is disabled
-    /// (<see cref="FeatureFlags.PerAppProfiles"/>) so it can't be reached; flip the flag to bring it back.</summary>
-    public bool ShowPerApp => FeatureFlags.PerAppProfiles;
-    public bool IsTest => ReferenceEquals(CurrentPage, Test);
-    // Every advanced subpage (the OTD tabs + VMulti / Driver Cleanup / Startup / Developer / Theme) is a
-    // tab inside the ADVANCED tabbed page now, so the single ADVANCED node drives the sidebar highlight.
     public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
-    public bool IsAbout => ReferenceEquals(CurrentPage, About);
+
+    /// <summary>The flat leaf nodes between HOME and ADVANCED (#477): each has a label, its target page,
+    /// a selection flag the sidebar highlights, and a visibility flag (Per-App is feature-gated).</summary>
+    public ObservableCollection<NavLeafViewModel> NavLeaves { get; } = new();
 
     public MainViewModel()
     {
@@ -180,6 +177,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
             VMulti, DriverCleanup, Startup, Developer, Theme);
+
+        // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Per-App is feature-gated
+        // (hidden while FeatureFlags.PerAppProfiles is off). Selection is synced in OnCurrentPageChanged.
+        NavLeaves.Add(new NavLeafViewModel("PRESETS", Presets));
+        NavLeaves.Add(new NavLeafViewModel("PER-APP PRESETS", PerApp, isVisible: FeatureFlags.PerAppProfiles));
+        NavLeaves.Add(new NavLeafViewModel("HOTKEYS", Hotkeys));
+        NavLeaves.Add(new NavLeafViewModel("SCRIBBLE", Test));
+        NavLeaves.Add(new NavLeafViewModel("ABOUT", About));
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -353,13 +358,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         UpdateTabletSelection();
 
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
+        foreach (var leaf in NavLeaves)
+            leaf.IsSelected = ReferenceEquals(CurrentPage, leaf.Page);
         OnPropertyChanged(nameof(IsDashboard));
-        OnPropertyChanged(nameof(IsPresets));
-        OnPropertyChanged(nameof(IsHotkeys));
-        OnPropertyChanged(nameof(IsPerApp));
-        OnPropertyChanged(nameof(IsTest));
         OnPropertyChanged(nameof(IsAdvanced));
-        OnPropertyChanged(nameof(IsAbout));
     }
 
     public void Dispose()
@@ -412,6 +414,24 @@ public partial class TabletNavNodeViewModel : ObservableObject
 
     [RelayCommand]
     private Task Forget() => _forget(this);
+}
+
+/// <summary>A flat leaf node in the page navigation bar (#477): a label, the page it opens, a selection
+/// flag the sidebar highlights (synced by the shell on navigation), and a visibility flag (feature-gated
+/// entries hide themselves). Clicking it runs the shell's Navigate command with <see cref="Page"/>.</summary>
+public partial class NavLeafViewModel : ObservableObject
+{
+    public NavLeafViewModel(string label, ObservableObject page, bool isVisible = true)
+    {
+        Label = label;
+        Page = page;
+        _isVisible = isVisible;
+    }
+
+    public string Label { get; }
+    public ObservableObject Page { get; }
+    [ObservableProperty] private bool _isSelected;
+    [ObservableProperty] private bool _isVisible;
 }
 
 public record ConfigurationItem(string Name, string FileName, string Path, string SizeText);
