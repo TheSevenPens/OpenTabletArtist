@@ -36,14 +36,19 @@ public partial class CalibrationOverlayWindow : Window
     private ScaleTransform? _pulseScale;
     private DispatcherTimer? _pulseTimer;
     private double _pulsePhase;
+    private Arc? _holdArc;              // fills clockwise as the pen rests on the active target (#457)
 
     // Overlay light/dark palette. This is calibration-only and independent of the app theme — the
     // shapes are code-drawn, so all colours (window, panel, text, buttons, targets) are chosen here.
     private bool _light;
     private static readonly IBrush DarkWinBg = new SolidColorBrush(Color.Parse("#D9101018"));
     private static readonly IBrush LightWinBg = new SolidColorBrush(Color.Parse("#E6ECECF0"));
-    private static readonly IBrush DarkPanelBg = new SolidColorBrush(Color.Parse("#CC1B1B28"));
-    private static readonly IBrush LightPanelBg = new SolidColorBrush(Color.Parse("#F2FFFFFF"));
+    // Panel is deliberately more opaque + lighter than the (near-black) window, with a visible border, so
+    // it reads as a distinct floating control surface rather than blending into the dimmed calibration bg.
+    private static readonly IBrush DarkPanelBg = new SolidColorBrush(Color.Parse("#F22B3048"));
+    private static readonly IBrush LightPanelBg = new SolidColorBrush(Color.Parse("#FAFFFFFF"));
+    private static readonly IBrush DarkPanelBorder = new SolidColorBrush(Color.Parse("#5AFFFFFF"));
+    private static readonly IBrush LightPanelBorder = new SolidColorBrush(Color.Parse("#40000000"));
     private static readonly IBrush DarkText = Brushes.White;
     private static readonly IBrush LightText = new SolidColorBrush(Color.Parse("#11141A"));
     private static readonly IBrush DarkBtnFg = Brushes.White;
@@ -96,6 +101,7 @@ public partial class CalibrationOverlayWindow : Window
     {
         Background = _light ? LightWinBg : DarkWinBg;
         Panel.Background = _light ? LightPanelBg : DarkPanelBg;
+        Panel.BorderBrush = _light ? LightPanelBorder : DarkPanelBorder;
         InstructionText.Foreground = _light ? LightText : DarkText;
         ThemeToggle.Content = _light ? "Dark mode" : "Light mode";
 
@@ -117,6 +123,12 @@ public partial class CalibrationOverlayWindow : Window
         PlaceOnDisplay();
         BuildAndLayout();
         ApplyOverlayTheme(); // colour the panel/buttons/shapes for the initial (dark) mode
+
+        // Hide the OS cursor over the targets: seeing it invites aligning the *cursor* with the target,
+        // when the point of calibration is to aim the *pen nib* there. The panel keeps a normal cursor so
+        // its buttons stay easy to click (#127 follow-up).
+        Cursor = new Cursor(StandardCursorType.None);
+        Panel.Cursor = new Cursor(StandardCursorType.Arrow);
 
         // Drive the pulse ring (~30 fps). A timer keeps full control of the breathing animation and
         // re-targets for free as the active target advances (we just reposition the ring).
@@ -191,6 +203,16 @@ public partial class CalibrationOverlayWindow : Window
                 RenderTransform = _pulseScale, RenderTransformOrigin = RelativePoint.Center,
             };
             Surface.Children.Add(_pulse);
+
+            // Hold-progress ring (#457): sweeps clockwise from the top as HoldProgress fills, so the user
+            // can see they need to keep holding — and for how much longer. Deliberately larger than the
+            // 40px target ring (so it reads as a distinct outer ring, not merged with it) and thick.
+            _holdArc = new Arc
+            {
+                Width = 76, Height = 76, StrokeThickness = 15, StartAngle = -90, SweepAngle = 0,
+                IsHitTestVisible = false,
+            };
+            Surface.Children.Add(_holdArc);
         }
         UpdateVisuals();
     }
@@ -272,9 +294,12 @@ public partial class CalibrationOverlayWindow : Window
             }
         }
 
+        bool holding = capturing && _vm.HoldProgress > 0.001;
+
         if (_pulse != null)
         {
-            _pulse.IsVisible = capturing;
+            // The breathing "aim here" attractor hides once the user starts holding — the fill ring takes over.
+            _pulse.IsVisible = capturing && !holding;
             _pulse.Stroke = ActiveBrush;
             if (capturing)
             {
@@ -282,6 +307,26 @@ public partial class CalibrationOverlayWindow : Window
                 Canvas.SetTop(_pulse, ay - _pulse.Height / 2);
             }
         }
+
+        if (_holdArc != null)
+        {
+            _holdArc.IsVisible = holding;
+            if (holding)
+            {
+                _holdArc.SweepAngle = _vm.HoldProgress * 360;
+                _holdArc.Stroke = CapturedBrush; // green fill signals "almost captured"
+                Canvas.SetLeft(_holdArc, ax - _holdArc.Width / 2);
+                Canvas.SetTop(_holdArc, ay - _holdArc.Height / 2);
+            }
+        }
+
+        // Keep the control panel clear of the active target: pin it to the vertical half *opposite* the
+        // target. Otherwise a low, centred target (common on 9/25-point grids) sits under the panel and is
+        // impossible to reach. When not capturing, default to the bottom. (#127)
+        bool targetLow = capturing && _vm.Targets[_vm.CurrentTarget].Y > 0.5;
+        Panel.VerticalAlignment = targetLow ? Avalonia.Layout.VerticalAlignment.Top
+                                            : Avalonia.Layout.VerticalAlignment.Bottom;
+        Panel.Margin = targetLow ? new Thickness(0, 48, 0, 0) : new Thickness(0, 0, 0, 48);
     }
 
     // Breathing pulse on the active target: grows and fades on a loop (driven by the timer).

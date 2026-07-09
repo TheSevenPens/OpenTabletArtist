@@ -22,7 +22,8 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
     // Test view, the Diagnostics page, the Dynamics tab's live-pressure dot). Reference-count it so
     // one consumer turning it off doesn't starve another. (#102 follow-up)
     private readonly object _debugLock = new();
-    private int _debugRefCount;
+    // The 0↔1 transition decision lives in a pure, tested helper (#121); this lock guards its use.
+    private readonly Domain.DebugRefCounter _debugRefs = new();
     // Single-flight reconnect coordinator: only one connect loop runs at a time, and a
     // reconnect requested while one is running (e.g. an immediate disconnect during connect)
     // is honored once the current loop exits — closing the dropped-reconnect race (#33).
@@ -91,7 +92,7 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                     if (ReferenceEquals(_rpc, rpc)) _rpc = null;
                     // The daemon forgets the debug flag on disconnect; clear the count so it isn't
                     // left stale (which would suppress a later enable).
-                    lock (_debugLock) _debugRefCount = 0;
+                    lock (_debugLock) _debugRefs.Reset();
                     Disconnected?.Invoke();
                     // Reconnect only on an UNEXPECTED drop — not a user-initiated Stop. If this
                     // fires during the current connect's release window, the coordinator still
@@ -226,8 +227,7 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
         // turns it off. Intermediate acquires/releases just adjust the count.
         bool send;
         lock (_debugLock)
-            send = enabled ? ++_debugRefCount == 1
-                           : _debugRefCount > 0 && --_debugRefCount == 0;
+            send = enabled ? _debugRefs.Acquire() : _debugRefs.Release();
 
         if (!send) return;
 
@@ -241,7 +241,7 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             // acquire would suppress the enable RPC, leaving consumers "active" with no stream.
             // (A failed disable is fine to leave at 0: the next enable re-asserts it.) (Codex #119)
             if (enabled)
-                lock (_debugLock) { if (_debugRefCount > 0) _debugRefCount--; }
+                lock (_debugLock) _debugRefs.RollbackAcquire();
             throw; // callers already catch and treat as a failed start/stop
         }
     }
