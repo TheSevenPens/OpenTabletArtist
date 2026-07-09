@@ -226,12 +226,17 @@ public partial class CalibrationViewModel : ObservableObject
 
         var fp = CalibrationProfile.Fingerprint(_ctx.Input, _ctx.Output, _ctx.Display.Number);
 
-        // Corners → perspective homography (#195); Grid → per-node bilinear offsets (#196).
+        // Corners → least-squares AFFINE; Grid → per-node bilinear offsets (#196).
         CalibrationProfile.CalibrationData? data = null;
         if (_ctx.Mode == CalibrationMode.Corners)
         {
-            if (CalibrationSolver.SolveHomography(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output) is { } h)
-                data = CalibrationProfile.CalibrationData.ForHomography(h, enabled: true, fp);
+            // Least-squares affine over the 4 corners (the original v1 model). It's over-determined
+            // (6 DOF, 8 equations) so it AVERAGES tap noise rather than fitting it exactly — unlike a
+            // 4-point homography, which fits all 4 taps perfectly and bakes their asymmetric noise into
+            // spurious perspective that warps the corner neighbourhoods. Flat pen displays are near-affine,
+            // so the affine is both more robust and more accurate there. (#483; reverts #195 for corners.)
+            if (CalibrationSolver.Solve(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output) is { } m)
+                data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fp);
         }
         else
         {

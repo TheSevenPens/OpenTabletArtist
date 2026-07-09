@@ -5,8 +5,9 @@
 >
 > **What shipped vs. this design.** This doc records the approved v1 — a 6-DOF **affine** 4-tap
 > calibration. The implementation has since advanced beyond it and is now the source of truth:
-> - **Corners (4 point)** fit a **perspective homography** (`CalibrationMath.SolveHomography`, #195),
->   which also corrects keystone/parallax; the affine is kept only to *read* legacy stores.
+> - **Corners (4 point)** fit a **least-squares affine** (`CalibrationSolver.Solve`) — robust to tap
+>   noise. (This reverts the #195 exact-homography default, which overfit noisy corner taps and warped
+>   the corner neighbourhoods, #483. The homography solver is kept for reading legacy stores.)
 > - **Fine grid (9 point / 25 point)** fit a **per-node bilinear offset field**
 >   (`CalibrationSolver.SolveGrid` / `CalibrationGrid`, #196) for localized distortion.
 > - The correction runs on its own **Calibration tab** (three cards) with an On/Off toggle, **Undo last
@@ -89,14 +90,18 @@ identically.
 
 A stored calibration carries a `Model` tag selecting which of three it uses:
 
-- **Affine** — a **2×3 affine** `u' = A·u` (6 DOF: scale, rotation, shear, translation), fit by least
-  squares (normal equations, closed form). This was the v1 model; it is now written **only** by the
-  legacy `CalibrationProfile.Write(...Matrix3x2...)` overload and read back for pre-#195 stores. The
-  overlay no longer produces it.
-- **Homography** *(the 4-point / Corners default, #195)* — a **projective homography** (`Homography`,
-  8 DOF), fit by least squares over the 4 corner correspondences (`CalibrationMath.SolveHomography`).
-  Corrects keystone / perspective parallax on top of offset/scale/rotation/shear — the real win for
-  pen displays whose panel and digitizer planes are slightly non-parallel.
+- **Affine** *(the 4-point / Corners model)* — a **2×3 affine** `u' = A·u` (6 DOF: scale, rotation,
+  shear, translation), fit by **least squares** over the 4 corners (`CalibrationSolver.Solve`). Because
+  it's over-determined (6 DOF, 8 equations) it **averages tap noise** rather than fitting it exactly, so
+  the correction is smooth and robust — the right choice for flat pen displays (near-affine parallax).
+  This was the original v1 model; it was reinstated as the corner default after the exact homography was
+  found to overfit (#483 — see below).
+- **Homography** *(legacy stores / optional keystone, #195)* — a **projective homography** (`Homography`,
+  8 DOF), fit over the 4 corner correspondences (`CalibrationMath.SolveHomography`). Corrects keystone /
+  perspective parallax, but from **exactly** 4 corners it fits the taps perfectly and bakes their
+  asymmetric noise into spurious perspective that warps the corner neighbourhoods — so it's **no longer
+  the corner default** (#483). Kept to read pre-#483 stores, and available if a genuinely non-planar
+  panel ever needs it (better fit over 5+ points).
 - **Grid** *(9-point 3×3 / 25-point 5×5, #196)* — a regular grid of **per-node offsets**
   (`CalibrationGrid`) applied by **bilinear interpolation**, where each node's offset is
   `expected − measured` in normalized space (`CalibrationSolver.SolveGrid`). Corrects *localized*
@@ -175,9 +180,10 @@ only if avoiding the plugin dependency becomes important.
    target, average ≥4 down-samples for stability, then advance. A live dot shows the uncorrected
    raw→screen point so the user sees the current error. **Undo last point** (#458) pops the most recent
    tap and re-arms that target.
-4. **Result:** once every target is captured, fit the model (Corners → homography; Grid → offset grid).
-   On success, apply it **temporarily** for a **preview/confirm** ("move the pen around — does the
-   cursor track the nib?") with **Apply**, **Redo**, **Undo last point**, **Cancel**. Apply keeps it
+4. **Result:** once every target is captured, fit the model (Corners → least-squares affine;
+   Grid → per-node offset grid). On success, apply it **temporarily** for a
+   **preview/confirm** ("move the pen around — does the cursor track the nib?") with **Apply**, **Redo**,
+   **Undo last point**, **Cancel**. Apply keeps it
    (in this app the preview already persisted, so Apply just closes); Cancel restores whatever
    calibration existed when the overlay opened. A degenerate fit → a **Failed** state with **Redo**.
    The recorded taps are saved as a **calibration report** (#460) shown back on the Calibration tab
@@ -222,14 +228,16 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
 - **v1 (this issue):** affine 4-tap calibration, filter + profile service, entry point + overlay,
   apply/redo/clear, Absolute-only, single mapped display. *(Shipped.)*
 - **Shipped since v1:**
-  - **Homography** (perspective/keystone) as the 4-point default (#195).
+  - **Homography** (perspective/keystone) tried as the 4-point default (#195), then reverted to the
+    v1 **least-squares affine** for corners after it overfit noisy corner taps (#483); the homography
+    solver stays for reading legacy stores.
   - **Grid** calibration — 9-point (3×3) and 25-point (5×5) per-node bilinear correction (#196).
   - **Undo last point** during capture (#458).
   - **On/Off toggle** to compare with/without, without clearing.
   - **Calibration report** — recorded taps persisted with the calibration and shown on the tab (#460),
     each with the **pixel-equivalent** of the raw tap and a **fit-quality** summary (RMS/max pointing
-    error corrected, plus an outlier flag for a misfired tap) (#461). Post-correction residual is ~0 by
-    construction for the homography/grid models, so the report shows the *pre*-correction parallax.
+    error corrected, plus an outlier flag for a misfired tap) (#461). The report shows the *pre*-correction
+    parallax (the raw tap vs. its target); the affine corner fit intentionally leaves a small residual.
   - **Stale hint** via a mapping fingerprint when the area mapping changes (#147).
   - Moved to a dedicated **Calibration** tab (from the Screen-Mapping tab).
 - **Later:** calibration from a guided setup (#60); auto-recapture prompt on area change (today it's a

@@ -254,9 +254,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
             static string ModeLabel(CalibrationProfile.CalibrationData c) => c.Model switch
             {
-                CalibrationProfile.CalibrationModel.Homography => "4 point (perspective)",
+                CalibrationProfile.CalibrationModel.Homography => "4 point (perspective)", // older stores
                 CalibrationProfile.CalibrationModel.Grid => $"{(c.Grid?.Cols ?? 0) * (c.Grid?.Rows ?? 0)} point",
-                _ => "4 point (legacy)",
+                _ => "4 point", // least-squares affine — the current 4-point model (#483)
             };
             CalibrationStatusText = cal == null ? "Not calibrated"
                 : CalibrationEnabled ? $"Calibrated — {ModeLabel(cal)}"

@@ -137,7 +137,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         if (display is null) { ConfigErrorStatus = "Couldn't match the mapped area to a connected display."; return; }
 
         // Simulate a 4-corner capture (TL, TR, BR, BL, inset 10%) where each tap lands a few px off target,
-        // so the fitted homography is slightly wrong. Same corner insets the real overlay uses.
+        // so the fitted affine is slightly wrong. Same corner insets the real overlay uses.
         var corners = new (double X, double Y)[] { (0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9) };
         var rng = new Random();
         float Jitter() => (float)((rng.NextDouble() * 2 - 1) * MaxCalibrationJitterPx);
@@ -154,11 +154,12 @@ public sealed partial class DeveloperViewModel : ObservableObject
             measuredRaw.Add(raw);
         }
 
-        if (CalibrationSolver.SolveHomography(targetsDesktop, measuredRaw, digi, input, output) is not { } h)
+        // Least-squares affine — the same model the real 4-point overlay writes (#483).
+        if (CalibrationSolver.Solve(targetsDesktop, measuredRaw, digi, input, output) is not { } m)
         { ConfigErrorStatus = "Couldn't solve a calibration from the simulated taps — try again."; return; }
 
         var fingerprint = CalibrationProfile.Fingerprint(input, output, display.Number);
-        var data = CalibrationProfile.CalibrationData.ForHomography(h, enabled: true, fingerprint)
+        var data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fingerprint)
             with { Report = BuildSimulatedReport(display, targetsDesktop, measuredRaw, digi, input, output, rng) };
 
         CalibrationProfile.Write(settings, tabletName, data);
