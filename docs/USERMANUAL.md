@@ -16,6 +16,11 @@ dotnet run --project OpenTabletArtist
 
 > Build the **solution** (`.slnx`), not just `OpenTabletArtist/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
 
+> **Prefer the build script for a predictable build.** `scripts/build.ps1` builds the solution and
+> first clears the usual blockers — it stops a running app/daemon that would lock the build outputs,
+> initializes the OTD submodule if it's missing, and confirms the daemon exe was produced. Run
+> `./scripts/build.ps1` (add `-Test` to run the suite, `-Configuration Release` for a release build).
+
 On launch the app auto-starts the daemon if it isn't already running, then connects.
 
 ## Using the Interface
@@ -256,4 +261,8 @@ Building only the app project, or only running the test suite, does **not** prod
 
 ### Build fails with "file is locked by OpenTabletArtist"
 
-Close the running app first. If a previous instance hasn't fully exited, it may still hold the .exe. We have an open investigation item in `docs/FUTURES.md` to make shutdown cleaner.
+The running app or daemon holds the build outputs (the app exe or the OTD DLLs) open. Use
+`scripts/build.ps1`, which stops those processes before building so this can't happen. To fix it by
+hand, close the running app **and** stop the daemon (Task Manager → `OpenTabletDriver.Daemon.exe`, or
+the tray's Quit + Stop) before rebuilding. If a previous instance hasn't fully exited it may still
+hold the .exe. We have an open investigation item in `docs/FUTURES.md` to make shutdown cleaner.
