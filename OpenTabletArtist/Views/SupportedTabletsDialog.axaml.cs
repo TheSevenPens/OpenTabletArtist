@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using OpenTabletArtist.ViewModels;
@@ -23,6 +24,13 @@ public partial class SupportedTabletsDialog : Window
     }
 
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
+
+    // A column header was clicked → sort by it (the Tag names the column).
+    private void OnHeaderClick(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control { Tag: string column } && DataContext is SupportedTabletsDialogViewModel vm)
+            vm.SortByCommand.Execute(column);
+    }
 
     private void ScrollDetectedIntoView(SupportedTabletsDialogViewModel vm)
     {

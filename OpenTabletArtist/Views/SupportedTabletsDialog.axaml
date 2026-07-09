@@ -27,13 +27,24 @@
                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
                 </Border>
             </Grid>
-            <TextBox Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="Search tablets…" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Grid.Column="0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="Search tablets…" />
+                <ComboBox Grid.Column="1" Width="160" VerticalAlignment="Stretch"
+                          ItemsSource="{Binding Brands}" SelectedItem="{Binding SelectedBrand, Mode=TwoWay}"
+                          ToolTip.Tip="Filter by brand" />
+            </Grid>
+            <!-- Clickable column headers; click sorts by that column, click again reverses. The active
+                 column shows a ▲/▼ arrow. The # column (row numbers) isn't sortable. -->
             <Grid ColumnDefinitions="44,*,150,90,70" Margin="4,2,4,0">
                 <TextBlock Grid.Column="0" Text="#" Classes="SectionLabel" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="1" Text="NAME" Classes="SectionLabel" />
-                <TextBlock Grid.Column="2" Text="ACTIVE AREA" Classes="SectionLabel" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="3" Text="PRESSURE" Classes="SectionLabel" HorizontalAlignment="Right" />
-                <TextBlock Grid.Column="4" Text="BUTTONS" Classes="SectionLabel" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="1" Text="{Binding NameHeader}" Classes="SectionLabel"
+                           Cursor="Hand" Tag="Name" PointerPressed="OnHeaderClick" />
+                <TextBlock Grid.Column="2" Text="{Binding AreaHeader}" Classes="SectionLabel" HorizontalAlignment="Right"
+                           Cursor="Hand" Tag="Area" PointerPressed="OnHeaderClick" />
+                <TextBlock Grid.Column="3" Text="{Binding PressureHeader}" Classes="SectionLabel" HorizontalAlignment="Right"
+                           Cursor="Hand" Tag="Pressure" PointerPressed="OnHeaderClick" />
+                <TextBlock Grid.Column="4" Text="{Binding ButtonsHeader}" Classes="SectionLabel" HorizontalAlignment="Right"
+                           Cursor="Hand" Tag="Buttons" PointerPressed="OnHeaderClick" />
             </Grid>
         </StackPanel>
 
