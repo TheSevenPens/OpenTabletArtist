@@ -1613,6 +1613,77 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowMappingOffScreen));
         OnPropertyChanged(nameof(ShowMappingCustom));
         OnPropertyChanged(nameof(MappingValidityText));
+        UpdateActiveAreaSizePercent();
+    }
+
+    // ── Active-area editing (#199): interactive resize/move (from the diagram) + a Size slider + Maximize ──
+
+    /// <summary>Persist an interactive active-area edit from the diagram (it has already clamped the
+    /// values to the tablet + rotation). Keeps the aspect lock on.</summary>
+    public Task CommitActiveArea(double width, double height, double centerX, double centerY) =>
+        ApplySettingsChange(p =>
+        {
+            if (p.AbsoluteModeSettings?.Tablet is { } t)
+            {
+                t.Width = (float)width; t.Height = (float)height;
+                t.X = (float)centerX; t.Y = (float)centerY;
+            }
+        });
+
+    /// <summary>Reset the active area to the largest centred fit for the mapped display + current rotation.</summary>
+    [RelayCommand]
+    private async Task MaximizeActiveArea()
+    {
+        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+        await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, TabletRotation, Displays));
+    }
+
+    /// <summary>Active-area size as a percent (10–100) of the maximum that fits — the Size slider. User
+    /// changes are debounced and applied (resizing about the current centre); reads back from the stored
+    /// area on every refresh.</summary>
+    [ObservableProperty] private double _activeAreaSizePercent = 100;
+    private bool _syncingSize;
+    private System.Threading.CancellationTokenSource? _sizeCts;
+
+    partial void OnActiveAreaSizePercentChanged(double value)
+    {
+        if (_syncingSize) return;   // programmatic sync from the stored area, not a user edit
+        _sizeCts?.Cancel();
+        _sizeCts = new System.Threading.CancellationTokenSource();
+        var token = _sizeCts.Token;
+        _ = DebouncedResize(token);
+    }
+
+    private async Task DebouncedResize(System.Threading.CancellationToken token)
+    {
+        try { await Task.Delay(250, token); } catch (TaskCanceledException) { return; }
+        if (token.IsCancellationRequested) return;
+
+        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+        var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
+        if (dig is not { } d || display == null) return;
+
+        var max = AreaMappingCalculator.FitForRotation(d.Width, d.Height, display.Width, display.Height, TabletRotation);
+        float frac = (float)Math.Clamp(ActiveAreaSizePercent / 100.0, 0.1, 1.0);
+        var cur = _profile.AbsoluteModeSettings?.Tablet;
+        float cx = cur?.X ?? d.Width / 2f, cy = cur?.Y ?? d.Height / 2f;
+        var clamped = AreaMappingCalculator.ClampArea(max.Width * frac, max.Height * frac, cx, cy,
+            TabletRotation, d.Width, d.Height, max.Width * 0.1f);
+        await CommitActiveArea(clamped.Width, clamped.Height, clamped.X, clamped.Y);
+    }
+
+    // Reflect the stored area's size into the slider without re-triggering an apply.
+    private void UpdateActiveAreaSizePercent()
+    {
+        var t = _profile.AbsoluteModeSettings?.Tablet;
+        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+        var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
+        if (t == null || dig is not { } d || display == null) return;
+        var max = AreaMappingCalculator.FitForRotation(d.Width, d.Height, display.Width, display.Height, TabletRotation);
+        if (max.Width <= 0) return;
+        _syncingSize = true;
+        ActiveAreaSizePercent = Math.Round(Math.Clamp(t.Width / max.Width * 100.0, 10, 100));
+        _syncingSize = false;
     }
 
     // ── Active Area tab: read-out of the full vs. effective (used) area ──────────

@@ -68,4 +68,41 @@ public static class AreaMappingCalculator
         // The swapped call centres on the swapped dims; re-centre on the real tablet.
         return fit with { X = fullWidth / 2f, Y = fullHeight / 2f };
     }
+
+    /// <summary>
+    /// Clamp an aspect-locked active area (for interactive resize/move, #199) so its rotation-aware
+    /// footprint stays fully within the tablet and its size stays between <paramref name="minWidth"/> and
+    /// the largest that fits. The Width:Height aspect is preserved (only the scale changes); the centre is
+    /// then clamped so the (possibly rotated) footprint can't cross a tablet edge.
+    /// </summary>
+    public static TabletArea ClampArea(float width, float height, float centerX, float centerY,
+        int rotationDeg, float fullWidth, float fullHeight, float minWidth)
+    {
+        width = Math.Max(1e-3f, width);
+        height = Math.Max(1e-3f, height);
+        bool perp = ((((rotationDeg % 360) + 360) % 360) % 180) != 0;
+
+        // Footprint = the area's bounding box in tablet coords (width/height swap for 90/270).
+        float footW = perp ? height : width;
+        float footH = perp ? width : height;
+
+        // Shrink to fit the tablet if the footprint overflows (preserve aspect).
+        float fitScale = Math.Min(1f, Math.Min(fullWidth / footW, fullHeight / footH));
+        width *= fitScale; height *= fitScale;
+
+        // Enforce a minimum width (preserve aspect) — but only if the larger area still fits.
+        if (width < minWidth && width > 0)
+        {
+            float up = minWidth / width;
+            float fW = perp ? height * up : width * up;
+            float fH = perp ? width * up : height * up;
+            if (fW <= fullWidth && fH <= fullHeight) { width *= up; height *= up; }
+        }
+
+        footW = perp ? height : width;
+        footH = perp ? width : height;
+        centerX = Math.Clamp(centerX, footW / 2f, fullWidth - footW / 2f);
+        centerY = Math.Clamp(centerY, footH / 2f, fullHeight - footH / 2f);
+        return new TabletArea(width, height, centerX, centerY);
+    }
 }
