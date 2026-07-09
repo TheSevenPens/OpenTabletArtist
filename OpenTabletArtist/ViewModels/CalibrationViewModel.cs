@@ -122,6 +122,11 @@ public partial class CalibrationViewModel : ObservableObject
     /// <summary>How many targets are captured (for ticking them off in the view).</summary>
     public int CapturedCount => _measuredRaw.Count;
 
+    /// <summary>Progress readout for the panel — "Point 4 of 9" while capturing, "9 of 9 captured" after.</summary>
+    public string ProgressText => IsCapturing
+        ? $"Point {Math.Min(CurrentTarget + 1, _targets.Count)} of {_targets.Count}"
+        : $"{CapturedCount} of {_targets.Count} captured";
+
     /// <summary>Raised when the overlay should close.</summary>
     public event Action? CloseRequested;
 
@@ -132,7 +137,10 @@ public partial class CalibrationViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFailed));
         OnPropertyChanged(nameof(ShowApply));
         OnPropertyChanged(nameof(ShowRedo));
+        OnPropertyChanged(nameof(ProgressText));
     }
+
+    partial void OnCurrentTargetChanged(int value) => OnPropertyChanged(nameof(ProgressText));
 
     // --- Lifecycle ---
 
