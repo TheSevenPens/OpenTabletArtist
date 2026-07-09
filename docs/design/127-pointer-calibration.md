@@ -5,11 +5,13 @@
 >
 > **What shipped vs. this design.** This doc records the approved v1 — a 6-DOF **affine** 4-tap
 > calibration. The implementation has since advanced beyond it and is now the source of truth:
-> - **Corners (4 point)** fit a **least-squares affine** (`CalibrationSolver.Solve`) — robust to tap
->   noise. (This reverts the #195 exact-homography default, which overfit noisy corner taps and warped
->   the corner neighbourhoods, #483. The homography solver is kept for reading legacy stores.)
-> - **Fine grid (9 point / 25 point)** fit a **per-node bilinear offset field**
->   (`CalibrationSolver.SolveGrid` / `CalibrationGrid`, #196) for localized distortion.
+> - **All densities (4 / 9 / 25 point)** currently fit a **least-squares affine** (`CalibrationSolver.Solve`)
+>   — robust to tap noise; more taps just make the fit steadier. (Corners reverted from the #195 exact
+>   homography that overfit noisy taps, #483; the grid was dropped as the 9/25-point model after affine
+>   measured best at *every* density on a flat, accurate Wacom Movink 13 — the per-node grid
+>   over-parameterizes flat panels, #485/#486.) The homography solver (legacy stores) and the grid solver
+>   (`SolveGrid` / `CalibrationGrid`, #196 — for tablets with genuine localized distortion) remain in the
+>   code and are reachable via **Developer → Re-solve** for A/B testing a capture.
 > - The correction runs on its own **Calibration tab** (three cards) with an On/Off toggle, **Undo last
 >   point** (#458), a persisted **calibration report** of the recorded taps (#460), and a stale hint
 >   when the mapping fingerprint changes (#147).
@@ -231,7 +233,9 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
   - **Homography** (perspective/keystone) tried as the 4-point default (#195), then reverted to the
     v1 **least-squares affine** for corners after it overfit noisy corner taps (#483); the homography
     solver stays for reading legacy stores.
-  - **Grid** calibration — 9-point (3×3) and 25-point (5×5) per-node bilinear correction (#196).
+  - **Grid** calibration — 9-point (3×3) and 25-point (5×5) capture; the per-node bilinear solver
+    (#196) shipped but is **not** the current default — 9/25-point now fit affine like 4-point, since
+    the grid over-parameterizes flat panels (#485/#486). Solver kept + reachable via Developer re-solve.
   - **Undo last point** during capture (#458).
   - **On/Off toggle** to compare with/without, without clearing.
   - **Calibration report** — recorded taps persisted with the calibration and shown on the tab (#460),
