@@ -7,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Views;
 
 namespace OpenTabletArtist.Helpers;
 
@@ -37,7 +38,7 @@ public static class Dialogs
         var addBtn = new Button { Content = "Add", Padding = new Thickness(24, 8), FontSize = 13, IsEnabled = false };
         var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13 };
 
-        var dialog = new Window
+        var dialog = new AppWindow
         {
             Title = "Add application",
             Width = 460,
@@ -104,7 +105,7 @@ public static class Dialogs
     public static async Task ShowMessageAsync(string title, string message, Window? parent = null)
     {
         parent ??= GetMainWindow();
-        var dialog = new Window
+        var dialog = new AppWindow
         {
             Title = title,
             Width = 420,
@@ -147,7 +148,7 @@ public static class Dialogs
         parent ??= GetMainWindow();
         bool result = false;
 
-        var dialog = new Window
+        var dialog = new AppWindow
         {
             Title = title,
             Width = 420,
@@ -207,7 +208,7 @@ public static class Dialogs
             Margin = new Thickness(0, 8, 0, 20)
         };
 
-        var dialog = new Window
+        var dialog = new AppWindow
         {
             Title = title,
             Width = 400,

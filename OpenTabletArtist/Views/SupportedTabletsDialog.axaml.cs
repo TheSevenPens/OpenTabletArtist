@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -15,6 +16,7 @@ public partial class SupportedTabletsDialog : Window
     public SupportedTabletsDialog()
     {
         InitializeComponent();
+        ShellPenFeedback.DisableOnOpen(this);
     }
 
     private SupportedTabletsDialog(SupportedTabletsDialogViewModel vm) : this()

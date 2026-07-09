@@ -102,6 +102,9 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         ClampToWorkingArea();
+        // Turn off Windows' pen/touch tap-feedback rings across the app — they're just visual noise on a
+        // drawing-tablet UI. Per-window; gestures (e.g. right-click) still work.
+        ShellPenFeedback.DisableFor(this);
     }
 
     /// <summary>

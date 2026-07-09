@@ -27,6 +27,7 @@ public partial class TabletSettingsDialog : Window
         IDeviceData? deviceData = null)
     {
         InitializeComponent();
+        ShellPenFeedback.DisableOnOpen(this);
         // Calibration overlay is owned by this dialog window (#127); the VM reloads afterward (#147).
         var vm = new TabletDetailViewModel(profile, settings, onApplyChanges, onRefresh,
             tabletDigitizer, penInput, isDetected, dynamicsOnly, deviceData,

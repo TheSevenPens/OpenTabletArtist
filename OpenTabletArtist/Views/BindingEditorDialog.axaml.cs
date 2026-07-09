@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
@@ -21,6 +22,7 @@ public partial class BindingEditorDialog : Window
     public BindingEditorDialog(BindingEditorViewModel vm)
     {
         InitializeComponent();
+        ShellPenFeedback.DisableOnOpen(this);
         DataContext = vm;
         vm.CloseRequested += OnCloseRequested;
         KeyDown += (_, e) =>
