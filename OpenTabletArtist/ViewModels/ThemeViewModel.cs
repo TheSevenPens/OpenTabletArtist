@@ -29,6 +29,7 @@ public partial class ThemeViewModel : ObservableObject
         new(ThemeService.Light,  "Light",  "A clean, bright theme.", new SolidColorBrush(Color.Parse("#F0F0F6"))),
         new(ThemeService.Dark,   "Dark",   "Easy on the eyes in low light.", new SolidColorBrush(Color.Parse("#13131C"))),
         new(ThemeService.Anime,  "Sakura", "Pink skin with a cherry-blossom backdrop and frosted-glass panels.", SakuraSwatch()),
+        new(ThemeService.DarkSakura, "Dark Sakura", "A moody dark cherry-blossom skin: pink accents and falling petals over a dimmed backdrop.", DarkSakuraSwatch()),
         new(ThemeService.Custom, "Custom", "A translucent skin you tune: pick the accent colour and a background image.", CustomSwatch()),
     };
 
@@ -38,10 +39,11 @@ public partial class ThemeViewModel : ObservableObject
     public string SelectedDescription => SelectedTheme?.Description ?? "";
 
     private bool IsSakura => SelectedTheme?.Id == ThemeService.Anime;
+    private bool IsDarkSakura => SelectedTheme?.Id == ThemeService.DarkSakura;
     private bool IsCustom => SelectedTheme?.Id == ThemeService.Custom;
 
-    /// <summary>Falling petals + the card-opacity slider apply to both translucent skins (Sakura + Custom).</summary>
-    public bool ShowPetalsToggle => IsSakura || IsCustom;
+    /// <summary>Falling petals apply to every blossom skin (Sakura, Dark Sakura, Custom).</summary>
+    public bool ShowPetalsToggle => IsSakura || IsDarkSakura || IsCustom;
     public bool ShowFrostControls => IsSakura || IsCustom;
     /// <summary>The accent-colour + background-image controls are Custom-only.</summary>
     public bool ShowCustomControls => IsCustom;
@@ -315,6 +317,9 @@ public partial class ThemeViewModel : ObservableObject
 
     /// <summary>Sakura swatch: the same pink→rose gradient as the skin's accent buttons.</summary>
     private static IBrush SakuraSwatch() => Gradient(Color.Parse("#FF7EC4"), Color.Parse("#E0218A"));
+
+    /// <summary>Dark Sakura swatch: pink accent emerging from a dark plum, hinting the dark scheme.</summary>
+    private static IBrush DarkSakuraSwatch() => Gradient(Color.Parse("#2A1420"), Color.Parse("#E0218A"));
 
     /// <summary>Custom swatch: the default indigo, hinting the accent is user-chosen.</summary>
     private static IBrush CustomSwatch() => Gradient(Color.Parse("#7C7EF4"), Color.Parse("#6366F1"));

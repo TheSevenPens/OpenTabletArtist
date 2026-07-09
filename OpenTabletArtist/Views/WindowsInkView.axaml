@@ -18,7 +18,6 @@
 
                     <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Classes="statusMarkWarn" Classes.success="{Binding WinInkInstalled}" />
                         <TextBlock Text="{Binding WinInkInstallStatusText}" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
@@ -26,7 +25,6 @@
                     <!-- Active status: whether the active profile actually uses Windows Ink output mode -->
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 IsVisible="{Binding WinInkInstalled}">
-                        <TextBlock Classes="statusMarkWarn" Classes.success="{Binding HasWindowsInk}" />
                         <TextBlock Text="{Binding WindowsInkStatusText}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>

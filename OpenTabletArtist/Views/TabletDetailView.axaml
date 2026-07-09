@@ -478,7 +478,6 @@
                 <Border Classes="GlassPanel" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Classes="statusMark" Classes.success="{Binding CalibrationEnabled}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding CalibrationStatusText}" FontWeight="SemiBold"
                                        VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                             <ToggleSwitch IsChecked="{Binding CalibrationEnabled}" IsVisible="{Binding HasCalibration}"
@@ -969,9 +968,10 @@
                     <StackPanel>
                         <TextBlock Text="POSITION SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                    ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+                        <!-- Capped at 0.25 (#487): heavier position smoothing is too laggy to be useful. -->
                         <ctrl:LabeledSlider Label="Position" LabelWidth="80" Margin="0,8,0,0"
-                                            Minimum="0" Maximum="1"
-                                            Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
+                                            Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                            Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
                                             Value="{Binding PositionSmoothing}"
                                             ValueTextOverride="{Binding PositionSmoothingText}"
                                             Monospace="True" ValueWidth="44" />
@@ -1058,7 +1058,6 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal"
                                                 VerticalAlignment="Center">
-                                        <TextBlock Classes="statusMark" Classes.success="{Binding Enabled}" />
                                         <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    VerticalAlignment="Center" />

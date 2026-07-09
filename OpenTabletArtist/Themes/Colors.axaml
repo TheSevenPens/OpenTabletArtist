@@ -248,6 +248,95 @@
             <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
         </ResourceDictionary>
 
+        <!-- ===== Dark Sakura (#241) =====
+             The pink Sakura accent + falling petals over a DARK scheme. Keyed by DarkSakuraVariant, which
+             inherits Dark so surfaces + Fluent control resources resolve dark and text stays light. The
+             same cherry-blossom backdrop as Sakura, dimmed by a dark scrim so it reads moody instead of
+             bright behind the dark glass panels. -->
+        <ResourceDictionary x:Key="{x:Static svc:ThemeService.DarkSakuraVariant}">
+            <!-- Pink accent (same as Sakura). -->
+            <Color x:Key="Accent">#E0218A</Color>
+            <Color x:Key="AccentMuted">#2EE0218A</Color>
+            <Color x:Key="NavActive">#3AE0218A</Color>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="AccentMutedBrush" Color="{StaticResource AccentMuted}" />
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource NavActive}" />
+
+            <!-- Fluent's native-control accent ramp (toggles, checkboxes, selection, sliders, focus). -->
+            <Color x:Key="SystemAccentColor">#E0218A</Color>
+            <Color x:Key="SystemAccentColorLight1">#E73E9C</Color>
+            <Color x:Key="SystemAccentColorLight2">#EE5EAE</Color>
+            <Color x:Key="SystemAccentColorLight3">#F488C4</Color>
+            <Color x:Key="SystemAccentColorDark1">#C41C79</Color>
+            <Color x:Key="SystemAccentColorDark2">#A41667</Color>
+            <Color x:Key="SystemAccentColorDark3">#81104F</Color>
+
+            <!-- Fluent's RadioButton checked fill uses its own keys, not SystemAccentColor. -->
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed" Color="{StaticResource SystemAccentColorDark1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{StaticResource Accent}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="{StaticResource SystemAccentColorLight1}" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed" Color="{StaticResource SystemAccentColorDark1}" />
+
+            <!-- Dark plum-tinted surfaces. -->
+            <Color x:Key="BgBase">#17111C</Color>
+            <Color x:Key="BgElevated">#201826</Color>
+            <Color x:Key="BgSurface">#291F31</Color>
+            <!-- Dark translucent plum glass so the dimmed backdrop glows through the panels. -->
+            <Color x:Key="GlassBg">#59261C30</Color>
+            <Color x:Key="GlassBgHover">#73302438</Color>
+            <Color x:Key="GlassBorder">#33E0218A</Color>
+            <Color x:Key="TextPrimary">#F2FFFFFF</Color>
+            <Color x:Key="TextSecondary">#C8FFFFFF</Color>
+            <Color x:Key="TextMuted">#8CFFFFFF</Color>
+            <Color x:Key="Divider">#26E0218A</Color>
+
+            <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
+            <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
+            <SolidColorBrush x:Key="BgSurfaceBrush" Color="{StaticResource BgSurface}" />
+            <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
+            <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
+
+            <!-- Dark plum translucent sidebar so the backdrop glows through. -->
+            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0" Color="#8C2A1420" />
+                <GradientStop Offset="1" Color="#8C200E18" />
+            </LinearGradientBrush>
+
+            <!-- Accent buttons: the same pink→rose gradient as Sakura. -->
+            <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#FF7EC4" />
+                <GradientStop Offset="1" Color="#E0218A" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundBrush" Color="#FFFFFF" />
+            <LinearGradientBrush x:Key="AccentButtonFillHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#FF93CF" />
+                <GradientStop Offset="1" Color="#EC3A9B" />
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentButtonForegroundHoverBrush" Color="#FFFFFF" />
+
+            <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
+            <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
+
+            <!-- The sakura backdrop, dimmed by a dark plum scrim (below) so it reads dark. -->
+            <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
+                        Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
+            <SolidColorBrush x:Key="BackdropScrimBrush" Color="#C4160910" />
+
+            <Color x:Key="PenDiagramFill">#3A2A34</Color>
+            <Color x:Key="PenDiagramButtonFill">#4A3644</Color>
+            <Color x:Key="PenDiagramStroke">#E0218A</Color>
+            <SolidColorBrush x:Key="PenDiagramFillBrush" Color="{StaticResource PenDiagramFill}" />
+            <SolidColorBrush x:Key="PenDiagramButtonFillBrush" Color="{StaticResource PenDiagramButtonFill}" />
+            <SolidColorBrush x:Key="PenDiagramStrokeBrush" Color="{StaticResource PenDiagramStroke}" />
+        </ResourceDictionary>
+
         <!-- ===== Custom (user-tunable skin) =====
              A dark translucent skin the user drives from the Theme page: one accent colour derives the
              whole scheme, and an optional background image fills the window behind the glass panels (with
