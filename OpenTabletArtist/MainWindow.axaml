@@ -8,13 +8,19 @@
         Width="1100" Height="720"
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BgBaseBrush}">
+        Background="{DynamicResource BgBaseBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
 
-    <Panel>
+    <!-- Client area extended under the title bar (#titlebar): the Sakura backdrop now reaches the top
+         edge instead of a gray system caption bar. The native min/max/close buttons stay (top-right);
+         a drag strip below provides window move/maximize. OffScreenMargin keeps content on-screen when
+         maximized (Windows over-sizes an extended-chrome window by the frame width). -->
+    <Panel Margin="{Binding OffScreenMargin, RelativeSource={RelativeSource AncestorType=Window}}">
         <!-- Full-window backdrop layer. Transparent in Light/Dark; the sakura image in the Anime
              skin (#anime), or the user's chosen image in the Custom skin. Sits behind everything so
              the translucent sidebar + glass cards show it through. -->
@@ -147,8 +153,9 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <!-- Content padding. Kept above the Sakura cards' glow extent (16px blur, see CardShadow)
-                 so the soft glow isn't clipped by the scroll viewport on the left/right. -->
-            <Border Padding="20,18">
+                 so the soft glow isn't clipped by the scroll viewport on the left/right. Extra top space
+                 (#titlebar) clears the native caption buttons now that the client area reaches the top. -->
+            <Border Padding="20,44,20,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
@@ -190,5 +197,11 @@
                    Classes.failed="{Binding Connection.SaveFailed}"
                    FontSize="11" TextWrapping="Wrap" MaxWidth="300" />
     </Border>
+
+    <!-- Title-bar drag strip (#titlebar): the top edge is app-coloured now, so this transparent strip
+         gives the window its move/double-click-maximize behaviour. It stops short of the top-right so
+         the native caption buttons still receive their clicks. -->
+    <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="34" Margin="0,0,150,0"
+            Background="Transparent" PointerPressed="OnTitleBarPressed" DoubleTapped="OnTitleBarDoubleTapped" />
     </Panel>
 </Window>

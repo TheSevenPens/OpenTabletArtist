@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Helpers;
@@ -85,6 +86,17 @@ public partial class MainWindow : Window
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;
+
+    // The client area is extended under the title bar (#titlebar), so the top strip is our own drag
+    // handle: left-drag moves the window; double-click toggles maximize (standard title-bar behaviour).
+    private void OnTitleBarPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            BeginMoveDrag(e);
+    }
+
+    private void OnTitleBarDoubleTapped(object? sender, TappedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
     protected override void OnOpened(EventArgs e)
     {
