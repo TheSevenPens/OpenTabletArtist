@@ -1,7 +1,21 @@
 # Design — Pointer calibration for pen displays (#127)
 
-> Status: **approved & implemented** in this PR. (Design reviewed before coding; decisions and
-> implementation requirements below were folded in from that review.)
+> Status: **approved & implemented**, then **extended past the original v1**. (Design reviewed before
+> coding; decisions and implementation requirements below were folded in from that review.)
+>
+> **What shipped vs. this design.** This doc records the approved v1 — a 6-DOF **affine** 4-tap
+> calibration. The implementation has since advanced beyond it and is now the source of truth:
+> - **Corners (4 point)** fit a **perspective homography** (`CalibrationMath.SolveHomography`, #195),
+>   which also corrects keystone/parallax; the affine is kept only to *read* legacy stores.
+> - **Fine grid (9 point / 25 point)** fit a **per-node bilinear offset field**
+>   (`CalibrationSolver.SolveGrid` / `CalibrationGrid`, #196) for localized distortion.
+> - The correction runs on its own **Calibration tab** (three cards) with an On/Off toggle, **Undo last
+>   point** (#458), a persisted **calibration report** of the recorded taps (#460), and a stale hint
+>   when the mapping fingerprint changes (#147).
+>
+> The "Transform model", "UX flow", and "Scope / phasing" sections below have been updated to match;
+> the rest is preserved as the original rationale. See also
+> [ARCHITECTURE.md](../ARCHITECTURE.md) → *Pointer calibration*.
 
 ## Problem
 
@@ -40,19 +54,33 @@ Normalization (per Kuuuube): `u = raw / max * 2 - 1`, inverse `raw = (u + 1) / 2
 
 ## Transform model
 
-Use a **2×3 affine** in normalized-tablet space: `u' = A·u` where
-`A = [[a, b, tx], [c, d, ty]]` (6 DOF: scale, rotation, shear, translation).
+All models work in **normalized-tablet space** (each axis `-1..1`, matching OTD/Kuuuube) so the
+correction is resolution-independent. The filter normalizes each report, applies the model, and
+denormalizes. The pure math lives in **`Domain/`** (`CalibrationMath`, `CalibrationSolver`) and is
+unit-tested against known cases (identity, pure offset/scale/rotation, noisy fits, degenerate
+rejection, round-trips). It is **source-shared** into the plugin so the daemon and the app compute
+identically.
 
-- 4 captured point-pairs → **over-determined** (8 equations, 6 unknowns) → solve by **least squares**
-  (normal equations; closed form, no external math lib). Robust to a slightly-imprecise tap.
-- Affine covers the real-world cases (offset + non-uniform scale + small rotation; shear absorbs
-  minor skew). **Perspective/homography** (keystone) is deliberately **out of scope** for v1 — it's
-  rarely needed for flat panels and adds nonlinear solving; noted as a future extension.
-- Degenerate input (collinear/duplicate taps) → detected via the normal-matrix determinant →
-  reject with a "couldn't compute, try again" message rather than apply garbage.
+A stored calibration carries a `Model` tag selecting which of three it uses:
 
-The pure math (`build affine from point pairs`, `apply`) lives in **`Domain/`** and is unit-tested
-against known cases (identity, pure offset, pure scale, rotation, a noisy 4-point fit).
+- **Affine** — a **2×3 affine** `u' = A·u` (6 DOF: scale, rotation, shear, translation), fit by least
+  squares (normal equations, closed form). This was the v1 model; it is now written **only** by the
+  legacy `CalibrationProfile.Write(...Matrix3x2...)` overload and read back for pre-#195 stores. The
+  overlay no longer produces it.
+- **Homography** *(the 4-point / Corners default, #195)* — a **projective homography** (`Homography`,
+  8 DOF), fit by least squares over the 4 corner correspondences (`CalibrationMath.SolveHomography`).
+  Corrects keystone / perspective parallax on top of offset/scale/rotation/shear — the real win for
+  pen displays whose panel and digitizer planes are slightly non-parallel.
+- **Grid** *(9-point 3×3 / 25-point 5×5, #196)* — a regular grid of **per-node offsets**
+  (`CalibrationGrid`) applied by **bilinear interpolation**, where each node's offset is
+  `expected − measured` in normalized space (`CalibrationSolver.SolveGrid`). Corrects *localized*
+  distortion a single global transform can't. Modeled on BetterCalibrator.
+
+Common to all: 4+ captured point-pairs are **over-determined** and solved by least squares (robust to
+a slightly-imprecise tap; no external math lib). Degenerate input (collinear/duplicate taps, a
+collapsed grid, a non-invertible system) is detected — via the normal-matrix determinant, Gaussian
+pivoting, or a zero-area grid extent — and the capture is **rejected** with a "couldn't compute, try
+again" message rather than applying garbage.
 
 ## What gets captured, and the target/expected pairing
 
@@ -79,11 +107,16 @@ reach on a display and digitizer linearity is worst at the very edge. Inset taps
 ## Where the transform runs — recommendation + alternative
 
 **Recommended (A): a new `CalibrationFilter` in the existing `OpenTabletArtist.Dynamics` plugin
-assembly**, `PipelinePosition.PreTransform`, exposing the 6 affine values as `[Property]`s
-(`A11,A12,A21,A22,Tx,Ty`) plus an `Enabled`-style presence. The installer already copies the whole
-assembly (`PressurePluginInstaller`), so a second `[PluginName]` filter ("OpenTabletArtist -
-Calibration") ships with **no new install/build path**. A `CalibrationProfile` service reads/writes
-the store on the profile, mirroring `PressureCurveProfile` exactly.
+assembly**, `PipelinePosition.PreTransform`. The installer already copies the whole assembly
+(`PressurePluginInstaller`), so a second `[PluginName]` filter ("OpenTabletArtist - Calibration")
+ships with **no new install/build path**. A `CalibrationProfile` service reads/writes the store on the
+profile, mirroring `PressureCurveProfile` exactly, and orders it *before* the dynamics filter.
+
+As shipped, the filter exposes as `[Property]`s: the six affine components `M11,M12,M21,M22,M31,M32`
+(`Matrix3x2` convention; identity by default, used for legacy/affine stores), a `Model` selector
+(`""`/`Affine` → the M-matrix, `Homography`, `Grid`), the `Homography` and `Grid` **CSV payloads**
+(parsed once on set), a `Mapping Fingerprint` (opaque staleness token), and a `Report` (the recorded
+taps, #460). `Consume` branches on `Model`; presence of the store is the enable/disable (`store.Enable`).
 
 - **Pro:** calibration is *orthogonal* to area mapping — the user's chosen area stays untouched and
   visible in the Screen-Mapping tab; the correction is a separate, toggleable layer (how Wacom does
@@ -98,20 +131,32 @@ only if avoiding the plugin dependency becomes important.
 
 ## UX flow
 
-1. **Entry point:** a **Calibrate** button on the Screen-Mapping tab (next to Display Settings),
-   enabled only in an **Absolute** output mode (Relative has no absolute position to correct — show
-   the same kind of note the Test tab uses). Also reachable later from a guided-setup flow (#60).
+*(As shipped. The v1 design put the entry on the Screen-Mapping tab; it now lives on a dedicated
+**Calibration** tab — see [USERMANUAL.md](../USERMANUAL.md) → Calibration.)*
+
+1. **Entry point:** the tablet's **Calibration** tab (Absolute mode only — Relative has no absolute
+   position to correct, so the tab explains that instead). Three cards, one per density — **4 point**,
+   **9 point**, **25 point** (`CalibrationModeChoice` → `CalibrationOptions`) — each with a **Start**
+   button and a note on when to use it. The Start button is additionally gated on the tablet being
+   connected (#177) and a host that can open the overlay. A status card shows the current state with an
+   **On/Off toggle** (disable the correction *without clearing it*, to compare with/without) and a
+   **Clear calibration** button. The active calibration's card is marked **In use**.
 2. **Overlay:** a borderless, top-most window covering the **display the tablet is mapped to**
-   (from `AbsoluteModeSettings.Display` / `DisplayEnumerator`). Dimmed background, instructions, a
-   **Cancel** (Esc) at all times.
-3. **Capture:** show one target at a time (TL → TR → BR → BL), each a crosshair/ring. The user rests
-   the nib on it and taps; we capture the raw position on pen-down (optionally average a few samples
-   for stability), advance, and mark it done. A live dot shows the current raw→screen point so the
-   user sees the uncorrected error.
-4. **Result:** after 4 taps, compute `A`. Show a **preview/confirm** ("move the pen around — does the
-   cursor track the nib?") with **Apply**, **Redo**, **Cancel**. Apply persists to the profile +
-   pushes to the daemon (debounced apply path we already have).
-5. **Reset:** a **Clear calibration** action (removes/identity-resets the filter store).
+   (`DisplayEnumerator`). Dimmed background, instructions, **Cancel** (Esc) at all times. Coordinates
+   are exposed normalized to the display (0..1) so target/live-dot placement is DPI-independent.
+3. **Capture:** show one target at a time — Corners run TL → TR → BR → BL inset ~10%; Grid runs a
+   row-major lattice. We accept a tap only when the live dot is within a hit radius of the active
+   target, average ≥4 down-samples for stability, then advance. A live dot shows the uncorrected
+   raw→screen point so the user sees the current error. **Undo last point** (#458) pops the most recent
+   tap and re-arms that target.
+4. **Result:** once every target is captured, fit the model (Corners → homography; Grid → offset grid).
+   On success, apply it **temporarily** for a **preview/confirm** ("move the pen around — does the
+   cursor track the nib?") with **Apply**, **Redo**, **Undo last point**, **Cancel**. Apply keeps it
+   (in this app the preview already persisted, so Apply just closes); Cancel restores whatever
+   calibration existed when the overlay opened. A degenerate fit → a **Failed** state with **Redo**.
+   The recorded taps are saved as a **calibration report** (#460) shown back on the Calibration tab
+   (target px + measured raw + sample count per point, with **Copy**).
+5. **Reset:** the **Clear calibration** action removes the filter store (true return to identity).
 
 ## Multi-monitor
 
@@ -130,20 +175,36 @@ out of scope — consistent with the Screen-Mapping "one display at a time" deci
 
 ## Testing
 
-- `Domain` math: affine-from-points (identity, offset, scale, rotation, least-squares on noisy 4
-  points), degenerate-input rejection, normalize/denormalize round-trip. (pure unit tests)
-- `CalibrationProfile` read/write round-trip (mirrors `PressureCurveProfileTests`).
-- Filter `Consume` applies the transform and passes through when MaxX/MaxY unknown (mirrors the
+*(As shipped — see `tests/OpenTabletArtist.Tests/Calibration*Tests.cs`.)*
+
+- `CalibrationMath` (`CalibrationMathTests`): affine-from-points (identity, offset, scale, rotation,
+  least-squares on noisy points), **homography** solve + `Project`, degenerate-input rejection, the
+  small linear solver, and normalize/denormalize round-trip.
+- `CalibrationSolver` (`CalibrationSolverTests`): the measured→expected composition lands taps near
+  their targets; **grid** offsets and CSV round-trips (`CalibrationModelsTests` covers `Homography` /
+  `CalibrationGrid` / `CalibrationReport` parse round-trips).
+- `CalibrationProfile` read/write round-trip across all three models + type-name guard, `IsStale`
+  fingerprint logic, and filter-order (before dynamics) (`CalibrationProfileTests`).
+- Filter `Consume` applies the selected model and passes through when MaxX/MaxY unknown (mirrors the
   Dynamics filter's defensive pass-through).
-- VM: Calibrate enabled only in Absolute mode; capture state machine advances and resets correctly.
+- VM (`CalibrationViewModelTests`): Calibrate enabled only in Absolute mode; the capture state machine
+  advances, undoes, and resets correctly; capture bypasses an existing calibration.
 - The overlay window itself is thin (no heavy logic) — manual visual pass.
 
 ## Scope / phasing
 
-- **v1 (this issue):** affine 4-tap calibration, filter + profile service, Screen-Mapping entry
-  point + overlay, apply/redo/clear, Absolute-only, single mapped display.
-- **Later:** homography/keystone; calibration from a guided setup (#60); auto-invalidate on area
-  change; export/import calibration.
+- **v1 (this issue):** affine 4-tap calibration, filter + profile service, entry point + overlay,
+  apply/redo/clear, Absolute-only, single mapped display. *(Shipped.)*
+- **Shipped since v1:**
+  - **Homography** (perspective/keystone) as the 4-point default (#195).
+  - **Grid** calibration — 9-point (3×3) and 25-point (5×5) per-node bilinear correction (#196).
+  - **Undo last point** during capture (#458).
+  - **On/Off toggle** to compare with/without, without clearing.
+  - **Calibration report** — recorded taps persisted with the calibration and shown on the tab (#460).
+  - **Stale hint** via a mapping fingerprint when the area mapping changes (#147).
+  - Moved to a dedicated **Calibration** tab (from the Screen-Mapping tab).
+- **Later:** calibration from a guided setup (#60); auto-recapture prompt on area change (today it's a
+  passive stale hint); export/import calibration.
 
 ## Resolved decisions (design review, #146)
 
