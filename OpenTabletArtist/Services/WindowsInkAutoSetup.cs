@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace OpenTabletArtist.Services;
@@ -79,24 +78,9 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
         if (_winInk.ReadInstalled(_session.PluginDirectory) == null) return;
         if (!_vmulti.DetectHid().Functional) return;
 
-        var pending = _setup.DetectedTabletsNotOnWindowsInk()
-            .Where(t => !WinInkAutoOptOut.IsOptedOut(t))
-            .ToList();
-        if (pending.Count == 0) return;
-
-        if (_session.CurrentSettings is not { } settings) return;
-        int changed = 0;
-        foreach (var name in pending)
-        {
-            var prof = settings.Profiles.FirstOrDefault(p =>
-                string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
-            if (prof == null) continue;
-            prof.OutputMode ??= new OpenTabletDriver.Desktop.Reflection.PluginSettingStore(
-                "VoiDPlugins.OutputMode.WinInkAbsoluteMode", true);
-            prof.OutputMode.Path = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
-            changed++;
-        }
-        if (changed > 0) await _session.ApplyAndSaveSettingsAsync(settings);
+        // Delegate the mode-set to the shared SetupActions path (the same one the manual "enable" button
+        // uses), passing a filter so tablets the user deliberately opted out of Windows Ink are skipped (#380/#406).
+        await _setup.SetDetectedTabletsToWindowsInkAsync(t => !WinInkAutoOptOut.IsOptedOut(t));
     }
 
     public void Dispose()
