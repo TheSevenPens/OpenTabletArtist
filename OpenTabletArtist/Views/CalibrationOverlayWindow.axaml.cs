@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -133,13 +134,28 @@ public partial class CalibrationOverlayWindow : Window
         Cursor = new Cursor(StandardCursorType.None);
         Panel.Cursor = new Cursor(StandardCursorType.Arrow);
 
-        // Opt the overlay out of Windows' press-and-hold gesture — see DisablePressAndHold below.
+        // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below.
         Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
+
+        // …and turn off the shell's pen/touch feedback on this window. Disabling the gesture (above) stops
+        // the ring + right-click, but at the ~1s press-and-hold dwell Windows still re-asserts the mouse
+        // cursor (the "other half" of the interaction). Disabling FEEDBACK_PEN_PRESSANDHOLD & friends
+        // suppresses that so the cursor stays hidden through the whole hold.
+        if (TryGetPlatformHandle() is { } handle && handle.Handle != IntPtr.Zero)
+            DisableShellPenFeedback(handle.Handle);
 
         // Drive the pulse ring (~30 fps). A timer keeps full control of the breathing animation and
         // re-targets for free as the active target advances (we just reposition the ring).
         _pulseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-        _pulseTimer.Tick += (_, _) => UpdatePulse();
+        _pulseTimer.Tick += (_, _) =>
+        {
+            UpdatePulse();
+            // Keep the cursor hidden through the hold. At the ~1 s press-and-hold dwell Windows re-shows
+            // the mouse cursor (mouse-emulation fallback), and because the pen is held *still* there's no
+            // mouse-move afterwards to re-apply our None cursor — so it sticks. Re-hiding each frame only
+            // while actually holding leaves the panel buttons usable when idle.
+            if (_vm is { HoldProgress: > 0.001 }) SetCursor(IntPtr.Zero);
+        };
         _pulseTimer.Start();
 
         _ = _vm?.StartAsync();
@@ -182,6 +198,41 @@ public partial class CalibrationOverlayWindow : Window
             return new IntPtr(TabletDisablePressAndHold);
         }
         return IntPtr.Zero;
+    }
+
+    // FEEDBACK_TYPE values (winuser.h) — the shell's per-interaction pen/touch visual feedback.
+    private const uint FeedbackTouchContactVisualization = 1;
+    private const uint FeedbackPenBarrelVisualization = 2;
+    private const uint FeedbackPenTap = 3;
+    private const uint FeedbackPenDoubleTap = 4;
+    private const uint FeedbackPenPressAndHold = 5;
+    private const uint FeedbackPenRightTap = 6;
+    private const uint FeedbackTouchTap = 7;
+    private const uint FeedbackTouchDoubleTap = 8;
+    private const uint FeedbackTouchPressAndHold = 9;
+    private const uint FeedbackTouchRightTap = 10;
+    private const uint FeedbackGesturePressAndTap = 11;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowFeedbackSetting(IntPtr hwnd, uint feedback, uint dwFlags, uint size, ref int configuration);
+
+    // Passing NULL hides the cursor (until the next WM_SETCURSOR, i.e. the next mouse-move). Used to
+    // re-hide it during a still hold, where Windows shows it and no mouse-move follows to reset it.
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetCursor(IntPtr hCursor);
+
+    private static void DisableShellPenFeedback(IntPtr hwnd)
+    {
+        int disabled = 0; // BOOL FALSE
+        uint[] all =
+        {
+            FeedbackTouchContactVisualization, FeedbackPenBarrelVisualization, FeedbackPenTap,
+            FeedbackPenDoubleTap, FeedbackPenPressAndHold, FeedbackPenRightTap, FeedbackTouchTap,
+            FeedbackTouchDoubleTap, FeedbackTouchPressAndHold, FeedbackTouchRightTap, FeedbackGesturePressAndTap,
+        };
+        foreach (var feedback in all)
+            SetWindowFeedbackSetting(hwnd, feedback, 0, sizeof(int), ref disabled);
     }
 
     // Cover the mapped display. Move onto the target monitor (picked by containment of the display's
