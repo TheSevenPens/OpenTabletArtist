@@ -181,8 +181,10 @@ public class CalibrationViewModelTests
     }
 
     [Fact]
-    public void GridMode_CapturesEveryNode_ThenWritesGridModel()
+    public void GridMode_CapturesEveryNode_ThenWritesAffineModel()
     {
+        // #486: every capture density now fits a least-squares affine (the 9 taps just make it more
+        // robust). Grid capture still records all 9 nodes, but the written model is Affine, not Grid.
         var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
@@ -195,9 +197,8 @@ public class CalibrationViewModelTests
 
         Assert.True(vm.IsConfirming);
         var cal = CalibrationProfile.Read(settings, "T");
-        Assert.Equal(CalibrationProfile.CalibrationModel.Grid, cal!.Model);
-        Assert.NotNull(cal.Grid);
-        Assert.Equal(3, cal.Grid!.Cols);
+        Assert.Equal(CalibrationProfile.CalibrationModel.Affine, cal!.Model);
+        Assert.Equal(9, cal.Report!.Points.Count);   // still captured every node
     }
 
     [Fact]

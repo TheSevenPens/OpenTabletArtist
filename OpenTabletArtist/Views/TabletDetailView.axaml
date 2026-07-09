@@ -489,7 +489,7 @@
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" />
-                            <TextBlock Text="Standard — best for most setups." TextWrapping="Wrap" TextAlignment="Center"
+                            <TextBlock Text="Recommended — best for most setups." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
@@ -503,7 +503,7 @@
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" />
-                            <TextBlock Text="For harder cases — corrects distortion across the screen." TextWrapping="Wrap" TextAlignment="Center"
+                            <TextBlock Text="More taps for a steadier fit — try if 4-point feels slightly off." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>
@@ -517,7 +517,7 @@
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[2]}"
                                     IsEnabled="{Binding CanRunCalibration}" HorizontalAlignment="Stretch"
                                     Theme="{StaticResource AccentButton}" Padding="14,7" />
-                            <TextBlock Text="For extreme distortion — the finest correction." TextWrapping="Wrap" TextAlignment="Center"
+                            <TextBlock Text="The most taps — the steadiest fit for a finicky tablet." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </Border>

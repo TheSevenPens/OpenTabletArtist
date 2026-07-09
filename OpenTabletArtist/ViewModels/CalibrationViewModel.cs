@@ -235,23 +235,16 @@ public partial class CalibrationViewModel : ObservableObject
 
         var fp = CalibrationProfile.Fingerprint(_ctx.Input, _ctx.Output, _ctx.Display.Number);
 
-        // Corners → least-squares AFFINE; Grid → per-node bilinear offsets (#196).
+        // ALL capture densities fit a least-squares AFFINE (#486). It's over-determined (6 DOF over
+        // 4/9/25 taps) so it averages tap noise instead of fitting it, and on flat pen displays the
+        // mapping is near-affine — measured most accurate at 4, 9 AND 25 points on a Wacom Movink 13,
+        // beating the per-node grid every time (the grid over-parameterizes and fits inter-node wiggle,
+        // #485; same failure mode as the reverted 4-point homography, #483). More taps just make the
+        // affine fit more robust. The grid/homography solvers stay in the codebase and remain reachable
+        // via Developer → Calibration I/O → Re-solve for testing tablets that genuinely need them (#486).
         CalibrationProfile.CalibrationData? data = null;
-        if (_ctx.Mode == CalibrationMode.Corners)
-        {
-            // Least-squares affine over the 4 corners (the original v1 model). It's over-determined
-            // (6 DOF, 8 equations) so it AVERAGES tap noise rather than fitting it exactly — unlike a
-            // 4-point homography, which fits all 4 taps perfectly and bakes their asymmetric noise into
-            // spurious perspective that warps the corner neighbourhoods. Flat pen displays are near-affine,
-            // so the affine is both more robust and more accurate there. (#483; reverts #195 for corners.)
-            if (CalibrationSolver.Solve(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output) is { } m)
-                data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fp);
-        }
-        else
-        {
-            if (CalibrationSolver.SolveGrid(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output, _ctx.GridCols, _ctx.GridRows) is { } g)
-                data = CalibrationProfile.CalibrationData.ForGrid(g, enabled: true, fp);
-        }
+        if (CalibrationSolver.Solve(targetsDesktop, _measuredRaw, _ctx.Digitizer, _ctx.Input, _ctx.Output) is { } m)
+            data = new CalibrationProfile.CalibrationData(m, Enabled: true, Fingerprint: fp);
 
         if (data is null)
         {
