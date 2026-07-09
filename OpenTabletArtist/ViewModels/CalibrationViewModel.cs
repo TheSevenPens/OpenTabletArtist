@@ -247,15 +247,28 @@ public partial class CalibrationViewModel : ObservableObject
         Instruction = "Move the pen around — does the cursor track the nib? Apply to keep, or Redo.";
     }
 
-    // The recorded points paired with their on-screen targets (desktop px), for the tab report (#460).
+    // The recorded points paired with their on-screen targets, for the tab report (#460). Coordinates
+    // are stored <em>relative to the calibrated display</em> (0..Width, 0..Height) rather than in
+    // virtual-desktop px, so they read naturally against the one display we calibrated instead of
+    // carrying that display's desktop offset (#461). Each point also carries the pixel-equivalent of its
+    // raw tap — the raw position mapped back to the screen through the (uncorrected) capture-time
+    // mapping — so the report can show, and score, how far the pen actually landed from the target.
     private CalibrationReport BuildReport(IReadOnlyList<Vector2> targetsDesktop)
     {
+        float ox = (float)_ctx.Display.X, oy = (float)_ctx.Display.Y;   // display origin in the desktop
         var points = new List<CalibrationReportPoint>(_measuredRaw.Count);
         for (int i = 0; i < _measuredRaw.Count && i < targetsDesktop.Count; i++)
+        {
+            var raw = _measuredRaw[i];
+            var measuredPx = AbsolutePositionMapper.MapToDesktop(raw, _ctx.Digitizer, _ctx.Input, _ctx.Output, false, false);
+            float mx = float.NaN, my = float.NaN;
+            if (measuredPx is { } m) { mx = m.X - ox; my = m.Y - oy; }
             points.Add(new CalibrationReportPoint(
-                targetsDesktop[i].X, targetsDesktop[i].Y,
-                _measuredRaw[i].X, _measuredRaw[i].Y,
+                targetsDesktop[i].X - ox, targetsDesktop[i].Y - oy,
+                raw.X, raw.Y,
+                mx, my,
                 i < _tapSampleCounts.Count ? _tapSampleCounts[i] : 0));
+        }
         var display = $"{_ctx.Display.DisplayTitle} ({_ctx.Display.Width}×{_ctx.Display.Height})";
         return new CalibrationReport(display, DateTime.Now.ToString("yyyy-MM-dd HH:mm"), points);
     }

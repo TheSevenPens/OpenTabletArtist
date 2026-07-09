@@ -12,10 +12,16 @@ namespace OpenTabletArtist.Services;
 
 /// <summary>
 /// Reads/writes the pointer-calibration filter (<see cref="FilterTypeName"/>) on a tablet's profile,
-/// mirroring <see cref="PressureCurveProfile"/>. The affine is stored as its six
-/// <see cref="Matrix3x2"/> components in normalized tablet space, plus a mapping fingerprint so the
-/// UI can flag a calibration as possibly stale after the area mapping changes (#127).
-///
+/// mirroring <see cref="PressureCurveProfile"/>. Persisted coordinate data, by space:
+/// <list type="bullet">
+///   <item>the <b>transform</b> — homography / grid / affine (<see cref="Matrix3x2"/>) — in
+///     <b>normalized tablet space</b> (<c>-1..1</c>); this is what the filter applies.</item>
+///   <item>the <b>report</b> (<see cref="CalibrationReport"/>) of recorded taps — target + measured in
+///     <b>display-relative px</b>, raw in <b>tablet digitizer units</b> (the only place the raw tap
+///     survives), plus a sample count.</item>
+///   <item>a <b>mapping fingerprint</b> (a staleness token, not readable coordinates) so the UI can flag
+///     a calibration as possibly stale after the area mapping changes (#127).</item>
+/// </list>
 /// The calibration filter is ordered <em>before</em> the dynamics filter (both PreTransform) so the
 /// raw position is corrected before any position smoothing.
 /// </summary>

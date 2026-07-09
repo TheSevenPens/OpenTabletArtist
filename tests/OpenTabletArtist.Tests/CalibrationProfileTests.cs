@@ -167,7 +167,7 @@ public class CalibrationProfileTests
             Vector2.Zero, new Vector2(0.1f, 0), Vector2.Zero, new Vector2(0.1f, 0),
         });
         var report = new CalibrationReport("Display 1 (1920×1080)", "2026-07-08 14:22",
-            new[] { new CalibrationReportPoint(100, 200, 3000, 6000, 5) });
+            new[] { new CalibrationReportPoint(100, 200, 3000, 6000, 108, 205, 5) });
         var data = CalibrationProfile.CalibrationData.ForGrid(g, enabled: true, "fp") with { Report = report };
 
         CalibrationProfile.Write(settings, "Tab", data);

@@ -25,8 +25,11 @@ public enum TabletDetailTab
 }
 
 /// <summary>One row of the Calibration tab's positional report (#460): the target it was captured for
-/// (desktop px), the raw tablet coordinate the pen reported, and the samples averaged for the tap.</summary>
-public sealed record CalibrationReportRow(string Index, string Target, string Raw, string Samples);
+/// (desktop px), the pixel-equivalent of where the uncorrected pen landed (<paramref name="Measured"/>),
+/// that tap's on-screen error in px (<paramref name="Delta"/>, #461), the raw tablet coordinate the pen
+/// reported, and the samples averaged for the tap. <paramref name="Measured"/>/<paramref name="Delta"/>
+/// are "—" for legacy reports captured before the pixel-equivalent was recorded.</summary>
+public sealed record CalibrationReportRow(string Index, string Target, string Measured, string Delta, string Raw, string Samples);
 
 /// <summary>
 /// View model for a single tablet's settings — the tabbed editor (Screen Mapping, Pen Switches,
@@ -231,6 +234,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // the Calibration tab whenever a calibration with stored points is active.
     [ObservableProperty] private bool _hasCalibrationReport;
     [ObservableProperty] private string _calibrationReportSummary = "";
+    // Fit quality derived from the recorded taps (#461): the pre-calibration pointing error, and a
+    // warning when one tap looks like a misfire.
+    [ObservableProperty] private bool _hasCalibrationFit;
+    [ObservableProperty] private string _calibrationFitText = "";
+    [ObservableProperty] private bool _hasCalibrationFitWarning;
+    [ObservableProperty] private string _calibrationFitWarning = "";
     public ObservableCollection<CalibrationReportRow> CalibrationReportRows { get; } = new();
 
     private void RefreshCalibrationStatus()
@@ -270,6 +279,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void UpdateCalibrationReport(CalibrationReport? report)
     {
         CalibrationReportRows.Clear();
+        CalibrationFitText = "";
+        CalibrationFitWarning = "";
+        HasCalibrationFit = false;
+        HasCalibrationFitWarning = false;
         if (report is null || report.Points.Count == 0)
         {
             HasCalibrationReport = false;
@@ -279,14 +292,36 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         for (int i = 0; i < report.Points.Count; i++)
         {
             var p = report.Points[i];
+            bool hasPx = !float.IsNaN(p.MeasuredX) && !float.IsNaN(p.MeasuredY);
+            // Δ is the signed per-axis offset (measured − target) so its direction is visible, e.g. "-7, 3".
+            string delta = hasPx
+                ? $"{(int)MathF.Round(p.MeasuredX - p.TargetX)}, {(int)MathF.Round(p.MeasuredY - p.TargetY)}"
+                : "—";
             CalibrationReportRows.Add(new CalibrationReportRow(
                 (i + 1).ToString(),
-                $"{p.TargetX:0}, {p.TargetY:0}",
+                $"{p.TargetX:0}×{p.TargetY:0}",
+                hasPx ? $"{p.MeasuredX:0}×{p.MeasuredY:0}" : "—",
+                delta,
                 $"{p.RawX:0}, {p.RawY:0}",
                 p.Samples.ToString()));
         }
         CalibrationReportSummary = $"{report.DisplayName} · captured {report.CapturedAt}";
         HasCalibrationReport = true;
+
+        // Fit quality: the pre-calibration pointing error the taps recorded (#461). A single outlier tap
+        // is flagged as a likely misfire — the practical "this capture looks off" signal.
+        if (report.ComputeFit() is { } fit)
+        {
+            CalibrationFitText = $"Pointing error corrected: {fit.RmsErrorPx:0} px RMS · up to {fit.MaxErrorPx:0} px";
+            HasCalibrationFit = true;
+            if (fit.HasOutlier && fit.OutlierIndex < report.Points.Count)
+            {
+                CalibrationFitWarning =
+                    $"Point {fit.OutlierIndex + 1} stands out ({report.Points[fit.OutlierIndex].ErrorPx:0} px) — " +
+                    "that tap may have missed the target; consider redoing the calibration.";
+                HasCalibrationFitWarning = true;
+            }
+        }
     }
 
     /// <summary>Copy the calibration report as tab-separated text for sharing / debugging (#460).</summary>
@@ -296,10 +331,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (!HasCalibrationReport) return;
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Calibration report — {CalibrationReportSummary}");
-        sb.AppendLine("#\tTarget (px)\tMeasured raw (tablet)\tSamples");
+        sb.AppendLine("#\tTarget (px)\tMeasured (px)\tΔ (px)\tMeasured raw (tablet)\tSamples");
         foreach (var r in CalibrationReportRows)
-            sb.Append(r.Index).Append('\t').Append(r.Target).Append('\t')
-              .Append(r.Raw).Append('\t').Append(r.Samples).Append('\n');
+            sb.Append(r.Index).Append('\t').Append(r.Target).Append('\t').Append(r.Measured).Append('\t')
+              .Append(r.Delta).Append('\t').Append(r.Raw).Append('\t').Append(r.Samples).Append('\n');
+        if (HasCalibrationFit) sb.Append('\n').AppendLine(CalibrationFitText);
+        if (HasCalibrationFitWarning) sb.AppendLine(CalibrationFitWarning);
         ClipboardText.TrySet(sb.ToString());
     }
 

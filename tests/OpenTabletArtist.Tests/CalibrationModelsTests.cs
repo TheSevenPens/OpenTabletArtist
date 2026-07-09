@@ -142,8 +142,8 @@ public class CalibrationModelsTests
     {
         var report = new CalibrationReport("DELL U4323QE (3840×2160)", "2026-07-08 14:22", new[]
         {
-            new CalibrationReportPoint(384f, 216f, 12840.5f, 7220f, 6),
-            new CalibrationReportPoint(1920f, 1080f, 30390f, 17810.25f, 8),
+            new CalibrationReportPoint(384f, 216f, 12840.5f, 7220f, 390f, 220.5f, 6),
+            new CalibrationReportPoint(1920f, 1080f, 30390f, 17810.25f, 1912f, 1077f, 8),
         });
 
         var parsed = CalibrationReport.TryParse(report.Serialize());
@@ -151,8 +151,24 @@ public class CalibrationModelsTests
         Assert.NotNull(parsed);
         Assert.Equal("2026-07-08 14:22", parsed!.CapturedAt);
         Assert.Equal(2, parsed.Points.Count);
-        Assert.Equal(report.Points[0], parsed.Points[0]);
+        Assert.Equal(report.Points[0], parsed.Points[0]);       // pixel-equivalent round-trips too (#461)
         Assert.Equal(report.Points[1], parsed.Points[1]);
+    }
+
+    [Fact]
+    public void CalibrationReport_ParsesLegacyFiveFieldPoints_WithoutPixelEquivalent()
+    {
+        // Reports written before #461 have 5 fields per point (tx,ty,rx,ry,n) and no pixel-equivalent.
+        var parsed = CalibrationReport.TryParse("Display 1|2026-01-01 10:00|100,200,3000,6000,5");
+
+        Assert.NotNull(parsed);
+        var p = Assert.Single(parsed!.Points);
+        Assert.Equal(100f, p.TargetX);
+        Assert.Equal(5, p.Samples);
+        Assert.True(float.IsNaN(p.MeasuredX));
+        Assert.True(float.IsNaN(p.MeasuredY));
+        Assert.True(float.IsNaN(p.ErrorPx));
+        Assert.Null(parsed.ComputeFit());                        // no pixel data → no fit
     }
 
     [Fact]
@@ -160,6 +176,54 @@ public class CalibrationModelsTests
     {
         Assert.Null(CalibrationReport.TryParse(""));
         Assert.Null(CalibrationReport.TryParse("only|two"));               // missing the points field
-        Assert.Null(CalibrationReport.TryParse("d|t|1,2,3,4"));            // a point needs 5 fields
+        Assert.Null(CalibrationReport.TryParse("d|t|1,2,3"));              // a point needs 5 or 7 fields
+        Assert.Null(CalibrationReport.TryParse("d|t|1,2,3,4,5,6"));        // 6 fields is neither
+    }
+
+    [Fact]
+    public void CalibrationReportPoint_ErrorPx_IsTargetToMeasuredDistance()
+    {
+        // Measured landed 3 px right, 4 px down of target → 5 px error (3-4-5).
+        var p = new CalibrationReportPoint(100f, 100f, 0, 0, 103f, 104f, 4);
+        Assert.Equal(5f, p.ErrorPx, 3);
+    }
+
+    [Fact]
+    public void CalibrationReport_ComputeFit_SummarizesErrorAndFlagsOutlier()
+    {
+        // Three consistent ~5 px taps and one gross misfire at (100,100)-off ≈ 141 px.
+        var report = new CalibrationReport("D", "t", new[]
+        {
+            new CalibrationReportPoint(0f, 0f, 0, 0, 3f, 4f, 4),        // 5 px
+            new CalibrationReportPoint(100f, 0f, 0, 0, 103f, 4f, 4),   // 5 px
+            new CalibrationReportPoint(0f, 100f, 0, 0, 3f, 104f, 4),   // 5 px
+            new CalibrationReportPoint(100f, 100f, 0, 0, 200f, 200f, 4), // ~141 px — outlier
+        });
+
+        var fit = report.ComputeFit();
+
+        Assert.NotNull(fit);
+        Assert.Equal(4, fit!.Value.PointCount);
+        Assert.True(fit.Value.MaxErrorPx > 100f);
+        Assert.True(fit.Value.HasOutlier);
+        Assert.Equal(3, fit.Value.OutlierIndex);        // the 4th point (index 3)
+    }
+
+    [Fact]
+    public void CalibrationReport_ComputeFit_NoOutlier_WhenTapsConsistent()
+    {
+        var report = new CalibrationReport("D", "t", new[]
+        {
+            new CalibrationReportPoint(0f, 0f, 0, 0, 6f, 8f, 4),        // 10 px
+            new CalibrationReportPoint(100f, 0f, 0, 0, 108f, 6f, 4),   // 10 px
+            new CalibrationReportPoint(0f, 100f, 0, 0, 8f, 106f, 4),   // ~10 px
+            new CalibrationReportPoint(100f, 100f, 0, 0, 106f, 108f, 4), // 10 px
+        });
+
+        var fit = report.ComputeFit();
+
+        Assert.NotNull(fit);
+        Assert.False(fit!.Value.HasOutlier);
+        Assert.Equal(-1, fit.Value.OutlierIndex);
     }
 }

@@ -219,4 +219,56 @@ public class CalibrationViewModelTests
         Assert.Equal(4, cal.Report!.Points.Count);
         Assert.All(cal.Report.Points, p => Assert.Equal(5, p.Samples)); // 5 down-samples per Tap()
     }
+
+    // ---- #461: each recorded point carries the pixel-equivalent + fit quality ----
+
+    [Fact]
+    public void Capture_RecordsPixelEquivalent_AndNearZeroFit_ForExactTaps()
+    {
+        var (vm, settings, _) = NewVm();
+        Tap(vm, 0); Tap(vm, 1); Tap(vm, 2); Tap(vm, 3); // Tap() lands raw exactly on each target
+
+        var report = CalibrationProfile.Read(settings, "T")!.Report!;
+        Assert.All(report.Points, p =>
+        {
+            Assert.False(float.IsNaN(p.MeasuredX));
+            Assert.False(float.IsNaN(p.MeasuredY));
+        });
+
+        // Exact taps → the uncorrected pen landed on the target, so error ≈ 0.
+        var fit = report.ComputeFit();
+        Assert.NotNull(fit);
+        Assert.True(fit!.Value.MaxErrorPx < 0.5f);
+        Assert.False(fit.Value.HasOutlier);
+    }
+
+    [Fact]
+    public void Capture_StoresDisplayRelativeCoordinates_NotDesktop()
+    {
+        // A 1920×1080 display sitting at desktop offset (0, 2160) — a monitor stacked above it. The
+        // output area is centered on the display's desktop position so the mapping is consistent.
+        var display = new DisplayInfo(Number: 1, Name: "", Width: 1920, Height: 1080, X: 0, Y: 2160, IsPrimary: false);
+        var output = new MappingArea(960, 2700, 1920, 1080);   // center (960, 2160+540)
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
+            _ => Task.CompletedTask, new NoopDebugSession());
+        var vm = new CalibrationViewModel(ctx);
+
+        for (int i = 0; i < vm.Targets.Count; i++)
+        {
+            var t = vm.Targets[i];
+            var desktop = new Vector2((float)(display.X + t.X * display.Width), (float)(display.Y + t.Y * display.Height));
+            var raw = AbsolutePositionMapper.MapFromDesktop(desktop, Digi, Input, output)!.Value;
+            for (int k = 0; k < 5; k++) vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, 0, 0, 0, IsDown: true));
+            vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0, 0, 0, 0, IsDown: false));
+        }
+
+        var report = CalibrationProfile.Read(settings, "T")!.Report!;
+        // Coordinates are the display's own pixels (Y in 0..1080), NOT desktop (which would be 2160..3240).
+        Assert.All(report.Points, p =>
+        {
+            Assert.InRange(p.TargetY, 0f, 1080f);
+            Assert.InRange(p.MeasuredY, -2f, 1082f);
+        });
+    }
 }
