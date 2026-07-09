@@ -71,5 +71,56 @@
                 </ItemsControl>
             </StackPanel>
         </Border>
+
+        <!-- #480: install approved tablet configs from OpenTabletDriver's repo that aren't bundled yet. -->
+        <Border Classes="GlassPanel" Margin="0,16,0,0">
+            <StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                        <TextBlock Classes="SectionLabel" Text="ADD TABLET SUPPORT" TextWrapping="Wrap" />
+                        <TextBlock Text="Install approved tablet configs from OpenTabletDriver that your version doesn't ship yet — useful for a newly-supported tablet."
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Check for more configs"
+                            VerticalAlignment="Center"
+                            Command="{Binding FetchAvailableCommand}"
+                            IsEnabled="{Binding !IsFetchingAvailable}"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" />
+                </Grid>
+
+                <TextBlock Text="{Binding AvailableStatus}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,10,0,0"
+                           IsVisible="{Binding AvailableStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Available (not-yet-installed) configs -->
+                <ItemsControl ItemsSource="{Binding AvailableConfigs}"
+                              Margin="0,12,0,0"
+                              IsVisible="{Binding HasAvailableConfigs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource GlassBgBrush}"
+                                    CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Manufacturer}" Margin="0,2,0,0"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Install"
+                                            VerticalAlignment="Center"
+                                            Theme="{StaticResource GhostButton}"
+                                            Command="{Binding $parent[ItemsControl].DataContext.InstallApprovedCommand}"
+                                            CommandParameter="{Binding}"
+                                            Padding="10,4" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
     </StackPanel>
 </UserControl>

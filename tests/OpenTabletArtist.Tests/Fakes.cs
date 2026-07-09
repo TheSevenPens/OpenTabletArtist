@@ -35,7 +35,7 @@ internal sealed class FakeDialogService : IDialogService
         return Task.CompletedTask;
     }
 
-    public OpenTabletArtist.ViewModels.TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget)
+    public OpenTabletArtist.ViewModels.TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null)
         => new(profile, null);
 
     public Task ShowMessageAsync(string title, string message)
@@ -88,6 +88,7 @@ internal sealed class FakeDeviceData : IDeviceData
     public string PresetDirectory { get; set; } = "";
     public string PluginDirectory { get; set; } = "";
     public string SettingsFilePath => "";
+    public string ConfigurationDirectory { get; set; } = "";
     public Dictionary<string, (float Width, float Height)> Digitizers { get; } = new();
     public (float Width, float Height)? GetTabletDigitizer(string tabletName) =>
         Digitizers.TryGetValue(tabletName, out var d) ? d : null;

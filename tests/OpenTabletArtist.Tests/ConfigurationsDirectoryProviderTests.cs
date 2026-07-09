@@ -15,4 +15,17 @@ public class ConfigurationsDirectoryProviderTests
 
         Assert.EndsWith(Path.Combine("OpenTabletDriver", "Configurations"), dir);
     }
+
+    [Fact]
+    public void GetOrCreate_PrefersDaemonDirectory_WhenProvided()
+    {
+        // The daemon's real folder (from AppInfo) wins over the fallback heuristic (#480/#467).
+        var daemonDir = Path.Combine(Path.GetTempPath(), "ota-daemon-cfg-" + System.Guid.NewGuid().ToString("N"));
+        try
+        {
+            var dir = new ConfigurationsDirectoryProvider(() => daemonDir).GetOrCreate();
+            Assert.Equal(daemonDir, dir);
+        }
+        finally { if (Directory.Exists(daemonDir)) Directory.Delete(daemonDir, recursive: true); }
+    }
 }

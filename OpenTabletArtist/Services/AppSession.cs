@@ -116,6 +116,8 @@ public interface IDeviceData : INotifyPropertyChanged
     string PresetDirectory { get; }
     string PluginDirectory { get; }
     string SettingsFilePath { get; }
+    /// <summary>The daemon's tablet-configuration override folder (from AppInfo), or "" if unknown (#480/#467).</summary>
+    string ConfigurationDirectory { get; }
     (float Width, float Height)? GetTabletDigitizer(string tabletName);
     /// <summary>Full digitizer spec (mm dimensions + raw maxima) for a tablet, or null if unavailable.
     /// Needed by flows that map between raw tablet units and the desktop (e.g. calibration).</summary>
@@ -296,6 +298,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _pluginDirectory = "";
     [ObservableProperty] private string _settingsFilePath = "";
+    [ObservableProperty] private string _configurationDirectory = "";   // the daemon's tablet-config folder
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
     IReadOnlyList<ProfileItem> IDeviceData.Profiles => Profiles;
@@ -631,6 +634,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 PresetDirectory = appInfo.PresetDirectory ?? "";
                 SettingsFilePath = appInfo.SettingsFile ?? "";
                 PluginDirectory = appInfo.PluginDirectory ?? "";
+                ConfigurationDirectory = appInfo.ConfigurationDirectory ?? "";   // authoritative override folder (#480/#467)
             }
 
             // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings

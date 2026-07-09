@@ -41,6 +41,8 @@ public partial class AdvancedViewModel : ObservableObject
     private readonly AdvancedTabItem[] _allTabs;
     // Held only to stop the daemon debug stream when the Diagnostics tab is left (see below).
     private readonly DiagnosticsViewModel _diagnostics;
+    // Held to re-scan the config folder on entry (the daemon's real path may arrive after construction).
+    private readonly CustomTabletConfigsViewModel _configs;
 
     public AdvancedViewModel(
         DaemonViewModel daemon, WindowsInkViewModel windowsInk, CustomTabletConfigsViewModel configs,
@@ -49,6 +51,7 @@ public partial class AdvancedViewModel : ObservableObject
         DeveloperViewModel developer, ThemeViewModel theme)
     {
         _diagnostics = diagnostics;
+        _configs = configs;
 
         OtdTabs = new AdvancedTabItem[]
         {
@@ -104,6 +107,10 @@ public partial class AdvancedViewModel : ObservableObject
         // (MainViewModel.OnCurrentPageChanged).
         if (oldValue == AdvancedTab.Diagnostics && newValue != AdvancedTab.Diagnostics)
             _ = _diagnostics.StopDebuggingAsync();
+
+        // Re-scan the config folder on entry — the daemon's real path may have arrived since construction.
+        if (newValue == AdvancedTab.CustomTabletConfigs)
+            _configs.RefreshConfigurationsCommand.Execute(null);
     }
 
     private void UpdateSelection()

@@ -167,6 +167,36 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void ConfigOverride_IsRecommendation_WithConfigsTarget()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Wacom PTH-660", Detected: true, OutputModeIsWinInk: true, ConfigIsOverride: true),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.configOverride:Wacom PTH-660", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal(RemediationArea.Configs, issue.Remediation!.Area);
+        Assert.Equal("Wacom PTH-660", issue.Remediation.TabletName);
+    }
+
+    [Fact]
+    public void ConfigOverride_OnUndetectedTablet_IsIgnored()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Old tablet", Detected: false, OutputModeIsWinInk: true, ConfigIsOverride: true),
+            },
+        };
+        Assert.Empty(HealthEvaluator.Evaluate(input));
+    }
+
+    [Fact]
     public void CleanOrNoMapping_RaisesNoMappingIssue()
     {
         foreach (var validity in new[] { DisplayMappingValidity.Clean, DisplayMappingValidity.None })

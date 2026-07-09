@@ -552,6 +552,26 @@
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
     </Style>
 
+    <!-- Prominent severity indicator for the "Needs attention" cards: a rounded colour bar down the
+         card's left edge (reads at a glance, unlike the old tiny dot). Colour by severity via
+         Classes.error/.warning/.neutral. -->
+    <Style Selector="Border.severityBar">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="MinHeight" Value="52" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="{DynamicResource InfoBrush}" />
+    </Style>
+    <Style Selector="Border.severityBar.error">
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Border.severityBar.warning">
+        <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+    </Style>
+    <Style Selector="Border.severityBar.neutral">
+        <Setter Property="Background" Value="{DynamicResource InfoBrush}" />
+    </Style>
+
     <!-- Always-visible, full-size scrollbars. The default Fluent scrollbars (a) auto-hide and
          (b) sit as a thin line until hovered (the thumb is scaled down by a RenderTransform in the
          collapsed state). Disable auto-hide AND clear the thumb's shrink transform so the bar is
