@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.Win32;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 
@@ -37,6 +38,8 @@ public partial class CalibrationOverlayWindow : Window
     private DispatcherTimer? _pulseTimer;
     private double _pulsePhase;
     private Arc? _holdArc;              // fills clockwise as the pen rests on the active target (#457)
+    // Same delegate instance for add + remove (a method group would create two, so remove wouldn't match).
+    private static readonly Win32Properties.CustomWndProcHookCallback WndProcHookDelegate = WndProcHook;
 
     // Overlay light/dark palette. This is calibration-only and independent of the app theme — the
     // shapes are code-drawn, so all colours (window, panel, text, buttons, targets) are chosen here.
@@ -130,6 +133,9 @@ public partial class CalibrationOverlayWindow : Window
         Cursor = new Cursor(StandardCursorType.None);
         Panel.Cursor = new Cursor(StandardCursorType.Arrow);
 
+        // Opt the overlay out of Windows' press-and-hold gesture — see DisablePressAndHold below.
+        Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
+
         // Drive the pulse ring (~30 fps). A timer keeps full control of the breathing animation and
         // re-targets for free as the active target advances (we just reposition the ring).
         _pulseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
@@ -142,12 +148,40 @@ public partial class CalibrationOverlayWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
         _pulseTimer?.Stop();
         if (_vm != null)
         {
             _vm.CloseRequested -= OnCloseRequested;
             _ = _vm.StopAsync();
         }
+    }
+
+    // ── Disabling Windows' "press and hold → right-click" on the overlay ──────────────────────────────
+    //
+    // Problem: our hold-to-average calibration (#457) asks the user to rest the pen still on a target.
+    // Windows treats a stationary pen/touch contact as the "press and hold" gesture (its equivalent of a
+    // right-click): the shell draws an animated ring at the contact point and re-shows the cursor —
+    // fighting our capture flow and our hidden cursor. It's a *system* gesture (governed by Pen & Windows
+    // Ink / the legacy "Pen and Touch → Press and hold" setting), not anything the app does; it fires
+    // because, in Windows Ink mode, the pen still generates real OS pointer input landing on this window.
+    //
+    // Fix (the canonical one, and poorly known): a window can opt out per-window by answering the
+    // WM_TABLET_QUERYSYSTEMGESTURESTATUS message with TABLET_DISABLE_PRESSANDHOLD. Windows sends that
+    // message to ask which system gestures the window wants; returning that flag suppresses press-and-hold
+    // (ring + right-click) for this window only — no registry/OS-wide change, no effect on other apps.
+    // We hook the Win32 WndProc through Avalonia's Win32Properties to answer it.
+    private const uint WmTabletQuerySystemGestureStatus = 0x02CC;
+    private const int TabletDisablePressAndHold = 0x00000001;
+
+    private static IntPtr WndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmTabletQuerySystemGestureStatus)
+        {
+            handled = true;
+            return new IntPtr(TabletDisablePressAndHold);
+        }
+        return IntPtr.Zero;
     }
 
     // Cover the mapped display. Move onto the target monitor (picked by containment of the display's
