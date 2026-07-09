@@ -108,6 +108,9 @@ public partial class CalibrationOverlayWindow : Window
         Panel.Background = _light ? LightPanelBg : DarkPanelBg;
         Panel.BorderBrush = _light ? LightPanelBorder : DarkPanelBorder;
         InstructionText.Foreground = _light ? LightText : DarkText;
+        // The natural-tilt tip (#481) reads as secondary — a muted variant of the instruction colour.
+        HoldTip.Foreground = new SolidColorBrush(_light ? Color.FromArgb(0xB0, 0x20, 0x20, 0x28)
+                                                        : Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
         ThemeToggle.Content = _light ? "Dark mode" : "Light mode";
 
         // The secondary (ghost) buttons are illegible with their default muted colours on this panel,

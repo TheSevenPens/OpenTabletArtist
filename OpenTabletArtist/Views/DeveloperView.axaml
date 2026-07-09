@@ -24,6 +24,8 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="CALIBRATION I/O" x:Name="CalibrationIoTab"
+                             Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SHORTCUT" x:Name="ShortcutTab"
@@ -110,6 +112,56 @@
                     <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Export/import a calibration's taps + solved model (#484). Reload without re-tapping, and
+             re-solve the same taps with a different model to compare algorithms. Matching-only import. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #CalibrationIoTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Calibration capture (export / import)"
+                           Description="Save the active tablet's calibration — its recorded taps plus the solved model — to a JSON file, then reload it later without re-tapping. On import you can apply it as captured, or re-solve the same taps with a different model to compare algorithms. Import only works when the current tablet's mapping matches the capture.">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Export" FontWeight="SemiBold" />
+                        <TextBlock Text="Write the active tablet's current calibration (taps + solved model) to a JSON file."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <Button Content="Export calibration…" Click="OnExportCapture"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Import" FontWeight="SemiBold" />
+                        <TextBlock Text="Load a previously exported capture. Applies to the active tablet only when its mapping matches."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <Button Content="Import calibration…" Click="OnImportCapture"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+
+                        <!-- Revealed once a matching capture is loaded. -->
+                        <StackPanel Spacing="8" Margin="0,6,0,0" IsVisible="{Binding HasLoadedCapture}">
+                            <Button Content="Apply as captured"
+                                    Command="{Binding ApplyLoadedCaptureCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    HorizontalAlignment="Left" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Re-solve as" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <ComboBox ItemsSource="{Binding ResolveModes}"
+                                          SelectedItem="{Binding SelectedResolveMode}"
+                                          MinWidth="140" />
+                                <Button Content="Re-solve &amp; apply"
+                                        Command="{Binding ReSolveLoadedCaptureCommand}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding CaptureStatus}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasCaptureStatus}" Margin="0,2,0,0" />
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>
