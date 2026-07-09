@@ -22,7 +22,6 @@
                                 Margin="8,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Classes="statusMarkWarn" Classes.success="{Binding VmultiInstalled}" />
                         <TextBlock Text="{Binding VmultiMessage}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>

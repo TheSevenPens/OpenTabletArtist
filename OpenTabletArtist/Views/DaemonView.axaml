@@ -13,7 +13,6 @@
                     <StackPanel Grid.Column="0" MinWidth="0">
                         <TextBlock Classes="SectionLabel" Text="OPENTABLETDRIVER DAEMON" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Classes="statusMarkWarn" Classes.success="{Binding Status.IsConnected}" />
                             <TextBlock Text="{Binding Status.DaemonStatusText}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                             <!-- Version read off the connected daemon's binary (#296). -->

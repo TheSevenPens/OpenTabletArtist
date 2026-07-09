@@ -24,11 +24,17 @@ public static class ThemeService
     public const string Light = "Light";
     public const string Dark = "Dark";
     public const string Anime = "Anime";
+    public const string DarkSakura = "DarkSakura";
     public const string Custom = "Custom";
 
     /// <summary>The "Anime" skin variant. Inherits Light so unspecified keys (incl. all Fluent
     /// control resources) fall back to the Light theme rather than rendering unstyled.</summary>
     public static readonly ThemeVariant AnimeVariant = new(Anime, ThemeVariant.Light);
+
+    /// <summary>The "Dark Sakura" skin variant (#241): the pink Sakura accent + falling petals over a
+    /// dark scheme. Inherits Dark so surfaces + Fluent control resources resolve dark and text stays
+    /// light over the dimmed cherry-blossom backdrop.</summary>
+    public static readonly ThemeVariant DarkSakuraVariant = new(DarkSakura, ThemeVariant.Dark);
 
     /// <summary>The user-tunable "Custom" skin variant (parallel to Sakura). Inherits Dark so the base
     /// surfaces + Fluent control resources resolve dark and text stays legible over a photo backdrop.
@@ -60,6 +66,7 @@ public static class ThemeService
         Light => ThemeVariant.Light,
         Dark => ThemeVariant.Dark,
         Anime => AnimeVariant,
+        DarkSakura => DarkSakuraVariant,
         Custom => CustomVariant,
         _ => ThemeVariant.Default, // System / unknown → follow the OS
     };

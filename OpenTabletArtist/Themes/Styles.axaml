@@ -193,19 +193,17 @@
         </ControlTheme>
 
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
-             Green check + text when detected; amber warning otherwise; optional "Dynamics on" chip. -->
+             Green outline + text when detected; neutral gray otherwise (undetected isn't a warning, #489). -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <!-- Compact status pill: a status-colored outline + mark + text. No translucent
-                         fill (the old muted-tint band read oddly over the Sakura backdrop, #300). -->
+                    <!-- Compact status pill: a status-colored outline + text. No translucent fill (the old
+                         muted-tint band read oddly over the Sakura backdrop, #300). -->
                     <Border x:Name="PART_Pill" CornerRadius="16" Padding="12,7"
                             Background="Transparent"
-                            BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
+                            BorderThickness="1.5" BorderBrush="{DynamicResource TextMutedBrush}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Classes="statusMarkWarn"
-                                       Classes.success="{Binding IsDetected, RelativeSource={RelativeSource TemplatedParent}}" />
                             <TextBlock Text="{TemplateBinding Text}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -220,7 +218,7 @@
                     </Border>
                 </ControlTemplate>
             </Setter>
-            <!-- Detected → success outline (default is the warning outline above). -->
+            <!-- Detected → success outline (default is the neutral gray outline above). -->
             <Style Selector="^[IsDetected=True] /template/ Border#PART_Pill">
                 <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
             </Style>

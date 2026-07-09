@@ -17,6 +17,12 @@ public static class PenSmoothing
     /// <summary>Heaviest smoothing allowed; 1.0 would freeze the output entirely.</summary>
     public const double MaxFactor = 0.99;
 
+    /// <summary>Upper bound for the <b>position</b>-smoothing slider <c>amount</c> (#487). Beyond this the
+    /// pen lags too much to be usable — testing showed ~0.25 is the practical ceiling, and anyone wanting
+    /// heavier smoothing should do it in their drawing app. Pressure smoothing keeps the full 0..1 range.
+    /// (0.25 maps to an EMA factor of ~0.895 via <see cref="FactorFromAmount"/>.)</summary>
+    public const double MaxPositionSmoothingAmount = 0.25;
+
     /// <summary>One EMA step. With no previous value (stroke start) or factor &lt;= 0, returns
     /// <paramref name="current"/> unchanged.</summary>
     public static double Ema(double current, double? previous, double factor)

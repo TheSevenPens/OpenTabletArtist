@@ -777,7 +777,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _skipCurvePersist = true;
         Curve = dynamics.Curve;
         PressureSmoothing = dynamics.PressureSmoothing;
-        PositionSmoothing = dynamics.PositionSmoothing;
+        // Clamp to the position-smoothing ceiling (#487) so a profile saved with a heavier value (or one
+        // set by another tool) reads back within the usable range.
+        PositionSmoothing = Math.Min(dynamics.PositionSmoothing, PenSmoothing.MaxPositionSmoothingAmount);
         SmoothAfterCurve = dynamics.SmoothAfterCurve;
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
@@ -1390,6 +1392,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     public string PressureSmoothingText => PressureSmoothing.ToString("0.00");
     public string PositionSmoothingText => PositionSmoothing.ToString("0.00");
+
+    /// <summary>Upper bound for the position-smoothing slider (#487); heavier smoothing is too laggy to be
+    /// useful, so the slider stops here (see <see cref="PenSmoothing.MaxPositionSmoothingAmount"/>).</summary>
+    public double PositionSmoothingMax => PenSmoothing.MaxPositionSmoothingAmount;
 
     private bool _skipCurvePersist;
     private CancellationTokenSource? _persistCts;

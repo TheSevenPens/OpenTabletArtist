@@ -85,9 +85,11 @@ public class SakuraPetals : Control
     private void OnThemeChanged(object? sender, EventArgs e) => UpdateRunState();
     private void OnSettingsChanged() => UpdateRunState();
 
-    // Petals run in the Sakura skin and (reused) in the Custom skin, when enabled.
+    // Petals run in the Sakura + Dark Sakura skins and (reused) in the Custom skin, when enabled.
     private bool ShouldRun =>
-        (ThemeService.AnimeVariant.Equals(ActualThemeVariant) || ThemeService.CustomVariant.Equals(ActualThemeVariant))
+        (ThemeService.AnimeVariant.Equals(ActualThemeVariant)
+         || ThemeService.DarkSakuraVariant.Equals(ActualThemeVariant)
+         || ThemeService.CustomVariant.Equals(ActualThemeVariant))
         && AnimationSettings.PetalsEnabled;
 
     private void UpdateRunState()
