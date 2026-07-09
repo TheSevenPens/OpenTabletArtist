@@ -34,19 +34,25 @@ public sealed class SetupActions
     public IReadOnlyList<string> DetectedTabletsNotOnWindowsInk() =>
         _device.Profiles.Where(p => p.IsDetected && !IsWinInk(p.Profile)).Select(p => p.Tablet).ToList();
 
-    /// <summary>Sets every connected non-Windows-Ink tablet to Windows Ink Absolute mode, then applies +
-    /// persists. Returns how many tablets were changed (0 if none needed it or there are no settings).</summary>
-    public async Task<int> SetDetectedTabletsToWindowsInkAsync()
+    /// <summary>Sets connected non-Windows-Ink tablets to Windows Ink Absolute mode, then applies +
+    /// persists. Returns how many tablets were changed (0 if none needed it or there are no settings).
+    /// Optionally restricted to tablets matching <paramref name="include"/> — auto-setup passes a filter
+    /// to honor per-tablet Windows-Ink opt-outs (#380/#406). The single source of truth for the mode-set
+    /// (the manual "enable" button and the auto-setup both call this). Each switched tablet is cleared
+    /// from the opt-out set, since it's now on Windows Ink.</summary>
+    public async Task<int> SetDetectedTabletsToWindowsInkAsync(Func<string, bool>? include = null)
     {
         if (_settings.CurrentSettings is not { } settings) return 0;
         int changed = 0;
         foreach (var name in DetectedTabletsNotOnWindowsInk())
         {
+            if (include != null && !include(name)) continue;
             var prof = settings.Profiles.FirstOrDefault(p =>
                 string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
             if (prof == null) continue;
             prof.OutputMode ??= new PluginSettingStore(WinInkAbsoluteModePath, true);
             prof.OutputMode.Path = WinInkAbsoluteModePath;
+            WinInkAutoOptOut.Clear(name); // now on Windows Ink → no longer opted out (keeps the set fresh)
             changed++;
         }
         if (changed > 0) await _settings.ApplyAndSaveSettingsAsync(settings);
