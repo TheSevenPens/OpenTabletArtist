@@ -3,46 +3,48 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- The ADVANCED tabbed page (see docs/design/ux-terminology.md): a complex header (its title)
-         at the top, then a subpage navigation (tab rail) on the left and the selected subpage on the
-         right (lazy-mounted on first visit, #388). The rail's two section labels group the tabs by owner
-         (OpenTabletDriver vs. OpenTabletArtist) — they're non-interactive, so the navigation stays flat. -->
+    <!-- The ADVANCED tabbed page (see docs/design/ux-terminology.md): a complex header (its title) at the
+         top, then a subpage navigation (tab rail) on the left and the selected subpage on the right. The
+         rail is data-driven (#477) — an ItemsControl per section over the view model's tab lists, and the
+         content host binds to SelectedContent — so there's no per-tab code-behind. The two section labels
+         group the tabs by owner (OpenTabletDriver vs. OpenTabletArtist); they're non-interactive, so the
+         navigation stays flat. Subpages are realized lazily by the content host on first selection (#388). -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header — breadcrumb "ADVANCED › <subpage>", set in code-behind on tab change. -->
-        <c:ComplexHeader x:Name="Header" Grid.Row="0" Grid.ColumnSpan="2" />
+        <!-- Complex header — breadcrumb "ADVANCED › <subpage>", driven straight from the view model. -->
+        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="{Binding BreadcrumbTitle}" />
 
         <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="190" Spacing="2">
                 <TextBlock Text="OPENTABLETDRIVER" Classes="SectionLabel" Margin="8,2,0,4" />
-                <RadioButton Content="DAEMON" IsChecked="True" x:Name="DaemonTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="WINDOWS INK PLUGIN" x:Name="WinInkTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="CONFIGS" x:Name="ConfigsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="DIAGNOSTICS" x:Name="DiagnosticsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="CONSOLE" x:Name="LogTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="PLUGINS" x:Name="PluginsTab"
-                             Theme="{StaticResource TabRadioButton}" />
+                <ItemsControl ItemsSource="{Binding OtdTabs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Content="{Binding Label}" GroupName="AdvancedTabs"
+                                         Theme="{StaticResource TabRadioButton}"
+                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
+                                         CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <TextBlock Text="OPENTABLETARTIST" Classes="SectionLabel" Margin="8,12,0,4" />
-                <RadioButton Content="VMULTI DRIVER" x:Name="VMultiTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="DRIVER CLEANUP" x:Name="DriverCleanupTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="STARTUP" x:Name="StartupTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="DEVELOPER" x:Name="DeveloperTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="THEME" x:Name="ThemeTab"
-                             Theme="{StaticResource TabRadioButton}" />
+                <ItemsControl ItemsSource="{Binding OtaTabs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Content="{Binding Label}" GroupName="AdvancedTabs"
+                                         Theme="{StaticResource TabRadioButton}"
+                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
+                                         CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 
-        <ContentControl x:Name="TabHost" Grid.Row="1" Grid.Column="1" />
+        <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding SelectedContent}" />
     </Grid>
 </UserControl>
