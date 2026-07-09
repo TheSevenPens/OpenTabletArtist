@@ -1570,16 +1570,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public bool IsRotation180 => TabletRotation == 180;
     public bool IsRotation270 => TabletRotation == 270;
 
-    /// <summary>Set the active-area rotation and apply it. Phase 1 accepts only 0 and 180 (#199); the
-    /// 90/270 buttons are disabled in the UI, and this ignores anything else defensively.</summary>
+    /// <summary>Set the active-area rotation (0/90/180/270) and apply it, re-fitting the area to the
+    /// mapped display so it stays undistorted — for 90/270 the area shrinks to fit the rotated tablet
+    /// (#199). Ignores other values defensively.</summary>
     [RelayCommand]
     private async Task SetRotation(string? degrees)
     {
-        if (!int.TryParse(degrees, out var deg) || (deg != 0 && deg != 180) || deg == TabletRotation) return;
-        await ApplySettingsChange(p =>
-        {
-            if (p.AbsoluteModeSettings?.Tablet is { } area) area.Rotation = deg;
-        });
+        if (!int.TryParse(degrees, out var deg) || deg is not (0 or 90 or 180 or 270) || deg == TabletRotation) return;
+        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+        await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, deg, Displays));
     }
 
     private void RefreshTabletArea()

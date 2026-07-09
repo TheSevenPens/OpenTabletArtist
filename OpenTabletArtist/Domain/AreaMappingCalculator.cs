@@ -51,4 +51,21 @@ public static class AreaMappingCalculator
 
         return new TabletArea(width, height, fullWidth / 2f, fullHeight / 2f);
     }
+
+    /// <summary>
+    /// Fit accounting for a 0/90/180/270 <paramref name="rotationDeg"/> (#199). The area's stored
+    /// aspect always matches the display (so OTD's scale stays uniform → no distortion); for a
+    /// perpendicular rotation (90/270) the largest such rectangle is the one whose <em>rotated</em>
+    /// bounding box fits the tablet, i.e. the tablet's width/height are swapped for the fit. The result
+    /// is always centred on the real tablet.
+    /// </summary>
+    public static TabletArea FitForRotation(float fullWidth, float fullHeight, float displayWidth, float displayHeight, int rotationDeg)
+    {
+        bool perpendicular = (((rotationDeg % 360) + 360) % 360) % 180 != 0;
+        var fit = perpendicular
+            ? FitToDisplayAspect(fullHeight, fullWidth, displayWidth, displayHeight)  // rotated bbox must fit → swap tablet dims
+            : FitToDisplayAspect(fullWidth, fullHeight, displayWidth, displayHeight);
+        // The swapped call centres on the swapped dims; re-centre on the real tablet.
+        return fit with { X = fullWidth / 2f, Y = fullHeight / 2f };
+    }
 }
