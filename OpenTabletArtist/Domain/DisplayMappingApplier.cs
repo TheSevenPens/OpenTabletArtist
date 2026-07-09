@@ -66,7 +66,36 @@ public static class DisplayMappingApplier
         if (fullWidth <= 0 || fullHeight <= 0 || display.Width <= 0 || display.Height <= 0)
             return false;
 
-        var area = AreaMappingCalculator.FitToDisplayAspect(fullWidth, fullHeight, display.Width, display.Height);
+        // Honour any active-area rotation so re-applying a mapping keeps the rotated fit (#199).
+        int rot = (((int)System.Math.Round(abs.Tablet.Rotation) % 360) + 360) % 360;
+        var area = AreaMappingCalculator.FitForRotation(fullWidth, fullHeight, display.Width, display.Height, rot);
+        abs.Tablet.Width = area.Width;
+        abs.Tablet.Height = area.Height;
+        abs.Tablet.X = area.X;
+        abs.Tablet.Y = area.Y;
+        abs.LockAspectRatio = true;
+        return true;
+    }
+
+    /// <summary>Set the active-area <paramref name="rotationDeg"/> (0/90/180/270) and re-fit the tablet
+    /// area so it still fills the currently-mapped display without distortion — for 90/270 the area
+    /// shrinks to the largest that fits the tablet once rotated (#199). Returns true if a rotation was
+    /// written (the area is only re-fitted when the profile maps cleanly to a single monitor).</summary>
+    public static bool ApplyRotation(Profile profile, (float Width, float Height)? digitizer,
+        int rotationDeg, IReadOnlyList<DisplayInfo> displays)
+    {
+        var abs = profile.AbsoluteModeSettings;
+        if (abs?.Tablet == null) return false;
+
+        abs.Tablet.Rotation = rotationDeg;
+
+        float fullWidth = digitizer?.Width ?? abs.Tablet.Width;
+        float fullHeight = digitizer?.Height ?? abs.Tablet.Height;
+        var display = CurrentlyMapped(profile, displays);
+        if (display == null || fullWidth <= 0 || fullHeight <= 0 || display.Width <= 0 || display.Height <= 0)
+            return true; // rotation applied; no clean single-display mapping to re-fit against
+
+        var area = AreaMappingCalculator.FitForRotation(fullWidth, fullHeight, display.Width, display.Height, rotationDeg);
         abs.Tablet.Width = area.Width;
         abs.Tablet.Height = area.Height;
         abs.Tablet.X = area.X;

@@ -56,27 +56,81 @@ public sealed class ActiveAreaDiagram : Control
         var box = new Rect(Bounds.Size).Deflate(pad);
         if (box.Width <= 0 || box.Height <= 0) return;
 
-        // The full digitizer area, fit to the box preserving the tablet's real aspect ratio.
         double fullW = area?.FullWidth ?? 16, fullH = area?.FullHeight ?? 10;
-        var fullRect = FitAspect(fullW, fullH, box);
-        ctx.DrawRectangle(FullFill, FullBorder, fullRect);
-        ctx.DrawText(Text("Full tablet area", 11, FullLabel), new Point(fullRect.X + 8, fullRect.Y + 6));
+        double rot = area != null ? (((area.Rotation % 360) + 360) % 360) : 0;
+
+        // ── Un-rotated (the common case): full tablet with the effective area in its stored position. ──
+        if (rot < 0.5)
+        {
+            var fullRect = FitAspect(fullW, fullH, box);
+            ctx.DrawRectangle(FullFill, FullBorder, fullRect);
+            ctx.DrawText(Text("Full tablet area", 11, FullLabel), new Point(fullRect.X + 8, fullRect.Y + 6));
+
+            if (area is { FullWidth: > 0, FullHeight: > 0 })
+            {
+                double sx = fullRect.Width / area.FullWidth, sy = fullRect.Height / area.FullHeight;
+                double ew0 = Math.Max(2, area.EffWidth * sx), eh0 = Math.Max(2, area.EffHeight * sy);
+                var effRect0 = new Rect(fullRect.X + area.EffCenterX * sx - ew0 / 2,
+                                        fullRect.Y + area.EffCenterY * sy - eh0 / 2, ew0, eh0);
+                ctx.DrawRectangle(new SolidColorBrush(accent, 0.22), new Pen(new SolidColorBrush(accent), 2), effRect0);
+                if (effRect0 is { Height: > 26, Width: > 70 })
+                    DrawCentered(ctx, effRect0, FormatSize(area.EffWidth, area.EffHeight), 11.5, Brushes.White);
+            }
+            else
+            {
+                DrawCentered(ctx, fullRect, "No active-area data", 12, Brushes.White);
+            }
+            return;
+        }
+
+        // ── Rotated (#199, Option 2): the tablet is drawn TURNED as physically held, with the active
+        //    area upright (it matches the display). A marker points to the tablet's native top edge so
+        //    the direction (90 vs 270 / left vs right) is unambiguous. Areas are centred when rotated. ──
+        bool perp = Math.Abs(rot % 180) > 0.5;                 // 90/270 swap the on-screen bounding box
+        double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;
+        var fit = FitAspect(bboxW, bboxH, box);
+        double scale = fit.Height / bboxH;
+        var center = fit.Center;
+
+        // Avalonia rotates clockwise for positive angles (Y-down); the tablet turns opposite OTD's
+        // -Rotation, so draw it at -rot to match the physical turn.
+        var m = Matrix.CreateTranslation(-center.X, -center.Y)
+                * Matrix.CreateRotation(-rot * Math.PI / 180.0)
+                * Matrix.CreateTranslation(center.X, center.Y);
+        var tabletRect = new Rect(center.X - fullW * scale / 2, center.Y - fullH * scale / 2,
+                                  fullW * scale, fullH * scale);
+        using (ctx.PushTransform(m))
+        {
+            ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
+            DrawTopMarker(ctx, tabletRect, accent);
+        }
 
         if (area is { FullWidth: > 0, FullHeight: > 0 })
         {
-            // Effective area, positioned by its centre offset and scaled the same as the full area.
-            double sx = fullRect.Width / area.FullWidth, sy = fullRect.Height / area.FullHeight;
-            double ew = Math.Max(2, area.EffWidth * sx), eh = Math.Max(2, area.EffHeight * sy);
-            var effRect = new Rect(fullRect.X + area.EffCenterX * sx - ew / 2,
-                                   fullRect.Y + area.EffCenterY * sy - eh / 2, ew, eh);
+            double ew = Math.Max(2, area.EffWidth * scale), eh = Math.Max(2, area.EffHeight * scale);
+            var effRect = new Rect(center.X - ew / 2, center.Y - eh / 2, ew, eh);
             ctx.DrawRectangle(new SolidColorBrush(accent, 0.22), new Pen(new SolidColorBrush(accent), 2), effRect);
             if (effRect is { Height: > 26, Width: > 70 })
                 DrawCentered(ctx, effRect, FormatSize(area.EffWidth, area.EffHeight), 11.5, Brushes.White);
         }
-        else
+        ctx.DrawText(Text("Full tablet area", 11, FullLabel), new Point(box.X + 2, box.Y + 2));
+    }
+
+    // A small filled triangle at the centre of the tablet's native top edge, pointing "up" in the
+    // tablet's own frame — drawn inside the tablet transform so it turns with the tablet, showing which
+    // way it's physically rotated.
+    private static void DrawTopMarker(DrawingContext ctx, Rect tablet, Color accent)
+    {
+        double cx = tablet.X + tablet.Width / 2;
+        double s = Math.Clamp(tablet.Width * 0.06, 7, 16);
+        double top = tablet.Y + 6;
+        var geo = new PolylineGeometry(new[]
         {
-            DrawCentered(ctx, fullRect, "No active-area data", 12, Brushes.White);
-        }
+            new Point(cx, top),                    // apex (points up in tablet frame)
+            new Point(cx - s, top + s * 1.4),
+            new Point(cx + s, top + s * 1.4),
+        }, true);
+        ctx.DrawGeometry(new SolidColorBrush(accent), null, geo);
     }
 
     private static Rect FitAspect(double w, double h, Rect box)

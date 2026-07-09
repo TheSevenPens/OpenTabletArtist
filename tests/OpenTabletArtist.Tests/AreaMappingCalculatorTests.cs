@@ -39,6 +39,41 @@ public class AreaMappingCalculatorTests
     }
 
     [Fact]
+    public void FitForRotation_0And180_MatchUnrotatedFit()
+    {
+        var expected = AreaMappingCalculator.FitToDisplayAspect(300f, 170f, 1920, 1080);
+        foreach (var rot in new[] { 0, 180, 360, -180 })
+        {
+            var area = AreaMappingCalculator.FitForRotation(300f, 170f, 1920, 1080, rot);
+            Assert.Equal(expected.Width, area.Width, Precision);
+            Assert.Equal(expected.Height, area.Height, Precision);
+            Assert.Equal(150f, area.X, Precision);   // centred on the real tablet
+            Assert.Equal(85f, area.Y, Precision);
+        }
+    }
+
+    [Fact]
+    public void FitForRotation_90And270_FitTheRotatedBoundingBox_ToTheTablet()
+    {
+        // 300x170 tablet, 16:9 display, rotated 90°: the area keeps display aspect (Width/Height = 16/9)
+        // but its 90°-rotated bounding box (Height x Width) must fit the tablet — i.e. fit 16:9 into the
+        // SWAPPED tablet (170 wide x 300 tall) → width-limited to 170.
+        foreach (var rot in new[] { 90, 270 })
+        {
+            var area = AreaMappingCalculator.FitForRotation(300f, 170f, 1920, 1080, rot);
+
+            Assert.Equal(170f, area.Width, Precision);
+            Assert.Equal(170f * 1080f / 1920f, area.Height, Precision); // 95.625
+            // display aspect preserved → uniform scale → no distortion
+            Assert.Equal(1920f / 1080f, area.Width / area.Height, Precision);
+            // rotated bounding box (Height across X, Width across Y) fits the 300x170 tablet
+            Assert.True(area.Height <= 300f && area.Width <= 170f);
+            Assert.Equal(150f, area.X, Precision);   // still centred on the real tablet
+            Assert.Equal(85f, area.Y, Precision);
+        }
+    }
+
+    [Fact]
     public void SquareDisplay_ShrinksToSquareWithinTablet()
     {
         // 1:1 display is "taller" than a 1.6 tablet → height kept, width = height.

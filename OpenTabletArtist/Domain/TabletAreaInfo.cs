@@ -9,4 +9,6 @@ namespace OpenTabletArtist.Domain;
 public sealed record TabletAreaInfo(
     double FullWidth, double FullHeight,
     double EffWidth, double EffHeight, double EffCenterX, double EffCenterY,
-    bool HasDisplay, int DisplayNumber, string DisplayName, double DisplayWidth, double DisplayHeight);
+    bool HasDisplay, int DisplayNumber, string DisplayName, double DisplayWidth, double DisplayHeight,
+    // Active-area rotation in degrees about its centre (#199). 0 for the common un-rotated case.
+    double Rotation = 0);

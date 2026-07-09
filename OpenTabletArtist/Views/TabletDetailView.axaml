@@ -453,6 +453,36 @@
                                    IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNull}}" />
                     </StackPanel>
                 </Border>
+
+                <!-- Rotation (#199): rotate the active area to match physically turning the tablet.
+                     180° = buttons on the other side; 90°/270° = portrait, which shrinks the active area
+                     to the largest that fits the tablet once rotated (keeps the display filled, undistorted).
+                     IsChecked is OneWay — the change is driven by the Command. -->
+                <Border Classes="GlassPanel" Margin="0,12,0,0" IsVisible="{Binding HasAreaMapping}">
+                    <StackPanel>
+                        <TextBlock Text="ROTATION" Classes="SectionLabel" />
+                        <TextBlock Text="Rotate the active area to match how you physically turn the tablet — 180° to put the express keys on the opposite side, or 90°/270° for portrait. The display stays filled and undistorted; for portrait the active area shrinks to fit the tablet once rotated."
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,6,0,10" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="18">
+                            <RadioButton GroupName="AreaRotation" Content="None"
+                                         IsChecked="{Binding IsRotation0, Mode=OneWay}"
+                                         Command="{Binding SetRotationCommand}" CommandParameter="0" />
+                            <RadioButton GroupName="AreaRotation" Content="90°"
+                                         IsChecked="{Binding IsRotation90, Mode=OneWay}"
+                                         Command="{Binding SetRotationCommand}" CommandParameter="90" />
+                            <RadioButton GroupName="AreaRotation" Content="180°"
+                                         IsChecked="{Binding IsRotation180, Mode=OneWay}"
+                                         Command="{Binding SetRotationCommand}" CommandParameter="180" />
+                            <RadioButton GroupName="AreaRotation" Content="270°"
+                                         IsChecked="{Binding IsRotation270, Mode=OneWay}"
+                                         Command="{Binding SetRotationCommand}" CommandParameter="270" />
+                        </StackPanel>
+                        <TextBlock Text="After rotating, re-run calibration if you use it — the mapping changed."
+                                   FontStyle="Italic" Margin="0,10,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 
