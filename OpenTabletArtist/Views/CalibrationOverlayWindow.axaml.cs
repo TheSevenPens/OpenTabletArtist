@@ -247,9 +247,11 @@ public partial class CalibrationOverlayWindow : Window
     // (a) raise it just past kCGMainMenuWindowLevel so it renders over the menu bar, and (b) set its frame to
     // the NSScreen's *full* frame (which includes the menu bar and is already in native screen coordinates,
     // so no constraint is applied — this is what corrects the ~menu-bar-height vertical offset that misaligns
-    // calibration). Descriptor-checked and guarded so it only ever sends selectors the object responds to —
-    // never an unrecognized selector (which would raise an uncatchable ObjC exception). Best-effort no-op if
-    // anything's unavailable.
+    // calibration). We gate on Avalonia's platform-handle *descriptor* (NSWindow vs NSView) rather than a
+    // runtime -respondsToSelector: check, so we only ever message classes whose selectors are known
+    // (NSView -window, NSWindow -setLevel:/-screen/-setFrame:display:) — an unknown descriptor bails rather
+    // than risk an unrecognized selector (which would raise an uncatchable ObjC exception). Best-effort no-op
+    // if anything's unavailable.
     private const long AboveMenuBarLevel = 25; // kCGMainMenuWindowLevel + 1
 
     private void CoverFullDisplayOnMac()

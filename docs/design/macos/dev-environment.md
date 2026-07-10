@@ -125,6 +125,11 @@ of AppKit constraining the window below the menu bar. After the overlay coverage
 and centred and the pen tracked the nib. A one-off geometry probe (window `Position`/`Bounds`/`Surface.Bounds`
 vs. `screen.Bounds`) confirmed the window then sat at the display origin with full coverage.
 
+The fix is `CalibrationOverlayWindow.CoverFullDisplayOnMac()` (macOS plan Phase 3) — it raises the `NSWindow`
+above `kCGMainMenuWindowLevel` and sets its frame to the full `NSScreen` frame. So this report is also the
+**acceptance gate** for that fix: after a calibration, a uniform vertical offset means the overlay is *not*
+covering the full display and the ObjC frame/level call didn't take.
+
 ## Reproducing the end-to-end proof
 
 1. Bootstrap the toolchain (above).
