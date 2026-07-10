@@ -222,19 +222,31 @@ Turned the spike findings into committed code on the `macos` branch:
 - **`tools/DaemonProbe` promoted.** The throwaway round-trip probe is now a committed, standalone dev smoke
   test (kept out of the solution/CI) — `dotnet run --project tools/DaemonProbe`. Handy for re-checking the
   daemon transport on any platform.
+- **Windows-only surface feature-gated — the macOS UI is now clean.** Two gates, both verified live on the Mac:
+  - *Health catalog:* added `HealthInputs.IsWindows` (defaults true; set from `OperatingSystem.IsWindows()` in
+    `HealthService`). The evaluator now skips the Windows-Ink-plugin + per-tablet "not using Windows Ink"
+    checks, the VMulti check, and the manufacturer-driver-conflict check off-Windows; the cross-platform checks
+    (display mapping, pen dynamics, config override, external daemon) still fire. **The macOS Home page's
+    "NEEDS ATTENTION" section is now empty** where it previously nagged about VMulti + Windows Ink.
+  - *ADVANCED rail:* the `WINDOWS INK PLUGIN`, `VMULTI DRIVER`, `DRIVER CLEANUP`, and `STARTUP` subpages are
+    filtered out off-Windows (data-driven; a stray deep-link to a hidden tab resolves to null content, no
+    crash). **The macOS rail now shows only** Daemon / Configs / Diagnostics / Console / Plugins + Developer /
+    Theme. Added `HealthEvaluator` gating tests; suite **560 pass** (+2), same 4 pre-existing macOS-env failures.
 
 ## Recommended next step
 
-The daemon foundation, the first (biggest) display seam, **and a clean live GUI boot** are done. Next, in order:
+The daemon foundation, the display seam, a clean live GUI boot, **and the Windows-only-surface feature-gating**
+are done — macOS now boots to a usable, un-nagging connect→profiles→mapping→dynamics→calibration→test core.
+Next, in order:
 
-1. **Feature-gate the Windows-only surface** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) and the
-   health-check catalog with `OperatingSystem.IsWindows()`, so the macOS Home page stops nagging about VMulti /
-   Windows Ink (seen firsthand above) and lands on a usable connect→profiles→mapping→dynamics→calibration→test
-   core. This is now the highest-value change — it's what stands between "runs" and "usable" on macOS.
-2. **Validate Display-Mapping fidelity on macOS** — confirm the logical-points geometry (above) maps correctly
-   through `DisplayMappingApplier`, and click through the Display-Mapping tab in the live GUI.
-3. Fix the 4 Windows-assuming tests (#73) so the suite is green on macOS.
-4. Later: exercise the remaining seams live (hotkeys, tray, calibration overlay), then packaging/signing.
+1. **Validate Display-Mapping fidelity on macOS** — confirm the logical-points geometry (see above) maps
+   correctly through `DisplayMappingApplier`, and click through the Display-Mapping tab in the live GUI.
+2. **Fix the 4 Windows-assuming tests (#73)** so the suite is green on macOS (`ExecutablePathTests` path
+   separators; three `ProfileSwitchServiceTests`).
+3. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
+   overlay placement — and give any that hard-throw on macOS a no-op/guard (most already degrade).
+4. Later: packaging — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
+   currently reads "Avalonia Application" — set a proper bundle/app name during packaging.)
 
 ## Resolved (design review #148)
 
