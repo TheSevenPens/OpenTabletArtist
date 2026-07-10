@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Services;
@@ -8,6 +10,11 @@ namespace OpenTabletArtist.Tests;
 
 public class ProfileSwitchServiceTests
 {
+    // The service builds snapshot paths with Path.Combine, so the fake store must be keyed the same way for
+    // the current OS — hardcoded "C:\presets\Draw.json" backslash literals miss on macOS/Linux (#140).
+    private static readonly string PresetDir = OperatingSystem.IsWindows() ? @"C:\presets" : "/presets";
+    private static string Snapshot(string name) => Path.Combine(PresetDir, name + ".json");
+
     private sealed class FakeCoordinator : ISettingsCoordinator
     {
         public Settings? CurrentSettings { get; set; }
@@ -44,8 +51,8 @@ public class ProfileSwitchServiceTests
     [Fact]
     public async Task SwitchTo_ExistingSnapshot_AppliesLiveOnly_AndSetsOverride()
     {
-        var (svc, coord, store) = Make(@"C:\presets");
-        store.Existing.Add(@"C:\presets\Draw.json");
+        var (svc, coord, store) = Make(PresetDir);
+        store.Existing.Add(Snapshot("Draw"));
 
         var ok = await svc.SwitchToAsync("Draw");
 
@@ -59,7 +66,7 @@ public class ProfileSwitchServiceTests
     [Fact]
     public async Task SwitchTo_MissingSnapshot_ReturnsFalse_NoOverride()
     {
-        var (svc, coord, _) = Make(@"C:\presets");
+        var (svc, coord, _) = Make(PresetDir);
 
         var ok = await svc.SwitchToAsync("Gone");
 
@@ -71,8 +78,8 @@ public class ProfileSwitchServiceTests
     [Fact]
     public async Task RestoreDefault_ClearsOverride_AndReverts()
     {
-        var (svc, coord, store) = Make(@"C:\presets");
-        store.Existing.Add(@"C:\presets\Draw.json");
+        var (svc, coord, store) = Make(PresetDir);
+        store.Existing.Add(Snapshot("Draw"));
         await svc.SwitchToAsync("Draw");
 
         await svc.RestoreDefaultAsync();
@@ -85,7 +92,7 @@ public class ProfileSwitchServiceTests
     [Fact]
     public async Task RestoreDefault_WhenNotOverridden_IsNoOp()
     {
-        var (svc, coord, _) = Make(@"C:\presets");
+        var (svc, coord, _) = Make(PresetDir);
 
         await svc.RestoreDefaultAsync();
 
@@ -95,8 +102,8 @@ public class ProfileSwitchServiceTests
     [Fact]
     public async Task Switched_Event_FiresWithName_ThenNullOnRestore()
     {
-        var (svc, _, store) = Make(@"C:\presets");
-        store.Existing.Add(@"C:\presets\Draw.json");
+        var (svc, _, store) = Make(PresetDir);
+        store.Existing.Add(Snapshot("Draw"));
         var events = new List<string?>();
         svc.Switched += n => events.Add(n);
 

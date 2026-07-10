@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using OpenTabletArtist.Domain;
 using Xunit;
 
@@ -5,37 +7,39 @@ namespace OpenTabletArtist.Tests;
 
 public class ExecutablePathTests
 {
+    // Build an absolute path rooted for the current OS, so Path.GetFullPath normalizes it the same way it
+    // will in production. Windows-literal paths (C:\a\b) don't normalize on macOS/Linux — '\' isn't a path
+    // separator there, so "..\" segments are never collapsed — hence the OS-appropriate construction (#140).
+    private static string Abs(params string[] segments)
+    {
+        var root = OperatingSystem.IsWindows() ? @"C:\" : "/";
+        return root + string.Join(Path.DirectorySeparatorChar, segments);
+    }
+
     [Fact]
     public void IdenticalPaths_AreSame()
-    {
-        Assert.True(ExecutablePath.SameFile(@"C:\a\b\daemon.exe", @"C:\a\b\daemon.exe"));
-    }
+        => Assert.True(ExecutablePath.SameFile(Abs("a", "b", "daemon"), Abs("a", "b", "daemon")));
 
     [Fact]
     public void CaseDifferentPaths_AreSame()
-    {
-        Assert.True(ExecutablePath.SameFile(@"C:\A\B\Daemon.exe", @"c:\a\b\daemon.exe"));
-    }
+        => Assert.True(ExecutablePath.SameFile(Abs("A", "B", "Daemon"), Abs("a", "b", "daemon")));
 
     [Fact]
     public void NormalizedRelativeSegments_AreSame()
-    {
-        Assert.True(ExecutablePath.SameFile(@"C:\a\x\..\b\daemon.exe", @"C:\a\b\daemon.exe"));
-    }
+        => Assert.True(ExecutablePath.SameFile(Abs("a", "x", "..", "b", "daemon"), Abs("a", "b", "daemon")));
 
     [Fact]
     public void DifferentPaths_AreNotSame()
-    {
-        Assert.False(ExecutablePath.SameFile(@"C:\a\b\daemon.exe", @"C:\other\daemon.exe"));
-    }
+        => Assert.False(ExecutablePath.SameFile(Abs("a", "b", "daemon"), Abs("other", "daemon")));
 
-    [Theory]
-    [InlineData(null, @"C:\a\daemon.exe")]
-    [InlineData(@"C:\a\daemon.exe", null)]
-    [InlineData("", @"C:\a\daemon.exe")]
-    [InlineData(null, null)]
-    public void NullOrEmpty_IsNotSame(string? a, string? b)
+    [Fact]
+    public void NullOrEmpty_IsNotSame()
     {
-        Assert.False(ExecutablePath.SameFile(a, b));
+        var real = Abs("a", "daemon");
+        Assert.False(ExecutablePath.SameFile(null, real));
+        Assert.False(ExecutablePath.SameFile(real, null));
+        Assert.False(ExecutablePath.SameFile("", real));
+        Assert.False(ExecutablePath.SameFile(real, ""));
+        Assert.False(ExecutablePath.SameFile(null, null));
     }
 }
