@@ -234,13 +234,74 @@ public partial class CalibrationOverlayWindow : Window
         }
 
         // macOS/Linux: WindowState.FullScreen enters a native fullscreen Space that only covers the working
-        // area (below the menu bar) and can animate onto the wrong display — leaving the top calibration
-        // targets under the menu bar and the tablet→overlay mapping off. A borderless window
+        // area (below the menu bar) and can animate onto the wrong display. A borderless window
         // (WindowDecorations=None) isn't constrained to the visible frame, so size it to the display's full
-        // bounds to cover the whole screen, menu bar included. (#140)
+        // bounds — but on macOS a normal window still renders *below* the menu bar (which occupies the top
+        // ~25 pt), so the drawable area is inset: targets get laid out shorter/lower than the tablet's
+        // full-display mapping and calibration comes out wrong (measured lands below the target, worst at the
+        // top). Raising the window above the menu-bar window level makes it truly cover the whole display so
+        // the target layout matches the mapping. (#140)
         Width = screen.Bounds.Width / screen.Scaling;
         Height = screen.Bounds.Height / screen.Scaling;
+        CoverFullDisplayOnMac();
     }
+
+    // --- macOS: make the overlay cover the WHOLE display, menu bar included -------------------------------
+    // Two problems a normal window hits, both of which throw off calibration (the target layout must match
+    // the tablet's full-display mapping):
+    //   1. AppKit's constrainFrameRect pushes a normal window *below* the menu bar — we asked for the display
+    //      top but landed ~menu-bar-height lower, so every target was drawn low (measured landed below the
+    //      target, worst at the top — the exact pattern in the calibration report).
+    //   2. The menu bar draws over the top strip.
+    // Fix both by reaching the NSWindow and (a) raising it just past kCGMainMenuWindowLevel so it renders
+    // over the menu bar, and (b) setting its frame to the NSScreen's *full* frame (which includes the menu
+    // bar and is already in native screen coordinates, so no constraint is applied). Descriptor-checked and
+    // guarded so it only ever sends selectors the object responds to — never an unrecognized selector (which
+    // would raise an uncatchable ObjC exception). Best-effort: a no-op if anything's unavailable.
+    private const long AboveMenuBarLevel = 25; // kCGMainMenuWindowLevel + 1
+
+    private void CoverFullDisplayOnMac()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        try
+        {
+            var ph = TryGetPlatformHandle();
+            if (ph is null || ph.Handle == IntPtr.Zero) return;
+
+            IntPtr nsWindow = ph.HandleDescriptor switch
+            {
+                "NSWindow" => ph.Handle,
+                "NSView" => objc_msgSend(ph.Handle, sel_registerName("window")), // NSView responds to -window
+                _ => IntPtr.Zero,                                                 // unknown → don't risk it
+            };
+            if (nsWindow == IntPtr.Zero) return;
+
+            objc_msgSend_void_long(nsWindow, sel_registerName("setLevel:"), AboveMenuBarLevel);
+
+            var nsScreen = objc_msgSend(nsWindow, sel_registerName("screen"));
+            if (nsScreen != IntPtr.Zero)
+            {
+                var full = objc_msgSend_rect(nsScreen, sel_registerName("frame"));   // full frame, incl. menu bar
+                objc_msgSend_setFrame(nsWindow, sel_registerName("setFrame:display:"), full, true);
+            }
+        }
+        catch { /* best-effort */ }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NSRect { public double X, Y, Width, Height; }
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void objc_msgSend_void_long(IntPtr receiver, IntPtr selector, long arg);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern NSRect objc_msgSend_rect(IntPtr receiver, IntPtr selector);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void objc_msgSend_setFrame(IntPtr receiver, IntPtr selector, NSRect frame,
+        [MarshalAs(UnmanagedType.I1)] bool display);
+    [DllImport("/usr/lib/libobjc.dylib")]
+    private static extern IntPtr sel_registerName(string name);
 
     private void BuildAndLayout()
     {
