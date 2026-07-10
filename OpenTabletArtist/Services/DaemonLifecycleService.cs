@@ -31,6 +31,12 @@ public interface IDaemonLifecycleService
 
     /// <summary>Full executable path for a process id, or null if it can't be read (e.g. elevated).</summary>
     string? GetProcessPath(int processId);
+
+    /// <summary>The single running daemon's executable path, or null if none — or more than one — is
+    /// running. A macOS/Linux fallback for when the Win32 pipe→PID lookup is unavailable: the daemon is
+    /// effectively a singleton there, so an unambiguous single match is the one we're connected to. The
+    /// count guard means it never misattributes when several daemons are somehow present. (#140)</summary>
+    string? GetSingleRunningDaemonPath();
 }
 
 /// <inheritdoc />
@@ -86,5 +92,17 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             return proc.MainModule?.FileName;
         }
         catch { return null; }
+    }
+
+    public string? GetSingleRunningDaemonPath()
+    {
+        var procs = Process.GetProcessesByName(ProcessName);
+        try
+        {
+            // Only when unambiguous — with multiple daemons we can't tell which the pipe connects to.
+            return procs.Length == 1 ? procs[0].MainModule?.FileName : null;
+        }
+        catch { return null; }
+        finally { foreach (var p in procs) p.Dispose(); }
     }
 }
