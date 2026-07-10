@@ -74,6 +74,14 @@ public partial class TabletDetailView : UserControl
     private void OnActiveAreaCommitted(object? sender, ActiveAreaEdit e) =>
         _ = Vm?.CommitActiveArea(e.Width, e.Height, e.CenterX, e.CenterY);
 
+    // Calibration report moved off the tab into a dialog (#500/#501): open it over this window, bound to
+    // the same VM so its report bindings resolve.
+    private void OnViewCalibrationReport(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm && TopLevel.GetTopLevel(this) is Window owner)
+            _ = CalibrationReportDialog.ShowAsync(owner, vm);
+    }
+
     private void OnScreensChanged(object? sender, EventArgs e) =>
         Vm?.RefreshDisplaysCommand.Execute(null);
 

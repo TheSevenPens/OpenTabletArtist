@@ -1,0 +1,89 @@
+<views:AppWindow xmlns="https://github.com/avaloniaui"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:views="clr-namespace:OpenTabletArtist.Views"
+                 x:Class="OpenTabletArtist.Views.CalibrationReportDialog"
+                 Title="Calibration report"
+                 Width="720" Height="620"
+                 WindowStartupLocation="CenterOwner"
+                 Background="{DynamicResource BgBaseBrush}">
+
+    <!-- DataContext is the TabletDetailViewModel, so the report bindings resolve as they did on the
+         Calibration tab. Moved off the tab into this dialog to declutter the tab (#500/#501). -->
+    <DockPanel Margin="24">
+        <!-- Footer -->
+        <StackPanel DockPanel.Dock="Bottom">
+            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,16,0,0" />
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,14,0,0">
+                <TextBlock Grid.Column="0" Text="{Binding CalibrationReportSummary}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                <Button Grid.Column="1" Content="Copy" Command="{Binding CopyCalibrationReportCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="14,8" Margin="0,0,8,0"
+                        ToolTip.Tip="Copy the report as tab-separated text for sharing or debugging" />
+                <Button x:Name="CloseButton" Grid.Column="2" Content="Close"
+                        Theme="{StaticResource AccentButton}" Padding="22,8" />
+            </Grid>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10" Margin="0,0,0,4">
+                <TextBlock Text="CALIBRATION REPORT" Classes="SectionLabel" />
+
+                <!-- Fit quality (#461): the pre-calibration pointing error the taps recorded. Post-
+                     correction residual is ~0 by construction (the homography/grid fit their points
+                     exactly), so this reads the parallax that was corrected. -->
+                <TextBlock Text="{Binding CalibrationFitText}" FontSize="12"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           IsVisible="{Binding HasCalibrationFit}"
+                           ToolTip.Tip="How far the uncorrected pen landed from each target, across all taps. This is the parallax the calibration removes — the post-correction residual is essentially zero." />
+                <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
+                           Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasCalibrationFitWarning}" />
+                <!-- Average natural pen tilt across the taps (#481). -->
+                <TextBlock Text="{Binding CalibrationTiltText}" FontSize="12"
+                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasCalibrationTilt}"
+                           ToolTip.Tip="The average angle you held the pen at during calibration (altitude = angle above the tablet surface, 90° is straight up). Calibrating at your natural drawing tilt makes the result match how you actually draw." />
+
+                <!-- Fixed column widths so the numbers line up across rows and the target/measured
+                     columns have real breathing room between them. -->
+                <Grid ColumnDefinitions="34,132,132,110,168,56">
+                    <TextBlock Grid.Column="0" Text="#" Classes="SectionLabel" />
+                    <TextBlock Grid.Column="1" Text="TARGET (PX)" Classes="SectionLabel" />
+                    <TextBlock Grid.Column="2" Text="MEASURED (PX)" Classes="SectionLabel" />
+                    <TextBlock Grid.Column="3" Text="Δ (PX)" Classes="SectionLabel"
+                               ToolTip.Tip="Signed offset of the measured point from the target (measured − target), in x, y pixels." />
+                    <TextBlock Grid.Column="4" Text="RAW" Classes="SectionLabel" />
+                    <TextBlock Grid.Column="5" Text="SAMPLES" Classes="SectionLabel" HorizontalAlignment="Right" />
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding CalibrationReportRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="34,132,132,110,168,56" Margin="0,0,0,3">
+                                <TextBlock Grid.Column="0" Text="{Binding Index}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding Target}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Column="2" Text="{Binding Measured}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Column="3" Text="{Binding Delta}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Column="4" Text="{Binding Raw}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="5" Text="{Binding Samples}" HorizontalAlignment="Right"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</views:AppWindow>

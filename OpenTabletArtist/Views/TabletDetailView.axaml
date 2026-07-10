@@ -512,24 +512,23 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,6,0,12" TextWrapping="Wrap" />
 
-                <!-- Which display the overlay pops up on (the tablet's mapped display), so the user knows
-                     where to look. -->
-                <Border Background="{DynamicResource GlassBgBrush}" CornerRadius="6" Padding="10,7"
-                        Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
-                    <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
-                </Border>
-
                 <!-- Current calibration status card — sits before the density options so the user sees
-                     the current state (and can clear it) first. -->
+                     the current state (and can clear it) first. Leads with which display the calibration
+                     overlay pops up on (the tablet's mapped display), so the user knows where to look;
+                     this line used to be a separate accent box above the card (folded in, #500). -->
                 <Border Classes="GlassPanel" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="{Binding CalibrationStatusText}" FontWeight="SemiBold"
                                        VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                             <ToggleSwitch IsChecked="{Binding CalibrationEnabled}" IsVisible="{Binding HasCalibration}"
                                           OnContent="On" OffContent="Off" VerticalAlignment="Center" MinWidth="0"
                                           ToolTip.Tip="Turn the calibration correction on or off without clearing it — to compare with and without." />
+                            <Button Content="View report" Click="OnViewCalibrationReport" IsVisible="{Binding HasCalibrationReport}"
+                                    Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center"
+                                    ToolTip.Tip="See the recorded points, fit quality and natural tilt from the last calibration" />
                             <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
                                     Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center"
                                     ToolTip.Tip="Remove the calibration entirely and return the pointer to its uncorrected default" />
@@ -588,82 +587,6 @@
                         </StackPanel>
                     </Border>
                 </UniformGrid>
-
-                <!-- Calibration report (#460): the recorded points from the last calibration. Each row pairs
-                     the on-screen target with the pixel-equivalent of where the uncorrected pen landed
-                     (MEASURED PX) and that tap's error in px (Δ, #461); the raw tablet coords are kept as a
-                     debugging detail. A fit line summarizes the pointing error corrected, and flags an
-                     outlier tap. Only shown when a calibration with stored points is active. -->
-                <Border Classes="GlassPanel" Margin="0,0,0,12" MaxWidth="820" HorizontalAlignment="Left"
-                        IsVisible="{Binding HasCalibrationReport}">
-                    <StackPanel Spacing="10">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="CALIBRATION REPORT" Classes="SectionLabel" />
-                                <TextBlock Text="{Binding CalibrationReportSummary}" FontSize="11"
-                                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <Button Grid.Column="1" Content="Copy" Command="{Binding CopyCalibrationReportCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Top"
-                                    ToolTip.Tip="Copy the report as tab-separated text for sharing or debugging" />
-                        </Grid>
-
-                        <!-- Fit quality (#461): the pre-calibration pointing error the taps recorded. Post-
-                             correction residual is ~0 by construction (the homography/grid fit their points
-                             exactly), so this reads the parallax that was corrected. -->
-                        <TextBlock Text="{Binding CalibrationFitText}" FontSize="12"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   IsVisible="{Binding HasCalibrationFit}"
-                                   ToolTip.Tip="How far the uncorrected pen landed from each target, across all taps. This is the parallax the calibration removes — the post-correction residual is essentially zero." />
-                        <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
-                                   Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
-                                   IsVisible="{Binding HasCalibrationFitWarning}" />
-                        <!-- Average natural pen tilt across the taps (#481). -->
-                        <TextBlock Text="{Binding CalibrationTiltText}" FontSize="12"
-                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                   IsVisible="{Binding HasCalibrationTilt}"
-                                   ToolTip.Tip="The average angle you held the pen at during calibration (altitude = angle above the tablet surface, 90° is straight up). Calibrating at your natural drawing tilt makes the result match how you actually draw." />
-
-                        <!-- Fixed column widths so the numbers line up across rows and the target/measured
-                             columns have real breathing room between them. -->
-                        <Grid ColumnDefinitions="34,132,132,110,168,56">
-                            <TextBlock Grid.Column="0" Text="#" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="1" Text="TARGET (PX)" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="2" Text="MEASURED (PX)" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="3" Text="Δ (PX)" Classes="SectionLabel"
-                                       ToolTip.Tip="Signed offset of the measured point from the target (measured − target), in x, y pixels." />
-                            <TextBlock Grid.Column="4" Text="RAW" Classes="SectionLabel" />
-                            <TextBlock Grid.Column="5" Text="SAMPLES" Classes="SectionLabel" HorizontalAlignment="Right" />
-                        </Grid>
-
-                        <ItemsControl ItemsSource="{Binding CalibrationReportRows}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="34,132,132,110,168,56" Margin="0,0,0,3">
-                                        <TextBlock Grid.Column="0" Text="{Binding Index}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Target}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Measured}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="3" Text="{Binding Delta}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Column="4" Text="{Binding Raw}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="5" Text="{Binding Samples}" HorizontalAlignment="Right"
-                                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                                   Foreground="{DynamicResource TextMutedBrush}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
 
                 <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
