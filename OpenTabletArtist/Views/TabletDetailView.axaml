@@ -139,9 +139,14 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="PEN INPUTS" x:Name="PenTipTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="PEN BUTTONS" x:Name="PenBarrelTab"
+                             Theme="{StaticResource TabRadioButton}"
+                             IsVisible="{Binding HasPenButtons}" />
                 <RadioButton Content="PRESSURE DYNAMICS" x:Name="PressureDynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="POSITION DYNAMICS" x:Name="PositionDynamicsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="TILT DYNAMICS" x:Name="TiltDynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="DISPLAY MAPPING" x:Name="DisplayMappingTab"
                              Theme="{StaticResource TabRadioButton}"
@@ -152,7 +157,10 @@
                 <RadioButton Content="CALIBRATION" x:Name="CalibrationTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasAreaMapping}" />
-                <RadioButton Content="BUTTONS" x:Name="PenButtonsTab"
+                <!-- Tablet-body express keys. x:Name kept as PenButtonsTab (referenced in code-behind for
+                     the live aux-button highlight); labelled TABLET BUTTONS to disambiguate from the pen's
+                     own PEN BUTTONS tab (#494). -->
+                <RadioButton Content="TABLET BUTTONS" x:Name="PenButtonsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="WHEELS" x:Name="WheelTab"
                              Theme="{StaticResource TabRadioButton}"
@@ -601,15 +609,9 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <!-- Row 1: pen tip + eraser -->
-                    <WrapPanel HorizontalAlignment="Center">
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenTipRow}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenEraserRow}" />
-                    </WrapPanel>
-
-                    <!-- Row 2: horizontal pen (tip left → eraser right). Decorative; no connectors.
-                         Canvas is 400 wide × 80 tall. Eraser is drawn first (lowest z) so the barrel end
-                         overlaps its left edge; nib X/W are bound to the tuning sliders below. -->
+                    <!-- Horizontal pen (tip left → eraser right) at the top of the page (#494 follow-up),
+                         matching the Pen Buttons tab. Decorative; no connectors. Canvas is 400×80. Eraser
+                         is drawn first (lowest z) so the barrel end overlaps its left edge. -->
                     <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
                         <Canvas Width="400" Height="80">
                             <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
@@ -637,27 +639,17 @@
                         </Canvas>
                     </Viewbox>
 
-                    <!-- Row 3: buttons (only those the pen has) -->
+                    <!-- Pen tip + eraser -->
                     <WrapPanel HorizontalAlignment="Center">
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton1Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton2Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton3Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenTipRow}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenEraserRow}" />
                     </WrapPanel>
 
-                    <!-- Pen input toggles (#469): per-profile flags that drop pressure/tilt or make pen
-                         button bindings drag-only. -->
+                    <!-- Pen barrel buttons moved to their own PEN BUTTONS tab (#494); Binary pressure moved
+                         to Pressure Dynamics and Disable tilt to the Tilt Dynamics tab (#494 follow-up). -->
                     <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
                         <StackPanel Spacing="10">
                             <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
-                            <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True"
-                                                Description="Flat on/off contact — ignores the pressure curve."
-                                                IsChecked="{Binding DisablePressure}" />
-                            <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                                Description="Apps receive no tilt from this tablet."
-                                                IsChecked="{Binding DisableTilt}" />
                             <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton
                                  and stashes it so it comes back when turned off. -->
                             <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
@@ -670,6 +662,51 @@
                                                 IsChecked="{Binding DragBindingsEnabled}" />
                         </StackPanel>
                     </Border>
+                </StackPanel>
+        </ScrollViewer>
+
+        <!-- Pen Buttons tab (#494): the pen's own barrel buttons, split out of PEN INPUTS. Only the
+             buttons this pen actually has appear. The tab itself is hidden when the pen has none. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #PenBarrelTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock Text="The buttons on the side of the pen. Set what each one does."
+                               Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                               HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="440" />
+
+                    <!-- Horizontal pen (tip left → eraser right); the side buttons light up for the ones
+                         this pen has, matching the cards below. -->
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
+                        <Canvas Width="400" Height="80">
+                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
+                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <!-- side buttons, clustered toward the tip (left); accent-filled to read as the focus -->
+                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        </Canvas>
+                    </Viewbox>
+
+                    <WrapPanel HorizontalAlignment="Center">
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton1Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton2Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton3Row}"
+                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </WrapPanel>
                 </StackPanel>
         </ScrollViewer>
 
@@ -824,12 +861,18 @@
                             ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
                 </Grid>
 
-                <!-- #469: when "Binary pressure" is on (Pen Inputs tab), the output stage drops pressure,
-                     so this curve has no effect. Flag it here so the tab isn't silently inert. -->
+                <!-- Binary pressure (#494, moved here from Pen Inputs): a flat on/off contact that drops
+                     pressure entirely, so the curve below is inert while it's on. -->
+                <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,2,0,6"
+                                    Description="Flat on/off contact — ignores the curve below."
+                                    IsChecked="{Binding DisablePressure}" />
+
+                <!-- #469: when Binary pressure is on the output stage drops pressure, so this curve has no
+                     effect. Flag it here so the tab isn't silently inert. -->
                 <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                         BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,4,0,8"
                         IsVisible="{Binding PressureDisabledNote}">
-                    <TextBlock Text="This tablet is set to Binary pressure (Pen Inputs tab), so this curve has no effect right now. Turn off “Binary pressure” to use it."
+                    <TextBlock Text="Binary pressure is on, so this curve has no effect right now. Turn it off above to use the curve."
                                Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                 </Border>
 
@@ -978,6 +1021,28 @@
                                             Value="{Binding PositionSmoothing}"
                                             ValueTextOverride="{Binding PositionSmoothingText}"
                                             Monospace="True" ValueWidth="44" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Tilt Dynamics tab (#494): tilt controls. For now just the disable toggle; a tilt curve /
+             smoothing may join later, matching Pressure/Position Dynamics. Gated on the same host-can-
+             apply flag as the other dynamics tabs. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #TiltDynamicsTab.IsChecked}">
+            <StackPanel IsEnabled="{Binding CanEditPressure}">
+                <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel" Margin="2,2,2,4" />
+                <TextBlock Text="How the pen's tilt is reported to your apps." TextWrapping="Wrap"
+                           Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
+
+                <Border Classes="GlassPanel" Margin="0,0,0,10">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="TILT" Classes="SectionLabel" />
+                        <!-- Moved here from Pen Inputs (#494). -->
+                        <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                            Description="Apps receive no tilt from this tablet."
+                                            IsChecked="{Binding DisableTilt}" />
                     </StackPanel>
                 </Border>
             </StackPanel>

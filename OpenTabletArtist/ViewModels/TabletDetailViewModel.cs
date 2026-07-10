@@ -1413,9 +1413,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // Per-slot views for the visual pen diagram (button slots are null when the pen lacks that button).
     [ObservableProperty] private PenSwitchRowViewModel? _penTipRow;
     [ObservableProperty] private PenSwitchRowViewModel? _penEraserRow;
-    [ObservableProperty] private PenSwitchRowViewModel? _penButton1Row;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPenButtons))]
+    private PenSwitchRowViewModel? _penButton1Row;
     [ObservableProperty] private PenSwitchRowViewModel? _penButton2Row;
     [ObservableProperty] private PenSwitchRowViewModel? _penButton3Row;
+
+    /// <summary>True when the pen has at least one barrel button — gates the PEN BUTTONS tab (#494), so
+    /// pens with none don't show an empty tab.</summary>
+    public bool HasPenButtons => PenButton1Row != null;
 
     [ObservableProperty] private string _auxButtonCount = "0";
     [ObservableProperty] private bool _noAuxButtons;

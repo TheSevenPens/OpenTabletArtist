@@ -94,9 +94,9 @@ settings. Instructions vary per app; Krita is a good, free app to start with.
 
 All of these live under the tablet's tabs or the sidebar — configure them any time:
 
-- **Pen Inputs** — the pen tip, eraser, and barrel buttons. They ship on *Adaptive Binding*
-  (recommended); a **Fix** button restores it if needed.
-- **Buttons** — map the tablet's hardware buttons to keys, mouse buttons, or scroll.
+- **Pen Inputs / Pen Buttons** — the pen tip and eraser (Pen Inputs) and the pen's barrel buttons
+  (Pen Buttons). They ship on *Adaptive Binding* (recommended); a **Fix** button restores it if needed.
+- **Tablet Buttons** — map the tablet's hardware buttons (express keys) to keys, mouse buttons, or scroll.
 - **Pen Dynamics** — a pressure-curve editor plus position/pressure smoothing, applied to every app.
 - **Hotkeys** — global shortcuts to switch profiles or cycle the tablet's mapped monitor.
 - **Profiles / Per-App Profiles** — save named configurations and switch them by hotkey or
