@@ -484,6 +484,16 @@
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>
 
+    <!-- Tab Title — the heading at the top of each tablet tab (matches the tab's rail label, #499). One
+         place to restyle every tab heading: a step larger and in the primary text colour (the same colour
+         as the tab-nav labels), so it reads as a page heading above the muted in-card SectionLabels. -->
+    <Style Selector="TextBlock.TabTitle">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="LetterSpacing" Value="0.3" />
+    </Style>
+
     <!-- ===== Status marks ===========================================================
          A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
            success → green   warning → amber   neutral → muted   error → red

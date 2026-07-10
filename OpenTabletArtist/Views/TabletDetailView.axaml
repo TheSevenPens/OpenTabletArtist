@@ -186,9 +186,10 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #AboutTab.IsChecked}">
             <StackPanel>
+                <TextBlock Text="ABOUT" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel">
                     <StackPanel>
-                        <TextBlock Text="ABOUT THIS TABLET" Classes="SectionLabel" />
+                        <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
                         <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,10,0,0"
                                       IsVisible="{Binding HasTabletFacts}">
@@ -252,7 +253,7 @@
             <StackPanel>
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
-                <TextBlock Text="MOVEMENT" Classes="SectionLabel" />
+                <TextBlock Text="PEN BEHAVIOR" Classes="TabTitle" />
                 <TextBlock Text="How the pen maps to the screen." Margin="0,4,0,0"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
@@ -298,6 +299,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DisplayMappingTab.IsChecked}">
             <StackPanel>
+                <TextBlock Text="DISPLAY MAPPING" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel"
                         IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
@@ -396,7 +398,7 @@
             <StackPanel>
                 <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
-                        <TextBlock Text="ACTIVE AREA" Classes="SectionLabel" />
+                        <TextBlock Text="ACTIVE AREA" Classes="TabTitle" />
                         <TextBlock Text="The highlighted region is the part of your tablet that's currently mapped to the screen. It's sized automatically to match the selected display's proportions, so pen movement isn't stretched or squashed."
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,6,0,10" TextWrapping="Wrap" />
@@ -515,7 +517,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #CalibrationTab.IsChecked}">
             <StackPanel MaxWidth="900" HorizontalAlignment="Left" IsVisible="{Binding HasAreaMapping}">
-                <TextBlock Text="CALIBRATION" Classes="SectionLabel" />
+                <TextBlock Text="CALIBRATION" Classes="TabTitle" />
                 <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only). Choose a density, then tap the targets on screen."
                            Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,6,0,12" TextWrapping="Wrap" />
@@ -609,6 +611,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock Text="PEN INPUTS" Classes="TabTitle" HorizontalAlignment="Center" />
                     <!-- Horizontal pen (tip left → eraser right) at the top of the page (#494 follow-up),
                          matching the Pen Buttons tab. Decorative; no connectors. Canvas is 400×80. Eraser
                          is drawn first (lowest z) so the barrel end overlaps its left edge. -->
@@ -670,6 +673,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenBarrelTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock Text="PEN BUTTONS" Classes="TabTitle" HorizontalAlignment="Center" />
                     <TextBlock Text="The buttons on the side of the pen. Set what each one does."
                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="440" />
@@ -714,8 +718,9 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenButtonsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: master enable toggle and clear-all (when there are buttons). -->
+                <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                    <TextBlock Grid.Column="0" Text="TABLET BUTTONS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
                         <TextBlock Text="Buttons enabled" VerticalAlignment="Center"
@@ -765,7 +770,7 @@
             <StackPanel>
                 <!-- Header: label + master enable toggle + clear-all (parity with ExpressKeys). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
-                    <TextBlock Grid.Column="0" Text="WHEEL" Classes="SectionLabel" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
                         <TextBlock Text="Wheel enabled" VerticalAlignment="Center"
@@ -855,7 +860,7 @@
                 <!-- Header row: title + reset. There's no On/Off — the filter is always enabled internally;
                      you neutralize it with a linear curve and zero smoothing. -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
-                    <TextBlock Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPressureDynamicsCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
                             ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
@@ -1001,7 +1006,7 @@
                       IsVisible="{Binding #PositionDynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
-                    <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="SectionLabel" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
                             ToolTip.Tip="Turn position smoothing back off" />
@@ -1032,7 +1037,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #TiltDynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
-                <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel" Margin="2,2,2,4" />
+                <TextBlock Text="TILT DYNAMICS" Classes="TabTitle" Margin="2,2,2,4" />
                 <TextBlock Text="How the pen's tilt is reported to your apps." TextWrapping="Wrap"
                            Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
 
@@ -1099,7 +1104,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="FILTERS" Classes="SectionLabel" Margin="0,0,0,8" />
+                <TextBlock Text="FILTERS" Classes="TabTitle" Margin="0,0,0,8" />
 
                 <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
                     <ItemsControl.ItemTemplate>
