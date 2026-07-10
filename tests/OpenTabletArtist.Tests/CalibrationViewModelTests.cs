@@ -353,4 +353,35 @@ public class CalibrationViewModelTests
         Assert.Equal(vm.Targets.Count, vm.CapturedCount);
         Assert.True(vm.IsConfirming);
     }
+
+    // Tier-1 debug pen readout: off by default, populates from live samples once toggled on, and
+    // reflects pen-down/pressure/raw off the report (the "is pen data even arriving?" HUD).
+    [Fact]
+    public void PenReadout_OffByDefault_PopulatesFromSamplesWhenToggledOn()
+    {
+        var (vm, _, _) = NewVm();
+        Assert.False(vm.ShowPenReadout);
+
+        // Hidden → OnSample leaves the readout at its idle default (no per-sample work when off).
+        vm.OnSample(new PenSample(0, 0, 100, 200, 0.5, 0, 0, 0, IsDown: true));
+        Assert.Equal("waiting for pen…", vm.PenStateText);
+
+        vm.TogglePenReadout();
+        Assert.True(vm.ShowPenReadout);
+
+        // A down sample with pressure → state reads DOWN; details carry pressure % and raw position.
+        vm.OnSample(new PenSample(0, 0, 41700, 7758, 0.67, 6, 8, 0, IsDown: true));
+        Assert.True(vm.PenDown);
+        Assert.Contains("DOWN", vm.PenStateText);
+        Assert.Contains("67%", vm.PenDetailsText);
+        Assert.Contains("41700", vm.PenDetailsText);
+
+        // A lifted sample → state flips to "up" (rate is still > 0 as the sample just arrived).
+        vm.OnSample(new PenSample(0, 0, 41700, 7758, 0, 0, 0, 0, IsDown: false));
+        Assert.False(vm.PenDown);
+        Assert.Contains("up", vm.PenStateText);
+
+        vm.TogglePenReadout();
+        Assert.False(vm.ShowPenReadout);
+    }
 }

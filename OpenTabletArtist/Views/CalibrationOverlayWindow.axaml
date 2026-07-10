@@ -10,6 +10,23 @@
         <!-- Targets + active-target emphasis are drawn onto this canvas from code-behind. -->
         <Canvas x:Name="Surface" />
 
+        <!-- Debug pen readout (Tier-1), toggled with F1. Default hidden. Hit-test invisible so it never
+             eats pen input; fixed dark palette so it stays legible over both overlay themes. Shows the raw
+             pen data reaching OTA (down/pressure/rate/position) to prove input is arriving (#140). -->
+        <Border x:Name="PenReadout" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="24"
+                Background="#E60B0B14" BorderBrush="#5AFFFFFF" BorderThickness="1" CornerRadius="8"
+                Padding="14,10,18,12" IsHitTestVisible="False" MinWidth="210"
+                IsVisible="{Binding ShowPenReadout}">
+            <StackPanel Spacing="6">
+                <TextBlock Text="PEN INPUT · debug (F1)" Foreground="#88FFFFFF" FontSize="11"
+                           FontWeight="Bold" FontFamily="Consolas, Menlo, monospace" />
+                <TextBlock x:Name="PenStateLabel" Text="{Binding PenStateText}" FontSize="18"
+                           FontWeight="Bold" FontFamily="Consolas, Menlo, monospace" Foreground="White" />
+                <TextBlock Text="{Binding PenDetailsText}" FontSize="13" Foreground="#E0FFFFFF"
+                           FontFamily="Consolas, Menlo, monospace" />
+            </StackPanel>
+        </Border>
+
         <!-- Instruction + actions. Colours (panel, text, buttons, targets) are set in code-behind so
              the overlay can flip between light/dark independently of the app theme. -->
         <Border x:Name="Panel" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,48"

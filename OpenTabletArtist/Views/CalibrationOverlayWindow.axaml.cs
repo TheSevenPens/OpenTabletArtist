@@ -41,6 +41,12 @@ public partial class CalibrationOverlayWindow : Window
     private DispatcherTimer? _pulseTimer;
     private double _pulsePhase;
     private Arc? _holdArc;              // fills clockwise as the pen rests on the active target (#457)
+    private readonly List<Line> _grid = new();   // reference grid shown during the confirm/alignment check
+    private bool _cursorShownForConfirm;          // guards flipping the OS cursor visibility on phase change
+    // Alignment-check log (#140): during confirm (calibration applied), sample the raw pen position + the
+    // real OS cursor so the corrected pen→cursor transform can be measured across the whole display. Written
+    // to a CSV on close for offline analysis. macOS-only (reads the CoreGraphics cursor).
+    private readonly List<(double rawX, double rawY, double curX, double curY)> _alignLog = new();
     // Same delegate instance for add + remove (a method group would create two, so remove wouldn't match).
     private static readonly Win32Properties.CustomWndProcHookCallback WndProcHookDelegate = WndProcHook;
 
@@ -69,6 +75,9 @@ public partial class CalibrationOverlayWindow : Window
     private static readonly IBrush LightActive = new SolidColorBrush(Color.Parse("#1565C0"));
     private static readonly IBrush DarkCaptured = Brushes.LimeGreen;
     private static readonly IBrush LightCaptured = new SolidColorBrush(Color.Parse("#2E7D32"));
+    // Debug readout: fixed-palette (the HUD is always dark) — bright green when the nib is down, gray idle.
+    private static readonly IBrush PenDownBrush = new SolidColorBrush(Color.Parse("#4ADE80"));
+    private static readonly IBrush PenIdleBrush = new SolidColorBrush(Color.Parse("#9AA0AC"));
 
     private IBrush PendingBrush => _light ? LightPending : DarkPending;
     private IBrush ActiveBrush => _light ? LightActive : DarkActive;
@@ -91,7 +100,11 @@ public partial class CalibrationOverlayWindow : Window
         vm.CloseRequested += OnCloseRequested;
         vm.PropertyChanged += (_, _) => UpdateVisuals();
         Surface.PropertyChanged += (_, e) => { if (e.Property == BoundsProperty) BuildAndLayout(); };
-        KeyDown += (_, e) => { if (e.Key == Key.Escape) vm.CancelCommand.Execute(null); };
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) vm.CancelCommand.Execute(null);
+            else if (e.Key == Key.F1) vm.TogglePenReadout();   // toggle the debug pen readout
+        };
     }
 
     private void OnCloseRequested() => Close();
@@ -156,6 +169,13 @@ public partial class CalibrationOverlayWindow : Window
         _pulseTimer.Tick += (_, _) =>
         {
             UpdatePulse();
+            _vm?.RefreshPenReadout();   // decay the sample rate / flip to "up" when the pen lifts (no-op if hidden)
+            // Alignment-check logging: while confirming (calibration applied), record raw pen + real cursor.
+            if (OperatingSystem.IsMacOS() && _vm is { IsConfirming: true, LatestSample: { } ls })
+            {
+                var c = CurrentCursor();
+                _alignLog.Add((ls.RawX, ls.RawY, c.X, c.Y));
+            }
             // Keep the cursor hidden through the hold. At the ~1 s press-and-hold dwell Windows re-shows
             // the mouse cursor (mouse-emulation fallback), and because the pen is held *still* there's no
             // mouse-move afterwards to re-apply our None cursor — so it sticks. Re-hiding each frame only
@@ -178,6 +198,22 @@ public partial class CalibrationOverlayWindow : Window
             _vm.CloseRequested -= OnCloseRequested;
             _ = _vm.StopAsync();
         }
+        WriteAlignmentLog();
+    }
+
+    // Dump the alignment-check samples (raw pen + real cursor) to a CSV for offline analysis (#140).
+    private void WriteAlignmentLog()
+    {
+        if (_alignLog.Count == 0) return;
+        try
+        {
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ota-alignment.csv");
+            using var w = new System.IO.StreamWriter(path, append: false);
+            w.WriteLine("rawX,rawY,cursorX,cursorY");
+            foreach (var (rx, ry, cx, cy) in _alignLog)
+                w.WriteLine($"{rx:0.###},{ry:0.###},{cx:0.###},{cy:0.###}");
+        }
+        catch { /* best-effort diagnostic */ }
     }
 
     // ── Disabling Windows' "press and hold → right-click" on the overlay ──────────────────────────────
@@ -297,6 +333,22 @@ public partial class CalibrationOverlayWindow : Window
     [DllImport("/usr/lib/libobjc.dylib")]
     private static extern IntPtr sel_registerName(string name);
 
+    // Read the real OS cursor location (global points, top-left origin) — where OTD actually placed the pen,
+    // with calibration applied. Used only for the alignment-check log. macOS-only.
+    private const string ApplicationServices = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices";
+    [DllImport(ApplicationServices)] private static extern IntPtr CGEventCreate(IntPtr source);
+    [DllImport(ApplicationServices, EntryPoint = "CGEventGetLocation")] private static extern NSPoint CGEventGetLocation(IntPtr @event);
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")] private static extern void CFRelease(IntPtr cf);
+    [StructLayout(LayoutKind.Sequential)] private struct NSPoint { public double X, Y; }
+
+    private static NSPoint CurrentCursor()
+    {
+        var e = CGEventCreate(IntPtr.Zero);
+        var p = CGEventGetLocation(e);
+        if (e != IntPtr.Zero) CFRelease(e);
+        return p;
+    }
+
     private void BuildAndLayout()
     {
         if (_vm == null) return;
@@ -355,9 +407,19 @@ public partial class CalibrationOverlayWindow : Window
                 IsHitTestVisible = false,
             };
             Surface.Children.Add(_holdArc);
+
+            // Reference grid for the confirm/alignment check (#140): faint lines at fixed fractions across
+            // the WHOLE display so the pen can be compared to the cursor at known points, corners included.
+            // Hidden during capture; shown once calibration is applied (confirm phase).
+            foreach (var _ in GridFractions)  // verticals
+                { var l = new Line { StrokeThickness = 1, Opacity = 0.28, IsHitTestVisible = false }; _grid.Add(l); Surface.Children.Add(l); }
+            foreach (var _ in GridFractions)  // horizontals
+                { var l = new Line { StrokeThickness = 1, Opacity = 0.28, IsHitTestVisible = false }; _grid.Add(l); Surface.Children.Add(l); }
         }
         UpdateVisuals();
     }
+
+    private static readonly double[] GridFractions = { 0.05, 0.25, 0.5, 0.75, 0.95 };
 
     private void UpdateVisuals()
     {
@@ -484,6 +546,30 @@ public partial class CalibrationOverlayWindow : Window
         Panel.VerticalAlignment = targetLow ? Avalonia.Layout.VerticalAlignment.Top
                                             : Avalonia.Layout.VerticalAlignment.Bottom;
         Panel.Margin = targetLow ? new Thickness(0, 48, 0, 0) : new Thickness(0, 0, 0, 48);
+
+        // Confirm/alignment check (#140): show a reference grid across the whole display and reveal the real
+        // OS cursor, so the pen can be compared to where OTD actually places it — at the corners/edges too.
+        bool confirming = _vm.IsConfirming;
+        int nf = GridFractions.Length;
+        for (int i = 0; i < _grid.Count; i++)
+        {
+            var line = _grid[i];
+            line.IsVisible = confirming;
+            line.Stroke = ActiveBrush;
+            if (!confirming) continue;
+            if (i < nf) { double x = GridFractions[i] * w; line.StartPoint = new Point(x, 0); line.EndPoint = new Point(x, h); }
+            else { double y = GridFractions[i - nf] * h; line.StartPoint = new Point(0, y); line.EndPoint = new Point(w, y); }
+        }
+        if (confirming != _cursorShownForConfirm)
+        {
+            // Hidden during capture (forces aiming the nib, not the cursor); revealed for the alignment check.
+            Cursor = new Cursor(confirming ? StandardCursorType.Cross : StandardCursorType.None);
+            _cursorShownForConfirm = confirming;
+        }
+
+        // Debug readout: colour the pen-state line green when the nib is down (fixed palette; the HUD is
+        // always dark, independent of the overlay light/dark toggle).
+        PenStateLabel.Foreground = _vm.PenDown ? PenDownBrush : PenIdleBrush;
     }
 
     // Breathing pulse on the active target: grows and fades on a loop (driven by the timer).

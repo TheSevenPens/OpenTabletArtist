@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -109,6 +110,26 @@ public partial class CalibrationViewModel : ObservableObject
     /// with it. Resets to 0 when the pen leaves the target or a point completes.</summary>
     [ObservableProperty] private double _holdProgress;
 
+    // --- Tier-1 live pen readout (debug HUD, toggled with F1; default off) ---------------------------
+    // The overlay hides the OS cursor and shows only its own dot, so when capture "does nothing" there's
+    // no way to tell whether the pen data is even arriving. This reads straight off OnSample — pen
+    // down/up, pressure, sample rate, raw position, tilt, hover — which separates "no pen data reaching
+    // OTA" from "data arrives but maps wrong". Both failure modes were invisible while chasing the macOS
+    // calibration bugs (#140); a glance at this would have collapsed that debugging.
+    [ObservableProperty] private bool _showPenReadout;
+    [ObservableProperty] private bool _penDown;
+    [ObservableProperty] private string _penStateText = "waiting for pen…";
+    [ObservableProperty] private string _penDetailsText = "";
+
+    private PenSample? _latestSample;
+    private bool _hasPenSample;
+    // Monotonic timestamps of samples in the last second, for the live rate (0 when the pen lifts).
+    private readonly Queue<long> _sampleTicks = new();
+
+    /// <summary>The most recent pen sample (updated while the readout is on) — the overlay reads its raw
+    /// position during the confirm/alignment check to log corrected pen-vs-cursor error (#140).</summary>
+    public PenSample? LatestSample => _latestSample;
+
     public bool IsCapturing => CurrentPhase == Phase.Capturing;
     public bool IsConfirming => CurrentPhase == Phase.Confirming;
     public bool IsFailed => CurrentPhase == Phase.Failed;
@@ -199,6 +220,14 @@ public partial class CalibrationViewModel : ObservableObject
             LiveDotVisible = false;
         }
 
+        if (ShowPenReadout)
+        {
+            _latestSample = s;
+            _hasPenSample = true;
+            _sampleTicks.Enqueue(Stopwatch.GetTimestamp());
+            RefreshPenReadout();
+        }
+
         if (CurrentPhase != Phase.Capturing) return;
 
         // Hold-to-average (#457): while the pen rests on the active target, accumulate on-target samples
@@ -218,6 +247,42 @@ public partial class CalibrationViewModel : ObservableObject
             _tapAccum.Clear();
             _tiltAccum.Clear();
             HoldProgress = 0;
+        }
+    }
+
+    /// <summary>Show/hide the debug pen readout (F1 over the overlay).</summary>
+    public void TogglePenReadout() => ShowPenReadout = !ShowPenReadout;
+
+    /// <summary>Recompute the readout — the live sample rate from the rolling 1-second window, then the
+    /// display strings. Called from OnSample and periodically by the overlay, so the rate decays to 0 and
+    /// the state flips to "up" within a second of the pen lifting (when samples stop arriving).</summary>
+    public void RefreshPenReadout()
+    {
+        if (!ShowPenReadout) return;
+
+        long cutoff = Stopwatch.GetTimestamp() - Stopwatch.Frequency; // one second ago
+        while (_sampleTicks.Count > 0 && _sampleTicks.Peek() < cutoff) _sampleTicks.Dequeue();
+        int rate = _sampleTicks.Count;
+
+        if (rate > 0 && _latestSample is { } s)
+        {
+            PenDown = s.IsDown;
+            PenStateText = s.IsDown ? "● PEN DOWN" : "○ pen up";
+            int pct = (int)Math.Round(s.Pressure * 100);
+            string tilt = s.TiltX == 0 && s.TiltY == 0 ? "—" : $"{s.TiltX:0}°, {s.TiltY:0}°";
+            string hover = s.HoverDistance is { } hd ? hd.ToString() : "—";
+            PenDetailsText =
+                $"pressure  {pct,3}%\n" +
+                $"rate      {rate,3}/s\n" +
+                $"raw       {s.RawX:0}, {s.RawY:0}\n" +
+                $"tilt      {tilt}\n" +
+                $"hover     {hover}";
+        }
+        else
+        {
+            PenDown = false;
+            PenStateText = _hasPenSample ? "○ pen up (idle)" : "waiting for pen…";
+            PenDetailsText = "rate      0/s\n(no pen reports in the last second)";
         }
     }
 
@@ -282,7 +347,10 @@ public partial class CalibrationViewModel : ObservableObject
         await _ctx.Apply(_ctx.Settings);
 
         CurrentPhase = Phase.Confirming;
-        Instruction = "Move the pen around — does the cursor track the nib? Apply to keep, or Redo.";
+        Instruction = "Alignment check: move the pen across the WHOLE screen — the cursor should stay under " +
+                      "your nib everywhere, especially at the corners and edges. Use the grid as reference. " +
+                      "Apply to keep, or Redo.";
+        ShowPenReadout = true;   // surface the live pen data for the alignment check (toggle with F1)
     }
 
     // The recorded points paired with their on-screen targets, for the tab report (#460). Coordinates
