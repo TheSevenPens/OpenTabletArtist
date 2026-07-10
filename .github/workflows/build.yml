@@ -7,7 +7,13 @@ on:
 
 jobs:
   build-test:
-    runs-on: windows-latest
+    # Windows is the shipping platform; the Linux lane guards against Windows-only assumptions creeping
+    # back in (hardcoded '\' / '.exe' paths, unguarded P/Invoke, CA1416) as the macOS port lands (#140).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout (with OpenTabletDriver submodule)
         uses: actions/checkout@v5
@@ -25,5 +31,7 @@ jobs:
       - name: Build
         run: dotnet build OpenTabletArtist.slnx -c Debug
 
+      # The unit tests are headless — they exercise Domain/ViewModel logic without creating windows or
+      # rendering, so no display/xvfb is needed (they run the same way on the Windows lane).
       - name: Test
         run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug --no-build
