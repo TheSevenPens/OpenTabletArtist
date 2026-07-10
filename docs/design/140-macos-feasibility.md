@@ -271,6 +271,18 @@ Turned the spike findings into committed code on the `macos` branch:
   already in that direction, and "Fix output mode" (→ Windows Ink) is correctly Windows-only. **Verified live:
   the Movink reads Absolute and the calibration density picker + START buttons appear.** This is the first slice
   of the macOS output story. Suite **564 passed** (+2 native-mode tests).
+- **Daemon lifecycle + version now work on macOS.** Two Win32 assumptions in the daemon card, fixed:
+  - *Restart launched nothing.* `DaemonExePaths` hard-coded `OpenTabletDriver.Daemon.exe`, so Stop→Restart on
+    macOS failed with "…Daemon.exe wasn't found" — the daemon apphost has no extension off-Windows.
+    `DaemonExeName` is now platform-aware. **Verified live: Restart stops the running daemon and launches OTA's
+    own bundled submodule daemon (0.6.7).**
+  - *Version/source read as "unknown".* It relied on `GetNamedPipeServerProcessId` (Win32-only) to find the
+    daemon process, then `FileVersionInfo` on the executable — but the macOS daemon is a native apphost with no
+    version resource. Now falls back to the single running daemon process and reads the stamp from the managed
+    assembly beside it (`OpenTabletDriver.Daemon.dll`). **Verified live: the card shows "Daemon running v0.6.7 ·
+    Bundled daemon"** (and an external daemon's real version + "external" — e.g. OTD.app's 0.6.6.2 — instead of
+    "source unknown"). So OTA can happily use a pre-existing non-bundled daemon *and always show its version*.
+  Suite **564 passed**.
 
 ## Recommended next step
 
