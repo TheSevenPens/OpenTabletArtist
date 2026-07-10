@@ -177,8 +177,28 @@ connect + `GetSettings()`" — are now **confirmed**, on real hardware. The rema
 integration/UI surface already catalogued above (display enumeration, daemon-path discovery + ownership,
 feature-gating the Windows-only cards, permissions UX, packaging/signing) — *not* any foundational risk.
 
-**Still not exercised:** driving the **full OTA GUI** on macOS (vs. the headless probe/harness), and the
-other seam *runtime* behaviours (hotkeys, tray, calibration-overlay placement) on a Mac.
+**Full OTA GUI booted on macOS: ✅ (2026-07-09).** Launched the real Avalonia app (`net10`, via apphost) on
+the Apple-Silicon host. It **runs cleanly — zero exceptions across several runs** — and connects live to the
+daemon: the HOME page renders the sidebar (HOME / PRESETS / HOTKEYS / SCRIBBLE / ABOUT / ADVANCED) and shows
+the **real detected tablet** with correct specs pulled over RPC — *Wacom Movink 13 (DTH-135), Detected,
+297.76 × 169.24 mm · 8191 pressure levels · 3 buttons* (and Wacom PTH-660 as "Not detected"). Notably, the
+Windows-only startup services **did not crash** — global hotkeys, tray, the foreground watcher (already behind
+`Win32ForegroundAppWatcher`), and the single-instance guard are either `IsWindows()`-gated or degrade to a
+harmless no-op. So the app is *runnable* on macOS today, not just buildable. Two concrete observations from
+the live run:
+
+- **Feature-gating is the real next task, now seen firsthand.** The Home "NEEDS ATTENTION" panel nags about
+  *"VMulti driver not installed"* and *"…not using Windows Ink"* — both Windows-only, exactly the health-check
+  entries the doc flags for gating. On macOS these should be hidden, not surfaced as fixable problems.
+- **Display geometry comes back in logical points, not physical pixels.** Avalonia reported the 4K ASUS as
+  1920×1080 (scaling read as 1, though the panel is 3840×2160) and the Wacom as 960×540 — i.e. logical points,
+  half the physical size, but **internally consistent** (both 2:1), so Display-Mapping *proportions* stay
+  correct. Any code that assumes the Win32 physical-pixel model or reads `Scaling` should be validated on macOS.
+
+**Still not exercised:** the remaining seam *runtime* behaviours (global-hotkey registration, tray actions,
+calibration-overlay placement) actively on a Mac, and a click-through of the Display-Mapping tab in the live
+GUI (the monitor read itself is unit-tested + harness-verified; automating the nested Avalonia a11y tree to
+open that tab wasn't worth the effort this pass).
 
 ## Progress — 2026-07-09 (continued): first platform seam landed + probe promoted
 
@@ -205,14 +225,16 @@ Turned the spike findings into committed code on the `macos` branch:
 
 ## Recommended next step
 
-The daemon foundation and the first (biggest) display seam are done. Next, in order:
+The daemon foundation, the first (biggest) display seam, **and a clean live GUI boot** are done. Next, in order:
 
-1. **Feature-gate the Windows-only cards** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) and the
-   health-check catalog with `OperatingSystem.IsWindows()`, so a macOS build launches to a usable
-   connect→profiles→mapping→dynamics→calibration→test core instead of nagging about inapplicable things.
-2. **Boot the full OTA GUI on macOS** and confirm it connects live + the Display Mapping tab shows the real
-   monitors through the new seam.
+1. **Feature-gate the Windows-only surface** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) and the
+   health-check catalog with `OperatingSystem.IsWindows()`, so the macOS Home page stops nagging about VMulti /
+   Windows Ink (seen firsthand above) and lands on a usable connect→profiles→mapping→dynamics→calibration→test
+   core. This is now the highest-value change — it's what stands between "runs" and "usable" on macOS.
+2. **Validate Display-Mapping fidelity on macOS** — confirm the logical-points geometry (above) maps correctly
+   through `DisplayMappingApplier`, and click through the Display-Mapping tab in the live GUI.
 3. Fix the 4 Windows-assuming tests (#73) so the suite is green on macOS.
+4. Later: exercise the remaining seams live (hotkeys, tray, calibration overlay), then packaging/signing.
 
 ## Resolved (design review #148)
 
