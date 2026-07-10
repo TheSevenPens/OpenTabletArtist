@@ -122,22 +122,52 @@ public sealed class ScreenMappingDiagram : Control
             DrawDisplayLabels(ctx, sb, sd, true);
         }
 
-        // ── Tablet (full + effective area + live dot) ──
+        // ── Tablet (full + effective area) — rotation-aware so a turned tablet reads the same here as on
+        //    the Active Area tab (#199): the full outline is drawn turned as physically held (portrait for
+        //    90°/270°) with a top-edge marker, while the effective area stays upright. ──
         var area = Area;
         double fullW = area?.FullWidth ?? 16, fullH = area?.FullHeight ?? 10;
+        double rot = area != null ? (((area.Rotation % 360) + 360) % 360) : 0;
+        bool perp = Math.Abs(rot % 180) > 0.5;
+        double rotRad = rot * Math.PI / 180.0;
+
         double tabBoxW = Math.Min(tabRegion.Width * 0.5, tabRegion.Height * 2.4);
         var tabBox = new Rect(tabRegion.X + (tabRegion.Width - tabBoxW) / 2, tabRegion.Y, tabBoxW, tabRegion.Height - 16);
-        var fullRect = FitAspect(fullW, fullH, tabBox);
-        ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
+
+        // Fit the tablet's (rotated) bounding box, then centre the un-rotated outline and turn it.
+        double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;
+        var fitBox = FitAspect(bboxW, bboxH, tabBox);
+        double tScale = bboxH > 0 ? fitBox.Height / bboxH : 1;
+        var tCenter = fitBox.Center;
+        var fullRect = new Rect(tCenter.X - fullW * tScale / 2, tCenter.Y - fullH * tScale / 2,
+                                fullW * tScale, fullH * tScale);
+        if (rot < 0.5)
+        {
+            ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
+        }
+        else
+        {
+            var m = Matrix.CreateTranslation(-tCenter.X, -tCenter.Y)
+                    * Matrix.CreateRotation(-rotRad)
+                    * Matrix.CreateTranslation(tCenter.X, tCenter.Y);
+            using (ctx.PushTransform(m))
+            {
+                ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
+                DrawTopMarker(ctx, fullRect, accent);
+            }
+        }
         DrawCentered(ctx, fullRect, "Tablet", 12, Brushes.White);
 
+        // Effective area — upright, positioned within the (possibly turned) tablet (mirrors the Active
+        // Area diagram's TabletToScreen mapping).
         Rect effRect = fullRect;
         if (area != null && area.FullWidth > 0 && area.FullHeight > 0)
         {
-            double sx = fullRect.Width / area.FullWidth, sy = fullRect.Height / area.FullHeight;
-            double ew = Math.Max(2, area.EffWidth * sx), eh = Math.Max(2, area.EffHeight * sy);
-            effRect = new Rect(fullRect.X + area.EffCenterX * sx - ew / 2,
-                               fullRect.Y + area.EffCenterY * sy - eh / 2, ew, eh);
+            double dx = (area.EffCenterX - fullW / 2) * tScale, dy = (area.EffCenterY - fullH / 2) * tScale;
+            double cs = Math.Cos(-rotRad), sn = Math.Sin(-rotRad);
+            var ec = new Point(tCenter.X + dx * cs - dy * sn, tCenter.Y + dx * sn + dy * cs);
+            double ew = Math.Max(2, area.EffWidth * tScale), eh = Math.Max(2, area.EffHeight * tScale);
+            effRect = new Rect(ec.X - ew / 2, ec.Y - eh / 2, ew, eh);
             ctx.DrawRectangle(EffFill, new Pen(accentBrush, 1.5), effRect);
         }
 
@@ -180,6 +210,22 @@ public sealed class ScreenMappingDiagram : Control
         if (w <= 0 || h <= 0 || box.Width <= 0 || box.Height <= 0) return box;
         double s = Math.Min(box.Width / w, box.Height / h);
         return new Rect(box.X + (box.Width - w * s) / 2, box.Y + (box.Height - h * s) / 2, w * s, h * s);
+    }
+
+    // A small triangle on the tablet's top edge, marking which way it's turned (mirrors the Active Area
+    // diagram). Drawn inside the rotation transform so it rides the turned edge.
+    private static void DrawTopMarker(DrawingContext ctx, Rect tablet, Color accent)
+    {
+        double cx = tablet.X + tablet.Width / 2;
+        double s = Math.Clamp(tablet.Width * 0.06, 5, 12);
+        double top = tablet.Y + 4;
+        var geo = new PolylineGeometry(new[]
+        {
+            new Point(cx, top),
+            new Point(cx - s, top + s * 1.4),
+            new Point(cx + s, top + s * 1.4),
+        }, true);
+        ctx.DrawGeometry(new SolidColorBrush(accent), null, geo);
     }
 
     private static void DrawCentered(DrawingContext ctx, Rect area, string text, double size, IBrush brush)
