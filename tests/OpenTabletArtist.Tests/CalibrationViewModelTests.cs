@@ -317,4 +317,40 @@ public class CalibrationViewModelTests
             Assert.InRange(p.MeasuredY, -2f, 1082f);
         });
     }
+
+    // Regression for the negative-origin capture bug (#140). When a monitor sits at a NEGATIVE
+    // virtual-desktop coordinate, the mapped display's Output area is stored in min-shifted 0-based
+    // space, so its origin no longer equals the raw DisplayInfo origin. The live-dot hit-test (and the
+    // solver's targets) must normalize the mapped pen position against the OUTPUT origin — the same
+    // space MapToDesktop produces — not the raw DisplayInfo. With the raw origin every tap landed off
+    // by the shift and capture silently never fired: on macOS the cursor tracked but pressing a target
+    // did nothing, even though the pen reports were perfect. (Existing tests never hit this because
+    // there Output-origin == DisplayInfo-origin.)
+    [Fact]
+    public void Capture_Succeeds_WhenMappedDisplaySitsAtShiftedOrigin()
+    {
+        // Movink-like layout: display #2 at raw (0,1080); a monitor at x=-1920 shifts the desktop origin,
+        // so the Output area centres at (2400,1350) in 0-based space — its origin (1920,1080) is 1920px
+        // off the raw DisplayInfo origin (0,1080).
+        var display = new DisplayInfo(Number: 2, Name: "", Width: 960, Height: 540, X: 0, Y: 1080, IsPrimary: false);
+        var output = new MappingArea(2400, 1350, 960, 540);
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
+            _ => Task.CompletedTask, new NoopDebugSession());
+        var vm = new CalibrationViewModel(ctx);
+
+        float originX = output.CenterX - output.Width / 2, originY = output.CenterY - output.Height / 2;
+        for (int i = 0; i < vm.Targets.Count; i++)
+        {
+            var t = vm.Targets[i];
+            var desktop = new Vector2(originX + (float)t.X * output.Width, originY + (float)t.Y * output.Height);
+            var raw = AbsolutePositionMapper.MapFromDesktop(desktop, Digi, Input, output)!.Value;
+            for (int k = 0; k < CalibrationViewModel.HoldSamplesTarget; k++)
+                vm.OnSample(new PenSample(0, 0, raw.X, raw.Y, 0.5, 0, 0, 0, IsDown: true));
+        }
+
+        // Every target captured despite the shift → hit-testing used the Output origin, not raw DisplayInfo.
+        Assert.Equal(vm.Targets.Count, vm.CapturedCount);
+        Assert.True(vm.IsConfirming);
+    }
 }
