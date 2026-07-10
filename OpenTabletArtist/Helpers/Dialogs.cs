@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using OpenTabletArtist.Domain;
@@ -105,6 +106,10 @@ public static class Dialogs
     public static async Task ShowMessageAsync(string title, string message, Window? parent = null)
     {
         parent ??= GetMainWindow();
+
+        var copyBtn = new Button { Content = "Copy", Padding = new Thickness(18, 8), FontSize = 13 };
+        var okBtn = new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13 };
+
         var dialog = new AppWindow
         {
             Title = title,
@@ -117,27 +122,40 @@ public static class Dialogs
                 Margin = new Thickness(24),
                 Children =
                 {
-                    new TextBlock
+                    // Selectable so the text can also be picked out by hand; the Copy button grabs it all.
+                    new SelectableTextBlock
                     {
                         Text = message,
                         TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(0, 0, 0, 20),
                         FontSize = 13
                     },
-                    new Button
+                    new StackPanel
                     {
-                        Content = "OK",
+                        Orientation = Orientation.Horizontal,
                         HorizontalAlignment = HorizontalAlignment.Right,
-                        Padding = new Thickness(24, 8),
-                        FontSize = 13
+                        Spacing = 8,
+                        Children = { copyBtn, okBtn }
                     }
                 }
             }
         };
 
-        var panel = (StackPanel)dialog.Content;
-        var btn = (Button)panel.Children[1];
-        btn.Click += (_, _) => dialog.Close();
+        okBtn.Click += (_, _) => dialog.Close();
+        // Copy the title + message so it's easy to paste into a bug report / chat. Uses Avalonia's
+        // cross-platform clipboard (works on macOS, unlike the Win32-only ClipboardText service).
+        copyBtn.Click += async (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(copyBtn)?.Clipboard is { } clipboard)
+            {
+                try
+                {
+                    await clipboard.SetTextAsync($"{title}\n\n{message}");
+                    copyBtn.Content = "Copied ✓";
+                }
+                catch { /* best-effort */ }
+            }
+        };
 
         if (parent != null)
             await dialog.ShowDialog(parent);
