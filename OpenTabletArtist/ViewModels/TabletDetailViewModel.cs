@@ -41,6 +41,19 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 {
     private const string WinInkAbsoluteModePath = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
     private const string WinInkRelativeModePath = "VoiDPlugins.OutputMode.WinInkRelativeMode";
+    // OTD's built-in output modes — used on macOS/Linux, where Windows Ink doesn't exist. Their type
+    // names carry "Absolute"/"Relative", so the substring detection in RefreshFromProfile recognises
+    // them exactly as it does the WinInk modes (#140).
+    private const string NativeAbsoluteModePath = "OpenTabletDriver.Desktop.Output.AbsoluteMode";
+    private const string NativeRelativeModePath = "OpenTabletDriver.Desktop.Output.RelativeMode";
+
+    // The mode to APPLY when the user picks a Movement card: Windows Ink on Windows (it carries
+    // pressure/tilt through VMulti), OTD's native mode elsewhere. On Windows these are the WinInk paths,
+    // so every Windows code path below stays byte-identical to before the generalisation.
+    private static string PreferredAbsolutePath =>
+        OperatingSystem.IsWindows() ? WinInkAbsoluteModePath : NativeAbsoluteModePath;
+    private static string PreferredRelativePath =>
+        OperatingSystem.IsWindows() ? WinInkRelativeModePath : NativeRelativeModePath;
 
     private Profile _profile;
     private Settings? _settings;
@@ -124,14 +137,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (!_suppressMappingPending) RecomputeMappingPending();
     }
 
-    partial void OnIsWinInkAbsoluteChanged(bool value)
+    partial void OnIsAbsoluteOutputModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAbsoluteMode)); // keep the Absolute/Relative toggle in sync
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         OnPropertyChanged(nameof(CanRunCalibration));
         OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
         if (!_skipOutputModeChange && value)
-            _ = SetOutputMode(WinInkAbsoluteModePath);
+            _ = SetOutputMode(PreferredAbsolutePath);
     }
 
     // --- Pointer calibration entry point (#127) ---
@@ -139,7 +152,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Calibration corrects an Absolute mapping, so the calibration UI is only shown in an
     /// Absolute mode. (Whether it can actually run also needs a live tablet — see
     /// <see cref="CanRunCalibration"/>.)</summary>
-    public bool CanCalibrate => IsWinInkAbsolute;
+    public bool CanCalibrate => IsAbsoluteOutputMode;
 
     /// <summary>Calibration captures live pen taps, so it additionally needs the tablet connected
     /// (#177) and a host that can open the overlay. Gates the Calibrate button so it can't be clicked
@@ -381,24 +394,33 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return CalibrationProfile.Fingerprint(input, output, num);
     }
 
-    partial void OnIsWinInkRelativeChanged(bool value)
+    partial void OnIsRelativeOutputModeChanged(bool value)
     {
         if (!_skipOutputModeChange && value)
-            _ = SetOutputMode(WinInkRelativeModePath);
+            _ = SetOutputMode(PreferredRelativePath);
     }
 
-    /// <summary>True when the profile is on Windows Ink Absolute — drives the Movement cards' checked state
-    /// (read-only / one-way). The mode is CHANGED via <see cref="SelectMovementCommand"/>, not by writing
-    /// this: two RadioButtons in a group both TwoWay-bound here (one inverted) fought each other into an
-    /// infinite apply↔reload loop, so selection is now command-driven and the checked state is display-only.</summary>
-    public bool IsAbsoluteMode => IsWinInkAbsolute;
+    /// <summary>True when the profile is on an Absolute output mode (Windows Ink absolute on Windows, OTD's
+    /// native absolute elsewhere) — drives the Movement cards' checked state (read-only / one-way). The mode
+    /// is CHANGED via <see cref="SelectMovementCommand"/>, not by writing this: two RadioButtons in a group
+    /// both TwoWay-bound here (one inverted) fought each other into an infinite apply↔reload loop, so
+    /// selection is now command-driven and the checked state is display-only.</summary>
+    public bool IsAbsoluteMode => IsAbsoluteOutputMode;
 
     /// <summary>User picked a Movement card (Absolute / Relative). Fires only on a real click — unlike a
-    /// TwoWay IsChecked binding, which the RadioButton group re-triggers on every reload. No-op if already
-    /// on that mode (<see cref="SetOutputMode"/> guards it).</summary>
+    /// TwoWay IsChecked binding, which the RadioButton group re-triggers on every reload.</summary>
     [RelayCommand]
-    private void SelectMovement(string mode) =>
-        _ = SetOutputMode(mode == "absolute" ? WinInkAbsoluteModePath : WinInkRelativeModePath);
+    private void SelectMovement(string mode)
+    {
+        bool wantAbsolute = mode == "absolute";
+        // Already in the requested direction? No-op. This keeps a redundant click from re-applying (the
+        // save-loop guard), AND stops a tablet that's already on a *native* Absolute/Relative mode from
+        // being force-swapped to the Windows-Ink equivalent on a click — the one deliberate, documented
+        // Windows behaviour change from the output-mode generalisation (#140 / the #510 review). Only a
+        // genuine direction change applies the platform-preferred mode.
+        if (wantAbsolute ? IsAbsoluteOutputMode : IsRelativeOutputMode) return;
+        _ = SetOutputMode(wantAbsolute ? PreferredAbsolutePath : PreferredRelativePath);
+    }
 
     private async Task SetOutputMode(string path)
     {
@@ -795,12 +817,19 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
 
         _skipOutputModeChange = true;
-        IsWinInkAbsolute = OutputModePath.Equals(WinInkAbsoluteModePath, StringComparison.OrdinalIgnoreCase);
-        IsWinInkRelative = OutputModePath.Equals(WinInkRelativeModePath, StringComparison.OrdinalIgnoreCase);
+        // Detect the movement direction from the mode-path name, so OTD's NATIVE modes
+        // (OpenTabletDriver.Desktop.Output.AbsoluteMode/RelativeMode) are recognised as well as the
+        // WinInk modes — both carry the word "Absolute"/"Relative" (#140). For a WinInk path this is the
+        // same result the old exact-match gave, so Windows behaviour is unchanged.
+        IsAbsoluteOutputMode = OutputModePath.Contains("Absolute", StringComparison.OrdinalIgnoreCase);
+        IsRelativeOutputMode = OutputModePath.Contains("Relative", StringComparison.OrdinalIgnoreCase);
         _skipOutputModeChange = false;
 
-        var isWinInk = IsWinInkAbsolute || IsWinInkRelative;
-        CanFixOutputMode = !isWinInk && _applyAction != null;
+        // "Fix output mode → Windows Ink" is a Windows-only remediation (VMulti + WinInk). Off-Windows the
+        // native mode is the correct output, so there's nothing to fix. On Windows this is byte-identical
+        // to before: fixable when the mode isn't already a WinInk one.
+        var isWinInk = OutputModePath.Contains("WinInk", StringComparison.OrdinalIgnoreCase);
+        CanFixOutputMode = OperatingSystem.IsWindows() && !isWinInk && _applyAction != null;
 
         // Bindings — pen switches (tip, eraser, barrel buttons)
         var bindings = _profile.BindingSettings;
@@ -1380,8 +1409,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _outputModeShort = "";
     [ObservableProperty] private string _outputModePath = "";
     [ObservableProperty] private bool _canFixOutputMode;
-    [ObservableProperty] private bool _isWinInkAbsolute;
-    [ObservableProperty] private bool _isWinInkRelative;
+    [ObservableProperty] private bool _isAbsoluteOutputMode;
+    [ObservableProperty] private bool _isRelativeOutputMode;
     private bool _skipOutputModeChange;
     public bool HasAreaMapping { get; }
 
