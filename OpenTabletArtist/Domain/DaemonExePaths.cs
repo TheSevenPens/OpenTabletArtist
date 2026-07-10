@@ -11,7 +11,11 @@ namespace OpenTabletArtist.Domain;
 /// </summary>
 public static class DaemonExePaths
 {
-    public const string DaemonExeName = "OpenTabletDriver.Daemon.exe";
+    /// <summary>The daemon executable's file name for the current OS: a Windows <c>.exe</c>, or the
+    /// extension-less apphost that <c>dotnet publish/build</c> produces on macOS/Linux (#140). Getting this
+    /// wrong is why "restart daemon" failed on macOS looking for a non-existent <c>…Daemon.exe</c>.</summary>
+    public static string DaemonExeName =>
+        System.OperatingSystem.IsWindows() ? "OpenTabletDriver.Daemon.exe" : "OpenTabletDriver.Daemon";
 
     public static IEnumerable<string> Candidates(string baseDir)
     {
