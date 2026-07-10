@@ -61,7 +61,7 @@ public partial class AdvancedViewModel : ObservableObject
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("CONSOLE", AdvancedTab.Log, log),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
-        };
+        }.Where(t => AppliesToCurrentOs(t.Tab)).ToArray();
         OtaTabs = new AdvancedTabItem[]
         {
             new("VMULTI DRIVER", AdvancedTab.VMulti, vmulti),
@@ -69,10 +69,20 @@ public partial class AdvancedViewModel : ObservableObject
             new("STARTUP", AdvancedTab.Startup, startup),
             new("DEVELOPER", AdvancedTab.Developer, developer),
             new("THEME", AdvancedTab.Theme, theme),
-        };
+        }.Where(t => AppliesToCurrentOs(t.Tab)).ToArray();
         _allTabs = OtdTabs.Concat(OtaTabs).ToArray();
         UpdateSelection();
     }
+
+    // The Windows-only subpages are hidden off-Windows (#140): VMulti + Windows Ink don't exist on macOS/
+    // Linux (the daemon uses its own native output there), Driver Cleanup runs a Windows-only tool, and
+    // run-at-startup is registry-based (StartupService.IsSupported is already Windows-only). Filtering them
+    // out of the rail keeps the deep-link enum intact — a stray deep-link to a hidden tab just resolves to
+    // no content (Current is null-safe) rather than crashing.
+    private static bool AppliesToCurrentOs(AdvancedTab tab) =>
+        OperatingSystem.IsWindows()
+        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti
+                       or AdvancedTab.DriverCleanup or AdvancedTab.Startup);
 
     /// <summary>The OpenTabletDriver group of tabs (first rail section).</summary>
     public IReadOnlyList<AdvancedTabItem> OtdTabs { get; }

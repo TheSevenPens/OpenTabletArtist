@@ -278,4 +278,52 @@ public class HealthEvaluatorTests
         Assert.Equal(HealthSeverity.Broken, issues.First().Severity);
         Assert.True(issues.First().Severity >= issues.Last().Severity);
     }
+
+    // --- Platform gating (#140): the Windows-only pen-delivery stack (Windows Ink + VMulti) and the
+    //     Windows manufacturer-driver-conflict check are suppressed off-Windows, where they don't apply. ---
+
+    [Fact]
+    public void NonWindows_SuppressesWindowsOnlyChecks()
+    {
+        // A state that on Windows would raise WinInk-not-installed, VMulti-not-installed, driver-conflict,
+        // and per-tablet not-WinInk — all meaningless on macOS/Linux (native output, no VMulti/Ink).
+        var input = Healthy() with
+        {
+            IsWindows = false,
+            WinInkInstalled = false,
+            VMultiInstalled = false,
+            HasDriverConflict = true,
+            BlockingDriverConflict = true,
+            Tablets = new List<TabletHealthInput> { new("Tablet A", Detected: true, OutputModeIsWinInk: false) },
+        };
+
+        var issues = HealthEvaluator.Evaluate(input);
+
+        Assert.False(Has(issues, "winink.notInstalled"));
+        Assert.False(Has(issues, "vmulti.notInstalled"));
+        Assert.False(Has(issues, "driver.conflict"));
+        Assert.False(Has(issues, "tablet.notWinInk:Tablet A"));
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void NonWindows_StillFlagsCrossPlatformIssues()
+    {
+        // Display-mapping and Pen-Dynamics problems are platform-neutral and must still surface on macOS.
+        var input = Healthy() with
+        {
+            IsWindows = false,
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: false,
+                    Mapping: DisplayMappingValidity.OffScreen, DynamicsFilterActive: false),
+            },
+        };
+
+        var issues = HealthEvaluator.Evaluate(input);
+
+        Assert.True(Has(issues, "tablet.mappingOffScreen:Tablet A"));
+        Assert.True(Has(issues, "tablet.dynamicsOff:Tablet A"));
+        Assert.False(Has(issues, "tablet.notWinInk:Tablet A")); // still a Windows-only concept
+    }
 }

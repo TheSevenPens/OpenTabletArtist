@@ -159,6 +159,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
         var inputs = new HealthInputs
         {
+            IsWindows = OperatingSystem.IsWindows(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
             WinInkInstalled = installed,
