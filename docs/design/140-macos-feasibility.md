@@ -154,13 +154,23 @@ test rig. Results, in order:
   Every Windows `DllImport` compiles (P/Invoke binds lazily at runtime) and the `IsWindows()` guards handle the
   rest — **there is no compile-time Windows blocker**. Build risk on macOS is effectively nil; the whole macOS
   problem is *runtime* behaviour of the seams, not compilation.
-- **Daemon round-trip: ✅ (the decisive test).** A throwaway net10 probe mirroring `DaemonClient`'s exact path
+- **Daemon round-trip: ✅ (the decisive test) — against BOTH the system OTD.app daemon *and our own
+  submodule-built v0.6.7 daemon*.** A throwaway net10 probe mirroring `DaemonClient`'s exact path
   — `NamedPipeClientStream("OpenTabletDriver.Daemon")` → `new JsonRpc(pipe)` → `InvokeAsync<T>(...)` — connected
-  to the running macOS daemon (over the .NET named-pipe → Unix-domain-socket emulation) and round-tripped:
-  `GetTablets` → **1 tablet, "Wacom Movink 13 (DTH-135)"**; `GetSettings` → a live `Settings` object
-  (`Revision, Profiles, LockUsableAreaDisplay, LockUsableAreaTablet, Tools`; **2 profiles**). **The foundation
-  the #148/#140 plan hinges on works on macOS today.** DaemonClient's connect+RPC layer needs no changes to talk
-  to the macOS daemon.
+  over the .NET named-pipe → Unix-domain-socket emulation and round-tripped: `GetTablets` → **1 tablet,
+  "Wacom Movink 13 (DTH-135)"**; `GetSettings` → a live `Settings` object (`Revision, Profiles,
+  LockUsableAreaDisplay, LockUsableAreaTablet, Tools`; **2 profiles**). First run was against OTD.app's bundled
+  (older, self-contained) daemon; the **second was against the daemon we built from the pinned submodule** — the
+  exact version OTA references — confirming the contract on *our* build, not just a released one. **DaemonClient's
+  connect+RPC layer needs no changes to talk to the macOS daemon.**
+- **net8 runs on macOS 26 — but only via its apphost, and the daemon binds the pipe lazily.** Our submodule
+  daemon is `net8.0`; running it standalone needed the **.NET 8 *runtime*** installed. Two gotchas worth writing
+  down for the eventual macOS setup guide: (1) the daemon creates its `CoreFxPipe_OpenTabletDriver.Daemon` socket
+  only *after* startup/tablet-detection completes (several seconds), and .NET appears to unlink the socket's
+  filesystem entry after bind — so poll by **connecting**, not by `test -S` on the path; a client that connects
+  too early just needs a retry (which `DaemonClient`'s connect-loop already does). (2) On this macOS 26 host the
+  **`dotnet` SDK muxer** was fragile after mixing runtime installs — launching apps by their **native apphost**
+  (with `DOTNET_ROOT` set) was the reliable path. Neither affects OTA at runtime; both are dev-environment notes.
 
 **What this moves:** the two biggest external unknowns — "does OTD build/run on macOS" and "can our client
 connect + `GetSettings()`" — are now **confirmed**, on real hardware. The remaining macOS work is exactly the
