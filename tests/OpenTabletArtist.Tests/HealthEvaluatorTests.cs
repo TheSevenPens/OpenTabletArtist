@@ -309,14 +309,17 @@ public class HealthEvaluatorTests
     [Fact]
     public void NonWindows_StillFlagsCrossPlatformIssues()
     {
-        // Display-mapping and Pen-Dynamics problems are platform-neutral and must still surface on macOS.
+        // Every check the plan calls out as cross-platform must still surface off-Windows: display mapping,
+        // pen dynamics, config override, and the external-daemon recommendation.
         var input = Healthy() with
         {
             IsWindows = false,
+            ForeignDaemon = true,   // → daemon.foreign (needs DaemonConnected, which Healthy() sets)
             Tablets = new List<TabletHealthInput>
             {
                 new("Tablet A", Detected: true, OutputModeIsWinInk: false,
-                    Mapping: DisplayMappingValidity.OffScreen, DynamicsFilterActive: false),
+                    Mapping: DisplayMappingValidity.OffScreen, DynamicsFilterActive: false,
+                    ConfigIsOverride: true),
             },
         };
 
@@ -324,6 +327,8 @@ public class HealthEvaluatorTests
 
         Assert.True(Has(issues, "tablet.mappingOffScreen:Tablet A"));
         Assert.True(Has(issues, "tablet.dynamicsOff:Tablet A"));
+        Assert.True(Has(issues, "tablet.configOverride:Tablet A"));
+        Assert.True(Has(issues, "daemon.foreign"));
         Assert.False(Has(issues, "tablet.notWinInk:Tablet A")); // still a Windows-only concept
     }
 }

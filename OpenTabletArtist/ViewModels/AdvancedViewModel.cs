@@ -61,7 +61,7 @@ public partial class AdvancedViewModel : ObservableObject
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("CONSOLE", AdvancedTab.Log, log),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
-        }.Where(t => AppliesToCurrentOs(t.Tab)).ToArray();
+        }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         OtaTabs = new AdvancedTabItem[]
         {
             new("VMULTI DRIVER", AdvancedTab.VMulti, vmulti),
@@ -69,18 +69,20 @@ public partial class AdvancedViewModel : ObservableObject
             new("STARTUP", AdvancedTab.Startup, startup),
             new("DEVELOPER", AdvancedTab.Developer, developer),
             new("THEME", AdvancedTab.Theme, theme),
-        }.Where(t => AppliesToCurrentOs(t.Tab)).ToArray();
+        }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         _allTabs = OtdTabs.Concat(OtaTabs).ToArray();
         UpdateSelection();
     }
 
-    // The Windows-only subpages are hidden off-Windows (#140): VMulti + Windows Ink don't exist on macOS/
-    // Linux (the daemon uses its own native output there), Driver Cleanup runs a Windows-only tool, and
-    // run-at-startup is registry-based (StartupService.IsSupported is already Windows-only). Filtering them
-    // out of the rail keeps the deep-link enum intact — a stray deep-link to a hidden tab just resolves to
-    // no content (Current is null-safe) rather than crashing.
-    private static bool AppliesToCurrentOs(AdvancedTab tab) =>
-        OperatingSystem.IsWindows()
+    /// <summary>Whether an ADVANCED subpage applies on the given OS. The Windows-only subpages are hidden
+    /// off-Windows (#140): VMulti + Windows Ink don't exist on macOS/Linux (the daemon uses its own native
+    /// output there), Driver Cleanup runs a Windows-only tool, and run-at-startup is registry-based
+    /// (<c>StartupService.IsSupported</c> is already Windows-only). Filtering them out of the rail keeps the
+    /// deep-link enum intact — a stray deep-link to a hidden tab is coerced back to a visible one (see
+    /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
+    /// unit-testable — matching how the health evaluator takes its platform flag.</summary>
+    public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
+        isWindows
         || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti
                        or AdvancedTab.DriverCleanup or AdvancedTab.Startup);
 
@@ -108,6 +110,15 @@ public partial class AdvancedViewModel : ObservableObject
 
     partial void OnSelectedTabChanged(AdvancedTab oldValue, AdvancedTab newValue)
     {
+        // A deep-link to a tab hidden on this OS (e.g. a stale nav or the developer screenshot aid targeting
+        // WindowsInk off-Windows) would leave nothing selected and a blank content area — coerce to the first
+        // visible tab instead. Re-enters this handler with a valid tab, so the work below runs for it. (#140)
+        if (_allTabs.Length > 0 && _allTabs.All(t => t.Tab != newValue))
+        {
+            SelectedTab = _allTabs[0].Tab;
+            return;
+        }
+
         UpdateSelection();
         OnPropertyChanged(nameof(SelectedContent));
         OnPropertyChanged(nameof(BreadcrumbTitle));
