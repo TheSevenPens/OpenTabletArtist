@@ -107,6 +107,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
     public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
 
+    /// <summary>The tablet detail page manages its own scrolling — a fixed header + tab rail with a
+    /// per-tab scroll region — so the outer content ScrollViewer is <c>Disabled</c> for it, bounding the
+    /// page to the viewport so its inner scroll engages and the header no longer scrolls away (#507).
+    /// Every other page is plain content and uses the outer scroll (<c>Auto</c>).</summary>
+    public Avalonia.Controls.Primitives.ScrollBarVisibility ContentScrollBarVisibility =>
+        CurrentPage is TabletDetailViewModel
+            ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+            : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+
     /// <summary>The flat leaf nodes between HOME and ADVANCED (#477): each has a label, its target page,
     /// a selection flag the sidebar highlights, and a visibility flag (Per-App is feature-gated).</summary>
     public ObservableCollection<NavLeafViewModel> NavLeaves { get; } = new();
@@ -392,6 +401,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             leaf.IsSelected = ReferenceEquals(CurrentPage, leaf.Page);
         OnPropertyChanged(nameof(IsDashboard));
         OnPropertyChanged(nameof(IsAdvanced));
+        OnPropertyChanged(nameof(ContentScrollBarVisibility));
     }
 
     public void Dispose()

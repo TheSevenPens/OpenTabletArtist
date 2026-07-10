@@ -132,6 +132,9 @@
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}"
                 IsVisible="{Binding !DynamicsOnly}">
+            <!-- The rail is now fixed (the page scrolls internally, #507); let it scroll on its own if a
+                 short window can't fit every tab. -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Width="150" Spacing="2" x:Name="TabRail">
                 <RadioButton Content="ABOUT" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -179,6 +182,7 @@
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding ShowJsonTab}" />
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- About tab content: a clean read-out of the tablet's specs, plus a Resources area that will

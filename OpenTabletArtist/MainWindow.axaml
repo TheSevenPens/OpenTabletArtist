@@ -133,9 +133,13 @@
              page's header with right-aligned buttons, slide up under the native min/max/close buttons.)
              46px clears the full Windows 11 extended caption height (taller than the old 34px drag-strip
              assumption); the drag strip below matches. -->
+        <!-- Most pages are plain content and use this outer scroll (Auto). The tablet detail page manages
+             its own scrolling (fixed header + tab rail, per-tab scroll), so it sets this to Disabled — that
+             bounds the page to the viewport height so its inner scroll engages and the header no longer
+             scrolls away (#507). -->
         <ScrollViewer Grid.Column="1"
                       Margin="0,46,0,0"
-                      VerticalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="{Binding ContentScrollBarVisibility}"
                       HorizontalScrollBarVisibility="Disabled">
             <!-- Content padding (top small since the caption clearance is the ScrollViewer margin above).
                  L/R/bottom stay above the Sakura cards' glow extent (16px blur, see CardShadow) so the
