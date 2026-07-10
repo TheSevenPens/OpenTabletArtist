@@ -49,6 +49,10 @@ public sealed class Win32ForegroundAppWatcher : IForegroundAppWatcher
 
     public void Start()
     {
+        // SetWinEventHook is user32 — no-op off-Windows so the watcher degrades cleanly instead of
+        // throwing DllNotFoundException (#140). Masked today by FeatureFlags.PerAppProfiles being off,
+        // but guarded here so it's safe the moment that flips on any platform.
+        if (!OperatingSystem.IsWindows()) return;
         if (_hook != IntPtr.Zero) return;
         _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _proc,
             0, 0, WINEVENT_OUTOFCONTEXT);

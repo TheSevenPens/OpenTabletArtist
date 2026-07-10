@@ -64,6 +64,16 @@ public sealed class GlobalHotkeyService : IDisposable
     public GlobalHotkeyService()
     {
         _wndProc = WndProcImpl;
+
+        // Explicit platform guard (#140): off-Windows there's no message-only window, so every
+        // registration no-ops. Previously this was handled implicitly by catching the P/Invoke's
+        // DllNotFoundException — an explicit guard states the intent and doesn't rely on an exception.
+        if (!OperatingSystem.IsWindows())
+        {
+            _hwnd = IntPtr.Zero;
+            return;
+        }
+
         try
         {
             var cls = new WNDCLASSEX
@@ -79,7 +89,7 @@ public sealed class GlobalHotkeyService : IDisposable
         }
         catch
         {
-            _hwnd = IntPtr.Zero; // no window → registrations no-op (non-Windows / P/Invoke unavailable)
+            _hwnd = IntPtr.Zero; // Windows P/Invoke failure safety net → registrations no-op
         }
     }
 

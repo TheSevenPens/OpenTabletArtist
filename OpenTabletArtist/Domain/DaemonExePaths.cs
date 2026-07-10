@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -11,7 +12,11 @@ namespace OpenTabletArtist.Domain;
 /// </summary>
 public static class DaemonExePaths
 {
-    public const string DaemonExeName = "OpenTabletDriver.Daemon.exe";
+    /// <summary>The daemon's executable file name, platform-aware (#140): the .NET apphost is
+    /// <c>OpenTabletDriver.Daemon.exe</c> on Windows and extension-less (<c>OpenTabletDriver.Daemon</c>)
+    /// on macOS / Linux. Hardcoding <c>.exe</c> is what broke Restart on the macOS port.</summary>
+    public static string DaemonExeName { get; } =
+        OperatingSystem.IsWindows() ? "OpenTabletDriver.Daemon.exe" : "OpenTabletDriver.Daemon";
 
     public static IEnumerable<string> Candidates(string baseDir)
     {

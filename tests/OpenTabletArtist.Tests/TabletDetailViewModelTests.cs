@@ -316,4 +316,79 @@ public class TabletDetailViewModelTests
         vm.SelectMovementCommand.Execute("relative");      // redundant again, now on Relative
         Assert.Equal(1, applies);                          // still just the one
     }
+
+    // ── #140 output-mode generalisation — Windows regression gate (the #510 review's 0.3 acceptance) ──
+    //
+    // Detection now keys on the "Absolute"/"Relative" token in the mode path so OTD's NATIVE modes are
+    // recognised as well as Windows Ink. These tests run on the Windows CI runner and lock the Windows
+    // behaviour: the common WinInk case is covered above; here we cover native modes and the one
+    // deliberate change (an Absolute click on a native-absolute tablet must not force-swap to WinInk).
+
+    private const string NativeAbsolute = "OpenTabletDriver.Desktop.Output.AbsoluteMode";
+    private const string NativeRelative = "OpenTabletDriver.Desktop.Output.RelativeMode";
+
+    private static Settings SettingsWithMode(string tablet, string modePath)
+    {
+        var settings = SettingsWith(tablet);
+        settings.Profiles.First().OutputMode = new PluginSettingStore(modePath) { Path = modePath };
+        return settings;
+    }
+
+    [Fact]
+    public void NativeAbsoluteMode_IsDetectedAsAbsolute_AndCalibratable()
+    {
+        var settings = SettingsWithMode("T", NativeAbsolute);
+        var vm = new TabletDetailViewModel(settings.Profiles.First(), settings);
+
+        Assert.True(vm.IsAbsoluteMode);   // Absolute Movement card is checked
+        Assert.True(vm.CanCalibrate);     // calibration is available on an absolute mode
+    }
+
+    [Fact]
+    public void NativeRelativeMode_IsDetectedAsRelative_AndNotCalibratable()
+    {
+        var settings = SettingsWithMode("T", NativeRelative);
+        var vm = new TabletDetailViewModel(settings.Profiles.First(), settings);
+
+        Assert.False(vm.IsAbsoluteMode);
+        Assert.False(vm.CanCalibrate);
+    }
+
+    // The one deliberate Windows behaviour change: clicking Absolute while already on a NATIVE absolute
+    // mode is a no-op — it must NOT force-swap the tablet to Windows Ink.
+    [Fact]
+    public void SelectAbsolute_WhileOnNativeAbsolute_DoesNotChurnToWinInk()
+    {
+        var settings = SettingsWithMode("T", NativeAbsolute);
+        int applies = 0;
+        var vm = new TabletDetailViewModel(
+            settings.Profiles.First(), settings,
+            applyAction: _ => { applies++; return Task.CompletedTask; });
+
+        vm.SelectMovementCommand.Execute("absolute");   // already absolute (native) → no-op
+
+        Assert.Equal(0, applies);                                                 // nothing applied
+        Assert.Equal(NativeAbsolute, settings.Profiles.First().OutputMode!.Path); // still native
+    }
+
+    // "Fix output mode" is the explicit Windows-Ink remediation and must still force WinInk Absolute,
+    // even when the tablet is on a native absolute mode.
+    [Fact]
+    public async Task FixOutputMode_ForcesWinInkAbsolute_EvenFromNativeAbsolute()
+    {
+        // "Fix to Windows Ink" is a Windows-only remediation (CanFixOutputMode is IsWindows()-gated), so
+        // this scenario only applies on Windows — matching the SingleInstanceTests convention.
+        if (!OperatingSystem.IsWindows()) return;
+
+        var settings = SettingsWithMode("T", NativeAbsolute);
+        var vm = new TabletDetailViewModel(
+            settings.Profiles.First(), settings,
+            applyAction: _ => Task.CompletedTask);
+
+        Assert.True(vm.CanFixOutputMode);   // native (non-WinInk) on Windows → fixable
+
+        await vm.FixOutputModeCommand.ExecuteAsync(null);
+
+        Assert.Equal(WinInkAbsolute, settings.Profiles.First().OutputMode!.Path);
+    }
 }
