@@ -12,6 +12,9 @@ public partial class App : Application
 
     public override void Initialize()
     {
+        // The macOS app-menu title + about-panel name. Without this Avalonia shows "Avalonia Application".
+        // No effect on Windows/Linux. Set before XAML load so it's in place when the native menu is built.
+        Name = "OpenTabletArtist";
         AvaloniaXamlLoader.Load(this);
     }
 
