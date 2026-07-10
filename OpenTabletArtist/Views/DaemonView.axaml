@@ -30,7 +30,7 @@
                             <TextBlock Classes="success" />
                             <TextBlock FontWeight="SemiBold"
                                        Foreground="{DynamicResource SuccessBrush}"
-                                       Text="App-owned daemon"
+                                       Text="Bundled daemon"
                                        ToolTip.Tip="{Binding Status.DaemonSourcePath}" TextWrapping="Wrap" />
                         </StackPanel>
 
@@ -119,7 +119,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="EMBEDDED OPENTABLETDRIVER VERSION"
+                    <TextBlock Classes="SectionLabel" Text="BUNDLED OPENTABLETDRIVER VERSION"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
