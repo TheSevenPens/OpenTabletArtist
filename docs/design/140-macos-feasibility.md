@@ -248,21 +248,35 @@ Turned the spike findings into committed code on the `macos` branch:
   **highlights the correct mapped display** via `CurrentlyMapped` against the real daemon area. Added a regression
   test (`MacOsLogicalPointsGeometry_AgreesWithDaemonStoredArea`) encoding the real geometry + daemon area. **Suite:
   562 passed, 0 failed.**
+- **The remaining OS-integration seams are macOS-safe.** Audited each live on the Mac:
+  - *Tray* (`AppTray`) — already cross-platform (Avalonia `TrayIcon` + `NativeMenu`); **verified live, its icon
+    appears in the macOS menu bar**. No change.
+  - *Global hotkeys* (`GlobalHotkeyService`) — already self-guards (ctor `try/catch` → `_hwnd = Zero` → every
+    registration no-ops off-Windows). *Profile toast* (`ProfileToast`) — already catches `DllNotFoundException`
+    on its `SetWindowPos` and falls back to Avalonia `Topmost`. No change.
+  - *Calibration overlay* — **fixed two latent throws**: `SetCursor(IntPtr.Zero)` ran ~30×/sec from the pulse
+    timer during a hold, and the `Win32Properties` press-and-hold WndProc hook ran on open/close — all user32/
+    Win32-only. Now guarded with `IsWindows()`; Avalonia's `Cursor=None` handles hiding cross-platform and the
+    press-and-hold gesture doesn't exist on macOS.
+  - *Foreground watcher* (`Win32ForegroundAppWatcher.Start`) — `SetWinEventHook` now no-ops off-Windows, so
+    per-app switching (default-off flag) degrades to "unavailable" instead of throwing.
+
+  Verified live: GUI boots, tray shows, tablet tabs (incl. Calibration) reachable, **zero exceptions**. Suite 562.
 
 ## Recommended next step
 
 The daemon foundation, the display seam, a clean live GUI boot, the Windows-only-surface feature-gating, a green
-test suite, **and validated display-mapping fidelity** are done — the macOS **portable core is functionally
-proven end-to-end**: connect → profiles → area mapping → dynamics → calibration → test, mapping to the right
-monitor, with no Windows-only nagging. Remaining work is hardening + shipping, in order:
+test suite, validated display-mapping fidelity, **and macOS-safe OS-integration seams** are done — the macOS
+**portable core is functionally proven end-to-end and hardened**: connect → profiles → area mapping → dynamics →
+calibration → test, mapping to the right monitor, no Windows-only nagging, and no seam throws on a Mac. What's
+left is purely **shipping**:
 
-1. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
-   overlay placement — and give any that hard-throw on macOS a no-op/guard (most already degrade; the GUI boots
-   without touching them fatally).
-2. **Packaging** — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
-   currently reads "Avalonia Application" — set a proper bundle/app name during packaging.)
-3. **Optional polish** — a macOS output-story pass (guided setup surfacing OTD's native output), and higher-
-   fidelity display info if wanted (Avalonia gives geometry + name but not refresh/port/GPU).
+1. **Packaging** — `.app` bundle, signing + notarization (Apple Developer account), a macOS CI lane. This is the
+   main remaining unknown (Apple tooling), independent of the app itself. Cosmetic sub-task: set a proper bundle/
+   app name so the macOS app menu stops reading "Avalonia Application".
+2. **Optional polish** — a macOS output-story pass (guided setup surfacing OTD's native output), a real macOS
+   foreground-watcher backend (`NSWorkspace`) if per-app switching is wanted there, and higher-fidelity display
+   info (Avalonia gives geometry + name but not refresh/port/GPU).
 
 ## Resolved (design review #148)
 
