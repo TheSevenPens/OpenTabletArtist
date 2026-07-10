@@ -132,29 +132,53 @@ interface-swaps rather than surgery.
 
 ## Spike log — 2026-07-09 (macos branch, no code changes)
 
-A first grounded pass on a macOS dev host, before any port work:
+A grounded pass on an **Apple-Silicon (arm64) macOS host** — which turned out to already have
+**OpenTabletDriver.app installed and a real Wacom Movink 13 (DTH-135) pen display attached**, i.e. a genuine
+test rig. Results, in order:
 
-- **Toolchain not yet bootstrapped.** No **.NET SDK** on the machine — step zero for any macOS work is
-  installing the **net10 SDK** (OTA is `net10.0`; the OTD graph is `net8.0`, which a net10 build happily
-  consumes). Until then no build/round-trip is possible; the checks below are static.
+- **Toolchain bootstrapped.** The machine had only a .NET **9** SDK (off PATH) and no net10. Installed the
+  **net10 SDK** (`10.0.301`) via the official `dotnet-install.sh` into `~/.dotnet` (coexists with 9; no sudo).
+  Note: our submodule daemon is `net8.0` and needs the **.NET 8 *runtime*** to run standalone — the SDK bundles
+  9 + 10 only — so the round-trip below was instead run against OTD.app's self-contained daemon (more
+  representative anyway).
 - **OTD v0.6.7 macOS targets verified** in the pinned submodule (not just claimed): `OpenTabletDriver.MacOS.slnf`,
   `OpenTabletDriver.UX.MacOS/`, `PermissionHelper.cs`, and `DaemonWatchdog` launching `OpenTabletDriver.Daemon`
   (no `.exe`) on non-Windows. Pipe name shared.
+- **OTD daemon builds on macOS: ✅** `dotnet build OpenTabletDriver.Daemon` (net8, arm64) → **0 warnings, 0 errors**.
 - **The OTD projects OTA compiles are port-clean.** OTA `<ProjectReference>`s four OTD projects
   (`OpenTabletDriver.Desktop`, `OpenTabletDriver`, `OpenTabletDriver.Plugin`, `OpenTabletDriver.Configurations`)
   and builds them as part of its own app. All four target **plain `net8.0` — no `-windows` TFM, no Windows-only
   conditionals, no Windows-native package deps** (Octokit / SharpZipLib / StreamJsonRpc / System.CommandLine /
-  WaylandNET — the last is Linux-runtime-only but a harmless managed reference on macOS). So the **OTD dependency
-  graph should compile on macOS**; the Windows surface is confined to **OTA's own** code, exactly the P/Invoke
-  seams catalogued above. This narrows the build risk to our files.
-- **Not yet done:** the actual round-trip (build daemon → `DaemonClient` → `GetSettings()`) — blocked on the SDK
-  install. That remains the decisive next test.
+  WaylandNET — the last is Linux-runtime-only but a harmless managed reference on macOS).
+- **OTA itself builds on macOS: ✅** `dotnet build OpenTabletArtist.csproj` (net10) → **0 warnings, 0 errors**.
+  Every Windows `DllImport` compiles (P/Invoke binds lazily at runtime) and the `IsWindows()` guards handle the
+  rest — **there is no compile-time Windows blocker**. Build risk on macOS is effectively nil; the whole macOS
+  problem is *runtime* behaviour of the seams, not compilation.
+- **Daemon round-trip: ✅ (the decisive test).** A throwaway net10 probe mirroring `DaemonClient`'s exact path
+  — `NamedPipeClientStream("OpenTabletDriver.Daemon")` → `new JsonRpc(pipe)` → `InvokeAsync<T>(...)` — connected
+  to the running macOS daemon (over the .NET named-pipe → Unix-domain-socket emulation) and round-tripped:
+  `GetTablets` → **1 tablet, "Wacom Movink 13 (DTH-135)"**; `GetSettings` → a live `Settings` object
+  (`Revision, Profiles, LockUsableAreaDisplay, LockUsableAreaTablet, Tools`; **2 profiles**). **The foundation
+  the #148/#140 plan hinges on works on macOS today.** DaemonClient's connect+RPC layer needs no changes to talk
+  to the macOS daemon.
+
+**What this moves:** the two biggest external unknowns — "does OTD build/run on macOS" and "can our client
+connect + `GetSettings()`" — are now **confirmed**, on real hardware. The remaining macOS work is exactly the
+integration/UI surface already catalogued above (display enumeration, daemon-path discovery + ownership,
+feature-gating the Windows-only cards, permissions UX, packaging/signing) — *not* any foundational risk.
+
+**Still not exercised:** running **our** submodule-built daemon standalone (needs the .NET 8 runtime installed),
+driving the **full OTA GUI** on macOS (vs. the headless probe), and any of the seam *runtime* behaviours
+(`DisplayEnumerator`, hotkeys, tray, calibration-overlay placement) on a Mac.
 
 ## Recommended first step if greenlit
 
-A **macOS spike, in this order**, before any UI port work: install the net10 SDK → build the daemon from the
-submodule → connect with the existing `DaemonClient` → call `GetSettings()`. If that round-trips, the foundation
-is sound and the rest is the integration/UI work above.
+~~A **macOS spike**: install the net10 SDK → build the daemon → connect with `DaemonClient` → call
+`GetSettings()`.~~ **Done 2026-07-09 — it round-trips (see spike log).** The foundation is sound. The next
+concrete step is therefore up a level: stand up a **platform seam for `DisplayEnumerator`** (the largest
+functional P/Invoke gap, 8 user32/GDI sites) behind an interface with an Avalonia-`Screens` macOS impl, and
+**feature-gate the Windows-only cards** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) so a macOS build
+launches to a usable connect→profiles→mapping→dynamics→calibration→test core.
 
 ## Resolved (design review #148)
 
