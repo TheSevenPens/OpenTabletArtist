@@ -176,8 +176,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Message shown when <see cref="IsDaemonExeMissing"/> — the most common cause of a
     /// dead connection (building only the app, or only running the test suite, never produces the
     /// standalone daemon exe).</summary>
-    public const string DaemonExeMissingMessage =
-        "OpenTabletDriver.Daemon.exe wasn't found and no daemon is running. Build the whole " +
+    // static readonly (not const) so it can interpolate the platform-aware daemon exe name (#140);
+    // still a single stable string usable in comparisons/assignments below.
+    public static readonly string DaemonExeMissingMessage =
+        $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole " +
         "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---

@@ -14,7 +14,7 @@ public class DaemonExePathsTests
         var candidates = DaemonExePaths.Candidates(baseDir).ToList();
 
         Assert.Equal(
-            Path.GetFullPath(Path.Combine(baseDir, "Daemon", "OpenTabletDriver.Daemon.exe")),
+            Path.GetFullPath(Path.Combine(baseDir, "Daemon", DaemonExePaths.DaemonExeName)),
             candidates[0]);
     }
 
@@ -25,7 +25,7 @@ public class DaemonExePathsTests
 
         // Bundled + Debug + Release dev candidates.
         Assert.Equal(3, candidates.Count);
-        Assert.All(candidates, c => Assert.EndsWith("OpenTabletDriver.Daemon.exe", c));
+        Assert.All(candidates, c => Assert.EndsWith(DaemonExePaths.DaemonExeName, c));
         Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Debug", "net8.0")));
         Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Release", "net8.0")));
     }
