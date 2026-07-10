@@ -232,20 +232,24 @@ Turned the spike findings into committed code on the `macos` branch:
     filtered out off-Windows (data-driven; a stray deep-link to a hidden tab resolves to null content, no
     crash). **The macOS rail now shows only** Daemon / Configs / Diagnostics / Console / Plugins + Developer /
     Theme. Added `HealthEvaluator` gating tests; suite **560 pass** (+2), same 4 pre-existing macOS-env failures.
+- **The test suite is now fully green on macOS.** The 4 remaining failures were **test-only Windows-path
+  assumptions**, not product bugs (verified): `ExecutablePathTests` used `C:\…\..\…` literals that never
+  normalize off-Windows (`\` isn't a separator), and `ProfileSwitchServiceTests` keyed its fake store with
+  backslash paths while the service builds snapshot paths via `Path.Combine` (`/` on macOS), so lookups missed
+  and switches no-oped. Both now build OS-appropriate paths; the product code (`ExecutablePath.SameFile`,
+  `ProfileSwitchService.SnapshotPath`) was correct all along. **Suite: 561 passed, 0 failed on macOS** (#73).
 
 ## Recommended next step
 
-The daemon foundation, the display seam, a clean live GUI boot, **and the Windows-only-surface feature-gating**
-are done — macOS now boots to a usable, un-nagging connect→profiles→mapping→dynamics→calibration→test core.
-Next, in order:
+The daemon foundation, the display seam, a clean live GUI boot, the Windows-only-surface feature-gating, **and a
+green test suite on macOS** are done — macOS boots to a usable, un-nagging
+connect→profiles→mapping→dynamics→calibration→test core. Next, in order:
 
 1. **Validate Display-Mapping fidelity on macOS** — confirm the logical-points geometry (see above) maps
    correctly through `DisplayMappingApplier`, and click through the Display-Mapping tab in the live GUI.
-2. **Fix the 4 Windows-assuming tests (#73)** so the suite is green on macOS (`ExecutablePathTests` path
-   separators; three `ProfileSwitchServiceTests`).
-3. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
+2. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
    overlay placement — and give any that hard-throw on macOS a no-op/guard (most already degrade).
-4. Later: packaging — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
+3. Later: packaging — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
    currently reads "Avalonia Application" — set a proper bundle/app name during packaging.)
 
 ## Resolved (design review #148)
