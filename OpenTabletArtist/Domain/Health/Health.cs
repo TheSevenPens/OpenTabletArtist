@@ -79,6 +79,12 @@ public sealed record TabletHealthInput(
 /// </summary>
 public sealed record HealthInputs
 {
+    /// <summary>The host is Windows, so the Windows-only pen-delivery stack (VMulti + Windows Ink) and
+    /// Windows manufacturer-driver cleanup are applicable. On non-Windows (macOS/Linux) these checks are
+    /// skipped entirely — the daemon delivers pen input through its own native output there, so nagging
+    /// about VMulti / Windows Ink / driver conflicts would be noise for things the user can't (and needn't)
+    /// fix (#140). Defaults true so Windows behaviour and existing tests are unchanged. (#317)</summary>
+    public bool IsWindows { get; init; } = true;
     /// <summary>Connected to the daemon right now.</summary>
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
@@ -117,41 +123,46 @@ public static class HealthEvaluator
         //     an "Open daemon page" action. Only the "external daemon" recommendation stays a health
         //     item (see below). ---
 
-        // --- Windows Ink plugin: installed + compatible + actually used ---
-        if (!i.WinInkInstalled)
+        // --- Windows-only pen-delivery stack (Windows Ink plugin + VMulti). Skipped off-Windows, where the
+        //     daemon delivers pen input through its own native output and neither concept applies (#140). ---
+        if (i.IsWindows)
         {
-            issues.Add(new HealthIssue("winink.notInstalled", HealthSeverity.Broken,
-                "Windows Ink plugin not installed",
-                "The Windows Ink plugin delivers pen pressure and tilt to your apps. Without it, drawing " +
-                "apps only get basic cursor movement.",
-                new Remediation("Fix", RemediationArea.WindowsInk)));
-        }
-        else if (i.WinInkVersionMismatch)
-        {
-            issues.Add(new HealthIssue("winink.versionMismatch", HealthSeverity.Misconfigured,
-                "Windows Ink plugin may be incompatible",
-                "The installed Windows Ink plugin doesn't declare support for the running driver version. " +
-                "Updating it keeps pressure and tilt working.",
-                new Remediation("Fix", RemediationArea.WindowsInk)));
+            // --- Windows Ink plugin: installed + compatible + actually used ---
+            if (!i.WinInkInstalled)
+            {
+                issues.Add(new HealthIssue("winink.notInstalled", HealthSeverity.Broken,
+                    "Windows Ink plugin not installed",
+                    "The Windows Ink plugin delivers pen pressure and tilt to your apps. Without it, drawing " +
+                    "apps only get basic cursor movement.",
+                    new Remediation("Fix", RemediationArea.WindowsInk)));
+            }
+            else if (i.WinInkVersionMismatch)
+            {
+                issues.Add(new HealthIssue("winink.versionMismatch", HealthSeverity.Misconfigured,
+                    "Windows Ink plugin may be incompatible",
+                    "The installed Windows Ink plugin doesn't declare support for the running driver version. " +
+                    "Updating it keeps pressure and tilt working.",
+                    new Remediation("Fix", RemediationArea.WindowsInk)));
 
-            // Per-tablet: a detected tablet not using a Windows Ink output mode won't get pressure/tilt.
-            AddTabletWinInkIssues(issues, i);
-        }
-        else
-        {
-            AddTabletWinInkIssues(issues, i);
-        }
+                // Per-tablet: a detected tablet not using a Windows Ink output mode won't get pressure/tilt.
+                AddTabletWinInkIssues(issues, i);
+            }
+            else
+            {
+                AddTabletWinInkIssues(issues, i);
+            }
 
-        // --- VMulti virtual-pen driver: a prerequisite for the Windows Ink output mode ---
-        // Independent of the Windows Ink plugin — both prerequisites surface at once when missing.
-        // Only fires on a definitive "not installed" (null = not yet detected).
-        if (i.VMultiInstalled == false)
-        {
-            issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
-                "VMulti driver not installed",
-                "VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt " +
-                "through. Without it, pen pressure and tilt won't reach your apps.",
-                new Remediation("Fix", RemediationArea.VMulti)));
+            // --- VMulti virtual-pen driver: a prerequisite for the Windows Ink output mode ---
+            // Independent of the Windows Ink plugin — both prerequisites surface at once when missing.
+            // Only fires on a definitive "not installed" (null = not yet detected).
+            if (i.VMultiInstalled == false)
+            {
+                issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
+                    "VMulti driver not installed",
+                    "VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt " +
+                    "through. Without it, pen pressure and tilt won't reach your apps.",
+                    new Remediation("Fix", RemediationArea.VMulti)));
+            }
         }
 
         // --- Per-tablet display mapping: flag anything that isn't a clean single-display mapping, so the
@@ -166,8 +177,9 @@ public static class HealthEvaluator
         //     built-in. Often deliberate, but worth surfacing (support / odd-behaviour context). ---
         AddTabletConfigOverrideIssues(issues, i);
 
-        // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet ---
-        if (i.HasDriverConflict)
+        // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —
+        //     this parses OTD's Windows manufacturer-driver warnings and the fix runs a Windows tool (#140). ---
+        if (i.IsWindows && i.HasDriverConflict)
         {
             issues.Add(new HealthIssue("driver.conflict",
                 i.BlockingDriverConflict ? HealthSeverity.Broken : HealthSeverity.Misconfigured,
