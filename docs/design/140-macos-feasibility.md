@@ -177,18 +177,42 @@ connect + `GetSettings()`" — are now **confirmed**, on real hardware. The rema
 integration/UI surface already catalogued above (display enumeration, daemon-path discovery + ownership,
 feature-gating the Windows-only cards, permissions UX, packaging/signing) — *not* any foundational risk.
 
-**Still not exercised:** running **our** submodule-built daemon standalone (needs the .NET 8 runtime installed),
-driving the **full OTA GUI** on macOS (vs. the headless probe), and any of the seam *runtime* behaviours
-(`DisplayEnumerator`, hotkeys, tray, calibration-overlay placement) on a Mac.
+**Still not exercised:** driving the **full OTA GUI** on macOS (vs. the headless probe/harness), and the
+other seam *runtime* behaviours (hotkeys, tray, calibration-overlay placement) on a Mac.
 
-## Recommended first step if greenlit
+## Progress — 2026-07-09 (continued): first platform seam landed + probe promoted
 
-~~A **macOS spike**: install the net10 SDK → build the daemon → connect with `DaemonClient` → call
-`GetSettings()`.~~ **Done 2026-07-09 — it round-trips (see spike log).** The foundation is sound. The next
-concrete step is therefore up a level: stand up a **platform seam for `DisplayEnumerator`** (the largest
-functional P/Invoke gap, 8 user32/GDI sites) behind an interface with an Avalonia-`Screens` macOS impl, and
-**feature-gate the Windows-only cards** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) so a macOS build
-launches to a usable connect→profiles→mapping→dynamics→calibration→test core.
+Turned the spike findings into committed code on the `macos` branch:
+
+- **`DisplayEnumerator` extracted behind a seam (the largest functional P/Invoke gap — 8 user32/GDI sites).**
+  Introduced `IDisplayEnumerator`; the existing Win32 code moved verbatim into `WindowsDisplayEnumerator`
+  (zero behaviour change on Windows); added `AvaloniaScreensDisplayEnumerator` (cross-platform, via Avalonia
+  `Screens`); and `DisplayEnumerator` is now a thin static facade that dispatches by `OperatingSystem.IsWindows()`.
+  **All 11 call sites are untouched** — same `DisplayEnumerator.Enumerate()` shape. Builds on macOS 0/0.
+- **The macOS impl reads real monitors — with friendly names.** A throwaway Avalonia harness booting the real
+  macOS backend enumerated this Mac's two displays correctly: `ASUS PA329CV` (1920×1080, primary) and
+  `Wacom DTH135` (960×540 @ 0,1080). So on macOS we get geometry **and** `DisplayName` — better than this doc's
+  earlier "lower fidelity, names may be blank" caveat. What Avalonia does *not* give (and the record leaves
+  empty, which the UI already tolerates): refresh rate, connector/port, and driving-GPU.
+- **Tests:** added `DisplayEnumeratorSeamTests` (facade dispatch; the Avalonia impl degrades to an empty list
+  when no window/screens exist, never throws). Full suite: **558 pass**. The **4 pre-existing failures are
+  macOS-environment issues, not this change** (verified by stashing) — `ExecutablePathTests` (Windows path
+  separators) and three `ProfileSwitchServiceTests`; these are exactly the "Windows-assuming tests" the
+  cross-platform-verification item (#73) will need to fix.
+- **`tools/DaemonProbe` promoted.** The throwaway round-trip probe is now a committed, standalone dev smoke
+  test (kept out of the solution/CI) — `dotnet run --project tools/DaemonProbe`. Handy for re-checking the
+  daemon transport on any platform.
+
+## Recommended next step
+
+The daemon foundation and the first (biggest) display seam are done. Next, in order:
+
+1. **Feature-gate the Windows-only cards** (VMulti, Windows Ink, Driver Cleanup, run-at-startup) and the
+   health-check catalog with `OperatingSystem.IsWindows()`, so a macOS build launches to a usable
+   connect→profiles→mapping→dynamics→calibration→test core instead of nagging about inapplicable things.
+2. **Boot the full OTA GUI on macOS** and confirm it connects live + the Display Mapping tab shows the real
+   monitors through the new seam.
+3. Fix the 4 Windows-assuming tests (#73) so the suite is green on macOS.
 
 ## Resolved (design review #148)
 
