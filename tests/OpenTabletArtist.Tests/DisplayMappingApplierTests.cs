@@ -216,4 +216,30 @@ public class DisplayMappingApplierTests
 
         Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
     }
+
+    // Regression for the "Calibration unavailable" bug: with a monitor at a NEGATIVE virtual-desktop
+    // coordinate (e.g. a display left of the primary — 3-monitor layouts, and seen on macOS), the desktop
+    // origin isn't (0,0). ApplyToProfile stores the area in min-shifted 0-based coords, and CurrentlyMapped
+    // must match it back through the same shift. (An earlier ad-hoc matcher compared the stored centre to raw
+    // display coordinates and failed here, wrongly reporting no mapped display.) (#140)
+    [Fact]
+    public void CurrentlyMapped_MatchesThroughNegativeCoordinateOrigin()
+    {
+        var displays = new[]
+        {
+            Display(1, 0, 0, 1920, 1080, primary: true),  // primary
+            Display(2, 0, 1080, 960, 540),                // secondary below (the target)
+            Display(3, -1920, 0, 1920, 1080),             // a monitor to the LEFT → minX = -1920
+        };
+        var p = ProfileWithAbsolute();
+
+        DisplayMappingApplier.ApplyToProfile(p, (297.76f, 169.24f), displays[1], displays); // map to #2
+
+        // Stored centre is in 0-based coords ((0 - -1920) + 480 = 2400), not the raw 480 — CurrentlyMapped
+        // must still resolve it to display #2.
+        var mapped = DisplayMappingApplier.CurrentlyMapped(p, displays);
+        Assert.NotNull(mapped);
+        Assert.Equal(2, mapped!.Number);
+        Assert.Equal(2400f, p.AbsoluteModeSettings.Display.X, Precision); // documents the 0-based centre
+    }
 }
