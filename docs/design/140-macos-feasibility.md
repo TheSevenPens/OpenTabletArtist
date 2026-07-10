@@ -130,10 +130,30 @@ interface-swaps rather than surgery.
 - The **calibration overlay** hardcodes dark styling (fine cross-platform) but its display-matching /
   placement logic needs separate validation on a macOS pen display.
 
+## Spike log — 2026-07-09 (macos branch, no code changes)
+
+A first grounded pass on a macOS dev host, before any port work:
+
+- **Toolchain not yet bootstrapped.** No **.NET SDK** on the machine — step zero for any macOS work is
+  installing the **net10 SDK** (OTA is `net10.0`; the OTD graph is `net8.0`, which a net10 build happily
+  consumes). Until then no build/round-trip is possible; the checks below are static.
+- **OTD v0.6.7 macOS targets verified** in the pinned submodule (not just claimed): `OpenTabletDriver.MacOS.slnf`,
+  `OpenTabletDriver.UX.MacOS/`, `PermissionHelper.cs`, and `DaemonWatchdog` launching `OpenTabletDriver.Daemon`
+  (no `.exe`) on non-Windows. Pipe name shared.
+- **The OTD projects OTA compiles are port-clean.** OTA `<ProjectReference>`s four OTD projects
+  (`OpenTabletDriver.Desktop`, `OpenTabletDriver`, `OpenTabletDriver.Plugin`, `OpenTabletDriver.Configurations`)
+  and builds them as part of its own app. All four target **plain `net8.0` — no `-windows` TFM, no Windows-only
+  conditionals, no Windows-native package deps** (Octokit / SharpZipLib / StreamJsonRpc / System.CommandLine /
+  WaylandNET — the last is Linux-runtime-only but a harmless managed reference on macOS). So the **OTD dependency
+  graph should compile on macOS**; the Windows surface is confined to **OTA's own** code, exactly the P/Invoke
+  seams catalogued above. This narrows the build risk to our files.
+- **Not yet done:** the actual round-trip (build daemon → `DaemonClient` → `GetSettings()`) — blocked on the SDK
+  install. That remains the decisive next test.
+
 ## Recommended first step if greenlit
 
-A **macOS spike, in this order**, before any UI port work: build the daemon from the submodule →
-connect with the existing `DaemonClient` → call `GetSettings()`. If that round-trips, the foundation
+A **macOS spike, in this order**, before any UI port work: install the net10 SDK → build the daemon from the
+submodule → connect with the existing `DaemonClient` → call `GetSettings()`. If that round-trips, the foundation
 is sound and the rest is the integration/UI work above.
 
 ## Resolved (design review #148)
