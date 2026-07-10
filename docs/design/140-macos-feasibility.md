@@ -3,14 +3,19 @@
 > Status: **investigation only.** Per the #140 decision this is *aspirational backlog* — we want a
 > grounded read on what porting would take, not a commitment.
 
-> **Update (2026-07).** Re-baselined against the current codebase. The original assessment (design
-> review #148) still holds on the portable core, but it **understated the cost**: it predated a wave of
-> deeper Windows integration — global hotkeys, the per-app foreground watcher, run-at-startup, the
-> single-instance guard, the whole Windows Ink auto-setup layer, driver cleanup, and the health-check
-> catalog. The Windows-specific surface has roughly doubled. See "Windows-specific layers" and "Feature
-> layers that assume Windows" below. The recommendation is unchanged: **backlog.** The silver lining is
-> that nearly every seam is already isolated in its own service class, so the architecture is port-friendly.
-> Current P/Invoke footprint: **18 user32 · 4 setupapi · 2 kernel32 · 1 cfgmgr32** sites.
+> **Update (2026-07-09).** Re-baselined again against `master` (v0.36.0), ~170 commits past the previous
+> refresh. The original assessment (design review #148) still holds on the portable core, but the cost has
+> kept climbing: on top of the earlier wave — global hotkeys, the per-app foreground watcher, run-at-startup,
+> the single-instance guard, the whole Windows Ink auto-setup layer, driver cleanup, and the health-check
+> catalog — this pass turned up **three more Win32 seams the prior footprint missed**: `ShellPenFeedback`
+> (suppresses the shell's pen/touch feedback rings app-wide), and the `ClipboardImage` / `ClipboardText`
+> helpers (dev-screenshot + log/report copy), plus a P/Invoke on the calibration overlay (press-and-hold
+> suppression). All three are **cosmetic/convenience, already `IsWindows()`-guarded to a graceful no-op**,
+> so they degrade rather than block — but they move the numbers. Corrected P/Invoke footprint:
+> **28 user32 · 10 kernel32 · 4 setupapi · 1 cfgmgr32** sites (was reported as 18 · 2 · 4 · 1). The
+> recommendation is unchanged: **backlog.** The silver lining still holds — nearly every seam is isolated in
+> its own service class and seven now self-gate with `OperatingSystem.IsWindows()`, so the architecture is
+> port-friendly. See "Windows-specific layers" and "Feature layers that assume Windows" below.
 
 ## TL;DR
 
@@ -41,7 +46,8 @@ pursued, do it in phases behind a platform-abstraction seam, starting with the d
 | `Services/GlobalHotkeyService` | Global hotkeys via `RegisterHotKey` + a message-only window (user32); backs profile-switch (#320) and monitor-cycle (#89) chords | Windows-only. macOS needs Carbon `RegisterEventHotKey` or a `CGEventTap` (the latter requires an **Accessibility** grant). Behind `IGlobalHotkeys`, macOS could no-op until implemented. |
 | `Services/ForegroundAppWatcher` | Per-app profile switching (#167) via `SetWinEventHook` foreground events (user32) | Windows-only. macOS equivalent is `NSWorkspace.didActivateApplicationNotification` — a different event model + bundle-id vs exe-name identity. |
 | `Services/StartupService` | Run-at-startup via the HKCU `Run` key + a `--background` tray launch (#360/#381) | Windows-only (registry). macOS uses a `LaunchAgent` plist (or `SMAppService`). The card already hides via `IsSupported`. |
-| `Services/SingleInstance` | Single-instance guard via a **named `Mutex`** + `EventWaitHandle` (#191) | **Named mutexes are Windows-only in .NET** (throw `PlatformNotSupported` on Unix). Needs a file-lock or Unix-domain-socket approach on macOS. |
+| `Services/SingleInstance` | Single-instance guard via a **named `Mutex`** + `EventWaitHandle` (#191) | **Named mutexes are Windows-only in .NET** (throw `PlatformNotSupported` on Unix). Already `IsWindows()`-gated to skip the guard off-Windows — so it's degraded-but-safe today (every launch is "primary"; no crash), not a hard blocker. A real macOS impl still needs a file-lock or Unix-domain-socket approach. |
+| `Services/ShellPenFeedback` · `Services/ClipboardImage` · `Services/ClipboardText` | Cosmetic/convenience Win32: suppress the shell's pen/touch feedback rings app-wide (`SetWindowFeedbackSetting`, user32) and put images/text on the clipboard (kernel32 `Global*` + user32 clipboard APIs) for the dev-screenshot and log/report-copy features. The calibration overlay also has a user32 P/Invoke to suppress press-and-hold. | All **already `IsWindows()`-guarded to a no-op / `false`**, so they degrade gracefully. A macOS backend would route clipboard through Avalonia's `IClipboard` (or `NSPasteboard`) and simply drop the shell-feedback suppression (no macOS analogue needed). Low priority — not on the critical path. |
 | `Services/ProcessElevation` / `Helpers/ProfileToast` | "Running as admin" detection (`WindowsIdentity`) and a Win32 toast/flash (user32) | `ProcessElevation` is already guarded (returns `false` off-Windows → the health check goes inert). `ProfileToast` needs a macOS notification path (or degrade to the in-app cue). |
 | ~~Icon font: **Segoe MDL2 Assets**~~ | — | **Resolved (#150):** the Windows-only icon font was removed entirely (text labels + colored status dots). The only remaining `Segoe` refs are `"Segoe UI, Inter"` **text** fonts (graceful fallback) and the Skia controls' `Typeface("Segoe UI")`, now routed through `AppFonts` (#392) — cosmetic, not a blocker. |
 
