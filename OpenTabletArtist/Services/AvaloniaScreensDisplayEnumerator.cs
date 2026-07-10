@@ -36,6 +36,11 @@ public sealed class AvaloniaScreensDisplayEnumerator : IDisplayEnumerator
 
     public IReadOnlyList<DisplayInfo> Enumerate()
     {
+        // Enumeration is best-effort and MUST NOT throw — callers treat an empty list as "couldn't determine
+        // displays" and the UI renders that gracefully, whereas an exception bubbling out of a display refresh
+        // (e.g. Avalonia teardown, or a call before the window handle exists) would crash the app. So the
+        // catches are deliberately broad, matching WindowsDisplayEnumerator's never-throw contract; "fail
+        // visible" applies to actionable failures, not to a geometry read that has a safe empty fallback.
         Screens? screens;
         try { screens = _screensProvider(); }
         catch { screens = null; }
