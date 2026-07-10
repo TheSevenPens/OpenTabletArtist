@@ -26,12 +26,40 @@ to a feature that's hidden on macOS.
 > enable the platform-compatibility analyzer (CA1416), so unguarded calls become **compile-time** errors. This
 > would have caught, at build time, the two runtime bugs the port hit (`SetCursor` in the calibration overlay,
 > the `.exe` daemon name).
+>
+> **Caveat (from the [#510 review](https://github.com/TheSevenPens/OpenTabletArtist/issues/510)):** CA1416
+> flags not just these classes but every **call site** that constructs them from unannotated code — e.g.
+> `MainViewModel` `new`-ing `GlobalHotkeyService` / `Win32ForegroundAppWatcher`, and
+> `CalibrationOverlayWindow`'s `Win32Properties` use. Annotating the Win32 classes alone will **not** make the
+> build green; expect to add call-site `IsWindows()` guards or `[UnsupportedOSPlatformGuard]`. Phase 0.1's real
+> exit criterion is "builds with the analyzer on as warning-as-error," not "attributes added."
+
+## Windows shell hooks (not P/Invoke, but Windows-specific)
+
+Beyond `DllImport`, several view-models shell out to Windows-only executables / URI schemes. These are
+**best-effort** (wrapped in try/catch), so they don't crash on macOS, but they fail silently or loudly and are
+easy to miss because they aren't in the P/Invoke count:
+
+| Site | What | macOS |
+|---|---|---|
+| `PluginsViewModel` · `PresetsViewModel` · `CustomTabletConfigsViewModel` (open-folder) | `Process.Start("explorer.exe", dir)` | `Process.Start` with `UseShellExecute` on a directory, or `open` — a small "reveal in file manager" seam |
+| `TabletDetailViewModel` (display settings) | `ms-settings:display` | `x-apple.systempreferences:` / no-op |
+| `MainViewModel` (own-exe match for per-app switching) | forces `ProcessName + ".exe"` | bundle-id identity (per-app switching is Windows-only for now anyway) |
+
+These land in the Phase 5 guard sweep (a reveal-in-file-manager seam), not Phase 0 — recorded here so the
+catalog is complete.
 
 ## Service-by-service catalog
 
 Status legend: **seamed** (behind an interface with a macOS impl) · **gated** (Windows-only UI hidden) ·
 **guarded** (no-ops/degrades off-Windows) · **blocker** (Windows-only by nature; hidden on macOS) ·
 **todo** (still needs a macOS backend or seam).
+
+> **Read the "Status in branch" column as the `macos` branch's *end-state*, not `master`'s.** On `master`
+> today several of these are **still unguarded** — `Win32ForegroundAppWatcher.Start` (no `IsWindows()` around
+> `SetWinEventHook`), the calibration-overlay `SetCursor` / `Win32Properties` calls, and
+> `GlobalHotkeyService`'s empty-`catch` ctor. Landing that guarding is Phase 0.6 (see the plan); the "guarded"
+> label below is what the branch achieved, i.e. the target.
 
 | Component | What it does on Windows | macOS approach | Status in branch |
 |---|---|---|---|
