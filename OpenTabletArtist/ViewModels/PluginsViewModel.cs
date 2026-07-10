@@ -41,8 +41,7 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
     {
         var dir = _deviceData.PluginDirectory;
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
-        try { Process.Start("explorer.exe", dir); }
-        catch { /* best-effort */ }
+        Services.PlatformShell.RevealInFileManager(dir);
     }
 
     [RelayCommand]

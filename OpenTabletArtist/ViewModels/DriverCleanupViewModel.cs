@@ -40,7 +40,7 @@ public partial class DriverCleanupViewModel : ObservableObject, IDisposable
     private void OpenFolder(string path)
     {
         if (Directory.Exists(path))
-            Process.Start("explorer.exe", path);
+            Services.PlatformShell.RevealInFileManager(path);
     }
 
     /// <summary>Opens a detection's FAQ link. Restricted to the OTD wiki domain so a crafted log line

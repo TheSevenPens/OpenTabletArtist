@@ -969,8 +969,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenDisplaySettings()
     {
-        try { Process.Start(new ProcessStartInfo("ms-settings:display") { UseShellExecute = true }); }
-        catch { /* best-effort */ }
+        Services.PlatformShell.OpenDisplaySettings();
     }
 
     /// <summary>The display the profile is currently mapped to (full-monitor match), or null.</summary>

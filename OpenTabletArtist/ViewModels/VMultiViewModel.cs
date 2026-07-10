@@ -85,7 +85,7 @@ public partial class VMultiViewModel : ObservableObject, IDisposable
     private void OpenFolder(string path)
     {
         if (Directory.Exists(path))
-            System.Diagnostics.Process.Start("explorer.exe", path);
+            Services.PlatformShell.RevealInFileManager(path);
     }
 
     [RelayCommand]
