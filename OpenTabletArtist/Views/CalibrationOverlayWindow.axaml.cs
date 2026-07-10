@@ -141,7 +141,9 @@ public partial class CalibrationOverlayWindow : Window
         Panel.Cursor = new Cursor(StandardCursorType.Arrow);
 
         // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below.
-        Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
+        // Win32Properties + the WndProc hook are user32-backed, so guard off-Windows (#140).
+        if (OperatingSystem.IsWindows())
+            Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
 
         // …and turn off the shell's pen/touch visual feedback on this window (the same app-wide helper the
         // main window uses). On its own this doesn't fully stop the cursor re-showing at the dwell — the
@@ -158,7 +160,7 @@ public partial class CalibrationOverlayWindow : Window
             // the mouse cursor (mouse-emulation fallback), and because the pen is held *still* there's no
             // mouse-move afterwards to re-apply our None cursor — so it sticks. Re-hiding each frame only
             // while actually holding leaves the panel buttons usable when idle.
-            if (_vm is { HoldProgress: > 0.001 }) SetCursor(IntPtr.Zero);
+            if (_vm is { HoldProgress: > 0.001 } && OperatingSystem.IsWindows()) SetCursor(IntPtr.Zero);
         };
         _pulseTimer.Start();
 
@@ -168,7 +170,8 @@ public partial class CalibrationOverlayWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
+        if (OperatingSystem.IsWindows())
+            Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
         _pulseTimer?.Stop();
         if (_vm != null)
         {
