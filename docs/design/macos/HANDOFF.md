@@ -1,60 +1,66 @@
-# macOS port — handoff for the next agent
+# macOS port — status & handoff
 
-> **Read this first if you're resuming the macOS port.** Phase 0 (Windows-safe prep) is **done and
-> merged to `master`** (PR #511). Your job is to resume at **Phase 1** and work down the phased plan on a
-> **macOS machine**, verify-first, landing each phase as its own small, Windows-safe PR.
+> **Status (2026-07-10): the V1 macOS port is complete.** Phases 0–5 are implemented, verified live on
+> Apple-Silicon macOS 26 (Darwin 25.5) with a Wacom Movink 13, and **merged to `master`**. **Phase 6
+> (packaging + release) is deferred to a V2 milestone.** OTA on macOS now builds, connects, lists tablets,
+> maps to the correct display, hides the Windows-only surface, runs pointer calibration, reports daemon
+> version/source, and boots clean with every OS seam guarded.
 
-## Orient yourself — read in this order
+## What's merged (Phases 0–5 on `master`)
 
-1. [140-macos-feasibility.md](../140-macos-feasibility.md) — the hub + document map + status snapshot.
-2. [macos/implementation-plan.md](implementation-plan.md) — **the plan you're executing** (Phases 1–6). Note the revision block folding in the [#510](https://github.com/TheSevenPens/OpenTabletArtist/issues/510) review.
-3. [macos/dev-environment.md](dev-environment.md) — macOS SDK/runtime setup + the verification tooling.
-4. [macos/windows-specific-surface.md](windows-specific-surface.md) — the technical catalog (seams, P/Invoke, the two real blockers).
-5. [macos/reference-changes.md](reference-changes.md) — what the reference branch changed, file-by-file.
-6. [macos/porting-journey.md](porting-journey.md) — how the port was de-risked; context for the plan's shape.
+| Phase | What it delivered | PR |
+|---|---|---|
+| **0** | Windows-safe prep — CA1416 enforced, `IDisplayEnumerator` seam, output-mode detection generalised, platform-aware daemon exe name, OS-portable tests + Windows/Linux CI lanes, early Win32-seam guards | #511 |
+| **1** | Build + connectivity on macOS — `AvaloniaScreensDisplayEnumerator`, daemon round-trip, GUI boots, macOS CI lane | #513 |
+| **2** | Feature-gating — Health checks + ADVANCED rail hide the Windows-only surface (WinInk/VMulti/DriverCleanup/Startup) off-Windows | #514 |
+| **3** | Output + calibration — overlay covers the full display (NSWindow ObjC interop); display-match + capture handle negative-origin multi-monitor layouts | #515, #516, #517 |
+| **4** | Daemon lifecycle — version + source on the daemon card (single-daemon-path fallback + sibling-`.dll` version read; `Domain.DaemonVersion`) | #518 |
+| **5** | Seam runtime safety — `Services.PlatformShell` (reveal-in-file-manager / display-settings) replaced the unguarded `explorer.exe` launches; all other seams were already guarded; boots clean | #519 |
 
-## What's already done (Phase 0, on `master`)
+Plus: **Copy button on message/error dialogs** (#520) — cross-platform clipboard.
 
-Merged in PR #511 — a strictly-better, port-ready Windows codebase, no behaviour change except the one
-documented output-mode generalisation:
+Build with `dotnet build OpenTabletArtist.slnx`; test with `dotnet test` (587 tests, green on the Windows/Linux/macOS lanes).
 
-- **0.1** CA1416 enabled and **enforced as an error** (repo-root `Directory.Build.props`, kept out of the OTD submodule). Self-guarding wrappers deliberately left un-annotated.
-- **0.2** `DisplayEnumerator` extracted behind an **`IDisplayEnumerator`** seam + static facade (Windows impl only — **Phase 1 adds the macOS impl**). 11 call sites unchanged.
-- **0.3** Output-mode detection **generalised beyond Windows Ink** (native OTD modes recognised); the one intentional Windows change (native-absolute click no longer force-swaps to WinInk) is locked by Windows regression tests.
-- **0.4** Platform-aware daemon exe name (`.exe` only on Windows).
-- **0.5** OS-portable test paths + a **`windows-latest` + `ubuntu-latest` CI matrix** (both must stay green).
-- **0.6** The early-reachable Win32 seams (`Win32ForegroundAppWatcher.Start`, `GlobalHotkeyService` ctor, calibration-overlay `SetCursor`/`Win32Properties`) guarded off-Windows.
+## Parked / follow-ups (not blockers)
 
-Build with `dotnet build OpenTabletArtist.slnx`; test with `dotnet test`.
+- **~1% calibration pointer drift** after the affine correction — a small residual that survives on the
+  Movink (worse toward the corners). Ruled out HiDPI/resolution (it's resolution-independent); the leading
+  suspect is digitizer nonlinearity that an affine can't capture. **Next lever:** the grid/homography solver
+  (the code currently forces affine per #486). Diagnostics (F1 pen readout, alignment-check overlay, cursor
+  logging) are on branch **`diagnostics/calibration-macos`** (not for merge as-is; the CSV logging is
+  scaffolding).
 
-## Ground rules (non-negotiable — from the plan)
+## Ground rules (keep these for any further macOS work)
 
-- **Runtime guards** (`OperatingSystem.IsWindows()` / `.IsMacOS()`), **never `#if`**. One binary that runs everywhere.
-- **Keep Windows behaviour unchanged.** Every change is Windows-safe or the documented exception.
-- **Verify each phase live on real hardware** per its "Verification"/"Exit" criteria before moving on. For Phase 3, the **calibration report is the coordinate-space oracle** (a systematic offset = the overlay isn't covering the full display).
-- **Keep CA1416 green** (warning-as-error) and **both CI lanes green.**
+- **Runtime guards** (`OperatingSystem.IsWindows()` / `.IsMacOS()`), **never `#if`.** One binary everywhere.
+- **Keep Windows behaviour unchanged.** Every change is Windows-safe.
+- **Verify live on real hardware** per each item's exit criteria. For calibration, the **calibration report is
+  the coordinate-space oracle**.
+- **Keep CA1416 green** (warning-as-error) and **all CI lanes green.**
 
 ## The reference branch
 
-`origin/macos` is the **reference implementation / answer key — NOT a merge candidate.** Re-implement each
-phase as a fresh, reviewed, Windows-safe PR; use the branch to see exactly how each capability was done.
-`tools/DaemonProbe` (the headless daemon round-trip smoke test) lives on that branch, **not on `master`** and
-not in the solution — pull it from `origin/macos` when Phase 1 needs it.
+`origin/macos` is the **reference implementation / answer key — NOT a merge candidate** (and it predates the
+Phase 3 negative-origin fixes, so its calibration would fail to capture on a display at a negative origin).
+Use it to see how a capability was done; re-implement as a fresh, reviewed, Windows-safe PR.
 
-## Where to resume — Phase 1
+## V2 — where the next milestone picks up (Phase 6: packaging + release)
 
-1. Confirm the OTD submodule daemon (`net8`) **and** the OTA app (`net10`) build on macOS.
-2. Add `AvaloniaScreensDisplayEnumerator` (the `IDisplayEnumerator` macOS impl from the Phase 0 seam).
-3. Prove the daemon round-trip (`GetTablets` / `GetSettings`) with `tools/DaemonProbe`.
-4. Get the GUI to boot and show the detected tablet with zero exceptions.
-5. Extend CI to a macOS build lane.
+Deferred, and gated on decisions this repo can't make. When V2 starts, see
+[implementation-plan.md → Phase 6](implementation-plan.md#phase-6--packaging--release). It needs:
 
-Then proceed: **Phase 2** (feature-gating) → **3** (output + calibration) → **4** (daemon lifecycle) →
-**5** (seam safety + optional backends) → **6** (packaging).
+- A distributable **`.app`** (name/icon — stop the menu bar reading "Avalonia Application").
+- A **self-contained bundled daemon** (its own runtime) so it launches without a system .NET 8.
+- **Code-signing + notarization** — an **Apple Developer Program** membership + a **CI secrets story**
+  (signing identity + notarization credentials).
+- A **permissions UX** for the Accessibility / Input Monitoring grants (the catch-22 the port kept hitting: a
+  freshly-built daemon binary has no TCC grants; OTD.app's signed daemon does).
 
-## Prerequisites the agent can't provide
+## Document map
 
-- A **Mac** (ideally Apple Silicon) with the **.NET 8 + .NET 10 SDKs** (see `dev-environment.md`).
-- A **real supported tablet** for the live verification in Phases 1 / 3 / 4.
-- **Phase 6 only:** an **Apple Developer Program** membership + a CI secrets story (signing identity +
-  notarization credentials). Don't start Phase 6 until 1–5 are landed.
+1. [140-macos-feasibility.md](../140-macos-feasibility.md) — the hub + status snapshot.
+2. [implementation-plan.md](implementation-plan.md) — the phased plan (with per-phase status).
+3. [dev-environment.md](dev-environment.md) — macOS SDK/runtime setup + verification tooling.
+4. [windows-specific-surface.md](windows-specific-surface.md) — the seam / P-Invoke catalog.
+5. [reference-changes.md](reference-changes.md) — what the reference branch changed, file-by-file.
+6. [porting-journey.md](porting-journey.md) — how the port was de-risked.
