@@ -213,8 +213,7 @@ public partial class CalibrationOverlayWindow : Window
     private static extern IntPtr SetCursor(IntPtr hCursor);
 
     // Cover the mapped display. Move onto the target monitor (picked by containment of the display's
-    // centre, robust to rounding / DPI — #179), then go FullScreen so the OS sizes the window to the
-    // whole monitor. Doing the sizing ourselves via Bounds/Scaling mis-covered scaled displays.
+    // centre, robust to rounding / DPI — #179).
     private void PlaceOnDisplay()
     {
         if (_display is not { } display) return;
@@ -222,8 +221,81 @@ public partial class CalibrationOverlayWindow : Window
         var centre = new PixelPoint(display.X + display.Width / 2, display.Y + display.Height / 2);
         var screen = Screens.ScreenFromPoint(centre);
         Position = screen?.Bounds.Position ?? new PixelPoint(display.X, display.Y);
-        WindowState = WindowState.FullScreen;
+
+        if (OperatingSystem.IsWindows() || screen is null)
+        {
+            // Windows: FullScreen lets the OS size the window to the whole monitor (sizing it ourselves via
+            // Bounds/Scaling mis-covered scaled displays there).
+            WindowState = WindowState.FullScreen;
+            return;
+        }
+
+        // macOS/Linux: WindowState.FullScreen enters a native fullscreen Space that only covers the working
+        // area (below the menu bar) and can animate onto the wrong display. A borderless window
+        // (WindowDecorations=None) isn't constrained to the visible frame, so size it to the display's full
+        // bounds — but on macOS a normal window still lands ~menu-bar-height *below* the top (AppKit's
+        // constrainFrameRect), which lays the calibration targets out low and misaligns the affine (measured
+        // lands below the target, worst at the top). CoverFullDisplayOnMac fixes both by covering the whole
+        // display, menu bar included. (#140)
+        Width = screen.Bounds.Width / screen.Scaling;
+        Height = screen.Bounds.Height / screen.Scaling;
+        CoverFullDisplayOnMac();
     }
+
+    // --- macOS: make the overlay cover the WHOLE display, menu bar included -------------------------------
+    // Avalonia has no cross-platform "window level" API, so reach the NSWindow via the platform handle and
+    // (a) raise it just past kCGMainMenuWindowLevel so it renders over the menu bar, and (b) set its frame to
+    // the NSScreen's *full* frame (which includes the menu bar and is already in native screen coordinates,
+    // so no constraint is applied — this is what corrects the ~menu-bar-height vertical offset that misaligns
+    // calibration). We gate on Avalonia's platform-handle *descriptor* (NSWindow vs NSView) rather than a
+    // runtime -respondsToSelector: check, so we only ever message classes whose selectors are known
+    // (NSView -window, NSWindow -setLevel:/-screen/-setFrame:display:) — an unknown descriptor bails rather
+    // than risk an unrecognized selector (which would raise an uncatchable ObjC exception). Best-effort no-op
+    // if anything's unavailable.
+    private const long AboveMenuBarLevel = 25; // kCGMainMenuWindowLevel + 1
+
+    private void CoverFullDisplayOnMac()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        try
+        {
+            var ph = TryGetPlatformHandle();
+            if (ph is null || ph.Handle == IntPtr.Zero) return;
+
+            IntPtr nsWindow = ph.HandleDescriptor switch
+            {
+                "NSWindow" => ph.Handle,
+                "NSView" => objc_msgSend(ph.Handle, sel_registerName("window")), // NSView responds to -window
+                _ => IntPtr.Zero,                                                 // unknown → don't risk it
+            };
+            if (nsWindow == IntPtr.Zero) return;
+
+            objc_msgSend_void_long(nsWindow, sel_registerName("setLevel:"), AboveMenuBarLevel);
+
+            var nsScreen = objc_msgSend(nsWindow, sel_registerName("screen"));
+            if (nsScreen != IntPtr.Zero)
+            {
+                var full = objc_msgSend_rect(nsScreen, sel_registerName("frame"));   // full frame, incl. menu bar
+                objc_msgSend_setFrame(nsWindow, sel_registerName("setFrame:display:"), full, true);
+            }
+        }
+        catch { /* best-effort */ }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NSRect { public double X, Y, Width, Height; }
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void objc_msgSend_void_long(IntPtr receiver, IntPtr selector, long arg);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern NSRect objc_msgSend_rect(IntPtr receiver, IntPtr selector);
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void objc_msgSend_setFrame(IntPtr receiver, IntPtr selector, NSRect frame,
+        [MarshalAs(UnmanagedType.I1)] bool display);
+    [DllImport("/usr/lib/libobjc.dylib")]
+    private static extern IntPtr sel_registerName(string name);
 
     private void BuildAndLayout()
     {
