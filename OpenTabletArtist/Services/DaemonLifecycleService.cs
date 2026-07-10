@@ -97,8 +97,12 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     public string? GetSingleRunningDaemonPath()
     {
         var procs = Process.GetProcessesByName(ProcessName);
-        // Only when unambiguous — with multiple daemons we can't tell which one the pipe connects to.
-        if (procs.Length != 1) return null;
-        try { return procs[0].MainModule?.FileName; } catch { return null; }
+        try
+        {
+            // Only when unambiguous — with multiple daemons we can't tell which the pipe connects to.
+            return procs.Length == 1 ? procs[0].MainModule?.FileName : null;
+        }
+        catch { return null; }
+        finally { foreach (var p in procs) p.Dispose(); }
     }
 }

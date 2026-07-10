@@ -1006,9 +1006,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         var actual = GetConnectedDaemonPath();
         DaemonSourcePath = actual ?? "";
-        // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report
-        // it). Best-effort: cross-session/elevated processes may hide their path, leaving it blank. (#296)
-        DaemonVersion = actual != null ? ReadExecutableVersion(actual) : "";
+        // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report it).
+        // Falls back to the sibling managed assembly for a native apphost (macOS #140). Best-effort:
+        // cross-session/elevated processes may hide their path, leaving it blank. (#296)
+        DaemonVersion = actual != null ? Domain.DaemonVersion.Read(actual) : "";
 
         if (actual == null)
         {
@@ -1035,35 +1036,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
     /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
-    private static string ReadExecutableVersion(string path)
-    {
-        var version = ExtractExecutableVersion(path);
-        // A native apphost (macOS/Linux, extension-less) carries no Win32 version resource, so the stamp
-        // reads empty — fall back to the sibling managed assembly, which does carry the version. (#140)
-        if (string.IsNullOrEmpty(version))
-        {
-            var dir = Path.GetDirectoryName(path);
-            var dll = dir == null ? null : Path.Combine(dir, "OpenTabletDriver.Daemon.dll");
-            if (dll != null && !string.Equals(dll, path, System.StringComparison.OrdinalIgnoreCase) && File.Exists(dll))
-                version = ExtractExecutableVersion(dll);
-        }
-        return version;
-    }
-
-    private static string ExtractExecutableVersion(string path)
-    {
-        try
-        {
-            var info = FileVersionInfo.GetVersionInfo(path);
-            var version = (info.ProductVersion ?? info.FileVersion ?? "").Trim();
-            var plus = version.IndexOf('+');
-            return plus >= 0 ? version[..plus] : version;
-        }
-        catch
-        {
-            return "";
-        }
-    }
 
     public void Dispose()
     {
