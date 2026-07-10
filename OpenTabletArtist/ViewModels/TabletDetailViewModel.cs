@@ -1978,27 +1978,24 @@ public partial class PenSwitchRowViewModel : ObservableObject
     [ObservableProperty] private PenSwitchBindingMode _mode;
     [ObservableProperty] private bool _canEdit;
 
-    public bool IsAutoSelected => Mode == PenSwitchBindingMode.Auto;
-    public bool IsLegacySelected => Mode == PenSwitchBindingMode.Legacy;
-    public bool IsOtherSelected => Mode == PenSwitchBindingMode.Other;
     public bool IsRecommended => Mode == PenSwitchBindingMode.Auto;
     public bool IsNotRecommended => Mode != PenSwitchBindingMode.Auto;
+    /// <summary>Show the "Use Adaptive" fix only when the switch isn't already on Adaptive and the host
+    /// can apply changes.</summary>
+    public bool ShowUseAdaptive => CanEdit && Mode != PenSwitchBindingMode.Auto;
 
     partial void OnModeChanged(PenSwitchBindingMode value)
     {
-        OnPropertyChanged(nameof(IsAutoSelected));
-        OnPropertyChanged(nameof(IsLegacySelected));
-        OnPropertyChanged(nameof(IsOtherSelected));
         OnPropertyChanged(nameof(IsRecommended));
         OnPropertyChanged(nameof(IsNotRecommended));
+        OnPropertyChanged(nameof(ShowUseAdaptive));
         SetAutoCommand.NotifyCanExecuteChanged();
-        SetLegacyCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnCanEditChanged(bool value)
     {
+        OnPropertyChanged(nameof(ShowUseAdaptive));
         SetAutoCommand.NotifyCanExecuteChanged();
-        SetLegacyCommand.NotifyCanExecuteChanged();
     }
 
     private void RefreshFromStore(PluginSettingStore? store, bool canEdit)
@@ -2012,15 +2009,10 @@ public partial class PenSwitchRowViewModel : ObservableObject
         path == null ? null : AppInfo.PluginManager.GetFriendlyName(path);
 
     private bool CanSetAuto => CanEdit && Mode != PenSwitchBindingMode.Auto;
-    private bool CanSetLegacy => CanEdit && Mode != PenSwitchBindingMode.Legacy;
 
     [RelayCommand(CanExecute = nameof(CanSetAuto))]
     private Task SetAuto() =>
         _applyAsync(_kind, _penButtonIndex, PenSwitchBinding.MakeAdaptiveBinding(_kind, _penButtonIndex));
-
-    [RelayCommand(CanExecute = nameof(CanSetLegacy))]
-    private Task SetLegacy() =>
-        _applyAsync(_kind, _penButtonIndex, PenSwitchBinding.MakeLegacyBinding(_kind));
 }
 
 public partial class ButtonBinding : ObservableObject

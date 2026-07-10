@@ -395,42 +395,6 @@
             </Style>
         </ControlTheme>
 
-        <!-- Binding mode pill (Pen Switches tab) -->
-        <ControlTheme x:Key="BindingModePill" TargetType="Button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalContentAlignment="Center"
-                                          VerticalContentAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover">
-                <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-            </Style>
-            <Style Selector="^.selected">
-                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            </Style>
-            <Style Selector="^:disabled">
-                <Setter Property="Opacity" Value="0.55" />
-            </Style>
-        </ControlTheme>
-
         <!-- Delete Button (solid red — unmistakably destructive, #251) -->
         <ControlTheme x:Key="DeleteButton" TargetType="Button">
             <Setter Property="Foreground" Value="#FFFFFF" />
