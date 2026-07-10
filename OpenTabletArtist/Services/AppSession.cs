@@ -1025,12 +1025,32 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private string? GetConnectedDaemonPath()
     {
         var pid = _daemon.GetServerProcessId();
-        return pid == null ? null : _daemonLifecycle.GetProcessPath(pid.Value);
+        if (pid != null) return _daemonLifecycle.GetProcessPath(pid.Value);
+        // The pipe→PID lookup is Win32-only (returns null off-Windows). There the daemon is effectively a
+        // singleton, so fall back to the single running daemon's path. Left off the Windows path so its
+        // exact pipe-PID attribution — which distinguishes our daemon from another OTD instance — is
+        // unchanged. (#140)
+        return OperatingSystem.IsWindows() ? null : _daemonLifecycle.GetSingleRunningDaemonPath();
     }
 
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
     /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
     private static string ReadExecutableVersion(string path)
+    {
+        var version = ExtractExecutableVersion(path);
+        // A native apphost (macOS/Linux, extension-less) carries no Win32 version resource, so the stamp
+        // reads empty — fall back to the sibling managed assembly, which does carry the version. (#140)
+        if (string.IsNullOrEmpty(version))
+        {
+            var dir = Path.GetDirectoryName(path);
+            var dll = dir == null ? null : Path.Combine(dir, "OpenTabletDriver.Daemon.dll");
+            if (dll != null && !string.Equals(dll, path, System.StringComparison.OrdinalIgnoreCase) && File.Exists(dll))
+                version = ExtractExecutableVersion(dll);
+        }
+        return version;
+    }
+
+    private static string ExtractExecutableVersion(string path)
     {
         try
         {

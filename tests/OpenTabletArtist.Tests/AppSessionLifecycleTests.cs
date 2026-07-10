@@ -24,6 +24,7 @@ public class AppSessionLifecycleTests
         public void Launch() => LaunchCount++;                 // no real process — never connects
         public void StopAll() => StopAllCount++;
         public string? GetProcessPath(int processId) => null;
+        public string? GetSingleRunningDaemonPath() => null;
     }
 
     // No exe present and nothing running → the missing-exe short-circuit should fire.
@@ -37,6 +38,7 @@ public class AppSessionLifecycleTests
         public void Launch() => LaunchCount++;
         public void StopAll() => StopAllCount++;
         public string? GetProcessPath(int processId) => null;
+        public string? GetSingleRunningDaemonPath() => null;
     }
 
     private sealed class FakeSettingsStore : ISettingsFileStore
