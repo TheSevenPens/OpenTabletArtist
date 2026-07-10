@@ -50,20 +50,35 @@ public class DisplayEnumeratorSeamTests
         DisplayEnumerator.Use(null);
 
         // With no injected impl the facade builds the OS default. On Windows that enumerates the real
-        // monitors; off-Windows it's the empty fallback. Either way the call must not throw or return null.
+        // monitors; off-Windows it's the Avalonia-Screens impl, which returns an empty list when there's no
+        // running app/window (as in tests). Either way the call must not throw or return null.
         var result = DisplayEnumerator.Enumerate();
 
         Assert.NotNull(result);
     }
 
-    [Fact]
-    public void EmptyDisplayEnumerator_ReturnsEmptyAndNeverNull()
-    {
-        IDisplayEnumerator empty = new EmptyDisplayEnumerator();
+    // The cross-platform impl (macOS/Linux) reads Avalonia's Screens off a window. With no window/screens it
+    // must degrade to an empty list, never throw — the same contract as the Windows path (#140, Phase 1).
 
-        var result = empty.Enumerate();
+    [Fact]
+    public void AvaloniaScreens_NullProvider_ReturnsEmpty_NeverNull()
+    {
+        var sut = new AvaloniaScreensDisplayEnumerator(() => null);
+
+        var result = sut.Enumerate();
 
         Assert.NotNull(result);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void AvaloniaScreens_ThrowingProvider_ReturnsEmpty_DoesNotThrow()
+    {
+        var sut = new AvaloniaScreensDisplayEnumerator(
+            () => throw new System.InvalidOperationException("no window yet"));
+
+        var result = sut.Enumerate();
+
         Assert.Empty(result);
     }
 }
