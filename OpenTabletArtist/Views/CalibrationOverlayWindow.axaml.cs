@@ -140,8 +140,11 @@ public partial class CalibrationOverlayWindow : Window
         Cursor = new Cursor(StandardCursorType.None);
         Panel.Cursor = new Cursor(StandardCursorType.Arrow);
 
-        // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below.
-        Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
+        // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below. Windows-only:
+        // the gesture (and this Win32 WndProc hook) don't exist off-Windows, so the callback is skipped
+        // there — Avalonia's Cursor=None (above) already handles cursor hiding cross-platform. (#140)
+        if (OperatingSystem.IsWindows())
+            Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
 
         // …and turn off the shell's pen/touch visual feedback on this window (the same app-wide helper the
         // main window uses). On its own this doesn't fully stop the cursor re-showing at the dwell — the
@@ -157,8 +160,10 @@ public partial class CalibrationOverlayWindow : Window
             // Keep the cursor hidden through the hold. At the ~1 s press-and-hold dwell Windows re-shows
             // the mouse cursor (mouse-emulation fallback), and because the pen is held *still* there's no
             // mouse-move afterwards to re-apply our None cursor — so it sticks. Re-hiding each frame only
-            // while actually holding leaves the panel buttons usable when idle.
-            if (_vm is { HoldProgress: > 0.001 }) SetCursor(IntPtr.Zero);
+            // while actually holding leaves the panel buttons usable when idle. Windows-only: this is a
+            // user32 call and works around a Windows-specific re-show; guarded so the timer never throws on
+            // macOS/Linux, where the dwell doesn't re-show the cursor anyway (#140).
+            if (OperatingSystem.IsWindows() && _vm is { HoldProgress: > 0.001 }) SetCursor(IntPtr.Zero);
         };
         _pulseTimer.Start();
 
@@ -168,7 +173,8 @@ public partial class CalibrationOverlayWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
+        if (OperatingSystem.IsWindows())
+            Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
         _pulseTimer?.Stop();
         if (_vm != null)
         {

@@ -49,7 +49,10 @@ public sealed class Win32ForegroundAppWatcher : IForegroundAppWatcher
 
     public void Start()
     {
-        if (_hook != IntPtr.Zero) return;
+        // Windows-only (SetWinEventHook is user32). Off-Windows this no-ops rather than throwing, so
+        // per-app switching degrades to "unavailable" instead of crashing if the feature is ever enabled
+        // there before a macOS foreground-watcher backend exists (NSWorkspace notifications). (#140/#167)
+        if (!OperatingSystem.IsWindows() || _hook != IntPtr.Zero) return;
         _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _proc,
             0, 0, WINEVENT_OUTOFCONTEXT);
     }
