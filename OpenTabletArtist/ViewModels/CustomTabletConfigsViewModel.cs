@@ -86,7 +86,7 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
     private void OpenConfigurationsFolder()
     {
         if (!string.IsNullOrEmpty(ConfigurationsDirectory) && Directory.Exists(ConfigurationsDirectory))
-            Process.Start("explorer.exe", ConfigurationsDirectory);
+            Services.PlatformShell.RevealInFileManager(ConfigurationsDirectory);
     }
 
     [RelayCommand]

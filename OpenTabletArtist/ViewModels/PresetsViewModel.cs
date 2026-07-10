@@ -92,7 +92,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     private void OpenFolder(string path)
     {
         if (Directory.Exists(path))
-            Process.Start("explorer.exe", path);
+            Services.PlatformShell.RevealInFileManager(path);
     }
 
     [RelayCommand]
