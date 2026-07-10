@@ -262,6 +262,15 @@ Turned the spike findings into committed code on the `macos` branch:
     per-app switching (default-off flag) degrades to "unavailable" instead of throwing.
 
   Verified live: GUI boots, tray shows, tablet tabs (incl. Calibration) reachable, **zero exceptions**. Suite 562.
+- **Native output modes recognised → calibration works on macOS.** The Absolute/Relative concept was hardwired
+  to the VoiD **Windows Ink** plugin paths, so on macOS — where the Movink runs OTD's native
+  `OpenTabletDriver.Desktop.Output.AbsoluteMode` and Windows Ink doesn't exist — `IsAbsoluteMode`/`CanCalibrate`
+  were false: the Pen-Behavior toggle mis-read as *Relative* and the Calibration tab showed no start controls.
+  Now absolute-vs-relative is detected by the mode type path carrying the word (native modes **and** WinInk),
+  the movement toggle picks the platform-preferred mode (Ink on Windows, native elsewhere) and no-ops when
+  already in that direction, and "Fix output mode" (→ Windows Ink) is correctly Windows-only. **Verified live:
+  the Movink reads Absolute and the calibration density picker + START buttons appear.** This is the first slice
+  of the macOS output story. Suite **564 passed** (+2 native-mode tests).
 
 ## Recommended next step
 
