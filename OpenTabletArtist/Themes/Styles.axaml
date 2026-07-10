@@ -142,19 +142,34 @@
             </Style>
         </ControlTheme>
 
-        <!-- ToggleSetting: checkbox + optional muted description line. -->
+        <!-- ToggleSetting: checkbox + optional muted description. The description sits on a line beneath
+             by default, or inline after the label when InlineDescription is set (short one-line hints). -->
         <ControlTheme x:Key="{x:Type c:ToggleSetting}" TargetType="c:ToggleSetting">
             <Setter Property="Template">
                 <ControlTemplate>
                     <StackPanel>
-                        <CheckBox Content="{TemplateBinding Label}"
-                                  IsChecked="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
-                        <TextBlock Text="{TemplateBinding Description}" Margin="28,2,0,0"
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox Content="{TemplateBinding Label}"
+                                      IsChecked="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                            <!-- Inline description: shown right after the label when InlineDescription=True. -->
+                            <TextBlock x:Name="InlineDesc" Text="{TemplateBinding Description}"
+                                       VerticalAlignment="Center" Margin="6,0,0,0" IsVisible="False"
+                                       Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <!-- Below description: the default multi-line placement. -->
+                        <TextBlock x:Name="BelowDesc" Text="{TemplateBinding Description}" Margin="28,2,0,0"
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                    IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
                     </StackPanel>
                 </ControlTemplate>
             </Setter>
+            <!-- Inline mode: swap the below line for the inline one. -->
+            <Style Selector="^[InlineDescription=True] /template/ TextBlock#InlineDesc">
+                <Setter Property="IsVisible" Value="True" />
+            </Style>
+            <Style Selector="^[InlineDescription=True] /template/ TextBlock#BelowDesc">
+                <Setter Property="IsVisible" Value="False" />
+            </Style>
         </ControlTheme>
 
         <!-- StatusBadge: glyph + text, coloured by Kind. -->

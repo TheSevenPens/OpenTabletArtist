@@ -652,12 +652,17 @@
                     <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
                         <StackPanel Spacing="10">
                             <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
-                            <ctrl:ToggleSetting Label="Disable pressure"
-                                                Description="Ignore pen pressure — apps get a flat on/off contact. This overrides the pressure curve on the Pressure Dynamics tab."
+                            <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True"
+                                                Description="Flat on/off contact — ignores the pressure curve."
                                                 IsChecked="{Binding DisablePressure}" />
-                            <ctrl:ToggleSetting Label="Disable tilt"
-                                                Description="Ignore pen tilt, so apps receive no tilt from this tablet."
+                            <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                                Description="Apps receive no tilt from this tablet."
                                                 IsChecked="{Binding DisableTilt}" />
+                            <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton
+                                 and stashes it so it comes back when turned off. -->
+                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                                Description="Tapping does nothing; your tip binding returns when off."
+                                                IsChecked="{Binding DisablePenTip}" />
                             <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays.
                                  Re-enable by flipping IsVisible to True. -->
                             <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
@@ -819,12 +824,12 @@
                             ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
                 </Grid>
 
-                <!-- #469: when "Disable pressure" is on (Pen Inputs tab), the output stage drops pressure,
+                <!-- #469: when "Binary pressure" is on (Pen Inputs tab), the output stage drops pressure,
                      so this curve has no effect. Flag it here so the tab isn't silently inert. -->
                 <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                         BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,4,0,8"
                         IsVisible="{Binding PressureDisabledNote}">
-                    <TextBlock Text="Pressure is disabled for this tablet (Pen Inputs tab), so this curve has no effect right now. Turn off “Disable pressure” to use it."
+                    <TextBlock Text="This tablet is set to Binary pressure (Pen Inputs tab), so this curve has no effect right now. Turn off “Binary pressure” to use it."
                                Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                 </Border>
 

@@ -725,7 +725,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private bool _disablePressure;
     [ObservableProperty] private bool _disableTilt;
     [ObservableProperty] private bool _dragBindingsEnabled;
+    [ObservableProperty] private bool _disablePenTip;
     private bool _skipPenInputPersist;
+
+    /// <summary>Backup slot (per tablet, persisted) for the tip binding stashed while the tip is
+    /// disabled, so turning the tip back on restores exactly what was there — mirrors the aux master
+    /// toggle's stash (#493).</summary>
+    private string TipBackupKey => $"TipBackup:{_profile.Tablet}";
 
     /// <summary>Shown on the Pressure Dynamics tab when pressure is disabled — the curve then has no
     /// effect, because the output stage drops pressure entirely (#469).</summary>
@@ -747,6 +753,39 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         if (_skipPenInputPersist) return;
         _ = ApplySettingsChange(p => p.BindingSettings.EnableDragBindings = value);
+    }
+
+    partial void OnDisablePenTipChanged(bool value)
+    {
+        if (_skipPenInputPersist) return;
+        _ = SetPenTipDisabledAsync(value);
+    }
+
+    /// <summary>Disable the pen tip by clearing its binding — OTD has no "disable tip" flag; the tip is
+    /// a binding (<c>BindingSettings.TipButton</c>), so "off" means no binding. The prior binding is
+    /// stashed so turning the tip back on restores exactly what was there, falling back to the Adaptive
+    /// (Tip) default if there's no usable stash (#493).</summary>
+    private async Task SetPenTipDisabledAsync(bool disabled)
+    {
+        if (_applyAction == null) return;
+        if (disabled)
+        {
+            AppSettings.Set(TipBackupKey, JsonConvert.SerializeObject(_profile.BindingSettings.TipButton));
+            await ApplySettingsChange(p => p.BindingSettings.TipButton = null);
+        }
+        else
+        {
+            var backup = AppSettings.Get(TipBackupKey);
+            PluginSettingStore? restored = null;
+            if (!string.IsNullOrEmpty(backup))
+            {
+                try { restored = JsonConvert.DeserializeObject<PluginSettingStore>(backup); }
+                catch { /* corrupt stash — fall back to the default below */ }
+            }
+            restored ??= PenSwitchBinding.MakeAdaptiveBinding(PenSwitchKind.Tip);
+            await ApplySettingsChange(p => p.BindingSettings.TipButton = restored);
+            AppSettings.Set(TipBackupKey, "");
+        }
     }
 
     private void RefreshFromProfile()
@@ -772,6 +811,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         DisablePressure = bindings.DisablePressure;
         DisableTilt = bindings.DisableTilt;
         DragBindingsEnabled = bindings.EnableDragBindings;
+        // The tip is disabled when it has no binding (#493). Derived from the profile so it stays in
+        // sync when the tip binding is edited directly on the pen-switch card.
+        DisablePenTip = bindings.TipButton?.Path == null;
         _skipPenInputPersist = false;
         OnPropertyChanged(nameof(PressureDisabledNote));
 
