@@ -216,4 +216,43 @@ public class DisplayMappingApplierTests
 
         Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
     }
+
+    // --- macOS coordinate-space fidelity (#140) ---
+    // Verified empirically on an Apple-Silicon Mac (ASUS PA329CV 4K + Wacom Movink 13): Avalonia's Screens
+    // reports displays in CoreGraphics *logical points* (ASUS 1920×1080 @ 0,0 primary; Wacom 960×540 @
+    // 0,1080) — the SAME space the macOS OTD daemon stores its Display area in. The live daemon (configured
+    // by OTD.app's own macOS UX) had the ASUS mapping stored as Display W=1920 H=1080, centre (960,540).
+    // This locks in that our points-based geometry agrees with the daemon: the area we'd write matches the
+    // area it stores, and we correctly recognise it as a clean whole-display mapping.
+    [Fact]
+    public void MacOsLogicalPointsGeometry_AgreesWithDaemonStoredArea()
+    {
+        // Displays exactly as Avalonia reports them on macOS (logical points), primary first.
+        var displays = new[]
+        {
+            Display(1, 0, 0, 1920, 1080, primary: true),   // ASUS PA329CV (4K panel, 1920×1080 points)
+            Display(2, 0, 1080, 960, 540),                 // Wacom Movink 13 below it
+        };
+
+        // What ApplyToProfile would write for the primary — must equal the daemon's stored centre (960,540).
+        var (cx, cy) = DisplayMappingApplier.MappedCenter(displays[0], displays);
+        Assert.Equal(960f, cx, Precision);
+        Assert.Equal(540f, cy, Precision);
+
+        // A profile carrying the daemon's real stored ASUS area must classify as a clean whole-display map.
+        var profile = ProfileWithAbsolute("Wacom Movink 13 (DTH-135)");
+        profile.AbsoluteModeSettings.Display.Width = 1920;
+        profile.AbsoluteModeSettings.Display.Height = 1080;
+        profile.AbsoluteModeSettings.Display.X = 960;   // centre, as OTD stores it
+        profile.AbsoluteModeSettings.Display.Y = 540;
+
+        Assert.Equal(DisplayMappingValidity.Clean, DisplayMappingApplier.ClassifyMapping(profile, displays));
+        Assert.Equal(1, DisplayMappingApplier.CurrentlyMapped(profile, displays)!.Number);
+
+        // And mapping to the Wacom (below the primary) lands its area cleanly on that display, not off-screen.
+        var wacom = ProfileWithAbsolute();
+        DisplayMappingApplier.ApplyToProfile(wacom, (297.76f, 169.24f), displays[1], displays);
+        Assert.Equal(DisplayMappingValidity.Clean, DisplayMappingApplier.ClassifyMapping(wacom, displays));
+        Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(wacom, displays)!.Number);
+    }
 }
