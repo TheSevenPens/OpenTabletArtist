@@ -171,6 +171,16 @@ public partial class CalibrationViewModel : ObservableObject
         }
     }
 
+    // The mapped display's origin (top-left) in OTD virtual-desktop space — the SAME space
+    // AbsolutePositionMapper.MapToDesktop returns. Derived from the Output area (which is stored in
+    // that 0-based, min-shifted space), NOT _ctx.Display.X/Y: those are raw screen coords that differ
+    // by the desktop min-shift whenever a monitor sits at a negative origin (a display left of / above
+    // the primary — common with 3+ monitors, and seen on macOS). Mixing the two put the live dot (and
+    // the solver's targets) off by that shift, so hit-testing never matched and capture silently failed
+    // even though the pen reports were perfect (#140).
+    private float OutputOriginX => _ctx.Output.CenterX - _ctx.Output.Width / 2;
+    private float OutputOriginY => _ctx.Output.CenterY - _ctx.Output.Height / 2;
+
     // --- Capture (also the unit-testable core: feed PenSamples via OnSample) ---
 
     public void OnSample(PenSample s)
@@ -180,8 +190,8 @@ public partial class CalibrationViewModel : ObservableObject
         var desktop = AbsolutePositionMapper.MapToDesktop(raw, _ctx.Digitizer, _ctx.Input, _ctx.Output, false, false);
         if (desktop is { } d)
         {
-            LiveDotX = (d.X - _ctx.Display.X) / Math.Max(1, _ctx.Display.Width);
-            LiveDotY = (d.Y - _ctx.Display.Y) / Math.Max(1, _ctx.Display.Height);
+            LiveDotX = (d.X - OutputOriginX) / Math.Max(1, _ctx.Output.Width);
+            LiveDotY = (d.Y - OutputOriginY) / Math.Max(1, _ctx.Output.Height);
             LiveDotVisible = true;
         }
         else
@@ -237,9 +247,12 @@ public partial class CalibrationViewModel : ObservableObject
 
     private async Task FinishAsync()
     {
+        // Targets are placed in OTD virtual-desktop space (via the Output origin) so they share the space
+        // MapToDesktop produces the measured points in — otherwise the solver pairs targets and taps that
+        // are off by the desktop min-shift on negative-origin layouts (#140).
         var targetsDesktop = _targets.Select(t => new Vector2(
-            (float)(_ctx.Display.X + t.X * _ctx.Display.Width),
-            (float)(_ctx.Display.Y + t.Y * _ctx.Display.Height))).ToList();
+            (float)(OutputOriginX + t.X * _ctx.Output.Width),
+            (float)(OutputOriginY + t.Y * _ctx.Output.Height))).ToList();
 
         var fp = CalibrationProfile.Fingerprint(_ctx.Input, _ctx.Output, _ctx.Display.Number);
 
@@ -280,7 +293,7 @@ public partial class CalibrationViewModel : ObservableObject
     // mapping — so the report can show, and score, how far the pen actually landed from the target.
     private CalibrationReport BuildReport(IReadOnlyList<Vector2> targetsDesktop)
     {
-        float ox = (float)_ctx.Display.X, oy = (float)_ctx.Display.Y;   // display origin in the desktop
+        float ox = OutputOriginX, oy = OutputOriginY;   // display origin in OTD virtual-desktop space (#140)
         var points = new List<CalibrationReportPoint>(_measuredRaw.Count);
         for (int i = 0; i < _measuredRaw.Count && i < targetsDesktop.Count; i++)
         {
