@@ -31,6 +31,12 @@ public interface IDaemonLifecycleService
 
     /// <summary>Full executable path for a process id, or null if it can't be read (e.g. elevated).</summary>
     string? GetProcessPath(int processId);
+
+    /// <summary>The executable path of the one running daemon, or null if none — or more than one — is
+    /// running (ambiguous). Used off-Windows to identify the connected daemon when the pipe-server PID
+    /// isn't available (<c>GetNamedPipeServerProcessId</c> is Win32-only): the daemon pipe is a singleton,
+    /// so a single running daemon is the one we're connected to. (#140)</summary>
+    string? GetSingleRunningDaemonPath();
 }
 
 /// <inheritdoc />
@@ -86,5 +92,17 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             return proc.MainModule?.FileName;
         }
         catch { return null; }
+    }
+
+    public string? GetSingleRunningDaemonPath()
+    {
+        var procs = Process.GetProcessesByName(ProcessName);
+        try
+        {
+            // Only unambiguous when exactly one is running; MainModule may be unreadable (elevated/other user).
+            return procs.Length == 1 ? procs[0].MainModule?.FileName : null;
+        }
+        catch { return null; }
+        finally { foreach (var p in procs) p.Dispose(); }
     }
 }

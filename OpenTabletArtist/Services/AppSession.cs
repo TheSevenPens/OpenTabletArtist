@@ -1023,12 +1023,29 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private string? GetConnectedDaemonPath()
     {
         var pid = _daemon.GetServerProcessId();
-        return pid == null ? null : _daemonLifecycle.GetProcessPath(pid.Value);
+        if (pid != null) return _daemonLifecycle.GetProcessPath(pid.Value);
+        // Off-Windows the pipe-server PID isn't available (GetNamedPipeServerProcessId is Win32-only), so
+        // identify the connected daemon by the single running daemon process instead — the pipe is a
+        // singleton. Lets macOS/Linux show the daemon's version + source instead of "source unknown". (#140)
+        return _daemonLifecycle.GetSingleRunningDaemonPath();
     }
 
-    /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
-    /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
+    /// <summary>Best-effort product/file version off the daemon binary. Returns "" on any failure (missing
+    /// file, no version resource). Strips SemVer build metadata (e.g. "+abc123"). On macOS/Linux the daemon
+    /// is a native apphost with no version resource, so the stamp is read from the managed assembly beside it
+    /// (<c>OpenTabletDriver.Daemon.dll</c>) instead. (#140/#296)</summary>
     private static string ReadExecutableVersion(string path)
+    {
+        var version = ReadVersionStamp(path);
+        if (string.IsNullOrEmpty(version) && !path.EndsWith(".dll", System.StringComparison.OrdinalIgnoreCase))
+        {
+            var dll = path + ".dll"; // apphost "…/OpenTabletDriver.Daemon" → "…/OpenTabletDriver.Daemon.dll"
+            if (File.Exists(dll)) version = ReadVersionStamp(dll);
+        }
+        return version;
+    }
+
+    private static string ReadVersionStamp(string path)
     {
         try
         {
