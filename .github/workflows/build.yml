@@ -7,12 +7,13 @@ on:
 
 jobs:
   build-test:
-    # Windows is the shipping platform; the Linux lane guards against Windows-only assumptions creeping
-    # back in (hardcoded '\' / '.exe' paths, unguarded P/Invoke, CA1416) as the macOS port lands (#140).
+    # Windows is the shipping platform. The Linux lane guards against Windows-only assumptions creeping
+    # back in (hardcoded '\' / '.exe' paths, unguarded P/Invoke, CA1416). The macOS lane is the actual
+    # target platform for the port — it builds the daemon + app + tests on macOS as each phase lands (#140).
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, ubuntu-latest ]
+        os: [ windows-latest, ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout (with OpenTabletDriver submodule)

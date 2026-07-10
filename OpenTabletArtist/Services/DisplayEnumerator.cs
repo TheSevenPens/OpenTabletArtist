@@ -8,8 +8,8 @@ namespace OpenTabletArtist.Services;
 /// Static facade over <see cref="IDisplayEnumerator"/> (#140). Preserves the existing
 /// <c>DisplayEnumerator.Enumerate()</c> call sites while the platform decision lives in one place:
 /// on Windows it dispatches to <see cref="WindowsDisplayEnumerator"/> (GDI / DisplayConfig); on any
-/// other OS it returns an empty list until a cross-platform implementation is wired in (macOS plan,
-/// Phase 1). Tests inject a fake via <see cref="Use"/>.
+/// other OS to <see cref="AvaloniaScreensDisplayEnumerator"/> (cross-platform, via Avalonia's Screens).
+/// Tests inject a fake via <see cref="Use"/>.
 /// </summary>
 public static class DisplayEnumerator
 {
@@ -21,12 +21,7 @@ public static class DisplayEnumerator
     public static IReadOnlyList<DisplayInfo> Enumerate() => (_impl ??= CreateDefault()).Enumerate();
 
     private static IDisplayEnumerator CreateDefault() =>
-        OperatingSystem.IsWindows() ? new WindowsDisplayEnumerator() : new EmptyDisplayEnumerator();
-}
-
-/// <summary>Fallback for non-Windows until a real cross-platform enumerator lands (macOS plan, Phase 1).
-/// The app is Windows-only today, so this is never hit in production — it keeps the facade total.</summary>
-public sealed class EmptyDisplayEnumerator : IDisplayEnumerator
-{
-    public IReadOnlyList<DisplayInfo> Enumerate() => Array.Empty<DisplayInfo>();
+        OperatingSystem.IsWindows()
+            ? new WindowsDisplayEnumerator()
+            : new AvaloniaScreensDisplayEnumerator();
 }
