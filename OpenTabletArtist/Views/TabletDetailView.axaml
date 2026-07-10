@@ -723,6 +723,25 @@
                         <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton3Row}"
                                              IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     </WrapPanel>
+
+                    <!-- Pen input toggles (#469): per-profile flags that drop pressure/tilt or make pen
+                         button bindings drag-only. -->
+                    <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
+                            <ctrl:ToggleSetting Label="Disable pressure"
+                                                Description="Ignore pen pressure — apps get a flat on/off contact. This overrides the pressure curve on the Pressure Dynamics tab."
+                                                IsChecked="{Binding DisablePressure}" />
+                            <ctrl:ToggleSetting Label="Disable tilt"
+                                                Description="Ignore pen tilt, so apps receive no tilt from this tablet."
+                                                IsChecked="{Binding DisableTilt}" />
+                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays.
+                                 Re-enable by flipping IsVisible to True. -->
+                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                                IsChecked="{Binding DragBindingsEnabled}" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
         </ScrollViewer>
 
@@ -876,6 +895,15 @@
                             Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
                             ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
                 </Grid>
+
+                <!-- #469: when "Disable pressure" is on (Pen Inputs tab), the output stage drops pressure,
+                     so this curve has no effect. Flag it here so the tab isn't silently inert. -->
+                <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
+                        BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,4,0,8"
+                        IsVisible="{Binding PressureDisabledNote}">
+                    <TextBlock Text="Pressure is disabled for this tablet (Pen Inputs tab), so this curve has no effect right now. Turn off “Disable pressure” to use it."
+                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                </Border>
 
                 <!-- Live status: whether the current settings actually change pressure. -->
                 <TextBlock Text="{Binding PressureDynamicsStatusText}" TextWrapping="Wrap"

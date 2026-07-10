@@ -719,6 +719,36 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_forgetAction != null) await _forgetAction();
     }
 
+    // ── Pen input toggles (#469): per-profile BindingSettings flags applied on change ────────────────
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PressureDisabledNote))]
+    private bool _disablePressure;
+    [ObservableProperty] private bool _disableTilt;
+    [ObservableProperty] private bool _dragBindingsEnabled;
+    private bool _skipPenInputPersist;
+
+    /// <summary>Shown on the Pressure Dynamics tab when pressure is disabled — the curve then has no
+    /// effect, because the output stage drops pressure entirely (#469).</summary>
+    public bool PressureDisabledNote => DisablePressure;
+
+    partial void OnDisablePressureChanged(bool value)
+    {
+        if (_skipPenInputPersist) return;
+        _ = ApplySettingsChange(p => p.BindingSettings.DisablePressure = value);
+    }
+
+    partial void OnDisableTiltChanged(bool value)
+    {
+        if (_skipPenInputPersist) return;
+        _ = ApplySettingsChange(p => p.BindingSettings.DisableTilt = value);
+    }
+
+    partial void OnDragBindingsEnabledChanged(bool value)
+    {
+        if (_skipPenInputPersist) return;
+        _ = ApplySettingsChange(p => p.BindingSettings.EnableDragBindings = value);
+    }
+
     private void RefreshFromProfile()
     {
         // Output mode
@@ -736,6 +766,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Bindings — pen switches (tip, eraser, barrel buttons)
         var bindings = _profile.BindingSettings;
         RefreshPenSwitchRows();
+
+        // Pen input toggles (#469) — load without re-persisting.
+        _skipPenInputPersist = true;
+        DisablePressure = bindings.DisablePressure;
+        DisableTilt = bindings.DisableTilt;
+        DragBindingsEnabled = bindings.EnableDragBindings;
+        _skipPenInputPersist = false;
+        OnPropertyChanged(nameof(PressureDisabledNote));
 
         // ExpressKeys — editable single-key bindings. While mapping is suspended we show the stashed
         // bindings (greyed) so the user still sees what will come back.
