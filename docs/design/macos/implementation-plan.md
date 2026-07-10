@@ -202,6 +202,11 @@ robust across every OS-integration path.
 
 ## Phase 6 — Packaging + release
 
+> **Status: deferred to a V2 milestone** (decision 2026-07-10). Phases 0–5 delivered a working macOS app —
+> build, connect, tablets, display mapping, gating, calibration, daemon lifecycle, and a clean seam sweep.
+> Packaging is a self-contained workstream gated on **external decisions** (Apple Developer membership,
+> signing/notarization, CI secrets), so it's split out of the V1 port rather than blocking it.
+
 **Goal:** a distributable macOS build.
 
 - **`.app` bundle** with a proper name/icon (stop the menu bar reading "Avalonia Application").
