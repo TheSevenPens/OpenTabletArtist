@@ -283,6 +283,15 @@ Turned the spike findings into committed code on the `macos` branch:
     Bundled daemon"** (and an external daemon's real version + "external" — e.g. OTD.app's 0.6.6.2 — instead of
     "source unknown"). So OTA can happily use a pre-existing non-bundled daemon *and always show its version*.
   Suite **564 passed**.
+- **Calibration works end-to-end on macOS.** Beyond launching (seam guards above), two problems made the
+  overlay useless there, same root cause — it didn't truly cover the display: AppKit's `constrainFrameRect`
+  pushed the borderless window ~30 px *below* the menu bar, so targets were laid out low and the affine came
+  out misaligned (measured landed below target, worst at the top — confirmed against the on-device calibration
+  report), and the menu bar drew over the top strip. Fixed by reaching the `NSWindow` (via the platform handle,
+  descriptor-checked ObjC interop) to raise it past `kCGMainMenuWindowLevel` and set its frame to the
+  `NSScreen`'s full frame (native coords, no constraint). **Verified live on the Movink: menu bar covered, and
+  the pen tracks the nib after calibrating.** This exercised the calibration seam (`SetCursor` /
+  `Win32Properties` guards) too — it launches and completes cleanly on macOS.
 
 ## Recommended next step
 
