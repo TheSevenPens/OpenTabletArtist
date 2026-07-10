@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
@@ -12,7 +13,10 @@ namespace OpenTabletArtist.Services;
 /// any failure just yields blank names, never throws.
 /// </summary>
 /// <remarks>Moved verbatim from the former static <c>DisplayEnumerator</c> when the platform seam was
-/// extracted (#140). Windows behaviour is unchanged; the static facade now dispatches here on Windows.</remarks>
+/// extracted (#140). Windows behaviour is unchanged; the static facade now dispatches here on Windows.
+/// Marked Windows-only for CA1416 (Phase 0.1); the facade only constructs it under an
+/// <see cref="System.OperatingSystem.IsWindows"/> guard.</remarks>
+[SupportedOSPlatform("windows")]
 public sealed class WindowsDisplayEnumerator : IDisplayEnumerator
 {
     public IReadOnlyList<DisplayInfo> Enumerate()

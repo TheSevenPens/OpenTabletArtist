@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Platform-compatibility analyzer (CA1416), macOS plan Phase 0.1 (#140).
+
+    Only OUR projects import this file: the OTD submodule has its own
+    external/OpenTabletDriver/Directory.Build.props, and MSBuild imports the nearest one walking up,
+    so these settings never reach the submodule.
+
+    CA1416 flags calls into Windows-only APIs (BCL ones, and our own types annotated with
+    [SupportedOSPlatform("windows")]) from code that isn't itself Windows-guarded — turning the two
+    runtime bugs the macOS port hit into compile-time errors. It is promoted to an error below so an
+    unguarded Windows-only call can't merge. As more Windows-only classes are annotated (Phase 0.1
+    continuing) their call sites must be guarded (Phase 0.6) in the same change to keep this green.
+  -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);CA1416</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>
