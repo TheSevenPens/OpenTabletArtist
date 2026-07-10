@@ -175,12 +175,14 @@ public class DialogService : IDialogService
         var input = new Domain.MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
         var output = new Domain.MappingArea(disp.X, disp.Y, disp.Width, disp.Height);
 
-        // The mapped display = the monitor whose top-left matches the output area's origin.
-        var originX = disp.X - disp.Width / 2;
-        var originY = disp.Y - disp.Height / 2;
+        // Find the mapped monitor with the SAME 0-based-desktop-aware matching the rest of the app uses
+        // (DisplayMappingApplier.CurrentlyMapped / MappedCenter). The previous ad-hoc origin compare assumed
+        // the desktop origin was (0,0), so it broke whenever a monitor sits at a negative virtual-desktop
+        // coordinate — e.g. a display to the left of / above the primary (common with 3+ monitors, and seen
+        // on macOS): the stored area is in min-shifted coords, so it no longer equalled a raw display
+        // position and calibration wrongly reported "couldn't match". (#140)
         var displays = DisplayEnumerator.Enumerate();
-        var display = displays.FirstOrDefault(d => System.Math.Abs(d.X - originX) <= 2 && System.Math.Abs(d.Y - originY) <= 2)
-                      ?? displays.FirstOrDefault(d => disp.X >= d.X && disp.X <= d.X + d.Width && disp.Y >= d.Y && disp.Y <= d.Y + d.Height);
+        var display = Domain.DisplayMappingApplier.CurrentlyMapped(profile, displays);
         if (display is null)
         {
             await ShowMessageAsync("Calibration unavailable",
