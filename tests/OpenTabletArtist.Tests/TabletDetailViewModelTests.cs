@@ -316,4 +316,36 @@ public class TabletDetailViewModelTests
         vm.SelectMovementCommand.Execute("relative");      // redundant again, now on Relative
         Assert.Equal(1, applies);                          // still just the one
     }
+
+    // --- macOS/native output modes (#140) ---
+    // Absolute/relative is recognised by the mode's type path carrying the word, so OTD's built-in
+    // AbsoluteMode/RelativeMode (used on macOS/Linux, where the Windows Ink plugin doesn't exist) are
+    // detected — which is what makes calibration + the movement toggle work off-Windows.
+
+    private static Settings ModeSettingsWith(string tablet, string modePath)
+    {
+        var settings = SettingsWith(tablet);
+        settings.Profiles.First().OutputMode = new PluginSettingStore(modePath) { Path = modePath };
+        return settings;
+    }
+
+    [Fact]
+    public void NativeAbsoluteMode_ReadsAsAbsolute_AndAllowsCalibration()
+    {
+        var settings = ModeSettingsWith("T", "OpenTabletDriver.Desktop.Output.AbsoluteMode");
+        var vm = new TabletDetailViewModel(settings.Profiles.First(), settings);
+
+        Assert.True(vm.IsAbsoluteMode);   // recognised as absolute despite not being Windows Ink
+        Assert.True(vm.CanCalibrate);     // calibration is available in any absolute mode
+    }
+
+    [Fact]
+    public void NativeRelativeMode_ReadsAsRelative_NoCalibration()
+    {
+        var settings = ModeSettingsWith("T", "OpenTabletDriver.Desktop.Output.RelativeMode");
+        var vm = new TabletDetailViewModel(settings.Profiles.First(), settings);
+
+        Assert.False(vm.IsAbsoluteMode);
+        Assert.False(vm.CanCalibrate);
+    }
 }
