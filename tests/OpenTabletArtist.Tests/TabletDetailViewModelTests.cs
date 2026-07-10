@@ -376,6 +376,10 @@ public class TabletDetailViewModelTests
     [Fact]
     public async Task FixOutputMode_ForcesWinInkAbsolute_EvenFromNativeAbsolute()
     {
+        // "Fix to Windows Ink" is a Windows-only remediation (CanFixOutputMode is IsWindows()-gated), so
+        // this scenario only applies on Windows — matching the SingleInstanceTests convention.
+        if (!OperatingSystem.IsWindows()) return;
+
         var settings = SettingsWithMode("T", NativeAbsolute);
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
