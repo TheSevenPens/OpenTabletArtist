@@ -238,19 +238,31 @@ Turned the spike findings into committed code on the `macos` branch:
   backslash paths while the service builds snapshot paths via `Path.Combine` (`/` on macOS), so lookups missed
   and switches no-oped. Both now build OS-appropriate paths; the product code (`ExecutablePath.SameFile`,
   `ProfileSwitchService.SnapshotPath`) was correct all along. **Suite: 561 passed, 0 failed on macOS** (#73).
+- **Display-Mapping fidelity validated on macOS — the logical-points concern is resolved.** The open question
+  was whether OTA's Avalonia-derived geometry (logical points) matches the coordinate space the macOS daemon
+  uses. Answer: **yes, exactly.** Read the live daemon's stored area (configured by OTD.app's own macOS UX) —
+  the ASUS mapping was `Display W=1920 H=1080, centre (960,540)`, precisely what `AvaloniaScreensDisplayEnumerator`
+  reports and what `DisplayMappingApplier.MappedCenter` computes. OTD's macOS output uses the same CoreGraphics
+  points space Avalonia reports, so there is **no physical-vs-logical scale mismatch**. Confirmed live: the
+  Display-Mapping tab renders both real monitors (ASUS PA329CV · Primary, Wacom DTH135) with friendly names and
+  **highlights the correct mapped display** via `CurrentlyMapped` against the real daemon area. Added a regression
+  test (`MacOsLogicalPointsGeometry_AgreesWithDaemonStoredArea`) encoding the real geometry + daemon area. **Suite:
+  562 passed, 0 failed.**
 
 ## Recommended next step
 
-The daemon foundation, the display seam, a clean live GUI boot, the Windows-only-surface feature-gating, **and a
-green test suite on macOS** are done — macOS boots to a usable, un-nagging
-connect→profiles→mapping→dynamics→calibration→test core. Next, in order:
+The daemon foundation, the display seam, a clean live GUI boot, the Windows-only-surface feature-gating, a green
+test suite, **and validated display-mapping fidelity** are done — the macOS **portable core is functionally
+proven end-to-end**: connect → profiles → area mapping → dynamics → calibration → test, mapping to the right
+monitor, with no Windows-only nagging. Remaining work is hardening + shipping, in order:
 
-1. **Validate Display-Mapping fidelity on macOS** — confirm the logical-points geometry (see above) maps
-   correctly through `DisplayMappingApplier`, and click through the Display-Mapping tab in the live GUI.
-2. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
-   overlay placement — and give any that hard-throw on macOS a no-op/guard (most already degrade).
-3. Later: packaging — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
+1. **Exercise the remaining seams live on a Mac** — global-hotkey registration, tray actions, calibration-
+   overlay placement — and give any that hard-throw on macOS a no-op/guard (most already degrade; the GUI boots
+   without touching them fatally).
+2. **Packaging** — `.app` bundle, signing + notarization, a macOS CI lane. (Cosmetic: the macOS app menu
    currently reads "Avalonia Application" — set a proper bundle/app name during packaging.)
+3. **Optional polish** — a macOS output-story pass (guided setup surfacing OTD's native output), and higher-
+   fidelity display info if wanted (Avalonia gives geometry + name but not refresh/port/GPU).
 
 ## Resolved (design review #148)
 
