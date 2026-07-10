@@ -1,10 +1,13 @@
 # macOS support for OpenTabletArtist (#140)
 
-> **Status (2026-07-10): feasibility PROVEN, end-to-end, on real hardware.**
-> The `macos` exploration branch takes OTA from "Windows-only" to a **running, connected, usable** macOS
-> build: it compiles, connects to the OpenTabletDriver daemon, detects the real tablet, maps to the correct
-> display, switches output mode, and **calibrates correctly** — with the Windows-only surface hidden and the
-> full test suite green. What remains is **packaging** (`.app` + signing/notarization), not foundational risk.
+> **Status (2026-07-10): V1 port COMPLETE and merged to `master`.**
+> Phases 0–5 shipped as reviewed, Windows-safe PRs (#511, #513, #514, #515/#516/#517, #518, #519) and are
+> verified live on Apple-Silicon macOS with a Wacom Movink 13: OTA compiles, connects to the OpenTabletDriver
+> daemon, detects the real tablet, maps to the correct display, switches output mode, **calibrates**, reports
+> daemon version/source, and boots clean with every OS seam guarded — the Windows-only surface hidden and the
+> full suite green on all three CI lanes. **Phase 6 (packaging: `.app` + signing/notarization) is deferred to a
+> V2 milestone**; a ~1% calibration drift is parked. See [macos/HANDOFF.md](macos/HANDOFF.md) for the full
+> status. This document is the historical feasibility record.
 
 This document is the **hub**. The detail lives in focused sub-documents under [`macos/`](macos/):
 
@@ -58,11 +61,11 @@ The realistic target is **"the same app with a macOS-appropriate output story"**
 | Display mapping fidelity (Avalonia points vs. daemon coordinates) | ✅ exact match — no scaling mismatch |
 | Windows-only surface hidden (VMulti / Ink / Driver-cleanup / Startup + health nags) | ✅ gated off |
 | Output mode: native Absolute/Relative recognised → calibration available | ✅ |
-| Calibration runs and **aligns correctly** (overlay covers the full display) | ✅ live-verified with the pen |
-| Daemon lifecycle: correct exe name, Restart launches the bundled daemon, version + source shown | ✅ |
-| OS-integration seams (hotkeys, tray, watcher, overlay) safe off-Windows | ✅ guarded; tray works as a menu-bar item |
-| Test suite | ✅ **564 passing, 0 failing** on macOS |
-| Packaging (`.app` bundle, code-signing, notarization, macOS CI lane) | ⛔ not started — the remaining work |
+| Calibration runs and improves alignment (overlay covers the full display; capture handles negative-origin layouts) | ✅ live-verified with the pen; a ~1% residual drift is parked (see [HANDOFF](macos/HANDOFF.md)) |
+| Daemon lifecycle: correct exe name, Restart launches the bundled daemon, version + source shown | ✅ live-verified (external v0.6.6.2 / bundled v0.6.7) |
+| OS-integration seams (hotkeys, tray, watcher, overlay, shell hooks) safe off-Windows | ✅ guarded; tray works as a menu-bar item; reveal-in-file-manager opens Finder |
+| Test suite | ✅ **587 passing, 0 failing** on the Windows/Linux/macOS lanes |
+| Packaging (`.app` bundle, code-signing, notarization, macOS CI lane) | ⏭️ **deferred to a V2 milestone** (external gates: Apple Developer signing/notarization) |
 
 ## Verdict
 

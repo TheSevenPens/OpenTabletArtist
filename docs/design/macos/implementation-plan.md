@@ -11,6 +11,23 @@
 > Phase 5 but belong in the defensive 0.6 wave; (3) Phase 0.5's test-hygiene scope was under-counted. These are
 > now reflected below.
 
+## Status (2026-07-10): Phases 0–5 done; Phase 6 → V2
+
+The V1 port is complete and merged to `master`, verified live on Apple-Silicon macOS with a Wacom Movink 13:
+
+| Phase | Status |
+|---|---|
+| 0 — Windows-safe prep | ✅ merged (#511) |
+| 1 — Build + connectivity | ✅ merged (#513) |
+| 2 — Feature-gating | ✅ merged (#514) |
+| 3 — Output + calibration | ✅ merged (#515 / #516 / #517) |
+| 4 — Daemon lifecycle | ✅ merged (#518) |
+| 5 — Seam runtime safety | ✅ merged (#519) |
+| 6 — Packaging + release | ⏭️ **deferred to V2** (external gates: Apple Developer signing/notarization) |
+
+Parked: a ~1% calibration pointer drift (diagnostics on branch `diagnostics/calibration-macos`). Full status +
+V2 pickup in [HANDOFF.md](HANDOFF.md).
+
 ## How to use this plan
 
 - The `macos` branch is the **worked reference**, not the thing to merge. For each phase below, the
