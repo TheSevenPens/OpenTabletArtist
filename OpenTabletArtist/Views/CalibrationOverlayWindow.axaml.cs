@@ -216,8 +216,7 @@ public partial class CalibrationOverlayWindow : Window
     private static extern IntPtr SetCursor(IntPtr hCursor);
 
     // Cover the mapped display. Move onto the target monitor (picked by containment of the display's
-    // centre, robust to rounding / DPI — #179), then go FullScreen so the OS sizes the window to the
-    // whole monitor. Doing the sizing ourselves via Bounds/Scaling mis-covered scaled displays.
+    // centre, robust to rounding / DPI — #179).
     private void PlaceOnDisplay()
     {
         if (_display is not { } display) return;
@@ -225,7 +224,22 @@ public partial class CalibrationOverlayWindow : Window
         var centre = new PixelPoint(display.X + display.Width / 2, display.Y + display.Height / 2);
         var screen = Screens.ScreenFromPoint(centre);
         Position = screen?.Bounds.Position ?? new PixelPoint(display.X, display.Y);
-        WindowState = WindowState.FullScreen;
+
+        if (OperatingSystem.IsWindows() || screen is null)
+        {
+            // Windows: FullScreen lets the OS size the window to the whole monitor (sizing it ourselves via
+            // Bounds/Scaling mis-covered scaled displays there).
+            WindowState = WindowState.FullScreen;
+            return;
+        }
+
+        // macOS/Linux: WindowState.FullScreen enters a native fullscreen Space that only covers the working
+        // area (below the menu bar) and can animate onto the wrong display — leaving the top calibration
+        // targets under the menu bar and the tablet→overlay mapping off. A borderless window
+        // (WindowDecorations=None) isn't constrained to the visible frame, so size it to the display's full
+        // bounds to cover the whole screen, menu bar included. (#140)
+        Width = screen.Bounds.Width / screen.Scaling;
+        Height = screen.Bounds.Height / screen.Scaling;
     }
 
     private void BuildAndLayout()
