@@ -138,10 +138,11 @@
                     </ItemsControl>
                 </Grid>
 
-                <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDialogCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="16,8" Margin="0,0,8,0" />
-                <Button Grid.Column="2" Content="Save" Command="{Binding SaveCommand}"
-                        Theme="{StaticResource AccentButton}" Padding="22,8" />
+                <!-- Affirmative first/left, Windows convention (#502). -->
+                <Button Grid.Column="1" Content="Save" Command="{Binding SaveCommand}"
+                        Theme="{StaticResource AccentButton}" Padding="22,8" Margin="0,0,8,0" />
+                <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelDialogCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="16,8" />
             </Grid>
         </StackPanel>
 

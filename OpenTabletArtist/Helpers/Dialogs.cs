@@ -174,8 +174,9 @@ public static class Dialogs
                         Spacing = 8,
                         Children =
                         {
-                            new Button { Content = "No", Padding = new Thickness(24, 8), FontSize = 13 },
-                            new Button { Content = "Yes", Padding = new Thickness(24, 8), FontSize = 13 }
+                            // Windows convention: the affirmative action goes first/left (#502).
+                            new Button { Content = "Yes", Padding = new Thickness(24, 8), FontSize = 13 },
+                            new Button { Content = "No", Padding = new Thickness(24, 8), FontSize = 13 }
                         }
                     }
                 }
@@ -184,8 +185,8 @@ public static class Dialogs
 
         var panel = (StackPanel)dialog.Content;
         var btnPanel = (StackPanel)panel.Children[1];
-        var noBtn = (Button)btnPanel.Children[0];
-        var yesBtn = (Button)btnPanel.Children[1];
+        var yesBtn = (Button)btnPanel.Children[0];
+        var noBtn = (Button)btnPanel.Children[1];
 
         noBtn.Click += (_, _) => { result = false; dialog.Close(); };
         yesBtn.Click += (_, _) => { result = true; dialog.Close(); };
@@ -234,8 +235,9 @@ public static class Dialogs
                         Spacing = 8,
                         Children =
                         {
-                            new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13 },
-                            new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13 }
+                            // Windows convention: the affirmative action goes first/left (#502).
+                            new Button { Content = "OK", Padding = new Thickness(24, 8), FontSize = 13 },
+                            new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13 }
                         }
                     }
                 }
@@ -244,8 +246,8 @@ public static class Dialogs
 
         var panel = (StackPanel)dialog.Content;
         var btnPanel = (StackPanel)panel.Children[2];
-        var cancelBtn = (Button)btnPanel.Children[0];
-        var okBtn = (Button)btnPanel.Children[1];
+        var okBtn = (Button)btnPanel.Children[0];
+        var cancelBtn = (Button)btnPanel.Children[1];
 
         cancelBtn.Click += (_, _) => dialog.Close();
         okBtn.Click += (_, _) => { result = textBox.Text; dialog.Close(); };
