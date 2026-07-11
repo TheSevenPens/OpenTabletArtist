@@ -1,8 +1,9 @@
 # macOS port — status & handoff
 
 > **Status (2026-07-10): the V1 macOS port is complete.** Phases 0–5 are implemented, verified live on
-> Apple-Silicon macOS 26 (Darwin 25.5) with a Wacom Movink 13, and **merged to `master`**. **Phase 6
-> (packaging + release) is deferred to a V2 milestone.** OTA on macOS now builds, connects, lists tablets,
+> Apple-Silicon macOS 26 (Darwin 25.5) with a Wacom Movink 13, and **merged to `master`**. **Packaging is
+> split: Phase 6 (an OTD-compatible self-contained `.app`, no Apple account) is the unblocked next step;
+> Phase 7 (notarization + full Developer-ID signing) is deferred to V2.** OTA on macOS now builds, connects, lists tablets,
 > maps to the correct display, hides the Windows-only surface, runs pointer calibration, reports daemon
 > version/source, and boots clean with every OS seam guarded.
 
@@ -44,17 +45,24 @@ Build with `dotnet build OpenTabletArtist.slnx`; test with `dotnet test` (587 te
 Phase 3 negative-origin fixes, so its calibration would fail to capture on a display at a negative origin).
 Use it to see how a capability was done; re-implement as a fresh, reviewed, Windows-safe PR.
 
-## V2 — where the next milestone picks up (Phase 6: packaging + release)
+## Packaging — Phase 6 (unblocked) then Phase 7 (deferred)
 
-Deferred, and gated on decisions this repo can't make. When V2 starts, see
-[implementation-plan.md → Phase 6](implementation-plan.md#phase-6--packaging--release). It needs:
+Split so the part that needs no Apple account can proceed. See
+[implementation-plan.md → Phase 6](implementation-plan.md#phase-6--packaging-otd-compatible-no-apple-account).
 
-- A distributable **`.app`** (name/icon — stop the menu bar reading "Avalonia Application").
-- A **self-contained bundled daemon** (its own runtime) so it launches without a system .NET 8.
-- **Code-signing + notarization** — an **Apple Developer Program** membership + a **CI secrets story**
-  (signing identity + notarization credentials).
-- A **permissions UX** for the Accessibility / Input Monitoring grants (the catch-22 the port kept hitting: a
-  freshly-built daemon binary has no TCC grants; OTD.app's signed daemon does).
+**Phase 6 — OTD-compatible packaging (no Apple account, doable now).** Bring OTA to the level OTD itself ships
+at: a self-contained `.app` with the **daemon bundled**, **ad-hoc / `rcodesign` signed** (OTD's
+`eng/bash/macos/package.sh` is the reference — `rcodesign` even signs from Linux/CI), packaged as a **tarball**.
+Same first-launch caveat as OTD (right-click → Open). Groundwork exists (`Application.Name`,
+`scripts/bundle-macos-app.sh`, the `BundleMacApp` publish target from #520/#522/#523). Key insight: a **stable
+signing identity is what makes the Input Monitoring / Accessibility grant persist across rebuilds** — the
+catch-22 the port kept hitting (a fresh `dotnet build` daemon has a new cdhash → no TCC grant; OTD.app's signed
+daemon keeps its). Plus a **permissions UX** for the grants (OTD ships a `PermissionHelper`).
+
+**Phase 7 — full signing + notarization (deferred to V2).** The only part gated on external, paid decisions:
+a **Developer ID Application** cert (**Apple Developer Program** membership), `notarytool` + `stapler`, and a
+**CI secrets story**. Result: downloads open by double-click with no Gatekeeper prompt. (OTD does *not*
+notarize today, so this is beyond OTD-parity.)
 
 ## Document map
 

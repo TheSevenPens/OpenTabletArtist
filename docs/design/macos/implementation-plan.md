@@ -23,7 +23,8 @@ The V1 port is complete and merged to `master`, verified live on Apple-Silicon m
 | 3 — Output + calibration | ✅ merged (#515 / #516 / #517) |
 | 4 — Daemon lifecycle | ✅ merged (#518) |
 | 5 — Seam runtime safety | ✅ merged (#519) |
-| 6 — Packaging + release | ⏭️ **deferred to V2** (external gates: Apple Developer signing/notarization) |
+| 6 — Packaging (OTD-compatible; no Apple account) | ▶️ **planned / unblocked** — self-contained `.app` + bundled daemon, ad-hoc/`rcodesign` signing, tarball (OTD's shipping level) |
+| 7 — Full signing + notarization | ⏭️ **deferred to V2** (external gate: paid Apple Developer membership) |
 
 Parked: a ~1% calibration pointer drift (diagnostics on branch `diagnostics/calibration-macos`). Full status +
 V2 pickup in [HANDOFF.md](HANDOFF.md).
@@ -217,29 +218,55 @@ robust across every OS-integration path.
 
 ---
 
-## Phase 6 — Packaging + release
+## Phase 6 — Packaging (OTD-compatible; no Apple account)
 
-> **Status: deferred to a V2 milestone** (decision 2026-07-10). Phases 0–5 delivered a working macOS app —
-> build, connect, tablets, display mapping, gating, calibration, daemon lifecycle, and a clean seam sweep.
-> Packaging is a self-contained workstream gated on **external decisions** (Apple Developer membership,
-> signing/notarization, CI secrets), so it's split out of the V1 port rather than blocking it.
+> **Status: unblocked** (decision 2026-07-10 — split from the old "packaging" phase). This brings OTA to the
+> **same packaging level OTD itself ships at today**: a self-contained `.app` with the daemon bundled, ad-hoc /
+> `rcodesign` signed, distributed as a tarball — runnable on any Mac **without a paid Apple account** (same
+> first-launch caveat as OTD: right-click → Open). Full Developer-ID signing + notarization is split into the
+> deferred **Phase 7**. Groundwork already exists from the local-`.app` work (#520/#522/#523).
 
-**Goal:** a distributable macOS build.
+**Goal:** a self-contained, OTD-compatible macOS `.app` + tarball, buildable in CI without an Apple membership.
 
-- **`.app` bundle** with a proper name/icon (stop the menu bar reading "Avalonia Application").
-- **Self-contained bundled daemon** (its own runtime) so it launches without a system .NET install.
-- **Code-signing + notarization** (Apple Developer account) so Gatekeeper allows it.
-- **Permissions UX** — guide the user through Accessibility / Input Monitoring grants (OTD ships a
+- **`.app` bundle** — name/icon/Info.plist. Done for the local build (`Application.Name`,
+  `scripts/bundle-macos-app.sh`, the `BundleMacApp` publish target); formalize it into the release output.
+- **Bundle the daemon into the app** (self-contained, its own runtime) so OTA launches *its own* daemon — no
+  dependency on OTD.app or a system .NET. Mirror OTD's single-bundle layout (daemon + GUI together in
+  `Contents/MacOS`; see OTD's `eng/bash/macos/package.sh`).
+- **Signing — ad-hoc / `rcodesign`, matching OTD:** prefer `rcodesign` (signs a macOS bundle from Linux/CI, no
+  Mac needed), fall back to `codesign --deep --force --sign -`. A **stable signing identity is what makes the
+  Input Monitoring / Accessibility grant persist across rebuilds** — the catch-22 the port kept hitting (a
+  fresh `dotnet build` binary changes its cdhash → loses the grant).
+- **Permissions UX** — guide the user through the Accessibility / Input Monitoring grants (OTD ships a
   `PermissionHelper`).
-- **macOS CI lane** — build + test + package (and ideally signed/notarized artifacts).
+- **Package + CI** — tarball the `.app` (as OTD does); add a macOS build+package CI lane.
 
-**Verification:** a clean-machine install runs without Gatekeeper blocks; permissions flow is clear; the daemon
-launches self-contained. **Exit:** a shippable macOS release.
+**Verification:** on a clean Mac (no dev tooling) the tarball's `.app` launches (right-click → Open once past
+Gatekeeper, like OTD), the bundled daemon runs self-contained, the pen works after granting Input Monitoring,
+and the grant **survives a re-launch of the same signed build**. **Exit:** an OTD-level self-contained `.app` +
+tarball, produced in CI without an Apple account.
 
-**Risk:** this is the **main remaining unknown** — Apple tooling (signing/notarization) and the release
-workflow, independent of the app itself. Everything upstream is proven. Concretely, notarization needs an
-**Apple Developer Program membership** (paid) and a **CI secrets story** (signing identity + notarization
-credentials in the pipeline), not just "tooling" — treat both as external gates in the exit criteria.
+**Risk:** low–medium. `rcodesign` + ad-hoc signing are proven (OTD uses exactly this); daemon-bundling is a
+publish/layout change. **No external/paid gates** — those are Phase 7.
+
+---
+
+## Phase 7 — Full signing + notarization (deferred to V2)
+
+> **Status: deferred** — the only part gated on external, paid decisions. Do this when a Gatekeeper-clean,
+> double-click-to-open release is wanted. Note OTD itself does **not** notarize today, so this is strictly
+> *beyond* OTD-parity.
+
+**Goal:** a notarized macOS release that opens with no Gatekeeper warning at all.
+
+- **Developer ID Application certificate** — an **Apple Developer Program** membership (paid).
+- **Notarize + staple** — `notarytool` submit + `stapler` on the `.app` / tarball (or a `.dmg`).
+- **CI secrets story** — the signing identity + notarization credentials wired into the pipeline.
+
+**Verification:** a freshly-downloaded build opens by double-click, no right-click-Open dance, no Gatekeeper
+prompt. **Exit:** a shippable, notarized macOS release.
+
+**Risk:** external only — Apple tooling + a paid membership + CI secrets, independent of the app.
 
 ---
 
