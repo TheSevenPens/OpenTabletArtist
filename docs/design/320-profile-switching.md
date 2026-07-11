@@ -37,9 +37,10 @@ is a complete, self-contained config (mapping, dynamics, pen switches, tablet bu
   [167-per-app-settings-design.md](167-per-app-settings-design.md) (concrete design: `IForegroundAppWatcher`,
   `PerAppSwitcher`, `PerAppProfileStore`, switch-policy state machine, live-apply-only path, data model, UI, tests).
 
-**Key insight:** the thing blocking OTD (cross-platform focus detection) **doesn't block us** —
-OpenTabletArtist is **Windows-only**, so a `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` foreground watcher
-is trivial. OTA is the right layer to add this on top of OTD.
+**Key insight:** the thing blocking OTD (cross-platform focus detection) **doesn't block us** — per-app /
+foreground switching currently targets **Windows**, where a `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`
+foreground watcher is trivial (a macOS `NSWorkspace` backend is deferred). OTA is the right layer to add
+this on top of OTD.
 
 ## Persistence angle (from #321)
 

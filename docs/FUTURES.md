@@ -48,8 +48,8 @@ Several items once listed here have shipped and are no longer "future":
 
 ## Long-Term (Distribution and Platform)
 
-- **Packaging as a Standalone App** — Publish/bundle options (single-file, framework-dependent, installer/MSIX) and shipping the daemon. ([#71](https://github.com/TheSevenPens/OpenTabletArtist/issues/71))
-- **Cross-Platform Verification** — Test/guard the Windows-specific paths so the app runs on macOS/Linux. ([#73](https://github.com/TheSevenPens/OpenTabletArtist/issues/73))
+- **Packaging as a Standalone App** — Windows already ships a self-contained `win-x64` build (`release.yml`). Remaining: **macOS packaging** — a self-contained, ad-hoc-signed `.app` with the daemon bundled (Phase 6), then notarization + Developer-ID signing (Phase 7, V2); see [macOS handoff](design/macos/HANDOFF.md). ([#71](https://github.com/TheSevenPens/OpenTabletArtist/issues/71))
+- **Cross-Platform Verification** — **Done for macOS**: Phases 0–5 are merged and live-verified on Apple-Silicon macOS (build, connect, detect, map, calibrate; Windows-only surface gated off) — see [macOS handoff](design/macos/HANDOFF.md). **Linux** is feasibility-assessed (builds + tests on the CI matrix; [192-linux-feasibility.md](design/192-linux-feasibility.md)) pending live verification on hardware. ([#73](https://github.com/TheSevenPens/OpenTabletArtist/issues/73))
 - **Accessibility** — Keyboard nav, screen-reader labels, high-contrast theme, and reduced-motion support. ([#74](https://github.com/TheSevenPens/OpenTabletArtist/issues/74))
 - **Localization** — Extract user-facing strings into a translation system; add RTL support. ([#75](https://github.com/TheSevenPens/OpenTabletArtist/issues/75))
 

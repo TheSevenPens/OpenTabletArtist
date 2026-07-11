@@ -160,7 +160,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **Rationale:** The original Svelte 5 frontend had a persistent navigation bug where client-side routing broke when navigating back to previously-visited pages. This was traced to a Svelte 5 rendering issue. The app was first rebuilt as WPF (Windows-only), then converted to Avalonia UI for cross-platform potential. Avalonia provides native navigation via simple property binding (`CurrentPage` → `ContentControl`, resolved by typed `DataTemplate`s), direct named pipe access (no bridge needed), and eliminates an entire process from the architecture.
 
-**Trade-off:** Avalonia is cross-platform capable but Windows-specific features (P/Invoke for display enumeration, vmulti detection) currently limit portability. The glassmorphism design language translates well to Avalonia's styling system.
+**Trade-off:** Avalonia is cross-platform capable, and the macOS port (Phases 0–5, merged) realized that potential — the OS-integration seams (e.g. `IDisplayEnumerator`) now have cross-platform implementations. A few features remain Windows-only *by nature* (vmulti detection, the Windows Ink output mode) and are hidden off-Windows. The glassmorphism design language translates well to Avalonia's styling system.
 
 ### 2. Direct daemon connection instead of bridge
 
@@ -218,7 +218,7 @@ This component is not part of our codebase. It is the standard OTD daemon, runni
 
 **TabletDriverCleanup integration.** The app can download and run [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) (the official OTD-team driver cleanup tool) from the Driver Cleanup page, which also surfaces the daemon's conflicting-driver detections as cards (and a Home alert). Uses the same pattern as VMulti install — downloads ZIP from GitHub, extracts to temp, launches the exe as admin. Unlike VMulti install, the terminal window is left visible (no `CreateNoWindow`) so the user can read the cleanup results directly, matching the usage described in the SevenPens documentation.
 
-**Display enumeration.** System displays are enumerated using Win32 `EnumDisplayMonitors()` + `EnumDisplaySettings()` — the same APIs OTD uses internally. The Screen Mapping tab draws them to scale in the `ScreenMappingDiagram` (click a monitor, then *Apply mapping*).
+**Display enumeration.** System displays are enumerated behind the `IDisplayEnumerator` seam, chosen by `OperatingSystem.IsWindows()` through the static `DisplayEnumerator` facade: on Windows via Win32 `EnumDisplayMonitors()` + `EnumDisplaySettings()` (`WindowsDisplayEnumerator` — the same APIs OTD uses internally), and elsewhere via Avalonia `Screens` (`AvaloniaScreensDisplayEnumerator`). The Screen Mapping tab draws them to scale in the `ScreenMappingDiagram` (click a monitor, then *Apply mapping*).
 
 **Aspect ratio lock.** When mapping a tablet to a display, the tablet area height is automatically adjusted to match the display's aspect ratio (`LockAspectRatio = true`), ensuring proportional 1:1 mapping with no distortion.
 
@@ -302,7 +302,7 @@ Logic that doesn't need a UI is unit-tested with **xUnit** in `tests/OpenTabletA
 - **Pure logic in `Domain/`** (area-mapping math, preset/config naming, version comparison, diagnostics math) is tested with no scaffolding.
 - **Seams behind interfaces** — `ISettingsFileStore`, `IDaemonLifecycleService`, the `AppSession` role interfaces, `IDaemonDebugSession`, plus `Concurrency/` primitives — are exercised with small hand-written fakes, so page VMs and session behavior (e.g. the daemon Stop/Start auto-reconnect gate) are covered without a real daemon.
 
-GitHub Actions (`.github/workflows/build.yml`) checks out the submodule recursively, sets up the .NET 8 + .NET 10 SDKs, and runs `dotnet build OpenTabletArtist.slnx` + `dotnet test` on `windows-latest` for every push and PR.
+GitHub Actions (`.github/workflows/build.yml`) checks out the submodule recursively, sets up the .NET 8 + .NET 10 SDKs, and runs `dotnet build OpenTabletArtist.slnx` + `dotnet test` on a `windows-latest` / `ubuntu-latest` / `macos-latest` matrix for every push and PR — Windows is the shipping platform, the Linux lane guards against Windows-only assumptions creeping back in, and the macOS lane is the port's target platform (#140).
 
 **Releases.** `.github/workflows/release.yml` publishes a downloadable Windows build when a `v*` tag is pushed (or via manual dispatch). It runs the tests, then `dotnet publish`es the app **self-contained for `win-x64`** (no .NET runtime needed on the user's machine) and the OTD daemon into a `Daemon/` subfolder next to the app, zips the result, and attaches it to a GitHub Release with generated notes. The bundled `Daemon/` path is what `Domain/DaemonExePaths` checks first, so the daemon auto-starts from the release layout exactly as in dev. To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
 
