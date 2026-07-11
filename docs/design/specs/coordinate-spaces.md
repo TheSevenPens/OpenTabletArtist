@@ -9,6 +9,12 @@
 > an unresolved tension (points vs pixels vs scaling), it's flagged **⚠ OPEN** and must be settled by live
 > measurement before this spec is "done."
 
+> **Quick rule (the one to internalise).** OTD stored areas + `MapToDesktop` output = **space [3]**
+> (min-shifted, top-left, +Y down). `DisplayInfo` = **space [4]** (raw OS coords, can be negative). The
+> UI/overlay = **space [5]** (logical points). **Never subtract a [4] value from a [3] value without `−min`** —
+> that single mix is #517. And the mapper output isn't the cursor coordinate a probe reads: a pointer shim sits
+> after it (see *Grounding*).
+
 ## The pipeline (one pen sample, end to end)
 
 ```
@@ -131,6 +137,9 @@ comparing the stored centre to `MappedCenter(d)`. `ApplyToProfile` writes `Displ
 5. **+Y is *down* in every space except the macOS AppKit interop (`NSScreen`/`NSWindow`), which is +Y *up*.**
    Flip Y when crossing that boundary; never hand an AppKit rect a Y value from an Avalonia/desktop rect (or
    vice-versa) without the flip. The flip stays contained in `CoverFullDisplayOnMac`.
+6. **Calibration targets + the live dot normalize against the *same* origin as `MapToDesktop`'s output**
+   (space [3]) — the one-sentence form of #517: a specialisation of #1/#3, but this is *the* failure mode.
+   Regression test: `Capture_Succeeds_WhenMappedDisplaySitsAtShiftedOrigin` (encodes the worked example below).
 
 ## Common mistakes (each has bitten this codebase)
 
@@ -150,6 +159,10 @@ Grouped by *moving* between spaces, *talking* about them, and *coding* them. Eve
   `CoverFullDisplayOnMac` boundary.
 - **Treating an area's `Position` as a corner.** `MappingArea`/`Area.Position` is the **centre**, not top-left.
   *Symptom:* everything offset by half the area's width/height. → corner = `Position − size/2`.
+- **Writing a `DisplayInfo` rect straight into the Output area without `MappedCenter`.** `ApplyToProfile` does
+  the min-shift + centre correctly; an *ad-hoc* write that copies `DisplayInfo.{X,Y}` (space 4, raw) into
+  `AbsoluteModeSettings.Display` (space 3, min-shifted centre) reintroduces #517. → always route through
+  `MappedCenter`/`ApplyToProfile`.
 - **Assuming normalized is 0..1.** It's **−1..1** (centre origin). *Symptom:* the calibration matrix's
   translation is 2× off, or a value lands in the wrong quadrant. (I made this exact slip earlier this session.)
   → `ToNormalized = raw/max·2 − 1`.
@@ -178,6 +191,9 @@ Grouped by *moving* between spaces, *talking* about them, and *coding* them. Eve
   *points*, not to deltas / sizes / directions. *Symptom:* offsets that appear or vanish when you (wrongly)
   transform a size or a difference. → transform points with the full affine; transform vectors with the linear
   part only.
+- **Assuming `Displays.First()` is the primary monitor.** OTA's enumerator sorts primary-first, but OTD's
+  macOS pointer offset uses `Displays.First()` in raw **CG enumeration order**, which isn't necessarily the
+  primary. → don't assume ordinal 0 = primary; check `IsPrimary`.
 
 ## Worked example — the negative-origin layout (why #517 happened)
 
@@ -220,6 +236,13 @@ Resolves the two *upstream* unknowns by reading the daemon (our submodule), not 
   the daemon's output is top-left Y-down on macOS too** — confirming invariant #5: only the *overlay's*
   `NSScreen`/`NSWindow` interop is bottom-left; the cursor pipeline is top-left throughout.
 - The area `Position` is the **centre** of the area (`Area.Position`), matching OTA's `MappingArea`.
+- **The mapper output is *not* the raw cursor coordinate — a per-platform pointer shim sits after it.**
+  `MapToDesktop`/`AbsoluteOutputMode` produce space [3]; then the OS pointer layer converts it:
+  `MacOSAbsolutePointer` subtracts `primary.Position` (the *first* display in the min-shifted list) →
+  `CGEventSetLocation` in CG-global (primary-relative, top-left, points); `WindowsAbsolutePointer` scales by
+  `VirtualScreen.size / 65535` (the `SendInput` 0..65535 absolute range). **Consequence:** a probe reading
+  `CGEventGetLocation` sees **space [3] − primary.Position**, not the mapper output directly — factor this into
+  the OPEN-1 measurement.
 
 ### What this settles vs. leaves open
 - **Settles:** the raw HID convention (top-left, +Y down, uint16, config-ranged); that OTD's output space = OTA's
@@ -253,3 +276,10 @@ Resolves the two *upstream* unknowns by reading the daemon (our submodule), not 
 The **calibration report is the coordinate-space oracle**: a uniform offset ⇒ overlay not at the space-3
 origin; deltas that grow to one edge ⇒ inset/scaled drawable; ~2× deltas ⇒ a points-vs-pixels mix (OPEN-1). The
 `tools/` probes that measured raw→cursor (§ macOS `dev-environment.md`) are the way to settle OPEN-1 live.
+
+**Closing OPEN-1 (one measurement row).** For a single held physical point, log: `Screen.Bounds`,
+`Screen.Scaling`, the `DisplayInfo` as enumerated, `MapToDesktop`'s output at that point, and the probe's
+`CGEventGetLocation` — remembering the cursor read is **space [3] − `primary.Position`** (the pointer shim
+above), not the mapper output. If `Screen.Bounds` already equals the daemon's *points*, the overlay's
+`÷ Scaling` double-counts (that's the residual); if `Bounds` is *pixels*, the enumerator — which copies `Bounds`
+into `DisplayInfo` **un-divided** — is the one carrying the wrong unit. One row decides which.
