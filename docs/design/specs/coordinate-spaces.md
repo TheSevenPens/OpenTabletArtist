@@ -52,6 +52,31 @@
 | 5 | **Avalonia logical points** | The UI coordinate space. | points (= [4] ÷ `Screen.Scaling`) | Overlay window `Position`/`Bounds`; calibration targets + live dot. |
 | 6 | **Physical pixels** | Actual pixels. | pixels (= [5] × `Scaling`) | Backing store; not used directly by app logic. |
 
+## Origin & axis direction — where is (0,0), and which way is +Y?
+
+The classic trap: pure-math convention is **bottom-left, +Y up**; screen/desktop convention is **top-left,
++Y down**. OTA's entire logical pipeline is **top-left, +Y down** — with exactly one exception, at the macOS
+AppKit boundary.
+
+| Space | Origin corner | +Y | Notes |
+|---|---|---|---|
+| [1] Raw tablet units | top-left | **down** | Digitizer convention; confirmed by the calibration report (top targets → small raw Y, bottom targets → large raw Y). |
+| [2] Normalized −1..1 | **tablet centre** (0,0) | down | −1 = top edge, +1 = bottom edge. |
+| *mm / tablet area / display area* | *(rectangle **centre**)* | down | `MappingArea.Position` is the *centre* of the area, expressed in its parent space. |
+| [3] OTD virtual-desktop | top-left (min corner of all monitors) | down | The min-shift keeps a top-left origin. |
+| [4] Raw OS display coords (`DisplayInfo`) | top-left | down | Avalonia normalises **both** Windows and macOS to top-left here. |
+| [5] Avalonia logical points | top-left | down | |
+| [6] Physical pixels | top-left | down | |
+| **macOS AppKit** (`NSScreen.frame`, `NSWindow.setFrame:`) | **bottom-left** | **UP** | ⚠ The Cocoa flip. Lives **only** in `CoverFullDisplayOnMac`'s ObjC interop. |
+
+**The macOS split, stated explicitly** (it's the confusing part): AppKit's *window/screen* APIs are
+**bottom-left, +Y up**, but the *global event/cursor* coordinate the daemon actually warps the pointer into
+(`CGWarpMouseCursorPosition`) and that our probes read (`CGEventGetLocation`) is the **flipped, top-left,
++Y down** space — same as everything else. So only the overlay's `NSScreen`/`NSWindow` interop is bottom-left;
+the cursor pipeline is top-left throughout. Mixing the two Y-conventions at that ObjC boundary is a latent bug
+class — it would misposition the overlay on a multi-display layout with unequal heights (a single full-screen
+frame happens to hide it today).
+
 ## The transforms (quoted from source)
 
 **Raw ↔ normalized (space 1 ↔ 2)** — `CalibrationMath`:
@@ -103,6 +128,9 @@ comparing the stored centre to `MappedCenter(d)`. `ApplyToProfile` writes `Displ
    `MappedCenter`/`OutputOrigin`, not `Display.X`, for space-3 math.
 4. **The daemon's output unit must equal `DisplayInfo`'s unit on each OS.** If space 3 and space 4 disagree by
    the backing scale, the pen drifts proportionally from centre — the ~1% residual. **⚠ OPEN-1.**
+5. **+Y is *down* in every space except the macOS AppKit interop (`NSScreen`/`NSWindow`), which is +Y *up*.**
+   Flip Y when crossing that boundary; never hand an AppKit rect a Y value from an Avalonia/desktop rect (or
+   vice-versa) without the flip. The flip stays contained in `CoverFullDisplayOnMac`.
 
 ## Worked example — the negative-origin layout (why #517 happened)
 
