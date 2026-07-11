@@ -282,15 +282,19 @@ compose.
 
 ## ⚠ OPEN items to resolve (before this spec is "done")
 
-- **OPEN-1 — points vs pixels vs scaling (the HiDPI residual).** `DisplayInfo` carries **no scale field**, and
-  the two readers disagree: the **enumerator** uses `Screen.Bounds` *directly* for `DisplayInfo`, while the
-  **overlay** uses `Bounds / Scaling`. On the macOS test rig the enumerator reported **points** (960×540 for a
-  1920-px panel) and things aligned — but that means either Avalonia's macOS `Bounds` is already points (so the
-  overlay's `÷Scaling` would double-count) or the rig reported `Scaling = 1`. This is unverified and is the most
-  likely root of the ~1% residual. **Resolve by measuring, per OS, the actual units of `Screen.Bounds`,
-  `Screen.Scaling`, `DisplayInfo`, and the daemon's output space, and define the one canonical unit for space
-  3/4 — then make the enumerator and overlay agree.** (Narrowed by *Grounding* above: the daemon side is now
-  known — **points on macOS, pixels on Windows** — so only the OTA/Avalonia `Bounds`-vs-`Scaling` half is open.)
+- **OPEN-1 — points vs pixels vs scaling (the HiDPI residual). ✅ Core measured 2026-07-11.** `DisplayInfo`
+  carries no scale field, and the two readers *look* like they disagree: the **enumerator** copies
+  `Screen.Bounds` directly into `DisplayInfo`; the **overlay** uses `Bounds / Scaling`. **Measured on the rig
+  across 3 displays and 5+ resolution modes:** Avalonia `Screen.Bounds` is **byte-identical to `CGDisplayBounds`**
+  (the daemon's points) every time — origin (incl. the negative `−1920`), size, all equal — so **`DisplayInfo`
+  is in the daemon's exact space.** And **every mode reported `Scaling = 1`** (this Mac wouldn't enable true
+  HiDPI for these external monitors; even "1920×1080 (Default)" was framebuffer 1920 / scale 1), so points ==
+  pixels and the overlay's `÷ Scaling` is a no-op — no drift. Consistent with the ~1% residual being
+  resolution-independent (i.e. *not* this). **Remaining — a code audit, not a measurement:** at `Scaling ≠ 1`
+  the enumerator (no divide) and the overlay (`÷ Scaling`) can't both be right; the data predicts `Bounds` stays
+  **points**, so the enumerator matches the daemon and the **overlay's `÷ Scaling` is the suspect to fix**.
+  Confirm on a genuine Retina panel (e.g. a MacBook built-in) or by reading Avalonia's macOS `Bounds` unit in
+  source. (Windows daemon side is pixels via `EnumDisplaySettings`; unmeasured here.)
 - **OPEN-2 — mixed-DPI monitors.** One scale factor per screen; a mapping that spans monitors of different
   scale has no single valid `÷Scaling`. Define behaviour (map is per-monitor anyway).
 - **OPEN-3 — rotation + non-integer scaling** interactions with the above.
