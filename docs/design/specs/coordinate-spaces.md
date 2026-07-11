@@ -132,6 +132,53 @@ comparing the stored centre to `MappedCenter(d)`. `ApplyToProfile` writes `Displ
    Flip Y when crossing that boundary; never hand an AppKit rect a Y value from an Avalonia/desktop rect (or
    vice-versa) without the flip. The flip stays contained in `CoverFullDisplayOnMac`.
 
+## Common mistakes (each has bitten this codebase)
+
+Grouped by *moving* between spaces, *talking* about them, and *coding* them. Every one maps to an invariant.
+
+### Moving between spaces
+- **Assuming the desktop origin is (0,0).** Subtracting a raw `DisplayInfo.X` (space 4) from a `MapToDesktop`
+  point (space 3, min-shifted). *Symptom:* perfect on single / primary-at-origin layouts, wildly off the moment
+  a monitor sits at a negative coordinate (live dot lands at X≈2.5). **This is #517.** → invariant #3: use the
+  min-shifted origin (`MappedCenter`/`OutputOrigin`), never `Display.X`, for space-3 math.
+- **Mixing points and pixels.** Comparing a logical-point value to a physical-pixel one (or forgetting
+  `÷Scaling`). *Symptom:* a clean **≈2× / ≈1.6×** offset that grows with distance from centre — the HiDPI
+  residual. → invariant #4 + OPEN-1: carry the unit with the value; don't re-derive scale per call.
+- **Flipping — or not flipping — Y.** Treating an AppKit rect (`NSScreen`, bottom-left +Y up) as top-left
+  +Y down, or vice-versa. *Symptom:* vertical position mirrored about the display centre; hidden on a single
+  full-screen frame, visible on multi-display unequal heights. → invariant #5: flip only at the
+  `CoverFullDisplayOnMac` boundary.
+- **Treating an area's `Position` as a corner.** `MappingArea`/`Area.Position` is the **centre**, not top-left.
+  *Symptom:* everything offset by half the area's width/height. → corner = `Position − size/2`.
+- **Assuming normalized is 0..1.** It's **−1..1** (centre origin). *Symptom:* the calibration matrix's
+  translation is 2× off, or a value lands in the wrong quadrant. (I made this exact slip earlier this session.)
+  → `ToNormalized = raw/max·2 − 1`.
+
+### Talking about them
+- **"Screen / display / desktop coordinates" — unqualified.** Which of raw-OS (negative-capable), min-shifted
+  virtual-desktop, logical points, or pixels? On macOS "desktop pixels" is itself ambiguous (points vs backing
+  pixels). → name the numbered space ([3] vs [4] vs [5]).
+- **"Normalized" without the range,** or **"the origin" without the corner + axis.** The thing the *Origin &
+  axis direction* section exists to fix. → always state the range (−1..1 vs 0..1) and the corner + Y-direction.
+- **Conflating "the display" with "the mapped area."** The output area may be a whole monitor (`Clean`), a
+  sub-region (`Custom`), or spill off-screen (`OffScreen`). "Maps to display 2" hides which. → say which
+  `DisplayMappingValidity`.
+
+### Coding them
+- **Not naming the space in the function's contract.** A `Vector2` in/out with no doc of its space → the next
+  caller guesses. *This is how #517 got written.* → invariant #1: state the space in the doc-comment; ideally a
+  distinct type per space so the compiler rejects a mix.
+- **Deriving scale / origin ad hoc at each call site.** `DisplayInfo` has no `Scaling`, so the enumerator and
+  the overlay each compute it — and **disagree** (OPEN-1). → compute once, carry it; consider putting `Scaling`
+  on `DisplayInfo` (OPEN-4).
+- **Testing only the happy path** (primary at (0,0), 1× scale, one monitor). The min-shift and HiDPI bugs are
+  *invisible* there — #517's own reference tests used `minX=0`. → every coordinate test needs a negative-origin
+  case, a HiDPI case, and a multi-monitor case.
+- **Scaling a point as if it were a vector.** The affine's translation (`M31/M32`, the area centre) applies to
+  *points*, not to deltas / sizes / directions. *Symptom:* offsets that appear or vanish when you (wrongly)
+  transform a size or a difference. → transform points with the full affine; transform vectors with the linear
+  part only.
+
 ## Worked example — the negative-origin layout (why #517 happened)
 
 Displays: primary `#1 (0,0,1920,1080)`, target `#2 (0,1080,960,540)`, and `#3 (−1920,0,1920,1080)` →
