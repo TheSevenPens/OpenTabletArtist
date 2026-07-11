@@ -249,6 +249,46 @@ tarball, produced in CI without an Apple account.
 **Risk:** low–medium. `rcodesign` + ad-hoc signing are proven (OTD uses exactly this); daemon-bundling is a
 publish/layout change. **No external/paid gates** — those are Phase 7.
 
+### Open questions to resolve (recorded 2026-07-10)
+
+Some predate the port; some are being reopened now that we've seen OTD's UI + daemon behave differently on
+macOS than on Windows. **Investigate why OTD made its macOS choices before committing OTA's** — OTD's
+`eng/bash/macos/package.sh`, its `LSUIElement` menu-bar-agent app, and how it owns the daemon in-bundle are the
+reference to study.
+
+**Daemon ownership & coexistence**
+- **One daemon or two?** OTA currently works with both its *own* app-owned daemon **and** a separate OTD
+  daemon. Keep supporting both, or exactly one? Two daemons can fight over the tablet / the pipe, and version
+  skew breaks the RPC + plugin contract.
+- **Hard constraint — OTA needs its own daemon plugin.** Calibration + pen-dynamics require
+  `OpenTabletArtist.Dynamics` (the `CalibrationFilter` + pressure curve), and `AppSession.EnsurePluginInstalled`
+  installs it **only into the app-owned daemon** (`IsAppOwnedDaemon`). So OTA's signature features **silently
+  don't work on an external OTD daemon** today. Any "support both / use the user's OTD daemon" answer must
+  decide whether/how to install OTA's plugin into a daemon it doesn't own, and with what version guarantees.
+
+**Daemon source & delivery**
+- **Source:** build from the **git submodule** (today — exact version + our patches, but we own the build) vs
+  consume an **official OTD release binary** (less to build, but version-pinning + our-plugin compatibility
+  become external dependencies).
+- **Delivery:** **bundle** the daemon in the app (offline, one artifact, +tens of MB self-contained) vs
+  **download** on demand (smaller app, but needs network + integrity/version checks + a fallback).
+- **Runtime + arch:** self-contained vs framework-dependent; arm64-native vs x64-on-Rosetta vs universal. OTD
+  ships `osx-x64`; we've been building `osx-arm64`.
+
+**Permissions UX**
+- **Make the grant flow easy.** Even with a stable signing identity (Phase 6) minimizing re-grants, build a
+  guided flow: detect a missing Input Monitoring / Accessibility grant, explain it, deep-link to the right
+  System Settings pane, re-check. OTD ships a `PermissionHelper` to model on.
+
+**macOS daemon lifecycle (the "why does OTD differ" thread)**
+- **Daemon process model on macOS:** child-of-the-app (dies on quit) vs a `LaunchAgent` (persists); how
+  single-instance and an already-running OTD.app daemon are handled. Decide after understanding *why* OTD runs
+  its daemon the way it does on macOS vs Windows.
+
+**Distribution & updates**
+- **How do users get + update OTA on macOS** — GitHub release tarball (like OTD), an in-app updater (Sparkle),
+  or manual? Feeds the bundle-vs-download call and Phase 7's notarization.
+
 ---
 
 ## Phase 7 — Full signing + notarization (deferred to V2)
