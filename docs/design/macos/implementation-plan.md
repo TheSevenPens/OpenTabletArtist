@@ -256,6 +256,11 @@ macOS than on Windows. **Investigate why OTD made its macOS choices before commi
 `eng/bash/macos/package.sh`, its `LSUIElement` menu-bar-agent app, and how it owns the daemon in-bundle are the
 reference to study.
 
+> **Pre-work (do this first).** Before locking any decision below, **investigate OTD's macOS daemon model** and
+> record *why* it differs from Windows: the `LSUIElement` agent app, the in-bundle daemon it owns, how it
+> handles the settings directory + the permission grants, and `eng/bash/macos/package.sh`. Several of the
+> answers below depend on what that turns up.
+
 **Daemon ownership & coexistence**
 - **One daemon or two?** OTA currently works with both its *own* app-owned daemon **and** a separate OTD
   daemon. Keep supporting both, or exactly one? Two daemons can fight over the tablet / the pipe, and version
@@ -265,6 +270,12 @@ reference to study.
   installs it **only into the app-owned daemon** (`IsAppOwnedDaemon`). So OTA's signature features **silently
   don't work on an external OTD daemon** today. Any "support both / use the user's OTD daemon" answer must
   decide whether/how to install OTA's plugin into a daemon it doesn't own, and with what version guarantees.
+- **Shared settings directory (coexistence hazard — confirmed live).** OTA and OTD.app both read/write the
+  *same* `~/Library/Application Support/OpenTabletDriver/settings.json`, so concurrent use clobbers profiles +
+  calibration. Decide: **share** it (interop with an existing OTD install) or **isolate** OTA's own config.
+- **Bundle identity.** OTA.app's bundle id / TCC identity / settings dir vs OTD's `net.opentabletdriver` — keep
+  them distinct so grants, LaunchServices, and settings don't collide. (In tension with sharing settings above
+  — resolve the two together.)
 
 **Daemon source & delivery**
 - **Source:** build from the **git submodule** (today — exact version + our patches, but we own the build) vs
@@ -279,6 +290,12 @@ reference to study.
 - **Make the grant flow easy.** Even with a stable signing identity (Phase 6) minimizing re-grants, build a
   guided flow: detect a missing Input Monitoring / Accessibility grant, explain it, deep-link to the right
   System Settings pane, re-check. OTD ships a `PermissionHelper` to model on.
+
+**Onboarding & cleanup**
+- **First run.** The guided first-launch flow — adopt/start the daemon, walk the user through the Input
+  Monitoring / Accessibility grants, confirm the pen tracks.
+- **Uninstall.** Remove anything OTA installed *outside* its bundle — a `LaunchAgent` (if used) and the
+  plugin(s) it drops into the daemon's plugin dir — so removing the app leaves no orphans.
 
 **macOS daemon lifecycle (the "why does OTD differ" thread)**
 - **Daemon process model on macOS:** child-of-the-app (dies on quit) vs a `LaunchAgent` (persists); how
