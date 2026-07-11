@@ -55,11 +55,10 @@ Status legend: **seamed** (behind an interface with a macOS impl) · **gated** (
 **guarded** (no-ops/degrades off-Windows) · **blocker** (Windows-only by nature; hidden on macOS) ·
 **todo** (still needs a macOS backend or seam).
 
-> **Read the "Status in branch" column as the `macos` branch's *end-state*, not `master`'s.** On `master`
-> today several of these are **still unguarded** — `Win32ForegroundAppWatcher.Start` (no `IsWindows()` around
-> `SetWinEventHook`), the calibration-overlay `SetCursor` / `Win32Properties` calls, and
-> `GlobalHotkeyService`'s empty-`catch` ctor. Landing that guarding is Phase 0.6 (see the plan); the "guarded"
-> label below is what the branch achieved, i.e. the target.
+> **The "Status in branch" column was the `macos` branch's *end-state* — and it is now `master`'s too.** The
+> guarding it referenced (`Win32ForegroundAppWatcher.Start` around `SetWinEventHook`, the calibration-overlay
+> `SetCursor` / `Win32Properties` calls, and `GlobalHotkeyService`'s ctor) landed in **Phase 0.6 (#511)** and
+> **Phase 5 (#519)**, both merged. So the "guarded" labels below now describe `master`.
 
 | Component | What it does on Windows | macOS approach | Status in branch |
 |---|---|---|---|

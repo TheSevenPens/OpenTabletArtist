@@ -2,7 +2,7 @@
 
 OTA is an alternative user experience for OpenTabletDriver (OTD) that prioritizes the needs of artists: to get set up quickly, in a familiar environment, so they can be productive with their creative apps.
 
-OTA is currently Windows-only.
+OTA ships packaged releases for Windows today. The codebase is cross-platform (Avalonia + runtime platform guards) and the **macOS port is code-complete** — it builds, connects to the daemon, maps displays, and calibrates from source; a packaged macOS `.app` is the next step. (Linux is feasibility-assessed.)
 
 ## How OTA Works
 
