@@ -36,7 +36,7 @@ edits?
 
 ---
 
-## 2. The coordinate-space model (the foundational one)
+## 2. The coordinate-space model (the foundational one) — ✍️ [DRAFTED](specs/coordinate-spaces.md)
 
 **The problem.** OTA moves a point through **many coordinate spaces**, and mixing two of them is exactly the
 class of bug that caused the macOS negative-origin calibration failures and the HiDPI confusion. There is no
