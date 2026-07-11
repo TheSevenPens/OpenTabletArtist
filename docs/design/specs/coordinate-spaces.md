@@ -176,6 +176,9 @@ Grouped by *moving* between spaces, *talking* about them, and *coding* them. Eve
 - **Conflating "the display" with "the mapped area."** The output area may be a whole monitor (`Clean`), a
   sub-region (`Custom`), or spill off-screen (`OffScreen`). "Maps to display 2" hides which. → say which
   `DisplayMappingValidity`.
+- **Confusing OS display rotation with tablet-area `Rotation`.** The former is absorbed into the reported
+  display geometry (swapped W/H, *no* matrix term); the latter (`input.Rotation`) *is* a matrix term.
+  Independent and composable. → say "display rotation" vs "tablet-area rotation".
 
 ### Coding them
 - **Not naming the space in the function's contract.** A `Vector2` in/out with no doc of its space → the next
@@ -253,6 +256,29 @@ Resolves the two *upstream* unknowns by reading the daemon (our submodule), not 
 - **Nuance to watch:** OTD **0-based-shifts displays on macOS but keeps raw (min-anchored) on Windows.** OTA's
   `min()` shift accommodates both, but a *Windows* layout with a monitor at a negative coordinate is the same
   negative-origin hazard #517 fixed on macOS — worth a Windows regression check.
+
+## Display rotation (OS-level) — transparent to the pipeline, with two caveats
+
+An OS-rotated display (Windows portrait mode, etc.) is **absorbed before the pipeline sees it**. The OS reports
+the display's virtual-desktop rect with dimensions **already reflecting the rotation** — a portrait-rotated
+1920×1080 panel appears as a **1080×1920** rect — and the cursor lives in that same rotated desktop frame. So
+OTA/OTD just see a display with swapped W/H and map + calibrate normally; the pen lands correctly. Neither
+`AvaloniaScreensDisplayEnumerator` nor OTD's `WindowsDisplay`/`MacOSDisplay` reads an orientation — they don't
+need to.
+
+**Do not confuse it with the tablet-*area* rotation.** `input.Rotation` (`AbsoluteModeSettings.Tablet.Rotation`)
+**is** a matrix term (`CreateRotation(-input.Rotation)`, plus `AreaMappingCalculator.FitForRotation`) — a
+user-facing setting that rotates the *pen→screen* mapping. It's independent of OS display rotation; the two
+compose.
+
+**Caveats:**
+1. The mapped area's aspect is fit to the **rotated** display dimensions (correct) — so a **runtime rotation
+   change swaps W/H**, which invalidates the fitted area aspect **and** the calibration, exactly like a
+   resolution change. Handle it as a display-change event (ties to [spec-backlog](../specs-backlog.md) #1/#3).
+2. **Verify, don't assume, that `DisplayInfo.{Width,Height}` report the rotated rect** on each OS. The Windows
+   enumerator's `DEVMODE` even carries `dmDisplayOrientation` — confirm the reported size is the rotated
+   dimension (Avalonia `Screen.Bounds` and the GDI path), not the unrotated panel, or mapping distorts on a
+   portrait monitor.
 
 ## ⚠ OPEN items to resolve (before this spec is "done")
 
