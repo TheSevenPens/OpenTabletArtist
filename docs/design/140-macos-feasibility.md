@@ -80,6 +80,7 @@ incrementally and safely.
 
 - **#140** — Investigate a macOS version (this work).
 - **#73** — Cross-platform verification / guard Windows-specific paths.
+- **#192** — [Linux feasibility](192-linux-feasibility.md) — the cheap sequel; reuses this port's cross-platform architecture.
 - **#148** — The original design review that scoped the portable core.
 - **#296** — Daemon version display (extended to macOS here).
 - **#167 / #320 / #89** — Per-app switching / global hotkeys (need macOS backends).
