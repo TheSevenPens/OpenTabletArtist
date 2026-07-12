@@ -610,6 +610,28 @@
                     </Border>
                 </UniformGrid>
 
+                <!-- Import / export calibration (#545): save this tablet's calibration to a portable JSON
+                     and restore it later without re-tapping. Import is matching-only. -->
+                <Border Classes="GlassPanel" Margin="0,4,0,0" IsVisible="{Binding CanCalibrate}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel" />
+                        <TextBlock Text="Save this tablet's calibration (its recorded taps + solved model) to a file, then load it back later without re-tapping. Importing only works when the tablet's current mapping matches the saved one."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Export calibration…" Click="OnExportCalibration"
+                                    IsEnabled="{Binding CanExportCalibration}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    ToolTip.Tip="Save the current calibration to a JSON file" />
+                            <Button Content="Import calibration…" Click="OnImportCalibration"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    ToolTip.Tip="Load a saved calibration and apply it to this tablet" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding CaptureStatus}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding HasCaptureStatus}" />
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
                 <TextBlock Text="Connect this tablet to calibrate." Foreground="{DynamicResource TextMutedBrush}"

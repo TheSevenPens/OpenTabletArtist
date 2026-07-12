@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using OpenTabletArtist.Controls;
 using OpenTabletArtist.ViewModels;
 
@@ -80,6 +83,69 @@ public partial class TabletDetailView : UserControl
     {
         if (Vm is { } vm && TopLevel.GetTopLevel(this) is Window owner)
             _ = CalibrationReportDialog.ShowAsync(owner, vm);
+    }
+
+    private static readonly FilePickerFileType CalibrationFileType =
+        new("Calibration") { Patterns = new[] { "*.json" } };
+
+    // #545: export/import this tablet's calibration. The VM builds/consumes the JSON (pure); the file
+    // picker lives here because it needs the window's StorageProvider.
+    private async void OnExportCalibration(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+
+        var json = vm.BuildCaptureJson();
+        if (json is null) return; // vm set CaptureStatus explaining why
+
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export calibration",
+            SuggestedFileName = vm.SuggestedCaptureFileName,
+            DefaultExtension = "json",
+            FileTypeChoices = new[] { CalibrationFileType },
+        });
+
+        var path = file?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return; // cancelled
+
+        try
+        {
+            await File.WriteAllTextAsync(path, json);
+            vm.NoteCaptureExported(path);
+        }
+        catch (Exception ex)
+        {
+            vm.CaptureStatus = $"Couldn't write the file: {ex.Message}";
+        }
+    }
+
+    private async void OnImportCalibration(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import calibration",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { CalibrationFileType },
+        });
+
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return; // cancelled
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(path);
+            await vm.ImportCalibrationAsync(json, Path.GetFileName(path));
+        }
+        catch (Exception ex)
+        {
+            vm.CaptureStatus = $"Couldn't read the file: {ex.Message}";
+        }
     }
 
     private void OnScreensChanged(object? sender, EventArgs e) =>

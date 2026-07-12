@@ -247,7 +247,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     // Positional report of the recorded points from the current calibration (#460). Shown as a card on
     // the Calibration tab whenever a calibration with stored points is active.
-    [ObservableProperty] private bool _hasCalibrationReport;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExportCalibration))]
+    private bool _hasCalibrationReport;
     [ObservableProperty] private string _calibrationReportSummary = "";
     // Fit quality derived from the recorded taps (#461): the pre-calibration pointing error, and a
     // warning when one tap looks like a misfire.
@@ -392,6 +394,106 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var input = new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
         var output = new MappingArea(d.X, d.Y, d.Width, d.Height);
         return CalibrationProfile.Fingerprint(input, output, num);
+    }
+
+    // ---- Calibration import / export (#545, moved from the Developer page). Save this tablet's
+    // calibration (recorded taps + solved model) to a portable JSON, then restore it later without
+    // re-tapping. Import is matching-only: it applies only when this tablet's current mapping matches the
+    // captured one. The file picker itself lives in the view (it needs the window's StorageProvider). ----
+
+    /// <summary>Status/summary line for the last calibration import/export.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCaptureStatus))]
+    private string _captureStatus = "";
+
+    public bool HasCaptureStatus => !string.IsNullOrEmpty(CaptureStatus);
+
+    /// <summary>Export is only offered when there's a calibration with recorded taps to save.</summary>
+    public bool CanExportCalibration => HasCalibrationReport;
+
+    /// <summary>A default file name for the export dialog: <c>calibration-{N}point-{tablet}-{stamp}.json</c>.</summary>
+    public string SuggestedCaptureFileName
+    {
+        get
+        {
+            var cal = CalibrationProfile.ReadProfile(_profile);
+            var count = cal?.Report is { Points.Count: > 0 } r ? $"{r.Points.Count}point-" : "";
+            return $"calibration-{count}{Sanitize(TabletName)}-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+        }
+    }
+
+    /// <summary>Build the export JSON for this tablet's saved calibration, or null (with a status set) when
+    /// there's nothing to export. The view writes the returned text to the chosen file.</summary>
+    public string? BuildCaptureJson()
+    {
+        if (!TryCalibrationContext(out var ctx, out var error)) { CaptureStatus = error; return null; }
+        var cal = CalibrationProfile.ReadProfile(_profile);
+        if (cal == null)
+        { CaptureStatus = $"{TabletName} has no calibration to export — calibrate it first."; return null; }
+        if (cal.Report == null || cal.Report.Points.Count == 0)
+        { CaptureStatus = $"{TabletName}'s calibration has no recorded taps to export (it predates point capture)."; return null; }
+        return CalibrationCaptureService.Build(TabletName, ctx.Digi, ctx.Input, ctx.Output, ctx.Display, cal).ToJson();
+    }
+
+    public void NoteCaptureExported(string path) => CaptureStatus = $"Exported calibration to {path}.";
+
+    /// <summary>Import a previously exported calibration and apply it to this tablet. Matching-only — it
+    /// applies only when the tablet's current mapping matches the capture; otherwise it explains why.</summary>
+    public async Task ImportCalibrationAsync(string json, string fileName)
+    {
+        var capture = CalibrationCapture.FromJson(json);
+        if (capture == null)
+        { CaptureStatus = "Couldn't read that file as a calibration (invalid JSON)."; return; }
+        if (capture.SchemaVersion > CalibrationCapture.CurrentSchemaVersion)
+        { CaptureStatus = $"That file is newer (v{capture.SchemaVersion}) than this app supports (v{CalibrationCapture.CurrentSchemaVersion}). Update the app."; return; }
+        if (capture.Points.Count == 0)
+        { CaptureStatus = "That file has no recorded calibration taps."; return; }
+
+        if (!TryCalibrationContext(out var ctx, out var error)) { CaptureStatus = error; return; }
+        if (!CalibrationCaptureService.Matches(capture, ctx.Digi, ctx.Input, ctx.Output, ctx.Display.Number, out var reason))
+        {
+            CaptureStatus = $"This calibration doesn't match {TabletName}'s current setup ({reason}). " +
+                            "Import is matching-only — map the tablet to the captured area, or recalibrate.";
+            return;
+        }
+
+        var fingerprint = CalibrationProfile.Fingerprint(ctx.Input, ctx.Output, ctx.Display.Number);
+        var data = CalibrationCaptureService.ToCalibrationData(capture, fingerprint);
+        if (data == null)
+        { CaptureStatus = "That file has no solved calibration model to apply."; return; }
+
+        await ApplySettingsChange(p => CalibrationProfile.Write(_settings, p.Tablet ?? "", data));
+        CaptureStatus = $"Imported {fileName} and applied it to {TabletName}.";
+    }
+
+    // This tablet's calibration mapping context (digitizer + input/output areas + the mapped display),
+    // resolved from its current Absolute mapping — what Build/Matches need.
+    private bool TryCalibrationContext(
+        out (TabletDigitizerSpec Digi, MappingArea Input, MappingArea Output, DisplayInfo Display) ctx, out string error)
+    {
+        ctx = default;
+        var abs = _profile.AbsoluteModeSettings;
+        if (abs?.Tablet is not { } t || abs.Display is not { } disp
+            || t.Width <= 0 || t.Height <= 0 || disp.Width <= 0 || disp.Height <= 0)
+        { error = $"{TabletName} needs an Absolute mapping with a known area + display first."; return false; }
+
+        if (_deviceData?.GetDigitizerSpec(_profile.Tablet ?? "") is not { } digi)
+        { error = $"Couldn't read {TabletName}'s digitizer spec."; return false; }
+
+        if (DisplayMappingApplier.CurrentlyMapped(_profile, Displays) is not { } display)
+        { error = "Couldn't match the mapped area to a connected display."; return false; }
+
+        var input = new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation);
+        var output = new MappingArea(disp.X, disp.Y, disp.Width, disp.Height);
+        ctx = (digi, input, output, display);
+        error = "";
+        return true;
+    }
+
+    private static string Sanitize(string s)
+    {
+        foreach (var c in System.IO.Path.GetInvalidFileNameChars()) s = s.Replace(c, '-');
+        return s.Replace(' ', '-');
     }
 
     partial void OnIsRelativeOutputModeChanged(bool value)
