@@ -93,9 +93,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The SETTINGS → Shortcut tab (create a Start-menu shortcut; Windows-only).</summary>
     public ShortcutViewModel Shortcut { get; } = new();
 
-    /// <summary>App name + version + BETA, shown in the sidebar footer — moved out of the OS title-bar
-    /// caption so it no longer clutters the top-left. Same version formatter as the About page.</summary>
-    public string TitleBarText { get; } = $"OpenTabletArtist  {AppVersionInfo.Format(
+    /// <summary>Version + BETA, shown in the sidebar footer. The app name is dropped (it's already the
+    /// brand at the top of the nav) so the label fits the narrower sidebar. Same version formatter as About.</summary>
+    public string TitleBarText { get; } = $"{AppVersionInfo.Format(
         Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}  BETA";
 

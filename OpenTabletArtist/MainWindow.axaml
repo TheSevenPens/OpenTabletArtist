@@ -34,7 +34,7 @@
              (#207). Hit-test invisible; sits above the backdrop, behind the sidebar/content. -->
         <controls:SakuraPetals />
 
-    <Grid ColumnDefinitions="260,*">
+    <Grid ColumnDefinitions="156,*">
         <!-- SIDEBAR -->
         <Border Grid.Column="0"
                 Background="{DynamicResource SidebarBgBrush}"
@@ -45,7 +45,7 @@
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
                             Margin="16,20,16,16">
                     <TextBlock Text="OpenTabletArtist"
-                               FontFamily="Segoe UI, Inter" FontSize="26" FontWeight="Light"
+                               FontFamily="Segoe UI, Inter" FontSize="15" FontWeight="Light"
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center" />
                 </StackPanel>
