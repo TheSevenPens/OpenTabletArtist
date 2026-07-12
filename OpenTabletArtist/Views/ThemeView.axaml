@@ -71,7 +71,11 @@
                        Description="Pick the card tint colour and how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
             <StackPanel Spacing="12">
                 <c:LabeledField Label="Card colour">
+                    <!-- Alpha hidden + disabled: card transparency is set by the separate "Card opacity"
+                         slider below; the tint's own alpha is ignored by FrostBrush, so exposing it here just
+                         misled (#505). IsAlphaVisible removes the alpha slider; IsAlphaEnabled keeps it opaque. -->
                     <ColorPicker Color="{Binding CardColor, Mode=TwoWay}"
+                                 IsAlphaVisible="False" IsAlphaEnabled="False"
                                  ToolTip.Tip="The tint colour of the frosted cards" />
                 </c:LabeledField>
                 <c:LabeledSlider Label="Card opacity" LabelWidth="130"

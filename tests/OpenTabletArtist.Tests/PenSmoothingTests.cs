@@ -62,4 +62,16 @@ public class PenSmoothingTests
         // amount^(0.02/amount): 0.1 -> 0.1^0.2 ~ 0.631
         Assert.Equal(System.Math.Pow(0.1, 0.2), PenSmoothing.FactorFromAmount(0.1), 6);
     }
+
+    [Fact]
+    public void SmoothingCeilings_AreWithinRange_AndPressureIsHigher()
+    {
+        // Both sliders stop short of the full range (#487 position 0.25, #496 pressure 0.50); pressure
+        // tolerates more smoothing than position, so its ceiling is the higher of the two.
+        Assert.Equal(0.25, PenSmoothing.MaxPositionSmoothingAmount, 6);
+        Assert.Equal(0.50, PenSmoothing.MaxPressureSmoothingAmount, 6);
+        Assert.InRange(PenSmoothing.MaxPositionSmoothingAmount, 0, 1);
+        Assert.InRange(PenSmoothing.MaxPressureSmoothingAmount, 0, 1);
+        Assert.True(PenSmoothing.MaxPressureSmoothingAmount > PenSmoothing.MaxPositionSmoothingAmount);
+    }
 }

@@ -31,9 +31,9 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid colour by
-             state: orange when the tablet isn't detected, green when it is. -->
+             state: neutral grey when the tablet isn't detected, green when it is. -->
         <Style Selector="Border.tabletStatusChip">
-            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+            <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="10,6" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -985,9 +985,10 @@
                         <StackPanel>
                             <TextBlock Text="PRESSURE SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
                                        ToolTip.Tip="EMA smoothing of pressure — evens out pressure jitter, at a little lag." />
+                            <!-- Capped at 0.5 (#496): heavier pressure smoothing lags more than it helps. -->
                             <ctrl:LabeledSlider Label="Pressure" LabelWidth="80" Margin="0,8,0,0"
-                                                Minimum="0" Maximum="1"
-                                                Ticks="0,0.25,0.5,0.75,0.9,1" TickPlacement="BottomRight"
+                                                Minimum="0" Maximum="{Binding PressureSmoothingMax}"
+                                                Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
                                                 Value="{Binding PressureSmoothing}"
                                                 ValueTextOverride="{Binding PressureSmoothingText}"
                                                 Monospace="True" ValueWidth="44" />

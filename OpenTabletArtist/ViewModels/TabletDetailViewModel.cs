@@ -886,9 +886,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var dynamics = pc?.Dynamics ?? PenDynamicsSettings.Default;
         _skipCurvePersist = true;
         Curve = dynamics.Curve;
-        PressureSmoothing = dynamics.PressureSmoothing;
-        // Clamp to the position-smoothing ceiling (#487) so a profile saved with a heavier value (or one
+        // Clamp both to their slider ceilings (#487, #496) so a profile saved with a heavier value (or one
         // set by another tool) reads back within the usable range.
+        PressureSmoothing = Math.Min(dynamics.PressureSmoothing, PenSmoothing.MaxPressureSmoothingAmount);
         PositionSmoothing = Math.Min(dynamics.PositionSmoothing, PenSmoothing.MaxPositionSmoothingAmount);
         SmoothAfterCurve = dynamics.SmoothAfterCurve;
         _skipCurvePersist = false;
@@ -1511,6 +1511,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Upper bound for the position-smoothing slider (#487); heavier smoothing is too laggy to be
     /// useful, so the slider stops here (see <see cref="PenSmoothing.MaxPositionSmoothingAmount"/>).</summary>
     public double PositionSmoothingMax => PenSmoothing.MaxPositionSmoothingAmount;
+
+    /// <summary>Upper bound for the pressure-smoothing slider (#496); past this the lag outweighs the jitter
+    /// reduction, so the slider stops here (see <see cref="PenSmoothing.MaxPressureSmoothingAmount"/>).</summary>
+    public double PressureSmoothingMax => PenSmoothing.MaxPressureSmoothingAmount;
 
     private bool _skipCurvePersist;
     private CancellationTokenSource? _persistCts;

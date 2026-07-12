@@ -19,9 +19,14 @@ public static class PenSmoothing
 
     /// <summary>Upper bound for the <b>position</b>-smoothing slider <c>amount</c> (#487). Beyond this the
     /// pen lags too much to be usable — testing showed ~0.25 is the practical ceiling, and anyone wanting
-    /// heavier smoothing should do it in their drawing app. Pressure smoothing keeps the full 0..1 range.
+    /// heavier smoothing should do it in their drawing app.
     /// (0.25 maps to an EMA factor of ~0.895 via <see cref="FactorFromAmount"/>.)</summary>
     public const double MaxPositionSmoothingAmount = 0.25;
+
+    /// <summary>Upper bound for the <b>pressure</b>-smoothing slider <c>amount</c> (#496). Pressure tolerates
+    /// more smoothing than position, but past ~0.5 the lag outweighs the jitter reduction, so the slider
+    /// stops here (mirroring <see cref="MaxPositionSmoothingAmount"/>, just at a higher ceiling).</summary>
+    public const double MaxPressureSmoothingAmount = 0.50;
 
     /// <summary>One EMA step. With no previous value (stroke start) or factor &lt;= 0, returns
     /// <paramref name="current"/> unchanged.</summary>
