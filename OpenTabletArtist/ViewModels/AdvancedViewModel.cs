@@ -26,15 +26,15 @@ public partial class AdvancedTabItem : ObservableObject
 
 /// <summary>
 /// The ADVANCED tabbed page: a single sidebar node whose content area has its own subpage navigation
-/// (tab rail), hosting the advanced subpages in two groups — OpenTabletDriver's own (Daemon, Windows
-/// Ink Plugin, Configs, Diagnostics, Console, Plugins) and OpenTabletArtist's own (VMulti Driver,
-/// Driver Cleanup, Startup, Developer, Theme). It doesn't own those view models; it holds the shared
-/// instances so each tab can display the existing view. <see cref="SelectedTab"/> lets callers
-/// deep-link to a specific tab (e.g. a health-issue "Fix" opening the Windows Ink tab).
+/// (a <b>flat</b> tab rail, #477), hosting OpenTabletDriver's own subpages (Daemon, Windows Ink Plugin,
+/// Configs, Diagnostics, Console, Plugins) plus the driver-management pages (VMulti, Driver Cleanup). It
+/// doesn't own those view models; it holds the shared instances so each tab can display the existing view.
+/// <see cref="SelectedTab"/> lets callers deep-link to a specific tab (e.g. a health-issue "Fix" opening
+/// the Windows Ink tab). OTA's own preference pages (Startup / Developer / Theme) live on the SETTINGS
+/// page (<see cref="SettingsViewModel"/>).
 ///
-/// The rail is <b>data-driven</b> (#477): the view binds an ItemsControl to <see cref="OtdTabs"/> /
-/// <see cref="OtaTabs"/> and the content host to <see cref="SelectedContent"/> — no per-tab code-behind.
-/// Replaces the old OpenTabletDriver tabbed page. See docs/design/ux-terminology.md.
+/// The rail is <b>data-driven</b> (#477): the view binds an ItemsControl to <see cref="Tabs"/> and the
+/// content host to <see cref="SelectedContent"/> — no per-tab code-behind. See docs/design/ux-terminology.md.
 /// </summary>
 public partial class AdvancedViewModel : ObservableObject
 {
@@ -47,13 +47,12 @@ public partial class AdvancedViewModel : ObservableObject
     public AdvancedViewModel(
         DaemonViewModel daemon, WindowsInkViewModel windowsInk, CustomTabletConfigsViewModel configs,
         DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins,
-        VMultiViewModel vmulti, DriverCleanupViewModel driverCleanup, StartupViewModel startup,
-        DeveloperViewModel developer, ThemeViewModel theme)
+        VMultiViewModel vmulti, DriverCleanupViewModel driverCleanup)
     {
         _diagnostics = diagnostics;
         _configs = configs;
 
-        OtdTabs = new AdvancedTabItem[]
+        var tabs = new AdvancedTabItem[]
         {
             new("DAEMON", AdvancedTab.Daemon, daemon),
             new("WINDOWS INK PLUGIN", AdvancedTab.WindowsInk, windowsInk),
@@ -61,35 +60,26 @@ public partial class AdvancedViewModel : ObservableObject
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("CONSOLE", AdvancedTab.Log, log),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
-        }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
-        OtaTabs = new AdvancedTabItem[]
-        {
             new("VMULTI DRIVER", AdvancedTab.VMulti, vmulti),
             new("DRIVER CLEANUP", AdvancedTab.DriverCleanup, driverCleanup),
-            new("STARTUP", AdvancedTab.Startup, startup),
-            new("DEVELOPER", AdvancedTab.Developer, developer),
-            new("THEME", AdvancedTab.Theme, theme),
         }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
-        _allTabs = OtdTabs.Concat(OtaTabs).ToArray();
+        Tabs = tabs;
+        _allTabs = tabs;
         UpdateSelection();
     }
 
     /// <summary>Whether an ADVANCED subpage applies on the given OS. The Windows-only subpages are hidden
     /// off-Windows (#140): VMulti + Windows Ink don't exist on macOS/Linux (the daemon uses its own native
-    /// output there), Driver Cleanup runs a Windows-only tool, and run-at-startup is registry-based
-    /// (<c>StartupService.IsSupported</c> is already Windows-only). Filtering them out of the rail keeps the
+    /// output there) and Driver Cleanup runs a Windows-only tool. Filtering them out of the rail keeps the
     /// deep-link enum intact — a stray deep-link to a hidden tab is coerced back to a visible one (see
     /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
     /// unit-testable — matching how the health evaluator takes its platform flag.</summary>
     public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
         isWindows
-        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti
-                       or AdvancedTab.DriverCleanup or AdvancedTab.Startup);
+        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti or AdvancedTab.DriverCleanup);
 
-    /// <summary>The OpenTabletDriver group of tabs (first rail section).</summary>
-    public IReadOnlyList<AdvancedTabItem> OtdTabs { get; }
-    /// <summary>The OpenTabletArtist group of tabs (second rail section).</summary>
-    public IReadOnlyList<AdvancedTabItem> OtaTabs { get; }
+    /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
+    public IReadOnlyList<AdvancedTabItem> Tabs { get; }
 
     /// <summary>The active tab; the deep-link target (health-issue "Fix", the daemon card's
     /// "Open daemon page"). Setting it swaps the content + rail highlight.</summary>

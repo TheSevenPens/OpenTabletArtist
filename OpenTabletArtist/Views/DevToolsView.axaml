@@ -1,0 +1,14 @@
+<UserControl x:Class="OpenTabletArtist.Views.DevToolsView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- DataContext is the DevToolsViewModel; the toggle binds to the shared DeveloperSettings singleton. -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <c:SettingCard Title="Developer page">
+            <c:ToggleSetting Label="Show the DEVELOPER page"
+                             Description="Adds a DEVELOPER item to the sidebar (after ADVANCED) with testing aids — induced warnings, the hidden Filters/JSON tablet tabs, and config-error reproduction. Off by default; for development only."
+                             IsChecked="{Binding Settings.ShowDeveloperPage}" />
+        </c:SettingCard>
+    </StackPanel>
+</UserControl>

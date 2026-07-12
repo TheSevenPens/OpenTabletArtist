@@ -65,9 +65,11 @@
             <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
             <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
             <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <!-- Unified with the nav-bar text colour (TextSecondary): all general body text uses one value;
+                 only specially-coloured text (Success/Accent/Warning) differs. -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <!-- Sidebar fill — same as the card glass here; the Anime skin gives it its own look. -->
@@ -118,9 +120,11 @@
             <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
             <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
             <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <!-- Unified with the nav-bar text colour (TextSecondary): all general body text uses one value;
+                 only specially-coloured text (Success/Accent/Warning) differs. -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
@@ -205,9 +209,11 @@
             <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
             <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
             <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <!-- Unified with the nav-bar text colour (TextSecondary): all general body text uses one value;
+                 only specially-coloured text (Success/Accent/Warning) differs. -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <!-- Themed sidebar: a soft pink translucent vertical gradient (deeper rose at the bottom)
@@ -298,9 +304,11 @@
             <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
             <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
             <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <!-- Unified with the nav-bar text colour (TextSecondary): all general body text uses one value;
+                 only specially-coloured text (Success/Accent/Warning) differs. -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <!-- Dark plum translucent sidebar so the backdrop glows through. -->
@@ -389,9 +397,11 @@
             <SolidColorBrush x:Key="GlassBgBrush" Color="{StaticResource GlassBg}" />
             <SolidColorBrush x:Key="GlassBgHoverBrush" Color="{StaticResource GlassBgHover}" />
             <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+            <!-- Unified with the nav-bar text colour (TextSecondary): all general body text uses one value;
+                 only specially-coloured text (Success/Accent/Warning) differs. -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+            <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
             <!-- Dark translucent sidebar so the backdrop glows through. -->

@@ -1,18 +1,17 @@
-<UserControl x:Class="OpenTabletArtist.Views.AdvancedView"
+<UserControl x:Class="OpenTabletArtist.Views.SettingsView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- The ADVANCED tabbed page (see docs/design/ux-terminology.md): a complex header (its title) at the
-         top, then a subpage navigation (tab rail) on the left and the selected subpage on the right. The
-         rail is data-driven (#477) — an ItemsControl over the view model's flat Tabs list, and the content
-         host binds to SelectedContent — so there's no per-tab code-behind. Subpages are realized lazily by
-         the content host on first selection (#388). -->
+    <!-- The SETTINGS tabbed page (see docs/design/ux-terminology.md): a complex header (its title) at the
+         top, then a FLAT subpage navigation (tab rail) on the left and the selected subpage on the right.
+         Mirrors AdvancedView but without owner sections — these are all OpenTabletArtist's own settings.
+         The rail is data-driven — an ItemsControl over the view model's Tabs, content host bound to
+         SelectedContent — so there's no per-tab code-behind. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header — the page entity ("ADVANCED"), like the tablet page shows the tablet name. The
-             current subpage's name is shown as a body tab title in the content column below (mirrors the
-             tablet page, whose tabs each carry their own title). -->
-        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="ADVANCED" />
+        <!-- Complex header — the page entity ("SETTINGS"), like the tablet page shows the tablet name. The
+             current subpage's name is shown as a body tab title in the content column below. -->
+        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="SETTINGS" />
 
         <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
@@ -21,7 +20,7 @@
                 <ItemsControl ItemsSource="{Binding Tabs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <RadioButton Content="{Binding Label}" GroupName="AdvancedTabs"
+                            <RadioButton Content="{Binding Label}" GroupName="SettingsTabs"
                                          Theme="{StaticResource TabRadioButton}"
                                          IsChecked="{Binding IsSelected, Mode=OneWay}"
                                          Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"

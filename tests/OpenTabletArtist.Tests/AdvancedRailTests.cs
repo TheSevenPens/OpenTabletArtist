@@ -15,7 +15,6 @@ public class AdvancedRailTests
     [InlineData(AdvancedTab.WindowsInk)]
     [InlineData(AdvancedTab.VMulti)]
     [InlineData(AdvancedTab.DriverCleanup)]
-    [InlineData(AdvancedTab.Startup)]
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(AdvancedTab tab)
     {
         Assert.True(AdvancedViewModel.RailTabAppliesToOs(tab, isWindows: true));
@@ -28,8 +27,6 @@ public class AdvancedRailTests
     [InlineData(AdvancedTab.Diagnostics)]
     [InlineData(AdvancedTab.Log)]
     [InlineData(AdvancedTab.Plugins)]
-    [InlineData(AdvancedTab.Developer)]
-    [InlineData(AdvancedTab.Theme)]
     public void CrossPlatformTabs_ShownOnEveryOs(AdvancedTab tab)
     {
         Assert.True(AdvancedViewModel.RailTabAppliesToOs(tab, isWindows: true));

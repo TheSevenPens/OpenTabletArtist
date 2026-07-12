@@ -50,6 +50,13 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
 
+                <!-- Version stamp, pinned to the bottom of the sidebar (moved out of the OS title-bar
+                     caption so it no longer overlaps the top-left). -->
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding TitleBarText}"
+                           Margin="18,4,16,16" FontSize="12"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center" />
+
                 <!-- On-page screenshot control (#437): a developer aid, shown only when enabled on the
                      Developer tab. Pinned to the bottom-left of the nav so you can capture whatever page
                      you're currently viewing. -->
@@ -113,14 +120,25 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- ADVANCED is now a leaf node opening a tabbed page: its subpage navigation
-                         hosts OpenTabletDriver's own tabs (Daemon / Windows Ink / Configs / Diagnostics /
-                         Console / Plugins) plus OTA's own (VMulti / Driver Cleanup / Startup / Developer /
-                         Theme). This replaced the old collapsible group + the separate OPENTABLETDRIVER node. -->
+                    <!-- SETTINGS + ADVANCED are leaf nodes, each opening a tabbed page. SETTINGS hosts OTA's
+                         own preference tabs (Startup / Theme / Dev Tools); ADVANCED hosts the driver/daemon
+                         tabs (Daemon / Windows Ink / Configs / Diagnostics / Console / Plugins / VMulti /
+                         Driver Cleanup) as a single flat list. -->
+                    <RadioButton Theme="{StaticResource NavNode}" Content="SETTINGS"
+                                 IsChecked="{Binding IsSettings, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
+                                 Margin="0,2,0,0" />
                     <RadioButton Theme="{StaticResource NavNode}" Content="ADVANCED"
                                  IsChecked="{Binding IsAdvanced, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Advanced}"
-                                 Margin="0,8,0,0" />
+                                 Margin="0,2,0,0" />
+                    <!-- DEVELOPER is a top-level node after ADVANCED, shown only when its visibility toggle
+                         (SETTINGS → Dev Tools) is on. -->
+                    <RadioButton Theme="{StaticResource NavNode}" Content="DEVELOPER"
+                                 IsChecked="{Binding IsDeveloper, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Developer}"
+                                 IsVisible="{Binding Developer.Settings.ShowDeveloperPage}"
+                                 Margin="0,2,0,0" />
                 </StackPanel>
                 </ScrollViewer>
             </DockPanel>

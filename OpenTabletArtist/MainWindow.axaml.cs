@@ -29,11 +29,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        // Show the app version next to the name in the title bar, reusing the same formatter as the
-        // sidebar footer / About page (strips +build metadata, ensures a leading "v").
-        Title = $"OpenTabletArtist  {AppVersionInfo.Format(
-            Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}  BETA";
+        // The version + BETA now lives in the sidebar footer (bound to MainViewModel.TitleBarText).
+        // Title stays the bare app name so the taskbar / Alt-Tab entry reads "OpenTabletArtist" (it also
+        // shows small in the extended-chrome caption top-left); the version no longer clutters it.
+        Title = "OpenTabletArtist";
         // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
         // DataContextChanged from that assignment fired inside InitializeComponent, before we could
         // handle it. Wire the switch subscription now for the current VM, and keep the handler for

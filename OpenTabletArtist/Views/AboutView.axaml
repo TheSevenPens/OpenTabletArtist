@@ -19,53 +19,29 @@
             </StackPanel>
         </Border>
 
+        <!-- Merged RESOURCES card: source code, releases, and the user manual as one list of links.
+             Each opens in the default browser; the full URL is on hover. -->
         <Border Classes="GlassPanel" Margin="0,12,0,0">
-            <StackPanel>
-                <TextBlock Classes="SectionLabel" Text="SOURCE CODE" Margin="0,0,0,12" />
-                <!-- Clickable link: opens the GitHub repo in the default browser -->
+            <StackPanel Spacing="10">
+                <TextBlock Classes="SectionLabel" Text="RESOURCES" Margin="0,0,0,2" />
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left"
-                        ToolTip.Tip="{Binding RepoUrl}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding RepoUrl}"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   TextDecorations="Underline" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </Border>
-
-        <Border Classes="GlassPanel" Margin="0,12,0,0">
-            <StackPanel>
-                <TextBlock Classes="SectionLabel" Text="RELEASES" Margin="0,0,0,6" />
-                <TextBlock TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,10"
-                           Foreground="{DynamicResource TextSecondaryBrush}">
-                    Download the latest build and read the release notes.
-                </TextBlock>
-                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ReleasesUrl}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left"
-                        ToolTip.Tip="{Binding ReleasesUrl}">
-                    <TextBlock Text="View releases on GitHub"
+                        HorizontalAlignment="Left" ToolTip.Tip="{Binding RepoUrl}">
+                    <TextBlock Text="Source code on GitHub"
                                Foreground="{DynamicResource AccentBrush}"
                                TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>
-            </StackPanel>
-        </Border>
-
-        <Border Classes="GlassPanel" Margin="0,12,0,0">
-            <StackPanel>
-                <TextBlock Classes="SectionLabel" Text="USER MANUAL" Margin="0,0,0,6" />
-                <TextBlock TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,10"
-                           Foreground="{DynamicResource TextSecondaryBrush}">
-                    Learn how to set up and use the app.
-                </TextBlock>
+                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ReleasesUrl}"
+                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        HorizontalAlignment="Left" ToolTip.Tip="{Binding ReleasesUrl}">
+                    <TextBlock Text="Releases (downloads &amp; release notes)"
+                               Foreground="{DynamicResource AccentBrush}"
+                               TextDecorations="Underline" VerticalAlignment="Center" />
+                </Button>
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UserManualUrl}"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left"
-                        ToolTip.Tip="{Binding UserManualUrl}">
-                    <TextBlock Text="Open the user manual"
+                        HorizontalAlignment="Left" ToolTip.Tip="{Binding UserManualUrl}">
+                    <TextBlock Text="User manual"
                                Foreground="{DynamicResource AccentBrush}"
                                TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>

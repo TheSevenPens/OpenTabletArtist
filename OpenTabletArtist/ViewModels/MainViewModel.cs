@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
@@ -75,15 +76,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
     public VMultiViewModel VMulti { get; }
-    /// <summary>The ADVANCED tabbed page: OpenTabletDriver's subpages (Daemon / Windows Ink /
-    /// Configs / Diagnostics / Console / Plugins) plus OTA's own advanced pages (VMulti / Driver Cleanup /
-    /// Startup / Developer / Theme), all as tabs behind one sidebar node.</summary>
+    /// <summary>The ADVANCED tabbed page: OpenTabletDriver's subpages (Daemon / Windows Ink / Configs /
+    /// Diagnostics / Console / Plugins) plus the driver-management pages (VMulti / Driver Cleanup), all as
+    /// tabs behind one sidebar node.</summary>
     public AdvancedViewModel Advanced { get; }
+    /// <summary>The SETTINGS tabbed page: OTA's own preference subpages (Startup / Theme / Dev Tools),
+    /// split out of ADVANCED into their own sidebar node.</summary>
+    public SettingsViewModel Settings { get; }
     public StartupViewModel Startup { get; } = new();
-    /// <summary>Assigned in the constructor (not a field initializer) so its break-config commands can
-    /// reach the session's settings coordinator + device data.</summary>
+    /// <summary>The DEVELOPER page: a top-level sidebar node (after ADVANCED), shown only when its
+    /// visibility toggle (SETTINGS → Dev Tools) is on. Assigned in the constructor (not a field
+    /// initializer) so its break-config commands can reach the session's settings coordinator + device data.</summary>
     public DeveloperViewModel Developer { get; }
     public ThemeViewModel Theme { get; } = new();
+    /// <summary>The SETTINGS → Dev Tools tab (the Developer-page visibility toggle).</summary>
+    public DevToolsViewModel DevTools { get; } = new();
+
+    /// <summary>App name + version + BETA, shown in the sidebar footer — moved out of the OS title-bar
+    /// caption so it no longer clutters the top-left. Same version formatter as the About page.</summary>
+    public string TitleBarText { get; } = $"OpenTabletArtist  {AppVersionInfo.Format(
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}  BETA";
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
@@ -105,7 +118,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // IsSelected. Every advanced subpage is a tab inside the ADVANCED tabbed page, so the single ADVANCED
     // node drives its highlight.
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
+    public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
+    public bool IsDeveloper => ReferenceEquals(CurrentPage, Developer);
 
     /// <summary>The tablet detail page manages its own scrolling — a fixed header + tab rail with a
     /// per-tab scroll region — so the outer content ScrollViewer is <c>Disabled</c> for it, bounding the
@@ -184,10 +199,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 
-        // The ADVANCED tabbed page groups every advanced subpage behind one sidebar node, with its own
+        // The ADVANCED tabbed page groups the driver/daemon subpages behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
-            VMulti, DriverCleanup, Startup, Developer, Theme);
+            VMulti, DriverCleanup);
+        // The SETTINGS tabbed page holds OTA's own preference subpages (Startup / Theme / Dev Tools),
+        // sharing the same VM instances, behind its own sidebar node in front of ADVANCED. The Developer
+        // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
+        Settings = new SettingsViewModel(Startup, Theme, DevTools);
 
         // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Per-App is feature-gated
         // (hidden while FeatureFlags.PerAppProfiles is off). Selection is synced in OnCurrentPageChanged.
@@ -226,6 +245,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Navigate(Advanced);
     }
 
+    /// <summary>Open the SETTINGS tabbed page on a specific tab (the command-palette deep-link target).</summary>
+    private void OpenSettingsTab(SettingsTab tab)
+    {
+        Settings.SelectedTab = tab;
+        Navigate(Settings);
+    }
+
     /// <summary>The ordered set of pages the "screenshot all pages" developer aid visits (#437): Home,
     /// every visible root nav leaf, and each ADVANCED sub-tab. Each entry is a filename slug + the action
     /// that navigates to it; the caller renders after each and restores the original page.</summary>
@@ -248,6 +274,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var t = tab;
             list.Add(($"advanced-{Slugify(t.ToString())}", () => OpenAdvancedTab(t)));
         }
+        foreach (SettingsTab tab in System.Enum.GetValues<SettingsTab>())
+        {
+            var t = tab;
+            list.Add(($"settings-{Slugify(t.ToString())}", () => OpenSettingsTab(t)));
+        }
+        // The DEVELOPER page (a top-level node after ADVANCED); captured regardless of its visibility toggle.
+        list.Add(("developer", () => CurrentPage = Developer));
         return list;
     }
 
@@ -400,7 +433,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var leaf in NavLeaves)
             leaf.IsSelected = ReferenceEquals(CurrentPage, leaf.Page);
         OnPropertyChanged(nameof(IsDashboard));
+        OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAdvanced));
+        OnPropertyChanged(nameof(IsDeveloper));
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
     }
 
