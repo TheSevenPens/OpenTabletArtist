@@ -12,11 +12,12 @@ Features:
 - hotkeys
     - display toggle
     - switch presets
+- Simplified setup
 
 Platforms:
 - Windows - working
 - MacOs - Under investigation. code complete.
-- Linux - Under investigation
+- Linux - Under investigation 
 
 📖 **[User Manual](docs/USERMANUAL.md)** — start here.
 
