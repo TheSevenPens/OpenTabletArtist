@@ -221,8 +221,10 @@ public partial class MainWindow : Window
                 navigate();
                 await Task.Delay(240); // let the page bind + lay out + a frame compose before rendering
 
-                // A tablet page: capture each of its visible sub-tabs, then restore the selected one.
-                if (vm.CurrentPage is TabletDetailViewModel
+                // The TABLET page (#542): its hosted detail view has visible sub-tabs — capture each, then
+                // restore the selected one. Found via the visual tree since the page VM is the host, not the
+                // detail VM itself.
+                if (vm.CurrentPage is TabletPageViewModel
                     && this.GetVisualDescendants().OfType<TabletDetailView>().FirstOrDefault() is { } tabletView)
                 {
                     var tabs = tabletView.VisibleTabButtons();

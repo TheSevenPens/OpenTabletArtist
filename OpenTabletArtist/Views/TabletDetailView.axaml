@@ -75,8 +75,10 @@
          enough) — see the trailing row below. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
         <!-- Complex header (see docs/design/ux-terminology.md): the tablet name (model over brand) with a
-             trailing row of [status chip · Refresh · Forget], then an optional detail / refresh-warning line. -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
+             trailing row of [status chip · Refresh · Forget], then an optional detail / refresh-warning line.
+             Hidden when hosted in the TABLET page (#542), which draws its own switcher header. -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16"
+                    IsVisible="{Binding ShowHeader}">
             <ctrl:ComplexHeader Margin="0">
                 <ctrl:ComplexHeader.TitleContent>
                     <!-- model (rest) large, over the brand (first word) small — the PageTitle look

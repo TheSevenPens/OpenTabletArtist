@@ -74,36 +74,17 @@
                      docs/design/ux-terminology.md. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,0,8,0">
-                    <!-- HOME is a parent node: a leaf node (opens the merged home + tablets page) that
-                         also has per-tablet child nodes nested under it (paired ∪ connected). Click a
-                         child to open its page; right-click to forget. Empty-state when there are none. (#317) -->
+                    <!-- HOME opens the dashboard (health "Needs attention", daemon status, the YOUR TABLETS
+                         overview, and the supported-tablets link). -->
                     <RadioButton Theme="{StaticResource NavNode}" Content="HOME"
                                  IsChecked="{Binding IsDashboard, Mode=OneWay}"
                                  Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
-                    <ItemsControl ItemsSource="{Binding Tablets}" Margin="12,0,0,0">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <RadioButton Theme="{StaticResource NavNode}" Content="{Binding Name}"
-                                             IsChecked="{Binding IsSelected, Mode=OneWay}"
-                                             Command="{Binding $parent[ItemsControl].DataContext.NavigateToTabletCommand}"
-                                             CommandParameter="{Binding}"
-                                             Margin="0,2,0,0">
-                                    <RadioButton.Tag>
-                                        <TextBlock Classes="statusMark" Classes.success="{Binding IsDetected}" />
-                                    </RadioButton.Tag>
-                                    <RadioButton.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Forget" Command="{Binding ForgetCommand}" />
-                                        </ContextMenu>
-                                    </RadioButton.ContextMenu>
-                                </RadioButton>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="No tablets connected or remembered"
-                               Margin="20,4,8,2" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               IsVisible="{Binding !HasTablets}" />
+                    <!-- TABLET is a single node (#542): its page hosts a switcher dropdown over the selected
+                         tablet's settings. Always shown — the page carries a placeholder when none is known. -->
+                    <RadioButton Theme="{StaticResource NavNode}" Content="TABLET"
+                                 IsChecked="{Binding IsTabletPage, Mode=OneWay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletPage}"
+                                 Margin="0,2,0,0" />
                     <!-- The flat leaves between HOME and ADVANCED, data-driven (#477): PRESETS, PER-APP
                          PRESETS (feature-gated → IsVisible), HOTKEYS, SCRIBBLE, ABOUT. Same NavNode look;
                          each item carries its own label / target page / selection. -->

@@ -546,6 +546,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Longer detail shown under the header when the tablet isn't detected (empty when it is).</summary>
     [ObservableProperty] private string _detectionDetail = "";
 
+    /// <summary>Whether this view draws its own header (name + status chip + Refresh/Forget). The TABLET
+    /// page host (#542) sets this false because it owns the switcher-dropdown header and mirrors the
+    /// status/actions there; standalone uses (e.g. the focused Pen Dynamics dialog) keep it true.</summary>
+    [ObservableProperty] private bool _showHeader = true;
+
     partial void OnIsTabletDetectedChanged(bool value)
     {
         // Tablet-dependent actions follow the live detection state (#177).

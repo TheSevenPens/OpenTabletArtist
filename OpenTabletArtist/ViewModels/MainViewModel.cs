@@ -37,7 +37,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
-    private string? _selectedTabletName;
 
     /// <summary>Daemon connection state + Start/Stop/Restart commands — surfaced for the tray menu (#72).</summary>
     public IConnectionState Connection => _session;
@@ -102,11 +101,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; }
 
-    /// <summary>The per-tablet child nodes under the Tablets parent node — paired ∪ connected, ordered
-    /// like the old list (detected first, then most-recently-seen). Rebuilt on each data load; clicking
-    /// one shows its page.</summary>
-    public ObservableCollection<TabletNavNodeViewModel> Tablets { get; } = new();
-    public bool HasTablets => Tablets.Count > 0;
+    /// <summary>The single TABLET page (#542): one sidebar node whose page hosts a switcher dropdown over
+    /// the selected tablet's detail view. Replaces the old per-tablet nav children. Its tablet list +
+    /// default selection are refreshed by <see cref="RebuildTablets"/> on each data load.</summary>
+    public TabletPageViewModel TabletPage { get; }
 
     // The active page is the VM instance itself (typed navigation, #15). The content host
     // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
@@ -118,6 +116,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // IsSelected. Every advanced subpage is a tab inside the ADVANCED tabbed page, so the single ADVANCED
     // node drives its highlight.
     public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
+    public bool IsTabletPage => ReferenceEquals(CurrentPage, TabletPage);
     public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
     public bool IsDeveloper => ReferenceEquals(CurrentPage, Developer);
@@ -127,7 +126,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// page to the viewport so its inner scroll engages and the header no longer scrolls away (#507).
     /// Every other page is plain content and uses the outer scroll (<c>Auto</c>).</summary>
     public Avalonia.Controls.Primitives.ScrollBarVisibility ContentScrollBarVisibility =>
-        CurrentPage is TabletDetailViewModel
+        CurrentPage is TabletPageViewModel or TabletDetailViewModel
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
             : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
 
@@ -208,6 +207,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
         Settings = new SettingsViewModel(Startup, Theme, DevTools);
 
+        // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
+        // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
+        TabletPage = new TabletPageViewModel(ResolveTabletDetail);
+
         // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Per-App is feature-gated
         // (hidden while FeatureFlags.PerAppProfiles is off). Selection is synced in OnCurrentPageChanged.
         NavLeaves.Add(new NavLeafViewModel("PRESETS", Presets));
@@ -258,10 +261,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public IReadOnlyList<(string Slug, Action Navigate)> ScreenshotTargets()
     {
         var list = new List<(string, Action)> { ("home", () => CurrentPage = Dashboard) };
-        // Each tablet in the nav (a connected/known tablet's page).
-        foreach (var tablet in Tablets)
+        // Each tablet, shown by selecting it on the single TABLET page.
+        foreach (var choice in TabletPage.Tablets)
         {
-            var name = tablet.Name;
+            var name = choice.Name;
             list.Add(($"tablet-{Slugify(name)}", () => NavigateToTabletByName(name)));
         }
         foreach (var leaf in NavLeaves.Where(l => l.IsVisible))
@@ -286,31 +289,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private static string Slugify(string s) => s.ToLowerInvariant().Replace(' ', '-');
 
-    /// <summary>Navigate to a tablet's settings page (lazily creating + caching its VM).</summary>
-    [RelayCommand]
-    private void NavigateToTablet(TabletNavNodeViewModel item) => ShowTablet(item, null);
-
-    /// <summary>Show a tablet's page, optionally deep-linking to a specific tab (a health-issue "Fix").</summary>
-    private void ShowTablet(TabletNavNodeViewModel item, TabletDetailTab? tab)
+    /// <summary>Resolve (lazily creating + caching) a tablet's detail VM by name for the TABLET page host
+    /// (#542). Returns null if no such profile exists. The VM is headerless — the page owns the header.</summary>
+    private TabletDetailViewModel? ResolveTabletDetail(string name)
     {
-        if (!_tabletDetails.TryGetValue(item.Name, out var vm))
+        if (!_tabletDetails.TryGetValue(name, out var vm))
         {
-            var profile = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == item.Name);
-            if (profile == null) { CurrentPage = Dashboard; return; }
-            vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(item.Name),
+            var profile = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == name);
+            if (profile == null) return null;
+            vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(name),
                 () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
-            _tabletDetails[item.Name] = vm;
+            _tabletDetails[name] = vm;
         }
-        // Request the tab before showing the page: a fresh page consumes it on attach; an already-open
-        // one switches via the VM's TabRequested event (re-navigation wouldn't re-attach the view).
-        if (tab is { } t) vm.RequestTab(t);
-        CurrentPage = vm;
+        vm.ShowHeader = false;
+        return vm;
     }
 
+    /// <summary>Open the TABLET page on a specific tablet (the Home cards, a health-issue "Fix" deep-link),
+    /// optionally deep-linking to one of its tabs.</summary>
     private void NavigateToTabletByName(string name, TabletDetailTab? tab = null)
     {
-        var item = Tablets.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (item != null) ShowTablet(item, tab);
+        TabletPage.Select(name, tab);
+        CurrentPage = TabletPage;
     }
 
     private async Task ForgetTabletByNameAsync(string name)
@@ -320,13 +320,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (settings != null && profile != null)
         {
             settings.Profiles.Remove(profile);
-            await _session.ApplyAndSaveSettingsAsync(settings); // reload rebuilds the list + prunes the VM
+            // Reload rebuilds the list + prunes the VM; the TABLET page reselects a survivor (or shows the
+            // no-tablet placeholder) in RebuildTablets.
+            await _session.ApplyAndSaveSettingsAsync(settings);
         }
-        if (string.Equals(_selectedTabletName, name, StringComparison.OrdinalIgnoreCase))
-            CurrentPage = Dashboard;
     }
 
-    /// <summary>Reconcile the per-tablet nav children + cached page VMs with the session's tablets.</summary>
+    /// <summary>Reconcile the TABLET page's switcher list + cached page VMs with the session's tablets.</summary>
     private void RebuildTablets()
     {
         var ordered = _session.Profiles
@@ -336,22 +336,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .ToList();
         var names = new HashSet<string>(ordered.Select(p => p.Tablet), StringComparer.OrdinalIgnoreCase);
 
-        // Drop cached detail VMs for tablets that are gone; if one was open, fall back to the overview.
+        // Drop cached detail VMs for tablets that are gone; the TABLET page reselects a survivor below.
         foreach (var key in _tabletDetails.Keys.Where(k => !names.Contains(k)).ToList())
         {
-            var vm = _tabletDetails[key];
+            _tabletDetails[key].Dispose();
             _tabletDetails.Remove(key);
-            if (ReferenceEquals(CurrentPage, vm)) CurrentPage = Dashboard;
-            vm.Dispose();
         }
 
-        // Rebuild the lightweight nav-item list (order shifts as detection/last-seen change).
-        Tablets.Clear();
-        foreach (var p in ordered)
-            Tablets.Add(new TabletNavNodeViewModel(p.Tablet, p.IsDetected,
-                item => ForgetTabletByNameAsync(item.Name)));
-
-        // Rebuild the richer overview rows (same order) — status, last-seen, specs, navigable (#307).
+        // Rebuild the richer overview rows (Home cards, same order) — status, last-seen, specs, navigable (#307).
         var specByName = new Dictionary<string, DetectedTablet>(StringComparer.OrdinalIgnoreCase);
         foreach (var d in _session.DetectedTablets) specByName[d.Name] = d;
         TabletsOverview.Tablets = ordered
@@ -363,10 +355,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     p.LastSeenDetail, specs, () => NavigateToTabletByName(p.Tablet));
             })
             .ToList();
-
-        OnPropertyChanged(nameof(HasTablets));
         TabletsOverview.HasTablets = ordered.Count > 0;
-        UpdateTabletSelection();
+
+        // Refresh the TABLET page's switcher + default selection (first detected / last-used, #542). Runs
+        // after the prune so a reselection resolves a fresh (surviving) detail VM.
+        TabletPage.SetTablets(ordered.Select(p => (p.Tablet, p.IsDetected)).ToList());
     }
 
     /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded
@@ -400,13 +393,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _ = _session.ReloadAsync();
     }
 
-    private void UpdateTabletSelection()
-    {
-        _selectedTabletName = _tabletDetails.FirstOrDefault(kv => ReferenceEquals(kv.Value, CurrentPage)).Key;
-        foreach (var item in Tablets)
-            item.IsSelected = string.Equals(item.Name, _selectedTabletName, StringComparison.OrdinalIgnoreCase);
-    }
-
     partial void OnCurrentPageChanged(ObservableObject? oldValue, ObservableObject? newValue)
     {
         // Stop the debug stream when leaving the ADVANCED tabbed page (which hosts Diagnostics).
@@ -426,13 +412,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Same for the Per-App spike page's snapshot pickers.
         if (ReferenceEquals(newValue, PerApp)) _ = PerApp.LoadAsync();
 
-        // Highlight the selected tablet child (or none) in the sidebar.
-        UpdateTabletSelection();
-
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         foreach (var leaf in NavLeaves)
             leaf.IsSelected = ReferenceEquals(CurrentPage, leaf.Page);
         OnPropertyChanged(nameof(IsDashboard));
+        OnPropertyChanged(nameof(IsTabletPage));
         OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAdvanced));
         OnPropertyChanged(nameof(IsDeveloper));
@@ -466,29 +450,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
         _perAppSwitcher.Dispose(); // stops the foreground watcher + pen stream
     }
-}
-
-/// <summary>A child node under the Tablets parent node in the page navigation bar (see
-/// docs/design/ux-terminology.md) — name + live connection status + selection. Forget is a command on
-/// the node itself (a right-click context menu lives in a popup where an ancestor binding back to the
-/// shell isn't reliable).</summary>
-public partial class TabletNavNodeViewModel : ObservableObject
-{
-    private readonly Func<TabletNavNodeViewModel, Task> _forget;
-
-    public TabletNavNodeViewModel(string name, bool isDetected, Func<TabletNavNodeViewModel, Task> forget)
-    {
-        Name = name;
-        _isDetected = isDetected;
-        _forget = forget;
-    }
-
-    public string Name { get; }
-    [ObservableProperty] private bool _isDetected;
-    [ObservableProperty] private bool _isSelected;
-
-    [RelayCommand]
-    private Task Forget() => _forget(this);
 }
 
 /// <summary>A flat leaf node in the page navigation bar (#477): a label, the page it opens, a selection
