@@ -1,6 +1,22 @@
 # OpenTabletArtist
 
-A companion app for [OpenTabletDriver](https://opentabletdriver.net/) — configure your tablet's display mapping, pen dynamics, and express keys from a friendly UI, save named profiles, and switch between them with global hotkeys or automatically per application. Packaged for Windows today; the codebase is cross-platform and the macOS port is code-complete (runs from source — packaged builds are next).
+An alternative experience for  for [OpenTabletDriver](https://opentabletdriver.net/) 
+
+Features:
+- Modern and cute user experience
+- Configure which display input from your tablet goes to
+- Define your active area:
+    - auto force-proportions (no distorted movement or strokes)
+    - resize active area
+- pen dynamics: pressure curve, pressure smoothing position smoothing
+- hotkeys
+    - display toggle
+    - switch presets
+
+Platforms:
+- Windows - working
+- MacOs - Under investigation. code complete.
+- Linux - Under investigation
 
 📖 **[User Manual](docs/USERMANUAL.md)** — start here.
 
