@@ -55,7 +55,7 @@ public partial class AdvancedViewModel : ObservableObject
         var tabs = new AdvancedTabItem[]
         {
             new("DAEMON", AdvancedTab.Daemon, daemon),
-            new("WINDOWS INK PLUGIN", AdvancedTab.WindowsInk, windowsInk),
+            new("WINDOWS INK", AdvancedTab.WindowsInk, windowsInk),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("CONSOLE", AdvancedTab.Log, log),

@@ -18,17 +18,15 @@
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="170" Spacing="2">
-                <RadioButton Content="INDUCE WARNINGS" IsChecked="True" x:Name="InduceTab"
+                <RadioButton Content="ARTIFICIAL WARNINGS" IsChecked="True" x:Name="InduceTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="ACTUAL WARNINGS" x:Name="ActualTab"
+                <RadioButton Content="WARNINGS" x:Name="ActualTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="CALIBRATION I/O" x:Name="CalibrationIoTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="SHORTCUT" x:Name="ShortcutTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SCREENSHOT" x:Name="ScreenshotTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -38,7 +36,7 @@
         <!-- Induce health warnings: synthetic per-severity cards for reviewing the Needs-attention UI. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #InduceTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Induce health warnings"
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Induce artificial warnings"
                            Description="Turn one on to make a synthetic warning appear in Home's Needs attention list at that severity. Its Fix button simply clears the toggle.">
                 <StackPanel Spacing="10">
                     <c:ToggleSetting Label="Recommendation-level warning"
@@ -57,7 +55,7 @@
         <!-- Trigger actual health warnings: force each real catalog warning with its true copy. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ActualTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Trigger actual health warnings"
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Trigger health warnings"
                            Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
                 <StackPanel Spacing="10">
                     <c:ToggleSetting Label="Windows Ink plugin not installed"
@@ -181,23 +179,6 @@
                     <c:ToggleSetting Label="Show the JSON tab"
                                      Description="The tablet profile's raw settings JSON."
                                      IsChecked="{Binding Settings.ShowJsonTab}" />
-                </StackPanel>
-            </c:SettingCard>
-        </ScrollViewer>
-
-        <!-- Register a dev build under the Start menu so automation / screenshot tooling can find it. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ShortcutTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Start-menu shortcut"
-                           Description="Create a per-user Start-menu shortcut to this app. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
-                <StackPanel Spacing="8">
-                    <Button Content="Create Start-menu shortcut"
-                            Command="{Binding CreateStartMenuShortcutCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,6"
-                            HorizontalAlignment="Left" />
-                    <TextBlock Text="{Binding ShortcutStatus}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               IsVisible="{Binding HasShortcutStatus}" />
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>

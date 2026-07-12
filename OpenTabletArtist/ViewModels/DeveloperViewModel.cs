@@ -34,30 +34,12 @@ public sealed partial class DeveloperViewModel : ObservableObject
 
     public DeveloperSettings Settings => DeveloperSettings.Instance;
 
-    /// <summary>Result of the last "create Start-menu shortcut" action (path on success, error otherwise).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasShortcutStatus))]
-    private string _shortcutStatus = "";
-
-    public bool HasShortcutStatus => !string.IsNullOrEmpty(ShortcutStatus);
-
     /// <summary>Result of the last "introduce a config error" action (what changed, or why it couldn't).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasConfigErrorStatus))]
     private string _configErrorStatus = "";
 
     public bool HasConfigErrorStatus => !string.IsNullOrEmpty(ConfigErrorStatus);
-
-    /// <summary>Create a per-user Start-menu shortcut to this exe. Registers the app under its display
-    /// name so tooling keyed to the installed-app list (e.g. the UI-screenshot automation grant) can find
-    /// a dev build run from its output folder. Makes it easy to set up on another machine.</summary>
-    [RelayCommand]
-    private void CreateStartMenuShortcut()
-    {
-        ShortcutStatus = StartMenuShortcut.TryCreate(out var path, out var error)
-            ? $"Created: {path}"
-            : $"Couldn't create the shortcut: {error}";
-    }
 
     /// <summary>Deliberately push the active tablet's display mapping partly off-screen — a <em>real</em>
     /// settings change (persisted), not a synthetic warning — so the "mapped area is partly off-screen"

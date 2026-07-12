@@ -61,6 +61,7 @@
         <DataTemplate DataType="{x:Type vm:StartupViewModel}"><views:StartupView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DeveloperViewModel}"><views:DeveloperView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DevToolsViewModel}"><views:DevToolsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ShortcutViewModel}"><views:ShortcutView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ThemeViewModel}"><views:ThemeView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
     </Application.DataTemplates>

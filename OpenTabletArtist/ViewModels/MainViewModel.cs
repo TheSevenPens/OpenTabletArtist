@@ -90,6 +90,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ThemeViewModel Theme { get; } = new();
     /// <summary>The SETTINGS → Dev Tools tab (the Developer-page visibility toggle).</summary>
     public DevToolsViewModel DevTools { get; } = new();
+    /// <summary>The SETTINGS → Shortcut tab (create a Start-menu shortcut; Windows-only).</summary>
+    public ShortcutViewModel Shortcut { get; } = new();
 
     /// <summary>App name + version + BETA, shown in the sidebar footer — moved out of the OS title-bar
     /// caption so it no longer clutters the top-left. Same version formatter as the About page.</summary>
@@ -205,7 +207,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The SETTINGS tabbed page holds OTA's own preference subpages (Startup / Theme / Dev Tools),
         // sharing the same VM instances, behind its own sidebar node in front of ADVANCED. The Developer
         // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
-        Settings = new SettingsViewModel(Startup, Theme, DevTools);
+        Settings = new SettingsViewModel(Startup, Theme, DevTools, Shortcut);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).

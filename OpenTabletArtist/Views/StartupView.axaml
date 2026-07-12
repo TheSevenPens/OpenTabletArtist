@@ -6,7 +6,7 @@
     <!-- DataContext is the StartupViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- Startup (#360): launch with Windows so hotkeys / per-app switching are ready at login. -->
-        <c:SettingCard Title="Startup" IsVisible="{Binding StartupSupported}">
+        <c:SettingCard Title="Auto-run" IsVisible="{Binding StartupSupported}">
             <StackPanel Spacing="10">
                 <c:ToggleSetting Label="Start OpenTabletArtist when Windows starts"
                                  Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."

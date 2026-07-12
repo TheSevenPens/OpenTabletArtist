@@ -11,11 +11,13 @@ namespace OpenTabletArtist.Tests;
 /// </summary>
 public class SettingsRailTests
 {
-    [Fact]
-    public void Startup_HiddenOffWindows_ShownOnWindows()
+    [Theory]
+    [InlineData(SettingsTab.Startup)]   // registry Run key
+    [InlineData(SettingsTab.Shortcut)]  // Start-menu .lnk via WScript.Shell
+    public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(SettingsTab tab)
     {
-        Assert.True(SettingsViewModel.TabAppliesToOs(SettingsTab.Startup, isWindows: true));
-        Assert.False(SettingsViewModel.TabAppliesToOs(SettingsTab.Startup, isWindows: false));
+        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));
+        Assert.False(SettingsViewModel.TabAppliesToOs(tab, isWindows: false));
     }
 
     [Theory]

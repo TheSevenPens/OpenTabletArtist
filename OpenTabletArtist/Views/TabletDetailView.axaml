@@ -151,7 +151,7 @@
             <StackPanel Width="150" Spacing="2" x:Name="TabRail">
                 <RadioButton Content="ABOUT" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="PEN BEHAVIOR" x:Name="OutputModeTab"
+                <RadioButton Content="PEN MOVEMENT" x:Name="OutputModeTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="PEN INPUTS" x:Name="PenTipTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -270,7 +270,7 @@
             <StackPanel>
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
-                <TextBlock Text="PEN BEHAVIOR" Classes="TabTitle" />
+                <TextBlock Text="PEN MOVEMENT" Classes="TabTitle" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
                 <UniformGrid Columns="2" Margin="0,12,0,0">

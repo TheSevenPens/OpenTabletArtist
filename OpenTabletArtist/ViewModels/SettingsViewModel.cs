@@ -26,7 +26,7 @@ public partial class SettingsTabItem : ObservableObject
 
 /// <summary>
 /// The SETTINGS tabbed page: a sidebar node whose content area has its own subpage navigation — a
-/// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages (Startup, Theme, Dev Tools). Split
+/// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages (Startup, Theme, Dev Tools, Shortcut). Split
 /// out of the ADVANCED page so those OTA-owned settings live under their own node. Mirrors
 /// <see cref="AdvancedViewModel"/> (data-driven rail + shared subpage VMs, deep-linkable via
 /// <see cref="SelectedTab"/>), but flat — there are no owner sections here. See docs/design/ux-terminology.md.
@@ -35,13 +35,15 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsTabItem[] _allTabs;
 
-    public SettingsViewModel(StartupViewModel startup, ThemeViewModel theme, DevToolsViewModel devTools)
+    public SettingsViewModel(StartupViewModel startup, ThemeViewModel theme, DevToolsViewModel devTools,
+        ShortcutViewModel shortcut)
     {
         var tabs = new SettingsTabItem[]
         {
             new("STARTUP", SettingsTab.Startup, startup),
             new("THEME", SettingsTab.Theme, theme),
             new("DEV TOOLS", SettingsTab.DevTools, devTools),
+            new("SHORTCUT", SettingsTab.Shortcut, shortcut),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
@@ -52,11 +54,12 @@ public partial class SettingsViewModel : ObservableObject
         UpdateSelection();
     }
 
-    /// <summary>Whether a SETTINGS subpage applies on the given OS. Startup is Windows-only (registry Run
-    /// key, <c>StartupService.IsSupported</c>); Developer and Theme are cross-platform. Pure (OS passed in,
-    /// not checked inline) so it's unit-testable — matching <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
+    /// <summary>Whether a SETTINGS subpage applies on the given OS. Startup (registry Run key) and Shortcut
+    /// (a Start-menu .lnk via WScript.Shell) are Windows-only; Theme and Dev Tools are cross-platform. Pure
+    /// (OS passed in, not checked inline) so it's unit-testable — matching
+    /// <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
     public static bool TabAppliesToOs(SettingsTab tab, bool isWindows) =>
-        isWindows || tab != SettingsTab.Startup;
+        isWindows || (tab != SettingsTab.Startup && tab != SettingsTab.Shortcut);
 
     /// <summary>The settings subpages, flat (no owner grouping).</summary>
     public IReadOnlyList<SettingsTabItem> Tabs { get; }
