@@ -127,4 +127,29 @@ public class TabletPageSelectionTests
         vm.SetTablets(Tablets(("Detected A", true)));
         Assert.Equal("Detected A", vm.SelectedTablet?.Name);
     }
+
+    [Fact]
+    public void SameSetReconcile_PreservesSelectionInstance()
+    {
+        // A no-change data poll (~15s) must reconcile in place, NOT rebuild the list — a rebuild nulls the
+        // ComboBox selection and recreates the hosted detail view, snapping it back to its first tab.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true)));
+        vm.Select("Detected B");
+        var before = vm.SelectedTablet;
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true)));
+        Assert.Same(before, vm.SelectedTablet);
+    }
+
+    [Fact]
+    public void SameSetReconcile_UpdatesDetectionInPlace()
+    {
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Wacom", true)));
+        var choice = vm.SelectedTablet;
+        // Detection flips but the set + order is unchanged: update the same instance in place.
+        vm.SetTablets(Tablets(("Wacom", false)));
+        Assert.Same(choice, vm.SelectedTablet);
+        Assert.False(vm.SelectedTablet!.IsDetected);
+    }
 }

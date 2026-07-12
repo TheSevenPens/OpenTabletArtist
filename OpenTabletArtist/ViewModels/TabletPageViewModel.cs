@@ -76,6 +76,26 @@ public partial class TabletPageViewModel : ObservableObject
     /// when it survives; otherwise pick the default (first detected, or the last-used one).</summary>
     public void SetTablets(IReadOnlyList<(string Name, bool IsDetected)> ordered)
     {
+        // When the tablets + order are unchanged (the ~15s data poll normally reports the same set),
+        // reconcile IN PLACE instead of Clear()+rebuild. A rebuild transiently nulls the ComboBox's bound
+        // selection, which nulls Content and recreates the hosted detail view — snapping it back to its
+        // first (About) tab every poll. Updating the detection dots in place avoids that churn entirely.
+        bool sameSet = Tablets.Count == ordered.Count
+            && Tablets.Zip(ordered, (existing, next) => Eq(existing.Name, next.Name)).All(match => match);
+        if (sameSet)
+        {
+            for (int i = 0; i < ordered.Count; i++) Tablets[i].IsDetected = ordered[i].IsDetected;
+            if (SelectedTablet == null && Tablets.Count > 0)
+            {
+                _suppressPersist = true;
+                SelectedTablet = ChooseSelection(null);
+                _suppressPersist = false;
+            }
+            return;
+        }
+
+        // Membership or order actually changed (a tablet was added / removed / reordered) — rebuild, keeping
+        // the current selection where possible.
         var previous = SelectedTablet?.Name;
         Tablets.Clear();
         foreach (var (name, detected) in ordered)
