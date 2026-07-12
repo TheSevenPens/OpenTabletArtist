@@ -28,6 +28,8 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SCREENSHOT" x:Name="ScreenshotTab"
                              Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="WINDOW SIZE" x:Name="WindowSizeTab"
+                             Theme="{StaticResource TabRadioButton}" />
             </StackPanel>
         </Border>
 
@@ -154,6 +156,35 @@
 
                     <TextBlock x:Name="ScreenshotStatus" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}" IsVisible="False" />
+                </StackPanel>
+            </c:SettingCard>
+        </ScrollViewer>
+
+        <!-- Force the window to an exact ACTUAL-PIXEL size (#546): preview how the layout responds on
+             smaller displays, or get a consistent window for screenshots. The presets are real pixels
+             (scaling-independent); forcing relaxes the window's normal minimum so small sizes aren't
+             clamped up. Reset by restarting the app. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #WindowSizeTab.IsChecked}">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Window size"
+                           Description="Force the app window to occupy an exact number of actual screen pixels (independent of Windows display scaling) — to preview how the layout responds on smaller displays, or for consistent screenshots. Forcing a size relaxes the window's normal minimum, so a small size can look cramped; restart the app to restore it.">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Current size:" FontWeight="SemiBold" />
+                        <TextBlock x:Name="WindowSizeText" Text="—"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <!-- Wraps so every preset stays reachable when the window itself is forced narrow. -->
+                    <WrapPanel>
+                        <Button Content="1920 × 1080" Tag="1920,1080" Click="OnSetWindowSize"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                        <Button Content="1600 × 900" Tag="1600,900" Click="OnSetWindowSize"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                        <Button Content="1366 × 768" Tag="1366,768" Click="OnSetWindowSize"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                        <Button Content="1280 × 720" Tag="1280,720" Click="OnSetWindowSize"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                    </WrapPanel>
                 </StackPanel>
             </c:SettingCard>
         </ScrollViewer>
