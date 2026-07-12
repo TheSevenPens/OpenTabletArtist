@@ -30,15 +30,15 @@
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <!-- Connection status bar across the top of the tablet header: full-width, solid colour by
-             state — orange when the tablet isn't detected, green when it is. -->
-        <Style Selector="Border.tabletStatusBar">
+        <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid colour by
+             state: orange when the tablet isn't detected, green when it is. -->
+        <Style Selector="Border.tabletStatusChip">
             <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
             <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12,7" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <Style Selector="Border.tabletStatusBar.connected">
+        <Style Selector="Border.tabletStatusChip.connected">
             <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
         </Style>
     </UserControl.Styles>
@@ -69,34 +69,41 @@
 
     <!-- A single tablet's settings: the tabbed editor. Hosted as the in-app Tablets page, and by the
          tray's focused Pen Dynamics dialog. DataContext is a TabletDetailViewModel. -->
+    <!-- The tablet name is this page's title, so the header sits at the SAME top position as every other
+         page's title — no extra top inset (#titlebar). Its right-aligned actions clear the native
+         min/max/close caption buttons by sitting just BELOW them (the two-line name makes the header tall
+         enough) — see the trailing row below. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header (see docs/design/ux-terminology.md): a full-width connection-status bar,
-             then the tablet name (brand/model) + Refresh/Forget, then an optional refresh-warning line. -->
+        <!-- Complex header (see docs/design/ux-terminology.md): the tablet name (model over brand) with a
+             trailing row of [status chip · Refresh · Forget], then an optional detail / refresh-warning line. -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,16">
-            <!-- Connection status bar spanning the header — solid green when detected, orange when not. -->
-            <Border Classes="tabletStatusBar" Classes.connected="{Binding IsTabletDetected}">
-                <TextBlock Text="{Binding DetectionText}" FontWeight="SemiBold"
-                           Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap" />
-            </Border>
             <ctrl:ComplexHeader Margin="0">
                 <ctrl:ComplexHeader.TitleContent>
-                    <!-- brand (first word) small, over the model (rest) large — the PageTitle look
+                    <!-- model (rest) large, over the brand (first word) small — the PageTitle look
                          (Segoe UI Light, uppercase) split across two lines. -->
                     <StackPanel VerticalAlignment="Center" MaxWidth="360">
-                        <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
-                                   IsVisible="{Binding HasTabletBrand}"
-                                   FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                         <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
                                    FontFamily="Segoe UI, Inter" FontSize="30" FontWeight="Light"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                   TextWrapping="Wrap" Margin="0,-2,0,0" />
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
+                                   IsVisible="{Binding HasTabletBrand}"
+                                   FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,-2,0,0" />
                     </StackPanel>
                 </ctrl:ComplexHeader.TitleContent>
-                <!-- Trailing: Refresh + Forget (connection status moved to the bar above). -->
+                <!-- Trailing: [status chip][Refresh][Forget], right-aligned. They clear the native
+                     min/max/close caption buttons by sitting BELOW them — the two-line tablet name makes the
+                     header tall enough that these vertically-centred actions fall under the caption zone. -->
                 <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
-                    <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                    <Border Classes="tabletStatusChip" Classes.connected="{Binding IsTabletDetected}"
+                            Width="{Binding #RefreshBtn.Bounds.Width, Converter={x:Static otac:MultiplyConverter.Instance}, ConverterParameter=1.5}">
+                        <TextBlock Text="{Binding DetectionText}" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Button x:Name="RefreshBtn" Content="Refresh" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
                             Theme="{StaticResource GhostButton}" Padding="12,6" />
                     <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
@@ -106,6 +113,10 @@
                             Theme="{StaticResource DeleteButton}" Padding="12,6" />
                 </StackPanel>
             </ctrl:ComplexHeader>
+            <!-- When not detected, the chip just says "Not detected"; this line carries the fuller context. -->
+            <TextBlock Text="{Binding DetectionDetail}" FontStyle="Italic"
+                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
+                       IsVisible="{Binding DetectionDetail, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <TextBlock Text="{Binding RefreshWarning}" FontStyle="Italic"
                        Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
@@ -165,7 +176,7 @@
                      own PEN BUTTONS tab (#494). -->
                 <RadioButton Content="TABLET BUTTONS" x:Name="PenButtonsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="WHEELS" x:Name="WheelTab"
+                <RadioButton Content="TABLET WHEELS" x:Name="WheelTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasWheels}" />
                 <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
@@ -258,8 +269,6 @@
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
                 <TextBlock Text="PEN BEHAVIOR" Classes="TabTitle" />
-                <TextBlock Text="How the pen maps to the screen." Margin="0,4,0,0"
-                           Foreground="{DynamicResource TextSecondaryBrush}" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
                 <UniformGrid Columns="2" Margin="0,12,0,0">
@@ -333,7 +342,7 @@
                             </StackPanel>
                         </Border>
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Text="DISPLAY MAPPING" Classes="SectionLabel"
+                            <TextBlock Grid.Row="0" Text="CHOOSE DISPLAY" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
                             <!-- Apply mapping leads the row (primary action), then the display helpers. -->
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
@@ -400,9 +409,9 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ActiveAreaTab.IsChecked}">
             <StackPanel>
+                <TextBlock Text="ACTIVE AREA" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
-                        <TextBlock Text="ACTIVE AREA" Classes="TabTitle" />
                         <TextBlock Text="The highlighted region is the part of your tablet that's currently mapped to the screen. It's sized automatically to match the selected display's proportions, so pen movement isn't stretched or squashed."
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,6,0,10" TextWrapping="Wrap" />
@@ -432,7 +441,7 @@
                                            Foreground="{DynamicResource TextMutedBrush}" />
                                 <Slider Grid.Column="1" Minimum="10" Maximum="100"
                                         Value="{Binding ActiveAreaSizePercent}" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2" Text="{Binding ActiveAreaSizePercent, StringFormat={}{0:0}%}"
+                                <TextBlock Grid.Column="2" Text="{Binding ActiveAreaSizePercent, StringFormat={}{0:0.0}%}"
                                            MinWidth="38" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <Button Grid.Column="3" Content="Maximize"
@@ -522,9 +531,6 @@
                       IsVisible="{Binding #CalibrationTab.IsChecked}">
             <StackPanel MaxWidth="900" HorizontalAlignment="Left" IsVisible="{Binding HasAreaMapping}">
                 <TextBlock Text="CALIBRATION" Classes="TabTitle" />
-                <TextBlock Text="Correct where the pen lands vs. where you see it (Absolute mode only). Choose a density, then tap the targets on screen."
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           Margin="0,6,0,12" TextWrapping="Wrap" />
 
                 <!-- Current calibration status card — sits before the density options so the user sees
                      the current state (and can clear it) first. Leads with which display the calibration
@@ -678,9 +684,6 @@
                       IsVisible="{Binding #PenBarrelTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
                     <TextBlock Text="PEN BUTTONS" Classes="TabTitle" HorizontalAlignment="Center" />
-                    <TextBlock Text="The buttons on the side of the pen. Set what each one does."
-                               Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                               HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="440" />
 
                     <!-- Horizontal pen (tip left → eraser right); the side buttons light up for the ones
                          this pen has, matching the cards below. -->
@@ -774,7 +777,7 @@
             <StackPanel>
                 <!-- Header: label + master enable toggle + clear-all (parity with ExpressKeys). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
-                    <TextBlock Grid.Column="0" Text="WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
                         <TextBlock Text="Wheel enabled" VerticalAlignment="Center"
@@ -1042,9 +1045,6 @@
                       IsVisible="{Binding #TiltDynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <TextBlock Text="TILT DYNAMICS" Classes="TabTitle" Margin="2,2,2,4" />
-                <TextBlock Text="How the pen's tilt is reported to your apps." TextWrapping="Wrap"
-                           Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
-
                 <Border Classes="GlassPanel" Margin="0,0,0,10">
                     <StackPanel Spacing="10">
                         <TextBlock Text="TILT" Classes="SectionLabel" />

@@ -97,8 +97,8 @@ public partial class AdvancedViewModel : ObservableObject
 
     /// <summary>The subpage the content host shows for the current tab.</summary>
     public object? SelectedContent => Current?.Content;
-    /// <summary>Breadcrumb for the complex header — "ADVANCED › &lt;tab&gt;".</summary>
-    public string BreadcrumbTitle => $"ADVANCED › {Current?.Label}";
+    /// <summary>The current subpage's name, shown as its body tab title (matching the tablet page's tabs).</summary>
+    public string CurrentTabTitle => Current?.Label ?? "";
     private AdvancedTabItem? Current => _allTabs.FirstOrDefault(t => t.Tab == SelectedTab);
 
     /// <summary>Clicking a rail tab selects it (the tab item is the command parameter).</summary>
@@ -121,7 +121,7 @@ public partial class AdvancedViewModel : ObservableObject
 
         UpdateSelection();
         OnPropertyChanged(nameof(SelectedContent));
-        OnPropertyChanged(nameof(BreadcrumbTitle));
+        OnPropertyChanged(nameof(CurrentTabTitle));
 
         // Turn the daemon debug stream off when leaving the Diagnostics tab so it doesn't keep cloning
         // reports (see docs/DIAGNOSTICS.md). Leaving the ADVANCED page entirely is covered by the shell

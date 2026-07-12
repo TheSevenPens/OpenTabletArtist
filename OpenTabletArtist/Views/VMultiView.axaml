@@ -5,8 +5,6 @@
     <!-- DataContext is the VMultiViewModel, supplied by the typed-nav DataTemplate (#15). Moved off the
          Home page (#317): Home flags a missing driver and directs you here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="VMULTI DRIVER" />
-
         <TextBlock Text="VMulti is a virtual pen device the Windows Ink plugin injects pressure and tilt through. It's required for pen pressure to reach your drawing apps. Installing or removing it may require a restart."
                    Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,12" />

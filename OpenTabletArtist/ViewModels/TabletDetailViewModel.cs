@@ -541,8 +541,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>True when this tablet is the currently-connected one (green check vs. amber warning).</summary>
     [ObservableProperty] private bool _isTabletDetected;
-    /// <summary>Banner text describing the detection state.</summary>
+    /// <summary>Short detection status for the header chip ("Detected" / "Not detected").</summary>
     [ObservableProperty] private string _detectionText = "";
+    /// <summary>Longer detail shown under the header when the tablet isn't detected (empty when it is).</summary>
+    [ObservableProperty] private string _detectionDetail = "";
 
     partial void OnIsTabletDetectedChanged(bool value)
     {
@@ -557,9 +559,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void RefreshDetectionStatus()
     {
         IsTabletDetected = _isDetectedProbe?.Invoke() ?? false;
-        DetectionText = IsTabletDetected
-            ? "Detected"
-            : "Not currently detected — showing this tablet's saved settings.";
+        DetectionText = IsTabletDetected ? "Detected" : "Not detected";
+        DetectionDetail = IsTabletDetected ? "" : "Not currently detected — showing this tablet's saved settings.";
         // Detection changing is exactly when the digitizer specs (dis)appear, so recompute the active
         // area too. This self-heals "Active-area details aren't available" on reconnect — no restart.
         RefreshTabletArea();
@@ -1844,11 +1845,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>Share of the full digitizer area covered by the effective area (width×height).</summary>
     public string ActiveAreaUsagePercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
-        ? $"{a.EffWidth * a.EffHeight / (a.FullWidth * a.FullHeight) * 100:0}%" : "—";
+        ? $"{a.EffWidth * a.EffHeight / (a.FullWidth * a.FullHeight) * 100:0.0}%" : "—";
 
-    /// <summary>Per-axis coverage, e.g. "80% × 62%" — useful once the area no longer fills an edge.</summary>
+    /// <summary>Per-axis coverage, e.g. "80.0% × 62.0%" — useful once the area no longer fills an edge.</summary>
     public string ActiveAreaDimsPercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
-        ? $"{a.EffWidth / a.FullWidth * 100:0}% × {a.EffHeight / a.FullHeight * 100:0}%" : "—";
+        ? $"{a.EffWidth / a.FullWidth * 100:0.0}% × {a.EffHeight / a.FullHeight * 100:0.0}%" : "—";
 
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()

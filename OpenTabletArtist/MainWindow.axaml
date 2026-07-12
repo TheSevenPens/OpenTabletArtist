@@ -127,24 +127,26 @@
         </Border>
 
         <!-- CONTENT AREA -->
-        <!-- The caption-clearance inset (#titlebar) is a MARGIN on the ScrollViewer, i.e. OUTSIDE the
-             scrollable content, so it stays reserved at every scroll position. (It used to be top padding
-             inside the Border, which scrolled away with the content — letting a tall page, or a tabbed
-             page's header with right-aligned buttons, slide up under the native min/max/close buttons.)
-             46px clears the full Windows 11 extended caption height (taller than the old 34px drag-strip
-             assumption); the drag strip below matches. -->
+        <!-- Caption-clearance inset (#titlebar): a MARGIN on the ScrollViewer (outside the scrollable
+             content, so it's reserved at every scroll position). Kept small (16px) so the page title sits
+             near the top — page titles are short and left-aligned, so they can live under the transparent
+             drag strip (still draggable) and no interactive content lands near the top-right caption
+             buttons. The tablet detail page is the exception — its complex header has right-aligned
+             Refresh/Forget — so it adds its OWN top inset in TabletDetailView to stay clear of the caption
+             buttons, pending a dedicated tablet-header pass. The drag strip below stays taller (40) to keep
+             a comfortable window-move zone across the top. -->
         <!-- Most pages are plain content and use this outer scroll (Auto). The tablet detail page manages
              its own scrolling (fixed header + tab rail, per-tab scroll), so it sets this to Disabled — that
              bounds the page to the viewport height so its inner scroll engages and the header no longer
              scrolls away (#507). -->
         <ScrollViewer Grid.Column="1"
-                      Margin="0,46,0,0"
+                      Margin="0,16,0,0"
                       VerticalScrollBarVisibility="{Binding ContentScrollBarVisibility}"
                       HorizontalScrollBarVisibility="Disabled">
-            <!-- Content padding (top small since the caption clearance is the ScrollViewer margin above).
+            <!-- Content padding (top tiny since the caption clearance is the ScrollViewer margin above).
                  L/R/bottom stay above the Sakura cards' glow extent (16px blur, see CardShadow) so the
                  soft glow isn't clipped by the scroll viewport on those edges. -->
-            <Border Padding="20,8,20,18">
+            <Border Padding="20,2,20,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
@@ -190,7 +192,7 @@
     <!-- Title-bar drag strip (#titlebar): the top edge is app-coloured now, so this transparent strip
          gives the window its move/double-click-maximize behaviour. It stops short of the top-right so
          the native caption buttons still receive their clicks. -->
-    <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="46" Margin="0,0,150,0"
+    <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="40" Margin="0,0,150,0"
             Background="Transparent" PointerPressed="OnTitleBarPressed" DoubleTapped="OnTitleBarDoubleTapped" />
     </Panel>
 </Window>
