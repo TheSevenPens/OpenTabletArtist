@@ -249,7 +249,9 @@
                             Background="Transparent"
                             CornerRadius="6"
                             Padding="8,3.92,16,3.92">
-                        <Grid ColumnDefinitions="Auto,12,*">
+                        <!-- Gap (8) matches the tab rail's TabRadioButton so the page-nav label sits at the
+                             same left offset as tab-nav labels. -->
+                        <Grid ColumnDefinitions="Auto,8,*">
                             <!-- Active indicator bar. Always laid out (only its colour changes when
                                  checked) so selecting a row can't grow its height and nudge the label. -->
                             <Border x:Name="Indicator"
@@ -259,10 +261,6 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Left"
                                     Margin="-4,0,0,0" />
-                            <ContentPresenter Grid.Column="0"
-                                              Content="{TemplateBinding Tag}"
-                                              VerticalAlignment="Center"
-                                              Margin="8,0,0,0" />
                             <TextBlock Grid.Column="2"
                                        x:Name="Label"
                                        Text="{TemplateBinding Content}"
