@@ -119,7 +119,7 @@
         <Border Classes="GlassPanel" Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="BUNDLED OPENTABLETDRIVER VERSION"
+                    <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON VERSION"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0"
                                Foreground="{DynamicResource TextSecondaryBrush}" />

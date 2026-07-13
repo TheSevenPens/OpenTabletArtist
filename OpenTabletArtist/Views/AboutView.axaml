@@ -8,10 +8,10 @@
 
         <Border Classes="GlassPanel">
             <StackPanel>
-                <TextBlock Classes="SectionLabel" Text="WHAT IS THIS?" Margin="0,0,0,12" />
+                <TextBlock Classes="SectionLabel" Text="WHAT IS OPENTABLETARTIST?" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
-                    A simpler way of using OpenTabletDriver on Windows.
+                    An alternative, artist-focused experience for OpenTabletDriver on Windows.
                 </TextBlock>
                 <!-- Version (moved here from the sidebar footer) -->
                 <TextBlock Text="{Binding AppVersionLabel}" Margin="0,12,0,0"
