@@ -34,7 +34,7 @@
              (#207). Hit-test invisible; sits above the backdrop, behind the sidebar/content. -->
         <controls:SakuraPetals />
 
-    <Grid ColumnDefinitions="156,*">
+    <Grid ColumnDefinitions="140,*">
         <!-- SIDEBAR -->
         <Border Grid.Column="0"
                 Background="{DynamicResource SidebarBgBrush}"
@@ -145,7 +145,7 @@
             <!-- Content padding (top tiny since the caption clearance is the ScrollViewer margin above).
                  L/R/bottom stay above the Sakura cards' glow extent (16px blur, see CardShadow) so the
                  soft glow isn't clipped by the scroll viewport on those edges. -->
-            <Border Padding="20,2,20,18">
+            <Border Padding="8,2,20,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>

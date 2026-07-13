@@ -17,7 +17,7 @@
         <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="190" Spacing="2">
+            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
                 <ItemsControl ItemsSource="{Binding Tabs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>

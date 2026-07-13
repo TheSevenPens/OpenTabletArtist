@@ -148,7 +148,7 @@
             <!-- The rail is now fixed (the page scrolls internally, #507); let it scroll on its own if a
                  short window can't fit every tab. -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Width="150" Spacing="2" x:Name="TabRail">
+            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2" x:Name="TabRail">
                 <RadioButton Content="ABOUT" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="PEN MOVEMENT" x:Name="OutputModeTab"
@@ -629,12 +629,12 @@
              Data-driven: only the buttons this pen actually has appear (in the graphic and as cards). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenTipTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <TextBlock Text="PEN INPUTS" Classes="TabTitle" HorizontalAlignment="Center" />
+                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
+                    <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
                     <!-- Horizontal pen (tip left → eraser right) at the top of the page (#494 follow-up),
                          matching the Pen Buttons tab. Decorative; no connectors. Canvas is 400×80. Eraser
                          is drawn first (lowest z) so the barrel end overlaps its left edge. -->
-                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
                         <Canvas Width="400" Height="80">
                             <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
                             <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
@@ -662,9 +662,9 @@
                     </Viewbox>
 
                     <!-- Pen tip + eraser -->
-                    <WrapPanel HorizontalAlignment="Center">
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenTipRow}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenEraserRow}" />
+                    <WrapPanel HorizontalAlignment="Left">
+                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenTipRow}" />
+                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenEraserRow}" />
                     </WrapPanel>
 
                     <!-- Pen barrel buttons moved to their own PEN BUTTONS tab (#494); Binary pressure moved
@@ -691,12 +691,12 @@
              buttons this pen actually has appear. The tab itself is hidden when the pen has none. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PenBarrelTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <TextBlock Text="PEN BUTTONS" Classes="TabTitle" HorizontalAlignment="Center" />
+                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
+                    <TextBlock Text="PEN BUTTONS" Classes="TabTitle" />
 
                     <!-- Horizontal pen (tip left → eraser right); the side buttons light up for the ones
                          this pen has, matching the cards below. -->
-                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Center">
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
                         <Canvas Width="400" Height="80">
                             <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
                                        Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
@@ -719,14 +719,15 @@
                         </Canvas>
                     </Viewbox>
 
-                    <WrapPanel HorizontalAlignment="Center">
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton1Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton2Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard Margin="6" DataContext="{Binding PenButton3Row}"
-                                             IsVisible="{Binding $parent[WrapPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    </WrapPanel>
+                    <!-- Vertical list of the pen's barrel buttons. -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
                 </StackPanel>
         </ScrollViewer>
 

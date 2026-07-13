@@ -15,10 +15,8 @@
         <!-- Tab rail — one tab per topic (matches the tablet page's rail). -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="170" Spacing="2">
-                <RadioButton Content="ARTIFICIAL WARNINGS" IsChecked="True" x:Name="InduceTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="WARNINGS" x:Name="ActualTab"
+            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
+                <RadioButton Content="WARNINGS" IsChecked="True" x:Name="ActualTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -30,25 +28,6 @@
                              Theme="{StaticResource TabRadioButton}" />
             </StackPanel>
         </Border>
-
-        <!-- Induce health warnings: synthetic per-severity cards for reviewing the Needs-attention UI. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #InduceTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Induce artificial warnings"
-                           Description="Turn one on to make a synthetic warning appear in Home's Needs attention list at that severity. Its Fix button simply clears the toggle.">
-                <StackPanel Spacing="10">
-                    <c:ToggleSetting Label="Recommendation-level warning"
-                                     Description="The mildest tier — works, but not the recommended configuration."
-                                     IsChecked="{Binding Settings.InduceRecommendation}" />
-                    <c:ToggleSetting Label="Misconfigured-level warning"
-                                     Description="Set up incorrectly; a feature won't behave as expected."
-                                     IsChecked="{Binding Settings.InduceMisconfigured}" />
-                    <c:ToggleSetting Label="Broken-level warning"
-                                     Description="A prerequisite is missing; core functionality won't work."
-                                     IsChecked="{Binding Settings.InduceBroken}" />
-                </StackPanel>
-            </c:SettingCard>
-        </ScrollViewer>
 
         <!-- Trigger actual health warnings: force each real catalog warning with its true copy. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
@@ -174,6 +153,8 @@
                     </StackPanel>
                     <!-- Wraps so every preset stays reachable when the window itself is forced narrow. -->
                     <WrapPanel>
+                        <Button Content="2560 × 1440" Tag="2560,1440" Click="OnSetWindowSize"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
                         <Button Content="1920 × 1080" Tag="1920,1080" Click="OnSetWindowSize"
                                 Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
                         <Button Content="1600 × 900" Tag="1600,900" Click="OnSetWindowSize"
