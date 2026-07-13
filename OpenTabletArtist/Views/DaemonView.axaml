@@ -11,7 +11,7 @@
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="OPENTABLETDRIVER DAEMON" TextWrapping="Wrap" />
+                        <TextBlock Classes="SectionLabel" Text="DAEMON INFORMATION" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Text="{Binding Status.DaemonStatusText}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
