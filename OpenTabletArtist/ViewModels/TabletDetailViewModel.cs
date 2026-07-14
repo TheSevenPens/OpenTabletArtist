@@ -1022,7 +1022,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // set by another tool) reads back within the usable range.
         PressureSmoothing = Math.Min(dynamics.PressureSmoothing, PenSmoothing.MaxPressureSmoothingAmount);
         PositionSmoothing = Math.Min(dynamics.PositionSmoothing, PenSmoothing.MaxPositionSmoothingAmount);
-        SmoothAfterCurve = dynamics.SmoothAfterCurve;
+        // Order is no longer user-configurable (#558): pressure smoothing always runs after the curve.
+        SmoothAfterCurve = true;
         _skipCurvePersist = false;
         CanEditPressure = _applyAction != null;
         NotifyDynamicsStatus();
@@ -1631,6 +1632,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(PressureDynamicsStatusText));
         OnPropertyChanged(nameof(PositionDynamicsStatusText));
+        OnPropertyChanged(nameof(ShowLiveProcessed)); // depends on curve + pressure smoothing (#559)
     }
 
     [ObservableProperty] private double _pressureSmoothing;
@@ -1700,6 +1702,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public string LiveOutputText => LivePressure is { } v ? PressureCurve.Apply(v, Curve).ToString("0.00") : "—";
     public bool HasLivePressure => LivePressure is not null;
 
+    /// <summary>Live pressure after the curve (0..1), for the top pressure-level bar (#559). Reflects the
+    /// curve only — pressure smoothing is temporal (EMA) and has no single static value to plot.</summary>
+    public double? LiveOutput => LivePressure is { } v ? PressureCurve.Apply(v, Curve) : null;
+
+    /// <summary>Whether pen dynamics actually change the pressure, so the bar shows a processed dot.</summary>
+    public bool ShowLiveProcessed => CurrentDynamics.CurveShapesPressure || CurrentDynamics.HasPressureSmoothing;
+
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
     partial void OnCurveChanged(PressureCurveSettings value)
@@ -1712,6 +1721,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(OutputMinimumText));
         OnPropertyChanged(nameof(OutputMaximumText));
         OnPropertyChanged(nameof(LiveOutputText)); // output depends on the curve
+        OnPropertyChanged(nameof(LiveOutput));
         NotifyDynamicsStatus();
         SchedulePersist();
     }
@@ -1775,6 +1785,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(LiveInputText));
         OnPropertyChanged(nameof(LiveOutputText));
+        OnPropertyChanged(nameof(LiveOutput));
         OnPropertyChanged(nameof(HasLivePressure));
     }
 

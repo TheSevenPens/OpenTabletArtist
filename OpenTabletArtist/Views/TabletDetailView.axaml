@@ -821,23 +821,23 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Margin="0,0,0,10">
+                            <Border Classes="GlassPanel" Padding="14,10" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
-                                               IsVisible="{Binding ShowTitle}" Margin="0,0,0,10" />
+                                               IsVisible="{Binding ShowTitle}" Margin="0,0,0,6" />
 
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="18">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
                                         <!-- Live gauge: marker + fading trail + current angle. -->
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                             <ctrl:WheelGauge Position="{Binding LivePosition}"
                                                              TurningClockwise="{Binding TurningClockwise}"
                                                              TurningCounterClockwise="{Binding TurningCounterClockwise}"
                                                              AccentBrush="{DynamicResource AccentBrush}"
-                                                             Width="132" Height="132" HorizontalAlignment="Center" />
+                                                             Width="104" Height="104" HorizontalAlignment="Center" />
                                             <TextBlock Text="{Binding StepInfo}"
                                                        IsVisible="{Binding HasStepInfo}"
                                                        HorizontalAlignment="Center" TextAlignment="Center"
-                                                       MaxWidth="150" TextWrapping="Wrap"
+                                                       MaxWidth="130" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
                                         </StackPanel>
 
@@ -846,7 +846,7 @@
                                             <!-- Clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding Clockwise}"
                                                             ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,10"
+                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
                                                                 Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
                                                                 TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
                                                                 IsEnabled="{Binding CanEdit}"
@@ -857,7 +857,7 @@
                                             <!-- Counter-clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding CounterClockwise}"
                                                             ContentTemplate="{StaticResource ButtonBindingCard}" />
-                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,10"
+                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
                                                                 Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
                                                                 TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
                                                                 IsEnabled="{Binding CanEdit}"
@@ -878,7 +878,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pressure Dynamics tab content: the pressure curve + pressure smoothing + the curve/smooth order. -->
+        <!-- Pressure Dynamics tab content: live pressure bar + the pressure curve + pressure smoothing. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #PressureDynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
@@ -888,12 +888,40 @@
                     <TextBlock Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPressureDynamicsCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
-                            ToolTip.Tip="Reset the curve, pressure smoothing, and order to their no-op defaults" />
+                            ToolTip.Tip="Reset the curve and pressure smoothing to their no-op defaults" />
                 </Grid>
 
-                <!-- Binary pressure (#494, moved here from Pen Inputs): a flat on/off contact that drops
-                     pressure entirely, so the curve below is inert while it's on. -->
-                <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,2,0,6"
+                <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics shape it,
+                     a processed dot at the value after the curve. -->
+                <Border Classes="GlassPanel" Margin="0,2,0,8">
+                    <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="LIVE PRESSURE" Classes="SectionLabel"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
+                                    VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
+                            <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="{Binding LiveOutputText, StringFormat='after curve {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource SuccessBrush}"
+                                       IsVisible="{Binding ShowLiveProcessed}" />
+                        </StackPanel>
+                        <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
+                                               Raw="{Binding LivePressure}" Processed="{Binding LiveOutput}"
+                                               ShowProcessed="{Binding ShowLiveProcessed}"
+                                               RawBrush="{DynamicResource AccentBrush}"
+                                               ProcessedBrush="{DynamicResource SuccessBrush}" />
+                    </Grid>
+                </Border>
+
+                <!-- Status: whether the current settings actually change pressure. -->
+                <TextBlock Text="{Binding PressureDynamicsStatusText}" TextWrapping="Wrap"
+                           Margin="2,0,2,10" Foreground="{DynamicResource TextMutedBrush}" />
+
+                <!-- Binary pressure (#494); moved below the live/status row (#561). A flat on/off contact
+                     that drops pressure entirely, so the curve below is inert while it's on. -->
+                <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,0,0,6"
                                     Description="Flat on/off contact — ignores the curve below."
                                     IsChecked="{Binding DisablePressure}" />
 
@@ -905,10 +933,6 @@
                     <TextBlock Text="Binary pressure is on, so this curve has no effect right now. Turn it off above to use the curve."
                                Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                 </Border>
-
-                <!-- Live status: whether the current settings actually change pressure. -->
-                <TextBlock Text="{Binding PressureDynamicsStatusText}" TextWrapping="Wrap"
-                           Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
 
                 <StackPanel>
 
@@ -1011,16 +1035,6 @@
                                                 ValueTextOverride="{Binding PressureSmoothingText}"
                                                 Monospace="True" ValueWidth="44" />
                         </StackPanel>
-                    </Border>
-
-                    <!-- Order (compact one-row card): how the curve and pressure smoothing interleave. -->
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Column="0" Text="ORDER" Classes="SectionLabel" VerticalAlignment="Center"
-                                       ToolTip.Tip="Whether pressure smoothing runs after the curve (default) or before it." />
-                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding SmoothAfterCurve}"
-                                          OnContent="Curve → Smooth" OffContent="Smooth → Curve" VerticalAlignment="Center" />
-                        </Grid>
                     </Border>
 
                 </StackPanel>
