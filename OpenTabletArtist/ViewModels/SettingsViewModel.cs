@@ -26,7 +26,7 @@ public partial class SettingsTabItem : ObservableObject
 
 /// <summary>
 /// The SETTINGS tabbed page: a sidebar node whose content area has its own subpage navigation — a
-/// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages (Startup, Theme, Dev Tools, Shortcut). Split
+/// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages (Startup, Hotkeys, Theme, Dev Tools, Shortcut). Split
 /// out of the ADVANCED page so those OTA-owned settings live under their own node. Mirrors
 /// <see cref="AdvancedViewModel"/> (data-driven rail + shared subpage VMs, deep-linkable via
 /// <see cref="SelectedTab"/>), but flat — there are no owner sections here. See docs/design/ux-terminology.md.
@@ -35,12 +35,13 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsTabItem[] _allTabs;
 
-    public SettingsViewModel(StartupViewModel startup, ThemeViewModel theme, DevToolsViewModel devTools,
-        ShortcutViewModel shortcut)
+    public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
+        DevToolsViewModel devTools, ShortcutViewModel shortcut)
     {
         var tabs = new SettingsTabItem[]
         {
             new("STARTUP", SettingsTab.Startup, startup),
+            new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
             new("THEME", SettingsTab.Theme, theme),
             new("DEV TOOLS", SettingsTab.DevTools, devTools),
             new("SHORTCUT", SettingsTab.Shortcut, shortcut),

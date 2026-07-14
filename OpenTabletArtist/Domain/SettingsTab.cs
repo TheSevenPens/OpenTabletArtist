@@ -10,4 +10,5 @@ public enum SettingsTab
     Theme = 1,
     DevTools = 2,
     Shortcut = 3,
+    Hotkeys = 4,
 }

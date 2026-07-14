@@ -23,6 +23,7 @@ public class SettingsRailTests
     [Theory]
     [InlineData(SettingsTab.DevTools)]
     [InlineData(SettingsTab.Theme)]
+    [InlineData(SettingsTab.Hotkeys)]
     public void CrossPlatformTabs_ShownOnEveryOs(SettingsTab tab)
     {
         Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));

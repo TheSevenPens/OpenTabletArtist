@@ -2,11 +2,8 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the HotkeysViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the HotkeysViewModel — the SETTINGS > HOTKEYS tab (the tab rail supplies the title). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="HOTKEYS" />
-
-
         <!-- ── Tablet mapping ─────────────────────────────────────────────────── -->
         <TextBlock Text="DISPLAY MAPPING" FontWeight="SemiBold" LetterSpacing="0.5"
                    Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />

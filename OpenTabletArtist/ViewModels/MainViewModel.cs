@@ -207,7 +207,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The SETTINGS tabbed page holds OTA's own preference subpages (Startup / Theme / Dev Tools),
         // sharing the same VM instances, behind its own sidebar node in front of ADVANCED. The Developer
         // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
-        Settings = new SettingsViewModel(Startup, Theme, DevTools, Shortcut);
+        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
@@ -217,7 +217,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // (hidden while FeatureFlags.PerAppProfiles is off). Selection is synced in OnCurrentPageChanged.
         NavLeaves.Add(new NavLeafViewModel("PRESETS", Presets));
         NavLeaves.Add(new NavLeafViewModel("PER-APP PRESETS", PerApp, isVisible: FeatureFlags.PerAppProfiles));
-        NavLeaves.Add(new NavLeafViewModel("HOTKEYS", Hotkeys));
         NavLeaves.Add(new NavLeafViewModel("SCRIBBLE", Test));
         NavLeaves.Add(new NavLeafViewModel("ABOUT", About));
 
@@ -409,8 +408,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
             _ = Test.DeactivateAsync();
 
-        // Rescan the Hotkeys page when opened so a snapshot saved on the Saved Settings page shows here.
-        if (ReferenceEquals(newValue, Hotkeys)) _ = Hotkeys.LoadAsync();
+        // Rescan the Hotkeys tab's snapshot list when SETTINGS opens (Hotkeys is a tab there now) so a
+        // snapshot saved on the Saved Settings page shows up.
+        if (ReferenceEquals(newValue, Settings)) _ = Hotkeys.LoadAsync();
         // Same for the Per-App spike page's snapshot pickers.
         if (ReferenceEquals(newValue, PerApp)) _ = PerApp.LoadAsync();
 
