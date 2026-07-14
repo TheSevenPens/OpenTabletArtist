@@ -143,6 +143,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         OnPropertyChanged(nameof(CanRunCalibration));
         OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
+        OnPropertyChanged(nameof(CanDisableWindowsInk)); // the sub-option only shows in Absolute mode (#549)
         if (!_skipOutputModeChange && value)
             _ = SetOutputMode(PreferredAbsolutePath);
     }
@@ -539,6 +540,24 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             WinInkAutoOptOut.OptOut(_profile.Tablet);
     }
 
+    // ── "Disable Windows Ink" sub-option of Normal (Absolute), Windows-only (#549) ───────────────────
+    /// <summary>Whether the "Disable Windows Ink" toggle applies: only in Absolute mode on Windows. The
+    /// WinInk modes don't exist elsewhere (there "Absolute" is already OTD's native, non-Ink output), and
+    /// Relative is mouse-like already — so the toggle is hidden in both cases.</summary>
+    public bool CanDisableWindowsInk => OperatingSystem.IsWindows() && IsAbsoluteOutputMode;
+
+    /// <summary>On → swap the Windows-Ink absolute mode for OTD's plain absolute mode, so the pen acts like
+    /// a mouse (dragging selects text/objects instead of scrolling) at the cost of pressure and tilt (#549).
+    /// Reads back from the profile in <see cref="RefreshFromProfile"/> (guarded); only a real user toggle
+    /// applies a mode change.</summary>
+    [ObservableProperty] private bool _disableWindowsInk;
+
+    partial void OnDisableWindowsInkChanged(bool value)
+    {
+        if (_skipOutputModeChange || !CanDisableWindowsInk) return;
+        _ = SetOutputMode(value ? NativeAbsoluteModePath : WinInkAbsoluteModePath);
+    }
+
     public TabletDetailViewModel(Profile profile, Settings? settings,
         Func<Settings, Task>? applyAction = null,
         Func<Task<(Settings? Settings, Profile? Profile)>>? refreshAction = null,
@@ -924,6 +943,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OutputModePath = _profile.OutputMode?.Path ?? "Not set";
         OutputModeShort = OutputModePath.Split('.').LastOrDefault() ?? OutputModePath;
 
+        var isWinInk = OutputModePath.Contains("WinInk", StringComparison.OrdinalIgnoreCase);
+
         _skipOutputModeChange = true;
         // Detect the movement direction from the mode-path name, so OTD's NATIVE modes
         // (OpenTabletDriver.Desktop.Output.AbsoluteMode/RelativeMode) are recognised as well as the
@@ -931,13 +952,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // same result the old exact-match gave, so Windows behaviour is unchanged.
         IsAbsoluteOutputMode = OutputModePath.Contains("Absolute", StringComparison.OrdinalIgnoreCase);
         IsRelativeOutputMode = OutputModePath.Contains("Relative", StringComparison.OrdinalIgnoreCase);
+        // "Disable Windows Ink" is on when a Windows Absolute tablet is using the plain (non-Ink) mode (#549).
+        DisableWindowsInk = OperatingSystem.IsWindows() && IsAbsoluteOutputMode && !isWinInk;
         _skipOutputModeChange = false;
 
         // "Fix output mode → Windows Ink" is a Windows-only remediation (VMulti + WinInk). Off-Windows the
-        // native mode is the correct output, so there's nothing to fix. On Windows this is byte-identical
-        // to before: fixable when the mode isn't already a WinInk one.
-        var isWinInk = OutputModePath.Contains("WinInk", StringComparison.OrdinalIgnoreCase);
-        CanFixOutputMode = OperatingSystem.IsWindows() && !isWinInk && _applyAction != null;
+        // native mode is the correct output, so there's nothing to fix. On Windows it's fixable when the
+        // mode isn't already a WinInk one — UNLESS the user deliberately opted out via the Disable Windows
+        // Ink sub-option, in which case nagging them to undo it would be wrong (#549).
+        CanFixOutputMode = OperatingSystem.IsWindows() && !isWinInk && _applyAction != null
+            && !WinInkAutoOptOut.IsOptedOut(_profile.Tablet);
 
         // Bindings — pen switches (tip, eraser, barrel buttons)
         var bindings = _profile.BindingSettings;

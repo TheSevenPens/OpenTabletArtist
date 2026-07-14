@@ -70,7 +70,10 @@ public sealed record TabletHealthInput(
     bool DynamicsFilterActive = true,
     // This tablet is driven by a user config file that overrides OTD's vetted built-in of the same name
     // (#467). Defaults false so the check only fires when an override is actually detected.
-    bool ConfigIsOverride = false);
+    bool ConfigIsOverride = false,
+    // The user deliberately turned Windows Ink off for this tablet (the "Disable Windows Ink" sub-option,
+    // #549). When set, a non-WinInk mode is an informational note, not a misconfiguration to fix.
+    bool WinInkOptedOut = false);
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -235,11 +238,25 @@ public static class HealthEvaluator
         {
             if (t.Detected && !t.OutputModeIsWinInk)
             {
-                issues.Add(new HealthIssue($"tablet.notWinInk:{t.Name}", HealthSeverity.Misconfigured,
-                    $"{t.Name}: not using Windows Ink",
-                    "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
-                    "won't reach your apps.",
-                    new Remediation("Fix", RemediationArea.TabletPenBehavior, t.Name)));
+                if (t.WinInkOptedOut)
+                {
+                    // Deliberate: the "Disable Windows Ink" sub-option is on (#549). Not a problem to fix —
+                    // just a heads-up that this fundamentally changes how the pen behaves.
+                    issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Recommendation,
+                        $"{t.Name}: Windows Ink is off (mouse-compatibility mode)",
+                        "Pressure and tilt are disabled for this tablet. The pen acts like a mouse — dragging " +
+                        "selects text and objects instead of scrolling. Turn Windows Ink back on from the " +
+                        "tablet's Pen Behavior tab to restore pressure and tilt.",
+                        new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
+                }
+                else
+                {
+                    issues.Add(new HealthIssue($"tablet.notWinInk:{t.Name}", HealthSeverity.Misconfigured,
+                        $"{t.Name}: not using Windows Ink",
+                        "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
+                        "won't reach your apps.",
+                        new Remediation("Fix", RemediationArea.TabletPenBehavior, t.Name)));
+                }
             }
         }
     }

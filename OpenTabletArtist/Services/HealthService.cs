@@ -154,7 +154,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                     ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
                     : DisplayMappingValidity.None,
                 DynamicsFilterActive: foreign || DynamicsOk(p),
-                ConfigIsOverride: overriddenConfigs.Contains(p.Tablet)))
+                ConfigIsOverride: overriddenConfigs.Contains(p.Tablet),
+                // A non-WinInk mode is intentional (mouse-compatibility) when the tablet is opted out (#549).
+                WinInkOptedOut: WinInkAutoOptOut.IsOptedOut(p.Tablet)))
             .ToList();
 
         var inputs = new HealthInputs
