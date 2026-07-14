@@ -284,15 +284,6 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
-
-                    <!-- Sub-option of Normal (Absolute), Windows-only: drop Windows Ink for OTD's plain
-                         mouse-absolute output so the pen behaves like a mouse in stubborn apps (#549). -->
-                    <ctrl:ToggleSetting Label="Don't use Windows Ink"
-                                        Description="You'll lose pressure and tilt, but the pen may work better in some apps — it acts like a mouse, so dragging selects text and objects instead of scrolling the page."
-                                        IsChecked="{Binding DisableWindowsInk}"
-                                        IsVisible="{Binding CanDisableWindowsInk}"
-                                        Margin="24,0,0,12" />
-
                     <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}"
                                  IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
                                  Command="{Binding SelectMovementCommand}" CommandParameter="relative">
@@ -303,6 +294,14 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
+
+                    <!-- Windows-only, applies to either mode above: drop Windows Ink for OTD's plain output
+                         so the pen behaves like a mouse in stubborn apps, at the cost of pressure/tilt (#549). -->
+                    <ctrl:ToggleSetting Label="Don't use Windows Ink"
+                                        Description="You'll lose pressure and tilt, but the pen may work better in some apps."
+                                        IsChecked="{Binding DisableWindowsInk}"
+                                        IsVisible="{Binding CanDisableWindowsInk}"
+                                        Margin="0,14,0,0" />
                 </StackPanel>
 
                 <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->

@@ -47,13 +47,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private const string NativeAbsoluteModePath = "OpenTabletDriver.Desktop.Output.AbsoluteMode";
     private const string NativeRelativeModePath = "OpenTabletDriver.Desktop.Output.RelativeMode";
 
-    // The mode to APPLY when the user picks a Movement card: Windows Ink on Windows (it carries
-    // pressure/tilt through VMulti), OTD's native mode elsewhere. On Windows these are the WinInk paths,
-    // so every Windows code path below stays byte-identical to before the generalisation.
-    private static string PreferredAbsolutePath =>
-        OperatingSystem.IsWindows() ? WinInkAbsoluteModePath : NativeAbsoluteModePath;
-    private static string PreferredRelativePath =>
-        OperatingSystem.IsWindows() ? WinInkRelativeModePath : NativeRelativeModePath;
+    // The OTD mode path for a movement direction + Windows-Ink choice. Windows Ink (pressure/tilt via
+    // VMulti) is the default on Windows; the "Don't use Windows Ink" toggle (#549) — and any non-Windows
+    // host, where Windows Ink doesn't exist — selects OTD's native output instead. So all four
+    // combinations are reachable: {Absolute, Relative} × {WinInk, native}.
+    private static string ModePath(bool absolute, bool disableWinInk) =>
+        !OperatingSystem.IsWindows() || disableWinInk
+            ? (absolute ? NativeAbsoluteModePath : NativeRelativeModePath)
+            : (absolute ? WinInkAbsoluteModePath : WinInkRelativeModePath);
 
     private Profile _profile;
     private Settings? _settings;
@@ -143,9 +144,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanCalibrate));   // calibration needs an Absolute mode (#127)
         OnPropertyChanged(nameof(CanRunCalibration));
         OnPropertyChanged(nameof(ShowConnectToCalibrateHint));
-        OnPropertyChanged(nameof(CanDisableWindowsInk)); // the sub-option only shows in Absolute mode (#549)
         if (!_skipOutputModeChange && value)
-            _ = SetOutputMode(PreferredAbsolutePath);
+            _ = SetOutputMode(ModePath(true, DisableWindowsInk));
     }
 
     // --- Pointer calibration entry point (#127) ---
@@ -500,7 +500,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnIsRelativeOutputModeChanged(bool value)
     {
         if (!_skipOutputModeChange && value)
-            _ = SetOutputMode(PreferredRelativePath);
+            _ = SetOutputMode(ModePath(false, DisableWindowsInk));
     }
 
     /// <summary>True when the profile is on an Absolute output mode (Windows Ink absolute on Windows, OTD's
@@ -522,7 +522,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // Windows behaviour change from the output-mode generalisation (#140 / the #510 review). Only a
         // genuine direction change applies the platform-preferred mode.
         if (wantAbsolute ? IsAbsoluteOutputMode : IsRelativeOutputMode) return;
-        _ = SetOutputMode(wantAbsolute ? PreferredAbsolutePath : PreferredRelativePath);
+        // Preserve the current Windows-Ink choice when switching direction (#549).
+        _ = SetOutputMode(ModePath(wantAbsolute, DisableWindowsInk));
     }
 
     private async Task SetOutputMode(string path)
@@ -540,22 +541,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             WinInkAutoOptOut.OptOut(_profile.Tablet);
     }
 
-    // ── "Disable Windows Ink" sub-option of Normal (Absolute), Windows-only (#549) ───────────────────
-    /// <summary>Whether the "Disable Windows Ink" toggle applies: only in Absolute mode on Windows. The
-    /// WinInk modes don't exist elsewhere (there "Absolute" is already OTD's native, non-Ink output), and
-    /// Relative is mouse-like already — so the toggle is hidden in both cases.</summary>
-    public bool CanDisableWindowsInk => OperatingSystem.IsWindows() && IsAbsoluteOutputMode;
+    // ── "Don't use Windows Ink" toggle — Windows-only, applies to both movement modes (#549) ─────────
+    /// <summary>Whether the "Don't use Windows Ink" toggle applies: any mode on Windows. Off-Windows there
+    /// is no Windows Ink (OTD's native output is already used), so the toggle is hidden.</summary>
+    public bool CanDisableWindowsInk => OperatingSystem.IsWindows();
 
-    /// <summary>On → swap the Windows-Ink absolute mode for OTD's plain absolute mode, so the pen acts like
-    /// a mouse (dragging selects text/objects instead of scrolling) at the cost of pressure and tilt (#549).
-    /// Reads back from the profile in <see cref="RefreshFromProfile"/> (guarded); only a real user toggle
-    /// applies a mode change.</summary>
+    /// <summary>On → swap the current mode's Windows-Ink variant for OTD's plain (native) output, so the pen
+    /// behaves like a mouse at the cost of pressure and tilt. Orthogonal to Absolute/Relative — it applies
+    /// to whichever direction is active (#549). Reads back from the profile in
+    /// <see cref="RefreshFromProfile"/> (guarded); only a real user toggle applies a mode change.</summary>
     [ObservableProperty] private bool _disableWindowsInk;
 
     partial void OnDisableWindowsInkChanged(bool value)
     {
-        if (_skipOutputModeChange || !CanDisableWindowsInk) return;
-        _ = SetOutputMode(value ? NativeAbsoluteModePath : WinInkAbsoluteModePath);
+        if (_skipOutputModeChange || !OperatingSystem.IsWindows()) return;
+        _ = SetOutputMode(ModePath(IsAbsoluteOutputMode, value));
     }
 
     public TabletDetailViewModel(Profile profile, Settings? settings,
@@ -952,8 +952,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // same result the old exact-match gave, so Windows behaviour is unchanged.
         IsAbsoluteOutputMode = OutputModePath.Contains("Absolute", StringComparison.OrdinalIgnoreCase);
         IsRelativeOutputMode = OutputModePath.Contains("Relative", StringComparison.OrdinalIgnoreCase);
-        // "Disable Windows Ink" is on when a Windows Absolute tablet is using the plain (non-Ink) mode (#549).
-        DisableWindowsInk = OperatingSystem.IsWindows() && IsAbsoluteOutputMode && !isWinInk;
+        // "Don't use Windows Ink" is on whenever a Windows tablet is on a non-WinInk mode — either
+        // direction (#549).
+        DisableWindowsInk = OperatingSystem.IsWindows() && !isWinInk;
         _skipOutputModeChange = false;
 
         // "Fix output mode → Windows Ink" is a Windows-only remediation (VMulti + WinInk). Off-Windows the
