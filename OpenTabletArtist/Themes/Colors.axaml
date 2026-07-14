@@ -248,7 +248,7 @@
 
             <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
-                        Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
+                        Source="avares://OpenTabletArtist/Assets/sakura-bg-2.png" />
 
             <Color x:Key="PenDiagramFill">#F7CFD8</Color>
             <Color x:Key="PenDiagramButtonFill">#EEB6C6</Color>
@@ -336,9 +336,9 @@
             <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
             <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
 
-            <!-- The sakura backdrop, dimmed by a dark plum scrim (below) so it reads dark. -->
+            <!-- The dark sakura backdrop (its own darker artwork; a dark plum scrim below adds depth). -->
             <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
-                        Source="avares://OpenTabletArtist/Assets/anime-bg.png" />
+                        Source="avares://OpenTabletArtist/Assets/sakuradark-bg-2.png" />
             <SolidColorBrush x:Key="BackdropScrimBrush" Color="#C4160910" />
 
             <Color x:Key="PenDiagramFill">#3A2A34</Color>
