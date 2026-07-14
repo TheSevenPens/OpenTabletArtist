@@ -12,9 +12,10 @@ public enum BadgeKind
 }
 
 /// <summary>
-/// A small inline status line: a glyph (✓ / ⚠ / ✕) plus text, coloured by <see cref="Kind"/> using the
-/// shared status brushes. Consolidates the "✓ recommended / ⚠ not recommended" rows used in the pen
-/// switch cards. The default <c>ControlTheme</c> lives in Themes/Styles.axaml.
+/// A small inline status line: a PathIcon (check / alert / error, per <see cref="Kind"/>) plus text,
+/// coloured by <see cref="Kind"/> using the shared status brushes. Consolidates the "recommended /
+/// not recommended" rows used in the pen switch cards. The default <c>ControlTheme</c> — which maps each
+/// Kind to its icon geometry — lives in Themes/Styles.axaml.
 /// </summary>
 public class StatusBadge : TemplatedControl
 {

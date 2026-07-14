@@ -333,8 +333,9 @@
                                 Margin="0,0,0,12" Background="Transparent"
                                 BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⚠" VerticalAlignment="Top"
-                                           Foreground="{DynamicResource WarningBrush}" />
+                                <PathIcon Data="{StaticResource IconAlert}" Width="15" Height="15"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Foreground="{DynamicResource WarningBrush}" />
                                 <TextBlock Text="{Binding MappingValidityText}" FontWeight="SemiBold"
                                            TextWrapping="Wrap" MaxWidth="360"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -344,8 +345,9 @@
                                 Margin="0,0,0,12" Background="Transparent"
                                 BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="ⓘ" VerticalAlignment="Top"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <PathIcon Data="{StaticResource IconInformationOutline}" Width="15" Height="15"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Foreground="{DynamicResource TextMutedBrush}" />
                                 <TextBlock Text="{Binding MappingValidityText}"
                                            TextWrapping="Wrap" MaxWidth="360"
                                            Foreground="{DynamicResource TextMutedBrush}" />
@@ -372,8 +374,8 @@
                              sits directly under the button row. -->
                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
                                     IsVisible="{Binding MappingChangePending}">
-                            <TextBlock Text="●" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}" />
+                            <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                     Fill="{DynamicResource AccentBrush}" />
                             <TextBlock Text="Display selection changed — click Apply mapping to save it."
                                        FontWeight="SemiBold" TextWrapping="Wrap"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />

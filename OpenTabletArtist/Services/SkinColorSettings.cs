@@ -52,6 +52,25 @@ public static class SkinColorSettings
         set => AppSettings.Set(DarkSakuraSidebarKey, value);
     }
 
+    // Highlight/accent tint per blossom skin (#557). Default reproduces each skin's original pink accent;
+    // (Custom keeps its accent in CustomThemeSettings.AccentHex.)
+    private const string SakuraAccentKey = "Sakura:AccentColor";
+    private const string DarkSakuraAccentKey = "DarkSakura:AccentColor";
+    public const string SakuraAccentDefault = "#E0218A";
+    public const string DarkSakuraAccentDefault = "#E0218A";
+
+    public static string SakuraAccentHex
+    {
+        get => AppSettings.Get(SakuraAccentKey) ?? SakuraAccentDefault;
+        set => AppSettings.Set(SakuraAccentKey, value);
+    }
+
+    public static string DarkSakuraAccentHex
+    {
+        get => AppSettings.Get(DarkSakuraAccentKey) ?? DarkSakuraAccentDefault;
+        set => AppSettings.Set(DarkSakuraAccentKey, value);
+    }
+
     /// <summary>Frosted-card tint for the Custom skin.</summary>
     public static string CustomCardHex
     {

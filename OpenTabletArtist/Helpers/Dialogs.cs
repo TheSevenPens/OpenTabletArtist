@@ -151,7 +151,22 @@ public static class Dialogs
                 try
                 {
                     await clipboard.SetTextAsync($"{title}\n\n{message}");
-                    copyBtn.Content = "Copied ✓";
+                    // Icon + label confirmation instead of a font checkmark (#551).
+                    var check = Application.Current?.TryFindResource("IconCheckCircle", out var g) == true
+                        ? g as Geometry : null;
+                    var ok = Application.Current?.TryFindResource("SuccessBrush", out var b) == true
+                        && b is IBrush ib ? ib : Brushes.Green;
+                    copyBtn.Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 6,
+                        Children =
+                        {
+                            new PathIcon { Data = check, Width = 13, Height = 13, Foreground = ok,
+                                           VerticalAlignment = VerticalAlignment.Center },
+                            new TextBlock { Text = "Copied", VerticalAlignment = VerticalAlignment.Center },
+                        },
+                    };
                 }
                 catch { /* best-effort */ }
             }

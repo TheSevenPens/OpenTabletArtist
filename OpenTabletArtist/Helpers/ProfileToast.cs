@@ -23,10 +23,11 @@ public static class ProfileToast
     private static readonly TimeSpan Linger = TimeSpan.FromMilliseconds(1900);
     private static readonly TimeSpan Fade = TimeSpan.FromMilliseconds(200);
 
-    /// <summary>Show a toast with the given message (e.g. «Switched to "Portrait"»). <paramref name="glyph"/>
-    /// is the leading icon — the default ⌨ marks a hotkey-driven switch; callers pass a different glyph for
-    /// other triggers (e.g. ⧉ for an automatic per-app switch). Call on the UI thread.</summary>
-    public static void Show(string message, string glyph = "⌨")
+    /// <summary>Show a toast with the given message (e.g. «Switched to "Portrait"»). <paramref name="iconKey"/>
+    /// is the resource key of the leading PathIcon geometry (see Themes/Icons.axaml) — the default
+    /// "IconKeyboard" marks a hotkey-driven switch; callers pass a different key for other triggers
+    /// (e.g. "IconApplication" for an automatic per-app switch). Call on the UI thread.</summary>
+    public static void Show(string message, string iconKey = "IconKeyboard")
     {
         Dismiss();
 
@@ -54,10 +55,12 @@ public static class ProfileToast
                 VerticalAlignment = VerticalAlignment.Center,
                 Children =
                 {
-                    new TextBlock
+                    new PathIcon
                     {
-                        Text = glyph, // ⌨ for a hotkey switch; a different glyph marks another trigger
-                        FontSize = 22,
+                        // IconKeyboard for a hotkey switch; a different key marks another trigger (#551).
+                        Data = Geometry(iconKey),
+                        Width = 22,
+                        Height = 22,
                         Foreground = accent,
                         VerticalAlignment = VerticalAlignment.Center,
                     },
@@ -151,6 +154,11 @@ public static class ProfileToast
         => Application.Current?.TryFindResource(key, out var res) == true && res is IBrush b
             ? b
             : new SolidColorBrush(fallback);
+
+    // Resolve a PathIcon geometry from Themes/Icons.axaml by key (null if missing — PathIcon just renders
+    // empty, which is fine for a transient toast).
+    private static Geometry? Geometry(string key)
+        => Application.Current?.TryFindResource(key, out var res) == true && res is Geometry g ? g : null;
 
     // ── Native "float above other apps" (Windows) ───────────────────────────────
     private static readonly IntPtr HWND_TOPMOST = new(-1);

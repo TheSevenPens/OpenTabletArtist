@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using OpenTabletArtist.Domain;
@@ -80,12 +81,12 @@ public partial class MainWindow : Window
     private void OnMonitorCycled(string message) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(message));
 
-    // Automatic per-app switch: same transient toast as the hotkey paths, with a ⧉ glyph so it reads as an
-    // app-triggered change rather than a keyboard one. The switcher dedupes by target, so this only fires
-    // when the applied profile actually changes — not on every focus flip.
+    // Automatic per-app switch: same transient toast as the hotkey paths, with an app-window icon so it
+    // reads as an app-triggered change rather than a keyboard one. The switcher dedupes by target, so this
+    // only fires when the applied profile actually changes — not on every focus flip.
     private void OnPerAppSwitched(string? snapshot) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(
-            snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”", glyph: "⧉"));
+            snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”", iconKey: "IconApplication"));
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;
@@ -199,9 +200,31 @@ public partial class MainWindow : Window
     private async Task FlashCaptureButton(bool ok)
     {
         var original = CapturePageButton.Content;
-        CapturePageButton.Content = ok ? "✓ Saved" : "✗ Failed";
+        CapturePageButton.Content = FlashContent(ok);
         await Task.Delay(1100);
         CapturePageButton.Content = original;
+    }
+
+    // Icon + label ("Saved"/"Failed") built in code, since the content is swapped transiently (#551).
+    private static Control FlashContent(bool ok)
+    {
+        var brushKey = ok ? "SuccessBrush" : "ErrorBrush";
+        var brush = Application.Current?.TryFindResource(brushKey, out var b) == true && b is IBrush ib
+            ? ib : Brushes.Gray;
+        var geo = Application.Current?.TryFindResource(ok ? "IconCheckCircle" : "IconAlertCircle",
+            out var g) == true ? g as Geometry : null;
+        return new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 6,
+            Children =
+            {
+                new PathIcon { Data = geo, Width = 13, Height = 13, Foreground = brush,
+                               VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center },
+                new TextBlock { Text = ok ? "Saved" : "Failed", Foreground = brush,
+                                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center },
+            },
+        };
     }
 
     /// <summary>Navigate every page in turn (Home, root nav leaves, each ADVANCED sub-tab), saving a

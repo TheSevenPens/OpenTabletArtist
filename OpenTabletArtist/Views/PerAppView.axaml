@@ -70,9 +70,15 @@
                                     <TextBlock Text="{Binding PathDisplay}"
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                                    <TextBlock Text="⚠ preset missing" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource WarningBrush}" Margin="0,3,0,0"
-                                               IsVisible="{Binding IsMissing}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,3,0,0"
+                                                IsVisible="{Binding IsMissing}">
+                                        <PathIcon Data="{StaticResource IconAlert}" Width="13" Height="13"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{DynamicResource WarningBrush}" />
+                                        <TextBlock Text="preset missing" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource WarningBrush}" />
+                                    </StackPanel>
                                 </StackPanel>
 
                                 <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="170"

@@ -16,7 +16,10 @@
                                TextWrapping="Wrap" Margin="0,2,0,0" />
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
                                 IsVisible="{Binding HasMonitorHotkey}">
-                        <TextBlock Text="{Binding MonitorHotkeyDisplay, StringFormat='⌨ {0}'}"
+                        <PathIcon Data="{StaticResource IconKeyboard}" Width="15" Height="15"
+                                  VerticalAlignment="Center"
+                                  Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="{Binding MonitorHotkeyDisplay}"
                                    FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                    VerticalAlignment="Center" />
                         <Button ToolTip.Tip="Clear hotkey"
@@ -50,7 +53,10 @@
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
                                             IsVisible="{Binding HasHotkey}">
-                                    <TextBlock Text="{Binding HotkeyDisplay, StringFormat='⌨ {0}'}"
+                                    <PathIcon Data="{StaticResource IconKeyboard}" Width="15" Height="15"
+                                              VerticalAlignment="Center"
+                                              Foreground="{DynamicResource AccentBrush}" />
+                                    <TextBlock Text="{Binding HotkeyDisplay}"
                                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                                VerticalAlignment="Center" />
                                     <Button ToolTip.Tip="Clear hotkey"

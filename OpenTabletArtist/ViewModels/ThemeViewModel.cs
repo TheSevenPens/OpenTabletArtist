@@ -50,6 +50,16 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>The left-pane colour picker applies to Sakura / Dark Sakura (#554); Custom derives its
     /// sidebar from the Base colour, so it's hidden there.</summary>
     public bool ShowSidebarColor => IsSakura || IsDarkSakura;
+    /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
+    public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
+
+    // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
+    // in SkinColorSettings. Their default reproduces each skin's original pink.
+    private string ActiveAccentHex() => IsCustom ? CustomThemeSettings.AccentHex
+        : IsDarkSakura ? SkinColorSettings.DarkSakuraAccentHex : SkinColorSettings.SakuraAccentHex;
+    private string DefaultAccentHexForSkin => IsCustom ? CustomThemeSettings.DefaultAccentHex
+        : IsDarkSakura ? SkinColorSettings.DarkSakuraAccentDefault : SkinColorSettings.SakuraAccentDefault;
+    private Color DefaultAccentColorForSkin => ParseColorOr(DefaultAccentHexForSkin, Colors.DeepPink);
 
     // The active translucent skin's storage bucket + its per-skin defaults, so each skin keeps its own
     // card tint/opacity and sidebar opacity — changing one never touches another (#241).
@@ -111,7 +121,7 @@ public partial class ThemeViewModel : ObservableObject
         // Assign backing fields directly so restoring the persisted values here doesn't re-fire the
         // change handlers at construction (the theme is already applied at startup via ApplySaved).
         _selectedTheme = ThemeOptions.FirstOrDefault(o => o.Id == ThemeService.SavedChoice) ?? ThemeOptions[0];
-        _accentColor = ParseColorOr(CustomThemeSettings.AccentHex, Color.Parse(CustomThemeSettings.DefaultAccentHex));
+        _accentColor = ParseColorOr(ActiveAccentHex(), Color.Parse(DefaultAccentHexForSkin));
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
         _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
         _sidebarOpacity = AcrylicSettings.SidebarOpacity(SkinKey, DefaultSidebarOpacityForSkin);
@@ -158,7 +168,10 @@ public partial class ThemeViewModel : ObservableObject
 
     partial void OnAccentColorChanged(Color value)
     {
-        CustomThemeSettings.AccentHex = value.ToString();
+        // Persist to the active skin's accent slot so each translucent skin keeps its own highlight (#557).
+        if (IsCustom) CustomThemeSettings.AccentHex = value.ToString();
+        else if (IsDarkSakura) SkinColorSettings.DarkSakuraAccentHex = value.ToString();
+        else if (IsSakura) SkinColorSettings.SakuraAccentHex = value.ToString();
         RefreshSkin();
     }
 
@@ -182,16 +195,19 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowFrostControls));
         OnPropertyChanged(nameof(ShowCustomControls));
         OnPropertyChanged(nameof(ShowSidebarColor));
+        OnPropertyChanged(nameof(ShowAccentControl));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
         // doesn't re-persist — it's a display sync, not a user edit). Each skin keeps separate settings.
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
         _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
         _sidebarOpacity = AcrylicSettings.SidebarOpacity(SkinKey, DefaultSidebarOpacityForSkin);
         _sidebarColor = ParseColorOr(ActiveSidebarHex(), Color.Parse(DefaultSidebarHexForSkin));
+        _accentColor = ParseColorOr(ActiveAccentHex(), Color.Parse(DefaultAccentHexForSkin));
         OnPropertyChanged(nameof(CardColor));
         OnPropertyChanged(nameof(CardOpacity));
         OnPropertyChanged(nameof(SidebarOpacity));
         OnPropertyChanged(nameof(SidebarColor));
+        OnPropertyChanged(nameof(AccentColor));
         if (value != null) ThemeService.Apply(value.Id);
         RefreshSkin(); // apply the new skin's overrides, clear the old skin's
     }
@@ -210,26 +226,31 @@ public partial class ThemeViewModel : ObservableObject
     {
         if (Application.Current is not { } app) return;
         SkinOverrides.Clear(app);
+        if (!(IsSakura || IsDarkSakura || IsCustom)) return;
 
-        if (IsSakura)
+        // Highlight/accent scheme (#557): always for Custom (it has no theme-dictionary accent); for Sakura /
+        // Dark Sakura only when the user picked a non-default accent, so the skins' hand-tuned default look
+        // (e.g. Sakura's pink→rose button gradient) is preserved until they choose otherwise.
+        if (IsCustom || AccentColor != DefaultAccentColorForSkin)
+            ApplyAccentScheme(app, AccentColor);
+
+        app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
+
+        if (IsCustom)
         {
-            app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
-            app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, 0.08));
+            app.Resources["SidebarBgBrush"] = SidebarBrush(BaseColor, Darken(BaseColor, 0.35));
+            ApplyCustomBackdrop(app);
         }
-        else if (IsDarkSakura)
+        else
         {
-            app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
-            app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, 0.25));
-        }
-        else if (IsCustom)
-        {
-            ApplyCustom(app);
+            app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, IsDarkSakura ? 0.25 : 0.08));
         }
     }
 
-    private void ApplyCustom(Application app)
+    /// <summary>Override the accent-derived brushes (buttons, radios, selected nav, system accent shades)
+    /// from a single accent colour. Shared by every translucent skin (#557).</summary>
+    private void ApplyAccentScheme(Application app, Color accent)
     {
-        var accent = AccentColor;
         var light1 = Lighten(accent, 0.14);
         var light2 = Lighten(accent, 0.28);
         var light3 = Lighten(accent, 0.50);
@@ -266,12 +287,12 @@ public partial class ThemeViewModel : ObservableObject
             OffsetX = 0, OffsetY = 4, Blur = 16, Spread = 0, Color = WithAlpha(accent, 0x40),
         });
 
-        // Card frost (user tint) + sidebar derived from the base colour.
-        app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
-        app.Resources["SidebarBgBrush"] = SidebarBrush(BaseColor, Darken(BaseColor, 0.35));
+    }
 
-        // Backdrop: a background image if one is set and readable, otherwise the flat base colour so the
-        // user's chosen base shows behind the panels instead of a hard-coded black.
+    /// <summary>Custom-only backdrop: a background image if one is set and readable, otherwise the flat base
+    /// colour so the user's chosen base shows behind the panels instead of a hard-coded black.</summary>
+    private void ApplyCustomBackdrop(Application app)
+    {
         var path = BackgroundImagePath;
         if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
         {
@@ -311,9 +332,9 @@ public partial class ThemeViewModel : ObservableObject
         PetalsOpacity = 1;
         CardColor = Color.Parse(DefaultCardHexForSkin);
         if (ShowSidebarColor) SidebarColor = Color.Parse(DefaultSidebarHexForSkin);
+        AccentColor = Color.Parse(DefaultAccentHexForSkin); // per-skin highlight (#557)
         if (IsCustom)
         {
-            AccentColor = Color.Parse(CustomThemeSettings.DefaultAccentHex);
             BaseColor = Color.Parse(SkinColorSettings.CustomBaseDefault);
             BackgroundImagePath = null;
         }

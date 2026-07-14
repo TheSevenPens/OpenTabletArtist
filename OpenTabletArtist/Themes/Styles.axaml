@@ -177,29 +177,30 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="PART_Glyph" FontSize="11" FontWeight="SemiBold"
-                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <!-- PathIcon glyph, coloured + shaped per Kind by the selectors below (#551). -->
+                        <PathIcon x:Name="PART_Glyph" Width="13" Height="13"
+                                  VerticalAlignment="Center" Margin="0,0,6,0" />
                         <TextBlock x:Name="PART_Text" Text="{TemplateBinding Text}" FontSize="10.5"
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                     </StackPanel>
                 </ControlTemplate>
             </Setter>
-            <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Glyph">
-                <Setter Property="Text" Value="✓" />
+            <Style Selector="^[Kind=Success] /template/ PathIcon#PART_Glyph">
+                <Setter Property="Data" Value="{StaticResource IconCheckCircle}" />
                 <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
             </Style>
             <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Text">
                 <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
             </Style>
-            <Style Selector="^[Kind=Warning] /template/ TextBlock#PART_Glyph">
-                <Setter Property="Text" Value="⚠" />
+            <Style Selector="^[Kind=Warning] /template/ PathIcon#PART_Glyph">
+                <Setter Property="Data" Value="{StaticResource IconAlert}" />
                 <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
             </Style>
             <Style Selector="^[Kind=Warning] /template/ TextBlock#PART_Text">
                 <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
             </Style>
-            <Style Selector="^[Kind=Error] /template/ TextBlock#PART_Glyph">
-                <Setter Property="Text" Value="✕" />
+            <Style Selector="^[Kind=Error] /template/ PathIcon#PART_Glyph">
+                <Setter Property="Data" Value="{StaticResource IconAlertCircle}" />
                 <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
             </Style>
             <Style Selector="^[Kind=Error] /template/ TextBlock#PART_Text">

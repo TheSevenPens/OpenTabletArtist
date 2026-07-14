@@ -45,18 +45,15 @@
             </StackPanel>
         </c:SettingCard>
 
-        <!-- Custom-only: the accent colour that derives the whole scheme + an optional background image. -->
+        <!-- Custom-only: the base colour behind the panels + an optional background image. (The accent/
+             highlight colour lives in Colours & translucency below, since every skin can set it now.) -->
         <c:SettingCard Title="Custom look" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}"
-                       Description="Pick an accent colour — the whole scheme (buttons, highlights, controls) is derived from it — and a base colour for the background behind the panels. Add a background image to fill the window instead.">
+                       Description="Pick a base colour for the background behind the panels, or add a background image to fill the window instead.">
             <StackPanel Spacing="12">
-                <c:LabeledField Label="Accent colour">
-                    <ColorPicker Color="{Binding AccentColor, Mode=TwoWay}"
-                                 ToolTip.Tip="The colour the rest of the scheme is derived from" />
-                </c:LabeledField>
-                <c:LabeledField Label="Base colour">
-                    <ColorPicker Color="{Binding BaseColor, Mode=TwoWay}"
-                                 ToolTip.Tip="The background colour behind the panels and the left pane (when no image is set)" />
-                </c:LabeledField>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <c:SwatchPicker Color="{Binding BaseColor, Mode=TwoWay}" />
+                </StackPanel>
                 <c:LabeledField Label="Background image">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="{Binding BackgroundImageLabel}" MaxWidth="220"
@@ -70,27 +67,27 @@
             </StackPanel>
         </c:SettingCard>
 
-        <!-- Sakura + Custom: card tint/opacity + left-pane opacity, and a reset. Each control drives a
-             global brush, so the whole app (including this page) re-tints live as you change it. -->
-        <c:SettingCard Title="Cards &amp; translucency" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}"
-                       Description="Pick the card tint colour and how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
-            <StackPanel Spacing="12">
-                <c:LabeledField Label="Card colour">
-                    <!-- Alpha hidden + disabled: card transparency is set by the separate "Card opacity"
-                         slider below; the tint's own alpha is ignored by FrostBrush, so exposing it here just
-                         misled (#505). IsAlphaVisible removes the alpha slider; IsAlphaEnabled keeps it opaque. -->
-                    <ColorPicker Color="{Binding CardColor, Mode=TwoWay}"
-                                 IsAlphaVisible="False" IsAlphaEnabled="False"
-                                 ToolTip.Tip="The tint colour of the frosted cards" />
-                </c:LabeledField>
+        <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
+             opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
+        <c:SettingCard Title="Colours &amp; translucency" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}"
+                       Description="Pick colours from the palette and set how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
+            <StackPanel Spacing="14">
+                <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
+                <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
+                    <TextBlock Text="Highlight colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <c:SwatchPicker Color="{Binding AccentColor, Mode=TwoWay}" />
+                </StackPanel>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Card colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <c:SwatchPicker Color="{Binding CardColor, Mode=TwoWay}" />
+                </StackPanel>
                 <c:LabeledSlider Label="Card opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
                 <!-- Left-pane (sidebar) tint — Sakura / Dark Sakura only (#554). -->
-                <c:LabeledField Label="Left pane colour" IsVisible="{Binding ShowSidebarColor}">
-                    <ColorPicker Color="{Binding SidebarColor, Mode=TwoWay}"
-                                 IsAlphaVisible="False" IsAlphaEnabled="False"
-                                 ToolTip.Tip="The colour of the left navigation pane" />
-                </c:LabeledField>
+                <StackPanel Spacing="4" IsVisible="{Binding ShowSidebarColor}">
+                    <TextBlock Text="Left pane colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <c:SwatchPicker Color="{Binding SidebarColor, Mode=TwoWay}" />
+                </StackPanel>
                 <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
                 <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"

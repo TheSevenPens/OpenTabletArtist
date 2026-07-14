@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:OpenTabletArtist.Converters"
+             x:Class="OpenTabletArtist.Controls.SwatchPicker"
+             x:Name="Root">
+    <!-- Compact trigger: the current colour + its hex/RGB (#563). Clicking opens the palette (#555) as a
+         flyout, so the grid doesn't take up page space inline. -->
+    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="8">
+        <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+            <Border Width="20" Height="20" CornerRadius="4"
+                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
+                <Border.Background>
+                    <SolidColorBrush Color="{Binding #Root.Color}" />
+                </Border.Background>
+            </Border>
+            <TextBlock Text="{Binding #Root.Color, Converter={x:Static conv:ColorHexRgbConverter.Instance}}"
+                       FontFamily="{DynamicResource MonoFontFamily}"
+                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+            <PathIcon Data="{StaticResource IconChevronDown}" Width="10" Height="10"
+                      VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" />
+        </StackPanel>
+        <Button.Flyout>
+            <Flyout Placement="BottomEdgeAlignedLeft">
+                <ListBox x:Name="Swatches"
+                         ItemsSource="{Binding #Root.Palette}"
+                         SelectedItem="{Binding #Root.Color, Mode=TwoWay}"
+                         Tapped="OnSwatchTapped"
+                         Background="Transparent" BorderThickness="0" Padding="2"
+                         MaxWidth="320" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.Styles>
+                        <!-- Compact swatch cells with a ring on the selected/hovered one (instead of Fluent's
+                             default row-selection visual). -->
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="2" />
+                            <Setter Property="Template">
+                                <ControlTemplate>
+                                    <Border x:Name="ring" BorderThickness="2.5" CornerRadius="6"
+                                            BorderBrush="Transparent" Padding="2">
+                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter>
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ Border#ring">
+                            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ Border#ring">
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="22" Height="22" CornerRadius="4"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
+                                <Border.Background>
+                                    <SolidColorBrush Color="{Binding}" />
+                                </Border.Background>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Flyout>
+        </Button.Flyout>
+    </Button>
+</UserControl>

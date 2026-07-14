@@ -26,10 +26,15 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding !IsConnected}" />
                 </StackPanel>
-                <Button Grid.Column="4" Content="Copy ▾"
+                <Button Grid.Column="4"
                         Theme="{StaticResource GhostButton}" Padding="12,6"
                         IsEnabled="{Binding HasEntries}"
                         ToolTip.Tip="Copy the visible log to the clipboard">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Copy" VerticalAlignment="Center" />
+                        <PathIcon Data="{StaticResource IconChevronDown}" Width="10" Height="10"
+                                  VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuItem Header="Copy as text" Click="CopyText_Click" />
