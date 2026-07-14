@@ -59,6 +59,7 @@ public class SakuraPetals : Control
     private readonly Random _rng = new();
     private DispatcherTimer? _timer;
     private double _time; // accumulates to drive the global wind
+    private double _opacity = AnimationSettings.PetalsOpacity; // user-set overall petal opacity (#207)
 
     public SakuraPetals()
     {
@@ -71,6 +72,7 @@ public class SakuraPetals : Control
         base.OnAttachedToVisualTree(e);
         ActualThemeVariantChanged += OnThemeChanged;
         AnimationSettings.Changed += OnSettingsChanged;
+        _opacity = AnimationSettings.PetalsOpacity;
         UpdateRunState();
     }
 
@@ -83,7 +85,15 @@ public class SakuraPetals : Control
     }
 
     private void OnThemeChanged(object? sender, EventArgs e) => UpdateRunState();
-    private void OnSettingsChanged() => UpdateRunState();
+
+    private void OnSettingsChanged()
+    {
+        _opacity = AnimationSettings.PetalsOpacity;
+        UpdateRunState();
+        // While running, the timer's Tick already invalidates each frame; when paused, force a repaint
+        // so an opacity change is reflected even without a live animation.
+        if (_timer == null) InvalidateVisual();
+    }
 
     // Petals run in the Sakura + Dark Sakura skins and (reused) in the Custom skin, when enabled.
     private bool ShouldRun =>
@@ -218,7 +228,7 @@ public class SakuraPetals : Control
                             * Matrix.CreateRotation(p.Angle)
                             * Matrix.CreateTranslation(p.X, p.Y);
 
-            using (context.PushOpacity(p.Opacity * edgeFade))
+            using (context.PushOpacity(p.Opacity * edgeFade * _opacity))
             using (context.PushTransform(transform))
                 context.DrawGeometry(PetalBrushes[p.ColorIndex], null, PetalGeometry);
         }

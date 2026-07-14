@@ -44,25 +44,41 @@ public partial class ThemeViewModel : ObservableObject
 
     /// <summary>Falling petals apply to every blossom skin (Sakura, Dark Sakura, Custom).</summary>
     public bool ShowPetalsToggle => IsSakura || IsDarkSakura || IsCustom;
-    public bool ShowFrostControls => IsSakura || IsCustom;
+    public bool ShowFrostControls => IsSakura || IsDarkSakura || IsCustom;
     /// <summary>The accent-colour + background-image controls are Custom-only.</summary>
     public bool ShowCustomControls => IsCustom;
 
+    // The active translucent skin's storage bucket + its per-skin defaults, so each skin keeps its own
+    // card tint/opacity and sidebar opacity — changing one never touches another (#241).
+    private string SkinKey => IsCustom ? "Custom" : IsDarkSakura ? "DarkSakura" : "Sakura";
+    private double DefaultCardOpacityForSkin => IsDarkSakura ? 0.35 : AcrylicSettings.DefaultMaterialOpacity;
+    private double DefaultSidebarOpacityForSkin => IsDarkSakura ? 0.55 : AcrylicSettings.DefaultSidebarOpacity;
+    private string DefaultCardHexForSkin => IsCustom ? SkinColorSettings.CustomCardDefault
+        : IsDarkSakura ? SkinColorSettings.DarkSakuraCardDefault : SkinColorSettings.SakuraCardDefault;
+
+    // Dark Sakura's sidebar gradient stops (its own plum, distinct from Sakura's pink).
+    private static readonly Color DarkSakuraSidebarTop = Color.Parse("#2A1420");
+    private static readonly Color DarkSakuraSidebarBottom = Color.Parse("#200E18");
+
     /// <summary>Falling-petal animation (#207), reused by the Custom skin. Persisted; the overlay reacts live.</summary>
     [ObservableProperty] private bool _petalsEnabled = AnimationSettings.PetalsEnabled;
+
+    /// <summary>Overall opacity of the falling petals (0..1). Persisted; the overlay reacts live.</summary>
+    [ObservableProperty] private double _petalsOpacity = AnimationSettings.PetalsOpacity;
 
     // ── Card translucency ("frosted glass") ──
     // Avalonia can't blur in-app content behind a control, so "frosted glass" is a tunable translucent
     // tint: the backdrop shows through the cards. Driving the global GlassBgBrush resource re-frosts
     // every card live. Scoped to the translucent skins — cleared for other themes. The card tint now
     // comes from CardColor (per-skin, user-tunable); a single "Card opacity" sets its alpha.
-    [ObservableProperty] private double _cardOpacity = AcrylicSettings.MaterialOpacity;
+    // Seeded with the generic default; the ctor overwrites it with the active skin's stored value.
+    [ObservableProperty] private double _cardOpacity = AcrylicSettings.DefaultMaterialOpacity;
 
     // Sidebar (left pane) background: a vertical gradient rebuilt live at the chosen opacity. Sakura's
     // base stops are fixed pink; Custom's derive from BaseColor.
     private static readonly Color SakuraSidebarTop = Color.Parse("#FCDCEC");
     private static readonly Color SakuraSidebarBottom = Color.Parse("#F7C2DC");
-    [ObservableProperty] private double _sidebarOpacity = AcrylicSettings.SidebarOpacity;
+    [ObservableProperty] private double _sidebarOpacity = AcrylicSettings.DefaultSidebarOpacity;
 
     // ── Translucent-skin colours ──
     // CardColor is the frosted-card tint for the active skin (persisted per-skin). BaseColor + AccentColor
@@ -72,9 +88,11 @@ public partial class ThemeViewModel : ObservableObject
     [ObservableProperty] private Color _accentColor;
     [ObservableProperty] private string? _backgroundImagePath;
 
-    /// <summary>The per-skin card tint stored for the active translucent skin (falls back to Sakura's).</summary>
+    /// <summary>The per-skin card tint stored for the active translucent skin.</summary>
     private string ActiveCardHex() =>
-        IsCustom ? SkinColorSettings.CustomCardHex : SkinColorSettings.SakuraCardHex;
+        IsCustom ? SkinColorSettings.CustomCardHex
+        : IsDarkSakura ? SkinColorSettings.DarkSakuraCardHex
+        : SkinColorSettings.SakuraCardHex;
 
     public bool HasBackgroundImage => !string.IsNullOrWhiteSpace(BackgroundImagePath);
     /// <summary>Filename of the chosen image, or a placeholder when none is set.</summary>
@@ -87,7 +105,9 @@ public partial class ThemeViewModel : ObservableObject
         // change handlers at construction (the theme is already applied at startup via ApplySaved).
         _selectedTheme = ThemeOptions.FirstOrDefault(o => o.Id == ThemeService.SavedChoice) ?? ThemeOptions[0];
         _accentColor = ParseColorOr(CustomThemeSettings.AccentHex, Color.Parse(CustomThemeSettings.DefaultAccentHex));
-        _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(SkinColorSettings.SakuraCardDefault));
+        _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
+        _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
+        _sidebarOpacity = AcrylicSettings.SidebarOpacity(SkinKey, DefaultSidebarOpacityForSkin);
         _baseColor = ParseColorOr(SkinColorSettings.CustomBaseHex, Color.Parse(SkinColorSettings.CustomBaseDefault));
         _backgroundImagePath = CustomThemeSettings.BackgroundImagePath;
         RefreshSkin(); // restore the persisted skin overrides (frost / accent / base / backdrop)
@@ -95,7 +115,7 @@ public partial class ThemeViewModel : ObservableObject
 
     partial void OnCardOpacityChanged(double value)
     {
-        AcrylicSettings.MaterialOpacity = value;
+        AcrylicSettings.SetMaterialOpacity(SkinKey, value);
         RefreshSkin();
     }
 
@@ -103,6 +123,7 @@ public partial class ThemeViewModel : ObservableObject
     {
         // Persist to the active skin's card-tint slot so each translucent skin keeps its own tint.
         if (IsCustom) SkinColorSettings.CustomCardHex = value.ToString();
+        else if (IsDarkSakura) SkinColorSettings.DarkSakuraCardHex = value.ToString();
         else SkinColorSettings.SakuraCardHex = value.ToString();
         RefreshSkin();
     }
@@ -115,7 +136,7 @@ public partial class ThemeViewModel : ObservableObject
 
     partial void OnSidebarOpacityChanged(double value)
     {
-        AcrylicSettings.SidebarOpacity = value;
+        AcrylicSettings.SetSidebarOpacity(SkinKey, value);
         RefreshSkin();
     }
 
@@ -144,15 +165,20 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowPetalsToggle));
         OnPropertyChanged(nameof(ShowFrostControls));
         OnPropertyChanged(nameof(ShowCustomControls));
-        // Point the card-tint picker at the new skin's stored tint (backing field directly, so this
-        // doesn't re-persist — it's a display sync, not a user edit).
-        _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(SkinColorSettings.SakuraCardDefault));
+        // Point the frost controls at the new skin's own stored values (backing fields directly, so this
+        // doesn't re-persist — it's a display sync, not a user edit). Each skin keeps separate settings.
+        _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
+        _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
+        _sidebarOpacity = AcrylicSettings.SidebarOpacity(SkinKey, DefaultSidebarOpacityForSkin);
         OnPropertyChanged(nameof(CardColor));
+        OnPropertyChanged(nameof(CardOpacity));
+        OnPropertyChanged(nameof(SidebarOpacity));
         if (value != null) ThemeService.Apply(value.Id);
         RefreshSkin(); // apply the new skin's overrides, clear the old skin's
     }
 
     partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;
+    partial void OnPetalsOpacityChanged(double value) => AnimationSettings.PetalsOpacity = value;
 
     // ── Live resource overrides ────────────────────────────────────────────────────────────────
     // The translucent skins customise app brushes at runtime by writing directly into
@@ -170,6 +196,11 @@ public partial class ThemeViewModel : ObservableObject
         {
             app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
             app.Resources["SidebarBgBrush"] = SidebarBrush(SakuraSidebarTop, SakuraSidebarBottom);
+        }
+        else if (IsDarkSakura)
+        {
+            app.Resources["GlassBgBrush"] = FrostBrush(CardColor);
+            app.Resources["SidebarBgBrush"] = SidebarBrush(DarkSakuraSidebarTop, DarkSakuraSidebarBottom);
         }
         else if (IsCustom)
         {
@@ -254,10 +285,12 @@ public partial class ThemeViewModel : ObservableObject
     private void ResetToDefaults()
     {
         // Each assignment goes through its change handler, so this both persists and re-applies live.
-        CardOpacity = AcrylicSettings.DefaultMaterialOpacity;
-        SidebarOpacity = AcrylicSettings.DefaultSidebarOpacity;
+        // Defaults are per-skin, so a reset only restores the active skin's own look (#241).
+        CardOpacity = DefaultCardOpacityForSkin;
+        SidebarOpacity = DefaultSidebarOpacityForSkin;
         PetalsEnabled = true;
-        CardColor = Color.Parse(IsCustom ? SkinColorSettings.CustomCardDefault : SkinColorSettings.SakuraCardDefault);
+        PetalsOpacity = 1;
+        CardColor = Color.Parse(DefaultCardHexForSkin);
         if (IsCustom)
         {
             AccentColor = Color.Parse(CustomThemeSettings.DefaultAccentHex);

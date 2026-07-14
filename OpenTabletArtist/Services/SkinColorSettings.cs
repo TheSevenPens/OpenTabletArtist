@@ -9,18 +9,27 @@ namespace OpenTabletArtist.Services;
 public static class SkinColorSettings
 {
     private const string SakuraCardKey = "Sakura:CardColor";
+    private const string DarkSakuraCardKey = "DarkSakura:CardColor";
     private const string CustomCardKey = "Custom:CardColor";
     private const string CustomBaseKey = "Custom:BaseColor";
 
-    public const string SakuraCardDefault = "#FDF1F7"; // soft sakura white
-    public const string CustomCardDefault = "#202430"; // neutral dark panel
-    public const string CustomBaseDefault = "#181820"; // near-black background behind the panels
+    public const string SakuraCardDefault = "#FDF1F7";     // soft sakura white
+    public const string DarkSakuraCardDefault = "#261C30"; // dark plum glass (matches the theme's GlassBg)
+    public const string CustomCardDefault = "#202430";     // neutral dark panel
+    public const string CustomBaseDefault = "#181820";     // near-black background behind the panels
 
     /// <summary>Frosted-card tint for the Sakura skin, as "#AARRGGBB"/"#RRGGBB".</summary>
     public static string SakuraCardHex
     {
         get => AppSettings.Get(SakuraCardKey) ?? SakuraCardDefault;
         set => AppSettings.Set(SakuraCardKey, value);
+    }
+
+    /// <summary>Frosted-card tint for the Dark Sakura skin — kept separate from Sakura's (#241).</summary>
+    public static string DarkSakuraCardHex
+    {
+        get => AppSettings.Get(DarkSakuraCardKey) ?? DarkSakuraCardDefault;
+        set => AppSettings.Set(DarkSakuraCardKey, value);
     }
 
     /// <summary>Frosted-card tint for the Custom skin.</summary>

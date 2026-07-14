@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace OpenTabletArtist.Services;
 
@@ -11,6 +12,7 @@ namespace OpenTabletArtist.Services;
 public static class AnimationSettings
 {
     private const string PetalsKey = "AnimePetals";
+    private const string PetalsOpacityKey = "AnimePetalsOpacity";
 
     /// <summary>Raised when a preference changes, so live consumers (the petal overlay) can update.</summary>
     public static event Action? Changed;
@@ -22,6 +24,20 @@ public static class AnimationSettings
         set
         {
             AppSettings.Set(PetalsKey, value ? "true" : "false");
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Overall opacity of the falling petals (0..1). Defaults to fully opaque (1).</summary>
+    public static double PetalsOpacity
+    {
+        get => double.TryParse(AppSettings.Get(PetalsOpacityKey), NumberStyles.Float,
+                   CultureInfo.InvariantCulture, out var v)
+            ? Math.Clamp(v, 0, 1)
+            : 1.0;
+        set
+        {
+            AppSettings.Set(PetalsOpacityKey, Math.Clamp(value, 0, 1).ToString(CultureInfo.InvariantCulture));
             Changed?.Invoke();
         }
     }

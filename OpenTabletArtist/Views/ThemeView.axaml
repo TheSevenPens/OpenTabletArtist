@@ -33,10 +33,15 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            TextWrapping="Wrap" Margin="0,2,0,0" />
 
-                <!-- Sakura + Custom: toggle the falling-petal animation (#207). -->
+                <!-- Sakura + Custom: toggle the falling-petal animation (#207), plus its opacity. -->
                 <c:ToggleSetting Label="Falling petals" IsChecked="{Binding PetalsEnabled}"
                                  IsVisible="{Binding ShowPetalsToggle}" Margin="0,12,0,0"
                                  ToolTip.Tip="Animate drifting petals over the backdrop" />
+                <c:LabeledSlider Label="Petal opacity" LabelWidth="130"
+                                 Minimum="0.1" Maximum="1" Value="{Binding PetalsOpacity}"
+                                 ValueFormat="0%" Margin="0,8,0,0"
+                                 IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
+                                 ToolTip.Tip="How opaque the falling petals are" />
             </StackPanel>
         </c:SettingCard>
 
