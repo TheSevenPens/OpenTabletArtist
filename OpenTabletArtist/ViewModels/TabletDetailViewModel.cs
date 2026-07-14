@@ -958,8 +958,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
         // "Fix output mode → Windows Ink" is a Windows-only remediation (VMulti + WinInk). Off-Windows the
         // native mode is the correct output, so there's nothing to fix. On Windows it's fixable when the
-        // mode isn't already a WinInk one — UNLESS the user deliberately opted out via the Disable Windows
-        // Ink sub-option, in which case nagging them to undo it would be wrong (#549).
+        // mode isn't already a WinInk one — UNLESS the user deliberately opted out via the "Don't use
+        // Windows Ink" sub-option, in which case nagging them to undo it would be wrong (#549).
         CanFixOutputMode = OperatingSystem.IsWindows() && !isWinInk && _applyAction != null
             && !WinInkAutoOptOut.IsOptedOut(_profile.Tablet);
 

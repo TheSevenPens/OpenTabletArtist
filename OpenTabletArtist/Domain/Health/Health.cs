@@ -6,8 +6,10 @@ namespace OpenTabletArtist.Domain.Health;
 
 /// <summary>
 /// How serious a health issue is. Higher value = worse; the "Needs attention" list sorts by this
-/// (worst first) and colors the card accordingly. The three tiers mirror #317:
+/// (worst first) and colors the card accordingly. The tiers mirror #317, plus an FYI level (#549):
 /// <list type="bullet">
+/// <item><see cref="Information"/> — nothing is wrong; a heads-up about a deliberate choice that
+/// materially changes behavior (e.g. Windows Ink turned off for mouse compatibility).</item>
 /// <item><see cref="Recommendation"/> — works, but isn't the recommended configuration.</item>
 /// <item><see cref="Misconfigured"/> — set up incorrectly; a feature won't behave as expected.</item>
 /// <item><see cref="Broken"/> — a prerequisite is missing; core functionality won't work.</item>
@@ -15,9 +17,10 @@ namespace OpenTabletArtist.Domain.Health;
 /// </summary>
 public enum HealthSeverity
 {
-    Recommendation = 0,
-    Misconfigured = 1,
-    Broken = 2,
+    Information = 0,
+    Recommendation = 1,
+    Misconfigured = 2,
+    Broken = 3,
 }
 
 /// <summary>Where a fix is performed. Drives the Fix button's action and where the issue surfaces
@@ -240,9 +243,9 @@ public static class HealthEvaluator
             {
                 if (t.WinInkOptedOut)
                 {
-                    // Deliberate: the "Disable Windows Ink" sub-option is on (#549). Not a problem to fix —
+                    // Deliberate: the "Don't use Windows Ink" sub-option is on (#549). Not a problem to fix —
                     // just a heads-up that this fundamentally changes how the pen behaves.
-                    issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Recommendation,
+                    issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Information,
                         $"{t.Name}: Windows Ink is off (mouse-compatibility mode)",
                         "Pressure and tilt are disabled for this tablet. The pen acts like a mouse — dragging " +
                         "selects text and objects instead of scrolling. Turn Windows Ink back on from the " +

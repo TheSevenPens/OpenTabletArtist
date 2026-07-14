@@ -556,6 +556,11 @@
     <Style Selector="Border.severityBar.neutral">
         <Setter Property="Background" Value="{DynamicResource InfoBrush}" />
     </Style>
+    <!-- Information (#549): a calm grey — nothing's wrong, it's just an FYI, distinct from the blue
+         Recommendation nudge. -->
+    <Style Selector="Border.severityBar.information">
+        <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
+    </Style>
 
     <!-- Always-visible, full-size scrollbars. The default Fluent scrollbars (a) auto-hide and
          (b) sit as a thin line until hovered (the thumb is scaled down by a RenderTransform in the

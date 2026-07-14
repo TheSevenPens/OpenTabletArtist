@@ -71,6 +71,25 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void DetectedTablet_NotWinInk_ButOptedOut_IsInformation_NotMisconfigured()
+    {
+        // "Don't use Windows Ink" is on (#549): a deliberate mouse-compatibility choice, so it's an FYI,
+        // not a misconfiguration to fix. The blunt "not using Windows Ink" issue must not also fire.
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Wacom PTH-660", Detected: true, OutputModeIsWinInk: false, WinInkOptedOut: true),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.winInkOff:Wacom PTH-660", issue.Id);
+        Assert.Equal(HealthSeverity.Information, issue.Severity);
+        Assert.Equal(RemediationArea.TabletPenBehavior, issue.Remediation!.Area);
+        Assert.False(Has(HealthEvaluator.Evaluate(input), "tablet.notWinInk:Wacom PTH-660"));
+    }
+
+    [Fact]
     public void UndetectedTablet_NotWinInk_IsIgnored()
     {
         var input = Healthy() with
