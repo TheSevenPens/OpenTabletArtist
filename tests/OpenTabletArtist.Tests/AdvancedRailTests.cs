@@ -14,7 +14,7 @@ public class AdvancedRailTests
     [Theory]
     [InlineData(AdvancedTab.WindowsInk)]
     [InlineData(AdvancedTab.VMulti)]
-    [InlineData(AdvancedTab.DriverCleanup)]
+    // (DriverCleanup moved to the SETTINGS rail, #562 — see SettingsRailTests.)
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(AdvancedTab tab)
     {
         Assert.True(AdvancedViewModel.RailTabAppliesToOs(tab, isWindows: true));

@@ -47,7 +47,7 @@ public partial class AdvancedViewModel : ObservableObject
     public AdvancedViewModel(
         DaemonViewModel daemon, WindowsInkViewModel windowsInk, CustomTabletConfigsViewModel configs,
         DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins,
-        VMultiViewModel vmulti, DriverCleanupViewModel driverCleanup)
+        VMultiViewModel vmulti)
     {
         _diagnostics = diagnostics;
         _configs = configs;
@@ -61,7 +61,6 @@ public partial class AdvancedViewModel : ObservableObject
             new("CONSOLE", AdvancedTab.Log, log),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
             new("VMULTI DRIVER", AdvancedTab.VMulti, vmulti),
-            new("DRIVER CLEANUP", AdvancedTab.DriverCleanup, driverCleanup),
         }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
@@ -70,13 +69,13 @@ public partial class AdvancedViewModel : ObservableObject
 
     /// <summary>Whether an ADVANCED subpage applies on the given OS. The Windows-only subpages are hidden
     /// off-Windows (#140): VMulti + Windows Ink don't exist on macOS/Linux (the daemon uses its own native
-    /// output there) and Driver Cleanup runs a Windows-only tool. Filtering them out of the rail keeps the
-    /// deep-link enum intact — a stray deep-link to a hidden tab is coerced back to a visible one (see
-    /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
-    /// unit-testable — matching how the health evaluator takes its platform flag.</summary>
+    /// output there). Filtering them out of the rail keeps the deep-link enum intact — a stray deep-link to
+    /// a hidden tab is coerced back to a visible one (see <see cref="OnSelectedTabChanged"/>). Pure (OS
+    /// passed in, not checked inline) so the filter is unit-testable — matching how the health evaluator
+    /// takes its platform flag. (Driver Cleanup moved to SETTINGS, #562.)</summary>
     public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
         isWindows
-        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti or AdvancedTab.DriverCleanup);
+        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti);
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
     public IReadOnlyList<AdvancedTabItem> Tabs { get; }

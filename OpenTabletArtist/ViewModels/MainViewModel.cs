@@ -189,7 +189,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Shared daemon status/control surface for the Home problem card + the Daemon tab.
         _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
-            () => OpenAdvancedTab(AdvancedTab.DriverCleanup),
+            () => OpenSettingsTab(SettingsTab.DriverCleanup),
             () => OpenAdvancedTab(AdvancedTab.WindowsInk),
             () => OpenAdvancedTab(AdvancedTab.VMulti),
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
@@ -203,11 +203,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The ADVANCED tabbed page groups the driver/daemon subpages behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
-            VMulti, DriverCleanup);
+            VMulti);
         // The SETTINGS tabbed page holds OTA's own preference subpages (Startup / Theme / Dev Tools),
         // sharing the same VM instances, behind its own sidebar node in front of ADVANCED. The Developer
         // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
-        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut);
+        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut, DriverCleanup);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).

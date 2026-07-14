@@ -36,7 +36,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly SettingsTabItem[] _allTabs;
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
-        DevToolsViewModel devTools, ShortcutViewModel shortcut)
+        DevToolsViewModel devTools, ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup)
     {
         var tabs = new SettingsTabItem[]
         {
@@ -45,6 +45,7 @@ public partial class SettingsViewModel : ObservableObject
             new("THEME", SettingsTab.Theme, theme),
             new("DEV TOOLS", SettingsTab.DevTools, devTools),
             new("SHORTCUT", SettingsTab.Shortcut, shortcut),
+            new("DRIVER CLEANUP", SettingsTab.DriverCleanup, driverCleanup),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
@@ -60,7 +61,8 @@ public partial class SettingsViewModel : ObservableObject
     /// (OS passed in, not checked inline) so it's unit-testable — matching
     /// <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
     public static bool TabAppliesToOs(SettingsTab tab, bool isWindows) =>
-        isWindows || (tab != SettingsTab.Startup && tab != SettingsTab.Shortcut);
+        isWindows || (tab != SettingsTab.Startup && tab != SettingsTab.Shortcut
+            && tab != SettingsTab.DriverCleanup);
 
     /// <summary>The settings subpages, flat (no owner grouping).</summary>
     public IReadOnlyList<SettingsTabItem> Tabs { get; }

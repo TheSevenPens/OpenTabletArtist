@@ -11,4 +11,5 @@ public enum SettingsTab
     DevTools = 2,
     Shortcut = 3,
     Hotkeys = 4,
+    DriverCleanup = 5, // Windows-only; moved here from ADVANCED (#562).
 }

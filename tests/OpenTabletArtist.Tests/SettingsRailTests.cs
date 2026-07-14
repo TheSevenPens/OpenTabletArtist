@@ -12,8 +12,9 @@ namespace OpenTabletArtist.Tests;
 public class SettingsRailTests
 {
     [Theory]
-    [InlineData(SettingsTab.Startup)]   // registry Run key
-    [InlineData(SettingsTab.Shortcut)]  // Start-menu .lnk via WScript.Shell
+    [InlineData(SettingsTab.Startup)]        // registry Run key
+    [InlineData(SettingsTab.Shortcut)]       // Start-menu .lnk via WScript.Shell
+    [InlineData(SettingsTab.DriverCleanup)]  // Windows manufacturer-driver cleanup (moved from Advanced, #562)
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(SettingsTab tab)
     {
         Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));
