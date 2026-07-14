@@ -72,8 +72,7 @@
        (icon + Info.plist). Local-dev convenience — the bundle is unsigned; the signed/notarized shipping
        pipeline is the deferred V2 milestone (#140). Runs only when publishing an osx-* RID on a Mac (the
        bundler uses sips/iconutil), so Windows/Linux builds are unaffected. -->
-  <Target Name="BundleMacApp" AfterTargets="Publish"
-          Condition="$(RuntimeIdentifier.StartsWith('osx')) and $([MSBuild]::IsOSPlatform('OSX'))">
+  <Target Name="BundleMacApp" AfterTargets="Publish" Condition="$(RuntimeIdentifier.StartsWith('osx')) and $([MSBuild]::IsOSPlatform('OSX'))">
     <Exec Command="&quot;$(MSBuildProjectDirectory)/../scripts/bundle-macos-app.sh&quot; &quot;$(MSBuildProjectDirectory)/$(PublishDir)&quot; &quot;$(MSBuildProjectDirectory)/../dist/OpenTabletArtist.app&quot; &quot;$(Version)&quot;" />
     <Message Importance="high" Text="macOS .app bundled → dist/OpenTabletArtist.app" />
   </Target>

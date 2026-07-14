@@ -25,7 +25,12 @@
                                             Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
                                             Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
                                             Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}"
-                                            Classes.information="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}" />
+                                            Classes.information="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}">
+                                        <!-- One icon for every tier for now; per-tier icons can come later (#551/health). -->
+                                        <PathIcon Data="{StaticResource IconInformationOutline}"
+                                                  Width="22" Height="22" Foreground="White"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                     <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Detail}" Margin="0,4,0,0" TextWrapping="Wrap"

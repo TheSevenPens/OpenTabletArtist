@@ -19,10 +19,12 @@
                         <TextBlock Text="{Binding MonitorHotkeyDisplay, StringFormat='⌨ {0}'}"
                                    FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                    VerticalAlignment="Center" />
-                        <Button Content="✕" ToolTip.Tip="Clear hotkey"
+                        <Button ToolTip.Tip="Clear hotkey"
                                 Command="{Binding ClearMonitorHotkeyCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="6,1"
-                                VerticalAlignment="Center" />
+                                Theme="{StaticResource GhostButton}" Padding="6,4"
+                                VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
+                        </Button>
                     </StackPanel>
                     <TextBlock Text="No hotkey assigned" FontStyle="Italic"
                                Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
@@ -51,11 +53,13 @@
                                     <TextBlock Text="{Binding HotkeyDisplay, StringFormat='⌨ {0}'}"
                                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                                VerticalAlignment="Center" />
-                                    <Button Content="✕" ToolTip.Tip="Clear hotkey"
+                                    <Button ToolTip.Tip="Clear hotkey"
                                             Command="{Binding $parent[ItemsControl].DataContext.ClearProfileHotkeyCommand}"
                                             CommandParameter="{Binding Name}"
-                                            Theme="{StaticResource GhostButton}" Padding="6,1"
-                                            VerticalAlignment="Center" />
+                                            Theme="{StaticResource GhostButton}" Padding="6,4"
+                                            VerticalAlignment="Center">
+                                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
+                                    </Button>
                                 </StackPanel>
                                 <TextBlock Text="No hotkey assigned" FontStyle="Italic"
                                            Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"

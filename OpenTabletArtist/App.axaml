@@ -17,6 +17,8 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://OpenTabletArtist/Themes/Colors.axaml" />
+                <!-- Dependency-free icon geometries (Path/PathIcon). See Themes/Icons.axaml. -->
+                <ResourceInclude Source="avares://OpenTabletArtist/Themes/Icons.axaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- ===== Content font size (#fontstd) =========================================
