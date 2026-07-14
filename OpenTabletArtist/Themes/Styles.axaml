@@ -562,6 +562,28 @@
         <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
     </Style>
 
+    <!-- Health "Needs attention" cards (#509): a per-tier tinted background + matching border, so they
+         read distinctly from normal frosted cards. Two-class selectors beat GlassPanel's single-class
+         Background, so the tint wins where set; Information keeps the frosted look with a grey border. -->
+    <Style Selector="Border.attentionCard">
+        <Setter Property="BorderThickness" Value="1.5" />
+    </Style>
+    <Style Selector="Border.attentionCard.error">
+        <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Border.attentionCard.warning">
+        <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+    </Style>
+    <Style Selector="Border.attentionCard.neutral">
+        <Setter Property="Background" Value="{DynamicResource InfoMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
+    </Style>
+    <Style Selector="Border.attentionCard.information">
+        <Setter Property="BorderBrush" Value="{DynamicResource NeutralBrush}" />
+    </Style>
+
     <!-- Always-visible, full-size scrollbars. The default Fluent scrollbars (a) auto-hide and
          (b) sit as a thin line until hovered (the thumb is scaled down by a RenderTransform in the
          collapsed state). Disable auto-hide AND clear the thumb's shrink transform so the bar is

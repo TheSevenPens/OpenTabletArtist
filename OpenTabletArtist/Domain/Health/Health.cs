@@ -138,16 +138,14 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue("winink.notInstalled", HealthSeverity.Broken,
                     "Windows Ink plugin not installed",
-                    "The Windows Ink plugin delivers pen pressure and tilt to your apps. Without it, drawing " +
-                    "apps only get basic cursor movement.",
+                    "It delivers pen pressure and tilt to your apps; without it you only get basic cursor movement.",
                     new Remediation("Fix", RemediationArea.WindowsInk)));
             }
             else if (i.WinInkVersionMismatch)
             {
                 issues.Add(new HealthIssue("winink.versionMismatch", HealthSeverity.Misconfigured,
                     "Windows Ink plugin may be incompatible",
-                    "The installed Windows Ink plugin doesn't declare support for the running driver version. " +
-                    "Updating it keeps pressure and tilt working.",
+                    "It doesn't declare support for the running driver version — update it to keep pressure and tilt working.",
                     new Remediation("Fix", RemediationArea.WindowsInk)));
 
                 // Per-tablet: a detected tablet not using a Windows Ink output mode won't get pressure/tilt.
@@ -165,8 +163,7 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
                     "VMulti driver not installed",
-                    "VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt " +
-                    "through. Without it, pen pressure and tilt won't reach your apps.",
+                    "The virtual pen device that pressure and tilt are injected through; without it they won't reach your apps.",
                     new Remediation("Fix", RemediationArea.VMulti)));
             }
         }
@@ -190,8 +187,7 @@ public static class HealthEvaluator
             issues.Add(new HealthIssue("driver.conflict",
                 i.BlockingDriverConflict ? HealthSeverity.Broken : HealthSeverity.Misconfigured,
                 "Conflicting tablet driver detected",
-                "A manufacturer tablet driver (Wacom, Huion, XP-Pen, …) is present and can interfere " +
-                "with OpenTabletDriver detecting your tablet. Review and remove it in Driver cleanup.",
+                "A manufacturer driver (Wacom, Huion, XP-Pen, …) can block OpenTabletDriver from detecting your tablet.",
                 new Remediation("Fix", RemediationArea.DriverCleanup)));
         }
 
@@ -201,8 +197,7 @@ public static class HealthEvaluator
         {
             issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
                 "Running as administrator",
-                "OpenTabletArtist is running as administrator, which can break Windows Ink pressure/tilt " +
-                "and per-app preset switching. Close it and reopen it normally (not \"Run as administrator\").",
+                "This can break Windows Ink pressure/tilt and per-app switching — reopen it normally, not elevated.",
                 Remediation: null));
         }
 
@@ -211,8 +206,7 @@ public static class HealthEvaluator
         {
             issues.Add(new HealthIssue("daemon.foreign", HealthSeverity.Recommendation,
                 "Using an external daemon",
-                "You're connected to an OpenTabletDriver daemon this app didn't start. Restart it from " +
-                "the daemon card to use this app's bundled build.",
+                "You're connected to a daemon this app didn't start — restart it to use the bundled build.",
                 new Remediation("Fix", RemediationArea.Daemon)));
         }
 
@@ -247,8 +241,7 @@ public static class HealthEvaluator
                     // just a heads-up that this fundamentally changes how the pen behaves.
                     issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Information,
                         $"{t.Name}: Windows Ink is off (mouse-compatibility mode)",
-                        "Pressure and tilt are disabled for this tablet. The pen acts like a mouse — dragging " +
-                        "selects text and objects instead of scrolling. Turn Windows Ink back on from the " +
+                        "Pressure and tilt are disabled for this tablet. Turn Windows Ink back on from the " +
                         "tablet's Pen Behavior tab to restore pressure and tilt.",
                         new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
                 }
