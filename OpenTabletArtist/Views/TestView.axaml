@@ -1,7 +1,8 @@
 <UserControl x:Class="OpenTabletArtist.Views.TestView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:OpenTabletArtist.Controls">
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters">
 
     <UserControl.Styles>
         <!-- Small accent pill listing an active dynamics aspect (#184), matching the banner's chip. -->
@@ -25,8 +26,11 @@
         <Style Selector="UniformGrid > StackPanel > TextBlock">
             <Setter Property="VerticalAlignment" Value="Top" />
         </Style>
+        <!-- Fixed value width so the left-aligned, content-sized grid columns don't reflow (jump) as the
+             numbers change digit count. Wide enough for a paired "x, y" reading (#scribble-readouts). -->
         <Style Selector="UniformGrid > StackPanel > TextBlock.ReadoutValue">
             <Setter Property="Margin" Value="0,3,0,0" />
+            <Setter Property="Width" Value="104" />
         </Style>
     </UserControl.Styles>
 
@@ -81,13 +85,19 @@
                 <StackPanel>
                     <!-- Controls -->
                     <WrapPanel Orientation="Horizontal">
-                        <ToggleSwitch OffContent="App input (Windows Ink)" OnContent="Driver input (OTD)"
+                        <ToggleSwitch OffContent="Windows Ink" OnContent="Raw input"
                                       IsChecked="{Binding UseDriverInput}"
                                       VerticalAlignment="Center" Margin="0,0,20,0" />
                         <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
-                                  MinWidth="170" VerticalAlignment="Center" Margin="0,0,20,0" />
+                                  MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={x:Static conv:PenBrushModeNameConverter.Instance}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Button Content="Clear" Command="{Binding ClearCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="14,6" />
                         <Button Content="Copy" Click="OnCopy"
@@ -95,54 +105,43 @@
                                 ToolTip.Tip="Copy the drawing to the clipboard as an image" />
                     </WrapPanel>
 
-                    <!-- Live readouts. UniformGrid = equal-width cells, so values changing width can't
-                         shift the row; monospace values keep the digits from jittering. -->
-                    <UniformGrid Columns="5" Margin="0,14,0,0">
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Canvas X:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding CanvasXText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                    <!-- Live readouts. X/Y pairs share a cell ("x, y") so the panel is 4×2 instead of a
+                         taller 5-wide grid; left-aligned + content-sized columns keep it horizontally
+                         compact on smaller desktops. Monospace values keep the digits from jittering. -->
+                    <UniformGrid Columns="4" Margin="0,12,0,0" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Canvas:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding CanvasText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Canvas Y:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding CanvasYText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Raw:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding RawText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Pressure:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Tilt:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding TiltText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Pressure:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding PressureText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Raw X:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding RawXText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Raw Y:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding RawYText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Twist:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Twist:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding TwistText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Tilt X:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TiltXText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Tilt Y:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding TiltYText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Azimuth:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Azimuth:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding AzimuthText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Altitude:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
+                            <TextBlock Text="Altitude:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding AltitudeText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
                         <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
                              blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
-                        <StackPanel Orientation="Horizontal" Margin="0,2"
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2"
                                     ToolTip.Tip="Driver-reported hover height (0–255) — shown in Driver input, for tablets that report proximity.">
-                            <TextBlock Text="Hover:" Width="62" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="Hover:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding HoverText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
                     </UniformGrid>

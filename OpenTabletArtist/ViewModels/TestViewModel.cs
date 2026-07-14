@@ -145,19 +145,25 @@ public partial class TestViewModel : ObservableObject, IDisposable
     partial void OnBrushModeChanged(PenBrushMode value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
     partial void OnDynamicsActiveChanged(bool value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));
 
-    [ObservableProperty] private string _canvasXText = "—";
-    [ObservableProperty] private string _canvasYText = "—";
-    [ObservableProperty] private string _rawXText = "—";
-    [ObservableProperty] private string _rawYText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasXText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanvasText))] private string _canvasYText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RawText))] private string _rawXText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RawText))] private string _rawYText = "—";
     [ObservableProperty] private string _pressureText = "—";
-    [ObservableProperty] private string _tiltXText = "—";
-    [ObservableProperty] private string _tiltYText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltXText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltYText = "—";
     [ObservableProperty] private string _azimuthText = "—";
     [ObservableProperty] private string _altitudeText = "—";
     [ObservableProperty] private string _twistText = "—";
     /// <summary>Driver-reported hover height (0–255). Blank in App input (the OS pointer doesn't carry
     /// it); numeric only in Driver input. The readout is always shown so the grid layout is stable.</summary>
     [ObservableProperty] private string _hoverText = "—";
+
+    // X and Y are shown paired in one readout cell ("x, y") to keep the panel compact (#scribble-readouts).
+    public string CanvasText => Pair(CanvasXText, CanvasYText);
+    public string RawText => Pair(RawXText, RawYText);
+    public string TiltText => Pair(TiltXText, TiltYText);
+    private static string Pair(string x, string y) => x == "—" && y == "—" ? "—" : $"{x}, {y}";
 
     /// <summary>Driver-mode samples; the view forwards these to the canvas.</summary>
     public event Action<PenSample>? DriverSample;
