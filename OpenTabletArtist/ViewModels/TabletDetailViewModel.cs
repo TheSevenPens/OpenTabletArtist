@@ -1702,9 +1702,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public string LiveOutputText => LivePressure is { } v ? PressureCurve.Apply(v, Curve).ToString("0.00") : "—";
     public bool HasLivePressure => LivePressure is not null;
 
-    /// <summary>Live pressure after the curve (0..1), for the top pressure-level bar (#559). Reflects the
-    /// curve only — pressure smoothing is temporal (EMA) and has no single static value to plot.</summary>
-    public double? LiveOutput => LivePressure is { } v ? PressureCurve.Apply(v, Curve) : null;
+    // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
+    // pipeline the daemon's Pen Dynamics filter uses — curve, then EMA smoothing — via a stateful
+    // PenDynamicsProcessor fed each pen sample. So the processed dot reflects smoothing's lag too, not just
+    // the curve. (Its exact magnitude tracks the UI sample rate, which may be coarser than the daemon's.)
+    private readonly PenDynamicsProcessor _liveProcessor = new();
+    [ObservableProperty] private double? _liveProcessed;
+    public string LiveProcessedText => LiveProcessed is { } v ? v.ToString("0.00") : "—";
+    partial void OnLiveProcessedChanged(double? value) => OnPropertyChanged(nameof(LiveProcessedText));
 
     /// <summary>Whether pen dynamics actually change the pressure, so the bar shows a processed dot.</summary>
     public bool ShowLiveProcessed => CurrentDynamics.CurveShapesPressure || CurrentDynamics.HasPressureSmoothing;
@@ -1721,7 +1726,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(OutputMinimumText));
         OnPropertyChanged(nameof(OutputMaximumText));
         OnPropertyChanged(nameof(LiveOutputText)); // output depends on the curve
-        OnPropertyChanged(nameof(LiveOutput));
         NotifyDynamicsStatus();
         SchedulePersist();
     }
@@ -1777,7 +1781,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         LivePenX = s.X;
         LivePenY = s.Y;
-        LivePressure = s.IsDown ? Clamp01(s.Pressure) : null;
+        if (s.IsDown)
+        {
+            double raw = Clamp01(s.Pressure);
+            LivePressure = raw;
+            // Run the raw sample through the same curve+smoothing pipeline (#559) so the processed dot
+            // reflects smoothing's lag. Settings are refreshed each sample to track live edits.
+            _liveProcessor.Settings = CurrentDynamics;
+            LiveProcessed = _liveProcessor.ProcessPressure(raw);
+        }
+        else
+        {
+            LivePressure = null;
+            _liveProcessor.ResetPressure(); // next press starts crisp, matching the filter
+            LiveProcessed = null;
+        }
     }
 
     // Live input/output read-out (#468) tracks the live pressure.
@@ -1785,7 +1803,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(LiveInputText));
         OnPropertyChanged(nameof(LiveOutputText));
-        OnPropertyChanged(nameof(LiveOutput));
         OnPropertyChanged(nameof(HasLivePressure));
     }
 
@@ -1804,6 +1821,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void StopLiveInput()
     {
         LivePressure = null;
+        LiveProcessed = null;
+        _liveProcessor.ResetPressure();
         LivePenX = null;
         LivePenY = null;
         foreach (var b in AuxButtons) b.IsPressed = false;

@@ -902,13 +902,13 @@
                             <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
                                        FontFamily="{DynamicResource MonoFontFamily}"
                                        Foreground="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="{Binding LiveOutputText, StringFormat='after curve {0}'}"
+                            <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
                                        FontFamily="{DynamicResource MonoFontFamily}"
                                        Foreground="{DynamicResource SuccessBrush}"
                                        IsVisible="{Binding ShowLiveProcessed}" />
                         </StackPanel>
                         <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
-                                               Raw="{Binding LivePressure}" Processed="{Binding LiveOutput}"
+                                               Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
                                                ShowProcessed="{Binding ShowLiveProcessed}"
                                                RawBrush="{DynamicResource AccentBrush}"
                                                ProcessedBrush="{DynamicResource SuccessBrush}" />
