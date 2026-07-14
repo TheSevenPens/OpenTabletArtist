@@ -85,6 +85,12 @@
                 </c:LabeledField>
                 <c:LabeledSlider Label="Card opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
+                <!-- Left-pane (sidebar) tint — Sakura / Dark Sakura only (#554). -->
+                <c:LabeledField Label="Left pane colour" IsVisible="{Binding ShowSidebarColor}">
+                    <ColorPicker Color="{Binding SidebarColor, Mode=TwoWay}"
+                                 IsAlphaVisible="False" IsAlphaEnabled="False"
+                                 ToolTip.Tip="The colour of the left navigation pane" />
+                </c:LabeledField>
                 <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
                 <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
