@@ -273,8 +273,8 @@
                 <TextBlock Text="PEN MOVEMENT" Classes="TabTitle" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
-                <UniformGrid Columns="2" Margin="0,12,0,0">
-                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}" Margin="0,0,12,0"
+                <StackPanel Margin="0,12,0,0">
+                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}" Margin="0,0,0,12"
                                  IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
                                  Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
                         <StackPanel Spacing="6">
@@ -294,7 +294,7 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
-                </UniformGrid>
+                </StackPanel>
 
                 <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                 <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
@@ -452,7 +452,7 @@
                                                     Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
                                                     UseImperialUnits="{Binding UseImperialUnits}"
-                                                    Editable="True" Height="320" />
+                                                    Editable="True" />
 
                             <!-- Proportional resize + maximize (#199). Drag the area / a corner on the
                                  diagram above; this slider is the same size control, for precision. -->

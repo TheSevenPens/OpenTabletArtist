@@ -54,10 +54,25 @@ public sealed class ActiveAreaDiagram : Control
         AffectsMeasure<ActiveAreaDiagram>(AreaProperty);
     }
 
+    private const double MaxDiagramHeight = 320;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
-        return new Size(w, 320);
+
+        // Height follows the tablet's aspect ratio so the drawn area fills the box instead of floating
+        // in a fixed 320px band with empty space above and below (#activearea-padding). Capped so a wide
+        // window can't make the diagram grow unboundedly tall; the tablet then centres horizontally.
+        var area = Area;
+        double fullW = area is { FullWidth: > 0 } ? area.FullWidth : 16;
+        double fullH = area is { FullHeight: > 0 } ? area.FullHeight : 10;
+        double rot = area != null ? (((area.Rotation % 360) + 360) % 360) : 0;
+        bool perp = Math.Abs(rot % 180) > 0.5;
+        double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;
+
+        double innerW = Math.Max(1, w - 2 * Pad);
+        double h = innerW / (bboxW / bboxH) + 2 * Pad;
+        return new Size(w, Math.Clamp(h, 150, MaxDiagramHeight));
     }
 
     // ── Layout: maps between tablet mm and screen px for the current Area + Bounds ──────────────────

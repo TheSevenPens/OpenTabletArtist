@@ -65,7 +65,7 @@
                         IsVisible="{Binding Developer.Settings.OnPageScreenshot}"
                         Theme="{StaticResource GhostButton}"
                         Margin="12,4,12,12" Padding="10,6" HorizontalAlignment="Left"
-                        Content="📷 Capture page"
+                        Content="Capture page"
                         ToolTip.Tip="Save a PNG of the current page to Pictures\OpenTabletArtist" />
 
                 <!-- The page navigation bar: nodes (labels in all caps) that select a page. Most sit at
