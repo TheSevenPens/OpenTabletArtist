@@ -64,13 +64,10 @@
         <!-- Introduce REAL misconfigurations (persisted settings changes) for reproducing UX issues. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ConfigErrorsTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Introduce config errors"
-                           Description="Unlike the warning toggles above, these make a real, persisted change to the active tablet's settings so a genuinely broken configuration can be reproduced and debugged. Each is reversible from the tablet's page.">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Introduce config errors">
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
-                        <TextBlock Text="Moves the active tablet's display mapping so it straddles the desktop's right edge — about half the mapped area lands in dead space beyond every monitor. Trips the real &quot;mapped area is partly off-screen&quot; health check. Restore it by remapping the tablet to a display on its page (or the tray's Switch display)."
-                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                         <Button Content="Push active area off-screen"
                                 Command="{Binding PushMappingOffScreenCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
@@ -79,8 +76,6 @@
 
                     <StackPanel Spacing="6">
                         <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
-                        <TextBlock Text="Fabricates a real 4-point (perspective) calibration on the active tablet's mapped display, as if each corner were tapped a few pixels off. The pointer ends up slightly off, and the tablet's Calibration tab shows a populated report with small random deltas — handy for reviewing the report + fit-quality UI without a pen. Undo it with Clear calibration on that tab."
-                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                         <Button Content="Create off calibration"
                                 Command="{Binding CreateBadCalibrationCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
@@ -101,10 +96,8 @@
                            Description="Show extra diagnostic tabs on a tablet's page. Hidden by default because they're rarely useful.">
                 <StackPanel Spacing="10">
                     <c:ToggleSetting Label="Show the Filters tab"
-                                     Description="A raw view of the profile's output-mode filters."
                                      IsChecked="{Binding Settings.ShowFiltersTab}" />
                     <c:ToggleSetting Label="Show the JSON tab"
-                                     Description="The tablet profile's raw settings JSON."
                                      IsChecked="{Binding Settings.ShowJsonTab}" />
                 </StackPanel>
             </c:SettingCard>
@@ -115,8 +108,7 @@
              capture. The render happens in code-behind (it needs the visual). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ScreenshotTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Screenshots"
-                           Description="Developer aids for capturing the live UI to PNGs, saved to your Pictures\OpenTabletArtist folder with timestamped names.">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Screenshots">
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Screenshot all pages" FontWeight="SemiBold" />
@@ -143,8 +135,7 @@
              clamped up. Reset by restarting the app. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #WindowSizeTab.IsChecked}">
-            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Window size"
-                           Description="Force the app window to occupy an exact number of actual screen pixels (independent of Windows display scaling) — to preview how the layout responds on smaller displays, or for consistent screenshots. Forcing a size relaxes the window's normal minimum, so a small size can look cramped; restart the app to restore it.">
+            <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Window size">
                 <StackPanel Spacing="12">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="Current size:" FontWeight="SemiBold" />
