@@ -13,8 +13,10 @@ points them to where the fix is made. Concretely:
   happen on Home; the card *directs* the user to where it lives.
 - **The same issue can appear in more than one place** — on Home and locally at the top of the page
   that owns the fix.
-- **Three severity tiers:** *Broken* (a prerequisite is missing; core function won't work),
-  *Misconfigured* (set up wrong; a feature won't behave), *Recommendation* (works, but not ideal).
+- **Four severity tiers:** *Broken* (a prerequisite is missing; core function won't work),
+  *Misconfigured* (set up wrong; a feature won't behave), *Recommendation* (works, but not ideal),
+  and *Information* (nothing is wrong — a heads-up about a deliberate choice that materially changes
+  behavior, e.g. Windows Ink turned off for mouse compatibility, #549).
 - **Re-validate periodically**, because OTD's own UX can change settings underneath us.
 
 The motivating example: the Windows Ink plugin must be **installed** *and* **enabled** — two criteria,
@@ -24,7 +26,7 @@ each with its own evolving warning.
 
 Pure, testable core in `Domain/Health/Health.cs`:
 
-- `HealthSeverity` = Broken | Misconfigured | Recommendation (sorts worst-first, drives the dot color).
+- `HealthSeverity` = Broken | Misconfigured | Recommendation | Information (sorts worst-first, drives the dot color; Information is the calm grey `NeutralBrush`).
 - `HealthIssue(Id, Severity, Title, Detail, Remediation?)` — `Id` is a stable key (dedupe + tests).
 - `Remediation(ActionLabel, Area, TabletName?)` — `Area` says where the fix lives; `TabletName` targets
   a specific tablet for per-tablet areas.
@@ -58,6 +60,7 @@ Surfaces:
 | `vmulti.notInstalled` | Broken | VMulti page |
 | `driver.conflict` | Broken if blocking, else Misconfigured | Driver cleanup page |
 | `tablet.notWinInk:<name>` | Misconfigured | that tablet's Pen Behavior |
+| `tablet.winInkOff:<name>` | Information | that tablet's Pen Behavior *(deliberate "Don't use Windows Ink"; suppresses `tablet.notWinInk`, #549)* |
 | `daemon.foreign` | Recommendation | Daemon |
 
 The pen-pressure setup chain is **three** prerequisites, all independent so they surface at once when
