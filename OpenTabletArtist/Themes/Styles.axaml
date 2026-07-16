@@ -315,6 +315,32 @@
             </Style>
         </ControlTheme>
 
+        <!-- PivotTab: the Zune subpage pivot (redesign Phase 2) — big lowercase Segoe UI Light headers
+             that replace the vertical tab rail on tabbed pages. Same active cue as the wordmarks (accent +
+             weight, no rule). Content is lowercased by the pivot item template. -->
+        <ControlTheme x:Key="PivotTab" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
+                               FontFamily="{DynamicResource DisplayFontFamily}"
+                               FontSize="22" FontWeight="Light" LetterSpacing="-0.2" />
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+            <Style Selector="^ /template/ TextBlock#Word">
+                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+            </Style>
+            <Style Selector="^:pointerover /template/ TextBlock#Word">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            </Style>
+            <Style Selector="^:checked /template/ TextBlock#Word">
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="FontWeight" Value="Normal" />
+            </Style>
+        </ControlTheme>
+
         <!-- Accent Button -->
         <ControlTheme x:Key="AccentButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource AccentButtonFillBrush}" />

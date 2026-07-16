@@ -1,41 +1,39 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters"
              x:Class="OpenTabletArtist.Controls.TabbedPageView"
              x:Name="Root">
 
-    <!-- Shared host for the SETTINGS + ADVANCED tabbed pages (Zune Phase 0). Complex header (the page
-         entity, via Title) on top; a flat data-driven tab rail on the left; the selected subpage on the
-         right. The rail + content bind to the DataContext (the page view model); Title binds to this
-         control's own property. See TabbedPageView.axaml.cs. -->
-    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="{Binding #Root.Title}" />
-
-        <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
-        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
-                BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
-                <ItemsControl ItemsSource="{Binding Tabs}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <RadioButton Content="{Binding Label}" GroupName="RailTabs"
-                                         Theme="{StaticResource TabRadioButton}"
-                                         IsVisible="{Binding IsVisible}"
-                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
-                                         Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
-                                         CommandParameter="{Binding}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+    <!-- Shared host for the SETTINGS + ADVANCED tabbed pages. Zune pivot layout (Phase 2): a horizontal
+         row of lowercase pivots (the subpage names) over the selected subpage. No page-entity title — the
+         highlighted wordmark in the top bar already names the section. Rail + content bind to the
+         DataContext (the page view model); see TabbedPageView.axaml.cs. -->
+    <Grid RowDefinitions="Auto,*">
+        <!-- Pivots — horizontal, wrapping on narrow widths; active = accent + weight. -->
+        <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+                Margin="0,0,0,20" Padding="0,0,0,10">
+            <ItemsControl ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <RadioButton Theme="{StaticResource PivotTab}" GroupName="Pivots"
+                                     Content="{Binding Label, Converter={x:Static conv:LowerCaseConverter.Instance}}"
+                                     IsVisible="{Binding IsVisible}"
+                                     IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                     Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
+                                     CommandParameter="{Binding}"
+                                     Margin="0,3,26,3" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </Border>
 
-        <!-- Consistent body title per subpage (the subpage's own name), then the subpage content — which
-             crossfades on tab switch (the shared Zune motion primitive, Phase 0.4). -->
-        <StackPanel Grid.Row="1" Grid.Column="1">
-            <TextBlock Text="{Binding CurrentTabTitle}" Classes="TabTitle" Margin="0,0,0,12" />
-            <TransitioningContentControl Content="{Binding SelectedContent}"
-                                         PageTransition="{DynamicResource PageFade}" />
-        </StackPanel>
+        <!-- The selected subpage — crossfades on pivot switch (the shared Zune motion primitive). -->
+        <TransitioningContentControl Grid.Row="1" Content="{Binding SelectedContent}"
+                                     PageTransition="{DynamicResource PageFade}" />
     </Grid>
 </UserControl>
