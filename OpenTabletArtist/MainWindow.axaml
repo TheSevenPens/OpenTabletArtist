@@ -74,21 +74,13 @@
                      docs/design/ux-terminology.md. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,0,8,0">
-                    <!-- HOME opens the dashboard (health "Needs attention", daemon status, the YOUR TABLETS
-                         overview, and the supported-tablets link). -->
-                    <RadioButton Theme="{StaticResource NavNode}" Content="HOME"
-                                 IsChecked="{Binding IsDashboard, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Dashboard}" />
-                    <!-- TABLET is a single node (#542): its page hosts a switcher dropdown over the selected
-                         tablet's settings. Always shown — the page carries a placeholder when none is known. -->
-                    <RadioButton Theme="{StaticResource NavNode}" Content="TABLET"
-                                 IsChecked="{Binding IsTabletPage, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding TabletPage}"
-                                 Margin="0,2,0,0" />
-                    <!-- The flat leaves between HOME and ADVANCED, data-driven (#477): SCRIBBLE, ABOUT.
-                         Same NavNode look; each item carries its own label / target page / selection.
-                         (PRESETS + PER-APP PRESETS moved into SETTINGS tabs, #571.) -->
-                    <ItemsControl ItemsSource="{Binding NavLeaves}">
+                    <!-- Top-level navigation, fully data-driven (Zune Phase 0.2): one ordered list of
+                         sections — HOME · TABLET · SCRIBBLE · ABOUT · SETTINGS · ADVANCED — each carrying
+                         its own label, target page, selection, and visibility. Rendering the whole nav
+                         from one collection lets the shell later swap this vertical sidebar for a
+                         horizontal Zune wordmark bar by changing only the panel + item template here.
+                         (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
+                    <ItemsControl ItemsSource="{Binding NavSections}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <RadioButton Theme="{StaticResource NavNode}" Content="{Binding Label}"
@@ -100,20 +92,6 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-
-                    <!-- SETTINGS + ADVANCED are leaf nodes, each opening a tabbed page. SETTINGS hosts OTA's
-                         own preference tabs (Startup / Theme / Dev Tools); ADVANCED hosts the driver/daemon
-                         tabs (Daemon / Windows Ink / Configs / Diagnostics / Console / Plugins / VMulti /
-                         Driver Cleanup) as a single flat list. -->
-                    <RadioButton Theme="{StaticResource NavNode}" Content="SETTINGS"
-                                 IsChecked="{Binding IsSettings, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Settings}"
-                                 Margin="0,2,0,0" />
-                    <RadioButton Theme="{StaticResource NavNode}" Content="ADVANCED"
-                                 IsChecked="{Binding IsAdvanced, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="{Binding Advanced}"
-                                 Margin="0,2,0,0" />
-                    <!-- DEVELOPER folded into SETTINGS as a gated tab (#572); Dev Tools toggles it there. -->
                 </StackPanel>
                 </ScrollViewer>
             </DockPanel>

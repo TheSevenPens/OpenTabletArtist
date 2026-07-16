@@ -113,15 +113,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // no view-lookup converter, and no per-view DataContext re-point.
     [ObservableProperty] private ObservableObject? _currentPage;
 
-    // Sidebar highlight (converter-free): HOME and ADVANCED bind IsChecked to these; the flat leaves
-    // between them (PRESETS … ABOUT) are data-driven via NavLeaves (#477), each carrying its own
-    // IsSelected. Every advanced subpage is a tab inside the ADVANCED tabbed page, so the single ADVANCED
-    // node drives its highlight.
-    public bool IsDashboard => ReferenceEquals(CurrentPage, Dashboard);
-    public bool IsTabletPage => ReferenceEquals(CurrentPage, TabletPage);
-    public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
-    public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
-
     /// <summary>The tablet detail page manages its own scrolling — a fixed header + tab rail with a
     /// per-tab scroll region — so the outer content ScrollViewer is <c>Disabled</c> for it, bounding the
     /// page to the viewport so its inner scroll engages and the header no longer scrolls away (#507).
@@ -131,9 +122,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
             : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
 
-    /// <summary>The flat leaf nodes between HOME and ADVANCED (#477): each has a label, its target page,
-    /// a selection flag the sidebar highlights, and a visibility flag (Per-App is feature-gated).</summary>
-    public ObservableCollection<NavLeafViewModel> NavLeaves { get; } = new();
+    /// <summary>The whole top-level navigation as one ordered, data-driven list (Zune Phase 0.2): HOME ·
+    /// TABLET · SCRIBBLE · ABOUT · SETTINGS · ADVANCED. Each node has a label, its target page, a selection
+    /// flag the sidebar highlights (synced in <see cref="OnCurrentPageChanged"/>), and a visibility flag.
+    /// Modelling every section identically — not just the middle leaves — lets the shell swap the sidebar
+    /// for a horizontal wordmark bar without special-casing any node.</summary>
+    public ObservableCollection<NavLeafViewModel> NavSections { get; } = new();
 
     public MainViewModel()
     {
@@ -213,10 +207,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
         TabletPage = new TabletPageViewModel(ResolveTabletDetail);
 
-        // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Presets + Per-App Presets moved
-        // into SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged.
-        NavLeaves.Add(new NavLeafViewModel("SCRIBBLE", Test));
-        NavLeaves.Add(new NavLeafViewModel("ABOUT", About));
+        // The whole top-level nav as one ordered list (Zune Phase 0.2). Presets + Per-App Presets live in
+        // SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged. TABLET's page carries a
+        // placeholder when no tablet is known; SETTINGS + ADVANCED each open a tabbed page.
+        NavSections.Add(new NavLeafViewModel("HOME", Dashboard));
+        NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
+        NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
+        NavSections.Add(new NavLeafViewModel("ABOUT", About));
+        NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
+        NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -266,7 +265,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var name = choice.Name;
             list.Add(($"tablet-{Slugify(name)}", () => NavigateToTabletByName(name)));
         }
-        foreach (var leaf in NavLeaves.Where(l => l.IsVisible))
+        // The simple leaf sections (Scribble, About) — Home, Tablet, Settings, and Advanced are captured
+        // separately above/below (Home explicitly, each tablet via the switcher, Settings/Advanced by tab).
+        foreach (var leaf in NavSections.Where(l => l.IsVisible
+                     && !ReferenceEquals(l.Page, Dashboard) && !ReferenceEquals(l.Page, TabletPage)
+                     && !ReferenceEquals(l.Page, Settings) && !ReferenceEquals(l.Page, Advanced)))
         {
             var page = leaf.Page;
             list.Add((Slugify(leaf.Label), () => CurrentPage = page));
@@ -412,13 +415,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _ = PerApp.LoadAsync();
         }
 
-        // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
-        foreach (var leaf in NavLeaves)
-            leaf.IsSelected = ReferenceEquals(CurrentPage, leaf.Page);
-        OnPropertyChanged(nameof(IsDashboard));
-        OnPropertyChanged(nameof(IsTabletPage));
-        OnPropertyChanged(nameof(IsSettings));
-        OnPropertyChanged(nameof(IsAdvanced));
+        // Refresh the sidebar highlight — every top-level section highlights via its own IsSelected.
+        foreach (var section in NavSections)
+            section.IsSelected = ReferenceEquals(CurrentPage, section.Page);
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
     }
 
