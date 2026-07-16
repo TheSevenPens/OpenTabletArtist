@@ -1,0 +1,443 @@
+<meta charset="utf-8">
+<title>OpenTabletArtist — Zune redesign (Sakura)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ============================================================================
+     Zune-in-Sakura mockup. Single deliberate visual world (the Sakura skin), so
+     no light/dark toggle — this IS the pink skin. Type is the app's own Segoe UI
+     (Light for the big Zune words); data is Consolas — both native on Windows,
+     so no webfont is linked. Motion: drifting petals + a title that slides in and
+     bleeds off the right edge, the Zune panorama signature.
+     ========================================================================= */
+  :root{
+    --ink:#3f2130;          /* warm plum, primary text            */
+    --ink-soft:#8a5c71;     /* muted plum                          */
+    --accent:#e0218a;       /* Sakura accent (SakuraAccentDefault) */
+    --accent-2:#ff67a8;     /* lighter petal pink                  */
+    --frost:rgba(255,250,253,.58);
+    --frost-2:rgba(255,245,250,.42);
+    --frost-line:rgba(224,33,138,.14);
+    --track:rgba(224,33,138,.16);
+    --good:#1f9d6b;
+    --font:"Segoe UI",system-ui,-apple-system,"Inter",sans-serif;
+    --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--font); color:var(--ink);
+    /* Sakura backdrop: pale blush → rose → a warm peach glow at the base. */
+    background:
+      radial-gradient(120% 80% at 80% 118%, rgba(255,150,120,.55), transparent 60%),
+      linear-gradient(178deg,#fdecf3 0%,#fbd6e6 42%,#f8b6d0 74%,#f7a9c3 100%);
+    background-attachment:fixed;
+    min-height:100%; overflow-x:hidden;
+  }
+  #petals{position:fixed; inset:0; z-index:0; pointer-events:none}
+  .shell{position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:26px clamp(20px,4vw,56px) 64px}
+
+  /* ---- top wordmark nav -------------------------------------------------- */
+  .topnav{display:flex; gap:clamp(18px,3vw,42px); align-items:baseline; flex-wrap:wrap; margin-bottom:34px}
+  .brand{font-weight:600; letter-spacing:.14em; font-size:12px; text-transform:uppercase;
+         color:var(--accent); margin-right:8px; align-self:center}
+  /* Active = accent + weight (no underline), matching the pivots below — Metro signals state by
+     brightness, not a rule. */
+  .word{appearance:none; background:none; border:0; cursor:pointer; font-family:var(--font);
+        font-size:20px; font-weight:400; color:var(--ink-soft); letter-spacing:.005em;
+        padding:4px 0; transition:color .2s}
+  .word:hover{color:var(--ink)}
+  .word[aria-current="true"]{color:var(--accent); font-weight:600}
+  .word:focus-visible{outline:2px solid var(--accent); outline-offset:4px}
+
+  /* ---- device line (tablet switcher; sits under the pivots, over the content) ---- */
+  .device{display:flex; align-items:center; gap:10px; margin:2px 0 20px;
+          color:var(--ink); font-size:17px; font-weight:600}
+  .device[hidden]{display:none}
+  .device .dot{width:9px;height:9px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(31,157,107,.18)}
+  .device .caret{color:var(--accent);font-weight:400}
+
+  /* ---- pivot row --------------------------------------------------------- */
+  .pivots{display:flex; gap:clamp(18px,2.6vw,38px); align-items:baseline; flex-wrap:wrap;
+          margin:0 0 16px; padding-bottom:14px; border-bottom:1px solid var(--frost-line)}
+  .pivot{appearance:none;background:none;border:0;cursor:pointer;font-family:var(--font);
+         font-size:28px; font-weight:300; color:var(--ink-soft); letter-spacing:-.01em; padding:0; transition:color .18s,transform .18s}
+  .pivot:hover{color:var(--ink)}
+  .pivot[aria-current="true"]{color:var(--accent); font-weight:400}
+  .pivot:focus-visible{outline:2px solid var(--accent); outline-offset:4px}
+
+  /* ---- content stage ----------------------------------------------------- */
+  .stage{display:grid; gap:16px}
+  .cols{display:grid; gap:16px}
+  .cols.wide{grid-template-columns:1.55fr 1fr}
+  .cols.trio{grid-template-columns:repeat(3,1fr)}
+  .cols.duo{grid-template-columns:1fr 1fr}
+  @media (max-width:820px){ .cols.wide,.cols.trio,.cols.duo{grid-template-columns:1fr} }
+  .stack{display:grid; gap:16px; align-content:start}
+
+  /* Metro/Zune: crisp square corners, flat fields. (Frosted glass + a soft shadow stay — that's the
+     Sakura richness — but no rounded rectangles anywhere.) */
+  .card{background:var(--frost); border:1px solid var(--frost-line); border-radius:0;
+        padding:18px 18px 20px; backdrop-filter:blur(18px) saturate(122%);
+        -webkit-backdrop-filter:blur(18px) saturate(122%);
+        box-shadow:0 10px 30px -18px rgba(120,20,70,.4); transition:transform .2s, box-shadow .2s, border-color .2s}
+  .card:hover{transform:translateY(-2px); box-shadow:0 16px 34px -18px rgba(120,20,70,.45); border-color:rgba(224,33,138,.26)}
+  .card.accent{border-color:rgba(224,33,138,.45); border-width:1.5px}
+  .lbl{font-size:11.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 12px}
+  .h{font-size:16px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--ink-soft); font-size:13.5px; line-height:1.5; margin:0}
+  .row{display:flex;align-items:center;gap:10px}
+  .between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .mut{color:var(--ink-soft)}
+  .mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+  .spec{display:grid;grid-template-columns:auto 1fr;gap:7px 20px;font-size:14px;margin:0}
+  .spec dt{color:var(--ink-soft)} .spec dd{margin:0;text-align:right;font-weight:500}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+         padding:4px 10px;border-radius:0;background:rgba(31,157,107,.14);color:var(--good)}
+  .badge.pink{background:rgba(224,33,138,.13);color:var(--accent)}
+  .btn{appearance:none;border:0;cursor:pointer;font-family:var(--font);font-size:13.5px;font-weight:600;
+       padding:9px 18px;border-radius:0;color:#fff;background:linear-gradient(120deg,var(--accent-2),var(--accent));
+       box-shadow:0 6px 16px -8px rgba(224,33,138,.8)}
+  .btn.ghost{background:rgba(255,255,255,.4);color:var(--accent);border:1px solid var(--frost-line);box-shadow:none}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  .slider{position:relative;height:5px;border-radius:0;background:var(--track);margin:16px 0}
+  .slider>.fill{position:absolute;left:0;top:0;height:100%;border-radius:0;background:linear-gradient(90deg,var(--accent-2),var(--accent))}
+  .slider>.thumb{position:absolute;top:50%;width:9px;height:20px;border-radius:0;background:var(--accent);
+        transform:translate(-50%,-50%);box-shadow:0 1px 5px rgba(120,20,70,.4)}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+  .field .val{font-family:var(--mono);color:var(--ink)}
+
+  .toggle{position:relative;width:44px;height:22px;border-radius:0;background:var(--track);flex:0 0 auto;transition:background .2s;cursor:pointer;border:0}
+  .toggle>span{position:absolute;top:3px;left:3px;width:14px;height:16px;border-radius:0;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(120,20,70,.35)}
+  .toggle[aria-pressed="true"]{background:linear-gradient(120deg,var(--accent-2),var(--accent))}
+  .toggle[aria-pressed="true"]>span{left:27px}
+  .toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  .live{position:relative;height:14px;border-radius:0;background:linear-gradient(90deg,rgba(224,33,138,.10),rgba(224,33,138,.03));overflow:hidden}
+  .live>.raw,.live>.proc{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%)}
+  .live>.raw{background:rgba(63,33,48,.45)}
+  .live>.proc{background:var(--accent);box-shadow:0 0 0 3px rgba(224,33,138,.18)}
+
+  .swatch{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.42);border:1px solid var(--frost-line);
+          border-radius:0;padding:7px 12px;width:max-content;font-family:var(--mono);font-size:12.5px;color:var(--ink-soft)}
+  .swatch>.chip{width:20px;height:20px;border-radius:0;border:1px solid rgba(120,20,70,.2)}
+  .swatch>.car{color:var(--ink-soft)}
+
+  .attention{display:flex;gap:14px;align-items:flex-start}
+  .attention .ic{flex:0 0 auto;width:40px;height:40px;border-radius:0;display:grid;place-items:center;
+        background:rgba(120,90,113,.14);color:var(--ink-soft)}
+  .miniboard{width:100%;height:auto;border-radius:0;display:block}
+
+  /* segmented control (rotation, mm/in) — square Metro buttons */
+  .seg{display:inline-flex;border:1px solid var(--frost-line)}
+  .seg-b{appearance:none;border:0;border-right:1px solid var(--frost-line);background:rgba(255,255,255,.3);
+         cursor:pointer;font-family:var(--font);font-size:12.5px;color:var(--ink-soft);padding:6px 13px}
+  .seg-b:last-child{border-right:0}
+  .seg-b.on{background:linear-gradient(120deg,var(--accent-2),var(--accent));color:#fff}
+  .seg.small .seg-b{padding:5px 11px}
+  .calcard{border:1px solid var(--frost-line);background:rgba(255,255,255,.28);padding:12px;text-align:center}
+  .calcard.on{border-color:rgba(224,33,138,.5)}
+  .calbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+          margin-top:16px;padding-top:14px;border-top:1px solid var(--frost-line)}
+
+  .note{font-size:12.5px;color:var(--ink-soft);margin:26px 2px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .note b{color:var(--accent)}
+
+  .anim-stage{animation:fadeUp .4s cubic-bezier(.16,.8,.24,1)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+
+<canvas id="petals"></canvas>
+<div class="shell">
+  <nav class="topnav" id="topnav" aria-label="Sections">
+    <span class="brand">OpenTabletArtist</span>
+  </nav>
+
+  <div class="pivots" id="pivots" role="tablist" aria-label="Sub-sections"></div>
+  <div class="device" id="device" hidden></div>
+  <main class="stage" id="stage"></main>
+
+  <p class="note">
+    Mockup · Zune-style layout in the Sakura skin. Click the <b>wordmarks</b> and the <b>pivots</b>.
+    Nav is data-driven; the palette is untouched — this is the real Sakura pink.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  /* ---------- small builders (real content, no lorem) -------------------- */
+  const card=(lbl,body,cls="")=>`<section class="card ${cls}">${lbl?`<p class="lbl">${lbl}</p>`:""}${body}</section>`;
+  const slider=(pct)=>`<div class="slider"><div class="fill" style="width:${pct}%"></div><div class="thumb" style="left:${pct}%"></div></div>`;
+  const field=(l,v)=>`<div class="field"><span class="mut">${l}</span><span class="val">${v}</span></div>`;
+  const toggle=(l,on)=>`<div class="between" style="margin:6px 0"><span>${l}</span><button class="toggle" aria-pressed="${on}" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')==='true'?'false':'true')"><span></span></button></div>`;
+  const swatch=(hex,rgb)=>`<div class="swatch"><span class="chip" style="background:${hex}"></span>${hex} · rgb(${rgb}) <span class="car">▾</span></div>`;
+
+  /* pressure curve (firm/convex, softness −0.74) with a live dot */
+  const curve=`<svg viewBox="0 0 120 120" class="miniboard" style="max-width:260px" aria-hidden="true">
+    <defs><linearGradient id="cv" x1="0" x2="1"><stop offset="0" stop-color="#ff67a8"/><stop offset="1" stop-color="#e0218a"/></linearGradient></defs>
+    ${[0,30,60,90,120].map(x=>`<line x1="${x}" y1="0" x2="${x}" y2="120" stroke="rgba(224,33,138,.10)"/><line x1="0" y1="${x}" x2="120" y2="${x}" stroke="rgba(224,33,138,.10)"/>`).join("")}
+    <path d="M6,114 C 52,112 82,96 114,8" fill="none" stroke="url(#cv)" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="6" cy="114" r="4.5" fill="#e0218a"/><circle cx="114" cy="8" r="4.5" fill="#33b1ff"/>
+    <circle cx="70" cy="86" r="5" fill="#1f9d6b"/>
+  </svg>`;
+
+  /* display map mini-diagram: monitors 1·2·3 + tablet + red lines */
+  const mapBoard=`<svg viewBox="0 0 300 210" class="miniboard" style="max-width:340px" aria-hidden="true">
+    <line x1="118" y1="70" x2="150" y2="150" stroke="#e0218a" stroke-width="1.3"/>
+    <line x1="222" y1="70" x2="270" y2="150" stroke="#e0218a" stroke-width="1.3"/>
+    <rect x="70" y="22" width="104" height="58" rx="0" fill="rgba(224,33,138,.5)"/>
+    <text x="122" y="47" fill="#fff" font-size="20" text-anchor="middle" font-family="Segoe UI">2</text>
+    <text x="122" y="64" fill="#ffdcec" font-size="9" text-anchor="middle" font-family="Segoe UI">Primary</text>
+    <rect x="182" y="22" width="96" height="52" rx="0" fill="rgba(255,255,255,.5)" stroke="rgba(224,33,138,.25)"/>
+    <text x="230" y="53" fill="#7a5265" font-size="20" text-anchor="middle" font-family="Segoe UI">3</text>
+    <rect x="70" y="86" width="96" height="52" rx="0" fill="rgba(255,255,255,.5)" stroke="rgba(224,33,138,.25)"/>
+    <text x="118" y="117" fill="#7a5265" font-size="20" text-anchor="middle" font-family="Segoe UI">1</text>
+    <rect x="150" y="150" width="120" height="44" rx="0" fill="rgba(120,90,113,.5)"/>
+    <text x="210" y="177" fill="#fff" font-size="13" text-anchor="middle" font-family="Segoe UI">Tablet</text>
+  </svg>`;
+
+  /* ---------- the tablet button grid ------------------------------------- */
+  const btnGrid=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px">
+    ${["Ctrl+Z","Ctrl+Shift+Z","[  ","  ]","E","B","Space","Ctrl+S"].map(k=>
+      `<div style="border:1px solid var(--frost-line);padding:9px 6px;text-align:center;font-size:12.5px;background:rgba(255,255,255,.35)">${k.trim()}</div>`).join("")}
+  </div>`;
+
+  /* active-area diagram: tablet outline + highlighted area with corner handles + top-edge marker */
+  const areaBoard=`<svg viewBox="0 0 260 150" class="miniboard" aria-hidden="true">
+    <rect x="6" y="12" width="248" height="126" fill="rgba(255,255,255,.32)" stroke="rgba(120,20,70,.32)"/>
+    <line x1="92" y1="12" x2="168" y2="12" stroke="#e0218a" stroke-width="3"/>
+    <rect x="42" y="36" width="150" height="82" fill="rgba(224,33,138,.16)" stroke="#e0218a" stroke-width="1.5"/>
+    ${[[42,36],[192,36],[42,118],[192,118]].map(([x,y])=>`<rect x="${x-4}" y="${y-4}" width="8" height="8" fill="#e0218a"/>`).join("")}
+  </svg>`;
+  /* n×n calibration point grid */
+  const grid=(n)=>{ const st=100/(n+1); let d=""; for(let r=1;r<=n;r++)for(let c=1;c<=n;c++)d+=`<circle cx="${(c*st).toFixed(1)}" cy="${(r*st).toFixed(1)}" r="3.6" fill="#e0218a"/>`;
+    return `<svg viewBox="0 0 100 100" style="width:62px;height:62px" aria-hidden="true"><rect x="2" y="2" width="96" height="96" fill="rgba(255,255,255,.3)" stroke="rgba(120,20,70,.2)"/>${d}</svg>`; };
+  const calCard=(t,n,on)=>`<div class="calcard${on?' on':''}">${grid(n)}
+    <p class="h" style="margin:8px 0 8px;font-size:14px">${t}${on?' <span class="badge pink">in use</span>':''}</p>
+    <button class="btn ghost" style="width:100%">Start</button></div>`;
+  const tog=(on)=>`<button class="toggle" aria-pressed="${on}" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')==='true'?'false':'true')"><span></span></button>`;
+  const seg=(opts,active,cls="")=>`<div class="seg ${cls}">${opts.map(o=>`<button class="seg-b${o===active?' on':''}">${o}</button>`).join("")}</div>`;
+
+  /* ---------- sections --------------------------------------------------- */
+  const SECTIONS={
+    home:{ next:"tablet", render:()=>`
+      <div class="cols wide">
+        ${card("Needs attention", `
+          <div class="attention">
+            <div class="ic">ⓘ</div>
+            <div><p class="h">Wacom PTK-870 — Windows Ink is off</p>
+            <p class="sub">Mouse-compatibility mode. Pressure and tilt are disabled for this tablet — turn Windows Ink back on to restore them.</p>
+            <div style="margin-top:12px"><button class="btn">Review</button></div></div>
+          </div>`,"accent")}
+        ${card("Your tablets", `
+          <div class="between"><p class="h">Wacom PTK-870</p><span class="badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--good);display:inline-block"></span>Detected</span></div>
+          <p class="sub mono" style="margin-top:6px">349 × 195 mm · 8,191 levels · 3 buttons</p>
+          <div style="margin-top:14px"><button class="btn ghost">Open settings</button></div>`)}
+      </div>
+      ${card("Supported tablets", `<div class="between"><p class="sub" style="margin:0">Browse every tablet OpenTabletDriver supports — searchable, offline.</p><button class="btn ghost">View list</button></div>`)}
+    `},
+
+    scribble:{ render:()=>card("Scribble",`
+      <p class="sub" style="margin:0 0 14px">A scratch surface to test your pen — pressure, tilt, and smoothing, live before you switch to your art app.</p>
+      <div style="height:230px;border:1px solid var(--frost-line);background:rgba(255,255,255,.30);display:grid;place-items:center;color:var(--ink-soft)">draw here</div>
+      <p class="sub" style="margin-top:12px">Affecting your pen: <b class="mut" style="color:var(--accent)">Pressure curve · Pressure smoothing</b></p>`)},
+
+    tablet:{ device:'<span class="dot"></span> Wacom PTK-870 · Detected <span class="caret">▾</span>',
+      next:"settings", pivots:["about","pen","dynamics","mapping","controls"], active:"dynamics",
+      content:{
+        about:()=>card("Specifications",`<dl class="spec">
+          <dt>Active area</dt><dd>349 × 195 mm</dd>
+          <dt>Aspect ratio</dt><dd>close to 16:9</dd>
+          <dt>Digitizer</dt><dd>200 LP/mm</dd>
+          <dt>Pressure levels</dt><dd>8,191</dd>
+          <dt>Pen buttons</dt><dd>3</dd>
+          <dt>USB ID</dt><dd class="mono">056A:03F9</dd></dl>`),
+        pen:()=>`<div class="cols duo">
+          ${card("Pen · tip & eraser",`<div class="between"><p class="h" style="margin:0">Tip</p><span class="badge">Adaptive — recommended</span></div>
+            <div class="between" style="margin-top:14px"><p class="h" style="margin:0">Eraser</p><span class="badge">Adaptive — recommended</span></div>
+            <div style="margin-top:16px">${toggle("Disable pen tip",false)}</div>`)}
+          ${card("Pen buttons",`<div class="between"><span>Lower barrel</span><span class="badge">Adaptive</span></div>
+            <div class="between" style="margin-top:12px"><span>Upper barrel</span><span class="badge">Adaptive</span></div>
+            <p class="sub" style="margin-top:14px">Output mode: <b class="mut" style="color:var(--ink)">Normal (Absolute)</b> · Windows Ink on.</p>`)}
+        </div>`,
+        dynamics:()=>`<div class="cols wide">
+          ${card("Pressure",`
+            <div class="row" style="align-items:flex-start;gap:20px;flex-wrap:wrap">
+              <div style="flex:0 0 auto">${curve}</div>
+              <div style="flex:1 1 200px;min-width:180px">
+                ${field("Softness","−0.74")}${slider(28)}
+                <p class="lbl" style="margin:18px 0 8px">Live pressure</p>
+                <div class="live"><div class="raw" style="left:63%"></div><div class="proc" style="left:52%"></div></div>
+                <p class="lbl" style="margin:18px 0 8px">Smoothing (jitter)</p>
+                ${slider(32)}
+              </div>
+            </div>`,"accent")}
+          <div class="stack">
+            ${card("Position",`<p class="sub" style="margin:0 0 8px">Steadies wobbly lines.</p>${field("Smoothing","0.18")}${slider(18)}`)}
+            ${card("Tilt",`${toggle("Disable tilt",false)}<p class="sub" style="margin:8px 0 0">Stops tilt being reported to your apps.</p>`)}
+          </div>
+        </div>`,
+        mapping:()=>`
+          <div class="cols wide">
+            ${card("Display",`${mapBoard}
+              <div class="row" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+                <button class="btn">Apply mapping</button>
+                <button class="btn ghost">Refresh</button>
+                <button class="btn ghost">Display settings</button>
+              </div>
+              <p class="sub" style="margin-top:12px">Mapped to display 2 (Primary) · aspect-locked.</p>`)}
+            ${card("Active area",`${areaBoard}
+              <div class="between" style="margin-top:16px">
+                <span class="lbl" style="margin:0">Rotation</span>${seg(["None","90°","180°","270°"],"None")}
+              </div>
+              ${field("Size","78%")}${slider(78)}
+              <div class="between" style="margin-top:2px">${seg(["mm","in"],"mm","small")}<button class="btn ghost">Maximize</button></div>
+              <dl class="spec" style="margin-top:16px">
+                <dt>Tablet used</dt><dd>78%</dd><dt>Effective</dt><dd>273 × 154 mm</dd><dt>Diagonal</dt><dd>313 mm</dd></dl>`)}
+          </div>
+          ${card("Calibration",`
+            <div class="cols trio" style="gap:14px">
+              ${calCard("4 point",2,true)}${calCard("9 point",3,false)}${calCard("25 point",5,false)}
+            </div>
+            <div class="calbar">
+              <div class="row" style="gap:12px"><span class="badge pink">4-point · in use</span><span class="sub mono">RMS 1.8 px · worst 3.1 px</span></div>
+              <div class="row" style="gap:14px"><span class="row" style="gap:8px"><span class="mut">Correction</span>${tog(true)}</span><button class="btn ghost">View report</button><button class="btn ghost">Clear</button></div>
+            </div>`)}
+        `,
+        controls:()=>`<div class="cols duo">
+          ${card("Tablet buttons",btnGrid)}
+          ${card("Wheels",`<div class="between"><span>Touch ring</span><span class="badge pink">Scroll</span></div><div class="between" style="margin-top:12px"><span>Mode toggle</span><span class="mut">Zoom · Brush size</span></div>`)}
+        </div>`,
+      }},
+
+    settings:{ next:"advanced", pivots:["presets","hotkeys","appearance","system","developer"], active:"appearance",
+      content:{
+        presets:()=>`<div class="stack">
+          ${card("Current settings",`<div class="between"><p class="h" style="margin:0">In use now</p><button class="btn">Save as preset</button></div><p class="sub" style="margin-top:8px">The config your tablet is using right now. Every preset below is a saved copy.</p>`,"accent")}
+          <div class="cols duo">
+            ${card("",`<div class="between"><p class="h" style="margin:0">Portrait — inking</p><span class="mut mono">2d ago</span></div><div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost">Load</button><button class="btn ghost">Rename</button></div>`)}
+            ${card("",`<div class="between"><p class="h" style="margin:0">Landscape — paint</p><span class="mut mono">5d ago</span></div><div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost">Load</button><button class="btn ghost">Rename</button></div>`)}
+          </div></div>`,
+        hotkeys:()=>`<div class="cols duo">
+          ${card("Cycle mapped monitor",`<div class="swatch"><span>⌨</span> Ctrl+Alt+Q</div><p class="sub" style="margin-top:12px">Moves the active tablet to the next monitor.</p>`)}
+          ${card("Preset switching",`<p class="sub" style="margin:0 0 12px">Assign a hotkey to switch presets instantly (a live override; your default is untouched).</p><button class="btn ghost">Assign…</button>`)}
+        </div>`,
+        appearance:()=>card("Colours & translucency",`
+          <div class="between"><p class="h" style="margin:0">Theme</p><div class="swatch"><span class="chip" style="background:linear-gradient(120deg,#ff9ac9,#e0218a)"></span>Sakura <span class="car">▾</span></div></div>
+          <p class="sub" style="margin:10px 0 18px">Pink skin with a cherry-blossom backdrop and frosted-glass panels.</p>
+          <div class="cols trio">
+            <div><p class="lbl">Highlight</p>${swatch("#E0218A","224, 33, 138")}</div>
+            <div><p class="lbl">Card</p>${swatch("#FDF1F7","253, 241, 247")}</div>
+            <div><p class="lbl">Left pane</p>${swatch("#FCDCEC","252, 220, 236")}</div>
+          </div>
+          <div style="margin-top:18px">${toggle("Falling petals",true)}</div>`,"accent"),
+        system:()=>`<div class="cols trio">
+          ${card("Startup",toggle("Start when Windows starts",true))}
+          ${card("Shortcut",`<p class="sub" style="margin:0 0 12px">Add a Start-menu shortcut.</p><button class="btn ghost">Create</button>`)}
+          ${card("Driver cleanup",`<p class="sub" style="margin:0 0 12px">Remove conflicting manufacturer drivers.</p><button class="btn ghost">Scan</button>`)}
+        </div>`,
+        developer:()=>card("Developer tools",`${toggle("Show the Developer tab",false)}<p class="sub" style="margin-top:8px">Testing aids — induced warnings, hidden tablet tabs, config-error reproduction. Off by default.</p>`),
+      }},
+
+    advanced:{ next:"about", pivots:["daemon","drivers","configs","diagnostics","plugins"], active:"daemon",
+      content:{
+        daemon:()=>`<div class="cols wide">
+          ${card("Daemon",`<div class="between"><span class="badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--good);display:inline-block"></span>Connected</span><button class="btn ghost">Restart</button></div><p class="sub mono" style="margin-top:12px">Bundled daemon v0.6.7.0</p>`,"accent")}
+          ${card("Console",`<pre class="mono" style="margin:0;font-size:12px;color:var(--ink-soft);white-space:pre-wrap">› Detected: Wacom PTK-870
+› Applied profile · 3 buttons bound
+› Pen Dynamics filter enabled</pre>`)}
+        </div>`,
+        drivers:()=>`<div class="cols duo">
+          ${card("Windows Ink",`<div class="between"><span>Plugin</span><span class="badge">Installed</span></div><p class="sub" style="margin-top:12px">Carries pressure &amp; tilt to your apps.</p>`)}
+          ${card("VMulti driver",`<div class="between"><span>Driver</span><span class="badge">Installed</span></div><p class="sub" style="margin-top:12px">Virtual multi-pointer device.</p>`)}
+        </div>`,
+        configs:()=>card("Tablet configurations",`<div class="between"><span>Wacom_PTK-870.json</span><button class="btn ghost">View</button></div><p class="sub" style="margin-top:12px">Per-tablet JSON that lets the daemon recognise your hardware.</p>`),
+        diagnostics:()=>card("Diagnostics",`<p class="sub" style="margin:0 0 12px">Collect a report for a bug thread — daemon log, devices, and settings.</p><button class="btn">Copy diagnostics</button>`),
+        plugins:()=>card("Plugins",`<div class="between"><span>OpenTabletArtist · Pen Dynamics</span><span class="badge">Enabled</span></div><p class="sub" style="margin-top:12px">Bundled filter driving pressure &amp; position dynamics everywhere.</p>`),
+      }},
+
+    about:{ next:"home", render:()=>`
+      <div class="cols wide">
+        ${card("Help", `<p class="sub" style="margin:0 0 14px">Need help? Post in <b class="mut" style="color:var(--accent)">#help-forum</b> on the Drawing Tablet Discord with <b class="mut" style="color:var(--accent)">"OTA"</b> in the title.</p><button class="btn">Open the Drawing Tablet Discord</button>`,"accent")}
+        ${card("What is OpenTabletArtist?", `<p class="sub" style="margin:0">An alternative, artist-focused experience for OpenTabletDriver on Windows.</p><p class="sub mono" style="margin-top:12px">Version v0.47.0</p>`)}
+      </div>
+      ${card("Resources", `<div class="row" style="gap:20px;flex-wrap:wrap"><a href="#" style="color:var(--accent);text-decoration:underline">Source on GitHub</a><a href="#" style="color:var(--accent);text-decoration:underline">Releases</a><a href="#" style="color:var(--accent);text-decoration:underline">User manual</a></div>`)}
+    `},
+  };
+
+  const ORDER=["home","tablet","scribble","settings","advanced","about"];
+  let current="tablet";
+
+  /* ---------- render ----------------------------------------------------- */
+  const topnav=document.getElementById("topnav");
+  ORDER.forEach(k=>{
+    const b=document.createElement("button");
+    b.className="word"; b.textContent=k; b.dataset.k=k;
+    b.setAttribute("role","tab");
+    b.onclick=()=>go(k);
+    topnav.appendChild(b);
+  });
+
+  const el={device:document.getElementById("device"),
+            pivots:document.getElementById("pivots"),stage:document.getElementById("stage")};
+
+  function go(k){
+    current=k; const s=SECTIONS[k];
+    // wordmarks — the active one names the section (no separate page title)
+    [...topnav.querySelectorAll(".word")].forEach(w=>w.setAttribute("aria-current", String(w.dataset.k===k)));
+    // device sub-line (tablet only)
+    if(s.device){ el.device.hidden=false; el.device.innerHTML=s.device; }
+    else el.device.hidden=true;
+    // pivots
+    el.pivots.innerHTML="";
+    if(s.pivots){ el.pivots.style.display="flex";
+      s.pivots.forEach(p=>{
+        const b=document.createElement("button"); b.className="pivot"; b.textContent=p;
+        b.setAttribute("role","tab"); b.setAttribute("aria-current", String(p===s.active));
+        b.onclick=()=>{ s.active=p; go(k); };
+        el.pivots.appendChild(b);
+      });
+    } else el.pivots.style.display="none";
+    // content
+    const html = s.render ? s.render() : s.content[s.active]();
+    el.stage.innerHTML=html;
+    el.stage.classList.remove("anim-stage"); void el.stage.offsetWidth; el.stage.classList.add("anim-stage");
+  }
+  go("tablet");
+
+  /* ---------- ambient petals -------------------------------------------- */
+  const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const cv=document.getElementById("petals"), ctx=cv.getContext("2d");
+  let W,H,petals=[];
+  function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+  resize(); addEventListener("resize",resize);
+  function seed(n){ petals=Array.from({length:n},()=>({
+    x:Math.random()*W, y:Math.random()*H, s:6+Math.random()*9,
+    vy:.25+Math.random()*.55, vx:-.25+Math.random()*.5,
+    a:Math.random()*Math.PI*2, va:(-.5+Math.random())*.02,
+    o:.18+Math.random()*.30 })); }
+  function petal(p){
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a);
+    ctx.globalAlpha=p.o; ctx.fillStyle="#e0218a";
+    ctx.beginPath(); ctx.ellipse(0,0,p.s,p.s*.55,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    for(const p of petals){
+      p.x+=p.vx; p.y+=p.vy; p.a+=p.va;
+      if(p.y-p.s>H){ p.y=-p.s; p.x=Math.random()*W; }
+      if(p.x<-20)p.x=W+20; if(p.x>W+20)p.x=-20;
+      petal(p);
+    }
+    requestAnimationFrame(frame);
+  }
+  if(reduce){ seed(14); petals.forEach(petal); }
+  else { seed(20); frame(); }
+})();
+</script>
