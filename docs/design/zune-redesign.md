@@ -104,12 +104,31 @@ cleanup) · `developer` (dev tools + developer, gated)
 7. **Horizontal-panel primitives.** A wide-panels container (wrap/scroll) so merged pages use the
    width instead of a narrow column.
 
+## Phase 0 status (done)
+
+Committed on `zune`, each invisible/behaviour-preserving, build + 604 tests green:
+
+- **0.1** — shared `Controls/TabbedPageView` backs SETTINGS + ADVANCED (the rail seam). ✔
+- **0.2** — the whole top-level nav is one data-driven `NavSections` list. ✔
+- **0.4** — named Zune type ramp (`TypeDisplaySize`…) + a shared `PageFade` crossfade primitive
+  (applied to the tabbed-page content host). ✔
+- **0.3 — deferred to Phase 2 (deliberately).** The per-tablet page can't fold into `TabbedPageView`:
+  its 15 tabs are **inline XAML sections** switched by `RadioButton.IsChecked` ElementName bindings,
+  not content VMs, and its code-behind ties the active tab to live pen-input sampling, deep-links,
+  and the focused Pen-Dynamics dialog. Data-driving that rail forces ripping out ElementName
+  switching and rerouting the live-input lifecycle — a large, high-regression rewrite with **zero
+  visible payoff** until the pivot exists. So the tablet rail gets data-driven **together with the
+  pivot in Phase 2**, where the risk is justified and tested against the real UI. (Settings/Advanced
+  already share the host, so the pivot swap covers them regardless.)
+
 ## Phasing (PR sequence)
 
-- **Phase 0** — refactor/enable (items above). Invisible; keeps `master` behavior.
+- **Phase 0** — refactor/enable (items above). Invisible; keeps `master` behavior. **Done** (0.3
+  folded into Phase 2, see above).
 - **Phase 1** — new top-level Zune shell (top-bar/wordmark nav, sidebar removed), existing pages
   behind it unchanged.
-- **Phase 2** — pivots + the merges (tablet 12→5, settings, advanced).
+- **Phase 2** — pivots + the merges (tablet 12→5, settings, advanced). Includes data-driving the
+  per-tablet rail (deferred 0.3) as part of building its pivot — done once, with visible payoff.
 - **Phase 3** — typography + motion polish (bleed-off titles, pivot/section transitions, hero
   empty-states).
 - **Phase 4** — Sakura-on-Zune tuning (contrast of light-weight big text over the pink gradient,
