@@ -30,6 +30,21 @@
             <sys:Double x:Key="ContentFontSize">12</sys:Double>
             <sys:Double x:Key="ControlContentThemeFontSize">12</sys:Double>
 
+            <!-- ===== Zune type ramp (redesign Phase 0.4) ===================================
+                 Named heading scale so the redesign can retune the display sizes in one place
+                 (Phase 3 grows the page/pivot type). Segoe UI Light is the Zune display face.
+                 Values match today's look — this is a rename, not a resize. `TypeBodySize` == the
+                 content scale above. See docs/design/zune-redesign.md. -->
+            <FontFamily x:Key="DisplayFontFamily">Segoe UI, Inter</FontFamily>
+            <sys:Double x:Key="TypeDisplaySize">28</sys:Double>   <!-- page title (later: pivots) -->
+            <sys:Double x:Key="TypeTitleSize">15</sys:Double>     <!-- subpage / body title -->
+            <sys:Double x:Key="TypeBodySize">12</sys:Double>      <!-- body + labels -->
+
+            <!-- Shared page transition: a quick crossfade for subpage/content swaps (the Zune motion
+                 layer). Applied to the tabbed-page content host now; the top-level shell adopts it in a
+                 later phase. -->
+            <CrossFade x:Key="PageFade" Duration="0:0:0.18" />
+
             <!-- One shared width for every tabbed page's vertical tab rail, so they line up across pages.
                  Sized to fit the longest tab name in the app ("PRESSURE DYNAMICS" / "POSITION DYNAMICS"). -->
             <sys:Double x:Key="TabRailWidth">160</sys:Double>

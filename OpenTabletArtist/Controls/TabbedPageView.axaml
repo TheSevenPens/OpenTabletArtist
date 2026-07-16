@@ -30,10 +30,12 @@
             </StackPanel>
         </Border>
 
-        <!-- Consistent body title per subpage (the subpage's own name), then the subpage content. -->
+        <!-- Consistent body title per subpage (the subpage's own name), then the subpage content — which
+             crossfades on tab switch (the shared Zune motion primitive, Phase 0.4). -->
         <StackPanel Grid.Row="1" Grid.Column="1">
             <TextBlock Text="{Binding CurrentTabTitle}" Classes="TabTitle" Margin="0,0,0,12" />
-            <ContentControl Content="{Binding SelectedContent}" />
+            <TransitioningContentControl Content="{Binding SelectedContent}"
+                                         PageTransition="{DynamicResource PageFade}" />
         </StackPanel>
     </Grid>
 </UserControl>
