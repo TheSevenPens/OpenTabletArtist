@@ -4,6 +4,6 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- The ADVANCED tabbed page. DataContext is the AdvancedViewModel (typed-nav DataTemplate, #15);
-         the shared TabbedPageView renders the header + rail + content from its Tabs/SelectedContent. -->
-    <c:TabbedPageView Title="ADVANCED" />
+         the shared TabbedPageView renders the pivot row + content from its Tabs/SelectedContent. -->
+    <c:TabbedPageView />
 </UserControl>

@@ -45,31 +45,27 @@
         <Border Grid.Row="0" Background="Transparent"
                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,44,20,14">
-                <!-- Brand eyebrow + the wordmarks, left-aligned. -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="24" VerticalAlignment="Bottom">
-                    <TextBlock Text="OpenTabletArtist"
-                               FontFamily="{DynamicResource DisplayFontFamily}" FontSize="12"
-                               FontWeight="SemiBold" LetterSpacing="1.4"
-                               Foreground="{DynamicResource AccentBrush}"
-                               VerticalAlignment="Bottom" Margin="0,0,2,2" />
-                    <ItemsControl ItemsSource="{Binding NavSections}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="22" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <RadioButton Theme="{StaticResource WordmarkNav}" GroupName="Wordmarks"
-                                             Content="{Binding Label, Converter={x:Static conv:LowerCaseConverter.Instance}}"
-                                             IsVisible="{Binding IsVisible}"
-                                             IsChecked="{Binding IsSelected, Mode=OneWay}"
-                                             Command="{Binding $parent[ItemsControl].DataContext.NavigateCommand}"
-                                             CommandParameter="{Binding Page}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                <!-- The wordmarks, left-aligned. (No brand mark here — the OS window caption + taskbar
+                     already carry the app name; a second one read as a duplicate.) Wraps to a second row
+                     on a narrow window instead of clipping. -->
+                <ItemsControl Grid.Column="0" ItemsSource="{Binding NavSections}" VerticalAlignment="Bottom">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Theme="{StaticResource WordmarkNav}" GroupName="Wordmarks"
+                                         Content="{Binding Label, Converter={x:Static conv:LowerCaseConverter.Instance}}"
+                                         IsVisible="{Binding IsVisible}"
+                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding $parent[ItemsControl].DataContext.NavigateCommand}"
+                                         CommandParameter="{Binding Page}"
+                                         Margin="0,3,22,3" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <!-- Right cluster: the dev screenshot aid (only when enabled) + the version stamp. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Bottom">
@@ -97,7 +93,9 @@
             <!-- L/R/bottom padding stays above the Sakura cards' glow extent (16px blur, see CardShadow)
                  so the soft glow isn't clipped by the scroll viewport on those edges. -->
             <Border Padding="24,14,24,18">
-                <ContentControl Content="{Binding CurrentPage}" />
+                <!-- Top-level page switches crossfade with the same primitive as the pivots (Phase 3). -->
+                <TransitioningContentControl Content="{Binding CurrentPage}"
+                                             PageTransition="{DynamicResource PageFade}" />
             </Border>
         </ScrollViewer>
 

@@ -121,16 +121,31 @@ Committed on `zune`, each invisible/behaviour-preserving, build + 604 tests gree
   pivot in Phase 2**, where the risk is justified and tested against the real UI. (Settings/Advanced
   already share the host, so the pivot swap covers them regardless.)
 
+## Phase 1–2 status (done, except the tablet page)
+
+Committed on `zune`, verified live (build + 601 tests green):
+
+- **Phase 1** — the left sidebar is gone; the top-level nav is a horizontal **wordmark bar**
+  (lowercase, accent+weight active), content full-width below. ✔
+- **Phase 2a** — `TabbedPageView`'s rail is now a horizontal **pivot** (big lowercase Segoe UI Light);
+  editing that one control converted SETTINGS + ADVANCED at once. ✔
+- **Phase 2b** — `CompositeSectionViewModel`/`View` stacks existing sub-VMs, cutting pivot counts:
+  SETTINGS 8→6 (System = Startup+Shortcut+Driver Cleanup; Theme→Appearance), ADVANCED 7→5
+  (Daemon+Console; Drivers = Windows Ink+VMulti). Deep-links remapped. ✔
+- **Polish** — top-level page switches crossfade (same `PageFade`); wordmark bar + pivots wrap on
+  narrow widths and fit at the 800px minimum; dropped the duplicate brand eyebrow (the OS caption
+  carries the app name); removed the now-dead `NavNode` style + `TabbedPageView.Title`. ✔
+- **Phase 2c — the tablet page — NOT done.** Still on its own vertical rail. This is the deferred 0.3
+  (data-drive the rail + reroute live pen-input/deep-links) plus the 12→5 pen/dynamics/mapping/
+  controls merges. The biggest, highest-risk chunk; deserves its own focused pass.
+
 ## Phasing (PR sequence)
 
-- **Phase 0** — refactor/enable (items above). Invisible; keeps `master` behavior. **Done** (0.3
-  folded into Phase 2, see above).
-- **Phase 1** — new top-level Zune shell (top-bar/wordmark nav, sidebar removed), existing pages
-  behind it unchanged.
-- **Phase 2** — pivots + the merges (tablet 12→5, settings, advanced). Includes data-driving the
-  per-tablet rail (deferred 0.3) as part of building its pivot — done once, with visible payoff.
-- **Phase 3** — typography + motion polish (bleed-off titles, pivot/section transitions, hero
-  empty-states).
+- **Phase 0** — refactor/enable. Invisible; keeps `master` behavior. **Done.**
+- **Phase 1** — top-bar/wordmark nav, sidebar removed. **Done.**
+- **Phase 2** — pivots + merges. **Done for Settings/Advanced; tablet page (2c) outstanding.**
+- **Phase 3** — typography + motion polish (pivot/section transitions **done**; hero empty-states,
+  further type tuning outstanding).
 - **Phase 4** — Sakura-on-Zune tuning (contrast of light-weight big text over the pink gradient,
   petals behind the panorama, accent usage).
 

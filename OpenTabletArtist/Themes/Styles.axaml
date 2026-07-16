@@ -240,58 +240,6 @@
             </Style>
         </ControlTheme>
 
-        <!-- Nav Node — a leaf or parent node in the page navigation bar (a selectable page
-             destination). See docs/design/ux-terminology.md. -->
-        <ControlTheme x:Key="NavNode" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border x:Name="Bd"
-                            Background="Transparent"
-                            CornerRadius="6"
-                            Padding="8,3.92,16,3.92">
-                        <!-- Gap (8) matches the tab rail's TabRadioButton so the page-nav label sits at the
-                             same left offset as tab-nav labels. -->
-                        <Grid ColumnDefinitions="Auto,8,*">
-                            <!-- Active indicator bar. Always laid out (only its colour changes when
-                                 checked) so selecting a row can't grow its height and nudge the label. -->
-                            <Border x:Name="Indicator"
-                                    Width="3" Height="20"
-                                    CornerRadius="2"
-                                    Background="Transparent"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Left"
-                                    Margin="-4,0,0,0" />
-                            <TextBlock Grid.Column="2"
-                                       x:Name="Label"
-                                       Text="{TemplateBinding Content}"
-                                       FontFamily="Segoe UI, Inter"
-                                       FontSize="13"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       TextWrapping="Wrap"
-                                       VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
-            </Style>
-            <Style Selector="^:pointerover /template/ TextBlock#Label">
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-            </Style>
-            <Style Selector="^:checked /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource NavActiveBrush}" />
-            </Style>
-            <Style Selector="^:checked /template/ TextBlock#Label">
-                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-            </Style>
-            <Style Selector="^:checked /template/ Border#Indicator">
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            </Style>
-        </ControlTheme>
-
         <!-- WordmarkNav: the Zune top-bar wordmark (redesign Phase 1). Plain lowercase text — no pill, no
              underline; the active one is marked by accent colour + weight, matching the pivots (Metro
              signals state by brightness, not a rule). Content is already lowercased by the item template. -->
@@ -409,8 +357,8 @@
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <!-- Selected-item treatment mirrors the page nav's NavNode: a rounded (12) highlight
-                         plus an inset, rounded 3px accent indicator bar — so the current item reads the
+                    <!-- Selected-item treatment: a rounded (12) highlight plus an inset, rounded 3px accent
+                         indicator bar — so the current item reads the
                          same across both navigation levels. The indicator is always laid out (only its
                          colour changes when checked) so selecting can't shift the label. -->
                     <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="8,3.92">

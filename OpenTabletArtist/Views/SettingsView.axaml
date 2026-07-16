@@ -4,6 +4,6 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- The SETTINGS tabbed page. DataContext is the SettingsViewModel (typed-nav DataTemplate, #15);
-         the shared TabbedPageView renders the header + rail + content from its Tabs/SelectedContent. -->
-    <c:TabbedPageView Title="SETTINGS" />
+         the shared TabbedPageView renders the pivot row + content from its Tabs/SelectedContent. -->
+    <c:TabbedPageView />
 </UserControl>
