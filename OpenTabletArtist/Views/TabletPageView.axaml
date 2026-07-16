@@ -38,9 +38,8 @@
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16" IsVisible="{Binding HasTablet}">
             <Grid ColumnDefinitions="*,Auto" MinHeight="56">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="6">
-                    <!-- Page title in the same PageTitle look as HOME / SETTINGS / etc.; the switcher
-                         dropdown sits just beneath it. -->
-                    <TextBlock Text="TABLET" Classes="PageTitle" Margin="0" />
+                    <!-- No page title — the "tablet" wordmark names the section (Zune); the switcher
+                         dropdown (showing the tablet's name) leads the header. -->
                     <ComboBox ItemsSource="{Binding Tablets}"
                               SelectedItem="{Binding SelectedTablet, Mode=TwoWay}"
                               MinWidth="260" HorizontalAlignment="Left"

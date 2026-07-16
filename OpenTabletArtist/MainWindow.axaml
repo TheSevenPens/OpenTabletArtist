@@ -42,7 +42,7 @@
              transparent drag strip near the bottom of this file), so the words are clickable while the
              native min/max/close buttons and window-drag still own the top edge.
              (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
-        <Border Grid.Row="0" Background="Transparent"
+        <Border Grid.Row="0" Background="#1EFFFFFF"
                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,44,20,14">
                 <!-- The wordmarks, left-aligned. (No brand mark here — the OS window caption + taskbar

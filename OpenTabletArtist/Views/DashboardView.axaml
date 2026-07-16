@@ -2,11 +2,10 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the DashboardViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the DashboardViewModel, supplied by the typed-nav DataTemplate (#15). No page
+         title — the highlighted "home" wordmark in the top bar names the section (Zune). Home stays
+         quiet: content (Needs attention / Your tablets) leads directly. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <!-- Page Header -->
-        <TextBlock Classes="PageTitle" Text="HOME" />
-
         <StackPanel>
             <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->
 
