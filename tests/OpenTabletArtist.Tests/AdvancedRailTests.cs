@@ -12,9 +12,7 @@ namespace OpenTabletArtist.Tests;
 public class AdvancedRailTests
 {
     [Theory]
-    [InlineData(AdvancedTab.WindowsInk)]
-    [InlineData(AdvancedTab.VMulti)]
-    // (DriverCleanup moved to the SETTINGS rail, #562 — see SettingsRailTests.)
+    [InlineData(AdvancedTab.Drivers)]  // Windows Ink + VMulti, merged into one Windows-only pivot
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(AdvancedTab tab)
     {
         Assert.True(AdvancedViewModel.RailTabAppliesToOs(tab, isWindows: true));
@@ -25,7 +23,6 @@ public class AdvancedRailTests
     [InlineData(AdvancedTab.Daemon)]
     [InlineData(AdvancedTab.CustomTabletConfigs)]
     [InlineData(AdvancedTab.Diagnostics)]
-    [InlineData(AdvancedTab.Log)]
     [InlineData(AdvancedTab.Plugins)]
     public void CrossPlatformTabs_ShownOnEveryOs(AdvancedTab tab)
     {

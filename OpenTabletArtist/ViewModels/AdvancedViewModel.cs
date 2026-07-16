@@ -55,30 +55,31 @@ public partial class AdvancedViewModel : ObservableObject
         _diagnostics = diagnostics;
         _configs = configs;
 
+        // Zune merges: Daemon stacks the Console log; Drivers stacks Windows Ink + VMulti (Windows-only).
+        var daemonSection = new CompositeSectionViewModel(daemon, log);
+        var drivers = new CompositeSectionViewModel(windowsInk, vmulti);
         var tabs = new AdvancedTabItem[]
         {
-            new("DAEMON", AdvancedTab.Daemon, daemon),
-            new("WINDOWS INK", AdvancedTab.WindowsInk, windowsInk),
+            new("DAEMON", AdvancedTab.Daemon, daemonSection),
+            new("DRIVERS", AdvancedTab.Drivers, drivers),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
-            new("CONSOLE", AdvancedTab.Log, log),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
-            new("VMULTI DRIVER", AdvancedTab.VMulti, vmulti),
         }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
         UpdateSelection();
     }
 
-    /// <summary>Whether an ADVANCED subpage applies on the given OS. The Windows-only subpages are hidden
-    /// off-Windows (#140): VMulti + Windows Ink don't exist on macOS/Linux (the daemon uses its own native
-    /// output there). Filtering them out of the rail keeps the deep-link enum intact — a stray deep-link to
-    /// a hidden tab is coerced back to a visible one (see <see cref="OnSelectedTabChanged"/>). Pure (OS
-    /// passed in, not checked inline) so the filter is unit-testable — matching how the health evaluator
-    /// takes its platform flag. (Driver Cleanup moved to SETTINGS, #562.)</summary>
+    /// <summary>Whether an ADVANCED pivot applies on the given OS. The <b>Drivers</b> pivot (Windows Ink +
+    /// VMulti) is Windows-only and hidden off-Windows (#140) — those don't exist on macOS/Linux (the daemon
+    /// uses its own native output there). Filtering it out of the rail keeps the deep-link enum intact — a
+    /// stray deep-link to a hidden tab is coerced back to a visible one (see
+    /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
+    /// unit-testable.</summary>
     public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
         isWindows
-        || tab is not (AdvancedTab.WindowsInk or AdvancedTab.VMulti);
+        || tab is not AdvancedTab.Drivers;
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
     public IReadOnlyList<AdvancedTabItem> Tabs { get; }

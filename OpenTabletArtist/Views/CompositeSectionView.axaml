@@ -1,0 +1,14 @@
+<UserControl x:Class="OpenTabletArtist.Views.CompositeSectionView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Renders a CompositeSectionViewModel: its sub-VMs stacked, each resolved to its own view by the
+         typed DataTemplates (App.axaml). Used by the merged Zune pivots (System, Daemon, Drivers, …). -->
+    <ItemsControl ItemsSource="{Binding Sections}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <ContentControl Content="{Binding}" Margin="0,0,0,28" />
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

@@ -47,15 +47,15 @@ public partial class SettingsViewModel : ObservableObject
         DevToolsViewModel devTools, ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup,
         PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
+        // "System" stacks the three Windows integration/maintenance pages into one pivot (Zune merge).
+        var system = new CompositeSectionViewModel(startup, shortcut, driverCleanup);
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),
             new("PER-APP PRESETS", SettingsTab.PerAppPresets, perApp, isVisible: FeatureFlags.PerAppProfiles),
             new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
-            new("STARTUP", SettingsTab.Startup, startup),
-            new("SHORTCUT", SettingsTab.Shortcut, shortcut),
-            new("THEME", SettingsTab.Theme, theme),
-            new("DRIVER CLEANUP", SettingsTab.DriverCleanup, driverCleanup),
+            new("APPEARANCE", SettingsTab.Theme, theme),
+            new("SYSTEM", SettingsTab.System, system),
             new("DEV TOOLS", SettingsTab.DevTools, devTools),
             new("DEVELOPER", SettingsTab.Developer, developer, isVisible: _developerSettings.ShowDeveloperPage),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
@@ -71,13 +71,12 @@ public partial class SettingsViewModel : ObservableObject
         UpdateSelection();
     }
 
-    /// <summary>Whether a SETTINGS subpage applies on the given OS. Startup (registry Run key), Shortcut
-    /// (a Start-menu .lnk via WScript.Shell), and Driver Cleanup are Windows-only; the rest are
+    /// <summary>Whether a SETTINGS pivot applies on the given OS. The <b>System</b> pivot (Startup registry
+    /// Run key + Shortcut .lnk + Driver Cleanup) is Windows-only and hidden off-Windows; the rest are
     /// cross-platform. Pure (OS passed in, not checked inline) so it's unit-testable — matching
     /// <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
     public static bool TabAppliesToOs(SettingsTab tab, bool isWindows) =>
-        isWindows || (tab != SettingsTab.Startup && tab != SettingsTab.Shortcut
-            && tab != SettingsTab.DriverCleanup);
+        isWindows || tab != SettingsTab.System;
 
     /// <summary>The settings subpages, flat (no owner grouping). Gated tabs stay in the list but hide via
     /// their <see cref="SettingsTabItem.IsVisible"/>.</summary>

@@ -5,16 +5,15 @@ using Xunit;
 namespace OpenTabletArtist.Tests;
 
 /// <summary>
-/// The SETTINGS rail hides the Windows-only Startup subpage off-Windows (registry Run key). The filter is a
-/// pure predicate (<see cref="SettingsViewModel.TabAppliesToOs"/>) so it's testable without constructing the
-/// whole view-model graph — mirroring <see cref="AdvancedRailTests"/>.
+/// The SETTINGS rail hides the Windows-only System pivot off-Windows (Startup registry Run key + Shortcut
+/// .lnk + Driver Cleanup, merged into one pivot for the Zune redesign). The filter is a pure predicate
+/// (<see cref="SettingsViewModel.TabAppliesToOs"/>) so it's testable without constructing the whole
+/// view-model graph — mirroring <see cref="AdvancedRailTests"/>.
 /// </summary>
 public class SettingsRailTests
 {
     [Theory]
-    [InlineData(SettingsTab.Startup)]        // registry Run key
-    [InlineData(SettingsTab.Shortcut)]       // Start-menu .lnk via WScript.Shell
-    [InlineData(SettingsTab.DriverCleanup)]  // Windows manufacturer-driver cleanup (moved from Advanced, #562)
+    [InlineData(SettingsTab.System)]  // Startup + Shortcut + Driver Cleanup — all Windows-only
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(SettingsTab tab)
     {
         Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));
@@ -22,6 +21,7 @@ public class SettingsRailTests
     }
 
     [Theory]
+    [InlineData(SettingsTab.Presets)]
     [InlineData(SettingsTab.DevTools)]
     [InlineData(SettingsTab.Theme)]
     [InlineData(SettingsTab.Hotkeys)]
