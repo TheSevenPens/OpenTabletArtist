@@ -2,10 +2,9 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
+         SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="PRESETS" />
-
         <!-- The live config (settings.json), made visible: it's what per-app / hotkey switches revert to,
              and every profile below is a saved copy of it. Accent-outlined to set it apart. -->
         <Border Classes="GlassPanel" Margin="0,0,0,18"

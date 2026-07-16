@@ -977,8 +977,10 @@
                                                         Monospace="True" ValueWidth="40"
                                                         ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
 
+                                    <!-- Hidden by default (#569); re-enabled from the Developer tab. -->
                                     <CheckBox Content="Cut below input minimum (dead zone)"
                                               IsChecked="{Binding CutBelowMinimum}" Margin="0,0,0,8"
+                                              IsVisible="{Binding ShowCutBelowMinimum}"
                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                               ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
 

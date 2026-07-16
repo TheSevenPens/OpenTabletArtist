@@ -628,11 +628,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public bool ShowFiltersTab => DeveloperSettings.Instance.ShowFiltersTab;
     /// <summary>Show the JSON tab — the raw settings JSON, hidden unless enabled on Advanced → Developer.</summary>
     public bool ShowJsonTab => DeveloperSettings.Instance.ShowJsonTab;
+    /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics — hidden unless
+    /// re-enabled on the Developer tab (#569).</summary>
+    public bool ShowCutBelowMinimum => DeveloperSettings.Instance.ShowCutBelowMinimum;
 
     private void OnDeveloperSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(DeveloperSettings.ShowFiltersTab)) OnPropertyChanged(nameof(ShowFiltersTab));
         else if (e.PropertyName == nameof(DeveloperSettings.ShowJsonTab)) OnPropertyChanged(nameof(ShowJsonTab));
+        else if (e.PropertyName == nameof(DeveloperSettings.ShowCutBelowMinimum)) OnPropertyChanged(nameof(ShowCutBelowMinimum));
     }
 
     // Parameterless constructor for design-time

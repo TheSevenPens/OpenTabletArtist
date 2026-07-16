@@ -2,10 +2,9 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- DataContext is the PerAppViewModel, supplied by the typed-nav DataTemplate (#15). -->
+    <!-- DataContext is the PerAppViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
+         SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here. -->
     <StackPanel MaxWidth="860" HorizontalAlignment="Left">
-        <TextBlock Classes="PageTitle" Text="PER-APP PRESETS" />
-
         <TextBlock Text="Automatically switch to a saved preset when you change apps — like Wacom/XP-Pen/Huion drivers. Switches are temporary (your saved default is never overwritten) and only happen while OpenTabletArtist is running."
                    Foreground="{DynamicResource TextSecondaryBrush}"
                    TextWrapping="Wrap" Margin="0,0,0,18" />

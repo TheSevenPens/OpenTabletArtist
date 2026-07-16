@@ -22,6 +22,11 @@ public partial class AboutViewModel : ObservableObject
     /// <summary>The user manual, rendered on GitHub.</summary>
     public string UserManualUrl => $"{RepoUrl}/blob/master/docs/USERMANUAL.md";
 
+    /// <summary>The Drawing Tablet community Discord — where users should go for help (#568). Deliberately
+    /// not the OpenTabletDriver forums: an issue is only forwarded to OTD once it's confirmed to be an OTD
+    /// problem, so the first stop is the OTA help channel.</summary>
+    public string HelpDiscordUrl => "https://discord.gg/Rr2MXeM7Ny";
+
     /// <summary>App version, read from the assembly so it never drifts (the release workflow stamps
     /// the tag version at build). Moved here from the sidebar footer so version info lives on About.</summary>
     public string AppVersion { get; } = AppVersionInfo.Format(

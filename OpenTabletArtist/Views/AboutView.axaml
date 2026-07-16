@@ -19,6 +19,30 @@
             </StackPanel>
         </Border>
 
+        <!-- HELP card (#568): the obvious "where do I get help" entry point. Points to the Drawing Tablet
+             Discord's help forum — deliberately NOT the OpenTabletDriver forums, since most issues aren't
+             OTD-specific and should be triaged in the OTA channel first. -->
+        <Border Classes="GlassPanel" Margin="0,12,0,0">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="SectionLabel" Text="HELP" Margin="0,0,0,2" />
+                <TextBlock TextWrapping="Wrap" LineHeight="22"
+                           Foreground="{DynamicResource TextSecondaryBrush}">
+                    Need help? Post in the <Run FontWeight="SemiBold">#help-forum</Run> channel on the
+                    Drawing Tablet Discord and put <Run FontWeight="SemiBold">“OTA”</Run> in the title, so it
+                    reaches the right people.
+                </TextBlock>
+                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding HelpDiscordUrl}"
+                        Theme="{StaticResource AccentButton}" Padding="12,7" HorizontalAlignment="Left"
+                        Margin="0,2,0,0" ToolTip.Tip="{Binding HelpDiscordUrl}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconHelpCircle}" Width="15" Height="15"
+                                  VerticalAlignment="Center" />
+                        <TextBlock Text="Open the Drawing Tablet Discord" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
         <!-- Merged RESOURCES card: source code, releases, and the user manual as one list of links.
              Each opens in the default browser; the full URL is on hover. -->
         <Border Classes="GlassPanel" Margin="0,12,0,0">

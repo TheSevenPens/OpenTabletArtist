@@ -22,6 +22,7 @@
                         <DataTemplate>
                             <RadioButton Content="{Binding Label}" GroupName="SettingsTabs"
                                          Theme="{StaticResource TabRadioButton}"
+                                         IsVisible="{Binding IsVisible}"
                                          IsChecked="{Binding IsSelected, Mode=OneWay}"
                                          Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
                                          CommandParameter="{Binding}" />

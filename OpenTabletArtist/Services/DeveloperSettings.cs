@@ -17,6 +17,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     private const string JsonKey = "developer.showJsonTab";
     private const string OnPageScreenshotKey = "developer.onPageScreenshot";
     private const string ShowDeveloperKey = "developer.showDeveloperPage";
+    private const string CutBelowKey = "developer.showCutBelowMinimum";
 
     private readonly bool _loading;
 
@@ -27,6 +28,7 @@ public sealed partial class DeveloperSettings : ObservableObject
         ShowJsonTab = AppSettings.Get(JsonKey) == "true";
         OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
         ShowDeveloperPage = AppSettings.Get(ShowDeveloperKey) == "true";
+        ShowCutBelowMinimum = AppSettings.Get(CutBelowKey) == "true";
         _loading = false;
     }
 
@@ -37,9 +39,12 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>Show a small capture button at the bottom of the nav bar that screenshots the current
     /// page (#437). Off by default — a developer aid.</summary>
     [ObservableProperty] private bool _onPageScreenshot;
-    /// <summary>Show the top-level DEVELOPER page (a sidebar node after ADVANCED). Off by default — it's
-    /// for development only. Toggled from SETTINGS → DEV TOOLS.</summary>
+    /// <summary>Show the DEVELOPER tab in Settings (#572). Off by default — it's for development only.
+    /// Toggled from SETTINGS → DEV TOOLS.</summary>
     [ObservableProperty] private bool _showDeveloperPage;
+    /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics (#569). Hidden
+    /// by default — it's an advanced/rarely-needed option; re-enabled from the Developer tab.</summary>
+    [ObservableProperty] private bool _showCutBelowMinimum;
 
     // Induced health warnings, one per severity, for reviewing/screenshotting the "Needs attention" UI.
     // Session-only (not persisted): fixing one just clears its flag (see ClearInduced).
@@ -66,7 +71,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
         propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot)
-                             or nameof(ShowDeveloperPage));
+                             or nameof(ShowDeveloperPage) or nameof(ShowCutBelowMinimum));
 
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
     /// Lets the health service skip the extra "what's real" pass in the normal (no-override) case.</summary>
@@ -95,6 +100,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnShowDeveloperPageChanged(bool value)
     {
         if (!_loading) AppSettings.Set(ShowDeveloperKey, value ? "true" : "false");
+    }
+
+    partial void OnShowCutBelowMinimumChanged(bool value)
+    {
+        if (!_loading) AppSettings.Set(CutBelowKey, value ? "true" : "false");
     }
 
     /// <summary>Turn off the induced-warning flag of the given severity — the synthetic issue's Fix

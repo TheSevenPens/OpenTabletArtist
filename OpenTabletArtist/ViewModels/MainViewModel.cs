@@ -121,7 +121,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsTabletPage => ReferenceEquals(CurrentPage, TabletPage);
     public bool IsSettings => ReferenceEquals(CurrentPage, Settings);
     public bool IsAdvanced => ReferenceEquals(CurrentPage, Advanced);
-    public bool IsDeveloper => ReferenceEquals(CurrentPage, Developer);
 
     /// <summary>The tablet detail page manages its own scrolling — a fixed header + tab rail with a
     /// per-tab scroll region — so the outer content ScrollViewer is <c>Disabled</c> for it, bounding the
@@ -204,19 +203,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
             VMulti);
-        // The SETTINGS tabbed page holds OTA's own preference subpages (Startup / Theme / Dev Tools),
-        // sharing the same VM instances, behind its own sidebar node in front of ADVANCED. The Developer
-        // page is a separate top-level node (after ADVANCED); Dev Tools toggles its visibility.
-        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut, DriverCleanup);
+        // The SETTINGS tabbed page holds OTA's own preference subpages, sharing the same VM instances,
+        // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
+        // (#572) are folded in as tabs — Per-App is feature-gated, Developer is gated by the Dev Tools toggle.
+        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut, DriverCleanup,
+            Presets, PerApp, Developer);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
         TabletPage = new TabletPageViewModel(ResolveTabletDetail);
 
-        // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Per-App is feature-gated
-        // (hidden while FeatureFlags.PerAppProfiles is off). Selection is synced in OnCurrentPageChanged.
-        NavLeaves.Add(new NavLeafViewModel("PRESETS", Presets));
-        NavLeaves.Add(new NavLeafViewModel("PER-APP PRESETS", PerApp, isVisible: FeatureFlags.PerAppProfiles));
+        // The flat sidebar leaves between HOME and ADVANCED, as data (#477). Presets + Per-App Presets moved
+        // into SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged.
         NavLeaves.Add(new NavLeafViewModel("SCRIBBLE", Test));
         NavLeaves.Add(new NavLeafViewModel("ABOUT", About));
 
@@ -283,8 +281,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var t = tab;
             list.Add(($"settings-{Slugify(t.ToString())}", () => OpenSettingsTab(t)));
         }
-        // The DEVELOPER page (a top-level node after ADVANCED); captured regardless of its visibility toggle.
-        list.Add(("developer", () => CurrentPage = Developer));
         return list;
     }
 
@@ -408,11 +404,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
             _ = Test.DeactivateAsync();
 
-        // Rescan the Hotkeys tab's snapshot list when SETTINGS opens (Hotkeys is a tab there now) so a
-        // snapshot saved on the Saved Settings page shows up.
-        if (ReferenceEquals(newValue, Settings)) _ = Hotkeys.LoadAsync();
-        // Same for the Per-App spike page's snapshot pickers.
-        if (ReferenceEquals(newValue, PerApp)) _ = PerApp.LoadAsync();
+        // Rescan the Hotkeys + Per-App snapshot lists when SETTINGS opens — both are tabs there now
+        // (#571) — so a snapshot saved on the Presets page shows up in their pickers.
+        if (ReferenceEquals(newValue, Settings))
+        {
+            _ = Hotkeys.LoadAsync();
+            _ = PerApp.LoadAsync();
+        }
 
         // Refresh the sidebar highlight (the IsXxx getters derive from CurrentPage).
         foreach (var leaf in NavLeaves)
@@ -421,7 +419,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTabletPage));
         OnPropertyChanged(nameof(IsSettings));
         OnPropertyChanged(nameof(IsAdvanced));
-        OnPropertyChanged(nameof(IsDeveloper));
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
     }
 

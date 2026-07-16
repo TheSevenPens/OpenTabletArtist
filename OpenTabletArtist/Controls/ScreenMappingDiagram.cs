@@ -195,9 +195,9 @@ public sealed class ScreenMappingDiagram : Control
         var num = Text(d.Number.ToString(), numSize, selected ? SelText : UnselText);
         var subBrush = selected ? SubTextOnSel : SubText;
         bool roomy = box.Height > numSize + 24 && box.Width > 70;
-        // Number + resolution only; the port is shown in the per-display list below the diagram (#301).
-        var extra = d.IsPrimary ? "  ·  Primary" : "";
-        var res = roomy ? Text(d.ResolutionWithRefresh + extra, 10, subBrush) : null;
+        // Number + a "Primary" marker only; resolution/refresh and port live in the per-display list
+        // below the diagram, so the boxes stay uncluttered (#570).
+        var res = roomy && d.IsPrimary ? Text("Primary", 10, subBrush) : null;
 
         double totalH = num.Height + (res != null ? res.Height + 1 : 0);
         double y = box.Y + (box.Height - totalH) / 2, cx = box.Center.X;
