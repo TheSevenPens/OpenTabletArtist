@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:OpenTabletArtist.ViewModels"
         xmlns:controls="using:OpenTabletArtist.Controls"
+        xmlns:conv="using:OpenTabletArtist.Converters"
         Title="OpenTabletArtist"
         Icon="/Assets/appicon.png"
         Width="1100" Height="720"
@@ -34,98 +35,75 @@
              (#207). Hit-test invisible; sits above the backdrop, behind the sidebar/content. -->
         <controls:SakuraPetals />
 
-    <Grid ColumnDefinitions="140,*">
-        <!-- SIDEBAR -->
-        <Border Grid.Column="0"
-                Background="{DynamicResource SidebarBgBrush}"
-                BorderBrush="{DynamicResource GlassBorderBrush}"
-                BorderThickness="0,0,1,0">
-            <DockPanel>
-                <!-- Brand -->
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
-                            Margin="16,20,16,16">
+    <Grid RowDefinitions="Auto,*">
+        <!-- TOP WORDMARK BAR (Zune Phase 1). Replaces the left sidebar: the whole top-level nav as one
+             horizontal row of lowercase wordmarks (data-driven NavSections), the active one marked by
+             accent colour + weight. The row sits below the caption/drag band (top ~40px, kept by the
+             transparent drag strip near the bottom of this file), so the words are clickable while the
+             native min/max/close buttons and window-drag still own the top edge.
+             (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
+        <Border Grid.Row="0" Background="Transparent"
+                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,44,20,14">
+                <!-- Brand eyebrow + the wordmarks, left-aligned. -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="24" VerticalAlignment="Bottom">
                     <TextBlock Text="OpenTabletArtist"
-                               FontFamily="Segoe UI, Inter" FontSize="15" FontWeight="Light"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               VerticalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Version stamp, pinned to the bottom of the sidebar (moved out of the OS title-bar
-                     caption so it no longer overlaps the top-left). -->
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding TitleBarText}"
-                           Margin="18,4,16,16" FontSize="12"
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           VerticalAlignment="Center" />
-
-                <!-- On-page screenshot control (#437): a developer aid, shown only when enabled on the
-                     Developer tab. Pinned to the bottom-left of the nav so you can capture whatever page
-                     you're currently viewing. -->
-                <Button DockPanel.Dock="Bottom" x:Name="CapturePageButton"
-                        Click="OnCapturePage"
-                        IsVisible="{Binding Developer.Settings.OnPageScreenshot}"
-                        Theme="{StaticResource GhostButton}"
-                        Margin="12,4,12,12" Padding="10,6" HorizontalAlignment="Left"
-                        Content="Capture page"
-                        ToolTip.Tip="Save a PNG of the current page to Pictures\OpenTabletArtist" />
-
-                <!-- The page navigation bar: nodes (labels in all caps) that select a page. Most sit at
-                     the root; the less-common ones are grouped under a collapsible ADVANCED group node.
-                     Scrolls when taller than the window (many tablets, or ADVANCED expanded). See
-                     docs/design/ux-terminology.md. -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="8,0,8,0">
-                    <!-- Top-level navigation, fully data-driven (Zune Phase 0.2): one ordered list of
-                         sections — HOME · TABLET · SCRIBBLE · ABOUT · SETTINGS · ADVANCED — each carrying
-                         its own label, target page, selection, and visibility. Rendering the whole nav
-                         from one collection lets the shell later swap this vertical sidebar for a
-                         horizontal Zune wordmark bar by changing only the panel + item template here.
-                         (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
+                               FontFamily="{DynamicResource DisplayFontFamily}" FontSize="12"
+                               FontWeight="SemiBold" LetterSpacing="1.4"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Bottom" Margin="0,0,2,2" />
                     <ItemsControl ItemsSource="{Binding NavSections}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="22" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <RadioButton Theme="{StaticResource NavNode}" Content="{Binding Label}"
+                                <RadioButton Theme="{StaticResource WordmarkNav}" GroupName="Wordmarks"
+                                             Content="{Binding Label, Converter={x:Static conv:LowerCaseConverter.Instance}}"
                                              IsVisible="{Binding IsVisible}"
                                              IsChecked="{Binding IsSelected, Mode=OneWay}"
                                              Command="{Binding $parent[ItemsControl].DataContext.NavigateCommand}"
-                                             CommandParameter="{Binding Page}"
-                                             Margin="0,2,0,0" />
+                                             CommandParameter="{Binding Page}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-                </ScrollViewer>
-            </DockPanel>
+
+                <!-- Right cluster: the dev screenshot aid (only when enabled) + the version stamp. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Bottom">
+                    <!-- On-page screenshot control (#437): a developer aid, shown only when enabled on the
+                         Developer tab. Captures whatever page you're currently viewing. -->
+                    <Button x:Name="CapturePageButton" Click="OnCapturePage"
+                            IsVisible="{Binding Developer.Settings.OnPageScreenshot}"
+                            Theme="{StaticResource GhostButton}" Padding="10,5"
+                            Content="Capture page"
+                            ToolTip.Tip="Save a PNG of the current page to Pictures\OpenTabletArtist" />
+                    <TextBlock Text="{Binding TitleBarText}" FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Bottom" Margin="0,0,0,1" />
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- CONTENT AREA -->
-        <!-- Caption-clearance inset (#titlebar): a MARGIN on the ScrollViewer (outside the scrollable
-             content, so it's reserved at every scroll position). Kept small (16px) so the page title sits
-             near the top — page titles are short and left-aligned, so they can live under the transparent
-             drag strip (still draggable) and no interactive content lands near the top-right caption
-             buttons. The tablet detail page is the exception — its complex header has right-aligned
-             Refresh/Forget — so it adds its OWN top inset in TabletDetailView to stay clear of the caption
-             buttons, pending a dedicated tablet-header pass. The drag strip below stays taller (40) to keep
-             a comfortable window-move zone across the top. -->
-        <!-- Most pages are plain content and use this outer scroll (Auto). The tablet detail page manages
-             its own scrolling (fixed header + tab rail, per-tab scroll), so it sets this to Disabled — that
-             bounds the page to the viewport height so its inner scroll engages and the header no longer
-             scrolls away (#507). -->
-        <ScrollViewer Grid.Column="1"
-                      Margin="0,16,0,0"
+        <!-- CONTENT AREA (full width, below the wordmark bar). Most pages are plain content and use this
+             outer scroll (Auto). The tablet detail page manages its own scrolling (fixed header + tab
+             rail, per-tab scroll), so it sets this to Disabled (#507). Caption clearance is now the
+             wordmark bar itself, so no top inset is needed here. -->
+        <ScrollViewer Grid.Row="1"
                       VerticalScrollBarVisibility="{Binding ContentScrollBarVisibility}"
                       HorizontalScrollBarVisibility="Disabled">
-            <!-- Content padding (top tiny since the caption clearance is the ScrollViewer margin above).
-                 L/R/bottom stay above the Sakura cards' glow extent (16px blur, see CardShadow) so the
-                 soft glow isn't clipped by the scroll viewport on those edges. -->
-            <Border Padding="8,2,20,18">
+            <!-- L/R/bottom padding stays above the Sakura cards' glow extent (16px blur, see CardShadow)
+                 so the soft glow isn't clipped by the scroll viewport on those edges. -->
+            <Border Padding="24,14,24,18">
                 <ContentControl Content="{Binding CurrentPage}" />
             </Border>
         </ScrollViewer>
 
-        <!-- Bottom-left status cues, pinned to the content area (Grid.Column 1) — NOT the window's, so
-             they can't overlap the sidebar's bottom nav items on a short window. Stacked so the per-app
-             (#167) and override (#320) chips never collide when both are active. Mirrors the save chip. -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+        <!-- Bottom-left status cues, pinned to the content area (Row 1). Stacked so the per-app (#167)
+             and override (#320) chips never collide when both are active. Mirrors the save chip. -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Left"
                     Margin="24,0,0,20" Spacing="8">
             <!-- Active per-app profile (#167): a mapped app is in focus and its snapshot is applied live. -->
             <Border IsVisible="{Binding PerAppSwitch.HasActiveProfile}"
