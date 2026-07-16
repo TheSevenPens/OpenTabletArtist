@@ -22,6 +22,9 @@ public partial class AdvancedTabItem : ObservableObject
     // The subpage view model; the content host resolves it to a view by DataTemplate on its runtime type.
     public object Content { get; }
     [ObservableProperty] private bool _isSelected;
+    // Always visible for Advanced (OS-inapplicable tabs are filtered out of the array); present so the
+    // shared TabbedPageView rail template can bind IsVisible uniformly across pages (#zune Phase 0).
+    [ObservableProperty] private bool _isVisible = true;
 }
 
 /// <summary>

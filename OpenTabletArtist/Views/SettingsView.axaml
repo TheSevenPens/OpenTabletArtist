@@ -3,39 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- The SETTINGS tabbed page (see docs/design/ux-terminology.md): a complex header (its title) at the
-         top, then a FLAT subpage navigation (tab rail) on the left and the selected subpage on the right.
-         Mirrors AdvancedView but without owner sections — these are all OpenTabletArtist's own settings.
-         The rail is data-driven — an ItemsControl over the view model's Tabs, content host bound to
-         SelectedContent — so there's no per-tab code-behind. -->
-    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
-        <!-- Complex header — the page entity ("SETTINGS"), like the tablet page shows the tablet name. The
-             current subpage's name is shown as a body tab title in the content column below. -->
-        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="SETTINGS" />
-
-        <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
-        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
-                BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
-                <ItemsControl ItemsSource="{Binding Tabs}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <RadioButton Content="{Binding Label}" GroupName="SettingsTabs"
-                                         Theme="{StaticResource TabRadioButton}"
-                                         IsVisible="{Binding IsVisible}"
-                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
-                                         Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
-                                         CommandParameter="{Binding}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
-
-        <!-- Consistent body title per subpage (the subpage's own name), matching the tablet page's tabs. -->
-        <StackPanel Grid.Row="1" Grid.Column="1">
-            <TextBlock Text="{Binding CurrentTabTitle}" Classes="TabTitle" Margin="0,0,0,12" />
-            <ContentControl Content="{Binding SelectedContent}" />
-        </StackPanel>
-    </Grid>
+    <!-- The SETTINGS tabbed page. DataContext is the SettingsViewModel (typed-nav DataTemplate, #15);
+         the shared TabbedPageView renders the header + rail + content from its Tabs/SelectedContent. -->
+    <c:TabbedPageView Title="SETTINGS" />
 </UserControl>

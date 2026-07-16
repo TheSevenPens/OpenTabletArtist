@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls"
+             x:Class="OpenTabletArtist.Controls.TabbedPageView"
+             x:Name="Root">
+
+    <!-- Shared host for the SETTINGS + ADVANCED tabbed pages (Zune Phase 0). Complex header (the page
+         entity, via Title) on top; a flat data-driven tab rail on the left; the selected subpage on the
+         right. The rail + content bind to the DataContext (the page view model); Title binds to this
+         control's own property. See TabbedPageView.axaml.cs. -->
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
+        <c:ComplexHeader Grid.Row="0" Grid.ColumnSpan="2" Title="{Binding #Root.Title}" />
+
+        <!-- Subpage navigation — tab rail, vertical, to the left of the content. -->
+        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource DividerBrush}">
+            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
+                <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Content="{Binding Label}" GroupName="RailTabs"
+                                         Theme="{StaticResource TabRadioButton}"
+                                         IsVisible="{Binding IsVisible}"
+                                         IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
+                                         CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Consistent body title per subpage (the subpage's own name), then the subpage content. -->
+        <StackPanel Grid.Row="1" Grid.Column="1">
+            <TextBlock Text="{Binding CurrentTabTitle}" Classes="TabTitle" Margin="0,0,0,12" />
+            <ContentControl Content="{Binding SelectedContent}" />
+        </StackPanel>
+    </Grid>
+</UserControl>
