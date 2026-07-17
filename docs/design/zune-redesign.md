@@ -152,10 +152,19 @@ Committed on `zune`, verified live (build + 601 tests green):
 - **Phase 0** — refactor/enable. Invisible; keeps `master` behavior. **Done.**
 - **Phase 1** — top-bar/wordmark nav, sidebar removed. **Done.**
 - **Phase 2** — pivots + merges. **Done** — Settings/Advanced (2a/2b) and the tablet page (2c: merged 12→5 + rail→horizontal pivot).
-- **Phase 3** — typography + motion polish (pivot/section transitions **done**; hero empty-states,
-  further type tuning outstanding).
-- **Phase 4** — Sakura-on-Zune tuning (contrast of light-weight big text over the pink gradient,
-  petals behind the panorama, accent usage).
+- **Phase 3** — typography + motion polish. **Done.** Top-level page + pivot/section transitions all
+  crossfade with the shared `PageFade`; the tablet pivot content also crossfades now (overlap +
+  opacity, since it has no data-driven content host — `BoolToOpacityConverter`). Hero empty-states: the
+  TABLET page's "no tablet" placeholder is a boxless big light-weight headline over the backdrop; home's
+  inline empty state lightened to match. The type ramp (display/title/body sizes + `DisplayFontFamily`)
+  is applied consistently across wordmarks, pivots, and section titles.
+- **Phase 4** — Sakura-on-Zune tuning. **Done / inherent.** Petals render behind all content
+  (`SakuraPetals` sits under the nav+content grid), and the boxless hero lets them drift behind the
+  headline — the intended panorama. Contrast holds: the light-weight big text (wordmarks, pivots, hero)
+  is top-anchored over the light-pink region; the strong pink→orange gradient is at the window bottom
+  where content sits on frosted cards. Accent (sakura pink) is used consistently for active nav/pivots,
+  primary buttons, and highlights. The rich Sakura default is unchanged (users love it) — the Zune
+  layout was tuned to work *with* it, not restyle it.
 
 ## Decisions (resolved)
 
