@@ -80,14 +80,16 @@
         <!-- The selected tablet's detail view (headerless — this page owns the header above). -->
         <ContentControl Grid.Row="1" Content="{Binding Content}" IsVisible="{Binding HasTablet}" />
 
-        <!-- Placeholder when nothing is detected or remembered (#542). -->
-        <Border Grid.Row="1" Classes="GlassPanel" Padding="28" VerticalAlignment="Top"
-                IsVisible="{Binding !HasTablet}">
-            <StackPanel Spacing="6" HorizontalAlignment="Left">
-                <TextBlock Text="No tablet detected" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock Text="Connect a tablet and it will appear here — remembered tablets show up too."
-                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" MaxWidth="520" />
-            </StackPanel>
-        </Border>
+        <!-- Placeholder when nothing is detected or remembered (#542): a quiet Zune hero straight over the
+             sakura backdrop (no card), so the drifting petals read behind the big light headline. -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
+                    Margin="4,24,0,0" IsVisible="{Binding !HasTablet}">
+            <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
+                       FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <TextBlock Text="Connect a tablet and it'll show up here — remembered tablets appear too."
+                       FontSize="14" TextWrapping="Wrap" MaxWidth="540"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+        </StackPanel>
     </Grid>
 </UserControl>
