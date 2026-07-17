@@ -151,13 +151,10 @@
             <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2" x:Name="TabRail">
                 <RadioButton Content="ABOUT" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="PEN MOVEMENT" x:Name="OutputModeTab"
+                <!-- PEN merges Movement + Inputs + Buttons into one tab (Zune 2c prep): one scroller with
+                     the three as stacked sections. Code-behind honours the pen-behaviour deep-link here. -->
+                <RadioButton Content="PEN" x:Name="PenTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="PEN INPUTS" x:Name="PenTipTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="PEN BUTTONS" x:Name="PenBarrelTab"
-                             Theme="{StaticResource TabRadioButton}"
-                             IsVisible="{Binding HasPenButtons}" />
                 <!-- DYNAMICS merges Pressure + Position + Tilt Dynamics into one tab (Zune 2c prep):
                      one scroller with the three as stacked sections. Code-behind streams the live
                      pressure dot and honours the focused-dynamics deep-link off this tab (DynamicsTab). -->
@@ -256,9 +253,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Output Mode tab content -->
+        <!-- Pen tab content: movement mode, then pen tip/eraser inputs, then barrel buttons (when
+             present), stacked in one scroller (merged, Zune 2c prep). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #OutputModeTab.IsChecked}">
+                      IsVisible="{Binding #PenTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
@@ -306,6 +304,104 @@
                         Padding="12,6" Margin="0,6,0,0"
                         HorizontalAlignment="Left"
                         IsVisible="{Binding CanFixOutputMode}" />
+
+                <!-- PEN INPUTS section (merged into PEN, Zune 2c prep): pen tip + eraser bindings.
+                     Reflowing rows; cards wrap when the window is narrow. Data-driven: only the buttons
+                     this pen actually has appear (in the graphic and as cards). -->
+                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,28,0,0">
+                    <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
+                    <!-- Horizontal pen (tip left → eraser right); decorative, no connectors. Canvas is
+                         400×80. Eraser is drawn first (lowest z) so the barrel end overlaps its left edge. -->
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
+                        <Canvas Width="400" Height="80">
+                            <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
+                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <!-- tip nib (far left, under the cone) -->
+                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <!-- tip cone (pointing left) -->
+                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
+                            <!-- barrel -->
+                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <!-- side buttons, clustered toward the tip (left) -->
+                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        </Canvas>
+                    </Viewbox>
+
+                    <!-- Pen tip + eraser -->
+                    <WrapPanel HorizontalAlignment="Left">
+                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenTipRow}" />
+                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenEraserRow}" />
+                    </WrapPanel>
+
+                    <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton and
+                         stashes it so it comes back when turned off. -->
+                    <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
+                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                                Description="Tapping does nothing; your tip binding returns when off."
+                                                IsChecked="{Binding DisablePenTip}" />
+                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays.
+                                 Re-enable by flipping IsVisible to True. -->
+                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                                IsChecked="{Binding DragBindingsEnabled}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- PEN BUTTONS section (merged into PEN, #494): the pen's own barrel buttons. Only the
+                     buttons this pen actually has appear; the whole section hides when the pen has none. -->
+                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,28,0,0"
+                            IsVisible="{Binding HasPenButtons}">
+                    <TextBlock Text="PEN BUTTONS" Classes="TabTitle" />
+
+                    <!-- Horizontal pen; the side buttons light up (accent-filled) for the ones this pen has. -->
+                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
+                        <Canvas Width="400" Height="80">
+                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
+                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
+                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                            <!-- side buttons, clustered toward the tip (left); accent-filled to read as the focus -->
+                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        </Canvas>
+                    </Viewbox>
+
+                    <!-- Vertical list of the pen's barrel buttons. -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
+                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
@@ -611,113 +707,6 @@
                 <TextBlock Text="Connect this tablet to calibrate." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,8,0,0" IsVisible="{Binding ShowConnectToCalibrateHint}" />
             </StackPanel>
-        </ScrollViewer>
-
-        <!-- Pen Switches tab: reflowing rows — pen tip + eraser · a horizontal pen (tip to the left) ·
-             the buttons. Cards wrap when the window is narrow, so the layout survives resizing.
-             Data-driven: only the buttons this pen actually has appear (in the graphic and as cards). -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenTipTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
-                    <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
-                    <!-- Horizontal pen (tip left → eraser right) at the top of the page (#494 follow-up),
-                         matching the Pen Buttons tab. Decorative; no connectors. Canvas is 400×80. Eraser
-                         is drawn first (lowest z) so the barrel end overlaps its left edge. -->
-                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
-                        <Canvas Width="400" Height="80">
-                            <!-- eraser nub (right) — first = lowest z, so the barrel end covers its left edge -->
-                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <!-- tip nib (far left, under the cone) -->
-                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <!-- tip cone (pointing left) -->
-                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
-                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
-                            <!-- barrel -->
-                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <!-- side buttons, clustered toward the tip (left) -->
-                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        </Canvas>
-                    </Viewbox>
-
-                    <!-- Pen tip + eraser -->
-                    <WrapPanel HorizontalAlignment="Left">
-                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenTipRow}" />
-                        <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenEraserRow}" />
-                    </WrapPanel>
-
-                    <!-- Pen barrel buttons moved to their own PEN BUTTONS tab (#494); Binary pressure moved
-                         to Pressure Dynamics and Disable tilt to the Tilt Dynamics tab (#494 follow-up). -->
-                    <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
-                            <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton
-                                 and stashes it so it comes back when turned off. -->
-                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                                Description="Tapping does nothing; your tip binding returns when off."
-                                                IsChecked="{Binding DisablePenTip}" />
-                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays.
-                                 Re-enable by flipping IsVisible to True. -->
-                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                                IsChecked="{Binding DragBindingsEnabled}" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-        </ScrollViewer>
-
-        <!-- Pen Buttons tab (#494): the pen's own barrel buttons, split out of PEN INPUTS. Only the
-             buttons this pen actually has appear. The tab itself is hidden when the pen has none. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenBarrelTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
-                    <TextBlock Text="PEN BUTTONS" Classes="TabTitle" />
-
-                    <!-- Horizontal pen (tip left → eraser right); the side buttons light up for the ones
-                         this pen has, matching the cards below. -->
-                    <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
-                        <Canvas Width="400" Height="80">
-                            <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
-                                     Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
-                            <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                       Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                            <!-- side buttons, clustered toward the tip (left); accent-filled to read as the focus -->
-                            <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                            <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                       Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                       IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        </Canvas>
-                    </Viewbox>
-
-                    <!-- Vertical list of the pen's barrel buttons. -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
-                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
-                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
-                                             IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    </StackPanel>
-                </StackPanel>
         </ScrollViewer>
 
         <!-- Controls tab content: tablet-body express keys, then wheels (when present) as a stacked
