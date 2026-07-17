@@ -41,7 +41,7 @@ public partial class TabletDetailView : UserControl
         base.OnAttachedToVisualTree(e);
 
         // Focused Pen Dynamics editor (#133): open straight on the Dynamics tab.
-        if (Vm?.DynamicsOnly == true) PressureDynamicsTab.IsChecked = true;
+        if (Vm?.DynamicsOnly == true) DynamicsTab.IsChecked = true;
 
         // Health-issue "Fix" deep-link: open on the tab that carries the fix (e.g. Display Mapping for an
         // off-screen mapping) instead of the default About tab. Also handle a request that arrives while
@@ -53,7 +53,7 @@ public partial class TabletDetailView : UserControl
         if (_screens != null) _screens.Changed += OnScreensChanged;
         // Live device-report stream feeds the pressure dot (Dynamics), the aux-button highlight
         // (ExpressKeys), and the wheel gauge (Wheel), so watch those tabs.
-        PressureDynamicsTab.IsCheckedChanged += OnLiveTabChanged;
+        DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
         WheelTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
@@ -67,7 +67,7 @@ public partial class TabletDetailView : UserControl
         base.OnDetachedFromVisualTree(e);
         if (Vm != null) Vm.TabRequested -= OnTabRequested;
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
-        PressureDynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
+        DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
         WheelTab.IsCheckedChanged -= OnLiveTabChanged;
         ActiveAreaDiagramControl.AreaCommitted -= OnActiveAreaCommitted;
@@ -175,7 +175,7 @@ public partial class TabletDetailView : UserControl
     private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (PressureDynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
+        if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
             || WheelTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }

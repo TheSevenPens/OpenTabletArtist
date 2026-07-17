@@ -158,11 +158,10 @@
                 <RadioButton Content="PEN BUTTONS" x:Name="PenBarrelTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasPenButtons}" />
-                <RadioButton Content="PRESSURE DYNAMICS" x:Name="PressureDynamicsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="POSITION DYNAMICS" x:Name="PositionDynamicsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="TILT DYNAMICS" x:Name="TiltDynamicsTab"
+                <!-- DYNAMICS merges Pressure + Position + Tilt Dynamics into one tab (Zune 2c prep):
+                     one scroller with the three as stacked sections. Code-behind streams the live
+                     pressure dot and honours the focused-dynamics deep-link off this tab (DynamicsTab). -->
+                <RadioButton Content="DYNAMICS" x:Name="DynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <!-- MAPPING merges Display Mapping + Active Area + Calibration into one tab (Zune 2c prep):
                      one scroller with the three as stacked sections. -->
@@ -863,9 +862,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Pressure Dynamics tab content: live pressure bar + the pressure curve + pressure smoothing. -->
+        <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
+             stacked sections (merged, Zune 2c prep). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PressureDynamicsTab.IsChecked}">
+                      IsVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <!-- Header row: title + reset. There's no On/Off — the filter is always enabled internally;
                      you neutralize it with a linear curve and zero smoothing. -->
@@ -1024,56 +1024,45 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,28,2,4">
+                        <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
+                                ToolTip.Tip="Turn position smoothing back off" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding PositionDynamicsStatusText}" TextWrapping="Wrap"
+                               Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
+
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="POSITION SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
+                                       ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+                            <!-- Capped at 0.25 (#487): heavier position smoothing is too laggy to be useful. -->
+                            <ctrl:LabeledSlider Label="Position" LabelWidth="80" Margin="0,8,0,0"
+                                                Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                                Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
+                                                Value="{Binding PositionSmoothing}"
+                                                ValueTextOverride="{Binding PositionSmoothingText}"
+                                                Monospace="True" ValueWidth="44" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tilt Dynamics section (merged into DYNAMICS, #494). For now just the disable toggle;
+                         a tilt curve / smoothing may join later, matching Pressure/Position. -->
+                    <TextBlock Text="TILT DYNAMICS" Classes="TabTitle" Margin="2,28,2,4" />
+                    <Border Classes="GlassPanel" Margin="0,0,0,10">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="TILT" Classes="SectionLabel" />
+                            <!-- Moved here from Pen Inputs (#494). -->
+                            <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                                Description="Apps receive no tilt from this tablet."
+                                                IsChecked="{Binding DisableTilt}" />
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Position Dynamics tab content: position smoothing (steadies wobbly lines). -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PositionDynamicsTab.IsChecked}">
-            <StackPanel IsEnabled="{Binding CanEditPressure}">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
-                    <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
-                            ToolTip.Tip="Turn position smoothing back off" />
-                </Grid>
-
-                <TextBlock Text="{Binding PositionDynamicsStatusText}" TextWrapping="Wrap"
-                           Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
-
-                <Border Classes="GlassPanel" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="POSITION SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
-                                   ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
-                        <!-- Capped at 0.25 (#487): heavier position smoothing is too laggy to be useful. -->
-                        <ctrl:LabeledSlider Label="Position" LabelWidth="80" Margin="0,8,0,0"
-                                            Minimum="0" Maximum="{Binding PositionSmoothingMax}"
-                                            Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
-                                            Value="{Binding PositionSmoothing}"
-                                            ValueTextOverride="{Binding PositionSmoothingText}"
-                                            Monospace="True" ValueWidth="44" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Tilt Dynamics tab (#494): tilt controls. For now just the disable toggle; a tilt curve /
-             smoothing may join later, matching Pressure/Position Dynamics. Gated on the same host-can-
-             apply flag as the other dynamics tabs. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #TiltDynamicsTab.IsChecked}">
-            <StackPanel IsEnabled="{Binding CanEditPressure}">
-                <TextBlock Text="TILT DYNAMICS" Classes="TabTitle" Margin="2,2,2,4" />
-                <Border Classes="GlassPanel" Margin="0,0,0,10">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="TILT" Classes="SectionLabel" />
-                        <!-- Moved here from Pen Inputs (#494). -->
-                        <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                            Description="Apps receive no tilt from this tablet."
-                                            IsChecked="{Binding DisableTilt}" />
-                    </StackPanel>
-                </Border>
             </StackPanel>
         </ScrollViewer>
 
