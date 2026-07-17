@@ -126,9 +126,20 @@
                                                IsVisible="{Binding HasLastSeenDetail}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Button Grid.Column="1" Content="Settings" Command="{Binding OpenCommand}"
-                                        Theme="{StaticResource AccentButton}" Padding="12,6"
-                                        VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <Button Content="Settings" Command="{Binding OpenCommand}"
+                                            Theme="{StaticResource AccentButton}" Padding="12,6" />
+                                    <!-- Forget (remove saved settings). Managing connections lives here on Home;
+                                         only offered for remembered, disconnected tablets — it's odd to remove
+                                         one you're currently using (#forget-home). -->
+                                    <Button Command="{Binding ForgetCommand}" IsVisible="{Binding CanForget}"
+                                            Theme="{StaticResource GhostButton}" Padding="9,6"
+                                            ToolTip.Tip="Forget this tablet — remove its saved settings">
+                                        <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
+                                                  Foreground="{Binding $parent[Button].Foreground}" />
+                                    </Button>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </DataTemplate>

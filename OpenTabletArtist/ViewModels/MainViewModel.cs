@@ -369,8 +369,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 specByName.TryGetValue(p.Tablet, out var d);
                 var specs = d != null ? $"{d.Area} · {d.Pressure} pressure levels · {d.Buttons} buttons" : "";
-                return new TabletOverviewItemViewModel(p.Tablet, p.IsDetected, p.StatusText,
-                    p.LastSeenDetail, specs, () => NavigateToTabletByName(p.Tablet));
+                var tablet = p.Tablet;
+                return new TabletOverviewItemViewModel(tablet, p.IsDetected, p.StatusText,
+                    p.LastSeenDetail, specs, () => NavigateToTabletByName(tablet),
+                    () => ForgetTabletByNameAsync(tablet));
             })
             .ToList();
         TabletsOverview.HasTablets = ordered.Count > 0;

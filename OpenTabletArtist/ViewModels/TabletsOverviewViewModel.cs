@@ -41,9 +41,10 @@ public partial class TabletsOverviewViewModel : ObservableObject
 public partial class TabletOverviewItemViewModel : ObservableObject
 {
     private readonly Action _navigate;
+    private readonly Func<Task> _forget;
 
     public TabletOverviewItemViewModel(string name, bool isDetected, string statusText,
-        string? lastSeenDetail, string specsText, Action navigate)
+        string? lastSeenDetail, string specsText, Action navigate, Func<Task> forget)
     {
         Name = name;
         IsDetected = isDetected;
@@ -51,6 +52,7 @@ public partial class TabletOverviewItemViewModel : ObservableObject
         LastSeenDetail = lastSeenDetail;
         SpecsText = specsText;
         _navigate = navigate;
+        _forget = forget;
     }
 
     public string Name { get; }
@@ -60,7 +62,14 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     public string SpecsText { get; }
     public bool HasSpecs => !string.IsNullOrEmpty(SpecsText);
     public bool HasLastSeenDetail => !string.IsNullOrEmpty(LastSeenDetail);
+    /// <summary>Managing connections lives on Home (#forget-home): the Forget action is offered here only
+    /// for remembered, disconnected tablets — it's odd to remove one you're currently using.</summary>
+    public bool CanForget => !IsDetected;
 
     [RelayCommand]
     private void Open() => _navigate();
+
+    /// <summary>Forget this tablet — remove its saved profile from the settings.</summary>
+    [RelayCommand]
+    private Task Forget() => _forget();
 }
