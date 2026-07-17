@@ -248,10 +248,22 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
-                               FontFamily="{DynamicResource DisplayFontFamily}"
-                               FontSize="26" FontWeight="Light" LetterSpacing="-0.2"
-                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <Panel>
+                        <!-- Width reserver (#nav-no-reflow): the checked cue bumps the weight Light ->
+                             Normal, and Normal is a few px wider per word. In the left-aligned WrapPanel
+                             that meant clicking an item re-measured it and shoved every item to its right.
+                             This invisible copy is always at the checked weight, so the Panel measures to
+                             the widest state and the slot width never changes. Opacity=0 still lays out
+                             (IsVisible=False would not). Keep every metric here in sync with Word below. -->
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   FontFamily="{DynamicResource DisplayFontFamily}"
+                                   FontSize="26" FontWeight="Normal" LetterSpacing="-0.2"
+                                   Opacity="0" IsHitTestVisible="False" />
+                        <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
+                                   FontFamily="{DynamicResource DisplayFontFamily}"
+                                   FontSize="26" FontWeight="Light" LetterSpacing="-0.2"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </Panel>
                 </ControlTemplate>
             </Setter>
             <Style Selector="^:pointerover /template/ TextBlock#Word">
@@ -271,9 +283,16 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
-                               FontFamily="{DynamicResource DisplayFontFamily}"
-                               FontSize="18" FontWeight="Light" LetterSpacing="-0.2" />
+                    <Panel>
+                        <!-- Width reserver — see WordmarkNav above (#nav-no-reflow). -->
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   FontFamily="{DynamicResource DisplayFontFamily}"
+                                   FontSize="18" FontWeight="Normal" LetterSpacing="-0.2"
+                                   Opacity="0" IsHitTestVisible="False" />
+                        <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
+                                   FontFamily="{DynamicResource DisplayFontFamily}"
+                                   FontSize="18" FontWeight="Light" LetterSpacing="-0.2" />
+                    </Panel>
                 </ControlTemplate>
             </Setter>
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
