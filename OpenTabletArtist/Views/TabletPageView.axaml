@@ -30,59 +30,16 @@
 
     <!-- DataContext is a TabletPageViewModel. The single TABLET page (#542): a switcher dropdown of every
          known tablet + the selected one's headerless detail view, or a placeholder when none is known. -->
-    <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
+    <Grid ColumnDefinitions="*">
 
-        <!-- Header: [ switcher dropdown ]  ................  [ chip ][ Refresh ][ Forget ]. Compact — the
-             wordmark bar above already clears the native caption buttons, so this row is just its natural
-             control height (the old MinHeight caption-clearance is obsolete). Hidden when there's no tablet. -->
-        <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,10" IsVisible="{Binding HasTablet}">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="6">
-                    <!-- No page title — the "tablet" wordmark names the section (Zune); the switcher
-                         dropdown (showing the tablet's name) leads the header. -->
-                    <ComboBox ItemsSource="{Binding Tablets}"
-                              SelectedItem="{Binding SelectedTablet, Mode=TwoWay}"
-                              MinWidth="260" HorizontalAlignment="Left"
-                              ToolTip.Tip="Switch between your connected and remembered tablets">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </StackPanel>
-
-                <!-- Status + actions, bound to the currently-hosted tablet's detail VM. -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
-                            HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Border Classes="tabletStatusChip" Classes.connected="{Binding Content.IsTabletDetected}">
-                        <TextBlock Text="{Binding Content.DetectionText}" FontWeight="SemiBold" FontSize="12"
-                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <Button Content="Refresh" Command="{Binding Content.RefreshCommand}"
-                            ToolTip.Tip="Reload settings from daemon"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" />
-                    <Button Content="Forget" Command="{Binding Content.ForgetCommand}"
-                            IsVisible="{Binding Content.ShowForget}"
-                            ToolTip.Tip="Remove this tablet's saved settings"
-                            Theme="{StaticResource DeleteButton}" Padding="12,6" />
-                </StackPanel>
-            </Grid>
-            <!-- When not detected, the chip just says "Not detected"; this line carries the fuller context. -->
-            <TextBlock Text="{Binding Content.DetectionDetail}" FontStyle="Italic"
-                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
-                       IsVisible="{Binding Content.DetectionDetail, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
-        </StackPanel>
-
-        <!-- The selected tablet's detail view (headerless — this page owns the header above). -->
-        <ContentControl Grid.Row="1" Content="{Binding Content}" IsVisible="{Binding HasTablet}" />
+        <!-- The selected tablet's detail view. It owns the toolbar row now (switcher · pivots · compact
+             actions on one line), so this page just hosts it full-height — or the hero below when there's
+             no tablet. -->
+        <ContentControl Content="{Binding Content}" IsVisible="{Binding HasTablet}" />
 
         <!-- Placeholder when nothing is detected or remembered (#542): a quiet Zune hero straight over the
              sakura backdrop (no card), so the drifting petals read behind the big light headline. -->
-        <StackPanel Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
                     Margin="4,24,0,0" IsVisible="{Binding !HasTablet}">
             <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
                        FontSize="36" FontWeight="Light" LetterSpacing="-0.3"

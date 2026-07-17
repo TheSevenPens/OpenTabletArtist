@@ -41,6 +41,25 @@
         <Style Selector="Border.tabletStatusChip.connected">
             <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
         </Style>
+        <!-- Compact "D" detection square in the toolbar row: green when detected, grey otherwise. Square
+             (Metro), fixed size — distinct from the padded/rounded tabletStatusChip used elsewhere. The
+             base Background must come from the style (not a local value) so the .on override can win. -->
+        <Style Selector="Border.statusSquare">
+            <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Border.statusSquare.on">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <!-- Status dot in the switcher dropdown rows (mirrors the one the TABLET page used to own). -->
+        <Style Selector="Ellipse.statusDot">
+            <Setter Property="Width" Value="9" />
+            <Setter Property="Height" Value="9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Ellipse.statusDot.on">
+            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+        </Style>
         <!-- Pivot content sections overlap in one cell and crossfade on pivot switch: opacity is driven
              by the tab's IsChecked (via BoolToOpacity), IsHitTestVisible gates input to the shown one.
              Same feel as the Settings/Advanced PageFade, without a data-driven content host. -->
@@ -151,15 +170,32 @@
             </Border>
         </StackPanel>
 
-        <!-- Tab pivot — horizontal (Zune 2c): lowercase pivots over the content, matching Settings /
-             Advanced. Same active cue as the wordmark bar (accent + weight, no rule). Wraps on narrow
-             widths. Hidden in the focused Pen Dynamics view (#133). Still RadioButtons switched by
-             ElementName — the content sections below gate on #XTab.IsChecked; code-behind reads the
-             x:Names for the live-input stream, deep-links and the screenshot sweep. -->
+        <!-- Tablet toolbar row (Zune 2c, Option C): the switcher dropdown, the horizontal pivots, and the
+             compact actions (D · R · F) all share one row over the content. The pivots are still
+             RadioButtons switched by ElementName (content gates on #XTab.IsChecked; code-behind reads the
+             x:Names for live-input, deep-links, screenshot sweep). The switcher + actions show only when
+             this view is embedded in the TABLET page (!ShowHeader) — the tray dialog uses the
+             ComplexHeader above instead. Hidden entirely in the focused Pen Dynamics view (#133). -->
         <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7"
                 IsVisible="{Binding !DynamicsOnly}">
-            <WrapPanel Orientation="Horizontal" x:Name="TabRail">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Tablet switcher — bound to the hosting TabletPageViewModel (ancestor). Embedded only. -->
+                <ComboBox Grid.Column="0" IsVisible="{Binding !ShowHeader}"
+                          VerticalAlignment="Center" Margin="0,0,24,0" MinWidth="210"
+                          ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
+                          SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
+                          ToolTip.Tip="Switch between your connected and remembered tablets">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            <WrapPanel Grid.Column="1" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                 <RadioButton Content="about" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <RadioButton Content="pen" x:Name="PenTab"
@@ -185,6 +221,27 @@
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding ShowJsonTab}" />
             </WrapPanel>
+                <!-- Compact actions: D (detection status) · R (refresh) · F (forget). Placeholder first
+                     letters for now — icons drop in later. Embedded only; the ComplexHeader carries these
+                     in the tray dialog. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" IsVisible="{Binding !ShowHeader}">
+                    <Border Classes="statusSquare" Classes.on="{Binding IsTabletDetected}"
+                            Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding DetectionText}">
+                        <TextBlock Text="D" FontWeight="SemiBold" FontSize="13" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Button Content="R" Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="Reload settings from daemon"
+                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    <Button Content="F" Command="{Binding ForgetCommand}" IsVisible="{Binding ShowForget}"
+                            ToolTip.Tip="Remove this tablet's saved settings"
+                            Theme="{StaticResource DeleteButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- About tab content: a clean read-out of the tablet's specs, plus a Resources area that will
