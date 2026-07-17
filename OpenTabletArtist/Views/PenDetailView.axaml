@@ -87,14 +87,20 @@
                                       IsVisible="{Binding !IsTabletDetected}" />
                         </Panel>
                     </Border>
-                    <Button Content="R" Command="{Binding RefreshCommand}"
+                    <Button Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
                             Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                    <Button Content="F" Command="{Binding ForgetCommand}" IsVisible="{Binding ShowForget}"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
+                    <Button Command="{Binding ForgetCommand}" IsVisible="{Binding ShowForget}"
                             ToolTip.Tip="Remove this tablet's saved settings"
                             Theme="{StaticResource DeleteButton}" Width="34" Height="30" Padding="0"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
