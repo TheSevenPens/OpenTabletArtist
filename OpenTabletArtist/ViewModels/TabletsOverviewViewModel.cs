@@ -62,9 +62,12 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     public string SpecsText { get; }
     public bool HasSpecs => !string.IsNullOrEmpty(SpecsText);
     public bool HasLastSeenDetail => !string.IsNullOrEmpty(LastSeenDetail);
-    /// <summary>Managing connections lives on Home (#forget-home): the Forget action is offered here only
-    /// for remembered, disconnected tablets — it's odd to remove one you're currently using.</summary>
-    public bool CanForget => !IsDetected;
+    /// <summary>Forget is offered for every tablet (#575). For a remembered (disconnected) tablet it
+    /// removes it from the list; for a connected one it can't truly be removed — the daemon regenerates a
+    /// default profile — so it resets to defaults instead. The tooltip + confirm say which.</summary>
+    public string ForgetTooltip => IsDetected
+        ? "Reset this tablet's saved settings to defaults"
+        : "Forget this tablet — remove its saved settings";
 
     [RelayCommand]
     private void Open() => _navigate();

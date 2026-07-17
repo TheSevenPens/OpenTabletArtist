@@ -124,9 +124,10 @@
                                    Margin="0,-2,0,0" />
                     </StackPanel>
                 </ctrl:ComplexHeader.TitleContent>
-                <!-- Trailing: [status chip][Refresh][Forget], right-aligned. They clear the native
-                     min/max/close caption buttons by sitting BELOW them — the two-line tablet name makes the
-                     header tall enough that these vertically-centred actions fall under the caption zone. -->
+                <!-- Trailing: [status chip][Refresh], right-aligned. They clear the native min/max/close
+                     caption buttons by sitting BELOW them — the two-line tablet name makes the header tall
+                     enough that these vertically-centred actions fall under the caption zone. Forget lives
+                     on the Home tablet cards now (#575/#forget-home), not here. -->
                 <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
                     <Border Classes="tabletStatusChip" Classes.connected="{Binding IsTabletDetected}"
@@ -137,11 +138,6 @@
                     <Button x:Name="RefreshBtn" Content="Refresh" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
                             Theme="{StaticResource GhostButton}" Padding="12,6" />
-                    <!-- Forget the tablet's saved profile. Hidden in the focused Pen Dynamics dialog. -->
-                    <Button Content="Forget" Command="{Binding ForgetCommand}"
-                            IsVisible="{Binding ShowForget}"
-                            ToolTip.Tip="Remove this tablet's saved settings"
-                            Theme="{StaticResource DeleteButton}" Padding="12,6" />
                 </StackPanel>
             </ctrl:ComplexHeader>
             <!-- When not detected, the chip just says "Not detected"; this line carries the fuller context. -->

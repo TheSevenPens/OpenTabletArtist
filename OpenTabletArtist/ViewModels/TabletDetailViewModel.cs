@@ -861,11 +861,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshFromProfile();
     }
 
-    /// <summary>Show the Forget button only on the in-app page (host wires the action), not in the
-    /// tray's focused Pen Dynamics dialog.</summary>
-    public bool ShowForget => !DynamicsOnly && _forgetAction != null;
-
-    /// <summary>Remove this tablet's saved profile (the host then navigates away).</summary>
+    /// <summary>Remove this tablet's saved profile. Forget now lives on the Home tablet cards (#575);
+    /// this command + <c>_forgetAction</c> stay wired for a future non-dynamics tray dialog, but no view
+    /// currently binds it.</summary>
     [RelayCommand]
     private async Task Forget()
     {

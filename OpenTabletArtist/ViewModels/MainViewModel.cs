@@ -333,10 +333,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task ForgetTabletByNameAsync(string name)
     {
-        // Confirm first — it's a small icon on the Home cards now, and removing a tablet's saved settings
-        // can't be undone (#forget-home). Covers both forget paths (Home cards + the tray dialog header).
-        if (!await _dialogs.ShowConfirmAsync("Forget this tablet?",
-                $"\"{name}\" and its saved settings will be removed. This can't be undone."))
+        // A connected tablet can't truly be removed: the daemon regenerates a default profile for any
+        // detected device (ProfileCollection.GetProfile → Generate), so forgetting it clears its saved
+        // settings and it comes back at defaults — it stays in the list. A remembered (disconnected)
+        // tablet is removed outright. Word the confirm to match either case (#575).
+        bool connected = _session.DetectedTablets.Any(d => d.Name == name);
+        var (title, message) = connected
+            ? ("Reset this tablet?",
+               $"\"{name}\" is connected, so this clears its saved settings and returns it to defaults — " +
+               "it stays in your list. This can't be undone.")
+            : ("Forget this tablet?",
+               $"\"{name}\" and its saved settings will be removed from your list. This can't be undone.");
+        if (!await _dialogs.ShowConfirmAsync(title, message))
             return;
 
         var settings = _session.CurrentSettings;
