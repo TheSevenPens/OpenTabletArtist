@@ -337,102 +337,15 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
                       Opacity="{Binding #MappingTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #MappingTab.IsChecked}">
-            <StackPanel>
-                <TextBlock Text="DISPLAY MAPPING" Classes="TabTitle" Margin="0,0,0,12" />
-                <Border Classes="GlassPanel"
-                        IsVisible="{Binding HasAreaMapping}">
-                    <StackPanel>
-                        <!-- Flags a mapping that isn't a clean single-monitor one (#displaymap): an off-screen
-                             area is a warning (the pen hits dead zones); a custom/multi-display area is an
-                             informational note. Apply mapping below is the one-click fix for both. -->
-                        <Border IsVisible="{Binding ShowMappingOffScreen}" CornerRadius="0" Padding="12,10"
-                                Margin="0,0,0,12" Background="Transparent"
-                                BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource IconAlert}" Width="15" Height="15"
-                                          VerticalAlignment="Top" Margin="0,1,0,0"
-                                          Foreground="{DynamicResource WarningBrush}" />
-                                <TextBlock Text="{Binding MappingValidityText}" FontWeight="SemiBold"
-                                           TextWrapping="Wrap" MaxWidth="360"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </StackPanel>
-                        </Border>
-                        <Border IsVisible="{Binding ShowMappingCustom}" CornerRadius="0" Padding="12,10"
-                                Margin="0,0,0,12" Background="Transparent"
-                                BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource IconInformationOutline}" Width="15" Height="15"
-                                          VerticalAlignment="Top" Margin="0,1,0,0"
-                                          Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBlock Text="{Binding MappingValidityText}"
-                                           TextWrapping="Wrap" MaxWidth="360"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
-                            </StackPanel>
-                        </Border>
-                        <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Text="CHOOSE DISPLAY" Classes="SectionLabel"
-                                       VerticalAlignment="Center" />
-                            <!-- Apply leads the row (primary action), then the display helpers. The manual
-                                 "Refresh Display Settings" button is gone: OnScreensChanged already fires
-                                 RefreshDisplaysCommand whenever Windows reports a display change, so the
-                                 list refreshes itself. -->
-                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                <Button Content="Apply" Command="{Binding ApplyDisplayCommand}"
-                                        ToolTip.Tip="Map the tablet to the selected display"
-                                        Theme="{StaticResource AccentButton}" Padding="10,5" Margin="0,0,6,4" />
-                                <Button Content="Display Settings"
-                                        Command="{Binding OpenDisplaySettingsCommand}"
-                                        ToolTip.Tip="Open Windows Display Settings"
-                                        Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,0,4" />
-                            </WrapPanel>
-                        </Grid>
-                        <!-- A changed display selection isn't live until Apply mapping (#179 follow-up);
-                             sits directly under the button row. -->
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
-                                    IsVisible="{Binding MappingChangePending}">
-                            <Ellipse Width="9" Height="9" VerticalAlignment="Center"
-                                     Fill="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
-                                       FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <TextBlock Text="Click a display to map the tablet to it, then Apply."
-                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,8"
-                                   TextWrapping="Wrap" />
-                        <ctrl:ScreenMappingDiagram Displays="{Binding Displays}"
-                                                   SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
-                                                   Area="{Binding TabletArea}"
-                                                   AccentBrush="{DynamicResource AccentBrush}"
-                                                   Height="320" />
+            <!-- One card, two columns: the tablet's active area on the left, the display it maps onto on
+                 the right. They're two halves of the same question ("what maps where"), so they read
+                 better side by side than stacked in separate cards. The pivot already says "mapping", so
+                 the section headings are gone (#map-merge). -->
+            <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
+                <Grid ColumnDefinitions="*,32,*">
 
-                        <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->
-                        <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,12" />
-                        <ItemsControl ItemsSource="{Binding Displays}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
-                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="0"
-                                                Background="{DynamicResource AccentMutedBrush}" VerticalAlignment="Top">
-                                            <TextBlock Text="{Binding Number}" FontWeight="Bold"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource AccentBrush}" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" Spacing="1">
-                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                                            <TextBlock Text="{Binding DetailSubLine}"
-                                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-                <!-- Active Area section (merged into MAPPING, Zune 2c prep). -->
-                <TextBlock Text="ACTIVE AREA" Classes="TabTitle" Margin="0,28,0,12" />
-                <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
-                    <StackPanel>
+                    <!-- LEFT: active area. -->
+                    <StackPanel Grid.Column="0">
                         <!-- Diagram + stats when we have digitizer specs. -->
                         <StackPanel IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                             <!-- Top row: Rotation on the left (moved up from a separate card so it's visible
@@ -527,9 +440,90 @@
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNull}}" />
                     </StackPanel>
-                </Border>
 
-            </StackPanel>
+                    <!-- RIGHT: the display it maps onto. -->
+                    <StackPanel Grid.Column="2">
+                        <!-- Flags a mapping that isn't a clean single-monitor one (#displaymap): an off-screen
+                             area is a warning (the pen hits dead zones); a custom/multi-display area is an
+                             informational note. Apply mapping below is the one-click fix for both. -->
+                        <Border IsVisible="{Binding ShowMappingOffScreen}" CornerRadius="0" Padding="12,10"
+                                Margin="0,0,0,12" Background="Transparent"
+                                BorderThickness="1.5" BorderBrush="{DynamicResource WarningBrush}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource IconAlert}" Width="15" Height="15"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Foreground="{DynamicResource WarningBrush}" />
+                                <TextBlock Text="{Binding MappingValidityText}" FontWeight="SemiBold"
+                                           TextWrapping="Wrap" MaxWidth="360"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border IsVisible="{Binding ShowMappingCustom}" CornerRadius="0" Padding="12,10"
+                                Margin="0,0,0,12" Background="Transparent"
+                                BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource IconInformationOutline}" Width="15" Height="15"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding MappingValidityText}"
+                                           TextWrapping="Wrap" MaxWidth="360"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <!-- Apply leads the row (primary action), then the display helpers. The manual
+                             "Refresh Display Settings" button is gone: OnScreensChanged already fires
+                             RefreshDisplaysCommand whenever Windows reports a display change, so the
+                             list refreshes itself. -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Content="Apply" Command="{Binding ApplyDisplayCommand}"
+                                    ToolTip.Tip="Map the tablet to the selected display"
+                                    Theme="{StaticResource AccentButton}" Padding="10,5" Margin="0,0,6,4" />
+                            <Button Content="Display Settings"
+                                    Command="{Binding OpenDisplaySettingsCommand}"
+                                    ToolTip.Tip="Open Windows Display Settings"
+                                    Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,0,4" />
+                        </WrapPanel>
+                        <!-- A changed display selection isn't live until Apply mapping (#179 follow-up);
+                             sits directly under the button row. -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
+                                    IsVisible="{Binding MappingChangePending}">
+                            <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                     Fill="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ctrl:ScreenMappingDiagram Displays="{Binding Displays}" Margin="0,8,0,0"
+                                                   SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
+                                                   Area="{Binding TabletArea}"
+                                                   AccentBrush="{DynamicResource AccentBrush}"
+                                                   Height="320" />
+
+                        <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->
+                        <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,12" />
+                        <ItemsControl ItemsSource="{Binding Displays}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
+                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="0"
+                                                Background="{DynamicResource AccentMutedBrush}" VerticalAlignment="Top">
+                                            <TextBlock Text="{Binding Number}" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding DetailSubLine}"
+                                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </ScrollViewer>
 
         <!-- Calibration tab content: split out of MAPPING (#252 merged it in; it has outgrown that). -->
