@@ -56,10 +56,15 @@
 
                     <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                         <!-- Refresh button -->
-                        <Button Content="Refresh" Command="{Binding Status.RefreshCommand}"
+                        <Button Command="{Binding Status.RefreshCommand}"
                                 ToolTip.Tip="Check daemon status"
                                 IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,0" />
+                                Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Margin="0,0,6,0">
+                            <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                      Foreground="{Binding $parent[Button].Foreground}" />
+                        </Button>
                         <!-- Start button: show when NOT connected and not mid-connect -->
                         <Button Content="Start" Theme="{StaticResource AccentButton}"
                                 Command="{Binding Status.StartDaemonCommand}"

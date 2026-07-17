@@ -15,9 +15,14 @@
                                    TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                        <Button Content="Refresh" Command="{Binding RefreshConfigurationsCommand}"
+                        <Button Command="{Binding RefreshConfigurationsCommand}"
                                 ToolTip.Tip="Reload list"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4" />
+                                Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Margin="0,0,6,4">
+                            <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                      Foreground="{Binding $parent[Button].Foreground}" />
+                        </Button>
                         <Button Content="Open Folder" Theme="{StaticResource GhostButton}"
                                 Command="{Binding OpenConfigurationsFolderCommand}"
                                 Padding="12,6" Margin="0,0,0,4" />

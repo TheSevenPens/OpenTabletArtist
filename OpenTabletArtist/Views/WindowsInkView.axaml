@@ -82,11 +82,15 @@
                 </StackPanel>
 
                 <!-- Refresh plugin info -->
-                <Button Grid.Column="1" VerticalAlignment="Top" Content="Refresh"
+                <Button Grid.Column="1" VerticalAlignment="Top"
                         Command="{Binding RefreshWindowsInkCommand}"
                         IsVisible="{Binding ShowWinInkRefresh}"
                         ToolTip.Tip="Refresh plugin info"
-                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                        Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                    <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                              Foreground="{Binding $parent[Button].Foreground}" />
+                </Button>
             </Grid>
         </Border>
     </StackPanel>

@@ -11,10 +11,16 @@
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Classes="SectionLabel" Text="VMULTI DRIVER" TextWrapping="Wrap" />
-                        <Button Content="Refresh" Command="{Binding RefreshVmultiDetectionCommand}"
+                        <!-- Compact icon variant: this one sits inline beside the section label rather than
+                             in an action row, so the standard 34x30 icon button would tower over the label. -->
+                        <Button Command="{Binding RefreshVmultiDetectionCommand}"
                                 ToolTip.Tip="Refresh VMulti status"
-                                Theme="{StaticResource GhostButton}" Padding="8,3"
-                                Margin="8,0,0,0" VerticalAlignment="Center" />
+                                Theme="{StaticResource GhostButton}" Width="26" Height="22" Padding="0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Margin="8,0,0,0" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource IconRefresh}" Width="13" Height="13"
+                                      Foreground="{Binding $parent[Button].Foreground}" />
+                        </Button>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Text="{Binding VmultiMessage}"

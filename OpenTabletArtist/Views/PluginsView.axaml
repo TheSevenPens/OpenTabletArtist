@@ -10,9 +10,14 @@
                 <TextBlock Grid.Row="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
                            VerticalAlignment="Center" />
                 <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                    <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                    <Button Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Rescan the plugin folder"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4" />
+                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Margin="0,0,6,4">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
                     <Button Content="Browse" Command="{Binding BrowseCommand}"
                             ToolTip.Tip="Open the plugin folder in File Explorer"
                             Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,0,4" />
