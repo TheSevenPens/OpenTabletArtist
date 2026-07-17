@@ -161,12 +161,12 @@
                 <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
                 <!-- Two columns (#pen-2col): the pen diagram stands on the left, the cards on the right. -->
                 <Grid ColumnDefinitions="Auto,32,*">
-                <!-- LEFT — the pen rotated 90° so it stands upright (tip up). LayoutTransform, not
-                     RenderTransform, so the rotated bounds drive the layout. Canvas is 400×80; the eraser is
-                     drawn first (lowest z) so the barrel end overlaps its edge. -->
+                <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
+                     LayoutTransform, not RenderTransform, so the rotated bounds drive the layout. Canvas is
+                     400×80; the eraser is drawn first (lowest z) so the barrel end overlaps its edge. -->
                 <LayoutTransformControl Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left">
                     <LayoutTransformControl.LayoutTransform>
-                        <RotateTransform Angle="90" />
+                        <RotateTransform Angle="-90" />
                     </LayoutTransformControl.LayoutTransform>
                 <Viewbox MaxWidth="440" MaxHeight="86">
                     <Canvas Width="400" Height="80">
@@ -228,13 +228,14 @@
 
                 <!-- Two columns (#pen-2col): the pen stands on the left, the button cards on the right. -->
                 <Grid ColumnDefinitions="Auto,32,*">
-                <!-- LEFT — the pen rotated 90° so it stands upright (tip up), which puts Button 1 (nearest
-                     the tip) at the top, matching the card order on the right. LayoutTransform, not
-                     RenderTransform, so the rotated bounds drive the layout. The side buttons light up
-                     (accent-filled) for the ones this pen has. -->
+                <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
+                     That puts Button 1 (nearest the tip) at the bottom, so the pen reads bottom-up against
+                     the 1/2/3 cards — the physical convention wins over matching the card order.
+                     LayoutTransform, not RenderTransform, so the rotated bounds drive the layout. The side
+                     buttons light up (accent-filled) for the ones this pen has. -->
                 <LayoutTransformControl Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left">
                     <LayoutTransformControl.LayoutTransform>
-                        <RotateTransform Angle="90" />
+                        <RotateTransform Angle="-90" />
                     </LayoutTransformControl.LayoutTransform>
                 <Viewbox MaxWidth="440" MaxHeight="86">
                     <Canvas Width="400" Height="80">
