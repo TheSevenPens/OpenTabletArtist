@@ -34,7 +34,6 @@ public sealed class ScreenMappingDiagram : Control
     private static readonly IBrush TabletFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
     private static readonly IPen TabletBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
     private static readonly IBrush EffFill = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush Label = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0x99, 0x33, 0x33, 0x33));
     private static Typeface UiFace => AppFonts.UiTypeface();
 
@@ -155,7 +154,6 @@ public sealed class ScreenMappingDiagram : Control
                 ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
             }
         }
-        DrawCentered(ctx, fullRect, "Tablet", 12, Brushes.White);
 
         // Effective area — upright, positioned within the (possibly turned) tablet (mirrors the Active
         // Area diagram's TabletToScreen mapping).
@@ -182,10 +180,6 @@ public sealed class ScreenMappingDiagram : Control
             ctx.DrawLine(mapPen, effRect.BottomLeft, selBox.BottomLeft);
             ctx.DrawLine(mapPen, effRect.BottomRight, selBox.BottomRight);
         }
-
-        if (area != null)
-            DrawCentered(ctx, new Rect(tabBox.X, fullRect.Bottom + 1, tabBox.Width, 16),
-                $"{area.EffWidth:0.#} × {area.EffHeight:0.#} mm", 10.5, Label);
     }
 
     private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, bool selected)
