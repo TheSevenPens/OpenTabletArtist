@@ -7,7 +7,7 @@
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- The live config (settings.json), made visible: it's what per-app / hotkey switches revert to,
              and every profile below is a saved copy of it. Accent-outlined to set it apart. -->
-        <Border Classes="GlassPanel" Margin="0,0,0,18"
+        <Border Classes="GlassPanel" Margin="0,0,0,18" Padding="14,11"
                 BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -80,7 +80,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Classes="GlassPanel" Padding="24"
+        <Border Classes="GlassPanel"
                 IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No presets yet" FontSize="16" FontWeight="SemiBold"

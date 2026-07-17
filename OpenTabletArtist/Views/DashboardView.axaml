@@ -22,7 +22,7 @@
                         <DataTemplate>
                             <!-- Health cards get a tinted per-tier background + border (#509) so they read
                                  distinctly from normal cards, and a per-tier icon in the severity box (#552). -->
-                            <Border Classes="GlassPanel attentionCard" Margin="0,0,0,8" Padding="14,11"
+                            <Border Classes="GlassPanel attentionCard" Margin="0,0,0,8"
                                     Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
                                     Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
                                     Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}"
@@ -72,7 +72,7 @@
                  problem or an op is in flight. It morphs to a "Connecting to daemon…" spinner while Fix
                  runs, then clears on success (or reverts to the error). The full status + controls +
                  version live on the Daemon page (Advanced → OpenTabletDriver). -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12"
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="14,11"
                     BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
                     IsVisible="{Binding Daemon.ShowDaemonProblem}">
                 <Panel>

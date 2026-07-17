@@ -19,7 +19,7 @@
         </Border>
 
         <!-- Need snapshots first -->
-        <Border Classes="GlassPanel" Padding="24"
+        <Border Classes="GlassPanel"
                 IsVisible="{Binding !HasEnoughSnapshots}" IsEnabled="{Binding CanUse}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="Save a preset first" FontSize="16" FontWeight="SemiBold"
@@ -93,7 +93,7 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasMappings}">
+            <Border Classes="GlassPanel" IsVisible="{Binding !HasMappings}">
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No apps mapped yet" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
