@@ -32,11 +32,11 @@
          known tablet + the selected one's headerless detail view, or a placeholder when none is known. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
 
-        <!-- Header: [ TABLET / switcher dropdown ]  ................  [ chip ][ Refresh ][ Forget ].
-             Kept tall (MinHeight) so the right-aligned actions clear the native caption buttons, the same
-             way the detail view's two-line title does (#titlebar). Hidden when there's no tablet. -->
-        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16" IsVisible="{Binding HasTablet}">
-            <Grid ColumnDefinitions="*,Auto" MinHeight="56">
+        <!-- Header: [ switcher dropdown ]  ................  [ chip ][ Refresh ][ Forget ]. Compact — the
+             wordmark bar above already clears the native caption buttons, so this row is just its natural
+             control height (the old MinHeight caption-clearance is obsolete). Hidden when there's no tablet. -->
+        <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,10" IsVisible="{Binding HasTablet}">
+            <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="6">
                     <!-- No page title — the "tablet" wordmark names the section (Zune); the switcher
                          dropdown (showing the tablet's name) leads the header. -->
