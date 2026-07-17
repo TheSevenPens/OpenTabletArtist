@@ -78,8 +78,14 @@
                     <Border Classes="statusSquare" Classes.on="{Binding IsTabletDetected}"
                             Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
                             ToolTip.Tip="{Binding DetectionText}">
-                        <TextBlock Text="D" FontWeight="SemiBold" FontSize="13" Foreground="White"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Panel>
+                            <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16" Foreground="White"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      IsVisible="{Binding IsTabletDetected}" />
+                            <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16" Foreground="White"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      IsVisible="{Binding !IsTabletDetected}" />
+                        </Panel>
                     </Border>
                     <Button Content="R" Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
