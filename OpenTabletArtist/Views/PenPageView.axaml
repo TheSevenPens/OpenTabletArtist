@@ -9,15 +9,8 @@
     <Grid ColumnDefinitions="*">
         <views:PenDetailView DataContext="{Binding Content}" IsVisible="{Binding HasTablet}" />
 
-        <!-- Placeholder when nothing is detected or remembered: a quiet Zune hero over the sakura backdrop. -->
-        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
-                    Margin="4,24,0,0" IsVisible="{Binding !HasTablet}">
-            <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
-                       FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
-                       Foreground="{DynamicResource TextPrimaryBrush}" />
-            <TextBlock Text="Connect a tablet to set up its pen — remembered tablets appear too."
-                       FontSize="14" TextWrapping="Wrap" MaxWidth="540"
-                       Foreground="{DynamicResource TextSecondaryBrush}" />
-        </StackPanel>
+        <!-- Placeholder when nothing is detected or remembered (#580). -->
+        <views:NoTabletHero IsVisible="{Binding !HasTablet}"
+                            Description="Connect a tablet to set up its pen — remembered tablets appear too." />
     </Grid>
 </UserControl>

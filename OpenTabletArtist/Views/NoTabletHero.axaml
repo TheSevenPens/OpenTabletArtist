@@ -1,0 +1,17 @@
+<UserControl x:Class="OpenTabletArtist.Views.NoTabletHero"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+
+    <!-- The "no tablet yet" empty state shared by the Tablet + Pen pages (#580): a quiet Zune hero
+         straight over the sakura backdrop (no card), so the drifting petals read behind the big light
+         headline. Only the Description differs between the two pages. -->
+    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12" Margin="4,24,0,0">
+        <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
+                   FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
+                   Foreground="{DynamicResource TextPrimaryBrush}" />
+        <TextBlock Text="{Binding #Root.Description}"
+                   FontSize="14" TextWrapping="Wrap" MaxWidth="540"
+                   Foreground="{DynamicResource TextSecondaryBrush}" />
+    </StackPanel>
+</UserControl>

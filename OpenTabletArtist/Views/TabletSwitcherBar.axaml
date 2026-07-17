@@ -1,0 +1,63 @@
+<UserControl x:Class="OpenTabletArtist.Views.TabletSwitcherBar"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+
+    <UserControl.Styles>
+        <!-- Compact "D" detection square: green when detected, grey otherwise. Square (Metro), fixed size.
+             The base Background must come from the style (not a local value) so the .on override can win. -->
+        <Style Selector="Border.statusSquare">
+            <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Border.statusSquare.on">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <!-- Status dot in the switcher dropdown rows. -->
+        <Style Selector="Ellipse.statusDot">
+            <Setter Property="Width" Value="9" />
+            <Setter Property="Height" Value="9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Ellipse.statusDot.on">
+            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- switcher · detection chip · refresh, grouped at the right of the pivot row (#switcher-right/#580). -->
+    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <ComboBox VerticalAlignment="Center" MinWidth="210" Margin="0,0,4,0"
+                  ItemsSource="{Binding #Root.Tablets}"
+                  SelectedItem="{Binding #Root.SelectedTablet, Mode=TwoWay}"
+                  ToolTip.Tip="Switch between your connected and remembered tablets">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Border Classes="statusSquare" Classes.on="{Binding #Root.IsDetected}"
+                Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
+                ToolTip.Tip="{Binding #Root.DetectionText}">
+            <Panel>
+                <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16" Foreground="White"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          IsVisible="{Binding #Root.IsDetected}" />
+                <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16" Foreground="White"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          IsVisible="{Binding !IsDetected, ElementName=Root}" />
+            </Panel>
+        </Border>
+        <Button Command="{Binding #Root.RefreshCommand}"
+                ToolTip.Tip="Reload settings from daemon"
+                AutomationProperties.Name="Reload settings from daemon"
+                Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+            <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                      Foreground="{Binding $parent[Button].Foreground}" />
+        </Button>
+    </StackPanel>
+</UserControl>

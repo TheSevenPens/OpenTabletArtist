@@ -1,6 +1,7 @@
 <UserControl x:Class="OpenTabletArtist.Views.TabletPageView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:OpenTabletArtist.Views">
 
     <!-- The switcher/status/dot styles that used to live here moved into the hosted TabletDetailView when
          it took over the toolbar row (#542); this page only hosts that view + the no-tablet hero. -->
@@ -14,16 +15,8 @@
              no tablet. -->
         <ContentControl Content="{Binding Content}" IsVisible="{Binding HasTablet}" />
 
-        <!-- Placeholder when nothing is detected or remembered (#542): a quiet Zune hero straight over the
-             sakura backdrop (no card), so the drifting petals read behind the big light headline. -->
-        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
-                    Margin="4,24,0,0" IsVisible="{Binding !HasTablet}">
-            <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
-                       FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
-                       Foreground="{DynamicResource TextPrimaryBrush}" />
-            <TextBlock Text="Connect a tablet and it'll show up here — remembered tablets appear too."
-                       FontSize="14" TextWrapping="Wrap" MaxWidth="540"
-                       Foreground="{DynamicResource TextSecondaryBrush}" />
-        </StackPanel>
+        <!-- Placeholder when nothing is detected or remembered (#542/#580). -->
+        <views:NoTabletHero IsVisible="{Binding !HasTablet}"
+                            Description="Connect a tablet and it'll show up here — remembered tablets appear too." />
     </Grid>
 </UserControl>
