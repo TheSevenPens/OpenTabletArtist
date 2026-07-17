@@ -44,10 +44,15 @@
 
                 <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                     <!-- Browse button -->
-                    <Button Content="Browse" Theme="{StaticResource AccentButton}"
+                    <Button Theme="{StaticResource AccentButton}"
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="C:\Program Files\VMulti"
-                            Padding="12,6" Margin="0,0,8,4" />
+                            ToolTip.Tip="Open the VMulti install folder in File Explorer"
+                            Width="34" Height="30" Padding="0" Margin="0,0,8,4"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                        <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
                     <!-- Install button -->
                     <Button Content="Install" Theme="{StaticResource AccentButton}"
                             Command="{Binding InstallVmultiCommand}"

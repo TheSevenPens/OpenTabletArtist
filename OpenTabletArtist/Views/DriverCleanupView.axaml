@@ -64,11 +64,16 @@
                             IsVisible="{Binding !CleanupInstalled}" />
 
                     <!-- When installed: Browse, Run, Uninstall -->
-                    <Button Content="Browse" Theme="{StaticResource AccentButton}"
+                    <Button Theme="{StaticResource AccentButton}"
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="{Binding CleanupInstallPath}"
-                            Padding="12,6" Margin="0,0,8,4"
-                            IsVisible="{Binding CleanupInstalled}" />
+                            ToolTip.Tip="Open the install folder in File Explorer"
+                            Width="34" Height="30" Padding="0" Margin="0,0,8,4"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            IsVisible="{Binding CleanupInstalled}">
+                        <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
                     <Button Content="Run" Theme="{StaticResource AccentButton}"
                             Command="{Binding RunCleanupCommand}"
                             Padding="12,6" Margin="0,0,8,4"

@@ -18,9 +18,14 @@
                         <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
                                   Foreground="{Binding $parent[Button].Foreground}" />
                     </Button>
-                    <Button Content="Browse" Command="{Binding BrowseCommand}"
+                    <Button Command="{Binding BrowseCommand}"
                             ToolTip.Tip="Open the plugin folder in File Explorer"
-                            Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,0,4" />
+                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Margin="0,0,0,4">
+                        <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
                 </WrapPanel>
             </Grid>
         </Border>

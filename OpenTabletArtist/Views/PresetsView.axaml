@@ -32,11 +32,15 @@
             <TextBlock Grid.Column="0" Text="SAVED PRESETS" FontWeight="SemiBold"
                        LetterSpacing="0.5" Foreground="{DynamicResource TextMutedBrush}"
                        VerticalAlignment="Center" />
-            <Button Grid.Column="1" Content="Browse" Theme="{StaticResource GhostButton}"
-                    Padding="12,5" VerticalAlignment="Center"
+            <Button Grid.Column="1" Theme="{StaticResource GhostButton}"
+                    Width="34" Height="30" Padding="0" VerticalAlignment="Center"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                     ToolTip.Tip="Open the folder where presets are stored"
                     Command="{Binding OpenFolderCommand}"
-                    CommandParameter="{Binding PresetDirectory}" />
+                    CommandParameter="{Binding PresetDirectory}">
+                <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
+                          Foreground="{Binding $parent[Button].Foreground}" />
+            </Button>
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Presets}">

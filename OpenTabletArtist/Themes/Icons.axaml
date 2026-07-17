@@ -38,6 +38,9 @@
 
     <StreamGeometry x:Key="IconTrashCanOutline">M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z</StreamGeometry>
 
+    <!-- Reveal a filesystem folder in File Explorer (the "Browse" / "Open Folder" actions). -->
+    <StreamGeometry x:Key="IconFolderOutline">M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z</StreamGeometry>
+
     <StreamGeometry x:Key="IconInformation">M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z</StreamGeometry>
 
     <StreamGeometry x:Key="IconInformationOutline">M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z</StreamGeometry>

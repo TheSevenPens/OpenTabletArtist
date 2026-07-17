@@ -23,9 +23,15 @@
                             <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
                                       Foreground="{Binding $parent[Button].Foreground}" />
                         </Button>
-                        <Button Content="Open Folder" Theme="{StaticResource GhostButton}"
+                        <Button Theme="{StaticResource GhostButton}"
                                 Command="{Binding OpenConfigurationsFolderCommand}"
-                                Padding="12,6" Margin="0,0,0,4" />
+                                ToolTip.Tip="Open the configurations folder in File Explorer"
+                                Width="34" Height="30" Padding="0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Margin="0,0,0,4">
+                            <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
+                                      Foreground="{Binding $parent[Button].Foreground}" />
+                        </Button>
                     </WrapPanel>
                 </Grid>
 
