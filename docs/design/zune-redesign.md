@@ -1,7 +1,7 @@
 # Zune-style UX redesign (branch: `zune`)
 
-Status: **draft / phase 0 planning.** A big-typography, panorama/pivot navigation model
-inspired by the Zune UX (the precursor to Metro). Goal: take v1's UX "to the next level" —
+Status: **Phases 0–4 shipped on `zune`** (not yet merged to `master`); ongoing polish. A
+big-typography, panorama/pivot navigation model inspired by the Zune UX (the precursor to Metro). Goal: take v1's UX "to the next level" —
 more simplicity, less chrome, better use of horizontal space — **while keeping the Sakura skin
 as the default** (Zune is a *layout* language, not a palette; the pink skin stays).
 
@@ -20,7 +20,9 @@ The current codebase already leans Metro, so this is evolution, not a rewrite:
   a `Tabs` list) + a `ContentControl` bound to `SelectedContent`. Replace that one pattern with a
   Zune **pivot** host and all three convert at once.
 
-## Navigation inventory (today)
+## Navigation inventory (pre-redesign baseline)
+
+*The starting point the redesign began from — not the current nav (see "Top-level nav" below for what shipped).*
 
 **Top-level (left sidebar):** `HOME · TABLET · SCRIBBLE · ABOUT · SETTINGS · ADVANCED`
 
@@ -53,11 +55,14 @@ fits a resizable desktop window better than an infinite pan. Proposal:
   toggles, sliders); only genuine status/data dots stay circular. Frosted glass + a soft shadow
   stay — that's the Sakura richness — but nothing is a rounded rectangle.
 
-### Top-level nav (decided)
+### Top-level nav (decided → shipped)
 
-`home · tablet · scribble · settings · advanced · about` — lowercase wordmarks. **Presets** stays a
-Settings pivot (#571); **Advanced** stays its own top-level section. **Scribble** (the pen-test
-surface) is top-level — it was briefly dropped in an early mockup and restored.
+`home · tablet · pen · scribble · settings · advanced` — lowercase wordmarks. Diverged from the
+original proposal in two ways that shipped: **Pen** was split out of the tablet page into its own
+top-level section (`2bc43d0`), and **About** folded into Home as a second column rather than staying a
+top-level wordmark (`1f8328b`). **Presets** stays a Settings pivot (#571); **Advanced** stays its own
+top-level section. **Scribble** (the pen-test surface) is top-level — briefly dropped in an early
+mockup and restored.
 
 ### Proposed tablet merges (12 → 5 pivots)
 
@@ -70,6 +75,11 @@ surface) is top-level — it was briefly dropped in an early mockup and restored
 | **controls**| Tablet Buttons + Wheels                          | physical controls on the tablet body |
 
 (Filters · JSON stay dev-gated, behind the pivot when Developer is on.)
+
+> **Shipped differently:** this 12→5 proposal evolved. **pen** became its own top-level page
+> (`movement · inputs · buttons`), not a tablet pivot; and **calibration** split back out of *mapping*
+> into its own pivot once it grew a status card + density cards + backup/restore (`6c8d678`). The tablet
+> page shipped as **`about · dynamics · mapping · calibration · controls`**.
 
 ### Proposed settings merges (8 → ~4)
 
@@ -135,17 +145,18 @@ Committed on `zune`, verified live (build + 601 tests green):
 - **Polish** — top-level page switches crossfade (same `PageFade`); wordmark bar + pivots wrap on
   narrow widths and fit at the 800px minimum; dropped the duplicate brand eyebrow (the OS caption
   carries the app name); removed the now-dead `NavNode` style + `TabbedPageView.Title`. ✔
-- **Phase 2c — the tablet page — done.** The **12→5 merges** landed first (four commits: mapping,
-  dynamics, controls, pen) — the pivots are `about · pen · dynamics · mapping · controls`, each folding
-  its old sections into one scroller with in-place headers. Then the **vertical rail was replaced with
-  the same horizontal Zune pivot** the other pages use (PivotTab theme, accent+weight active cue, wraps
-  on narrow widths); the grid went `[Auto,*]×[Auto,*]` → rows `[Auto,Auto,*]` so content spans full
-  width. Pragmatic call on the deferred 0.3: kept the ElementName model rather than extracting all the
-  inline sections into views — the pivot is still RadioButtons with the same x:Names, content still
-  gates on `#XTab.IsChecked`, and the code-behind (live pen-input stream, deep-links, DynamicsOnly
-  focused editor, screenshot sweep) reads those names unchanged. All verified live, 601 tests green.
-  *Nice-to-have not done:* pivot switches swap instantly (no crossfade) — the shared `PageFade` would
-  need a single content host, which the inline-section approach doesn't have.
+- **Phase 2c — the tablet page — done.** The **merges** landed first (four commits: mapping,
+  dynamics, controls, pen), each folding its old sections into one scroller with in-place headers. Then
+  the **vertical rail was replaced with the same horizontal Zune pivot** the other pages use (PivotTab
+  theme, accent+weight active cue, wraps on narrow widths); the grid went `[Auto,*]×[Auto,*]` → rows
+  `[Auto,Auto,*]` so content spans full width. Pragmatic call on the deferred 0.3: kept the ElementName
+  model rather than extracting all the inline sections into views — the pivot is still RadioButtons with
+  the same x:Names, content still gates on `#XTab.IsChecked`, and the code-behind (live pen-input stream,
+  deep-links, DynamicsOnly focused editor, screenshot sweep) reads those names unchanged. Verified live.
+  *Post-2c the structure moved on:* **pen** split into its own top-level page and **calibration** into
+  its own pivot, so the tablet pivots shipped as `about · dynamics · mapping · calibration · controls`.
+  The pivot crossfade *was* added in Phase 3 (overlap + `BoolToOpacityConverter`, no single content
+  host needed) — see below.
 
 ## Phasing (PR sequence)
 
@@ -172,7 +183,8 @@ Committed on `zune`, verified live (build + 601 tests green):
 2. **Sidebar:** removed entirely; reclaim full width. ✔
 3. **Presets:** stays under Settings (#571). ✔
 4. **Advanced:** stays a top-level section. ✔
-5. **Tablet merges:** about / pen / dynamics / mapping / controls. ✔
+5. **Tablet pivots (as shipped):** about / dynamics / mapping / calibration / controls. ✔
+   (**pen** split into its own top-level page; **calibration** split out of mapping — `6c8d678`.)
 6. **Wordmarks:** lowercase. ✔
 7. **Corners:** square (Metro); frosted glass + soft shadow kept. ✔
 8. **No giant page title:** dropped; active wordmark names the section. ✔
@@ -184,20 +196,31 @@ to its new home, so nothing is lost when 12/8/7 tabs collapse into pivots. Modal
 capture overlay, report dialog, supported-tablets dialog) are overlays — unaffected by nav — and
 carry over as-is.
 
-### tablet  (12 tabs → 5 pivots)
+### tablet  (5 pivots — `about · dynamics · mapping · calibration · controls`)
 
-| Pivot | From (today) | Controls carried over |
+| Pivot | From (pre-Zune tabs) | Controls carried over |
 |-------|--------------|-----------------------|
 | **about** | About | full spec readout; Resources → View supported tablets |
-| **pen** | Pen Behavior · Pen Inputs · Pen Buttons | output mode (Normal/Absolute · Mouse-like/Relative); **Don't use Windows Ink** toggle *(Win)*; tip + eraser Adaptive status cards + Use Adaptive; **Disable pen tip**; barrel-button Adaptive cards over the pen diagram (hidden when the pen has none) |
 | **dynamics** | Pressure · Position · Tilt Dynamics | live-pressure bar; **Binary pressure**; pressure curve (min/max nodes, Softness, Presets Linear/Soft/Firm, Reset, live dot, Live in/out readout); **Cut below input minimum** *(dev-gated, #569)*; pressure smoothing; position smoothing; **Disable tilt**; per-tab Reset + status line |
-| **mapping** | Display Mapping · Active Area · Calibration | display diagram (click-to-select, Apply mapping, Refresh, Display Settings, off-screen/custom flags); active-area **interactive diagram** (drag-move, drag-corner resize), **Rotation None/90/180/270**, Size slider, Maximize, mm/inches, usage stats; calibration 4/9/25-point cards + Start, active-cal status (Correction On/Off, Clear), **View report** dialog, full-screen capture overlay (Undo last / Redo all) |
+| **mapping** | Display Mapping · Active Area | one two-column card: **left** = editable active-area diagram (drag-move, drag-corner resize), **Rotation None/90/180/270**, Size slider, Maximize, mm/inches, usage + diagonal + aspect-ratio stats; **right** = click-to-select display picker (Apply, Display Settings, off-screen/custom flags, connector to the mapped display, per-display hardware list). *(A single merged diagram was tried and reverted — two read more clearly.)* |
+| **calibration** | Calibration | 4/9/25-point cards + Start; active-cal status (Correction On/Off, Clear); **View report** dialog; **Backup & restore** (export/import, #545); full-screen capture overlay (Undo last / Redo all) |
 | **controls** | Tablet Buttons · Wheels | aux-button cards, binding type (None/Keyboard/Mouse button/Mouse scroll), live-press highlight, **Buttons enabled** master, **Clear all**; wheel/dial bindings |
 | *(dev)* filters · json | Filters · JSON | shown behind the pivot only when Developer is enabled |
 
-Header (device switcher dropdown · connection status · Refresh · Forget) sits under the pivots.
-**mapping is the densest merge** — built out in full in the mockup to prove the layout holds; if it
-ever feels too tall it drops to a `display · area · calibrate` sub-pivot (fallback, not needed now).
+The tablet **switcher** (dropdown) + **detection chip** + **Refresh** sit at the *right* of the pivot
+row (grouped, #switcher-right); the pivots start at the left edge like the other pages. **Forget** moved
+to the Home tablet cards (#575).
+
+### pen  (own top-level page — `movement · inputs · buttons`)
+
+Split out of the tablet page (`2bc43d0`). Same toolbar structure as the tablet page (pivots left,
+switcher + detection + refresh right).
+
+| Pivot | Controls carried over |
+|-------|-----------------------|
+| **movement** | output mode (Normal/Absolute · Mouse-like/Relative); **Don't use Windows Ink** toggle *(Win)* |
+| **inputs** | tip + eraser Adaptive status cards + Use Adaptive; **Disable pen tip**; upright pen diagram (tip down) beside the cards |
+| **buttons** | barrel-button Adaptive cards beside the pen diagram; pivot hidden when the pen has no barrel buttons |
 
 ### settings  (8 tabs → 5 pivots)
 
@@ -219,10 +242,12 @@ ever feels too tall it drops to a `display · area · calibrate` sub-pivot (fall
 | **diagnostics** | Diagnostics | collect diagnostics report |
 | **plugins** | Plugins | plugin list, enable/disable |
 
-### top-level (unchanged pages)
+### top-level (other pages)
 
-`home` (Needs attention + Not-connected card + Your tablets + Supported tablets) · `scribble`
-(pen-test surface + dynamics indicator) · `about` (what-is + version + Help/Discord + Resources).
+`home` — a two-column page: **left** = Needs attention + Your tablets (each card has Settings + Forget)
++ Supported tablets; **right** = the former **About** content (what-is + version + Help/Discord +
+Resources), folded in here rather than kept as its own wordmark (`1f8328b`). · `scribble` (pen-test
+surface + dynamics indicator).
 
 ### Risks flagged
 
