@@ -121,7 +121,7 @@ Committed on `zune`, each invisible/behaviour-preserving, build + 604 tests gree
   pivot in Phase 2**, where the risk is justified and tested against the real UI. (Settings/Advanced
   already share the host, so the pivot swap covers them regardless.)
 
-## Phase 1–2 status (done, except the tablet page)
+## Phase 1–2 status (done)
 
 Committed on `zune`, verified live (build + 601 tests green):
 
@@ -135,20 +135,23 @@ Committed on `zune`, verified live (build + 601 tests green):
 - **Polish** — top-level page switches crossfade (same `PageFade`); wordmark bar + pivots wrap on
   narrow widths and fit at the 800px minimum; dropped the duplicate brand eyebrow (the OS caption
   carries the app name); removed the now-dead `NavNode` style + `TabbedPageView.Title`. ✔
-- **Phase 2c — the tablet page — merges done; pivot conversion outstanding.** The **12→5 merges are
-  complete**: the rail now reads `ABOUT · PEN · DYNAMICS · MAPPING · CONTROLS`, each tab folding its
-  old sections into one scroller with in-place headers, all verified live and passing tests. Done in
-  four commits (mapping, dynamics, controls, pen), keeping the existing ElementName tab-switching and
-  repointing the live pen-input stream + deep-links as tabs were renamed/collapsed. **Still outstanding**
-  (the deferred 0.3): it's a *vertical* rail, not the horizontal Zune pivot — data-driving the rail
-  (ElementName → SelectedTab) and reworking the live-input/deep-link wiring onto that model is the
-  remaining, higher-risk pass.
+- **Phase 2c — the tablet page — done.** The **12→5 merges** landed first (four commits: mapping,
+  dynamics, controls, pen) — the pivots are `about · pen · dynamics · mapping · controls`, each folding
+  its old sections into one scroller with in-place headers. Then the **vertical rail was replaced with
+  the same horizontal Zune pivot** the other pages use (PivotTab theme, accent+weight active cue, wraps
+  on narrow widths); the grid went `[Auto,*]×[Auto,*]` → rows `[Auto,Auto,*]` so content spans full
+  width. Pragmatic call on the deferred 0.3: kept the ElementName model rather than extracting all the
+  inline sections into views — the pivot is still RadioButtons with the same x:Names, content still
+  gates on `#XTab.IsChecked`, and the code-behind (live pen-input stream, deep-links, DynamicsOnly
+  focused editor, screenshot sweep) reads those names unchanged. All verified live, 601 tests green.
+  *Nice-to-have not done:* pivot switches swap instantly (no crossfade) — the shared `PageFade` would
+  need a single content host, which the inline-section approach doesn't have.
 
 ## Phasing (PR sequence)
 
 - **Phase 0** — refactor/enable. Invisible; keeps `master` behavior. **Done.**
 - **Phase 1** — top-bar/wordmark nav, sidebar removed. **Done.**
-- **Phase 2** — pivots + merges. **Done for Settings/Advanced; tablet page merged 12→5 (2c), horizontal-pivot conversion of the tablet rail still outstanding.**
+- **Phase 2** — pivots + merges. **Done** — Settings/Advanced (2a/2b) and the tablet page (2c: merged 12→5 + rail→horizontal pivot).
 - **Phase 3** — typography + motion polish (pivot/section transitions **done**; hero empty-states,
   further type tuning outstanding).
 - **Phase 4** — Sakura-on-Zune tuning (contrast of light-weight big text over the pink gradient,
