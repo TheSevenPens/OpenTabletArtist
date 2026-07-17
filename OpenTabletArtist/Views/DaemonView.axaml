@@ -58,6 +58,7 @@
                         <!-- Refresh button -->
                         <Button Command="{Binding Status.RefreshCommand}"
                                 ToolTip.Tip="Check daemon status"
+                                AutomationProperties.Name="Check daemon status"
                                 IsEnabled="{Binding !Status.IsDaemonBusy}"
                                 Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"

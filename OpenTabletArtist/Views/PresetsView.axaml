@@ -36,6 +36,7 @@
                     Width="34" Height="30" Padding="0" VerticalAlignment="Center"
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                     ToolTip.Tip="Open the folder where presets are stored"
+                    AutomationProperties.Name="Open the folder where presets are stored"
                     Command="{Binding OpenFolderCommand}"
                     CommandParameter="{Binding PresetDirectory}">
                 <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"

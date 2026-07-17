@@ -12,6 +12,7 @@
                 <WrapPanel Grid.Row="1" Orientation="Horizontal">
                     <Button Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Rescan the plugin folder"
+                            AutomationProperties.Name="Rescan the plugin folder"
                             Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             Margin="0,0,6,4">
@@ -20,6 +21,7 @@
                     </Button>
                     <Button Command="{Binding BrowseCommand}"
                             ToolTip.Tip="Open the plugin folder in File Explorer"
+                            AutomationProperties.Name="Open the plugin folder in File Explorer"
                             Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             Margin="0,0,0,4">

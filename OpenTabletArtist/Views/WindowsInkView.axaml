@@ -86,6 +86,7 @@
                         Command="{Binding RefreshWindowsInkCommand}"
                         IsVisible="{Binding ShowWinInkRefresh}"
                         ToolTip.Tip="Refresh plugin info"
+                        AutomationProperties.Name="Refresh plugin info"
                         Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                     <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"

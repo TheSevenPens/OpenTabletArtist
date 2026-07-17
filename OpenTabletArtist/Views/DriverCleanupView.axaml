@@ -68,6 +68,7 @@
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="{Binding CleanupInstallPath}"
                             ToolTip.Tip="Open the install folder in File Explorer"
+                            AutomationProperties.Name="Open the install folder in File Explorer"
                             Width="34" Height="30" Padding="0" Margin="0,0,8,4"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             IsVisible="{Binding CleanupInstalled}">

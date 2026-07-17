@@ -135,7 +135,8 @@
                                          connected one to defaults — the tooltip + confirm dialog say which. -->
                                     <Button Command="{Binding ForgetCommand}"
                                             Theme="{StaticResource GhostButton}" Padding="9,6"
-                                            ToolTip.Tip="{Binding ForgetTooltip}">
+                                            ToolTip.Tip="{Binding ForgetTooltip}"
+                                            AutomationProperties.Name="{Binding ForgetTooltip}">
                                         <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
                                                   Foreground="{Binding $parent[Button].Foreground}" />
                                     </Button>

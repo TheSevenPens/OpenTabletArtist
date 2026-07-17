@@ -23,6 +23,7 @@
                                    FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                    VerticalAlignment="Center" />
                         <Button ToolTip.Tip="Clear hotkey"
+                                AutomationProperties.Name="Clear hotkey"
                                 Command="{Binding ClearMonitorHotkeyCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="6,4"
                                 VerticalAlignment="Center">
@@ -60,6 +61,7 @@
                                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                                VerticalAlignment="Center" />
                                     <Button ToolTip.Tip="Clear hotkey"
+                                            AutomationProperties.Name="Clear hotkey"
                                             Command="{Binding $parent[ItemsControl].DataContext.ClearProfileHotkeyCommand}"
                                             CommandParameter="{Binding Name}"
                                             Theme="{StaticResource GhostButton}" Padding="6,4"

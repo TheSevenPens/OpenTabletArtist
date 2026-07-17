@@ -15,6 +15,7 @@
                              in an action row, so the standard 34x30 icon button would tower over the label. -->
                         <Button Command="{Binding RefreshVmultiDetectionCommand}"
                                 ToolTip.Tip="Refresh VMulti status"
+                                AutomationProperties.Name="Refresh VMulti status"
                                 Theme="{StaticResource GhostButton}" Width="26" Height="22" Padding="0"
                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 Margin="8,0,0,0" VerticalAlignment="Center">
@@ -48,6 +49,7 @@
                             Command="{Binding OpenFolderCommand}"
                             CommandParameter="C:\Program Files\VMulti"
                             ToolTip.Tip="Open the VMulti install folder in File Explorer"
+                            AutomationProperties.Name="Open the VMulti install folder in File Explorer"
                             Width="34" Height="30" Padding="0" Margin="0,0,8,4"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                         <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"

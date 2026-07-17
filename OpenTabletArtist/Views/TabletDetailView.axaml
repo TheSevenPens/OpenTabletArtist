@@ -239,6 +239,7 @@
                     </Border>
                     <Button Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Reload settings from daemon"
+                            AutomationProperties.Name="Reload settings from daemon"
                             Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                         <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
