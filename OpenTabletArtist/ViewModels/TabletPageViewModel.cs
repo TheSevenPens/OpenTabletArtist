@@ -76,34 +76,58 @@ public partial class TabletPageViewModel : ObservableObject
     /// when it survives; otherwise pick the default (first detected, or the last-used one).</summary>
     public void SetTablets(IReadOnlyList<(string Name, bool IsDetected)> ordered)
     {
-        // When the tablets + order are unchanged (the ~15s data poll normally reports the same set),
-        // reconcile IN PLACE instead of Clear()+rebuild. A rebuild transiently nulls the ComboBox's bound
-        // selection, which nulls Content and recreates the hosted detail view — snapping it back to its
-        // first (About) tab every poll. Updating the detection dots in place avoids that churn entirely.
-        bool sameSet = Tablets.Count == ordered.Count
-            && Tablets.Zip(ordered, (existing, next) => Eq(existing.Name, next.Name)).All(match => match);
-        if (sameSet)
+        // Reconcile the choice list fully IN PLACE — never Clear()+rebuild, and never drop the currently
+        // selected item unless it's actually gone. A rebuild (or removing the selected item) momentarily
+        // clears the ComboBox's selection, which nulls the TwoWay-bound SelectedTablet → Content, flashing
+        // the empty switcher / "no tablet" hero before the reselection restores it. Preserving surviving
+        // item instances — the selected one above all — keeps the ComboBox's selection valid throughout,
+        // and also avoids snapping the hosted detail view back to its first tab on every ~15s poll.
+
+        // 1) Drop tablets that are no longer present.
+        var wanted = new HashSet<string>(ordered.Select(o => o.Name), StringComparer.OrdinalIgnoreCase);
+        for (int i = Tablets.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(Tablets[i].Name))
+                Tablets.RemoveAt(i);
+
+        // 2) Insert new tablets and reorder to match `ordered`, refreshing detection on survivors in place.
+        //    At step i, positions 0..i-1 already match ordered[0..i-1], so the item for ordered[i] (if it
+        //    survives) is at some index >= i — Move() it up without disturbing the settled prefix.
+        for (int i = 0; i < ordered.Count; i++)
         {
-            for (int i = 0; i < ordered.Count; i++) Tablets[i].IsDetected = ordered[i].IsDetected;
-            if (SelectedTablet == null && Tablets.Count > 0)
+            var (name, detected) = ordered[i];
+            int at = IndexOfTablet(name);
+            if (at >= 0)
             {
-                _suppressPersist = true;
-                SelectedTablet = ChooseSelection(null);
-                _suppressPersist = false;
+                Tablets[at].IsDetected = detected;
+                if (at != i) Tablets.Move(at, i);
             }
-            return;
+            else
+            {
+                Tablets.Insert(i, new TabletChoiceViewModel(name, detected));
+            }
         }
 
-        // Membership or order actually changed (a tablet was added / removed / reordered) — rebuild, keeping
-        // the current selection where possible.
-        var previous = SelectedTablet?.Name;
-        Tablets.Clear();
-        foreach (var (name, detected) in ordered)
-            Tablets.Add(new TabletChoiceViewModel(name, detected));
+        // 3) Selection: keep the current tablet when it survived (its instance is still in the list, so the
+        //    ComboBox never lost it); otherwise pick the default (first detected / last-used). Reconciliation
+        //    isn't a user choice, so it must not clobber the stored last-used.
+        if (SelectedTablet == null || !wanted.Contains(SelectedTablet.Name))
+        {
+            _suppressPersist = true;
+            SelectedTablet = ChooseSelection(SelectedTablet?.Name);
+            _suppressPersist = false;
+        }
+        else
+        {
+            // Kept the selection (no OnSelectedTabletChanged fires) — resync the per-item flag after moves.
+            foreach (var t in Tablets) t.IsSelected = ReferenceEquals(t, SelectedTablet);
+        }
+    }
 
-        _suppressPersist = true;      // reconciliation is not a user choice — don't clobber the stored last-used
-        SelectedTablet = ChooseSelection(previous);
-        _suppressPersist = false;
+    private int IndexOfTablet(string name)
+    {
+        for (int i = 0; i < Tablets.Count; i++)
+            if (Eq(Tablets[i].Name, name)) return i;
+        return -1;
     }
 
     // Default-selection policy (#542): keep the current tablet if it's still present; otherwise default to

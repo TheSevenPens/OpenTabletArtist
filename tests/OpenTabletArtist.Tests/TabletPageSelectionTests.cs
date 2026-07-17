@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 
@@ -151,5 +152,45 @@ public class TabletPageSelectionTests
         vm.SetTablets(Tablets(("Wacom", false)));
         Assert.Same(choice, vm.SelectedTablet);
         Assert.False(vm.SelectedTablet!.IsDetected);
+    }
+
+    [Fact]
+    public void MembershipChange_AddingTablet_PreservesSelectionInstance()
+    {
+        // Adding a tablet is a membership change, but the previously-selected item must survive by instance
+        // — a Clear()+rebuild would drop it, flashing the empty switcher / "no tablet" hero (#pen-split).
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true)));
+        vm.Select("Detected B");
+        var before = vm.SelectedTablet;
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true), ("Detected C", true)));
+        Assert.Same(before, vm.SelectedTablet);
+        Assert.Equal(3, vm.Tablets.Count);
+    }
+
+    [Fact]
+    public void MembershipChange_RemovingOtherTablet_PreservesSelectionInstance()
+    {
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true), ("Detected C", true)));
+        vm.Select("Detected B");
+        var before = vm.SelectedTablet;
+        // A different tablet (C) drops out; the selected one (B) keeps its instance.
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true)));
+        Assert.Same(before, vm.SelectedTablet);
+        Assert.Equal(2, vm.Tablets.Count);
+    }
+
+    [Fact]
+    public void Reorder_PreservesSelectionInstanceAndReordersInPlace()
+    {
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("A", true), ("B", true), ("C", true)));
+        vm.Select("B");
+        var before = vm.SelectedTablet;
+        // The poll reports the same set in a new order; selection survives and the list is reordered.
+        vm.SetTablets(Tablets(("C", true), ("B", true), ("A", true)));
+        Assert.Same(before, vm.SelectedTablet);
+        Assert.Equal(new[] { "C", "B", "A" }, vm.Tablets.Select(t => t.Name).ToArray());
     }
 }
