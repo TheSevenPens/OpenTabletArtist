@@ -35,6 +35,7 @@
                         Margin="0,2,0,0" ToolTip.Tip="{Binding HelpDiscordUrl}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PathIcon Data="{StaticResource IconHelpCircle}" Width="15" Height="15"
+                                  Foreground="{Binding $parent[Button].Foreground}"
                                   VerticalAlignment="Center" />
                         <TextBlock Text="Open the Drawing Tablet Discord" VerticalAlignment="Center" />
                     </StackPanel>
