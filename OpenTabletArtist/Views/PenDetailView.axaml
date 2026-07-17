@@ -44,26 +44,10 @@
         <!-- Toolbar row: switcher · pivots (movement · inputs · buttons) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Tablet switcher — bound to the hosting PenPageViewModel (ancestor). -->
-                <ComboBox Grid.Column="0"
-                          VerticalAlignment="Center" Margin="0,0,24,0" MinWidth="210"
-                          ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
-                          SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
-                          ToolTip.Tip="Switch between your connected and remembered tablets">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-
+            <Grid ColumnDefinitions="*,Auto">
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
                      #XTab.IsChecked. "buttons" hides when the pen has no barrel buttons. -->
-                <WrapPanel Grid.Column="1" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+                <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                     <RadioButton Content="movement" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
@@ -73,8 +57,23 @@
                                  IsVisible="{Binding HasPenButtons}" />
                 </WrapPanel>
 
-                <!-- Compact actions: D (detection status) · R (refresh) · F (forget). -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <!-- Right cluster: tablet switcher + detection status + refresh, grouped together so the
+                     pivots start at the left edge like every other page (#switcher-right). -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Tablet switcher — bound to the hosting PenPageViewModel (ancestor). -->
+                    <ComboBox VerticalAlignment="Center" MinWidth="210" Margin="0,0,4,0"
+                              ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
+                              SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
+                              ToolTip.Tip="Switch between your connected and remembered tablets">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     <Border Classes="statusSquare" Classes.on="{Binding IsTabletDetected}"
                             Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
                             ToolTip.Tip="{Binding DetectionText}">

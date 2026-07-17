@@ -179,23 +179,8 @@
         <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7"
                 IsVisible="{Binding !DynamicsOnly}">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Tablet switcher — bound to the hosting TabletPageViewModel (ancestor). Embedded only. -->
-                <ComboBox Grid.Column="0" IsVisible="{Binding !ShowHeader}"
-                          VerticalAlignment="Center" Margin="0,0,24,0" MinWidth="210"
-                          ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
-                          SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
-                          ToolTip.Tip="Switch between your connected and remembered tablets">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            <WrapPanel Grid.Column="1" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="*,Auto">
+            <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                 <RadioButton Content="about" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <RadioButton Content="dynamics" x:Name="DynamicsTab"
@@ -225,11 +210,25 @@
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding ShowJsonTab}" />
             </WrapPanel>
-                <!-- Compact actions: D (detection status) · R (refresh) · F (forget). Placeholder first
-                     letters for now — icons drop in later. Embedded only; the ComplexHeader carries these
-                     in the tray dialog. -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                <!-- Right cluster: tablet switcher + detection status + refresh, grouped together so the
+                     pivots start at the left edge like every other page (#switcher-right). Embedded only;
+                     the tray dialog uses the ComplexHeader above instead. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                             VerticalAlignment="Center" IsVisible="{Binding !ShowHeader}">
+                    <!-- Tablet switcher — bound to the hosting TabletPageViewModel (ancestor). -->
+                    <ComboBox VerticalAlignment="Center" MinWidth="210" Margin="0,0,4,0"
+                              ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
+                              SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
+                              ToolTip.Tip="Switch between your connected and remembered tablets">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     <Border Classes="statusSquare" Classes.on="{Binding IsTabletDetected}"
                             Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
                             ToolTip.Tip="{Binding DetectionText}">
