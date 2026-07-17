@@ -250,7 +250,7 @@
                 <ControlTemplate>
                     <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                FontFamily="{DynamicResource DisplayFontFamily}"
-                               FontSize="30" FontWeight="Normal" LetterSpacing="-0.3"
+                               FontSize="26" FontWeight="Light" LetterSpacing="-0.2"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </ControlTemplate>
             </Setter>
@@ -259,7 +259,7 @@
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Word">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontWeight" Value="Normal" />
             </Style>
         </ControlTheme>
 
