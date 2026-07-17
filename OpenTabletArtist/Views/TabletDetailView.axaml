@@ -203,6 +203,12 @@
                 <RadioButton Content="mapping" x:Name="MappingTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding HasAreaMapping}" />
+                <!-- Calibration was merged into MAPPING (#252) but has since grown its own status card,
+                     three density cards and backup/restore — enough to own a pivot. Gated the same as
+                     MAPPING so it stays reachable in exactly the cases it used to be. -->
+                <RadioButton Content="calibration" x:Name="CalibrationTab"
+                             Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
+                             IsVisible="{Binding HasAreaMapping}" />
                 <RadioButton Content="controls" x:Name="ControlsTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
@@ -366,14 +372,14 @@
                         <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Row="0" Text="CHOOSE DISPLAY" Classes="SectionLabel"
                                        VerticalAlignment="Center" />
-                            <!-- Apply mapping leads the row (primary action), then the display helpers. -->
+                            <!-- Apply leads the row (primary action), then the display helpers. The manual
+                                 "Refresh Display Settings" button is gone: OnScreensChanged already fires
+                                 RefreshDisplaysCommand whenever Windows reports a display change, so the
+                                 list refreshes itself. -->
                             <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                <Button Content="Apply mapping" Command="{Binding ApplyDisplayCommand}"
+                                <Button Content="Apply" Command="{Binding ApplyDisplayCommand}"
                                         ToolTip.Tip="Map the tablet to the selected display"
                                         Theme="{StaticResource AccentButton}" Padding="10,5" Margin="0,0,6,4" />
-                                <Button Content="Refresh Display Settings" Command="{Binding RefreshDisplaysCommand}"
-                                        ToolTip.Tip="Refresh displays from Windows"
-                                        Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,6,4" />
                                 <Button Content="Display Settings"
                                         Command="{Binding OpenDisplaySettingsCommand}"
                                         ToolTip.Tip="Open Windows Display Settings"
@@ -523,8 +529,15 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Calibration section (merged into MAPPING, #252). -->
-                <TextBlock Text="CALIBRATION" Classes="TabTitle" Margin="0,28,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Calibration tab content: split out of MAPPING (#252 merged it in; it has outgrown that). -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #CalibrationTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #CalibrationTab.IsChecked}">
+            <StackPanel>
+                <TextBlock Text="CALIBRATION" Classes="TabTitle" Margin="0,0,0,12" />
 
                 <!-- Current calibration status card — sits before the density options so the user sees
                      the current state (and can clear it) first. Leads with which display the calibration
