@@ -139,7 +139,7 @@
                                     <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="36" Padding="12,0"
                                             Background="{DynamicResource GlassBgBrush}"
                                             BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1.5"
-                                            CornerRadius="7">
+                                            CornerRadius="0">
                                         <TextBlock Text="{Binding Text}" FontWeight="SemiBold"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />

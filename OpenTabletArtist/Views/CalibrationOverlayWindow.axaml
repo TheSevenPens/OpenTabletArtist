@@ -13,7 +13,7 @@
         <!-- Instruction + actions. Colours (panel, text, buttons, targets) are set in code-behind so
              the overlay can flip between light/dark independently of the app theme. -->
         <Border x:Name="Panel" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,48"
-                Background="#CC1B1B28" BorderThickness="1" CornerRadius="12" Padding="20,16" MaxWidth="640"
+                Background="#CC1B1B28" BorderThickness="1" CornerRadius="0" Padding="20,16" MaxWidth="640"
                 BoxShadow="0 8 28 0 #66000000">
             <StackPanel Spacing="12">
                 <Button x:Name="ThemeToggle" Content="Light mode" Click="OnToggleTheme"

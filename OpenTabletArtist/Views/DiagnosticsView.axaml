@@ -90,9 +90,9 @@
                                    FontFamily="{DynamicResource MonoFontFamily}"
                                    Foreground="{DynamicResource AccentBrush}" />
                         <!-- Pressure bar -->
-                        <Border Height="6" CornerRadius="3" Margin="0,4,0,0"
+                        <Border Height="6" CornerRadius="0" Margin="0,4,0,0"
                                 Background="{DynamicResource GlassBgBrush}" ClipToBounds="True">
-                            <Border CornerRadius="3" HorizontalAlignment="Left"
+                            <Border CornerRadius="0" HorizontalAlignment="Left"
                                     Background="{DynamicResource AccentBrush}">
                                 <Border.Width>
                                     <MultiBinding>

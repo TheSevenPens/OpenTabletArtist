@@ -106,7 +106,7 @@
             <!-- Active per-app profile (#167): a mapped app is in focus and its snapshot is applied live. -->
             <Border IsVisible="{Binding PerAppSwitch.HasActiveProfile}"
                     Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+                    BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
                 <TextBlock Text="{Binding PerAppSwitch.ActiveProfile, StringFormat='App preset: {0}'}"
                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                            TextWrapping="Wrap" MaxWidth="280" />
@@ -116,7 +116,7 @@
                  the daemon, NOT your saved default. Persistent while overridden. -->
             <Border IsVisible="{Binding ProfileSwitch.HasOverride}"
                     Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+                    BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
                 <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Preset override: {0}'}"
                            FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                            TextWrapping="Wrap" MaxWidth="280" />
@@ -130,7 +130,7 @@
     <Border VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,20"
             IsVisible="{Binding Connection.ShowSaveStatus}"
             Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
-            BorderThickness="1" CornerRadius="8" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
+            BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
         <TextBlock Text="{Binding Connection.SaveStatusText}" Classes="saveStatus"
                    Classes.failed="{Binding Connection.SaveFailed}"
                    FontSize="11" TextWrapping="Wrap" MaxWidth="300" />

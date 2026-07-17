@@ -12,7 +12,7 @@
         <!-- Foreign-daemon guard: this feature writes to whatever daemon is connected; snapshots only
              match the app-owned daemon (#167). -->
         <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
-                BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18"
+                BorderThickness="1" CornerRadius="0" Padding="14,10" Margin="0,0,0,18"
                 IsVisible="{Binding IsForeignDaemon}">
             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                        Text="Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running — its settings and preset files may not match yours. Stop that daemon (or let OpenTabletArtist manage it) to use this feature." />

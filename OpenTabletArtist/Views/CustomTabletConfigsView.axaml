@@ -38,7 +38,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{DynamicResource GlassBgBrush}"
-                                    CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                    CornerRadius="0" Padding="12,8" Margin="0,0,0,6">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
@@ -101,7 +101,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{DynamicResource GlassBgBrush}"
-                                    CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                    CornerRadius="0" Padding="12,8" Margin="0,0,0,6">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"

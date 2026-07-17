@@ -39,7 +39,7 @@
                                            IsVisible="{Binding Version, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
                             <Border Grid.Column="1" Background="{DynamicResource AccentMutedBrush}"
-                                    CornerRadius="10" Padding="10,3" VerticalAlignment="Center">
+                                    CornerRadius="0" Padding="10,3" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" />
                             </Border>

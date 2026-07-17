@@ -78,7 +78,7 @@
                             <ContentPresenter Content="{TemplateBinding Content}"
                                               ContentTemplate="{TemplateBinding ContentTemplate}"
                                               VerticalAlignment="Top" />
-                            <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="8"
+                            <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="0"
                                     Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False">
                                 <TextBlock Text="Current mode" Foreground="White" FontWeight="SemiBold" />
                             </Border>
@@ -216,7 +216,7 @@
                 <ControlTemplate>
                     <!-- Compact status pill: a status-colored outline + text. No translucent fill (the old
                          muted-tint band read oddly over the Sakura backdrop, #300). -->
-                    <Border x:Name="PART_Pill" CornerRadius="16" Padding="12,7"
+                    <Border x:Name="PART_Pill" CornerRadius="0" Padding="12,7"
                             Background="Transparent"
                             BorderThickness="1.5" BorderBrush="{DynamicResource TextMutedBrush}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -226,7 +226,7 @@
                             <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
                                     Background="{DynamicResource AccentMutedBrush}"
                                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="6,1" Margin="10,0,0,0">
+                                    CornerRadius="0" Padding="6,1" Margin="10,0,0,0">
                                 <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" />
                             </Border>
@@ -304,7 +304,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="0"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
                                           HorizontalContentAlignment="Center"
@@ -333,7 +333,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="0"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
                                           HorizontalContentAlignment="Center"
@@ -361,9 +361,9 @@
                          indicator bar — so the current item reads the
                          same across both navigation levels. The indicator is always laid out (only its
                          colour changes when checked) so selecting can't shift the label. -->
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="8,3.92">
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="0" Padding="8,3.92">
                         <Grid ColumnDefinitions="Auto,8,*">
-                            <Border x:Name="Indicator" Width="3" Height="20" CornerRadius="2"
+                            <Border x:Name="Indicator" Width="3" Height="20" CornerRadius="0"
                                     Background="Transparent" VerticalAlignment="Center"
                                     HorizontalAlignment="Left" Margin="-4,0,0,0" />
                             <TextBlock Grid.Column="2" x:Name="Label" Text="{TemplateBinding Content}"
@@ -400,7 +400,7 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border x:Name="Bd" Background="{DynamicResource ErrorBrush}" CornerRadius="8"
+                    <Border x:Name="Bd" Background="{DynamicResource ErrorBrush}" CornerRadius="0"
                             Padding="{TemplateBinding Padding}"
                             BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1">
                         <ContentPresenter Content="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Static conv:UpperCaseConverter.Instance}}"
@@ -541,7 +541,7 @@
     <Style Selector="Border.severityBar">
         <Setter Property="Width" Value="40" />
         <Setter Property="MinHeight" Value="52" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="0" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="Background" Value="{DynamicResource InfoBrush}" />
     </Style>

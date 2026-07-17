@@ -5,9 +5,9 @@
              x:Name="Root">
     <!-- Compact trigger: the current colour + its hex/RGB (#563). Clicking opens the palette (#555) as a
          flyout, so the grid doesn't take up page space inline. -->
-    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="8">
+    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="0">
         <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
-            <Border Width="20" Height="20" CornerRadius="4"
+            <Border Width="20" Height="20" CornerRadius="0"
                     BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
                 <Border.Background>
                     <SolidColorBrush Color="{Binding #Root.Color}" />
@@ -40,7 +40,7 @@
                             <Setter Property="Margin" Value="2" />
                             <Setter Property="Template">
                                 <ControlTemplate>
-                                    <Border x:Name="ring" BorderThickness="2.5" CornerRadius="6"
+                                    <Border x:Name="ring" BorderThickness="2.5" CornerRadius="0"
                                             BorderBrush="Transparent" Padding="2">
                                         <ContentPresenter Content="{TemplateBinding Content}"
                                                           ContentTemplate="{TemplateBinding ContentTemplate}" />
@@ -57,7 +57,7 @@
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Width="22" Height="22" CornerRadius="4"
+                            <Border Width="22" Height="22" CornerRadius="0"
                                     BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
                                 <Border.Background>
                                     <SolidColorBrush Color="{Binding}" />

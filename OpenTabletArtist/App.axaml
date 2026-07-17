@@ -49,6 +49,12 @@
                  Sized to fit the longest tab name in the app ("PRESSURE DYNAMICS" / "POSITION DYNAMICS"). -->
             <sys:Double x:Key="TabRailWidth">160</sys:Double>
 
+            <!-- Square everything (Metro/Zune). Overriding Fluent's control + overlay corner radii squares
+                 the built-in controls (ComboBox, TextBox, CheckBox, Slider, flyouts/menus/popups); the
+                 app's own cards, buttons, chips, and badges are squared at their source. -->
+            <CornerRadius x:Key="ControlCornerRadius">0</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+
             <conv:InverseBoolConverter x:Key="InvBool" />
             <conv:EnumEqualsConverter x:Key="EnumEquals" />
             <conv:NotNullConverter x:Key="NotNull" />

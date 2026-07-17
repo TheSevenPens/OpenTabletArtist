@@ -28,7 +28,7 @@
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0" Text="Supported tablets" FontSize="17" FontWeight="SemiBold"
                            VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                <Border Grid.Column="1" Background="{DynamicResource AccentMutedBrush}" CornerRadius="20"
+                <Border Grid.Column="1" Background="{DynamicResource AccentMutedBrush}" CornerRadius="0"
                         Padding="10,3" VerticalAlignment="Center">
                     <TextBlock Text="{Binding CountText}" FontFamily="{DynamicResource MonoFontFamily}"
                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
@@ -65,7 +65,7 @@
         </Grid>
 
         <!-- The list -->
-        <Border Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+        <Border Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="0">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="List" ItemsSource="{Binding Rows}">
                     <ItemsControl.ItemTemplate>
@@ -78,7 +78,7 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <Border Background="{DynamicResource SuccessBrush}" CornerRadius="20"
+                                        <Border Background="{DynamicResource SuccessBrush}" CornerRadius="0"
                                                 Padding="7,1" VerticalAlignment="Center" IsVisible="{Binding IsDetected}">
                                             <TextBlock Text="Detected" Foreground="White" FontSize="10" FontWeight="SemiBold" />
                                         </Border>
@@ -92,7 +92,7 @@
                                     <TextBlock Grid.Column="4" Text="{Binding Buttons}" HorizontalAlignment="Right"
                                                VerticalAlignment="Top" FontFamily="{DynamicResource MonoFontFamily}"
                                                Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <Border Grid.Column="5" CornerRadius="20" Padding="9,1" Margin="12,0,0,0"
+                                    <Border Grid.Column="5" CornerRadius="0" Padding="9,1" Margin="12,0,0,0"
                                             HorizontalAlignment="Left" VerticalAlignment="Top" IsVisible="{Binding HasStatus}"
                                             Classes.stSupported="{Binding IsSupported}"
                                             Classes.stQuirks="{Binding IsQuirks}"
