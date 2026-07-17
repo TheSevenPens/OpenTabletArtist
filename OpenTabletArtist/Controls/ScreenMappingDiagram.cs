@@ -124,7 +124,7 @@ public sealed class ScreenMappingDiagram : Control
 
         // ── Tablet (full + effective area) — rotation-aware so a turned tablet reads the same here as on
         //    the Active Area tab (#199): the full outline is drawn turned as physically held (portrait for
-        //    90°/270°) with a top-edge marker, while the effective area stays upright. ──
+        //    90°/270°), while the effective area stays upright. ──
         var area = Area;
         double fullW = area?.FullWidth ?? 16, fullH = area?.FullHeight ?? 10;
         double rot = area != null ? (((area.Rotation % 360) + 360) % 360) : 0;
@@ -153,7 +153,6 @@ public sealed class ScreenMappingDiagram : Control
             using (ctx.PushTransform(m))
             {
                 ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
-                DrawTopMarker(ctx, fullRect, accent);
             }
         }
         DrawCentered(ctx, fullRect, "Tablet", 12, Brushes.White);
@@ -210,22 +209,6 @@ public sealed class ScreenMappingDiagram : Control
         if (w <= 0 || h <= 0 || box.Width <= 0 || box.Height <= 0) return box;
         double s = Math.Min(box.Width / w, box.Height / h);
         return new Rect(box.X + (box.Width - w * s) / 2, box.Y + (box.Height - h * s) / 2, w * s, h * s);
-    }
-
-    // A small triangle on the tablet's top edge, marking which way it's turned (mirrors the Active Area
-    // diagram). Drawn inside the rotation transform so it rides the turned edge.
-    private static void DrawTopMarker(DrawingContext ctx, Rect tablet, Color accent)
-    {
-        double cx = tablet.X + tablet.Width / 2;
-        double s = Math.Clamp(tablet.Width * 0.06, 5, 12);
-        double top = tablet.Y + 4;
-        var geo = new PolylineGeometry(new[]
-        {
-            new Point(cx, top),
-            new Point(cx - s, top + s * 1.4),
-            new Point(cx + s, top + s * 1.4),
-        }, true);
-        ctx.DrawGeometry(new SolidColorBrush(accent), null, geo);
     }
 
     private static void DrawCentered(DrawingContext ctx, Rect area, string text, double size, IBrush brush)

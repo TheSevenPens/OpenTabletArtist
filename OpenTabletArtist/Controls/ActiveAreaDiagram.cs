@@ -259,7 +259,7 @@ public sealed class ActiveAreaDiagram : Control
         double ew = _preview?.Width ?? area.EffWidth, eh = _preview?.Height ?? area.EffHeight;
         double ecx = _preview?.CenterX ?? area.EffCenterX, ecy = _preview?.CenterY ?? area.EffCenterY;
 
-        // Tablet outline (turned as physically held when rotated) + a top-edge orientation marker.
+        // Tablet outline, turned as physically held when rotated (portrait for 90/270).
         var tabletRect = new Rect(l.Center.X - fullW * l.Scale / 2, l.Center.Y - fullH * l.Scale / 2,
                                   fullW * l.Scale, fullH * l.Scale);
         if (rot < 0.5)
@@ -274,7 +274,6 @@ public sealed class ActiveAreaDiagram : Control
             using (ctx.PushTransform(m))
             {
                 ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
-                DrawTopMarker(ctx, tabletRect, accent);
             }
         }
 
@@ -299,20 +298,6 @@ public sealed class ActiveAreaDiagram : Control
         if (w <= 0 || h <= 0 || box.Width <= 0 || box.Height <= 0) return box;
         double s = Math.Min(box.Width / w, box.Height / h);
         return new Rect(box.X + (box.Width - w * s) / 2, box.Y + (box.Height - h * s) / 2, w * s, h * s);
-    }
-
-    private static void DrawTopMarker(DrawingContext ctx, Rect tablet, Color accent)
-    {
-        double cx = tablet.X + tablet.Width / 2;
-        double s = Math.Clamp(tablet.Width * 0.06, 7, 16);
-        double top = tablet.Y + 6;
-        var geo = new PolylineGeometry(new[]
-        {
-            new Point(cx, top),
-            new Point(cx - s, top + s * 1.4),
-            new Point(cx + s, top + s * 1.4),
-        }, true);
-        ctx.DrawGeometry(new SolidColorBrush(accent), null, geo);
     }
 
     private static void DrawCentered(DrawingContext ctx, Rect area, string text, double size, IBrush brush)
