@@ -40,6 +40,10 @@ public partial class TabletPageViewModel : ObservableObject
     private readonly Func<string?> _getLastUsed;
     private readonly Action<string> _setLastUsed;
     private bool _suppressPersist;
+    // Last real selection + a re-entrancy guard, used to shrug off the spurious null the ComboBox writes
+    // back when its bound ItemsSource is (re)set during a page crossfade. See OnSelectedTabletChanged.
+    private TabletChoiceViewModel? _lastSelected;
+    private bool _restoringSelection;
 
     public TabletPageViewModel(Func<string, TabletDetailViewModel?> resolve,
         Func<string?>? getLastUsed = null, Action<string>? setLastUsed = null)
@@ -64,6 +68,21 @@ public partial class TabletPageViewModel : ObservableObject
 
     partial void OnSelectedTabletChanged(TabletChoiceViewModel? value)
     {
+        // Avalonia quirk: when the ComboBox's bound ItemsSource is (re)set — e.g. this switcher is
+        // re-created as the page crossfades in — its SelectionModel resets and the TwoWay SelectedItem
+        // binding writes a spurious null back here, which would drop the selection → Content and flash the
+        // "no tablet" hero. The items are already in place by then, so keep the previous selection and let
+        // the binding re-sync the ComboBox to it. A genuine "nothing selected" only happens with no tablets.
+        if (value == null && !_restoringSelection && Tablets.Count > 0
+            && _lastSelected is { } keep && Tablets.Contains(keep))
+        {
+            _restoringSelection = true;
+            SelectedTablet = keep;   // re-assert → re-pushes to the ComboBox, leaves Content intact
+            _restoringSelection = false;
+            return;
+        }
+
+        _lastSelected = value;
         Content = value != null ? _resolve(value.Name) : null;
         if (Content != null) Content.ShowHeader = false; // the page owns the switcher + status/actions header
         OnPropertyChanged(nameof(Content));

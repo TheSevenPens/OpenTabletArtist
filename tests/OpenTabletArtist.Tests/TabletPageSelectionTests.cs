@@ -193,4 +193,29 @@ public class TabletPageSelectionTests
         Assert.Same(before, vm.SelectedTablet);
         Assert.Equal(new[] { "C", "B", "A" }, vm.Tablets.Select(t => t.Name).ToArray());
     }
+
+    [Fact]
+    public void SpuriousNull_WithTabletsPresent_KeepsSelection()
+    {
+        // The bound ComboBox writes a null back when its ItemsSource is (re)set as the page crossfades in.
+        // With tablets still present that must be ignored so the selection / Content / switcher survive.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Detected B", true)));
+        vm.Select("Detected B");
+        var before = vm.SelectedTablet;
+        vm.SelectedTablet = null;                 // simulate the ComboBox's spurious writeback
+        Assert.Same(before, vm.SelectedTablet);
+        Assert.True(vm.HasTablet);
+    }
+
+    [Fact]
+    public void Null_WithNoTablets_IsRespected()
+    {
+        // A genuine "nothing selected" (no tablets at all) must still be allowed through.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets());
+        vm.SelectedTablet = null;
+        Assert.Null(vm.SelectedTablet);
+        Assert.False(vm.HasTablet);
+    }
 }
