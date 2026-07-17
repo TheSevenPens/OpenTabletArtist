@@ -765,6 +765,10 @@
                       Opacity="{Binding #DynamicsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
+              <!-- Two columns (#dynamics-2col): pressure on the left, position + tilt on the right. -->
+              <Grid ColumnDefinitions="*,32,*">
+                <!-- LEFT — pressure: live bar · binary · curve · smoothing. -->
+                <StackPanel Grid.Column="0">
                 <!-- Header row: title + reset. There's no On/Off — the filter is always enabled internally;
                      you neutralize it with a linear curve and zero smoothing. -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
@@ -817,9 +821,7 @@
                                Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                 </Border>
 
-                <StackPanel>
-
-                    <!-- Pressure curve: chart + presets + softness + dead zone + node read-outs -->
+                <!-- Pressure curve: chart + presets + softness + dead zone + node read-outs -->
                     <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
@@ -922,8 +924,12 @@
                         </StackPanel>
                     </Border>
 
+                </StackPanel>
+
+                <!-- RIGHT — position + tilt. -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Top">
                     <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). -->
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,28,2,4">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
                         <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
@@ -959,8 +965,8 @@
                                                 IsChecked="{Binding DisableTilt}" />
                         </StackPanel>
                     </Border>
-
                 </StackPanel>
+              </Grid>
             </StackPanel>
         </ScrollViewer>
 
