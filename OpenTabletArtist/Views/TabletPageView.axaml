@@ -1,32 +1,9 @@
 <UserControl x:Class="OpenTabletArtist.Views.TabletPageView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:conv="using:Avalonia.Data.Converters">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <UserControl.Styles>
-        <!-- Status chip mirroring the detail view's: neutral grey when the selected tablet isn't detected,
-             green when it is (#506). The page owns this header instead of the hosted detail view (#542). -->
-        <Style Selector="Border.tabletStatusChip">
-            <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="MinWidth" Value="104" />
-        </Style>
-        <Style Selector="Border.tabletStatusChip.connected">
-            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
-        </Style>
-        <!-- Status dot in the switcher dropdown rows. -->
-        <Style Selector="Ellipse.statusDot">
-            <Setter Property="Width" Value="9" />
-            <Setter Property="Height" Value="9" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Fill" Value="{DynamicResource NeutralBrush}" />
-        </Style>
-        <Style Selector="Ellipse.statusDot.on">
-            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
-        </Style>
-    </UserControl.Styles>
+    <!-- The switcher/status/dot styles that used to live here moved into the hosted TabletDetailView when
+         it took over the toolbar row (#542); this page only hosts that view + the no-tablet hero. -->
 
     <!-- DataContext is a TabletPageViewModel. The single TABLET page (#542): a switcher dropdown of every
          known tablet + the selected one's headerless detail view, or a placeholder when none is known. -->

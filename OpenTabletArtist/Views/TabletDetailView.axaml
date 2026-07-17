@@ -21,7 +21,7 @@
         <!-- "In use" pill shown on the current calibration card. -->
         <Style Selector="Border.calBadge">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="8,2" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -34,7 +34,7 @@
              state: neutral grey when the tablet isn't detected, green when it is. -->
         <Style Selector="Border.tabletStatusChip">
             <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="10,6" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
