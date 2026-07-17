@@ -333,6 +333,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task ForgetTabletByNameAsync(string name)
     {
+        // Confirm first — it's a small icon on the Home cards now, and removing a tablet's saved settings
+        // can't be undone (#forget-home). Covers both forget paths (Home cards + the tray dialog header).
+        if (!await _dialogs.ShowConfirmAsync("Forget this tablet?",
+                $"\"{name}\" and its saved settings will be removed. This can't be undone."))
+            return;
+
         var settings = _session.CurrentSettings;
         var profile = settings?.Profiles.FirstOrDefault(p => p.Tablet == name);
         if (settings != null && profile != null)
