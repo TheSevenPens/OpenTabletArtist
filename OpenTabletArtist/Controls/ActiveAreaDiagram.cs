@@ -22,7 +22,6 @@ public sealed class ActiveAreaDiagram : Control
 {
     private static readonly IBrush FullFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
     private static readonly IPen FullBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
-    private static readonly IBrush FullLabel = new SolidColorBrush(Color.FromArgb(0xDD, 0xFF, 0xFF, 0xFF));
     private static Typeface UiFace => AppFonts.UiTypeface();
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
 
@@ -266,7 +265,6 @@ public sealed class ActiveAreaDiagram : Control
         if (rot < 0.5)
         {
             ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
-            ctx.DrawText(Text("Full tablet area", 11, FullLabel), new Point(tabletRect.X + 8, tabletRect.Y + 6));
         }
         else
         {
@@ -278,7 +276,6 @@ public sealed class ActiveAreaDiagram : Control
                 ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
                 DrawTopMarker(ctx, tabletRect, accent);
             }
-            ctx.DrawText(Text("Full tablet area", 11, FullLabel), new Point(box.X + 2, box.Y + 2));
         }
 
         // Effective area (upright), its label, and — when editable — corner handles.

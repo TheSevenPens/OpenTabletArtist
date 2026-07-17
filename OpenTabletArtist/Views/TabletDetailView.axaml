@@ -432,6 +432,12 @@
                                 <TextBlock Text="{Binding ActiveAreaDiagonalText}"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                                <TextBlock Text="Aspect ratio:" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock Text="{Binding ActiveAreaAspectText}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- No digitizer specs for this tablet — nothing to draw. -->

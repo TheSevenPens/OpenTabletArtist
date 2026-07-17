@@ -1928,11 +1928,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// area on every refresh.</summary>
     [ObservableProperty] private double _activeAreaSizePercent = 100;
     private bool _syncingSize;
+    private bool _sizeEditPending;   // a user slider edit is in flight (see OnActiveAreaSizePercentChanged)
     private System.Threading.CancellationTokenSource? _sizeCts;
 
     partial void OnActiveAreaSizePercentChanged(double value)
     {
         if (_syncingSize) return;   // programmatic sync from the stored area, not a user edit
+        // A user edit is now in flight until its debounced apply lands. Guard against the periodic
+        // RefreshTabletArea poll (it fires every few hundred ms) clobbering the slider with the *old*
+        // stored value mid-debounce — that was the "click a new spot, snaps back to the previous value"
+        // bug (#size-snapback).
+        _sizeEditPending = true;
         _sizeCts?.Cancel();
         _sizeCts = new System.Threading.CancellationTokenSource();
         var token = _sizeCts.Token;
@@ -1946,7 +1952,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
         var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
         var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
-        if (dig is not { } d || display == null) return;
+        if (dig is not { } d || display == null) { _sizeEditPending = false; return; }
 
         var max = AreaMappingCalculator.FitForRotation(d.Width, d.Height, display.Width, display.Height, TabletRotation);
         float frac = (float)Math.Clamp(ActiveAreaSizePercent / 100.0, 0.1, 1.0);
@@ -1954,12 +1960,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         float cx = cur?.X ?? d.Width / 2f, cy = cur?.Y ?? d.Height / 2f;
         var clamped = AreaMappingCalculator.ClampArea(max.Width * frac, max.Height * frac, cx, cy,
             TabletRotation, d.Width, d.Height, max.Width * 0.1f);
+        // Clear the guard just before committing: CommitActiveArea mutates _profile synchronously (before
+        // its first await), so from here every write-back reads the new value and is safe to apply.
+        _sizeEditPending = false;
         await CommitActiveArea(clamped.Width, clamped.Height, clamped.X, clamped.Y);
     }
 
     // Reflect the stored area's size into the slider without re-triggering an apply.
     private void UpdateActiveAreaSizePercent()
     {
+        if (_sizeEditPending) return;   // don't overwrite an in-flight user edit with the pre-commit value
         var t = _profile.AbsoluteModeSettings?.Tablet;
         var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
         var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
@@ -1981,6 +1991,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ActiveAreaUsagePercentText));
         OnPropertyChanged(nameof(ActiveAreaDimsPercentText));
         OnPropertyChanged(nameof(ActiveAreaDiagonalText));
+        OnPropertyChanged(nameof(ActiveAreaAspectText));
     }
 
     /// <summary>Show active-area lengths in inches instead of millimetres (the tab's unit toggle). A
@@ -2003,6 +2014,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         : "—";
 
     private static double Diagonal(double w, double h) => System.Math.Sqrt(w * w + h * h);
+
+    /// <summary>Width-to-height aspect ratio of the used vs. full area, e.g. "1.78 active · 1.79 full".
+    /// A mismatch means the active area is shaped differently from the tablet — expected when it's mapped
+    /// to a display whose aspect differs from the tablet's.</summary>
+    public string ActiveAreaAspectText => TabletArea is { EffHeight: > 0, FullHeight: > 0 } a
+        ? $"{a.EffWidth / a.EffHeight:0.00} active  ·  {a.FullWidth / a.FullHeight:0.00} full"
+        : "—";
 
     // Length display helpers: OTD's areas are millimetres; inches = mm / 25.4. Metric shows one decimal
     // (e.g. "269 mm"), imperial two (inches are ~25× larger, so a decimal buys real precision, "10.59 in").
