@@ -18,6 +18,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     private const string OnPageScreenshotKey = "developer.onPageScreenshot";
     private const string ShowDeveloperKey = "developer.showDeveloperPage";
     private const string CutBelowKey = "developer.showCutBelowMinimum";
+    private const string ScreenshotFormatKey = "developer.screenshotFormat";
 
     private readonly bool _loading;
 
@@ -29,6 +30,8 @@ public sealed partial class DeveloperSettings : ObservableObject
         OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
         ShowDeveloperPage = AppSettings.Get(ShowDeveloperKey) == "true";
         ShowCutBelowMinimum = AppSettings.Get(CutBelowKey) == "true";
+        ScreenshotFormat = Enum.TryParse<ScreenshotFormat>(AppSettings.Get(ScreenshotFormatKey), out var fmt)
+            ? fmt : ScreenshotFormat.PNG;
         _loading = false;
     }
 
@@ -45,6 +48,13 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics (#569). Hidden
     /// by default — it's an advanced/rarely-needed option; re-enabled from the Developer tab.</summary>
     [ObservableProperty] private bool _showCutBelowMinimum;
+    /// <summary>Image format the screenshot aids write (#437). PNG by default; JPG or both are options for
+    /// smaller files / attachments.</summary>
+    [ObservableProperty] private ScreenshotFormat _screenshotFormat = ScreenshotFormat.PNG;
+
+    /// <summary>The format choices for the screenshot dropdown.</summary>
+    public ScreenshotFormat[] ScreenshotFormatOptions { get; } =
+        { ScreenshotFormat.PNG, ScreenshotFormat.JPG, ScreenshotFormat.Both };
 
     // Induced health warnings, one per severity, for reviewing/screenshotting the "Needs attention" UI.
     // Session-only (not persisted): fixing one just clears its flag (see ClearInduced).
@@ -71,7 +81,8 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
         propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot)
-                             or nameof(ShowDeveloperPage) or nameof(ShowCutBelowMinimum));
+                             or nameof(ShowDeveloperPage) or nameof(ShowCutBelowMinimum)
+                             or nameof(ScreenshotFormat));
 
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
     /// Lets the health service skip the extra "what's real" pass in the normal (no-override) case.</summary>
@@ -105,6 +116,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnShowCutBelowMinimumChanged(bool value)
     {
         if (!_loading) AppSettings.Set(CutBelowKey, value ? "true" : "false");
+    }
+
+    partial void OnScreenshotFormatChanged(ScreenshotFormat value)
+    {
+        if (!_loading) AppSettings.Set(ScreenshotFormatKey, value.ToString());
     }
 
     /// <summary>Turn off the induced-warning flag of the given severity — the synthetic issue's Fix

@@ -111,8 +111,16 @@
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Screenshot all pages" FontWeight="SemiBold" />
-                        <TextBlock Text="Visit every page in turn — Home, each nav item, and every Advanced sub-tab — saving a PNG of each, then return to this page."
+                        <TextBlock Text="Visit every page in turn — Home, each nav item, and every Advanced sub-tab — saving an image of each into a new timestamped folder, then return to this page."
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                            <TextBlock Text="Format" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                            <ComboBox MinWidth="120" VerticalAlignment="Center"
+                                      ItemsSource="{Binding Settings.ScreenshotFormatOptions}"
+                                      SelectedItem="{Binding Settings.ScreenshotFormat, Mode=TwoWay}"
+                                      ToolTip.Tip="Image format for screenshots — PNG (lossless), JPG (smaller), or both. Applies to the on-page capture too." />
+                        </StackPanel>
                         <Button Content="Screenshot all pages" Click="OnScreenshotAllPages"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
                                 HorizontalAlignment="Left" Margin="0,4,0,0" />

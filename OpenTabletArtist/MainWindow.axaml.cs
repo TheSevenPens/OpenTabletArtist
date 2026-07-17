@@ -192,8 +192,10 @@ public partial class MainWindow : Window
     // The nav-bar on-page capture control: render whatever page is currently shown.
     private void OnCapturePage(object? sender, RoutedEventArgs e)
     {
-        var path = RootVisual is { } v ? PageScreenshot.Render(v, RenderScaling, "page") : null;
-        _ = FlashCaptureButton(path is not null);
+        var saved = RootVisual is { } v
+            ? PageScreenshot.Render(v, RenderScaling, "page", DeveloperSettings.Instance.ScreenshotFormat)
+            : 0;
+        _ = FlashCaptureButton(saved > 0);
     }
 
     // Briefly confirm the capture on the button itself (no room for a status line in the nav).
@@ -228,12 +230,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Navigate every page in turn (Home, root nav leaves, each ADVANCED sub-tab), saving a
-    /// screenshot of each, then restore the original page. Returns how many were saved. Driven from the
-    /// Developer tab's "Screenshot all pages" button (which owns the visual + the shell it navigates).</summary>
-    public async Task<int> CaptureAllPagesAsync()
+    /// screenshot of each into one fresh timestamped sub-folder, then restore the original page. Returns
+    /// how many were saved and the folder they went to. Driven from the Developer tab's "Screenshot all
+    /// pages" button (which owns the visual + the shell it navigates).</summary>
+    public async Task<(int Count, string Directory)> CaptureAllPagesAsync()
     {
-        if (DataContext is not MainViewModel vm || RootVisual is not { } visual) return 0;
+        if (DataContext is not MainViewModel vm || RootVisual is not { } visual)
+            return (0, PageScreenshot.Directory());
         double scale = RenderScaling;
+        var format = DeveloperSettings.Instance.ScreenshotFormat;
+        var dir = PageScreenshot.CreateSweepDirectory();
         var originalPage = vm.CurrentPage;
         var originalTab = vm.Advanced.SelectedTab;
         int saved = 0;
@@ -256,13 +262,13 @@ public partial class MainWindow : Window
                     {
                         tab.IsChecked = true;
                         await Task.Delay(200);
-                        if (PageScreenshot.Render(visual, scale, $"page-{slug}-{TabSlug(tab)}") is not null) saved++;
+                        if (PageScreenshot.RenderTo(visual, scale, $"{slug}-{TabSlug(tab)}", dir, format) > 0) saved++;
                     }
                     if (selected != null) selected.IsChecked = true;
                     continue;
                 }
 
-                if (PageScreenshot.Render(visual, scale, $"page-{slug}") is not null) saved++;
+                if (PageScreenshot.RenderTo(visual, scale, slug, dir, format) > 0) saved++;
             }
         }
         finally
@@ -270,7 +276,7 @@ public partial class MainWindow : Window
             vm.Advanced.SelectedTab = originalTab;
             vm.CurrentPage = originalPage;
         }
-        return saved;
+        return (saved, dir);
     }
 
     private static string TabSlug(RadioButton tab) =>

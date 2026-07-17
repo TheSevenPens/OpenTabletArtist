@@ -83,8 +83,8 @@ public partial class DeveloperView : UserControl
         try
         {
             SetStatus("Capturing every page…");
-            var count = await window.CaptureAllPagesAsync();
-            SetStatus($"Saved {count} page screenshot(s) to {PageScreenshot.Directory()}.");
+            var (count, dir) = await window.CaptureAllPagesAsync();
+            SetStatus($"Saved {count} page screenshot(s) to {dir}.");
         }
         catch (Exception ex)
         {
