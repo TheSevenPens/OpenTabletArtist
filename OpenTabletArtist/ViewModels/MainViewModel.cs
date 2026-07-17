@@ -109,6 +109,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// default selection are refreshed by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletPageViewModel TabletPage { get; }
 
+    /// <summary>The PEN page (#pen-split): the pen settings (movement · inputs · buttons) split out of the
+    /// tablet page into their own top-level section. Same switcher/selection as the tablet page and shares
+    /// the per-tablet detail cache, so both edit the same tablet VM. Refreshed by <see cref="RebuildTablets"/>.</summary>
+    public PenPageViewModel PenPage { get; }
+
     // The active page is the VM instance itself (typed navigation, #15). The content host
     // resolves it to a view via DataTemplates keyed by VM type, so there's no page-name string,
     // no view-lookup converter, and no per-view DataContext re-point.
@@ -186,7 +191,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             () => OpenSettingsTab(SettingsTab.System),   // Driver Cleanup lives in the System pivot now
             () => OpenAdvancedTab(AdvancedTab.Drivers),  // Windows Ink → Drivers pivot
             () => OpenAdvancedTab(AdvancedTab.Drivers),  // VMulti → Drivers pivot
-            () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
+            () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
+            NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
         Test = new TestViewModel(_session.Daemon, _session, dialogs);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
@@ -207,12 +213,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
         TabletPage = new TabletPageViewModel(ResolveTabletDetail);
+        // The PEN page shares the same resolver (so it edits the same per-tablet detail VM as the tablet
+        // page) and the same last-used store (one shared default tablet across both pages).
+        PenPage = new PenPageViewModel(ResolveTabletDetail);
 
         // The whole top-level nav as one ordered list (Zune Phase 0.2). Presets + Per-App Presets live in
         // SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged. TABLET's page carries a
         // placeholder when no tablet is known; SETTINGS + ADVANCED each open a tabbed page.
         NavSections.Add(new NavLeafViewModel("HOME", Dashboard));
         NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
+        NavSections.Add(new NavLeafViewModel("PEN", PenPage));
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
@@ -313,6 +323,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CurrentPage = TabletPage;
     }
 
+    /// <summary>Open the PEN page on a specific tablet, optionally deep-linking to a pen pivot (the
+    /// pen-behaviour health "Fix"). The pen settings live on their own page now (#pen-split).</summary>
+    private void NavigateToPenByName(string name, TabletDetailTab? tab = null)
+    {
+        PenPage.Select(name, tab);
+        CurrentPage = PenPage;
+    }
+
     private async Task ForgetTabletByNameAsync(string name)
     {
         var settings = _session.CurrentSettings;
@@ -357,9 +375,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .ToList();
         TabletsOverview.HasTablets = ordered.Count > 0;
 
-        // Refresh the TABLET page's switcher + default selection (first detected / last-used, #542). Runs
-        // after the prune so a reselection resolves a fresh (surviving) detail VM.
-        TabletPage.SetTablets(ordered.Select(p => (p.Tablet, p.IsDetected)).ToList());
+        // Refresh the TABLET + PEN pages' switcher + default selection (first detected / last-used, #542).
+        // Runs after the prune so a reselection resolves a fresh (surviving) detail VM.
+        var choices = ordered.Select(p => (p.Tablet, p.IsDetected)).ToList();
+        TabletPage.SetTablets(choices);
+        PenPage.SetTablets(choices);
     }
 
     /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded

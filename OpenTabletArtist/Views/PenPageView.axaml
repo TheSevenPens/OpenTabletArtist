@@ -1,0 +1,23 @@
+<UserControl x:Class="OpenTabletArtist.Views.PenPageView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:OpenTabletArtist.Views">
+
+    <!-- DataContext is a PenPageViewModel. Mirrors the TABLET page (#pen-split): the selected tablet's pen
+         settings — PenDetailView owns the switcher · pivots · actions toolbar, like the tablet page — or a
+         hero when no tablet is known. Both pages share the same per-tablet detail VM (shell cache). -->
+    <Grid ColumnDefinitions="*">
+        <views:PenDetailView DataContext="{Binding Content}" IsVisible="{Binding HasTablet}" />
+
+        <!-- Placeholder when nothing is detected or remembered: a quiet Zune hero over the sakura backdrop. -->
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12"
+                    Margin="4,24,0,0" IsVisible="{Binding !HasTablet}">
+            <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
+                       FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+            <TextBlock Text="Connect a tablet to set up its pen — remembered tablets appear too."
+                       FontSize="14" TextWrapping="Wrap" MaxWidth="540"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

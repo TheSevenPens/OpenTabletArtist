@@ -164,7 +164,7 @@ public partial class TabletDetailView : UserControl
         switch (tab)
         {
             case TabletDetailTab.DisplayMapping: MappingTab.IsChecked = true; break;
-            case TabletDetailTab.PenBehavior: PenTab.IsChecked = true; break;
+            // PenBehavior deep-links to the PEN page now (pen split out, #pen-split) — handled there.
         }
     }
 

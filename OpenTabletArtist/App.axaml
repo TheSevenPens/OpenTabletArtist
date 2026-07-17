@@ -70,6 +70,9 @@
          its VM as DataContext directly (no per-view DataContext re-point). -->
     <Application.DataTemplates>
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
+        <!-- PenPageViewModel derives from TabletPageViewModel, and DataTemplate matching is polymorphic +
+             first-match-wins, so the derived pen template MUST precede the tablet one. -->
+        <DataTemplate DataType="{x:Type vm:PenPageViewModel}"><views:PenPageView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TabletPageViewModel}"><views:TabletPageView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:TabletDetailViewModel}"><views:TabletDetailView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PresetsViewModel}"><views:PresetsView /></DataTemplate>

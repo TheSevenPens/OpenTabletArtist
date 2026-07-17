@@ -1,0 +1,245 @@
+<UserControl x:Class="OpenTabletArtist.Views.PenDetailView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:Avalonia.Data.Converters"
+             xmlns:otac="using:OpenTabletArtist.Converters"
+             xmlns:views="using:OpenTabletArtist.Views">
+
+    <UserControl.Styles>
+        <!-- Detection status dot in the switcher dropdown rows. -->
+        <Style Selector="Ellipse.statusDot">
+            <Setter Property="Width" Value="9" />
+            <Setter Property="Height" Value="9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Ellipse.statusDot.on">
+            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <!-- Compact "D" detection square (green when detected, grey otherwise). Base colour from the style
+             so the .on override can win. -->
+        <Style Selector="Border.statusSquare">
+            <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
+        </Style>
+        <Style Selector="Border.statusSquare.on">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+        <!-- Pivot sections overlap in one cell and crossfade on switch: opacity driven by the pivot's
+             IsChecked (BoolToOpacity), IsHitTestVisible gates input to the shown one. -->
+        <Style Selector=":is(Control).pivotSection">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- A single tablet's PEN settings (#pen-split), DataContext is a TabletDetailViewModel (shared with the
+         tablet page). Same toolbar structure as the tablet page: switcher · pivots · D/R/F, over the
+         pivot-gated content. Only ever embedded in the PEN page, so the switcher/actions always show. -->
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Toolbar row: switcher · pivots (movement · inputs · buttons) · compact actions (D · R · F). -->
+        <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+                Margin="0,0,0,14" Padding="0,0,0,7">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Tablet switcher — bound to the hosting PenPageViewModel (ancestor). -->
+                <ComboBox Grid.Column="0"
+                          VerticalAlignment="Center" Margin="0,0,24,0" MinWidth="210"
+                          ItemsSource="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
+                          SelectedItem="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
+                          ToolTip.Tip="Switch between your connected and remembered tablets">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Classes="statusDot" Classes.on="{Binding IsDetected}" />
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
+                     #XTab.IsChecked. "buttons" hides when the pen has no barrel buttons. -->
+                <WrapPanel Grid.Column="1" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+                    <RadioButton Content="movement" IsChecked="True" x:Name="MovementTab"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                    <RadioButton Content="inputs" x:Name="InputsTab"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                    <RadioButton Content="buttons" x:Name="ButtonsTab"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
+                                 IsVisible="{Binding HasPenButtons}" />
+                </WrapPanel>
+
+                <!-- Compact actions: D (detection status) · R (refresh) · F (forget). -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Classes="statusSquare" Classes.on="{Binding IsTabletDetected}"
+                            Width="34" Height="30" CornerRadius="0" VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding DetectionText}">
+                        <TextBlock Text="D" FontWeight="SemiBold" FontSize="13" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Button Content="R" Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="Reload settings from daemon"
+                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    <Button Content="F" Command="{Binding ForgetCommand}" IsVisible="{Binding ShowForget}"
+                            ToolTip.Tip="Remove this tablet's saved settings"
+                            Theme="{StaticResource DeleteButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- MOVEMENT — Absolute vs Relative + Don't use Windows Ink. -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #MovementTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #MovementTab.IsChecked}">
+            <StackPanel>
+                <TextBlock Text="PEN MOVEMENT" Classes="TabTitle" />
+                <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
+                     A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
+                <StackPanel Margin="0,12,0,0">
+                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}" Margin="0,0,0,12"
+                                 IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
+                                 Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
+                            <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}"
+                                 IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
+                                 Command="{Binding SelectMovementCommand}" CommandParameter="relative">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
+                            <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- Windows-only, applies to either mode above: drop Windows Ink for OTD's plain output
+                         so the pen behaves like a mouse in stubborn apps, at the cost of pressure/tilt (#549). -->
+                    <ctrl:ToggleSetting Label="Don't use Windows Ink"
+                                        Description="You'll lose pressure and tilt, but the pen may work better in some apps."
+                                        IsChecked="{Binding DisableWindowsInk}"
+                                        IsVisible="{Binding CanDisableWindowsInk}"
+                                        Margin="0,14,0,0" />
+                </StackPanel>
+
+                <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
+                <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
+                           Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding CanFixOutputMode}" />
+                <Button Content="Fix" Theme="{StaticResource AccentButton}"
+                        Command="{Binding FixOutputModeCommand}"
+                        Padding="12,6" Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        IsVisible="{Binding CanFixOutputMode}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- INPUTS — pen tip + eraser bindings. -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Classes="pivotSection"
+                      Opacity="{Binding #InputsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #InputsTab.IsChecked}">
+            <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
+                <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
+                <!-- Horizontal pen (tip left → eraser right); decorative, no connectors. Canvas is 400×80.
+                     Eraser is drawn first (lowest z) so the barrel end overlaps its left edge. -->
+                <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
+                    <Canvas Width="400" Height="80">
+                        <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                 Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
+                        <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </Canvas>
+                </Viewbox>
+
+                <!-- Pen tip + eraser -->
+                <WrapPanel HorizontalAlignment="Left">
+                    <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenTipRow}" />
+                    <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenEraserRow}" />
+                </WrapPanel>
+
+                <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton and stashes
+                     it so it comes back when turned off. -->
+                <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Center">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
+                        <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                            Description="Tapping does nothing; your tip binding returns when off."
+                                            IsChecked="{Binding DisablePenTip}" />
+                        <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                        <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                            Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                            IsChecked="{Binding DragBindingsEnabled}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- BUTTONS — the pen's own barrel buttons (pivot hidden when the pen has none). -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Classes="pivotSection"
+                      Opacity="{Binding #ButtonsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #ButtonsTab.IsChecked}">
+            <StackPanel Spacing="16" HorizontalAlignment="Left" Margin="0,4,0,0">
+                <TextBlock Text="PEN BUTTONS" Classes="TabTitle" />
+
+                <!-- Horizontal pen; the side buttons light up (accent-filled) for the ones this pen has. -->
+                <Viewbox MaxWidth="440" MaxHeight="86" HorizontalAlignment="Left">
+                    <Canvas Width="400" Height="80">
+                        <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
+                                 Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
+                        <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
+                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
+                        <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
+                                   Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
+                                   IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </Canvas>
+                </Viewbox>
+
+                <!-- Vertical list of the pen's barrel buttons. -->
+                <StackPanel HorizontalAlignment="Left" Spacing="8">
+                    <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
+                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
+                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
+                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

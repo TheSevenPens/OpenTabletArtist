@@ -20,6 +20,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     // Navigate the shell to a tablet's in-app settings page for a health-issue "Fix", optionally
     // deep-linking to the tab that carries the fix.
     private readonly Action<string, TabletDetailTab?> _navigateToTablet;
+    // Pen settings split out to their own page (#pen-split); the pen-behaviour "Fix" deep-links there.
+    private readonly Action<string, TabletDetailTab?>? _navigateToPen;
     private readonly Action? _openDriverCleanup;
     private readonly Action? _openWindowsInk;
     private readonly Action? _openVMulti;
@@ -28,12 +30,13 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public DashboardViewModel(AppSession session, DaemonStatusViewModel daemon, IDialogService dialogs,
         Action<string, TabletDetailTab?> navigateToTablet, HealthService health, TabletsOverviewViewModel tablets,
         Action? openDriverCleanup = null, Action? openWindowsInk = null, Action? openVMulti = null,
-        Action? openConfigs = null)
+        Action? openConfigs = null, Action<string, TabletDetailTab?>? navigateToPen = null)
     {
         _session = session;
         Daemon = daemon;
         _dialogs = dialogs;
         _navigateToTablet = navigateToTablet;
+        _navigateToPen = navigateToPen;
         _openDriverCleanup = openDriverCleanup;
         _openWindowsInk = openWindowsInk;
         _openVMulti = openVMulti;
@@ -80,8 +83,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 Daemon.RestartDaemonCommand.Execute(null); // external daemon → restart to this app's build
                 break;
             case RemediationArea.TabletPenBehavior:
-                // Deep-link to the tablet's page, on the Pen Behavior tab that carries the fix.
-                if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName, TabletDetailTab.PenBehavior);
+                // Deep-link to the PEN page, on the Movement pivot that carries the fix (pen settings split
+                // out of the tablet page, #pen-split). Falls back to the tablet page if pen nav isn't wired.
+                if (!string.IsNullOrEmpty(r.TabletName))
+                    (_navigateToPen ?? _navigateToTablet)(r.TabletName, TabletDetailTab.PenBehavior);
                 break;
             case RemediationArea.TabletDisplayMapping:
                 // Deep-link to the tablet's page, on the Display Mapping tab that carries the fix.
