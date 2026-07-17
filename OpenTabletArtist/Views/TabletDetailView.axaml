@@ -164,13 +164,9 @@
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="TILT DYNAMICS" x:Name="TiltDynamicsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="DISPLAY MAPPING" x:Name="DisplayMappingTab"
-                             Theme="{StaticResource TabRadioButton}"
-                             IsVisible="{Binding HasAreaMapping}" />
-                <RadioButton Content="ACTIVE AREA" x:Name="ActiveAreaTab"
-                             Theme="{StaticResource TabRadioButton}"
-                             IsVisible="{Binding HasAreaMapping}" />
-                <RadioButton Content="CALIBRATION" x:Name="CalibrationTab"
+                <!-- MAPPING merges Display Mapping + Active Area + Calibration into one tab (Zune 2c prep):
+                     one scroller with the three as stacked sections. -->
+                <RadioButton Content="MAPPING" x:Name="MappingTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasAreaMapping}" />
                 <!-- Tablet-body express keys. x:Name kept as PenButtonsTab (referenced in code-behind for
@@ -320,7 +316,7 @@
         <!-- Display Mapping tab content: pick a display + see the tablet's active area and the live
              pen, all in one diagram (#250/#252). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #DisplayMappingTab.IsChecked}">
+                      IsVisible="{Binding #MappingTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="DISPLAY MAPPING" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel"
@@ -413,15 +409,8 @@
                         </ItemsControl>
                     </StackPanel>
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Active Area tab content: the tablet's full area with the effective (used) area drawn to
-             scale. Read-only for now — a later iteration will let the user resize/align it here. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ActiveAreaTab.IsChecked}">
-            <StackPanel>
-                <TextBlock Text="ACTIVE AREA" Classes="TabTitle" Margin="0,0,0,12" />
+                <!-- Active Area section (merged into MAPPING, Zune 2c prep). -->
+                <TextBlock Text="ACTIVE AREA" Classes="TabTitle" Margin="0,28,0,12" />
                 <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
                     <StackPanel>
                         <!-- Diagram + stats when we have digitizer specs. -->
@@ -520,14 +509,8 @@
                     </StackPanel>
                 </Border>
 
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Calibration tab content (#252). -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #CalibrationTab.IsChecked}">
-            <StackPanel MaxWidth="900" HorizontalAlignment="Left" IsVisible="{Binding HasAreaMapping}">
-                <TextBlock Text="CALIBRATION" Classes="TabTitle" />
+                <!-- Calibration section (merged into MAPPING, #252). -->
+                <TextBlock Text="CALIBRATION" Classes="TabTitle" Margin="0,28,0,0" />
 
                 <!-- Current calibration status card — sits before the density options so the user sees
                      the current state (and can clear it) first. Leads with which display the calibration

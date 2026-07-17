@@ -165,7 +165,7 @@ public partial class TabletDetailView : UserControl
     {
         switch (tab)
         {
-            case TabletDetailTab.DisplayMapping: DisplayMappingTab.IsChecked = true; break;
+            case TabletDetailTab.DisplayMapping: MappingTab.IsChecked = true; break;
             case TabletDetailTab.PenBehavior: OutputModeTab.IsChecked = true; break;
         }
     }
