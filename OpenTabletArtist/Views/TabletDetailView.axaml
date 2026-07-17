@@ -260,7 +260,6 @@
                       Opacity="{Binding #AboutTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #AboutTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="ABOUT" Classes="TabTitle" Margin="0,0,0,12" />
                 <!-- Two columns (#about-2col): specs (+ the config-override warning) left, resources right. -->
                 <Grid ColumnDefinitions="*,32,*">
                 <!-- LEFT — specifications. -->
@@ -536,8 +535,6 @@
                       Opacity="{Binding #CalibrationTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #CalibrationTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="CALIBRATION" Classes="TabTitle" Margin="0,0,0,12" />
-
                 <!-- Current calibration status card — sits before the density options so the user sees
                      the current state (and can clear it) first. Leads with which display the calibration
                      overlay pops up on (the tablet's mapped display), so the user knows where to look;

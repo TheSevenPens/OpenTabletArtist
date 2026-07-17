@@ -104,7 +104,6 @@
                       Opacity="{Binding #MovementTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #MovementTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="PEN MOVEMENT" Classes="TabTitle" />
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
                 <StackPanel Margin="0,12,0,0">
@@ -157,7 +156,6 @@
                       Opacity="{Binding #InputsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #InputsTab.IsChecked}">
             <StackPanel Spacing="16" Margin="0,4,0,0">
-                <TextBlock Text="PEN INPUTS" Classes="TabTitle" />
                 <!-- Two columns (#pen-2col): the pen diagram stands on the left, the cards on the right. -->
                 <Grid ColumnDefinitions="Auto,32,*">
                 <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
@@ -223,8 +221,6 @@
                       Opacity="{Binding #ButtonsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
                       IsHitTestVisible="{Binding #ButtonsTab.IsChecked}">
             <StackPanel Spacing="16" Margin="0,4,0,0">
-                <TextBlock Text="PEN BUTTONS" Classes="TabTitle" />
-
                 <!-- Two columns (#pen-2col): the pen stands on the left, the button cards on the right. -->
                 <Grid ColumnDefinitions="Auto,32,*">
                 <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
