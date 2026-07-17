@@ -56,6 +56,7 @@
             <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
 
             <conv:InverseBoolConverter x:Key="InvBool" />
+            <conv:BoolToOpacityConverter x:Key="BoolToOpacity" />
             <conv:EnumEqualsConverter x:Key="EnumEquals" />
             <conv:NotNullConverter x:Key="NotNull" />
             <conv:NonEmptyToBoolConverter x:Key="NonEmptyToBool" />

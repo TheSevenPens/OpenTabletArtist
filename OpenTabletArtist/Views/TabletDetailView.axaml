@@ -41,6 +41,16 @@
         <Style Selector="Border.tabletStatusChip.connected">
             <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
         </Style>
+        <!-- Pivot content sections overlap in one cell and crossfade on pivot switch: opacity is driven
+             by the tab's IsChecked (via BoolToOpacity), IsHitTestVisible gates input to the shown one.
+             Same feel as the Settings/Advanced PageFade, without a data-driven content host. -->
+        <Style Selector=":is(Control).pivotSection">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Resources>
@@ -179,8 +189,9 @@
 
         <!-- About tab content: a clean read-out of the tablet's specs, plus a Resources area that will
              hold documentation / compatible-pen links over time. First tab, shown by default. -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #AboutTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #AboutTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #AboutTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="ABOUT" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel">
@@ -245,8 +256,10 @@
 
         <!-- Pen tab content: movement mode, then pen tip/eraser inputs, then barrel buttons (when
              present), stacked in one scroller (merged, Zune 2c prep). -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenTab.IsChecked}" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Classes="pivotSection"
+                      Opacity="{Binding #PenTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #PenTab.IsChecked}">
             <StackPanel>
                 <!-- Movement: pick Absolute vs Relative as cards (both are Windows Ink modes). The card of
                      the mode in use is made obvious by the SelectableCard theme (accent outline + badge). -->
@@ -397,8 +410,9 @@
 
         <!-- Display Mapping tab content: pick a display + see the tablet's active area and the live
              pen, all in one diagram (#250/#252). -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #MappingTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #MappingTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #MappingTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="DISPLAY MAPPING" Classes="TabTitle" Margin="0,0,0,12" />
                 <Border Classes="GlassPanel"
@@ -701,8 +715,9 @@
 
         <!-- Controls tab content: tablet-body express keys, then wheels (when present) as a stacked
              section (merged, Zune 2c prep). -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ControlsTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #ControlsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #ControlsTab.IsChecked}">
             <StackPanel>
                 <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
@@ -838,8 +853,9 @@
 
         <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
              stacked sections (merged, Zune 2c prep). -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #DynamicsTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #DynamicsTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #DynamicsTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditPressure}">
                 <!-- Header row: title + reset. There's no On/Off — the filter is always enabled internally;
                      you neutralize it with a linear curve and zero smoothing. -->
@@ -1041,8 +1057,9 @@
         </ScrollViewer>
 
         <!-- Hover tab content (#188) -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #HoverTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #HoverTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #HoverTab.IsChecked}">
             <StackPanel IsEnabled="{Binding CanEditHover}">
                 <!-- Master On/Off header row. -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,10">
@@ -1088,8 +1105,9 @@
         </ScrollViewer>
 
         <!-- Filters tab content: one card per filter on the profile. -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #FiltersTab.IsChecked}">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Classes="pivotSection"
+                      Opacity="{Binding #FiltersTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                      IsHitTestVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="FILTERS" Classes="TabTitle" Margin="0,0,0,8" />
 
@@ -1137,8 +1155,9 @@
         </ScrollViewer>
 
         <!-- JSON tab content -->
-        <Border Grid.Row="2" Classes="GlassPanel"
-                IsVisible="{Binding #JsonTab.IsChecked}">
+        <Border Grid.Row="2" Classes="GlassPanel pivotSection"
+                Opacity="{Binding #JsonTab.IsChecked, Converter={StaticResource BoolToOpacity}}"
+                IsHitTestVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="{DynamicResource MonoFontFamily}"
                      Foreground="{DynamicResource TextSecondaryBrush}"
