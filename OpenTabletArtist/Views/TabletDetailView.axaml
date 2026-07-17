@@ -256,6 +256,10 @@
                       IsHitTestVisible="{Binding #AboutTab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="ABOUT" Classes="TabTitle" Margin="0,0,0,12" />
+                <!-- Two columns (#about-2col): specs (+ the config-override warning) left, resources right. -->
+                <Grid ColumnDefinitions="*,32,*">
+                <!-- LEFT — specifications. -->
+                <StackPanel Grid.Column="0">
                 <Border Classes="GlassPanel">
                     <StackPanel>
                         <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel" />
@@ -301,7 +305,11 @@
                     </Grid>
                 </Border>
 
-                <Border Classes="GlassPanel" Margin="0,12,0,0">
+                </StackPanel>
+
+                <!-- RIGHT — resources. -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Top">
+                <Border Classes="GlassPanel">
                     <StackPanel Spacing="8">
                         <TextBlock Text="RESOURCES" Classes="SectionLabel" />
                         <Button Content="View supported tablets"
@@ -313,6 +321,8 @@
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
+                </StackPanel>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
 
