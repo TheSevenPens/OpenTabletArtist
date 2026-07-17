@@ -61,7 +61,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ISettingsCoordinator SettingsCoordinator => _session;
     public IDialogService Dialogs => _dialogs;
 
-    public AboutViewModel About { get; } = new();
+    // About folded into Home's right column (#combine) — Home owns its own AboutViewModel now, so there's
+    // no standalone About page or nav item.
     public DriverCleanupViewModel DriverCleanup { get; }
     public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
@@ -213,7 +214,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavSections.Add(new NavLeafViewModel("HOME", Dashboard));
         NavSections.Add(new NavLeafViewModel("TABLET", TabletPage));
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
-        NavSections.Add(new NavLeafViewModel("ABOUT", About));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
 
@@ -265,7 +265,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var name = choice.Name;
             list.Add(($"tablet-{Slugify(name)}", () => NavigateToTabletByName(name)));
         }
-        // The simple leaf sections (Scribble, About) — Home, Tablet, Settings, and Advanced are captured
+        // The simple leaf sections (Scribble) — Home, Tablet, Settings, and Advanced are captured
         // separately above/below (Home explicitly, each tablet via the switcher, Settings/Advanced by tab).
         foreach (var leaf in NavSections.Where(l => l.IsVisible
                      && !ReferenceEquals(l.Page, Dashboard) && !ReferenceEquals(l.Page, TabletPage)

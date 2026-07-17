@@ -55,6 +55,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// <summary>The tablets overview (list + supported-tablets link), merged into Home.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; }
 
+    /// <summary>The About content (what-is / help / resources / version), shown in Home's right column —
+    /// the standalone About page was folded into Home. Stateless, so Home owns its own instance.</summary>
+    public AboutViewModel About { get; } = new();
+
     /// <summary>Perform an issue's fix: run the relevant command in place or navigate to where the
     /// setting lives.</summary>
     [RelayCommand]

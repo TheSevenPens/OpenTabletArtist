@@ -5,8 +5,11 @@
     <!-- DataContext is the DashboardViewModel, supplied by the typed-nav DataTemplate (#15). No page
          title — the highlighted "home" wordmark in the top bar names the section (Zune). Home stays
          quiet: content (Needs attention / Your tablets) leads directly. -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <StackPanel>
+    <!-- Two-column Home (#combine): the home content on the left, the folded-in About content on the
+         right. Left-aligned block, capped so the two columns stay a comfortable reading width. -->
+    <Grid ColumnDefinitions="*,32,*" MaxWidth="1360" HorizontalAlignment="Left">
+        <!-- LEFT — health · tablets · supported list. -->
+        <StackPanel Grid.Column="0">
             <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->
 
             <!-- Needs attention (#317): the health-check catalog, worst severity first. Hidden entirely
@@ -161,5 +164,9 @@
             <!-- (The run-at-startup toggle moved to its own Advanced → Startup page.) -->
 
         </StackPanel>
-    </StackPanel>
+
+        <!-- RIGHT — the folded-in About content (what-is · help · resources · version). Rendered from
+             the AboutViewModel via the typed-nav DataTemplate, so the markup isn't duplicated. -->
+        <ContentControl Grid.Column="2" Content="{Binding About}" VerticalAlignment="Top" />
+    </Grid>
 </UserControl>
