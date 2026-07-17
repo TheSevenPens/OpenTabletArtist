@@ -82,7 +82,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Classes="GlassPanel" IsVisible="{Binding !HasSnapshots}">
+        <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasSnapshots}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No presets to bind" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />

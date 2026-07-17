@@ -287,7 +287,7 @@
 
                 <!-- #467: mirror the Home "using a custom config" card here, so the use of a config that
                      overrides OTD's vetted built-in is obvious right where the tablet is inspected. -->
-                <Border Classes="GlassPanel" Margin="0,12,0,0" Padding="14,11"
+                <Border Classes="GlassPanel" Margin="0,12,0,0"
                         BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
                         IsVisible="{Binding IsConfigOverride}">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
@@ -711,7 +711,7 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Margin="0,0,0,8">
+                            <Border Classes="GlassPanel" Padding="14,10" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
                                                IsVisible="{Binding ShowTitle}" Margin="0,0,0,6" />
@@ -1038,7 +1038,7 @@
                 <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Margin="0,0,0,10">
+                            <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="8">

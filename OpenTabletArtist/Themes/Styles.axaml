@@ -7,11 +7,10 @@
         <!-- Local converter instance so the ControlThemes below can hide empty title/description lines. -->
         <conv:NonEmptyToBoolConverter x:Key="NonEmpty" />
 
-        <!-- Shared internal padding for every glass card (GlassPanel default + SelectableCard). Zero for
-             the Zune/Metro look (#no-card-chrome): content sits flush, with no card padding or border to
-             box it in — the spacing between sections carries the rhythm instead. One value so cards stay
-             consistent; change it here to bring padding back everywhere. -->
-        <Thickness x:Key="CardPadding">0</Thickness>
+        <!-- Shared internal padding for every glass card (GlassPanel default + SelectableCard). One value
+             so cards stay consistent; kept deliberately tight. Roomy empty-state placeholders and the
+             flush (0-padding) log / paint surfaces opt out locally. -->
+        <Thickness x:Key="CardPadding">12</Thickness>
 
         <!-- ===== Reusable UX components (default ControlThemes) =====================================
              These back the TemplatedControls in OpenTabletArtist.Controls, consolidating settings-UI
@@ -437,10 +436,7 @@
     <Style Selector="Border.GlassPanel">
         <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-        <!-- Borderless for the Zune/Metro look (#no-card-chrome): the card survives as a quiet tint, but
-             the outline is gone. Cards that set BorderThickness inline (health alerts, the config-override
-             warning, the in-use calibration) keep theirs — that border is a severity cue, not chrome. -->
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderThickness" Value="1" />
         <!-- Corner radius is theme-driven so the Anime skin can make cards rounder. Cards are flat —
              no drop shadow / glow (BoxShadow removed). -->
         <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
@@ -569,9 +565,6 @@
          Background, so the tint wins where set; Information keeps the frosted look with a grey border. -->
     <Style Selector="Border.attentionCard">
         <Setter Property="BorderThickness" Value="1.5" />
-        <!-- Alerts keep their severity border, so they keep padding too — the flush (0-padding) treatment
-             is for the borderless content cards; a border hugging its content just reads as broken. -->
-        <Setter Property="Padding" Value="14,11" />
     </Style>
     <Style Selector="Border.attentionCard.error">
         <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />

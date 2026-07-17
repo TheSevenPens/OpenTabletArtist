@@ -14,7 +14,7 @@
         <ItemsControl ItemsSource="{Binding Conflicts.Drivers}" IsVisible="{Binding Conflicts.HasConflicts}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="14,11"
+                    <Border Classes="GlassPanel" Margin="0,0,0,12"
                             BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
                         <StackPanel Spacing="6">
                             <TextBlock Text="{Binding Name}" Classes="CardTitle" TextWrapping="Wrap" />

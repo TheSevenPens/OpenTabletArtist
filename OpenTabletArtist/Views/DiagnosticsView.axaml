@@ -53,7 +53,7 @@
         <!-- Content -->
         <StackPanel>
             <!-- Tablet Visualizer -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12"
+            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
                     IsVisible="{Binding IsDebugging}">
                 <c:TabletVisualizer Height="200"
                                     PenX="{Binding DebugPenX}"
