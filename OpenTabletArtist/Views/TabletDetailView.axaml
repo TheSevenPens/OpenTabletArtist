@@ -168,14 +168,11 @@
                 <RadioButton Content="MAPPING" x:Name="MappingTab"
                              Theme="{StaticResource TabRadioButton}"
                              IsVisible="{Binding HasAreaMapping}" />
-                <!-- Tablet-body express keys. x:Name kept as PenButtonsTab (referenced in code-behind for
-                     the live aux-button highlight); labelled TABLET BUTTONS to disambiguate from the pen's
-                     own PEN BUTTONS tab (#494). -->
-                <RadioButton Content="TABLET BUTTONS" x:Name="PenButtonsTab"
+                <!-- CONTROLS merges the tablet-body express keys + wheels into one tab (Zune 2c prep):
+                     one scroller with buttons, then wheels (when present). Code-behind streams the live
+                     aux-button highlight + wheel gauge off this tab (ControlsTab). -->
+                <RadioButton Content="CONTROLS" x:Name="ControlsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="TABLET WHEELS" x:Name="WheelTab"
-                             Theme="{StaticResource TabRadioButton}"
-                             IsVisible="{Binding HasWheels}" />
                 <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
                      tab (and its still-present content below) is unreachable while IsVisible=False, and
                      the HoverFilter plugin is neutered so it has no effect. Set IsVisible back to True
@@ -723,9 +720,10 @@
                 </StackPanel>
         </ScrollViewer>
 
-        <!-- ExpressKeys tab content: one card per auxiliary button. -->
+        <!-- Controls tab content: tablet-body express keys, then wheels (when present) as a stacked
+             section (merged, Zune 2c prep). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #PenButtonsTab.IsChecked}">
+                      IsVisible="{Binding #ControlsTab.IsChecked}">
             <StackPanel>
                 <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
@@ -768,16 +766,12 @@
                     <TextBlock Text="No auxiliary buttons configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
 
-        <!-- Wheel tab content: per-wheel rotation bindings (CW/CCW) + sensitivity, wheel buttons, and a
-             master enable / clear-all. Reuses the ExpressKeys binding-editor card. Only shown when the
-             tablet reports a wheel. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #WheelTab.IsChecked}">
-            <StackPanel>
-                <!-- Header: label + master enable toggle + clear-all (parity with ExpressKeys). -->
+                <!-- Wheels section (merged into CONTROLS, Zune 2c prep): per-wheel rotation bindings
+                     (CW/CCW) + sensitivity + wheel buttons. Reuses the ExpressKeys binding-editor card.
+                     Hidden entirely when the tablet reports no wheel. -->
+                <StackPanel IsVisible="{Binding HasWheels}" Margin="0,28,0,0">
+                    <!-- Header: label + master enable toggle + clear-all (parity with the buttons above). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
@@ -859,6 +853,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 

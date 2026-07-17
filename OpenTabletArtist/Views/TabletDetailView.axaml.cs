@@ -51,11 +51,10 @@ public partial class TabletDetailView : UserControl
 
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
-        // Live device-report stream feeds the pressure dot (Dynamics), the aux-button highlight
-        // (ExpressKeys), and the wheel gauge (Wheel), so watch those tabs.
+        // Live device-report stream feeds the pressure dot (Dynamics tab) and the aux-button highlight +
+        // wheel gauge (Controls tab), so watch those two tabs.
         DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
-        PenButtonsTab.IsCheckedChanged += OnLiveTabChanged;
-        WheelTab.IsCheckedChanged += OnLiveTabChanged;
+        ControlsTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
 
         // Interactive active-area edits from the diagram → persist through the VM (#199).
@@ -68,8 +67,7 @@ public partial class TabletDetailView : UserControl
         if (Vm != null) Vm.TabRequested -= OnTabRequested;
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
         DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
-        PenButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
-        WheelTab.IsCheckedChanged -= OnLiveTabChanged;
+        ControlsTab.IsCheckedChanged -= OnLiveTabChanged;
         ActiveAreaDiagramControl.AreaCommitted -= OnActiveAreaCommitted;
         Vm?.StopLiveInput();
     }
@@ -175,8 +173,7 @@ public partial class TabletDetailView : UserControl
     private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (DynamicsTab.IsChecked == true || PenButtonsTab.IsChecked == true
-            || WheelTab.IsChecked == true) vm.StartLiveInput();
+        if (DynamicsTab.IsChecked == true || ControlsTab.IsChecked == true) vm.StartLiveInput();
         else vm.StopLiveInput();
     }
 }
