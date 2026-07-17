@@ -11,7 +11,7 @@
     <Grid RowDefinitions="Auto,*">
         <!-- Pivots — horizontal, wrapping on narrow widths; active = accent + weight. -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
-                Margin="0,0,0,20" Padding="0,0,0,10">
+                Margin="0,0,0,14" Padding="0,0,0,7">
             <ItemsControl ItemsSource="{Binding Tabs}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -26,7 +26,7 @@
                                      IsChecked="{Binding IsSelected, Mode=OneWay}"
                                      Command="{Binding $parent[ItemsControl].DataContext.SelectTabCommand}"
                                      CommandParameter="{Binding}"
-                                     Margin="0,3,26,3" />
+                                     Margin="0,1,26,1" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
