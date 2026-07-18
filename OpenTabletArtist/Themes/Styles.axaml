@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:OpenTabletArtist.Controls"
         xmlns:conv="using:OpenTabletArtist.Converters"
+        xmlns:ac="using:Avalonia.Data.Converters"
         xmlns:svc="using:OpenTabletArtist.Services">
 
     <Styles.Resources>
@@ -114,18 +115,27 @@
                             BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
                             Padding="{TemplateBinding Padding}">
                         <Panel>
-                            <StackPanel>
-                                <TextBlock x:Name="PART_Title" Classes="SectionLabel"
-                                           Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
-                                           Margin="0,0,0,12"
-                                           IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
-                                <TextBlock Text="{TemplateBinding Description}"
-                                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,12"
-                                           IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
-                                <ContentPresenter Content="{TemplateBinding Content}"
-                                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <!-- Optional leading glyph; the column collapses to nothing when no Icon is
+                                     set, so entities without an icon sit flush-left. -->
+                                <Viewbox Grid.Column="0" Width="32" Height="32" VerticalAlignment="Center"
+                                         Margin="0,0,14,0"
+                                         IsVisible="{TemplateBinding Icon, Converter={x:Static ac:ObjectConverters.IsNotNull}}">
+                                    <Path Data="{TemplateBinding Icon}" Fill="{DynamicResource TextPrimaryBrush}" />
+                                </Viewbox>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="PART_Title" Classes="SectionLabel"
+                                               Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
+                                               Margin="0,0,0,12"
+                                               IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
+                                    <TextBlock Text="{TemplateBinding Description}"
+                                               Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                               Margin="0,0,0,12"
+                                               IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
+                                    <ContentPresenter Content="{TemplateBinding Content}"
+                                                      ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                </StackPanel>
+                            </Grid>
                             <Border Classes="roleTag" Background="#7C3AED"
                                     IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
                                 <TextBlock Text="ENTITY" Classes="roleTagText" />

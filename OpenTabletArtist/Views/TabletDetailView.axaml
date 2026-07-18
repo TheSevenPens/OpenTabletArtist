@@ -46,9 +46,31 @@
 
     <UserControl.Resources>
         <!-- Shared binding card: a label + the current binding as text + an Edit button that opens the
-             modal type-tabbed editor (BindingEditorDialog). Used by both the ExpressKeys tab (auxiliary
-             buttons) and the Wheel tab (rotation directions + wheel button) — both bind a ButtonBinding. -->
+             modal type-tabbed editor (BindingEditorDialog). Bound to a ButtonBinding. Two variants:
+             ButtonBindingCard carries the button glyph for the ExpressKeys tab; WheelBindingCard is the
+             same card without an icon, for the rotation-direction/wheel-button rows nested inside a wheel
+             card (which is itself an entity — the extra glyphs there just add clutter). -->
         <DataTemplate x:Key="ButtonBindingCard">
+            <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
+                    Icon="{StaticResource IconButtonPointer}"
+                    Padding="16,12" Margin="0,0,0,10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Edit" Command="{Binding EditCommand}"
+                            IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                            Theme="{StaticResource GhostButton}" Padding="16,7"
+                            ToolTip.Tip="Change this binding" />
+                </Grid>
+            </ctrl:Entity>
+        </DataTemplate>
+
+        <DataTemplate x:Key="WheelBindingCard">
             <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
                     Padding="16,12" Margin="0,0,0,10">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -686,7 +708,7 @@
                                         <StackPanel Grid.Column="1" MinWidth="0">
                                             <!-- Clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding Clockwise}"
-                                                            ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                                            ContentTemplate="{StaticResource WheelBindingCard}" />
                                             <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
                                                                 Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
                                                                 TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
@@ -697,7 +719,7 @@
 
                                             <!-- Counter-clockwise: binding card + sensitivity. -->
                                             <ContentControl Content="{Binding CounterClockwise}"
-                                                            ContentTemplate="{StaticResource ButtonBindingCard}" />
+                                                            ContentTemplate="{StaticResource WheelBindingCard}" />
                                             <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
                                                                 Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
                                                                 TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
@@ -708,7 +730,7 @@
 
                                             <!-- Wheel button(s). -->
                                             <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
-                                                          ItemTemplate="{StaticResource ButtonBindingCard}" />
+                                                          ItemTemplate="{StaticResource WheelBindingCard}" />
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>

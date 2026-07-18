@@ -50,7 +50,7 @@
         <ItemsControl ItemsSource="{Binding Presets}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <c:Entity Margin="0,0,0,12">
+                    <c:Entity Margin="0,0,0,12" Icon="{StaticResource IconCardBulletedOutline}">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />

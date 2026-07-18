@@ -1,3 +1,6 @@
+using Avalonia;
+using Avalonia.Media;
+
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
@@ -8,4 +11,10 @@ namespace OpenTabletArtist.Controls;
 /// </summary>
 public class Entity : Section
 {
+    /// <summary>Optional glyph shown at the left of the card (e.g. a monitor for tablet cards). When null,
+    /// the icon column collapses and the content sits flush-left, so only some entities show an icon.</summary>
+    public static readonly StyledProperty<Geometry?> IconProperty =
+        AvaloniaProperty.Register<Entity, Geometry?>(nameof(Icon));
+
+    public Geometry? Icon { get => GetValue(IconProperty); set => SetValue(IconProperty, value); }
 }
