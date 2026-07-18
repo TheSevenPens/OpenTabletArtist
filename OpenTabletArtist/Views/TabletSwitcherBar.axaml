@@ -26,7 +26,10 @@
 
     <!-- switcher · detection chip · refresh, grouped at the right of the pivot row (#switcher-right/#580). -->
     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <ComboBox VerticalAlignment="Center" MinWidth="210" Margin="0,0,4,0"
+        <!-- MinWidth is the floor for the selector AND its dropdown popup (Avalonia floors the popup at
+             the ComboBox width), sized to fit long tablet names without clipping in the list; the popup
+             still auto-grows beyond it for anything longer. -->
+        <ComboBox VerticalAlignment="Center" MinWidth="300" Margin="0,0,4,0"
                   ItemsSource="{Binding #Root.Tablets}"
                   SelectedItem="{Binding #Root.SelectedTablet, Mode=TwoWay}"
                   ToolTip.Tip="Switch between your connected and remembered tablets">
