@@ -1,11 +1,12 @@
 <UserControl x:Class="OpenTabletArtist.Views.AboutView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the AboutViewModel (typed-nav DataTemplate, #15). Folded into Home's right column
          (#combine), so it stretches to fill whatever column hosts it. -->
     <StackPanel HorizontalAlignment="Stretch">
-        <Border Classes="GlassPanel">
+        <c:Section>
             <StackPanel>
                 <TextBlock Classes="SectionLabel largetitle" Text="WHAT IS OPENTABLETARTIST?" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
@@ -16,12 +17,12 @@
                 <TextBlock Text="{Binding AppVersionLabel}" Margin="0,12,0,0"
                            Foreground="{DynamicResource TextMutedBrush}" />
             </StackPanel>
-        </Border>
+        </c:Section>
 
         <!-- HELP card (#568): the obvious "where do I get help" entry point. Points to the Drawing Tablet
              Discord's help forum — deliberately NOT the OpenTabletDriver forums, since most issues aren't
              OTD-specific and should be triaged in the OTA channel first. -->
-        <Border Classes="GlassPanel" Margin="0,12,0,0">
+        <c:Section Margin="0,12,0,0">
             <StackPanel Spacing="10">
                 <TextBlock Classes="SectionLabel largetitle" Text="HELP" Margin="0,0,0,2" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
@@ -41,11 +42,11 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-        </Border>
+        </c:Section>
 
         <!-- Merged RESOURCES card: source code, releases, and the user manual as one list of links.
              Each opens in the default browser; the full URL is on hover. -->
-        <Border Classes="GlassPanel" Margin="0,12,0,0">
+        <c:Section Margin="0,12,0,0">
             <StackPanel Spacing="10">
                 <TextBlock Classes="SectionLabel largetitle" Text="RESOURCES" Margin="0,0,0,2" />
                 <!-- Opens OTD's supported-tablets catalog in the in-app dialog (#155), not a browser —
@@ -79,6 +80,6 @@
                                TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>
             </StackPanel>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

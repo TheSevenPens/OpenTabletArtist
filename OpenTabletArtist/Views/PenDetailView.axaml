@@ -2,6 +2,7 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
+             xmlns:c="using:OpenTabletArtist.Controls"
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:otac="using:OpenTabletArtist.Converters"
              xmlns:views="using:OpenTabletArtist.Views">
@@ -104,7 +105,7 @@
                     <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton and
                          stashes it so it comes back when turned off. Capped to the same 240 width as the
                          switch cards above so the column reads as one width. -->
-                    <Border Classes="GlassPanel" Width="240" HorizontalAlignment="Left">
+                    <c:Section Width="240" HorizontalAlignment="Left">
                         <StackPanel Spacing="10">
                             <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
                             <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
@@ -115,7 +116,7 @@
                                                 Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
                                                 IsChecked="{Binding DragBindingsEnabled}" />
                         </StackPanel>
-                    </Border>
+                    </c:Section>
                 </StackPanel>
 
                 <!-- MIDDLE — the pen stands upright, tip DOWN (the orientation every other driver uses):

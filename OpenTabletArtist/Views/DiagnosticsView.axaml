@@ -7,7 +7,7 @@
     <!-- DataContext is the DiagnosticsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- Controls -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12">
+        <c:Section Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="SectionLabel" Text="CURRENT TABLET" />
@@ -48,12 +48,12 @@
                             Padding="12,6" />
                 </StackPanel>
             </Grid>
-        </Border>
+        </c:Section>
 
         <!-- Content -->
         <StackPanel>
             <!-- Tablet Visualizer -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12" Padding="8"
+            <c:Section Margin="0,0,0,12" Padding="8"
                     IsVisible="{Binding IsDebugging}">
                 <c:TabletVisualizer Height="200"
                                     PenX="{Binding DebugPenX}"
@@ -65,10 +65,10 @@
                                     Pressure="{Binding DebugPenPressure}"
                                     MaxPressure="{Binding DebugMaxPressure}"
                                     HasPosition="{Binding DebugHasPosition}" />
-            </Border>
+            </c:Section>
 
             <!-- Stylus Info -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12"
+            <c:Section Margin="0,0,0,12"
                     IsVisible="{Binding IsDebugging}">
                 <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
                     <!-- Position -->
@@ -150,15 +150,15 @@
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                 </Grid>
-            </Border>
+            </c:Section>
         </StackPanel>
 
         <!-- Not connected warning -->
-        <Border Classes="GlassPanel"
+        <c:Section
                 IsVisible="{Binding !IsConnected}">
             <TextBlock Text="Daemon not connected. Connect first from Home."
                        Foreground="{DynamicResource TextMutedBrush}"
                        HorizontalAlignment="Center" />
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

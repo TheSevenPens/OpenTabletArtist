@@ -1,14 +1,17 @@
 <UserControl x:Class="OpenTabletArtist.Views.PresetsView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
          SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- The live config (settings.json), made visible: it's what per-app / hotkey switches revert to,
              and every profile below is a saved copy of it. Accent-outlined to set it apart. -->
-        <Border Classes="GlassPanel" Margin="0,0,0,18"
-                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
+        <!-- Accent-outlined emphasis card (the live config). Alert role with a glass bg + accent border
+             override so it looks identical to the old GlassPanel + accent-border card (#574). -->
+        <c:Alert Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                 BorderThickness="1.5" Margin="0,0,0,18">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Classes="SectionLabel" Text="CURRENT SETTINGS" VerticalAlignment="Center" />
@@ -25,7 +28,7 @@
                         HorizontalAlignment="Left"
                         Padding="14,7" Command="{Binding SavePresetCommand}" />
             </StackPanel>
-        </Border>
+        </c:Alert>
 
         <!-- Header row: section label + Browse (opens the folder where profiles are stored). -->
         <Grid ColumnDefinitions="*,Auto" Margin="2,0,0,8" IsVisible="{Binding HasPresets}">
@@ -47,7 +50,7 @@
         <ItemsControl ItemsSource="{Binding Presets}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Margin="0,0,0,12">
+                    <c:Section Margin="0,0,0,12">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
@@ -80,13 +83,12 @@
                                         CommandParameter="{Binding Name}" Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
-                    </Border>
+                    </c:Section>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Classes="GlassPanel" Padding="24"
-                IsVisible="{Binding !HasPresets}">
+        <c:Section Padding="24" IsVisible="{Binding !HasPresets}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No presets yet" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
@@ -94,6 +96,6 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            HorizontalAlignment="Center" TextAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

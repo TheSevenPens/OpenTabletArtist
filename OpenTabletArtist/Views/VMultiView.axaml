@@ -1,12 +1,13 @@
 <UserControl x:Class="OpenTabletArtist.Views.VMultiView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the VMultiViewModel, supplied by the typed-nav DataTemplate (#15). Moved off the
          Home page (#317): Home flags a missing driver and directs you here. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
 
-        <Border Classes="GlassPanel">
+        <c:Section>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
@@ -72,6 +73,6 @@
                                IsVisible="{Binding VmultiInstalling}" />
                 </WrapPanel>
             </Grid>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

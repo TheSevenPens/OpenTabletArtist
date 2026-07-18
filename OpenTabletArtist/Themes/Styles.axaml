@@ -1,38 +1,54 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:OpenTabletArtist.Controls"
-        xmlns:conv="using:OpenTabletArtist.Converters">
+        xmlns:conv="using:OpenTabletArtist.Converters"
+        xmlns:svc="using:OpenTabletArtist.Services">
 
     <Styles.Resources>
         <!-- Local converter instance so the ControlThemes below can hide empty title/description lines. -->
         <conv:NonEmptyToBoolConverter x:Key="NonEmpty" />
 
-        <!-- Shared internal padding for every glass card (GlassPanel default + SelectableCard). One value
-             so cards stay consistent; kept deliberately tight. Roomy empty-state placeholders and the
-             flush (0-padding) log / paint surfaces opt out locally. -->
-        <Thickness x:Key="CardPadding">12</Thickness>
-
         <!-- ===== Reusable UX components (default ControlThemes) =====================================
              These back the TemplatedControls in OpenTabletArtist.Controls, consolidating settings-UI
              patterns that were hand-assembled across the views. -->
 
-        <!-- SettingCard: glass panel + optional title/description header + content slot. -->
-        <ControlTheme x:Key="{x:Type c:SettingCard}" TargetType="c:SettingCard">
+        <!-- ===== Card roles (#574) ==================================================================
+             Section (grouping) · Alert (severity) · SelectableCard (pickable) replace the old shared
+             Border.GlassPanel. Each shows a colour-coded role tag at its bottom-right when the developer
+             "Show card-role tags" toggle is on (roleTag / roleTagText styles below). -->
+
+        <!-- Section (grouping role): glass box + optional title/description header + content slot. Owns its
+             border via template bindings (defaults here) so #573 can restyle it flush without a shared
+             class. Was SettingCard. -->
+        <ControlTheme x:Key="{x:Type c:Section}" TargetType="c:Section">
+            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="Padding" Value="12" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Classes="GlassPanel">
-                        <StackPanel>
-                            <TextBlock x:Name="PART_Title" Classes="SectionLabel"
-                                       Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
-                                       Margin="0,0,0,12"
-                                       IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
-                            <TextBlock Text="{TemplateBinding Description}"
-                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                       Margin="0,0,0,12"
-                                       IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
-                            <ContentPresenter Content="{TemplateBinding Content}"
-                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
-                        </StackPanel>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Panel>
+                            <StackPanel>
+                                <TextBlock x:Name="PART_Title" Classes="SectionLabel"
+                                           Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
+                                           Margin="0,0,0,12"
+                                           IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
+                                <TextBlock Text="{TemplateBinding Description}"
+                                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                           Margin="0,0,0,12"
+                                           IsVisible="{TemplateBinding Description, Converter={StaticResource NonEmpty}}" />
+                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            </StackPanel>
+                            <Border Classes="roleTag" Background="#2563EB"
+                                    IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
+                                <TextBlock Text="SECTION" Classes="roleTagText" />
+                            </Border>
+                        </Panel>
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -40,6 +56,44 @@
                  full header spacing). -->
             <Style Selector="^[HasDescription=True] /template/ TextBlock#PART_Title">
                 <Setter Property="Margin" Value="0,0,0,4" />
+            </Style>
+        </ControlTheme>
+
+        <!-- Alert (severity role): a tinted/bordered callout where the box IS the meaning. Per-severity
+             background + border below (mirrors the old attentionCard.* tiers); keeps its chrome permanently. -->
+        <ControlTheme x:Key="{x:Type c:Alert}" TargetType="c:Alert">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource NeutralBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Panel>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            <Border Classes="roleTag" Background="#DC2626"
+                                    IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
+                                <TextBlock Text="ALERT" Classes="roleTagText" />
+                            </Border>
+                        </Panel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[Severity=Error]">
+                <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+            </Style>
+            <Style Selector="^[Severity=Warning]">
+                <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+            </Style>
+            <Style Selector="^[Severity=Neutral]">
+                <Setter Property="Background" Value="{DynamicResource InfoMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
             </Style>
         </ControlTheme>
 
@@ -73,7 +127,12 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Name="PART_Card" Classes="GlassPanel" Padding="{DynamicResource CardPadding}">
+                    <!-- Glass look inlined (not via a shared grouping class) so the selectable role is
+                         decoupled from the grouping default and can't be swept by #573. The :checked /
+                         :pointerover selectors below override BorderBrush/Thickness on PART_Card. -->
+                    <Border Name="PART_Card" Background="{DynamicResource GlassBgBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                            CornerRadius="{DynamicResource CardCornerRadius}" Padding="12">
                         <Panel>
                             <ContentPresenter Content="{TemplateBinding Content}"
                                               ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -81,6 +140,10 @@
                             <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="0"
                                     Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False">
                                 <TextBlock Text="Current mode" Foreground="White" FontWeight="SemiBold" />
+                            </Border>
+                            <Border Classes="roleTag" Background="#16A34A"
+                                    IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
+                                <TextBlock Text="SELECT" Classes="roleTagText" />
                             </Border>
                         </Panel>
                     </Border>
@@ -451,16 +514,26 @@
         <Setter Property="FontFamily" Value="Segoe UI, Inter" />
     </Style>
 
-    <!-- Glass Panel Style (applied via Classes="GlassPanel") -->
-    <Style Selector="Border.GlassPanel">
-        <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <!-- Corner radius is theme-driven so the Anime skin can make cards rounder. Cards are flat —
-             no drop shadow / glow (BoxShadow removed). -->
-        <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
-        <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
+    <!-- Card-role tag (#574): a small colour-coded label pinned to a card's bottom-right, shown only when
+         the developer "Show card-role tags" toggle is on. The per-role colour + text are set at each use
+         (SECTION #2563EB · ALERT #DC2626 · SELECT #16A34A). -->
+    <Style Selector="Border.roleTag">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Bottom" />
+        <Setter Property="Padding" Value="4,1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="ZIndex" Value="1000" />
+        <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
+    <Style Selector="TextBlock.roleTagText">
+        <Setter Property="FontSize" Value="9" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- (The old Border.GlassPanel escape-hatch style + CardPadding resource were removed with the
+         card-roles refactor (#574): every card now declares a role — Section / Alert / SelectableCard —
+         which own their glass look. A grep guard in CI keeps the escape-hatch class from coming back.) -->
 
     <!-- Base content text size (#fontstd): plain TextBlocks default to the one content size
          (ContentFontSize). Page titles (PageTitle), card titles (CardTitle), section labels
@@ -585,27 +658,8 @@
         <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
     </Style>
 
-    <!-- Health "Needs attention" cards (#509): a per-tier tinted background + matching border, so they
-         read distinctly from normal frosted cards. Two-class selectors beat GlassPanel's single-class
-         Background, so the tint wins where set; Information keeps the frosted look with a grey border. -->
-    <Style Selector="Border.attentionCard">
-        <Setter Property="BorderThickness" Value="1.5" />
-    </Style>
-    <Style Selector="Border.attentionCard.error">
-        <Setter Property="Background" Value="{DynamicResource ErrorMutedBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Border.attentionCard.warning">
-        <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
-    </Style>
-    <Style Selector="Border.attentionCard.neutral">
-        <Setter Property="Background" Value="{DynamicResource InfoMutedBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
-    </Style>
-    <Style Selector="Border.attentionCard.information">
-        <Setter Property="BorderBrush" Value="{DynamicResource NeutralBrush}" />
-    </Style>
+    <!-- (The Border.attentionCard.* health-card tints moved onto the Alert control's Severity tiers with
+         the card-roles refactor (#574).) -->
 
     <!-- Always-visible, full-size scrollbars. The default Fluent scrollbars (a) auto-hide and
          (b) sit as a thin line until hovered (the thumb is scaled down by a RenderTransform in the

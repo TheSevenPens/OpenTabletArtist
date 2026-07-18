@@ -5,7 +5,7 @@
 
     <!-- DataContext is the ShortcutViewModel. Moved out of the DEVELOPER page into SETTINGS. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <c:SettingCard Title="Start-menu shortcut"
+        <c:Section Title="Start-menu shortcut"
                        Description="Create a per-user Start-menu shortcut to this app. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
             <StackPanel Spacing="8">
                 <Button Content="Create Start-menu shortcut"
@@ -16,6 +16,6 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding HasShortcutStatus}" />
             </StackPanel>
-        </c:SettingCard>
+        </c:Section>
     </StackPanel>
 </UserControl>

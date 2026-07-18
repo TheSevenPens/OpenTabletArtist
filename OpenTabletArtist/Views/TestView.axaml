@@ -80,7 +80,7 @@
 
             <!-- Controls + live readouts, grouped in one card so they read as a single panel instead
                  of floating text over the themed backdrop. -->
-            <Border Classes="GlassPanel" Margin="0,12,0,0">
+            <c:Section Margin="0,12,0,0">
                 <StackPanel>
                     <!-- Controls -->
                     <WrapPanel Orientation="Horizontal">
@@ -145,11 +145,11 @@
                         </StackPanel>
                     </UniformGrid>
                 </StackPanel>
-            </Border>
+            </c:Section>
         </StackPanel>
 
         <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
-        <Border Classes="GlassPanel" CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
+        <c:Section CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <Grid>
                 <c:PenTestCanvas x:Name="PaintCanvas"
                                  BrushMode="{Binding BrushMode}" />
@@ -164,6 +164,6 @@
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </Border>
             </Grid>
-        </Border>
+        </c:Section>
     </DockPanel>
 </UserControl>

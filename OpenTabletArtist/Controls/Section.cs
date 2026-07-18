@@ -1,24 +1,25 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
-/// A settings card: the shared translucent "glass" panel with an optional title + description header
-/// above its content. Consolidates the GlassPanel → CardTitle → description-text → content scaffold
-/// that opens nearly every settings view. Content goes in the element body (it's a
-/// <see cref="ContentControl"/>); the default <c>ControlTheme</c> lives in Themes/Styles.axaml.
+/// The <b>grouping</b> card role (#574): a titled/untitled content box with the shared "glass" look, used
+/// purely to group related settings — the border carries no meaning. Owns its own border via template-bound
+/// Background/BorderBrush/BorderThickness/CornerRadius/Padding (defaults set in the ControlTheme), so it can
+/// be restyled flush/borderless for the cardless redesign (#573) without touching the severity/selectable
+/// roles. Content goes in the element body (it's a <see cref="ContentControl"/>); the default
+/// <c>ControlTheme</c> lives in Themes/Styles.axaml. Was <c>SettingCard</c>.
 /// </summary>
-public class SettingCard : ContentControl
+public class Section : ContentControl
 {
     public static readonly StyledProperty<string?> TitleProperty =
-        AvaloniaProperty.Register<SettingCard, string?>(nameof(Title));
+        AvaloniaProperty.Register<Section, string?>(nameof(Title));
     public static readonly StyledProperty<string?> DescriptionProperty =
-        AvaloniaProperty.Register<SettingCard, string?>(nameof(Description));
+        AvaloniaProperty.Register<Section, string?>(nameof(Description));
 
-    public static readonly DirectProperty<SettingCard, bool> HasDescriptionProperty =
-        AvaloniaProperty.RegisterDirect<SettingCard, bool>(nameof(HasDescription), o => o.HasDescription);
+    public static readonly DirectProperty<Section, bool> HasDescriptionProperty =
+        AvaloniaProperty.RegisterDirect<Section, bool>(nameof(HasDescription), o => o.HasDescription);
 
     private bool _hasDescription;
     /// <summary>True when <see cref="Description"/> is non-empty (drives the header spacing via a selector).</summary>

@@ -1,13 +1,14 @@
 <UserControl x:Class="OpenTabletArtist.Views.HotkeysView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the HotkeysViewModel — the SETTINGS > HOTKEYS tab (the tab rail supplies the title). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <!-- ── Tablet mapping ─────────────────────────────────────────────────── -->
         <TextBlock Text="DISPLAY MAPPING" FontWeight="SemiBold" LetterSpacing="0.5"
                    Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
-        <Border Classes="GlassPanel" Margin="0,0,0,24">
+        <c:Section Margin="0,0,0,24">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="SectionLabel" Text="TOGGLE BETWEEN DISPLAYS" TextWrapping="Wrap" />
@@ -39,7 +40,7 @@
                         VerticalAlignment="Center" Padding="14,7"
                         Command="{Binding AssignMonitorHotkeyCommand}" />
             </Grid>
-        </Border>
+        </c:Section>
 
         <!-- ── Profile switching ──────────────────────────────────────────────── -->
         <TextBlock Text="PRESET SWITCHING" FontWeight="SemiBold" LetterSpacing="0.5"
@@ -48,7 +49,7 @@
         <ItemsControl ItemsSource="{Binding Snapshots}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
+                    <c:Section Margin="0,0,0,10">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
@@ -79,12 +80,12 @@
                                     Command="{Binding $parent[ItemsControl].DataContext.AssignProfileHotkeyCommand}"
                                     CommandParameter="{Binding Name}" />
                         </Grid>
-                    </Border>
+                    </c:Section>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasSnapshots}">
+        <c:Section Padding="24" IsVisible="{Binding !HasSnapshots}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="No presets to bind" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
@@ -92,6 +93,6 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

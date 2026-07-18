@@ -21,6 +21,17 @@ jobs:
         with:
           submodules: recursive
 
+      # Card-roles guard (#574): the shared Border.GlassPanel escape-hatch class was removed; every card
+      # must declare a role — Section (grouping) / Alert (severity) / SelectableCard (pickable). Fail the
+      # build if a bare GlassPanel class creeps back in.
+      - name: Guard removed card escape-hatch class
+        shell: bash
+        run: |
+          if grep -rn 'Classes="GlassPanel"' --include='*.axaml' OpenTabletArtist; then
+            echo "::error::A card escape-hatch class was reintroduced (#574) — use Section / Alert / SelectableCard instead."
+            exit 1
+          fi
+
       - name: Set up .NET (daemon targets net8.0, app targets net10.0)
         uses: actions/setup-dotnet@v5
         with:

@@ -8,7 +8,7 @@
     <Grid ColumnDefinitions="*,24,*" MaxWidth="900" HorizontalAlignment="Left">
         <!-- LEFT — appearance + custom look. -->
         <StackPanel Grid.Column="0">
-        <c:SettingCard Title="Appearance">
+        <c:Section Title="Appearance">
             <StackPanel>
                 <c:LabeledField Label="Theme">
                     <ComboBox HorizontalAlignment="Left" MinWidth="220"
@@ -46,11 +46,11 @@
                                  IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
                                  ToolTip.Tip="How opaque the falling petals are" />
             </StackPanel>
-        </c:SettingCard>
+        </c:Section>
 
         <!-- Custom-only: the base colour behind the panels + an optional background image. (The accent/
              highlight colour lives in Colours & translucency below, since every skin can set it now.) -->
-        <c:SettingCard Title="Custom look" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}"
+        <c:Section Title="Custom look" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}"
                        Description="Pick a base colour for the background behind the panels, or add a background image to fill the window instead.">
             <StackPanel Spacing="12">
                 <StackPanel Spacing="4">
@@ -68,14 +68,14 @@
                     </StackPanel>
                 </c:LabeledField>
             </StackPanel>
-        </c:SettingCard>
+        </c:Section>
         </StackPanel>
 
         <!-- RIGHT — colours & translucency. -->
         <StackPanel Grid.Column="2">
         <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
              opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
-        <c:SettingCard Title="Colours &amp; translucency" IsVisible="{Binding ShowFrostControls}"
+        <c:Section Title="Colours &amp; translucency" IsVisible="{Binding ShowFrostControls}"
                        Description="Pick colours from the palette and set how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
             <StackPanel Spacing="14">
                 <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
@@ -100,7 +100,7 @@
                         HorizontalAlignment="Left" Margin="0,4,0,0"
                         ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
             </StackPanel>
-        </c:SettingCard>
+        </c:Section>
         </StackPanel>
     </Grid>
 </UserControl>
