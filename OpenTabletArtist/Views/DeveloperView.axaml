@@ -30,7 +30,7 @@
                       IsVisible="{Binding #ActualTab.IsChecked}">
             <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Trigger health warnings"
                            Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
-                <StackPanel Spacing="10">
+                <StackPanel Spacing="4">
                     <c:ToggleSetting Label="Windows Ink plugin not installed"
                                      IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
                     <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
@@ -90,7 +90,7 @@
                       IsVisible="{Binding #TabletTabsTab.IsChecked}">
             <c:SettingCard MaxWidth="720" HorizontalAlignment="Left" Title="Tablet page extras"
                            Description="Show extra diagnostic tabs and rarely-needed controls on a tablet's page. Hidden by default.">
-                <StackPanel Spacing="10">
+                <StackPanel Spacing="4">
                     <c:ToggleSetting Label="Show the Filters tab"
                                      IsChecked="{Binding Settings.ShowFiltersTab}" />
                     <c:ToggleSetting Label="Show the JSON tab"
