@@ -3,8 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). Two columns:
+         appearance (+ custom look) on the left, colours & translucency on the right. -->
+    <Grid ColumnDefinitions="*,24,*" MaxWidth="900" HorizontalAlignment="Left">
+        <!-- LEFT — appearance + custom look. -->
+        <StackPanel Grid.Column="0">
         <c:SettingCard Title="Appearance">
             <StackPanel>
                 <c:LabeledField Label="Theme">
@@ -66,10 +69,13 @@
                 </c:LabeledField>
             </StackPanel>
         </c:SettingCard>
+        </StackPanel>
 
+        <!-- RIGHT — colours & translucency. -->
+        <StackPanel Grid.Column="2">
         <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
              opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
-        <c:SettingCard Title="Colours &amp; translucency" Margin="0,12,0,0" IsVisible="{Binding ShowFrostControls}"
+        <c:SettingCard Title="Colours &amp; translucency" IsVisible="{Binding ShowFrostControls}"
                        Description="Pick colours from the palette and set how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
             <StackPanel Spacing="14">
                 <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
@@ -95,5 +101,6 @@
                         ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
             </StackPanel>
         </c:SettingCard>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>
