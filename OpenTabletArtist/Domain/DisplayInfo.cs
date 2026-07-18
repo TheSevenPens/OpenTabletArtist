@@ -30,7 +30,12 @@ public record DisplayInfo(int Number, string Name, int Width, int Height, int X,
     /// <summary>Row title for the detail list: the monitor's friendly name, or "Display N" if unknown.</summary>
     public string DisplayTitle => string.IsNullOrWhiteSpace(Name) ? $"Display {Number}" : Name;
 
-    /// <summary>Detail line beneath the title: resolution · refresh · port · GPU · Primary (blanks skipped).</summary>
+    /// <summary>Row title with the primary marker appended next to the name, e.g. "ASUS PA329CV (PRIMARY)".
+    /// Used by the per-display list so the designation reads with the name rather than in the detail line.</summary>
+    public string DisplayTitleWithPrimary => IsPrimary ? $"{DisplayTitle} (PRIMARY)" : DisplayTitle;
+
+    /// <summary>Detail line beneath the title: resolution · refresh · port · GPU (blanks skipped). The
+    /// primary marker lives on <see cref="DisplayTitleWithPrimary"/> next to the name instead.</summary>
     public string DetailSubLine
     {
         get
@@ -38,7 +43,6 @@ public record DisplayInfo(int Number, string Name, int Width, int Height, int X,
             var s = ResolutionWithRefresh;
             if (HasPort) s += "  ·  " + Port;
             if (HasGpu) s += "  ·  " + Gpu;
-            if (IsPrimary) s += "  ·  Primary";
             return s;
         }
     }

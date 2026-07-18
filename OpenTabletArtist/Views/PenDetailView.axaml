@@ -13,20 +13,17 @@
          pivot-gated content. Only ever embedded in the PEN page, so the switcher/actions always show. -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Toolbar row: switcher · pivots (movement · inputs · buttons) · compact actions (D · R · F). -->
+        <!-- Toolbar row: switcher · pivots (movement · inputs) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
             <Grid ColumnDefinitions="*,Auto">
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
-                     #XTab.IsChecked. "buttons" hides when the pen has no barrel buttons. -->
+                     #XTab.IsChecked. "inputs" merges the old inputs + buttons sub-tabs (#pen-switches). -->
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                     <RadioButton Content="movement" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
-                    <RadioButton Content="buttons" x:Name="ButtonsTab"
-                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
-                                 IsVisible="{Binding HasPenButtons}" />
                 </WrapPanel>
 
                 <!-- Right cluster: switcher + detection + refresh (shared TabletSwitcherBar, #580). The
@@ -91,81 +88,41 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- INPUTS — pen tip + eraser bindings. -->
+        <!-- INPUTS — pen inputs (tip · eraser · pen-input) + barrel buttons in one view (#pen-switches):
+             three columns — the input cards, the pen diagram, then the button cards. The diagram's buttons
+             and the right-column cards self-hide per button, so a pen with no barrel buttons just shows the
+             input column and a plain pen. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       IsVisible="{Binding #InputsTab.IsChecked}">
             <StackPanel Spacing="16" Margin="0,4,0,0">
-                <!-- Two columns (#pen-2col): the pen diagram stands on the left, the cards on the right. -->
-                <Grid ColumnDefinitions="Auto,32,*">
-                <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
-                     LayoutTransform, not RenderTransform, so the rotated bounds drive the layout. Canvas is
-                     400×80; the eraser is drawn first (lowest z) so the barrel end overlaps its edge. -->
-                <LayoutTransformControl Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left">
-                    <LayoutTransformControl.LayoutTransform>
-                        <RotateTransform Angle="-90" />
-                    </LayoutTransformControl.LayoutTransform>
-                <Viewbox MaxWidth="440" MaxHeight="86">
-                    <Canvas Width="400" Height="80">
-                        <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Rectangle Canvas.Left="14" Canvas.Top="36" Width="20" Height="8" RadiusX="4" RadiusY="4"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Polygon Points="72,28 72,52 26,45 26,35" Fill="{DynamicResource PenDiagramFillBrush}"
-                                 Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" StrokeJoin="Round" />
-                        <Rectangle Canvas.Left="70" Canvas.Top="28" Width="287" Height="24"
-                                   Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />
-                        <Rectangle Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <Rectangle Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                        <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
-                                   Fill="{DynamicResource PenDiagramButtonFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
-                                   IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    </Canvas>
-                </Viewbox>
-                </LayoutTransformControl>
+                <Grid ColumnDefinitions="Auto,32,Auto,32,*">
 
-                <!-- RIGHT — the cards. -->
-                <StackPanel Grid.Column="2" Spacing="16" VerticalAlignment="Top">
-                <!-- Pen tip + eraser -->
-                <WrapPanel HorizontalAlignment="Left">
-                    <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenTipRow}" />
-                    <views:PenSwitchCard Margin="0,0,12,12" DataContext="{Binding PenEraserRow}" />
-                </WrapPanel>
-
-                <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton and stashes
-                     it so it comes back when turned off. -->
-                <Border Classes="GlassPanel" MaxWidth="560" HorizontalAlignment="Left">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
-                        <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                            Description="Tapping does nothing; your tip binding returns when off."
-                                            IsChecked="{Binding DisablePenTip}" />
-                        <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
-                        <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                            Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                            IsChecked="{Binding DragBindingsEnabled}" />
-                    </StackPanel>
-                </Border>
+                <!-- LEFT — the input cards, a single vertical column (tip · eraser · pen-input). -->
+                <StackPanel Grid.Column="0" Spacing="16" VerticalAlignment="Top">
+                    <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
+                    <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
+                    <!-- #493: the tip is a binding, not a driver flag — "disable" clears TipButton and
+                         stashes it so it comes back when turned off. Capped to the same 240 width as the
+                         switch cards above so the column reads as one width. -->
+                    <Border Classes="GlassPanel" Width="240" HorizontalAlignment="Left">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
+                            <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                                Description="Tapping does nothing; your tip binding returns when off."
+                                                IsChecked="{Binding DisablePenTip}" />
+                            <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                            <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                                Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                                IsChecked="{Binding DragBindingsEnabled}" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-                </Grid>
-            </StackPanel>
-        </ScrollViewer>
 
-        <!-- BUTTONS — the pen's own barrel buttons (pivot hidden when the pen has none). -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      IsVisible="{Binding #ButtonsTab.IsChecked}">
-            <StackPanel Spacing="16" Margin="0,4,0,0">
-                <!-- Two columns (#pen-2col): the pen stands on the left, the button cards on the right. -->
-                <Grid ColumnDefinitions="Auto,32,*">
-                <!-- LEFT — the pen stands upright, tip DOWN: the orientation every other tablet driver uses.
-                     That puts Button 1 (nearest the tip) at the bottom, so the pen reads bottom-up against
-                     the 1/2/3 cards — the physical convention wins over matching the card order.
-                     LayoutTransform, not RenderTransform, so the rotated bounds drive the layout. The side
-                     buttons light up (accent-filled) for the ones this pen has. -->
-                <LayoutTransformControl Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left">
+                <!-- MIDDLE — the pen stands upright, tip DOWN (the orientation every other driver uses):
+                     button 1 (nearest the tip) sits at the bottom, so it reads bottom-up against the 3·2·1
+                     cards. The side buttons light up (accent-filled) with their number for the ones this pen
+                     has. LayoutTransform, not RenderTransform, so the rotated bounds drive the layout. -->
+                <LayoutTransformControl Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Left">
                     <LayoutTransformControl.LayoutTransform>
                         <RotateTransform Angle="-90" />
                     </LayoutTransformControl.LayoutTransform>
@@ -188,18 +145,40 @@
                         <Rectangle Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" RadiusX="6" RadiusY="6"
                                    Fill="{DynamicResource AccentBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5"
                                    IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                        <!-- Button numbers, centred on each side button so the diagram maps 1:1 to the
+                             "Button N" cards on the right. Counter-rotated +90° (about the default centre
+                             RenderTransformOrigin) to stay upright against the pen's -90° stand. -->
+                        <Border Canvas.Left="97" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
+                                IsVisible="{Binding PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
+                            <TextBlock Text="1" FontSize="11" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <Border Canvas.Left="131" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
+                                IsVisible="{Binding PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
+                            <TextBlock Text="2" FontSize="11" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <Border Canvas.Left="165" Canvas.Top="32" Width="25" Height="16" Background="Transparent"
+                                IsVisible="{Binding PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                            <Border.RenderTransform><RotateTransform Angle="90" /></Border.RenderTransform>
+                            <TextBlock Text="3" FontSize="11" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
                     </Canvas>
                 </Viewbox>
                 </LayoutTransformControl>
 
-                <!-- RIGHT — the button cards (top-to-bottom, matching the pen's buttons tip-first). -->
-                <StackPanel Grid.Column="2" HorizontalAlignment="Left" Spacing="8" VerticalAlignment="Top">
-                    <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
-                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                    <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
-                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <!-- RIGHT — the button cards, top-to-bottom 3·2·1 to mirror the pen diagram beside them
+                     (tip-down: button 3 highest, button 1 nearest the tip at the bottom). -->
+                <StackPanel Grid.Column="4" HorizontalAlignment="Left" Spacing="8" VerticalAlignment="Top">
                     <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton3Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    <views:PenSwitchCard DataContext="{Binding PenButton2Row}"
+                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton2Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    <views:PenSwitchCard DataContext="{Binding PenButton1Row}"
+                                         IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 </StackPanel>
                 </Grid>
             </StackPanel>

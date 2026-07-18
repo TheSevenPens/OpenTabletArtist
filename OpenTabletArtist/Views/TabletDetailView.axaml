@@ -283,8 +283,8 @@
             <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
                 <Grid ColumnDefinitions="*,32,*">
 
-                    <!-- LEFT: active area. -->
-                    <StackPanel Grid.Column="0">
+                    <!-- RIGHT: active area. -->
+                    <StackPanel Grid.Column="2">
                         <!-- Diagram + stats when we have digitizer specs. -->
                         <StackPanel IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                             <!-- Top row: Rotation on the left (moved up from a separate card so it's visible
@@ -386,8 +386,8 @@
                                    IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNull}}" />
                     </StackPanel>
 
-                    <!-- RIGHT: the display it maps onto. -->
-                    <StackPanel Grid.Column="2">
+                    <!-- LEFT: the display it maps onto. -->
+                    <StackPanel Grid.Column="0">
                         <!-- Flags a mapping that isn't a clean single-monitor one (#displaymap): an off-screen
                              area is a warning (the pen hits dead zones); a custom/multi-display area is an
                              informational note. Apply mapping below is the one-click fix for both. -->
@@ -457,7 +457,7 @@
                                                        Foreground="{DynamicResource AccentBrush}" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="1">
-                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
+                                            <TextBlock Text="{Binding DisplayTitleWithPrimary}" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                                             <TextBlock Text="{Binding DetailSubLine}"
                                                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
