@@ -1,6 +1,8 @@
 <UserControl x:Class="OpenTabletArtist.Views.DashboardView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters">
 
     <!-- DataContext is the DashboardViewModel, supplied by the typed-nav DataTemplate (#15). No page
          title — the highlighted "home" wordmark in the top bar names the section (Zune). Home stays
@@ -20,13 +22,11 @@
                 <ItemsControl ItemsSource="{Binding Health.Issues}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <!-- Health cards get a tinted per-tier background + border (#509) so they read
-                                 distinctly from normal cards, and a per-tier icon in the severity box (#552). -->
-                            <Border Classes="GlassPanel attentionCard" Margin="0,0,0,8" Padding="14,11"
-                                    Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
-                                    Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
-                                    Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}"
-                                    Classes.information="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}">
+                            <!-- Health cards get a tinted per-tier background + border (#509/#574) so they
+                                 read distinctly from normal cards, and a per-tier icon in the severity box
+                                 (#552). The Alert role owns the tint/border via its Severity tier. -->
+                            <c:Alert Margin="0,0,0,8" Padding="14,11"
+                                     Severity="{Binding Severity, Converter={x:Static conv:HealthSeverityToAlertSeverityConverter.Instance}}">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                                     <Border Grid.Column="0" Classes="severityBar"
                                             Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
@@ -60,7 +60,7 @@
                                             Theme="{StaticResource AccentButton}" Padding="12,6"
                                             VerticalAlignment="Center" />
                                 </Grid>
-                            </Border>
+                            </c:Alert>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -72,9 +72,8 @@
                  problem or an op is in flight. It morphs to a "Connecting to daemon…" spinner while Fix
                  runs, then clears on success (or reverts to the error). The full status + controls +
                  version live on the Daemon page (Advanced → OpenTabletDriver). -->
-            <Border Classes="GlassPanel" Margin="0,0,0,12"
-                    BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
-                    IsVisible="{Binding Daemon.ShowDaemonProblem}">
+            <c:Alert Severity="Warning" Background="{DynamicResource GlassBgBrush}" Margin="0,0,0,12"
+                     IsVisible="{Binding Daemon.ShowDaemonProblem}">
                 <Panel>
                     <!-- Connecting… (morph) -->
                     <StackPanel IsVisible="{Binding Daemon.ShowDaemonActivity}">
@@ -102,7 +101,7 @@
                                 Theme="{StaticResource GhostButton}" Padding="12,6" VerticalAlignment="Center" />
                     </Grid>
                 </Panel>
-            </Border>
+            </c:Alert>
 
             <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
                  navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
@@ -112,7 +111,7 @@
                           IsVisible="{Binding TabletsOverview.HasTablets}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Classes="GlassPanel" Margin="0,0,0,10">
+                        <c:Entity Margin="0,0,0,10">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
@@ -142,7 +141,7 @@
                                     </Button>
                                 </StackPanel>
                             </Grid>
-                        </Border>
+                        </c:Entity>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

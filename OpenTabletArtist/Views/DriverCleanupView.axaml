@@ -14,8 +14,7 @@
         <ItemsControl ItemsSource="{Binding Conflicts.Drivers}" IsVisible="{Binding Conflicts.HasConflicts}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Classes="GlassPanel" Margin="0,0,0,12"
-                            BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5">
+                    <c:Alert Severity="Warning" Background="{DynamicResource GlassBgBrush}" Margin="0,0,0,12">
                         <StackPanel Spacing="6">
                             <TextBlock Text="{Binding Name}" Classes="CardTitle" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Impact}" FontWeight="SemiBold"
@@ -32,13 +31,13 @@
                                     Theme="{StaticResource GhostButton}" Padding="12,6"
                                     HorizontalAlignment="Left" Margin="0,4,0,0" />
                         </StackPanel>
-                    </Border>
+                    </c:Alert>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
         <!-- TabletDriverCleanup -->
-        <Border Classes="GlassPanel" Margin="0,0,0,12">
+        <c:Section Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
@@ -87,6 +86,6 @@
                             IsVisible="{Binding CleanupInstalled}" />
                 </WrapPanel>
             </Grid>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

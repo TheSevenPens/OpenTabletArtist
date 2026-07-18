@@ -17,6 +17,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     private const string JsonKey = "developer.showJsonTab";
     private const string OnPageScreenshotKey = "developer.onPageScreenshot";
     private const string CutBelowKey = "developer.showCutBelowMinimum";
+    private const string CardRoleTagsKey = "developer.showCardRoleTags";
     private const string ScreenshotFormatKey = "developer.screenshotFormat";
 
     private readonly bool _loading;
@@ -28,6 +29,7 @@ public sealed partial class DeveloperSettings : ObservableObject
         ShowJsonTab = AppSettings.Get(JsonKey) == "true";
         OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
         ShowCutBelowMinimum = AppSettings.Get(CutBelowKey) == "true";
+        ShowCardRoleTags = AppSettings.Get(CardRoleTagsKey) == "true";
         ScreenshotFormat = Enum.TryParse<ScreenshotFormat>(AppSettings.Get(ScreenshotFormatKey), out var fmt)
             ? fmt : ScreenshotFormat.PNG;
         _loading = false;
@@ -40,6 +42,9 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>Show a small capture button at the bottom of the nav bar that screenshots the current
     /// page (#437). Off by default — a developer aid.</summary>
     [ObservableProperty] private bool _onPageScreenshot;
+    /// <summary>Overlay a small role tag (SECTION / ALERT / SELECT) at each card's bottom-right so the
+    /// card-role split (#574) is visible while iterating on the cardless redesign (#573). Off by default.</summary>
+    [ObservableProperty] private bool _showCardRoleTags;
     /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics (#569). Hidden
     /// by default — it's an advanced/rarely-needed option; re-enabled from the Developer tab.</summary>
     [ObservableProperty] private bool _showCutBelowMinimum;
@@ -76,7 +81,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
         propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot)
-                             or nameof(ShowCutBelowMinimum)
+                             or nameof(ShowCutBelowMinimum) or nameof(ShowCardRoleTags)
                              or nameof(ScreenshotFormat));
 
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
@@ -106,6 +111,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnShowCutBelowMinimumChanged(bool value)
     {
         if (!_loading) AppSettings.Set(CutBelowKey, value ? "true" : "false");
+    }
+
+    partial void OnShowCardRoleTagsChanged(bool value)
+    {
+        if (!_loading) AppSettings.Set(CardRoleTagsKey, value ? "true" : "false");
     }
 
     partial void OnScreenshotFormatChanged(ScreenshotFormat value)

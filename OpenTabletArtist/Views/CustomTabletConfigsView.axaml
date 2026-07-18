@@ -5,7 +5,7 @@
 
     <!-- DataContext is the CustomTabletConfigsViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <Border Classes="GlassPanel">
+        <c:Section>
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
@@ -83,10 +83,10 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
-        </Border>
+        </c:Section>
 
         <!-- #480: install approved tablet configs from OpenTabletDriver's repo that aren't bundled yet. -->
-        <Border Classes="GlassPanel" Margin="0,16,0,0">
+        <c:Section Margin="0,16,0,0">
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
@@ -134,6 +134,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
-        </Border>
+        </c:Section>
     </StackPanel>
 </UserControl>

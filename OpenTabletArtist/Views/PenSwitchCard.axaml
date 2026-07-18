@@ -9,7 +9,7 @@
     <!-- Adaptive is the only supported binding for pen switches — under Windows Ink (which OTA's output
          modes use) other binding types silently don't work (#495). So the card is a status read-out, with
          a single "Use Adaptive" fix when the switch has drifted onto something else. -->
-    <Border Classes="GlassPanel" Padding="12,10" Width="240" HorizontalAlignment="Left">
+    <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
         <StackPanel Spacing="6">
             <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />
 
@@ -27,5 +27,5 @@
                     Theme="{StaticResource AccentButton}" Padding="12,5" HorizontalAlignment="Left"
                     ToolTip.Tip="Set this switch back to the recommended Adaptive Binding" />
         </StackPanel>
-    </Border>
+    </c:Section>
 </UserControl>

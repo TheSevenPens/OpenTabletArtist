@@ -1,6 +1,7 @@
 <UserControl x:Class="OpenTabletArtist.Views.PerAppView"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the PerAppViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
          SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here. -->
@@ -19,7 +20,7 @@
         </Border>
 
         <!-- Need snapshots first -->
-        <Border Classes="GlassPanel" Padding="24"
+        <c:Section Padding="24"
                 IsVisible="{Binding !HasEnoughSnapshots}" IsEnabled="{Binding CanUse}">
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="Save a preset first" FontSize="16" FontWeight="SemiBold"
@@ -28,7 +29,7 @@
                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                            HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
             </StackPanel>
-        </Border>
+        </c:Section>
 
         <StackPanel IsVisible="{Binding HasEnoughSnapshots}" IsEnabled="{Binding CanUse}" Spacing="14">
             <!-- No explicit on/off: switching turns on by itself as soon as an app below is mapped to a
@@ -37,7 +38,7 @@
             <!-- Catch-all card: what any app that isn't mapped below should use. Same dropdown (Current
                  settings + saved profiles) as every app card — one consistent way to target the live
                  config or a profile, even for unmapped apps. -->
-            <Border Classes="GlassPanel">
+            <c:Section>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                         <TextBlock Classes="SectionLabel" Text="DEFAULT FOR APPS" />
@@ -48,7 +49,7 @@
                     <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="170"
                               ItemsSource="{Binding TargetOptions}" SelectedItem="{Binding UnmappedTarget}" />
                 </Grid>
-            </Border>
+            </c:Section>
 
             <!-- Mappings -->
             <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
@@ -62,7 +63,7 @@
             <ItemsControl ItemsSource="{Binding Mappings}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Classes="GlassPanel" Margin="0,0,0,10">
+                        <c:Section Margin="0,0,0,10">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                     <TextBlock Classes="CardTitle" Text="{Binding ExeName}" />
@@ -88,12 +89,12 @@
                                         VerticalAlignment="Center" Padding="12,6"
                                         Command="{Binding RemoveCommand}" />
                             </Grid>
-                        </Border>
+                        </c:Section>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Border Classes="GlassPanel" Padding="24" IsVisible="{Binding !HasMappings}">
+            <c:Section Padding="24" IsVisible="{Binding !HasMappings}">
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No apps mapped yet" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
@@ -101,7 +102,7 @@
                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="460" Margin="0,6,0,0" />
                 </StackPanel>
-            </Border>
+            </c:Section>
         </StackPanel>
     </StackPanel>
 </UserControl>

@@ -9,12 +9,12 @@
     <UserControl.Styles>
         <!-- Express-key card lights up while its physical button is held. Only the border/background
              change (thickness stays 1) so the highlight doesn't nudge the layout. -->
-        <Style Selector="Border.expressCard.pressed">
+        <Style Selector="ctrl|Entity.expressCard.pressed">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
         </Style>
-        <!-- Calibration card that's currently in use: accent outline (overrides the GlassPanel border). -->
-        <Style Selector="Border.GlassPanel.calCurrent">
+        <!-- Calibration card that's currently in use: accent outline (overrides the Section border). -->
+        <Style Selector="ctrl|Section.calCurrent">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
@@ -49,7 +49,7 @@
              modal type-tabbed editor (BindingEditorDialog). Used by both the ExpressKeys tab (auxiliary
              buttons) and the Wheel tab (rotation directions + wheel button) — both bind a ButtonBinding. -->
         <DataTemplate x:Key="ButtonBindingCard">
-            <Border Classes="GlassPanel expressCard" Classes.pressed="{Binding IsPressed}"
+            <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
                     Padding="16,12" Margin="0,0,0,10">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -64,7 +64,7 @@
                             Theme="{StaticResource GhostButton}" Padding="16,7"
                             ToolTip.Tip="Change this binding" />
                 </Grid>
-            </Border>
+            </ctrl:Entity>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -203,7 +203,7 @@
                 <Grid ColumnDefinitions="*,32,*">
                 <!-- LEFT — specifications. -->
                 <StackPanel Grid.Column="0">
-                <Border Classes="GlassPanel">
+                <ctrl:Section>
                     <StackPanel>
                         <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel largetitle" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
@@ -226,13 +226,11 @@
                                    Margin="0,10,0,0" TextWrapping="Wrap"
                                    IsVisible="{Binding !HasTabletFacts}" />
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
 
                 <!-- #467: mirror the Home "using a custom config" card here, so the use of a config that
                      overrides OTD's vetted built-in is obvious right where the tablet is inspected. -->
-                <Border Classes="GlassPanel" Margin="0,12,0,0"
-                        BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5"
-                        IsVisible="{Binding IsConfigOverride}">
+                <ctrl:Alert Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1.5" Margin="0,12,0,0" IsVisible="{Binding IsConfigOverride}">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                         <Border Grid.Column="0" Classes="severityBar neutral" />
                         <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
@@ -246,14 +244,14 @@
                                 Theme="{StaticResource AccentButton}" Padding="12,6"
                                 VerticalAlignment="Center" />
                     </Grid>
-                </Border>
+                </ctrl:Alert>
 
                 </StackPanel>
 
                 <!-- RIGHT — features (capabilities beyond the core dimensions; the split of the old spec
                      list at the active-area aspect ratio). Hidden until the tablet is detected. -->
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
-                <Border Classes="GlassPanel" IsVisible="{Binding HasTabletFeatures}">
+                <ctrl:Section IsVisible="{Binding HasTabletFeatures}">
                     <StackPanel>
                         <TextBlock Text="FEATURES" Classes="SectionLabel largetitle" />
                         <ItemsControl ItemsSource="{Binding TabletFeatures}" Margin="0,10,0,0">
@@ -269,7 +267,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
                 </StackPanel>
                 </Grid>
             </StackPanel>
@@ -283,7 +281,7 @@
                  the right. They're two halves of the same question ("what maps where"), so they read
                  better side by side than stacked in separate cards. The pivot already says "mapping", so
                  the section headings are gone (#map-merge). -->
-            <Border Classes="GlassPanel" IsVisible="{Binding HasAreaMapping}">
+            <ctrl:Section IsVisible="{Binding HasAreaMapping}">
                 <Grid ColumnDefinitions="*,32,*">
 
                     <!-- RIGHT: active area. -->
@@ -473,7 +471,7 @@
                         </ItemsControl>
                     </StackPanel>
                 </Grid>
-            </Border>
+            </ctrl:Section>
         </ScrollViewer>
 
         <!-- Calibration tab content: split out of MAPPING (#252 merged it in; it has outgrown that). -->
@@ -484,7 +482,7 @@
                      the current state (and can clear it) first. Leads with which display the calibration
                      overlay pops up on (the tablet's mapped display), so the user knows where to look;
                      this line used to be a separate accent box above the card (folded in, #500). -->
-                <Border Classes="GlassPanel" Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
+                <ctrl:Section Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
@@ -505,14 +503,14 @@
                                    Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                                    IsVisible="{Binding CalibrationStale}" />
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
 
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
                      currently in use gets an accent outline + "In use" badge. Equal-size cards
                      (UniformGrid); the START button sits directly below the diagram with the explanatory
                      text last, so the button is at a consistent height across the cards. -->
                 <UniformGrid Columns="3" IsVisible="{Binding CanCalibrate}">
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent4Point}">
+                    <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent4Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -525,8 +523,8 @@
                             <TextBlock Text="Recommended — best for most setups." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
-                    </Border>
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent9Point}">
+                    </ctrl:Section>
+                    <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent9Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -539,8 +537,8 @@
                             <TextBlock Text="More taps for a steadier fit — try if 4-point feels slightly off." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
-                    </Border>
-                    <Border MaxWidth="280" Margin="0,0,12,12" Classes="GlassPanel" Classes.calCurrent="{Binding IsCurrent25Point}">
+                    </ctrl:Section>
+                    <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent25Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
@@ -553,12 +551,12 @@
                             <TextBlock Text="The most taps — the steadiest fit for a finicky tablet." TextWrapping="Wrap" TextAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
-                    </Border>
+                    </ctrl:Section>
                 </UniformGrid>
 
                 <!-- Import / export calibration (#545): save this tablet's calibration to a portable JSON
                      and restore it later without re-tapping. Import is matching-only. -->
-                <Border Classes="GlassPanel" Margin="0,4,0,0" IsVisible="{Binding CanCalibrate}">
+                <ctrl:Section Margin="0,4,0,0" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="10">
                         <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel" />
                         <TextBlock Text="Save this tablet's calibration (its recorded taps + solved model) to a file, then load it back later without re-tapping. Importing only works when the tablet's current mapping matches the saved one."
@@ -576,7 +574,7 @@
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding HasCaptureStatus}" />
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
 
                 <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
@@ -624,10 +622,10 @@
                 </ItemsControl>
 
                 <!-- Empty state when the tablet has no auxiliary buttons. -->
-                <Border Classes="GlassPanel" IsVisible="{Binding NoAuxButtons}">
+                <ctrl:Section IsVisible="{Binding NoAuxButtons}">
                     <TextBlock Text="No auxiliary buttons configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
-                </Border>
+                </ctrl:Section>
             </StackPanel>
         </ScrollViewer>
 
@@ -664,7 +662,7 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Padding="14,10" Margin="0,0,0,8">
+                            <ctrl:Entity Padding="14,10" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
                                                IsVisible="{Binding ShowTitle}" Margin="0,0,0,6" />
@@ -714,7 +712,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
-                            </Border>
+                            </ctrl:Entity>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -733,7 +731,7 @@
                 <!-- Combined pressure card (#dynamics-merge): live bar · binary · curve · smoothing in one
                      card. The card's own PRESSURE DYNAMICS label (largetitle) is the section heading; the
                      filter is always enabled internally (neutralize it with a linear curve + zero smoothing). -->
-                <Border Classes="GlassPanel" Margin="0,2,0,10">
+                <ctrl:Section Margin="0,2,0,10">
                     <StackPanel>
                         <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics
                              shape it, a processed dot at the value after the curve. -->
@@ -847,7 +845,7 @@
                                             ValueTextOverride="{Binding PressureSmoothingText}"
                                             Monospace="True" ValueWidth="44" />
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
 
                 </StackPanel>
 
@@ -855,7 +853,7 @@
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
                     <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). The section heading
                          lives on the card's label (largetitle) rather than a separate TabTitle + status. -->
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
+                    <ctrl:Section Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="POSITION DYNAMICS" Classes="SectionLabel largetitle"
                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
@@ -867,12 +865,12 @@
                                                 ValueTextOverride="{Binding PositionSmoothingText}"
                                                 Monospace="True" ValueWidth="44" />
                         </StackPanel>
-                    </Border>
+                    </ctrl:Section>
 
                     <!-- Tilt Dynamics section (merged into DYNAMICS, #494). For now just the disable toggle;
                          a tilt curve / smoothing may join later, matching Pressure/Position. The section
                          heading lives on the card's label (largetitle) rather than a separate TabTitle. -->
-                    <Border Classes="GlassPanel" Margin="0,28,0,10">
+                    <ctrl:Section Margin="0,28,0,10">
                         <StackPanel Spacing="10">
                             <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel largetitle" />
                             <!-- Moved here from Pen Inputs (#494). -->
@@ -880,7 +878,7 @@
                                                 Description="Apps receive no tilt from this tablet."
                                                 IsChecked="{Binding DisableTilt}" />
                         </StackPanel>
-                    </Border>
+                    </ctrl:Section>
                 </StackPanel>
               </Grid>
             </StackPanel>
@@ -898,7 +896,7 @@
                                   IsChecked="{Binding HoverLimitEnabled}" />
                 </Grid>
 
-                <Border Classes="GlassPanel" Margin="0,0,0,10"
+                <ctrl:Section Margin="0,0,0,10"
                         IsEnabled="{Binding HoverLimitEnabled}" Opacity="{Binding HoverControlsOpacity}">
                     <StackPanel>
                         <TextBlock Text="Stops the cursor tracking once the pen lifts past this distance — useful to keep a raised pen from dragging the cursor. Drawing is unaffected."
@@ -929,7 +927,7 @@
                                           IsChecked="{Binding NearProximityOnly}" />
                         </Grid>
                     </StackPanel>
-                </Border>
+                </ctrl:Section>
             </StackPanel>
         </ScrollViewer>
 
@@ -942,7 +940,7 @@
                 <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="GlassPanel" Padding="16,12" Margin="0,0,0,10">
+                            <ctrl:Section Padding="16,12" Margin="0,0,0,10">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -969,21 +967,21 @@
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Grid>
-                            </Border>
+                            </ctrl:Section>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
                 <!-- Empty state when the profile has no filters. -->
-                <Border Classes="GlassPanel" IsVisible="{Binding !HasFilters}">
+                <ctrl:Section IsVisible="{Binding !HasFilters}">
                     <TextBlock Text="No filters configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
-                </Border>
+                </ctrl:Section>
             </StackPanel>
         </ScrollViewer>
 
         <!-- JSON tab content -->
-        <Border Grid.Row="2" Classes="GlassPanel"
+        <ctrl:Section Grid.Row="2"
                 IsVisible="{Binding #JsonTab.IsChecked}">
             <TextBox Text="{Binding RawJson, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="{DynamicResource MonoFontFamily}"
@@ -991,6 +989,6 @@
                      Background="Transparent" BorderThickness="0"
                      TextWrapping="NoWrap"
                      AcceptsReturn="True" />
-        </Border>
+        </ctrl:Section>
     </Grid>
 </UserControl>
