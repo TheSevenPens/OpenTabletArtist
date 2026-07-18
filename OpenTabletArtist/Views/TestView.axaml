@@ -5,12 +5,12 @@
              xmlns:conv="using:OpenTabletArtist.Converters">
 
     <UserControl.Styles>
-        <!-- Small accent pill listing an active dynamics aspect (#184), matching the banner's chip. -->
+        <!-- Small accent chip listing an active dynamics aspect (#184), matching the banner's chip. -->
         <Style Selector="Border.DynChip">
             <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="8,3" />
             <Setter Property="Margin" Value="0,0,6,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
