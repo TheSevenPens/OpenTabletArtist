@@ -166,18 +166,7 @@ public sealed class ScreenMappingDiagram : Control
         //    gap; the selected display is drawn afterwards so it sits above the beams. ──
         if (selectedBox is { } selBox)
         {
-            var beamBrush = new LinearGradientBrush
-            {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Color.FromArgb(0x9C, accent.R, accent.G, accent.B), 0.0),
-                    new GradientStop(Color.FromArgb(0x14, accent.R, accent.G, accent.B), 0.5),
-                    new GradientStop(Color.FromArgb(0x9C, accent.R, accent.G, accent.B), 1.0),
-                }
-            };
-            void Beam(Point a1, Point a2, Point b2, Point b1)
+            void Beam(IBrush brush, Point a1, Point a2, Point b2, Point b1)
             {
                 var geo = new StreamGeometry();
                 using (var gc = geo.Open())
@@ -188,11 +177,48 @@ public sealed class ScreenMappingDiagram : Control
                     gc.LineTo(b1);
                     gc.EndFigure(true);
                 }
-                ctx.DrawGeometry(beamBrush, null, geo);
+                ctx.DrawGeometry(brush, null, geo);
             }
-            // Left edge → left edge, right edge → right edge.
-            Beam(selBox.TopLeft, selBox.BottomLeft, effRect.BottomLeft, effRect.TopLeft);      // left beam
-            Beam(selBox.TopRight, selBox.BottomRight, effRect.BottomRight, effRect.TopRight);  // right beam
+
+            // A directional beam fade: strong at the active-area end, fading to nearly nothing at the display
+            // end. `start`/`end` are absolute points projected into the quad's bounds → relative gradient
+            // coords, so the direction is exact regardless of the beam's shape.
+            LinearGradientBrush BeamBrush(Point start, Point end, Point[] quad, Color color)
+            {
+                double bl = quad.Min(p => p.X), bt = quad.Min(p => p.Y);
+                double bw = Math.Max(1e-6, quad.Max(p => p.X) - bl), bh = Math.Max(1e-6, quad.Max(p => p.Y) - bt);
+                RelativePoint Rel(Point p) => new(( p.X - bl) / bw, (p.Y - bt) / bh, RelativeUnit.Relative);
+                return new LinearGradientBrush
+                {
+                    StartPoint = Rel(start),
+                    EndPoint = Rel(end),
+                    GradientStops =
+                    {
+                        new GradientStop(Color.FromArgb(0x00, color.R, color.G, color.B), 0.0),
+                        new GradientStop(Color.FromArgb(0x9C, color.R, color.G, color.B), 1.0),
+                    }
+                };
+            }
+
+            var green = Color.FromRgb(0x22, 0xC5, 0x5E);
+
+            // Left beam (left edge → left edge): gradient from the active area's left-mid (Q) to the
+            // display's left-mid (H).
+            var leftQuad = new[] { selBox.TopLeft, selBox.BottomLeft, effRect.BottomLeft, effRect.TopLeft };
+            Beam(BeamBrush(new Point(effRect.Left, effRect.Center.Y), new Point(selBox.Left, selBox.Center.Y), leftQuad, accent),
+                 selBox.TopLeft, selBox.BottomLeft, effRect.BottomLeft, effRect.TopLeft);
+
+            // Right beam (right edge → right edge): gradient from the active area's right-mid (M) to the
+            // display's right-mid (D).
+            var rightQuad = new[] { selBox.TopRight, selBox.BottomRight, effRect.BottomRight, effRect.TopRight };
+            Beam(BeamBrush(new Point(effRect.Right, effRect.Center.Y), new Point(selBox.Right, selBox.Center.Y), rightQuad, accent),
+                 selBox.TopRight, selBox.BottomRight, effRect.BottomRight, effRect.TopRight);
+
+            // Bottom beam (P N E G — active area's bottom edge → display's bottom edge): green gradient from
+            // the active area's bottom-mid (O) to the display's bottom-mid (F).
+            var bottomQuad = new[] { effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft };
+            Beam(BeamBrush(new Point(effRect.Center.X, effRect.Bottom), new Point(selBox.Center.X, selBox.Bottom), bottomQuad, green),
+                 effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
         // The selected display, drawn last so it sits above the connector beams.
@@ -200,6 +226,39 @@ public sealed class ScreenMappingDiagram : Control
         {
             ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(sbx), Glow);
             DrawDisplayLabels(ctx, sbx, sdd, true);
+        }
+
+        // TEMP (gradient-direction scratch): label the 8 points of the selected display (A–H) and the
+        // active area (J–Q), clockwise from each box's top-left, so we can name a gradient's begin/end.
+        // Commented out for now — re-enable both calls (and DrawCornerLabels stays below) when tuning beams.
+        // if (selectedBox is { } dispBox)
+        //     DrawCornerLabels(ctx, dispBox, new[] { "A", "B", "C", "D", "E", "F", "G", "H" });
+        // DrawCornerLabels(ctx, effRect, new[] { "J", "K", "L", "M", "N", "O", "P", "Q" });
+    }
+
+    // TEMP scratch helper (remove with the labels above): draw a letter chip at each corner + edge-midpoint
+    // of an axis-aligned box, clockwise from the top-left.
+    private void DrawCornerLabels(DrawingContext ctx, Rect r, string[] labels)
+    {
+        var pts = new[]
+        {
+            r.TopLeft,                              // 0 top-left
+            new Point(r.Center.X, r.Top),           // 1 top-middle
+            r.TopRight,                             // 2 top-right
+            new Point(r.Right, r.Center.Y),         // 3 right-middle
+            r.BottomRight,                          // 4 bottom-right
+            new Point(r.Center.X, r.Bottom),        // 5 bottom-middle
+            r.BottomLeft,                           // 6 bottom-left
+            new Point(r.Left, r.Center.Y),          // 7 left-middle
+        };
+        var chip = new SolidColorBrush(Color.FromArgb(0xE0, 0, 0, 0));
+        for (int i = 0; i < pts.Length && i < labels.Length; i++)
+        {
+            var ft = Text(labels[i], 12, Brushes.White);
+            var p = pts[i];
+            var bg = new Rect(p.X - ft.Width / 2 - 3, p.Y - ft.Height / 2 - 1, ft.Width + 6, ft.Height + 2);
+            ctx.DrawRectangle(chip, null, bg, 3, 3);
+            ctx.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
         }
     }
 
