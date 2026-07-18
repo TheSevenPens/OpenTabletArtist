@@ -16,7 +16,7 @@
                  when everything is healthy, so Home stays quiet when there's nothing to do. Each card's
                  Fix button runs the relevant action in place or jumps to where the setting lives. -->
             <StackPanel IsVisible="{Binding Health.HasIssues}" Margin="0,0,0,4">
-                <TextBlock Text="NEEDS ATTENTION" Classes="SectionLabel" Margin="0,0,0,8" />
+                <TextBlock Text="NEEDS ATTENTION" Classes="TabTitle" Margin="0,0,0,8" />
                 <ItemsControl ItemsSource="{Binding Health.Issues}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -107,7 +107,7 @@
             <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
                  navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
                  + specs. -->
-            <TextBlock Text="YOUR TABLETS" Classes="SectionLabel" Margin="0,4,0,10" />
+            <TextBlock Text="YOUR TABLETS" Classes="TabTitle" Margin="0,4,0,10" />
             <ItemsControl ItemsSource="{Binding TabletsOverview.Tablets}"
                           IsVisible="{Binding TabletsOverview.HasTablets}">
                 <ItemsControl.ItemTemplate>

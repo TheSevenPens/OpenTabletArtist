@@ -697,20 +697,31 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshAbout(); // the ABOUT facts come from the same specs, so recover them on reconnect too
     }
 
-    /// <summary>Rebuild the ABOUT tab's fact list from the tablet's live specs (empty when not detected).</summary>
+    /// <summary>Rebuild the ABOUT tab's fact lists from the tablet's live specs (empty when not detected).</summary>
     private void RefreshAbout()
     {
         var info = _deviceData != null ? TabletAboutInfo.From(_deviceData.Tablets, TabletName) : null;
         TabletFacts = info != null ? BuildFacts(info) : System.Array.Empty<TabletFact>();
+        TabletFeatures = info != null ? BuildFeatures(info) : System.Array.Empty<TabletFact>();
     }
 
-    /// <summary>The tablet's spec read-out for the ABOUT tab. Each row is included only when known.</summary>
+    /// <summary>The tablet's core spec read-out for the ABOUT tab's SPECIFICATIONS card (identity + active
+    /// area size / diagonal / aspect ratio). Each row is included only when known.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTabletFacts))]
     private IReadOnlyList<TabletFact> _tabletFacts = System.Array.Empty<TabletFact>();
 
     public bool HasTabletFacts => TabletFacts.Count > 0;
 
+    /// <summary>The tablet's capability read-out for the ABOUT tab's FEATURES card — everything after the
+    /// active-area aspect ratio (resolution, pressure, buttons, wheels/strips, touch, USB id).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTabletFeatures))]
+    private IReadOnlyList<TabletFact> _tabletFeatures = System.Array.Empty<TabletFact>();
+
+    public bool HasTabletFeatures => TabletFeatures.Count > 0;
+
+    // Core dimensions — the SPECIFICATIONS card (up to and including the active-area aspect ratio).
     private static IReadOnlyList<TabletFact> BuildFacts(TabletAboutInfo a)
     {
         var facts = new System.Collections.Generic.List<TabletFact>();
@@ -723,6 +734,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             facts.Add(new("Active area diagonal", $"{diag:0.#} mm  ({diag / 25.4:0.0} in)"));
             facts.Add(new("Active area aspect ratio", TabletAboutInfo.FormatAspectRatio(a.WidthMm, a.HeightMm)));
         }
+        return facts;
+    }
+
+    // Capabilities — the FEATURES card (everything after the active-area aspect ratio).
+    private static IReadOnlyList<TabletFact> BuildFeatures(TabletAboutInfo a)
+    {
+        var facts = new System.Collections.Generic.List<TabletFact>();
         if (a.LpMm is > 0 && a.Lpi is > 0)
             facts.Add(new("Digitizer resolution", $"{a.LpMm:N0} LPmm ({a.Lpi:N0} LPI)"));
         if (a.MaxPressure is > 0) facts.Add(new("Pressure levels", $"{a.MaxPressure:N0}"));
@@ -732,8 +750,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (a.WheelCount > 0) facts.Add(new("Touch ring / wheel", a.WheelCount == 1 ? "Yes" : a.WheelCount.ToString()));
         if (a.StripCount > 0) facts.Add(new("Touch strips", a.StripCount.ToString()));
         if (a.HasTouch) facts.Add(new("Touch input", "Supported"));
-        if (a.VendorId is { } vid && a.ProductId is { } pid)
-            facts.Add(new("USB ID (VID:PID)", $"{vid:X4}:{pid:X4}"));
         return facts;
     }
 

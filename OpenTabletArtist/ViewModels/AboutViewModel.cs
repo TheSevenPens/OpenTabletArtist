@@ -48,8 +48,9 @@ public partial class AboutViewModel : ObservableObject
         Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
-    /// <summary>"Version v0.6.0"-style label for the About card.</summary>
-    public string AppVersionLabel => $"Version {AppVersion}";
+    /// <summary>"Version v0.6.0 BETA"-style label for the About card — folds in the BETA tag that used
+    /// to sit in the title bar (#home-version).</summary>
+    public string AppVersionLabel => $"Version {AppVersion} BETA";
 
     /// <summary>Opens a URL in the user's default browser.</summary>
     [RelayCommand]

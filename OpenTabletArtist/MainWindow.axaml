@@ -77,9 +77,6 @@
                             Theme="{StaticResource GhostButton}" Padding="10,5"
                             Content="Capture page" VerticalAlignment="Center"
                             ToolTip.Tip="Save a PNG of the current page to Pictures\OpenTabletArtist" />
-                    <TextBlock Text="{Binding TitleBarText}" FontSize="12"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
         </Border>

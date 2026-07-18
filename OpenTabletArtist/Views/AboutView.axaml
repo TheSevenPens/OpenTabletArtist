@@ -7,7 +7,7 @@
     <StackPanel HorizontalAlignment="Stretch">
         <Border Classes="GlassPanel">
             <StackPanel>
-                <TextBlock Classes="SectionLabel" Text="WHAT IS OPENTABLETARTIST?" Margin="0,0,0,12" />
+                <TextBlock Classes="SectionLabel largetitle" Text="WHAT IS OPENTABLETARTIST?" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     An alternative, artist-focused experience for OpenTabletDriver on Windows.
@@ -23,7 +23,7 @@
              OTD-specific and should be triaged in the OTA channel first. -->
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel Spacing="10">
-                <TextBlock Classes="SectionLabel" Text="HELP" Margin="0,0,0,2" />
+                <TextBlock Classes="SectionLabel largetitle" Text="HELP" Margin="0,0,0,2" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
                     Need help? Post in the <Run FontWeight="SemiBold">#help-forum</Run> channel on the
@@ -47,7 +47,7 @@
              Each opens in the default browser; the full URL is on hover. -->
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel Spacing="10">
-                <TextBlock Classes="SectionLabel" Text="RESOURCES" Margin="0,0,0,2" />
+                <TextBlock Classes="SectionLabel largetitle" Text="RESOURCES" Margin="0,0,0,2" />
                 <!-- Opens OTD's supported-tablets catalog in the in-app dialog (#155), not a browser —
                      replaces the former standalone Home "Supported tablets" card. -->
                 <Button Command="{Binding OpenSupportedTabletsCommand}"

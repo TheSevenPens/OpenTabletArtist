@@ -202,7 +202,7 @@
                 <StackPanel Grid.Column="0">
                 <Border Classes="GlassPanel">
                     <StackPanel>
-                        <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel" />
+                        <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel largetitle" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
                         <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,10,0,0"
                                       IsVisible="{Binding HasTabletFacts}">
@@ -247,18 +247,24 @@
 
                 </StackPanel>
 
-                <!-- RIGHT — resources. -->
+                <!-- RIGHT — features (capabilities beyond the core dimensions; the split of the old spec
+                     list at the active-area aspect ratio). Hidden until the tablet is detected. -->
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
-                <Border Classes="GlassPanel">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="RESOURCES" Classes="SectionLabel" />
-                        <Button Content="View supported tablets"
-                                Command="{Binding OpenSupportedTabletsPageCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="10,6"
-                                HorizontalAlignment="Left"
-                                ToolTip.Tip="Show the tablets OpenTabletDriver supports (this one highlighted)" />
-                        <TextBlock Text="Documentation and compatible-pen details will appear here in a future update."
-                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                <Border Classes="GlassPanel" IsVisible="{Binding HasTabletFeatures}">
+                    <StackPanel>
+                        <TextBlock Text="FEATURES" Classes="SectionLabel largetitle" />
+                        <ItemsControl ItemsSource="{Binding TabletFeatures}" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="150,*" Margin="0,0,0,9">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
                 </StackPanel>
