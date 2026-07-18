@@ -21,11 +21,13 @@
              border via template bindings (defaults here) so #573 can restyle it flush without a shared
              class. Was SettingCard. -->
         <ControlTheme x:Key="{x:Type c:Section}" TargetType="c:Section">
-            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
+            <!-- Cardless (#573): a Section is now pure grouping — no chrome. It contributes only its optional
+                 title/description and lays out its content; no background, border, or padding of its own. -->
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
