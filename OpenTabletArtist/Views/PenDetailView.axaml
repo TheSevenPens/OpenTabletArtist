@@ -45,21 +45,21 @@
             <StackPanel>
                 <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                      A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
-                <StackPanel Margin="0,12,0,0">
-                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}" Margin="0,0,0,12"
+                <StackPanel Margin="0,12,0,0" Spacing="10">
+                    <RadioButton GroupName="Movement"
                                  IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
                                  Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
-                        <StackPanel Spacing="6">
+                        <StackPanel Spacing="2">
                             <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
                             <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
                                        TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton GroupName="Movement" Theme="{StaticResource SelectableCard}"
+                    <RadioButton GroupName="Movement"
                                  IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
                                  Command="{Binding SelectMovementCommand}" CommandParameter="relative">
-                        <StackPanel Spacing="6">
+                        <StackPanel Spacing="2">
                             <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
                             <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
                                        TextWrapping="Wrap"
