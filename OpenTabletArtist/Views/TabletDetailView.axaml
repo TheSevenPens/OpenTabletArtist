@@ -720,62 +720,52 @@
               <Grid ColumnDefinitions="*,32,*">
                 <!-- LEFT — pressure: live bar · binary · curve · smoothing. -->
                 <StackPanel Grid.Column="0">
-                <!-- Header row: title + reset. There's no On/Off — the filter is always enabled internally;
-                     you neutralize it with a linear curve and zero smoothing. -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
-                    <TextBlock Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPressureDynamicsCommand}"
-                            Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
-                            ToolTip.Tip="Reset the curve and pressure smoothing to their no-op defaults" />
-                </Grid>
+                <!-- Section heading. There's no On/Off — the filter is always enabled internally; you
+                     neutralize it with a linear curve and zero smoothing. -->
+                <TextBlock Text="PRESSURE DYNAMICS" Classes="TabTitle" Margin="2,2,2,4" />
 
-                <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics shape it,
-                     a processed dot at the value after the curve. -->
-                <Border Classes="GlassPanel" Margin="0,2,0,8">
-                    <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="LIVE PRESSURE" Classes="SectionLabel"
-                                   VerticalAlignment="Center" />
-                        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
-                                    VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
-                            <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
-                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                       Foreground="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
-                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                       Foreground="{DynamicResource SuccessBrush}"
-                                       IsVisible="{Binding ShowLiveProcessed}" />
-                        </StackPanel>
-                        <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
-                                               Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
-                                               ShowProcessed="{Binding ShowLiveProcessed}"
-                                               RawBrush="{DynamicResource AccentBrush}"
-                                               ProcessedBrush="{DynamicResource SuccessBrush}" />
-                    </Grid>
-                </Border>
+                <!-- Combined pressure card (#dynamics-merge): live bar · binary · curve · smoothing in one
+                     titleless card — the PRESSURE DYNAMICS heading above serves as the section title. -->
+                <Border Classes="GlassPanel" Margin="0,2,0,10">
+                    <StackPanel>
+                        <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics
+                             shape it, a processed dot at the value after the curve. -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="LIVE PRESSURE" Classes="SectionLabel"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
+                                        VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
+                                <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                                <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
+                                           FontFamily="{DynamicResource MonoFontFamily}"
+                                           Foreground="{DynamicResource SuccessBrush}"
+                                           IsVisible="{Binding ShowLiveProcessed}" />
+                            </StackPanel>
+                            <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
+                                                   Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
+                                                   ShowProcessed="{Binding ShowLiveProcessed}"
+                                                   RawBrush="{DynamicResource AccentBrush}"
+                                                   ProcessedBrush="{DynamicResource SuccessBrush}" />
+                        </Grid>
 
-                <!-- Status: whether the current settings actually change pressure. -->
-                <TextBlock Text="{Binding PressureDynamicsStatusText}" TextWrapping="Wrap"
-                           Margin="2,0,2,10" Foreground="{DynamicResource TextMutedBrush}" />
+                        <!-- Binary pressure (#494): a flat on/off contact that drops pressure entirely, so
+                             the curve below is inert while it's on. -->
+                        <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,8,0,0"
+                                            Description="Flat on/off contact — ignores the curve below."
+                                            IsChecked="{Binding DisablePressure}" />
 
-                <!-- Binary pressure (#494); moved below the live/status row (#561). A flat on/off contact
-                     that drops pressure entirely, so the curve below is inert while it's on. -->
-                <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,0,0,6"
-                                    Description="Flat on/off contact — ignores the curve below."
-                                    IsChecked="{Binding DisablePressure}" />
+                        <!-- #469: when Binary pressure is on the output stage drops pressure, so this curve
+                             has no effect. Flag it here so the tab isn't silently inert. -->
+                        <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
+                                BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"
+                                IsVisible="{Binding PressureDisabledNote}">
+                            <TextBlock Text="Binary pressure is on, so this curve has no effect right now. Turn it off above to use the curve."
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                        </Border>
 
-                <!-- #469: when Binary pressure is on the output stage drops pressure, so this curve has no
-                     effect. Flag it here so the tab isn't silently inert. -->
-                <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
-                        BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,4,0,8"
-                        IsVisible="{Binding PressureDisabledNote}">
-                    <TextBlock Text="Binary pressure is on, so this curve has no effect right now. Turn it off above to use the curve."
-                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                </Border>
-
-                <!-- Pressure curve: chart + presets + softness + dead zone + node read-outs -->
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
+                        <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" Margin="0,10,0,0" />
 
                             <!-- Two columns: compact chart on the left, controls on the right. -->
                             <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
@@ -795,10 +785,7 @@
                                             <Button Content="Soft" Command="{Binding ApplyPresetCommand}" CommandParameter="soft"
                                                     Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
                                             <Button Content="Firm" Command="{Binding ApplyPresetCommand}" CommandParameter="firm"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
-                                            <Button Content="Reset" Command="{Binding ResetCurveCommand}"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,0,4"
-                                                    ToolTip.Tip="Reset the curve to the linear default" />
+                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,0,4" />
                                         </WrapPanel>
                                     </Grid>
 
@@ -818,84 +805,55 @@
                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                               ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
 
-                                    <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Input" Classes="SectionLabel"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Output" Classes="SectionLabel"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Min node" Width="70"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InputMinimumText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding OutputMinimumText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Max node" Width="70"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InputMaximumText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding OutputMaximumText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <!-- Live row (#468): live input pressure + output after the curve. Green like the
-                                             live dot; "—" when the pen is up. Debug the activation point, wrapping, grounding. -->
-                                        <Border Grid.Row="3" Grid.ColumnSpan="3" Height="1" Margin="0,6,0,4"
-                                                Background="{DynamicResource DividerBrush}" />
-                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Live" Width="70"
-                                                   VerticalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource SuccessBrush}" />
-                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LiveInputText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource SuccessBrush}" />
-                                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding LiveOutputText}"
-                                                   FontFamily="{DynamicResource MonoFontFamily}" HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource SuccessBrush}" />
-                                    </Grid>
+                                    <!-- Min/max node read-outs as input → output text (was a table with a live row). -->
+                                    <StackPanel Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="MIN" Width="40" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding InputMinimumText}"
+                                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Text="→" Foreground="{DynamicResource TextMutedBrush}" />
+                                            <TextBlock Text="{Binding OutputMinimumText}"
+                                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="MAX" Width="40" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            <TextBlock Text="{Binding InputMaximumText}"
+                                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Text="→" Foreground="{DynamicResource TextMutedBrush}" />
+                                            <TextBlock Text="{Binding OutputMaximumText}"
+                                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Pressure smoothing (EMA) -->
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="PRESSURE SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
-                                       ToolTip.Tip="EMA smoothing of pressure — evens out pressure jitter, at a little lag." />
-                            <!-- Capped at 0.5 (#496): heavier pressure smoothing lags more than it helps. -->
-                            <ctrl:LabeledSlider Label="Pressure" LabelWidth="80" Margin="0,8,0,0"
-                                                Minimum="0" Maximum="{Binding PressureSmoothingMax}"
-                                                Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
-                                                Value="{Binding PressureSmoothing}"
-                                                ValueTextOverride="{Binding PressureSmoothingText}"
-                                                Monospace="True" ValueWidth="44" />
-                        </StackPanel>
-                    </Border>
+                        <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps. -->
+                        <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"
+                                            Minimum="0" Maximum="{Binding PressureSmoothingMax}"
+                                            Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
+                                            Value="{Binding PressureSmoothing}"
+                                            ValueTextOverride="{Binding PressureSmoothingText}"
+                                            Monospace="True" ValueWidth="44" />
+                    </StackPanel>
+                </Border>
 
                 </StackPanel>
 
                 <!-- RIGHT — position + tilt. -->
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
-                    <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). -->
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,2,2,4">
-                        <TextBlock Grid.Column="0" Text="POSITION DYNAMICS" Classes="TabTitle" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="Reset" Command="{Binding ResetPositionDynamicsCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,5" VerticalAlignment="Center"
-                                ToolTip.Tip="Turn position smoothing back off" />
-                    </Grid>
-
-                    <TextBlock Text="{Binding PositionDynamicsStatusText}" TextWrapping="Wrap"
-                               Margin="2,0,2,12" Foreground="{DynamicResource TextMutedBrush}" />
-
+                    <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). The section heading
+                         lives on the card's label (largetitle) rather than a separate TabTitle + status. -->
                     <Border Classes="GlassPanel" Margin="0,0,0,10">
                         <StackPanel>
-                            <TextBlock Text="POSITION SMOOTHING (JITTER REDUCTION)" Classes="SectionLabel"
+                            <TextBlock Text="POSITION DYNAMICS" Classes="SectionLabel largetitle"
                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
                             <!-- Capped at 0.25 (#487): heavier position smoothing is too laggy to be useful. -->
-                            <ctrl:LabeledSlider Label="Position" LabelWidth="80" Margin="0,8,0,0"
+                            <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
                                                 Minimum="0" Maximum="{Binding PositionSmoothingMax}"
                                                 Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
                                                 Value="{Binding PositionSmoothing}"
@@ -905,11 +863,11 @@
                     </Border>
 
                     <!-- Tilt Dynamics section (merged into DYNAMICS, #494). For now just the disable toggle;
-                         a tilt curve / smoothing may join later, matching Pressure/Position. -->
-                    <TextBlock Text="TILT DYNAMICS" Classes="TabTitle" Margin="2,28,2,4" />
-                    <Border Classes="GlassPanel" Margin="0,0,0,10">
+                         a tilt curve / smoothing may join later, matching Pressure/Position. The section
+                         heading lives on the card's label (largetitle) rather than a separate TabTitle. -->
+                    <Border Classes="GlassPanel" Margin="0,28,0,10">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="TILT" Classes="SectionLabel" />
+                            <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel largetitle" />
                             <!-- Moved here from Pen Inputs (#494). -->
                             <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
                                                 Description="Apps receive no tilt from this tablet."

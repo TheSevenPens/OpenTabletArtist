@@ -499,6 +499,12 @@
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>
 
+    <!-- Size-bump modifier for SectionLabel: opt a specific label up to the tab-title size (TypeTitleSize)
+         while keeping its all-caps / SemiBold / muted treatment. Add "largetitle" alongside "SectionLabel". -->
+    <Style Selector="TextBlock.SectionLabel.largetitle">
+        <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
+    </Style>
+
     <!-- Tab Title — the heading at the top of each tablet tab (matches the tab's rail label, #499). One
          place to restyle every tab heading: a step larger and in the primary text colour (the same colour
          as the tab-nav labels), so it reads as a page heading above the muted in-card SectionLabels. -->

@@ -134,6 +134,9 @@ public sealed class PressureCurveChart : Control
     {
         for (int i = 0; i <= 4; i++)
         {
+            // Only label 0 / 0.5 / 1; the 0.25 and 0.75 ticks stay as gridlines with no label.
+            if (i == 1 || i == 3) continue;
+
             double gx = Math.Round(PadLeft + i / 4.0 * plotW);
             var ft = Text(FormatTick(i * 0.25));
             context.DrawText(ft, new Point(gx - ft.Width / 2, Math.Round(PadTop + plotH + 6)));
