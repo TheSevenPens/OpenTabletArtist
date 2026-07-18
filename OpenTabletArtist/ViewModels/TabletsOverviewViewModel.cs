@@ -1,39 +1,24 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
 /// <summary>
 /// Landing page for the Tablets group (shown when its header is clicked / no tablet is selected).
 /// Lists every known tablet — detected and remembered — with its detection status, last-seen time,
-/// and specs, each navigable to its settings page, plus a link to OTD's supported-tablets list. The
-/// row list and <see cref="HasTablets"/> are kept in sync by the shell as tablets come and go (#307).
+/// and specs, each navigable to its settings page. The row list and <see cref="HasTablets"/> are kept
+/// in sync by the shell as tablets come and go (#307). (The supported-tablets catalog link now lives in
+/// Home's About → RESOURCES card.)
 /// </summary>
 public partial class TabletsOverviewViewModel : ObservableObject
 {
-    private readonly IDialogService? _dialogs;
-
-    public TabletsOverviewViewModel(IDialogService? dialogs = null) => _dialogs = dialogs;
-
     [ObservableProperty] private bool _hasTablets;
 
     /// <summary>One row per known tablet, rebuilt by the shell on each data load.</summary>
     [ObservableProperty] private List<TabletOverviewItemViewModel> _tablets = [];
-
-    /// <summary>Show OTD's built-in supported-tablets catalog in an in-app dialog (#155), highlighting
-    /// the connected tablet — instead of opening the OTD website in a browser.</summary>
-    [RelayCommand]
-    private async Task OpenSupportedTablets()
-    {
-        if (_dialogs == null) return;
-        var detected = Tablets.FirstOrDefault(t => t.IsDetected)?.Name;
-        await _dialogs.ShowSupportedTabletsAsync(detected);
-    }
 }
 
 /// <summary>One tablet on the overview: detection status + last-seen + specs, navigable to its

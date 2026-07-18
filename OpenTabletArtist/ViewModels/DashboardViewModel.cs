@@ -43,6 +43,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _openConfigs = openConfigs;
         Health = health;
         TabletsOverview = tablets;
+        // The RESOURCES "Supported tablets" link opens the same in-app catalog the old Home card did,
+        // highlighting whichever tablet is currently detected (#155).
+        About = new AboutViewModel(dialogs,
+            () => TabletsOverview.Tablets.FirstOrDefault(t => t.IsDetected)?.Name);
 
         _session.PropertyChanged += OnSessionPropertyChanged;
     }
@@ -59,8 +63,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public TabletsOverviewViewModel TabletsOverview { get; }
 
     /// <summary>The About content (what-is / help / resources / version), shown in Home's right column —
-    /// the standalone About page was folded into Home. Stateless, so Home owns its own instance.</summary>
-    public AboutViewModel About { get; } = new();
+    /// the standalone About page was folded into Home. Home owns its own instance (constructed with the
+    /// dialog service so its RESOURCES "Supported tablets" link can open the in-app catalog).</summary>
+    public AboutViewModel About { get; }
 
     /// <summary>Perform an issue's fix: run the relevant command in place or navigate to where the
     /// setting lives.</summary>

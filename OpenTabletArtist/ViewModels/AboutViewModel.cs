@@ -1,8 +1,11 @@
+using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -13,6 +16,18 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class AboutViewModel : ObservableObject
 {
+    private readonly IDialogService? _dialogs;
+    private readonly Func<string?>? _detectedTabletName;
+
+    /// <param name="dialogs">Used by the RESOURCES "Supported tablets" link to open the in-app catalog.
+    /// Optional so the parameterless case (e.g. tests) keeps working.</param>
+    /// <param name="detectedTabletName">Supplies the connected tablet to highlight in that dialog.</param>
+    public AboutViewModel(IDialogService? dialogs = null, Func<string?>? detectedTabletName = null)
+    {
+        _dialogs = dialogs;
+        _detectedTabletName = detectedTabletName;
+    }
+
     /// <summary>This project's GitHub repository.</summary>
     public string RepoUrl => "https://github.com/TheSevenPens/OpenTabletArtist";
 
@@ -46,5 +61,14 @@ public partial class AboutViewModel : ObservableObject
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
         catch { }
+    }
+
+    /// <summary>Show OTD's built-in supported-tablets catalog in an in-app dialog (#155), highlighting the
+    /// connected tablet. The RESOURCES-card entry point — replaces the former standalone Home card.</summary>
+    [RelayCommand]
+    private async Task OpenSupportedTablets()
+    {
+        if (_dialogs == null) return;
+        await _dialogs.ShowSupportedTabletsAsync(_detectedTabletName?.Invoke());
     }
 }

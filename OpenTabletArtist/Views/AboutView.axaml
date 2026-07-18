@@ -48,6 +48,15 @@
         <Border Classes="GlassPanel" Margin="0,12,0,0">
             <StackPanel Spacing="10">
                 <TextBlock Classes="SectionLabel" Text="RESOURCES" Margin="0,0,0,2" />
+                <!-- Opens OTD's supported-tablets catalog in the in-app dialog (#155), not a browser —
+                     replaces the former standalone Home "Supported tablets" card. -->
+                <Button Command="{Binding OpenSupportedTabletsCommand}"
+                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                        HorizontalAlignment="Left" ToolTip.Tip="Show the tablets OpenTabletDriver supports">
+                    <TextBlock Text="Supported tablets"
+                               Foreground="{DynamicResource AccentBrush}"
+                               TextDecorations="Underline" VerticalAlignment="Center" />
+                </Button>
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
                         Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                         HorizontalAlignment="Left" ToolTip.Tip="{Binding RepoUrl}">
