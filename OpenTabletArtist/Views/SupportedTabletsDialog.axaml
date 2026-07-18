@@ -80,7 +80,7 @@
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <Border Background="{DynamicResource SuccessBrush}" CornerRadius="0"
                                                 Padding="7,1" VerticalAlignment="Center" IsVisible="{Binding IsDetected}">
-                                            <TextBlock Text="Detected" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                                            <TextBlock Text="Detected" Foreground="White" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" />
                                         </Border>
                                     </StackPanel>
                                     <TextBlock Grid.Column="2" Text="{Binding ActiveArea}" HorizontalAlignment="Right"
@@ -97,7 +97,7 @@
                                             Classes.stSupported="{Binding IsSupported}"
                                             Classes.stQuirks="{Binding IsQuirks}"
                                             Classes.stMissing="{Binding IsMissing}">
-                                        <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Status}" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" />
                                     </Border>
                                     <TextBlock Grid.Column="6" Text="{Binding Notes}" TextWrapping="Wrap"
                                                VerticalAlignment="Top" Margin="12,0,0,0" IsVisible="{Binding HasNotes}"

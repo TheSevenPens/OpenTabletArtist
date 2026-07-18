@@ -180,7 +180,7 @@
                         <!-- PathIcon glyph, coloured + shaped per Kind by the selectors below (#551). -->
                         <PathIcon x:Name="PART_Glyph" Width="13" Height="13"
                                   VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBlock x:Name="PART_Text" Text="{TemplateBinding Text}" FontSize="10.5"
+                        <TextBlock x:Name="PART_Text" Text="{TemplateBinding Text}" FontSize="{DynamicResource TypeCaptionSize}"
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                     </StackPanel>
                 </ControlTemplate>
@@ -227,7 +227,7 @@
                                     Background="{DynamicResource AccentMutedBrush}"
                                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
                                     CornerRadius="0" Padding="6,1" Margin="10,0,0,0">
-                                <TextBlock Text="Dynamics on" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Text="Dynamics on" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" />
                             </Border>
                         </StackPanel>

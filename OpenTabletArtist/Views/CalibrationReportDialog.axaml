@@ -14,7 +14,7 @@
         <StackPanel DockPanel.Dock="Bottom">
             <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,16,0,0" />
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,14,0,0">
-                <TextBlock Grid.Column="0" Text="{Binding CalibrationReportSummary}" FontSize="11"
+                <TextBlock Grid.Column="0" Text="{Binding CalibrationReportSummary}" FontSize="{DynamicResource TypeCaptionSize}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                 <Button Grid.Column="1" Content="Copy" Command="{Binding CopyCalibrationReportCommand}"

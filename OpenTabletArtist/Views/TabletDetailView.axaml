@@ -27,7 +27,7 @@
         </Style>
         <Style Selector="Border.calBadge > TextBlock">
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid colour by

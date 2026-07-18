@@ -40,7 +40,7 @@ public sealed class PressureCurveChart : Control
     private static readonly IPen LiveGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0x10, 0xB9, 0x81)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
     private static Typeface ChartTypeface => AppFonts.UiTypeface();
-    private const double ChartFontSize = 11;
+    private const double ChartFontSize = 10;
 
     public static readonly StyledProperty<PressureCurveSettings> CurveProperty =
         AvaloniaProperty.Register<PressureCurveChart, PressureCurveSettings>(

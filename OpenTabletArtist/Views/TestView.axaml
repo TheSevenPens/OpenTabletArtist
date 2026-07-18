@@ -16,7 +16,7 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.DynChip > TextBlock">
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
         </Style>
@@ -53,7 +53,7 @@
                  chips. The row is always shown so the button stays available when dynamics are off. -->
             <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
-                        Theme="{StaticResource GhostButton}" FontSize="11" Padding="8,3" MinHeight="0"
+                        Theme="{StaticResource GhostButton}" FontSize="{DynamicResource TypeCaptionSize}" Padding="8,3" MinHeight="0"
                         VerticalAlignment="Center" Margin="0,0,8,0"
                         ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Scribble" />
                 <!-- "Dynamics on" pill grouped with the specific-aspect chips (moved off the banner). -->

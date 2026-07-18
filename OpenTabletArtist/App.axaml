@@ -39,6 +39,7 @@
             <sys:Double x:Key="TypeDisplaySize">28</sys:Double>   <!-- page title (later: pivots) -->
             <sys:Double x:Key="TypeTitleSize">15</sys:Double>     <!-- subpage / body title -->
             <sys:Double x:Key="TypeBodySize">12</sys:Double>      <!-- body + labels -->
+            <sys:Double x:Key="TypeCaptionSize">10</sys:Double>   <!-- captions, badges, chips, status text -->
 
             <!-- Shared page transition: a quick crossfade for subpage/content swaps (the Zune motion
                  layer). Applied to the tabbed-page content host now; the top-level shell adopts it in a

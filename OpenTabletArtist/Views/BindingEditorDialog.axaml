@@ -18,7 +18,7 @@
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -96,7 +96,7 @@
         </Style>
 
         <Style Selector="TextBlock.caption">
-            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="LetterSpacing" Value="0.5" />
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
