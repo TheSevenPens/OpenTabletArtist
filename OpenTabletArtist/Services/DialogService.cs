@@ -97,8 +97,6 @@ public class DialogService : IDialogService
                     ? await Views.BindingEditorDialog.ShowAsync(owner, binding, title)
                     : null;
             },
-            // ABOUT tab → the in-app supported-tablets list, highlighting this tablet (#155).
-            openSupportedTablets: () => ShowSupportedTabletsAsync(tabletName),
             // ABOUT tab → the config-override card's Review button navigates to the CONFIGS page (#467).
             openConfigsPage: openConfigsPage);
     }

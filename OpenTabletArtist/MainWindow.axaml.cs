@@ -30,9 +30,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        // The version + BETA now lives in the sidebar footer (bound to MainViewModel.TitleBarText).
         // Title stays the bare app name so the taskbar / Alt-Tab entry reads "OpenTabletArtist" (it also
-        // shows small in the extended-chrome caption top-left); the version no longer clutters it.
+        // shows small in the extended-chrome caption top-left); the version lives on Home's About card.
         Title = "OpenTabletArtist";
         // DataContext is set in XAML (<vm:MainViewModel/>), so it's already assigned here and the
         // DataContextChanged from that assignment fired inside InitializeComponent, before we could

@@ -70,8 +70,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // Opens the calibration overlay for the chosen options; the host supplies the owner window.
     // Null when calibration isn't available (the focused Pen Dynamics dialog hides Screen Mapping).
     private readonly Func<CalibrationOptions, Task>? _onCalibrate;
-    // Opens the built-in supported-tablets dialog for this tablet (the ABOUT tab's Resources link, #155).
-    private readonly Func<Task>? _openSupportedTablets;
     // Navigates to the CONFIGS page — the config-override card's Review button on the ABOUT tab (#467).
     private readonly Action? _openConfigsPage;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
@@ -569,7 +567,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Func<Task>? forgetAction = null,
         Func<CalibrationOptions, Task>? onCalibrate = null,
         Func<AuxBinding, string, Task<AuxBinding?>>? editBinding = null,
-        Func<Task>? openSupportedTablets = null,
         Action? openConfigsPage = null)
     {
         _profile = profile;
@@ -582,7 +579,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _deviceData = deviceData;
         _forgetAction = forgetAction;
         _onCalibrate = onCalibrate;
-        _openSupportedTablets = openSupportedTablets;
         _openConfigsPage = openConfigsPage;
         DynamicsOnly = dynamicsOnly;
 
@@ -751,14 +747,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (a.StripCount > 0) facts.Add(new("Touch strips", a.StripCount.ToString()));
         if (a.HasTouch) facts.Add(new("Touch input", "Supported"));
         return facts;
-    }
-
-    /// <summary>Show the built-in supported-tablets list in-app (the ABOUT tab's Resources link, #155),
-    /// highlighting this tablet.</summary>
-    [RelayCommand]
-    private async Task OpenSupportedTabletsPage()
-    {
-        if (_openSupportedTablets != null) await _openSupportedTablets();
     }
 
     // --- Config-override notice (#467): mirror the Home "Needs attention" card on the ABOUT tab, so the
@@ -1619,39 +1607,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _canEditPressure;
 
     // The Pen Dynamics filter is always enabled internally (#dynamics-always-on); there's no on/off toggle.
-    // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op) — this
-    // status line tells them, at a glance, whether the current settings actually affect the pen.
+    // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op).
     private PenDynamicsSettings CurrentDynamics =>
         new(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
 
-    /// <summary>Status line for the Pressure Dynamics tab: whether the curve / pressure smoothing actually
-    /// change pressure (a linear curve with no pressure smoothing is a no-op).</summary>
-    public string PressureDynamicsStatusText
-    {
-        get
-        {
-            var d = CurrentDynamics;
-            var parts = new System.Collections.Generic.List<string>(2);
-            if (d.CurveShapesPressure) parts.Add("curve");
-            if (d.HasPressureSmoothing) parts.Add("smoothing");
-            return parts.Count == 0
-                ? "No pressure dynamics applied — the curve is linear and pressure smoothing is off."
-                : "Affecting pressure: " + string.Join(", ", parts) + ".";
-        }
-    }
-
-    /// <summary>Status line for the Position Dynamics tab: whether position smoothing is steadying the pen.</summary>
-    public string PositionDynamicsStatusText =>
-        CurrentDynamics.HasPositionSmoothing
-            ? "Position smoothing is on — steadying wobbly lines (at a little lag)."
-            : "No position smoothing — the pen position passes through unchanged.";
-
-    private void NotifyDynamicsStatus()
-    {
-        OnPropertyChanged(nameof(PressureDynamicsStatusText));
-        OnPropertyChanged(nameof(PositionDynamicsStatusText));
+    private void NotifyDynamicsStatus() =>
         OnPropertyChanged(nameof(ShowLiveProcessed)); // depends on curve + pressure smoothing (#559)
-    }
 
     [ObservableProperty] private double _pressureSmoothing;
     [ObservableProperty] private double _positionSmoothing;
@@ -1714,10 +1675,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public string InputMaximumText => Curve.InputMaximum.ToString("0.00");
     public string OutputMaximumText => Curve.Maximum.ToString("0.00");
 
-    // Live pressure read-out (#468): the current input pressure and the output after the curve, for
-    // debugging the activation point (IAF), wrapping, and grounding. "—" when the pen is up.
+    // Live pressure read-out (#559): the current input pressure, for the LIVE PRESSURE bar's "raw" label.
+    // "—" when the pen is up.
     public string LiveInputText => LivePressure is { } v ? v.ToString("0.00") : "—";
-    public string LiveOutputText => LivePressure is { } v ? PressureCurve.Apply(v, Curve).ToString("0.00") : "—";
     public bool HasLivePressure => LivePressure is not null;
 
     // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
@@ -1743,28 +1703,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(InputMaximumText));
         OnPropertyChanged(nameof(OutputMinimumText));
         OnPropertyChanged(nameof(OutputMaximumText));
-        OnPropertyChanged(nameof(LiveOutputText)); // output depends on the curve
         NotifyDynamicsStatus();
         SchedulePersist();
     }
-
-    [RelayCommand]
-    private void ResetCurve() => Curve = PressureCurveSettings.Default;
-
-    /// <summary>Reset the Pressure Dynamics tab — curve, pressure smoothing, and the order — to their no-op
-    /// defaults (#185): this is how you "turn off" pressure dynamics now that the filter is always enabled.
-    /// Each setter schedules the debounced persist, so the cleared (identity) state is written.</summary>
-    [RelayCommand]
-    private void ResetPressureDynamics()
-    {
-        Curve = PressureCurveSettings.Default;
-        PressureSmoothing = 0;
-        SmoothAfterCurve = true;
-    }
-
-    /// <summary>Reset the Position Dynamics tab — position smoothing back to off (no-op).</summary>
-    [RelayCommand]
-    private void ResetPositionDynamics() => PositionSmoothing = 0;
 
     /// <summary>Quick-start curve presets (#103).</summary>
     [RelayCommand]
@@ -1820,7 +1761,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnLivePressureChanged(double? value)
     {
         OnPropertyChanged(nameof(LiveInputText));
-        OnPropertyChanged(nameof(LiveOutputText));
         OnPropertyChanged(nameof(HasLivePressure));
     }
 

@@ -94,12 +94,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The SETTINGS → Shortcut tab (create a Start-menu shortcut; Windows-only).</summary>
     public ShortcutViewModel Shortcut { get; } = new();
 
-    /// <summary>Version + BETA, shown in the sidebar footer. The app name is dropped (it's already the
-    /// brand at the top of the nav) so the label fits the narrower sidebar. Same version formatter as About.</summary>
-    public string TitleBarText { get; } = $"{AppVersionInfo.Format(
-        Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)}  BETA";
-
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; }
