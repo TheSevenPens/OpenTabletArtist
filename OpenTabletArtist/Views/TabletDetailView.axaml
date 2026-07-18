@@ -584,7 +584,10 @@
              section (merged, Zune 2c prep). -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ControlsTab.IsChecked}">
-            <StackPanel>
+            <!-- Two columns (#controls-2col): tablet buttons on the left, wheels on the right. -->
+            <Grid ColumnDefinitions="*,32,*">
+                <!-- LEFT — tablet buttons. -->
+                <StackPanel Grid.Column="0">
                 <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET BUTTONS" Classes="TabTitle" VerticalAlignment="Center" />
@@ -603,20 +606,12 @@
                             VerticalAlignment="Center" />
                 </Grid>
 
-                <!-- Two columns (at most), each card ~half the pane so more buttons fit while staying
-                     comfortably wide. Each item is wrapped so the inter-column gutter can be set directly
-                     on the wrapper (a style on the generated container isn't reliably applied); the shared
-                     card template supplies the vertical gap between rows. -->
+                <!-- One card per row now that buttons live in the left half-pane (#controls-2col); the
+                     shared card template supplies the vertical gap between rows. -->
                 <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="2" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ButtonBindingCard}"
-                                            Margin="0,0,16,0" />
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ButtonBindingCard}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -626,11 +621,12 @@
                     <TextBlock Text="No auxiliary buttons configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
+                </StackPanel>
 
-                <!-- Wheels section (merged into CONTROLS, Zune 2c prep): per-wheel rotation bindings
-                     (CW/CCW) + sensitivity + wheel buttons. Reuses the ExpressKeys binding-editor card.
-                     Hidden entirely when the tablet reports no wheel. -->
-                <StackPanel IsVisible="{Binding HasWheels}" Margin="0,28,0,0">
+                <!-- RIGHT — tablet wheels. Per-wheel rotation bindings (CW/CCW) + sensitivity + wheel
+                     buttons (merged into CONTROLS, Zune 2c prep). Reuses the ExpressKeys binding-editor
+                     card. Hidden entirely when the tablet reports no wheel. -->
+                <StackPanel Grid.Column="2" IsVisible="{Binding HasWheels}">
                     <!-- Header: label + master enable toggle + clear-all (parity with the buttons above). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
@@ -714,7 +710,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 </StackPanel>
-            </StackPanel>
+            </Grid>
         </ScrollViewer>
 
         <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
