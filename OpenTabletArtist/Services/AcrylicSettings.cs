@@ -12,7 +12,7 @@ public static class AcrylicSettings
 
     /// <summary>Defaults, also used by the Theme page's "Reset to defaults".</summary>
     public const double DefaultTintOpacity = 0.35;
-    public const double DefaultMaterialOpacity = 0.75;
+    public const double DefaultMaterialOpacity = 0.80;
     public const double DefaultSidebarOpacity = 0.85;
 
     /// <summary>0..1 — how strongly the tint color colors the frosted surface.</summary>
