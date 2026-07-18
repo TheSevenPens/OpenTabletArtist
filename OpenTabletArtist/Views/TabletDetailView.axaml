@@ -329,7 +329,8 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                                 <Button Grid.Column="3" Content="Maximize"
                                         Command="{Binding MaximizeActiveAreaCommand}"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                                        VerticalAlignment="Center" />
                             </Grid>
                             <!-- Full-tablet vs. active-area comparison table (#area-table): a row per metric,
                                  a TABLET column (the whole digitizer) and an ACTIVE AREA column (the effective
