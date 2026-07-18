@@ -42,7 +42,7 @@
         <ItemsControl ItemsSource="{Binding Plugins}" IsVisible="{Binding HasPlugins}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <c:Section Margin="0,10,0,0">
+                    <c:Entity Margin="0,10,0,0">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
@@ -57,7 +57,7 @@
                                            Foreground="{DynamicResource AccentBrush}" />
                             </Border>
                         </Grid>
-                    </c:Section>
+                    </c:Entity>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

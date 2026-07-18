@@ -49,7 +49,7 @@
         <ItemsControl ItemsSource="{Binding Snapshots}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <c:Section Margin="0,0,0,10">
+                    <c:Entity Margin="0,0,0,10">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
@@ -80,7 +80,7 @@
                                     Command="{Binding $parent[ItemsControl].DataContext.AssignProfileHotkeyCommand}"
                                     CommandParameter="{Binding Name}" />
                         </Grid>
-                    </c:Section>
+                    </c:Entity>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

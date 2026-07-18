@@ -9,7 +9,7 @@
     <UserControl.Styles>
         <!-- Express-key card lights up while its physical button is held. Only the border/background
              change (thickness stays 1) so the highlight doesn't nudge the layout. -->
-        <Style Selector="ctrl|Section.expressCard.pressed">
+        <Style Selector="ctrl|Entity.expressCard.pressed">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
         </Style>
@@ -49,7 +49,7 @@
              modal type-tabbed editor (BindingEditorDialog). Used by both the ExpressKeys tab (auxiliary
              buttons) and the Wheel tab (rotation directions + wheel button) — both bind a ButtonBinding. -->
         <DataTemplate x:Key="ButtonBindingCard">
-            <ctrl:Section Classes="expressCard" Classes.pressed="{Binding IsPressed}"
+            <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
                     Padding="16,12" Margin="0,0,0,10">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -64,7 +64,7 @@
                             Theme="{StaticResource GhostButton}" Padding="16,7"
                             ToolTip.Tip="Change this binding" />
                 </Grid>
-            </ctrl:Section>
+            </ctrl:Entity>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -662,7 +662,7 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ctrl:Section Padding="14,10" Margin="0,0,0,8">
+                            <ctrl:Entity Padding="14,10" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
                                                IsVisible="{Binding ShowTitle}" Margin="0,0,0,6" />
@@ -712,7 +712,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
-                            </ctrl:Section>
+                            </ctrl:Entity>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

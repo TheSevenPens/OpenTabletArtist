@@ -148,8 +148,8 @@
             </c:Section>
         </StackPanel>
 
-        <!-- Paint surface fills the rest. Square corners (override the GlassPanel rounding). -->
-        <c:Section CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
+        <!-- Paint surface fills the rest. Square corners (override the default card rounding). -->
+        <c:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <Grid>
                 <c:PenTestCanvas x:Name="PaintCanvas"
                                  BrushMode="{Binding BrushMode}" />
@@ -164,6 +164,6 @@
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </Border>
             </Grid>
-        </c:Section>
+        </c:Canvas>
     </DockPanel>
 </UserControl>
