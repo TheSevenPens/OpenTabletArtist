@@ -40,10 +40,6 @@ public sealed class ScreenMappingDiagram : Control
     // The connector/effective-area accent; bound to the theme accent so it's pink in Sakura, etc.
     private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
 
-    // Corner-mapping lines (Wacom-style): a clear red, independent of the theme accent so the
-    // active-area↔display correspondence reads the same in every theme.
-    private static readonly IBrush MapLineBrush = new SolidColorBrush(Color.FromRgb(0xDC, 0x28, 0x28));
-
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
 
     public static readonly StyledProperty<IReadOnlyList<DisplayInfo>?> DisplaysProperty =
@@ -115,11 +111,7 @@ public sealed class ScreenMappingDiagram : Control
             ctx.DrawRectangle(UnselFill, UnselBorder, box);
             DrawDisplayLabels(ctx, box, d, false);
         }
-        if (selectedBox is { } sb && selDisplay is { } sd)
-        {
-            ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(sb), Glow);
-            DrawDisplayLabels(ctx, sb, sd, true);
-        }
+        // (The selected display is drawn later — after the connector beams — so it sits above them.)
 
         // ── Tablet (full + effective area) — rotation-aware so a turned tablet reads the same here as on
         //    the Active Area tab (#199): the full outline is drawn turned as physically held (portrait for
@@ -168,17 +160,46 @@ public sealed class ScreenMappingDiagram : Control
             ctx.DrawRectangle(EffFill, new Pen(accentBrush, 1.5), effRect);
         }
 
-        // ── Connector: red lines joining each corner of the effective area to the matching corner of
-        //    the selected display (Wacom-style), so the 1:1 mapping is obvious. Corners map in place
-        //    (top-left→top-left, etc.); the effective area sits below the display, so the four lines
-        //    fan out into a frustum rather than crossing. ──
+        // ── Connector: two gradient "beams" mapping like edges together — the active area's LEFT edge to
+        //    the display's LEFT edge, and RIGHT edge to RIGHT edge (the two side faces of the frustum), so
+        //    the left↔left / right↔right correspondence is obvious. Brighter at each box, fading across the
+        //    gap; the selected display is drawn afterwards so it sits above the beams. ──
         if (selectedBox is { } selBox)
         {
-            var mapPen = new Pen(MapLineBrush, 1.5) { LineCap = PenLineCap.Round };
-            ctx.DrawLine(mapPen, effRect.TopLeft, selBox.TopLeft);
-            ctx.DrawLine(mapPen, effRect.TopRight, selBox.TopRight);
-            ctx.DrawLine(mapPen, effRect.BottomLeft, selBox.BottomLeft);
-            ctx.DrawLine(mapPen, effRect.BottomRight, selBox.BottomRight);
+            var beamBrush = new LinearGradientBrush
+            {
+                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+                GradientStops =
+                {
+                    new GradientStop(Color.FromArgb(0x9C, accent.R, accent.G, accent.B), 0.0),
+                    new GradientStop(Color.FromArgb(0x14, accent.R, accent.G, accent.B), 0.5),
+                    new GradientStop(Color.FromArgb(0x9C, accent.R, accent.G, accent.B), 1.0),
+                }
+            };
+            void Beam(Point a1, Point a2, Point b2, Point b1)
+            {
+                var geo = new StreamGeometry();
+                using (var gc = geo.Open())
+                {
+                    gc.BeginFigure(a1, isFilled: true);
+                    gc.LineTo(a2);
+                    gc.LineTo(b2);
+                    gc.LineTo(b1);
+                    gc.EndFigure(true);
+                }
+                ctx.DrawGeometry(beamBrush, null, geo);
+            }
+            // Left edge → left edge, right edge → right edge.
+            Beam(selBox.TopLeft, selBox.BottomLeft, effRect.BottomLeft, effRect.TopLeft);      // left beam
+            Beam(selBox.TopRight, selBox.BottomRight, effRect.BottomRight, effRect.TopRight);  // right beam
+        }
+
+        // The selected display, drawn last so it sits above the connector beams.
+        if (selectedBox is { } sbx && selDisplay is { } sdd)
+        {
+            ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(sbx), Glow);
+            DrawDisplayLabels(ctx, sbx, sdd, true);
         }
     }
 
