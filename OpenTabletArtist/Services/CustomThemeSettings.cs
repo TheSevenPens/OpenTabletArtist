@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace OpenTabletArtist.Services;
 
 /// <summary>
@@ -10,9 +12,13 @@ public static class CustomThemeSettings
 {
     private const string AccentKey = "Custom:Accent";
     private const string ImageKey = "Custom:BgImage";
+    private const string ImageOpacityKey = "Custom:BgImageOpacity";
 
     /// <summary>Default accent when the user hasn't picked one — the app's shared indigo.</summary>
     public const string DefaultAccentHex = "#6366F1";
+
+    /// <summary>Background image is fully opaque unless the user dials it back.</summary>
+    public const double DefaultBackgroundImageOpacity = 1.0;
 
     /// <summary>The accent colour that drives the Custom scheme, as "#AARRGGBB"/"#RRGGBB".</summary>
     public static string AccentHex
@@ -34,5 +40,14 @@ public static class CustomThemeSettings
             if (string.IsNullOrWhiteSpace(value)) AppSettings.Remove(ImageKey);
             else AppSettings.Set(ImageKey, value);
         }
+    }
+
+    /// <summary>Opacity (0..1) of the background image drawn over the base colour. Lower values let more
+    /// of the base colour show through; 1 = fully opaque.</summary>
+    public static double BackgroundImageOpacity
+    {
+        get => double.TryParse(AppSettings.Get(ImageOpacityKey), NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var v) ? v : DefaultBackgroundImageOpacity;
+        set => AppSettings.Set(ImageOpacityKey, value.ToString("0.###", CultureInfo.InvariantCulture));
     }
 }

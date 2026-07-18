@@ -18,9 +18,14 @@ public static class SkinOverrides
         "RadioButtonOuterEllipseCheckedFill", "RadioButtonOuterEllipseCheckedFillPointerOver",
         "RadioButtonOuterEllipseCheckedFillPressed", "RadioButtonOuterEllipseCheckedStroke",
         "RadioButtonOuterEllipseCheckedStrokePointerOver", "RadioButtonOuterEllipseCheckedStrokePressed",
-        "AccentButtonFillBrush", "AccentButtonFillHoverBrush", "AccentButtonForegroundBrush",
+        "CheckBoxCheckGlyphForegroundChecked", "CheckBoxCheckGlyphForegroundCheckedPointerOver",
+        "CheckBoxCheckGlyphForegroundCheckedPressed",
+        "ToggleSwitchKnobFillOn", "ToggleSwitchKnobFillOnPointerOver", "ToggleSwitchKnobFillOnPressed",
+        "RadioButtonCheckGlyphFill", "RadioButtonCheckGlyphFillPointerOver", "RadioButtonCheckGlyphFillPressed",
+        "AccentButtonFillBrush", "AccentButtonFillHoverBrush",
+        "AccentButtonForegroundBrush", "AccentButtonForegroundHoverBrush",
         "GlassBorderBrush", "CardShadow", "GlassBgBrush", "SidebarBgBrush",
-        "AppBackdropBrush", "BackdropScrimBrush",
+        "AppBackdropBrush", "AppBackdropImageBrush", "BackdropScrimBrush",
     };
 
     /// <summary>Remove every live skin override so the current theme dictionary renders unshadowed.</summary>

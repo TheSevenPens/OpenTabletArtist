@@ -105,6 +105,10 @@ public partial class ThemeViewModel : ObservableObject
     [ObservableProperty] private Color _accentColor;
     [ObservableProperty] private string? _backgroundImagePath;
 
+    /// <summary>Opacity (0..1) of the Custom background image over the base colour. Lower = more base
+    /// colour shows through. Persisted; the backdrop reacts live.</summary>
+    [ObservableProperty] private double _backgroundImageOpacity = CustomThemeSettings.DefaultBackgroundImageOpacity;
+
     /// <summary>The per-skin card tint stored for the active translucent skin.</summary>
     private string ActiveCardHex() =>
         IsCustom ? SkinColorSettings.CustomCardHex
@@ -115,6 +119,8 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>Filename of the chosen image, or a placeholder when none is set.</summary>
     public string BackgroundImageLabel =>
         HasBackgroundImage ? Path.GetFileName(BackgroundImagePath!) : "No image chosen";
+    /// <summary>The image-opacity slider only makes sense once an image is chosen (Custom skin).</summary>
+    public bool ShowBackgroundImageOpacity => IsCustom && HasBackgroundImage;
 
     public ThemeViewModel()
     {
@@ -128,6 +134,7 @@ public partial class ThemeViewModel : ObservableObject
         _sidebarColor = ParseColorOr(ActiveSidebarHex(), Color.Parse(DefaultSidebarHexForSkin));
         _baseColor = ParseColorOr(SkinColorSettings.CustomBaseHex, Color.Parse(SkinColorSettings.CustomBaseDefault));
         _backgroundImagePath = CustomThemeSettings.BackgroundImagePath;
+        _backgroundImageOpacity = CustomThemeSettings.BackgroundImageOpacity;
         RefreshSkin(); // restore the persisted skin overrides (frost / accent / base / backdrop)
     }
 
@@ -180,6 +187,13 @@ public partial class ThemeViewModel : ObservableObject
         CustomThemeSettings.BackgroundImagePath = value;
         OnPropertyChanged(nameof(HasBackgroundImage));
         OnPropertyChanged(nameof(BackgroundImageLabel));
+        OnPropertyChanged(nameof(ShowBackgroundImageOpacity));
+        RefreshSkin();
+    }
+
+    partial void OnBackgroundImageOpacityChanged(double value)
+    {
+        CustomThemeSettings.BackgroundImageOpacity = value;
         RefreshSkin();
     }
 
@@ -194,6 +208,7 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowPetalsToggle));
         OnPropertyChanged(nameof(ShowFrostControls));
         OnPropertyChanged(nameof(ShowCustomControls));
+        OnPropertyChanged(nameof(ShowBackgroundImageOpacity));
         OnPropertyChanged(nameof(ShowSidebarColor));
         OnPropertyChanged(nameof(ShowAccentControl));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
@@ -278,9 +293,31 @@ public partial class ThemeViewModel : ObservableObject
         app.Resources["RadioButtonOuterEllipseCheckedStrokePointerOver"] = new SolidColorBrush(light1);
         app.Resources["RadioButtonOuterEllipseCheckedStrokePressed"] = new SolidColorBrush(dark1);
 
+        // The checkmark glyph, the "on" toggle knob, and the radio dot all sit on a solid-accent fill and
+        // are hard-coded white by Fluent — invisible on a light accent (e.g. pink). Pick white / near-black
+        // by contrast against the accent so each stays legible in every checked/on state.
+        var onAccentInk = new SolidColorBrush(ContrastingInk(accent));
+        app.Resources["CheckBoxCheckGlyphForegroundChecked"] = onAccentInk;
+        app.Resources["CheckBoxCheckGlyphForegroundCheckedPointerOver"] = onAccentInk;
+        app.Resources["CheckBoxCheckGlyphForegroundCheckedPressed"] = onAccentInk;
+
+        app.Resources["ToggleSwitchKnobFillOn"] = onAccentInk;
+        app.Resources["ToggleSwitchKnobFillOnPointerOver"] = onAccentInk;
+        app.Resources["ToggleSwitchKnobFillOnPressed"] = onAccentInk;
+
+        app.Resources["RadioButtonCheckGlyphFill"] = onAccentInk;
+        app.Resources["RadioButtonCheckGlyphFillPointerOver"] = onAccentInk;
+        app.Resources["RadioButtonCheckGlyphFillPressed"] = onAccentInk;
+
         app.Resources["AccentButtonFillBrush"] = Gradient(light1, accent);
         app.Resources["AccentButtonFillHoverBrush"] = Gradient(Lighten(accent, 0.22), light1);
-        app.Resources["AccentButtonForegroundBrush"] = new SolidColorBrush(Colors.White);
+        // Accent buttons hard-coded white text, which is unreadable on a light accent (e.g. pink). Pick
+        // white or near-black by contrast instead, evaluated against the LIGHTEST stop the label ever sits
+        // on (the hover gradient's top, Lighten(accent, 0.22)) so it stays legible at rest and on hover.
+        // Both rest + hover use the same ink so the label colour doesn't flip mid-interaction.
+        var buttonInk = new SolidColorBrush(ContrastingInk(Lighten(accent, 0.22)));
+        app.Resources["AccentButtonForegroundBrush"] = buttonInk;
+        app.Resources["AccentButtonForegroundHoverBrush"] = buttonInk;
         app.Resources["GlassBorderBrush"] = new SolidColorBrush(WithAlpha(accent, 0x40));
         app.Resources["CardShadow"] = new BoxShadows(new BoxShadow
         {
@@ -289,34 +326,39 @@ public partial class ThemeViewModel : ObservableObject
 
     }
 
-    /// <summary>Custom-only backdrop: a background image if one is set and readable, otherwise the flat base
-    /// colour so the user's chosen base shows behind the panels instead of a hard-coded black.</summary>
+    /// <summary>Custom-only backdrop: the base colour always fills the window; a chosen image layers over it
+    /// at the user's opacity (lower = more base colour shows through). The base fill also means an
+    /// unset/unreadable image just falls back to the user's chosen base instead of a hard-coded black.</summary>
     private void ApplyCustomBackdrop(Application app)
     {
+        app.Resources["AppBackdropBrush"] = new SolidColorBrush(BaseColor);
+
         var path = BackgroundImagePath;
         if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
         {
             try
             {
-                app.Resources["AppBackdropBrush"] = new ImageBrush(new Bitmap(path))
+                var opacity = Math.Clamp(BackgroundImageOpacity, 0, 1);
+                app.Resources["AppBackdropImageBrush"] = new ImageBrush(new Bitmap(path))
                 {
                     Stretch = Stretch.UniformToFill,
                     AlignmentX = AlignmentX.Center,
                     AlignmentY = AlignmentY.Center,
+                    Opacity = opacity,
                 };
-                app.Resources["BackdropScrimBrush"] = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
+                // Legibility scrim, faded out with the image so a faint image (low opacity) doesn't leave
+                // the base colour needlessly darkened.
+                app.Resources["BackdropScrimBrush"] = new SolidColorBrush(Color.FromArgb((byte)(0x66 * opacity), 0, 0, 0));
+                return;
             }
             catch
             {
-                // Unreadable/missing image → fall back to the flat base colour, no scrim.
-                app.Resources["AppBackdropBrush"] = new SolidColorBrush(BaseColor);
-                app.Resources.Remove("BackdropScrimBrush");
+                // Unreadable/missing image → just the flat base colour, no overlay/scrim.
             }
         }
-        else
-        {
-            app.Resources["AppBackdropBrush"] = new SolidColorBrush(BaseColor);
-        }
+
+        app.Resources.Remove("AppBackdropImageBrush");
+        app.Resources.Remove("BackdropScrimBrush");
     }
 
     /// <summary>Restore the active translucent skin's tunables (card tint/opacity, left-pane opacity,
@@ -337,6 +379,7 @@ public partial class ThemeViewModel : ObservableObject
         {
             BaseColor = Color.Parse(SkinColorSettings.CustomBaseDefault);
             BackgroundImagePath = null;
+            BackgroundImageOpacity = CustomThemeSettings.DefaultBackgroundImageOpacity;
         }
     }
 
@@ -365,6 +408,22 @@ public partial class ThemeViewModel : ObservableObject
 
     private static Color ParseColorOr(string? hex, Color fallback) =>
         Color.TryParse(hex, out var c) ? c : fallback;
+
+    /// <summary>White or near-black — whichever stays legible as label text on the given button colour.
+    /// Uses WCAG relative luminance so light fills (e.g. a pink accent) get dark text instead of white.</summary>
+    private static Color ContrastingInk(Color buttonColor) =>
+        RelativeLuminance(buttonColor) > 0.42 ? Color.FromRgb(0x1A, 0x1A, 0x1A) : Colors.White;
+
+    /// <summary>WCAG relative luminance (0 = black, 1 = white) of an sRGB colour.</summary>
+    private static double RelativeLuminance(Color c)
+    {
+        static double Lin(byte v)
+        {
+            var s = v / 255.0;
+            return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Lin(c.R) + 0.7152 * Lin(c.G) + 0.0722 * Lin(c.B);
+    }
 
     private static Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
     private static Color Lighten(Color c, double amount) => Mix(c, Colors.White, amount);

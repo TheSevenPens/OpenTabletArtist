@@ -27,6 +27,10 @@
              the translucent sidebar + glass cards show it through. -->
         <Border Background="{DynamicResource AppBackdropBrush}" />
 
+        <!-- Custom skin's background image, layered over the base-colour backdrop at the user's chosen
+             opacity so a less-opaque image lets the base colour below show through. Transparent otherwise. -->
+        <Border Background="{DynamicResource AppBackdropImageBrush}" />
+
         <!-- Dimming scrim over the backdrop image (Custom skin only; transparent otherwise) so text on
              the translucent panels stays legible regardless of the chosen photo. -->
         <Border Background="{DynamicResource BackdropScrimBrush}" />

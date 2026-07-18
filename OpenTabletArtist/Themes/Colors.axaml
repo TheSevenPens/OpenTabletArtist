@@ -38,6 +38,11 @@
     <SolidColorBrush x:Key="NeutralBrush" Color="{StaticResource Neutral}" />
     <SolidColorBrush x:Key="TextInverseBrush" Color="{StaticResource TextInverse}" />
 
+    <!-- Custom-skin background image, layered over the base colour at a user-chosen opacity so a less-opaque
+         image lets the base colour show through. Transparent by default (a no-op for every theme); the
+         Custom skin sets it at runtime when an image is chosen. -->
+    <SolidColorBrush x:Key="AppBackdropImageBrush" Color="Transparent" />
+
     <!-- Dimming scrim drawn over the backdrop image so text stays legible on a busy photo. Transparent
          by default (a no-op for every theme); the Custom skin sets it at runtime when an image is chosen. -->
     <SolidColorBrush x:Key="BackdropScrimBrush" Color="Transparent" />

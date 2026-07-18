@@ -67,6 +67,11 @@
                                 IsEnabled="{Binding HasBackgroundImage}" />
                     </StackPanel>
                 </c:LabeledField>
+                <!-- Only meaningful with an image set: fades the image over the base colour. -->
+                <c:LabeledSlider Label="Image opacity" LabelWidth="130"
+                                 Minimum="0" Maximum="1" Value="{Binding BackgroundImageOpacity}"
+                                 ValueFormat="0%" IsVisible="{Binding ShowBackgroundImageOpacity}"
+                                 ToolTip.Tip="Lower opacity lets more of the base colour show through the image" />
             </StackPanel>
         </c:Section>
         </StackPanel>
