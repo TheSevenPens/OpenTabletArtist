@@ -315,7 +315,6 @@
                             <ctrl:ActiveAreaDiagram x:Name="ActiveAreaDiagramControl"
                                                     Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
-                                                    UseImperialUnits="{Binding UseImperialUnits}"
                                                     Editable="True" />
 
                             <!-- Proportional resize + maximize (#199). Drag the area / a corner on the

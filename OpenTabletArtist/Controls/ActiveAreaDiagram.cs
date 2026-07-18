@@ -33,14 +33,11 @@ public sealed class ActiveAreaDiagram : Control
         AvaloniaProperty.Register<ActiveAreaDiagram, TabletAreaInfo?>(nameof(Area));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, IBrush?>(nameof(AccentBrush));
-    public static readonly StyledProperty<bool> UseImperialUnitsProperty =
-        AvaloniaProperty.Register<ActiveAreaDiagram, bool>(nameof(UseImperialUnits));
     public static readonly StyledProperty<bool> EditableProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, bool>(nameof(Editable));
 
     public TabletAreaInfo? Area { get => GetValue(AreaProperty); set => SetValue(AreaProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
-    public bool UseImperialUnits { get => GetValue(UseImperialUnitsProperty); set => SetValue(UseImperialUnitsProperty, value); }
     /// <summary>Allow dragging to move / corner-dragging to resize the effective area (#199).</summary>
     public bool Editable { get => GetValue(EditableProperty); set => SetValue(EditableProperty, value); }
 
@@ -49,7 +46,7 @@ public sealed class ActiveAreaDiagram : Control
 
     static ActiveAreaDiagram()
     {
-        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty, UseImperialUnitsProperty, EditableProperty);
+        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty, EditableProperty);
         AffectsMeasure<ActiveAreaDiagram>(AreaProperty);
     }
 
@@ -277,11 +274,10 @@ public sealed class ActiveAreaDiagram : Control
             }
         }
 
-        // Effective area (upright), its label, and — when editable — corner handles.
+        // Effective area (upright) and — when editable — corner handles. (The size read-out lives in the
+        // TABLET / ACTIVE AREA table below the diagram now, not on the area itself.)
         var effRect = AreaRect(l, ew, eh, ecx, ecy);
         ctx.DrawRectangle(new SolidColorBrush(accent, 0.22), new Pen(new SolidColorBrush(accent), 2), effRect);
-        if (effRect is { Height: > 26, Width: > 70 })
-            DrawCentered(ctx, effRect, FormatSize(ew, eh), 11.5, Brushes.White);
 
         if (Editable)
         {
@@ -308,7 +304,4 @@ public sealed class ActiveAreaDiagram : Control
 
     private static FormattedText Text(string s, double size, IBrush brush) =>
         new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
-
-    private string FormatSize(double wMm, double hMm) =>
-        UseImperialUnits ? $"{wMm / 25.4:0.##} × {hMm / 25.4:0.##} in" : $"{wMm:0.#} × {hMm:0.#} mm";
 }
