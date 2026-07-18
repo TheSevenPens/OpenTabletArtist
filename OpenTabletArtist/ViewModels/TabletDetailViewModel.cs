@@ -1943,9 +1943,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ActiveAreaFullText));
         OnPropertyChanged(nameof(ActiveAreaUsedText));
         OnPropertyChanged(nameof(ActiveAreaUsagePercentText));
-        OnPropertyChanged(nameof(ActiveAreaDimsPercentText));
-        OnPropertyChanged(nameof(ActiveAreaDiagonalText));
-        OnPropertyChanged(nameof(ActiveAreaAspectText));
+        OnPropertyChanged(nameof(FullDiagonalText));
+        OnPropertyChanged(nameof(UsedDiagonalText));
+        OnPropertyChanged(nameof(FullAspectText));
+        OnPropertyChanged(nameof(UsedAspectText));
     }
 
     /// <summary>Show active-area lengths in inches instead of millimetres (the tab's unit toggle). A
@@ -1956,25 +1957,25 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(ActiveAreaFullText));
         OnPropertyChanged(nameof(ActiveAreaUsedText));
-        OnPropertyChanged(nameof(ActiveAreaDiagonalText));
+        OnPropertyChanged(nameof(FullDiagonalText));
+        OnPropertyChanged(nameof(UsedDiagonalText));
     }
 
     public string ActiveAreaFullText => TabletArea is { } a ? FormatSize(a.FullWidth, a.FullHeight) : "—";
     public string ActiveAreaUsedText => TabletArea is { } a ? FormatSize(a.EffWidth, a.EffHeight) : "—";
 
-    /// <summary>Corner-to-corner size of the used vs. full area, e.g. "257 mm active · 269 mm full".</summary>
-    public string ActiveAreaDiagonalText => TabletArea is { } a
-        ? $"{FormatLength(Diagonal(a.EffWidth, a.EffHeight))} active  ·  {FormatLength(Diagonal(a.FullWidth, a.FullHeight))} full"
-        : "—";
+    /// <summary>Corner-to-corner diagonal of the full tablet area / the effective (active) area — the
+    /// TABLET and ACTIVE AREA columns of the mapping-tab comparison table.</summary>
+    public string FullDiagonalText => TabletArea is { } a ? FormatLength(Diagonal(a.FullWidth, a.FullHeight)) : "—";
+    public string UsedDiagonalText => TabletArea is { } a ? FormatLength(Diagonal(a.EffWidth, a.EffHeight)) : "—";
 
     private static double Diagonal(double w, double h) => System.Math.Sqrt(w * w + h * h);
 
-    /// <summary>Width-to-height aspect ratio of the used vs. full area, e.g. "1.78 active · 1.79 full".
-    /// A mismatch means the active area is shaped differently from the tablet — expected when it's mapped
-    /// to a display whose aspect differs from the tablet's.</summary>
-    public string ActiveAreaAspectText => TabletArea is { EffHeight: > 0, FullHeight: > 0 } a
-        ? $"{a.EffWidth / a.EffHeight:0.00} active  ·  {a.FullWidth / a.FullHeight:0.00} full"
-        : "—";
+    /// <summary>Width-to-height aspect ratio of the full tablet area / the effective (active) area. A
+    /// mismatch means the active area is shaped differently from the tablet — expected when it's mapped to
+    /// a display whose aspect differs from the tablet's.</summary>
+    public string FullAspectText => TabletArea is { FullHeight: > 0 } a ? (a.FullWidth / a.FullHeight).ToString("0.00") : "—";
+    public string UsedAspectText => TabletArea is { EffHeight: > 0 } a ? (a.EffWidth / a.EffHeight).ToString("0.00") : "—";
 
     // Length display helpers: OTD's areas are millimetres; inches = mm / 25.4. Metric shows one decimal
     // (e.g. "269 mm"), imperial two (inches are ~25× larger, so a decimal buys real precision, "10.59 in").
@@ -1985,13 +1986,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private string FormatLength(double mm) => $"{Num(mm)} {UnitLabel}";
     private string FormatSize(double wMm, double hMm) => $"{Num(wMm)} × {Num(hMm)} {UnitLabel}";
 
-    /// <summary>Share of the full digitizer area covered by the effective area (width×height).</summary>
+    /// <summary>Share of the full digitizer area covered by the effective area (width×height) — the
+    /// ACTIVE AREA column of the "Area" row (the TABLET column is always 100%).</summary>
     public string ActiveAreaUsagePercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
         ? $"{a.EffWidth * a.EffHeight / (a.FullWidth * a.FullHeight) * 100:0.0}%" : "—";
-
-    /// <summary>Per-axis coverage, e.g. "80.0% × 62.0%" — useful once the area no longer fills an edge.</summary>
-    public string ActiveAreaDimsPercentText => TabletArea is { FullWidth: > 0, FullHeight: > 0 } a
-        ? $"{a.EffWidth / a.FullWidth * 100:0.0}% × {a.EffHeight / a.FullHeight * 100:0.0}%" : "—";
 
     /// <summary>Debounce rapid edits (node drags / slider) into a single daemon apply.</summary>
     private void SchedulePersist()

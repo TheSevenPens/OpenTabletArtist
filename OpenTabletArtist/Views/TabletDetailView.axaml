@@ -162,8 +162,11 @@
                 <RadioButton Content="calibration" x:Name="CalibrationTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding HasAreaMapping}" />
-                <RadioButton Content="controls" x:Name="ControlsTab"
+                <RadioButton Content="buttons" x:Name="ButtonsTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                <RadioButton Content="wheels" x:Name="WheelsTab"
+                             Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
+                             IsVisible="{Binding HasWheels}" />
                 <!-- #318: Hover-limit feature hidden temporarily while its behavior is validated. The
                      pivot (and its still-present content below) is unreachable while IsVisible=False, and
                      the HoverFilter plugin is neutered so it has no effect. Set IsVisible back to True
@@ -287,38 +290,28 @@
                     <StackPanel Grid.Column="2">
                         <!-- Diagram + stats when we have digitizer specs. -->
                         <StackPanel IsVisible="{Binding TabletArea, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                            <!-- Top row: Rotation on the left (moved up from a separate card so it's visible
-                                 without scrolling past the diagram, #498) and the Units toggle on the right
-                                 (display-only read-out units; OTD works in mm). -->
-                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,6" VerticalAlignment="Center">
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <TextBlock Text="Rotation:" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextMutedBrush}"
-                                               ToolTip.Tip="Rotate the active area to match how you physically turn the tablet — 180° puts the express keys on the opposite side; 90°/270° is portrait (the area shrinks to fit, keeping the display filled and undistorted). Re-run calibration after rotating." />
-                                    <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
-                                        <RadioButton GroupName="AreaRotation" Content="None"
-                                                     IsChecked="{Binding IsRotation0, Mode=OneWay}"
-                                                     Command="{Binding SetRotationCommand}" CommandParameter="0" />
-                                        <RadioButton GroupName="AreaRotation" Content="90°"
-                                                     IsChecked="{Binding IsRotation90, Mode=OneWay}"
-                                                     Command="{Binding SetRotationCommand}" CommandParameter="90" />
-                                        <RadioButton GroupName="AreaRotation" Content="180°"
-                                                     IsChecked="{Binding IsRotation180, Mode=OneWay}"
-                                                     Command="{Binding SetRotationCommand}" CommandParameter="180" />
-                                        <RadioButton GroupName="AreaRotation" Content="270°"
-                                                     IsChecked="{Binding IsRotation270, Mode=OneWay}"
-                                                     Command="{Binding SetRotationCommand}" CommandParameter="270" />
-                                    </StackPanel>
+                            <!-- Rotation row: rotate the active area to match how you physically turn the
+                                 tablet (moved up from a separate card so it's visible without scrolling past
+                                 the diagram, #498). The Units toggle now lives at the bottom of the column. -->
+                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="0,0,0,6">
+                                <TextBlock Text="Rotation:" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           ToolTip.Tip="Rotate the active area to match how you physically turn the tablet — 180° puts the express keys on the opposite side; 90°/270° is portrait (the area shrinks to fit, keeping the display filled and undistorted). Re-run calibration after rotating." />
+                                <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                    <RadioButton GroupName="AreaRotation" Content="None"
+                                                 IsChecked="{Binding IsRotation0, Mode=OneWay}"
+                                                 Command="{Binding SetRotationCommand}" CommandParameter="0" />
+                                    <RadioButton GroupName="AreaRotation" Content="90°"
+                                                 IsChecked="{Binding IsRotation90, Mode=OneWay}"
+                                                 Command="{Binding SetRotationCommand}" CommandParameter="90" />
+                                    <RadioButton GroupName="AreaRotation" Content="180°"
+                                                 IsChecked="{Binding IsRotation180, Mode=OneWay}"
+                                                 Command="{Binding SetRotationCommand}" CommandParameter="180" />
+                                    <RadioButton GroupName="AreaRotation" Content="270°"
+                                                 IsChecked="{Binding IsRotation270, Mode=OneWay}"
+                                                 Command="{Binding SetRotationCommand}" CommandParameter="270" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="Units:" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                    <ToggleSwitch IsChecked="{Binding UseImperialUnits}" MinWidth="0"
-                                                  OnContent="Inches" OffContent="Millimeters"
-                                                  ToolTip.Tip="Switch the active-area measurements between metric and imperial"
-                                                  VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Grid>
+                            </StackPanel>
                             <ctrl:ActiveAreaDiagram x:Name="ActiveAreaDiagramControl"
                                                     Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
@@ -339,44 +332,56 @@
                                         Command="{Binding MaximizeActiveAreaCommand}"
                                         Theme="{StaticResource GhostButton}" Padding="12,6" />
                             </Grid>
-                            <Grid ColumnDefinitions="*,*,*,*" Margin="0,12,0,0">
-                                <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaUsagePercentText}" FontSize="20" FontWeight="Bold"
-                                               Foreground="{DynamicResource AccentBrush}" />
-                                    <TextBlock Text="of tablet area used" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaDimsPercentText}" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="width × height" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaUsedText}" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="active area" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="3" Spacing="2">
-                                    <TextBlock Text="{Binding ActiveAreaFullText}" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="full tablet area" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                </StackPanel>
+                            <!-- Full-tablet vs. active-area comparison table (#area-table): a row per metric,
+                                 a TABLET column (the whole digitizer) and an ACTIVE AREA column (the effective
+                                 mapped region). The Units toggle sits to the right of the table. -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,14,0,0">
+                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  ColumnSpacing="16" RowSpacing="7">
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="TABLET" Classes="SectionLabel" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="ACTIVE AREA" Classes="SectionLabel" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Area"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="100%" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ActiveAreaUsagePercentText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Dimensions"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ActiveAreaFullText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ActiveAreaUsedText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Diagonal"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding FullDiagonalText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding UsedDiagonalText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Aspect ratio"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding FullAspectText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding UsedAspectText}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
                             </Grid>
-                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
-                                <TextBlock Text="Diagonal:" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Text="{Binding ActiveAreaDiagonalText}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                            <!-- Units toggle (display-only read-out units; OTD works in mm), to the right
+                                 of the table. -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                        VerticalAlignment="Top" Margin="16,0,0,0">
+                                <TextBlock Text="Units:" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <ToggleSwitch IsChecked="{Binding UseImperialUnits}" MinWidth="0"
+                                              OnContent="Inches" OffContent="Millimeters"
+                                              ToolTip.Tip="Switch the active-area measurements between metric and imperial"
+                                              VerticalAlignment="Center" />
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
-                                <TextBlock Text="Aspect ratio:" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock Text="{Binding ActiveAreaAspectText}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </StackPanel>
+                            </Grid>
                         </StackPanel>
 
                         <!-- No digitizer specs for this tablet — nothing to draw. -->
@@ -580,14 +585,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Controls tab content: tablet-body express keys, then wheels (when present) as a stacked
-             section (merged, Zune 2c prep). -->
+        <!-- Buttons tab: the tablet's auxiliary (express-key) buttons. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ControlsTab.IsChecked}">
-            <!-- Two columns (#controls-2col): tablet buttons on the left, wheels on the right. -->
-            <Grid ColumnDefinitions="*,32,*">
-                <!-- LEFT — tablet buttons. -->
-                <StackPanel Grid.Column="0">
+                      IsVisible="{Binding #ButtonsTab.IsChecked}">
+            <StackPanel>
                 <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET BUTTONS" Classes="TabTitle" VerticalAlignment="Center" />
@@ -606,12 +607,18 @@
                             VerticalAlignment="Center" />
                 </Grid>
 
-                <!-- One card per row now that buttons live in the left half-pane (#controls-2col); the
-                     shared card template supplies the vertical gap between rows. -->
+                <!-- Up to two columns of cards so more buttons fit while staying comfortably wide; the
+                     shared card template supplies the vertical gap between rows, the wrapper the gutter. -->
                 <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="2" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ButtonBindingCard}" />
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ButtonBindingCard}"
+                                            Margin="0,0,16,0" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -621,13 +628,15 @@
                     <TextBlock Text="No auxiliary buttons configured"
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </Border>
-                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
 
-                <!-- RIGHT — tablet wheels. Per-wheel rotation bindings (CW/CCW) + sensitivity + wheel
-                     buttons (merged into CONTROLS, Zune 2c prep). Reuses the ExpressKeys binding-editor
-                     card. Hidden entirely when the tablet reports no wheel. -->
-                <StackPanel Grid.Column="2" IsVisible="{Binding HasWheels}">
-                    <!-- Header: label + master enable toggle + clear-all (parity with the buttons above). -->
+        <!-- Wheels tab: per-wheel rotation bindings (CW/CCW) + sensitivity + wheel buttons. Reuses the
+             ExpressKeys binding-editor card. The pivot is hidden when the tablet reports no wheel. -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #WheelsTab.IsChecked}">
+            <StackPanel>
+                <!-- Header: label + master enable toggle + clear-all (parity with the buttons tab). -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
@@ -709,8 +718,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                </StackPanel>
-            </Grid>
+            </StackPanel>
         </ScrollViewer>
 
         <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
@@ -722,18 +730,15 @@
               <Grid ColumnDefinitions="*,32,*">
                 <!-- LEFT — pressure: live bar · binary · curve · smoothing. -->
                 <StackPanel Grid.Column="0">
-                <!-- Section heading. There's no On/Off — the filter is always enabled internally; you
-                     neutralize it with a linear curve and zero smoothing. -->
-                <TextBlock Text="PRESSURE DYNAMICS" Classes="TabTitle" Margin="2,2,2,4" />
-
                 <!-- Combined pressure card (#dynamics-merge): live bar · binary · curve · smoothing in one
-                     titleless card — the PRESSURE DYNAMICS heading above serves as the section title. -->
+                     card. The card's own PRESSURE DYNAMICS label (largetitle) is the section heading; the
+                     filter is always enabled internally (neutralize it with a linear curve + zero smoothing). -->
                 <Border Classes="GlassPanel" Margin="0,2,0,10">
                     <StackPanel>
                         <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics
                              shape it, a processed dot at the value after the curve. -->
                         <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="LIVE PRESSURE" Classes="SectionLabel"
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="SectionLabel largetitle"
                                        VerticalAlignment="Center" />
                             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
                                         VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
