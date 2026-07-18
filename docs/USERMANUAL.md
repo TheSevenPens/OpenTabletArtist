@@ -25,7 +25,7 @@ On launch the app auto-starts the daemon if it isn't already running, then conne
 
 ## Using the Interface
 
-The sidebar's top-level items are **Home**, **Tablets**, **Scribble**, **About**, **Settings**, and **Advanced**. **Settings** is a tabbed page for OpenTabletArtist's own preferences — **Presets**, **Per-App Presets** *(hidden while the feature is disabled)*, **Hotkeys**, **Startup**, **Shortcut**, **Theme**, **Driver Cleanup** (Windows-only), **Dev Tools**, and **Developer** *(a debugging-tools tab, shown only when it's enabled on the Dev Tools tab)*. **Advanced** is a single **tabbed page** whose tabs are grouped by owner: OpenTabletDriver's own — **Daemon**, **Windows Ink Plugin**, **Configs** (custom tablet compatibility), **Diagnostics**, **Console**, and **Plugins** — and OpenTabletArtist's own — **VMulti Driver**.
+The sidebar's top-level items are **Home**, **Tablets**, **Scribble**, **About**, **Settings**, and **Advanced**. **Settings** is a tabbed page for OpenTabletArtist's own preferences — **Presets**, **Per-App Presets** *(hidden while the feature is disabled)*, **Hotkeys**, **Startup**, **Shortcut**, **Theme**, **Driver Cleanup** (Windows-only), and **Developer** *(a debugging-tools tab)*. **Advanced** is a single **tabbed page** whose tabs are grouped by owner: OpenTabletDriver's own — **Daemon**, **Windows Ink Plugin**, **Configs** (custom tablet compatibility), **Diagnostics**, **Console**, and **Plugins** — and OpenTabletArtist's own — **VMulti Driver**.
 
 **Tablets** is an always-expanded node: every tablet that's paired or currently connected appears as a child (with a status dot), ordered detected-first. Clicking a child opens that tablet's settings **in the right-hand pane** (no dialog); right-click a child (or use the button on its page) to **Forget** it. Clicking the **Tablets** header shows an overview / empty-state ("No tablets connected or remembered").
 
@@ -197,7 +197,7 @@ A single toggle — **Start OpenTabletArtist when Windows starts** — that laun
 
 ### Developer
 
-*(Settings → Developer tab — a gated tab, shown only when **Show the Developer tab** is enabled on Settings → Dev Tools.)* Testing aids, not needed for normal use. It's organized into sub-tabs, one per topic:
+*(Settings → Developer tab.)* Testing aids, not needed for normal use. It's organized into sub-tabs, one per topic:
 
 - **Induce warnings** — adds a synthetic *Needs attention* card at each severity (for reviewing the card styling). Right-clicking one of these induced cards on Home offers a hidden **Dismiss** (real warnings can't be dismissed this way).
 - **Actual warnings** — forces each real health check to appear with its true text and Fix button, so the warnings can be reviewed and screenshotted without reproducing the underlying problem.

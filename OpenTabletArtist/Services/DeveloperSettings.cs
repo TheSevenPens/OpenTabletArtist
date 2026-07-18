@@ -16,7 +16,6 @@ public sealed partial class DeveloperSettings : ObservableObject
     private const string FiltersKey = "developer.showFiltersTab";
     private const string JsonKey = "developer.showJsonTab";
     private const string OnPageScreenshotKey = "developer.onPageScreenshot";
-    private const string ShowDeveloperKey = "developer.showDeveloperPage";
     private const string CutBelowKey = "developer.showCutBelowMinimum";
     private const string ScreenshotFormatKey = "developer.screenshotFormat";
 
@@ -28,7 +27,6 @@ public sealed partial class DeveloperSettings : ObservableObject
         ShowFiltersTab = AppSettings.Get(FiltersKey) == "true";
         ShowJsonTab = AppSettings.Get(JsonKey) == "true";
         OnPageScreenshot = AppSettings.Get(OnPageScreenshotKey) == "true";
-        ShowDeveloperPage = AppSettings.Get(ShowDeveloperKey) == "true";
         ShowCutBelowMinimum = AppSettings.Get(CutBelowKey) == "true";
         ScreenshotFormat = Enum.TryParse<ScreenshotFormat>(AppSettings.Get(ScreenshotFormatKey), out var fmt)
             ? fmt : ScreenshotFormat.PNG;
@@ -42,9 +40,6 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// <summary>Show a small capture button at the bottom of the nav bar that screenshots the current
     /// page (#437). Off by default — a developer aid.</summary>
     [ObservableProperty] private bool _onPageScreenshot;
-    /// <summary>Show the DEVELOPER tab in Settings (#572). Off by default — it's for development only.
-    /// Toggled from SETTINGS → DEV TOOLS.</summary>
-    [ObservableProperty] private bool _showDeveloperPage;
     /// <summary>Show the "Cut below input minimum" dead-zone checkbox in Pressure Dynamics (#569). Hidden
     /// by default — it's an advanced/rarely-needed option; re-enabled from the Developer tab.</summary>
     [ObservableProperty] private bool _showCutBelowMinimum;
@@ -81,7 +76,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
     public static bool AffectsHealth(string? propertyName) =>
         propertyName is not (nameof(ShowFiltersTab) or nameof(ShowJsonTab) or nameof(OnPageScreenshot)
-                             or nameof(ShowDeveloperPage) or nameof(ShowCutBelowMinimum)
+                             or nameof(ShowCutBelowMinimum)
                              or nameof(ScreenshotFormat));
 
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
@@ -106,11 +101,6 @@ public sealed partial class DeveloperSettings : ObservableObject
     partial void OnOnPageScreenshotChanged(bool value)
     {
         if (!_loading) AppSettings.Set(OnPageScreenshotKey, value ? "true" : "false");
-    }
-
-    partial void OnShowDeveloperPageChanged(bool value)
-    {
-        if (!_loading) AppSettings.Set(ShowDeveloperKey, value ? "true" : "false");
     }
 
     partial void OnShowCutBelowMinimumChanged(bool value)

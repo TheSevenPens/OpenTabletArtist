@@ -31,7 +31,7 @@ The current codebase already leans Metro, so this is evolution, not a rewrite:
   Tilt Dynamics · Display Mapping · Active Area · Calibration · Tablet Buttons · Wheels
   (+ dev-only: Filters · JSON)
 - **SETTINGS**, 8 tabs (+ gated): Presets · [Per-App Presets*] · Hotkeys · Startup · Shortcut ·
-  Theme · Driver Cleanup · Dev Tools · [Developer*]   (* gated)
+  Theme · Driver Cleanup · Developer   (* gated)
 - **ADVANCED**, 7 tabs: Daemon · Windows Ink · Configs · Diagnostics · Console · Plugins ·
   VMulti Driver
 
@@ -230,7 +230,7 @@ switcher + detection + refresh right).
 | **hotkeys** | Hotkeys | Cycle mapped monitor (assign/clear); per-preset hotkey assignment |
 | **appearance** | Theme | theme selector (System/Light/Dark/Sakura/Custom); Falling petals + opacity; Colours & translucency (highlight/card/left-pane swatch pickers, card + left-pane opacity, Reset); Custom look (base colour, background image) |
 | **system** | Startup · Shortcut · Driver Cleanup | Start-with-Windows *(Win)*; Start-menu shortcut *(Win)*; conflicting-driver scan/remove *(Win)* |
-| **developer** *(gated)* | Dev Tools · Developer | Show-Developer-tab toggle; Developer keeps its own inner sub-nav (Warnings · Config errors · Tablet page extras · Screenshot · Window size · Calibration I/O) |
+| **developer** | Developer | Always shown; keeps its own inner sub-nav (Warnings · Config errors · Tablet page extras · Screenshot · Window size · Calibration I/O) |
 
 ### advanced  (7 tabs → 5 pivots)
 

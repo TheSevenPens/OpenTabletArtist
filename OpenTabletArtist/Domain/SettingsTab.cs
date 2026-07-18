@@ -2,9 +2,8 @@ namespace OpenTabletArtist.Domain;
 
 /// <summary>Pivots of the SETTINGS tabbed page — OpenTabletArtist's own preferences (Zune Phase 2 merges).
 /// <b>Theme</b> shows as "APPEARANCE"; <b>System</b> stacks Startup + Shortcut + Driver Cleanup (all
-/// Windows-only, so the pivot is hidden off-Windows). Per-App Presets is feature-gated; Developer shows
-/// only when the Dev Tools toggle is on (#572). Deep-links to a merged-away page target its containing
-/// pivot. See docs/design/ux-terminology.md and zune-redesign.md.</summary>
+/// Windows-only, so the pivot is hidden off-Windows). Per-App Presets is feature-gated. Deep-links to a
+/// merged-away page target its containing pivot. See docs/design/ux-terminology.md and zune-redesign.md.</summary>
 public enum SettingsTab
 {
     Presets = 0,       // moved in from a top-level nav node (#571).
@@ -12,6 +11,5 @@ public enum SettingsTab
     Hotkeys = 2,
     Theme = 3,         // labelled "APPEARANCE" in the rail.
     System = 4,        // Zune merge: Startup + Shortcut + Driver Cleanup (all Windows-only).
-    DevTools = 5,
-    Developer = 6,     // shown only when Dev Tools is on (#572).
+    Developer = 6,     // always shown (#572).
 }

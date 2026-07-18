@@ -34,17 +34,15 @@ public partial class SettingsTabItem : ObservableObject
 /// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages. Split out of the ADVANCED page so
 /// those OTA-owned settings live under their own node. Mirrors <see cref="AdvancedViewModel"/> (data-driven
 /// rail + shared subpage VMs, deep-linkable via <see cref="SelectedTab"/>), but flat — there are no owner
-/// sections here. Presets/Per-App/Developer folded in from top-level nav nodes (#571/#572); Per-App and
-/// Developer are gated (feature flag / Dev Tools toggle) via each tab's IsVisible. See
-/// docs/design/ux-terminology.md.
+/// sections here. Presets/Per-App/Developer folded in from top-level nav nodes (#571/#572); Per-App is
+/// feature-gated via its tab's IsVisible. See docs/design/ux-terminology.md.
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsTabItem[] _allTabs;
-    private readonly DeveloperSettings _developerSettings = DeveloperSettings.Instance;
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
-        DevToolsViewModel devTools, ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup,
+        ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup,
         PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
         // "System" stacks the three Windows integration/maintenance pages into one pivot (Zune merge).
@@ -56,14 +54,10 @@ public partial class SettingsViewModel : ObservableObject
             new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
             new("APPEARANCE", SettingsTab.Theme, theme),
             new("SYSTEM", SettingsTab.System, system),
-            new("DEV TOOLS", SettingsTab.DevTools, devTools),
-            new("DEVELOPER", SettingsTab.Developer, developer, isVisible: _developerSettings.ShowDeveloperPage),
+            new("DEVELOPER", SettingsTab.Developer, developer),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
-
-        // The Developer tab appears/disappears live with the Dev Tools toggle.
-        _developerSettings.PropertyChanged += OnDeveloperSettingsChanged;
 
         // Default to the first visible tab — the configured default may be OS-hidden or gated off.
         if (Current is not { IsVisible: true } && FirstVisible is { } first)
@@ -112,18 +106,6 @@ public partial class SettingsViewModel : ObservableObject
         UpdateSelection();
         OnPropertyChanged(nameof(SelectedContent));
         OnPropertyChanged(nameof(CurrentTabTitle));
-    }
-
-    // Show/hide the Developer tab as the Dev Tools toggle changes; if it's turned off while selected,
-    // fall back to the first visible tab.
-    private void OnDeveloperSettingsChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(DeveloperSettings.ShowDeveloperPage)) return;
-        var devTab = _allTabs.FirstOrDefault(t => t.Tab == SettingsTab.Developer);
-        if (devTab is null) return;
-        devTab.IsVisible = _developerSettings.ShowDeveloperPage;
-        if (!devTab.IsVisible && SelectedTab == SettingsTab.Developer && FirstVisible is { } first)
-            SelectedTab = first.Tab;
     }
 
     private void UpdateSelection()

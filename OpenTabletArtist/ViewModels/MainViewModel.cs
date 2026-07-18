@@ -89,8 +89,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// initializer) so its break-config commands can reach the session's settings coordinator + device data.</summary>
     public DeveloperViewModel Developer { get; }
     public ThemeViewModel Theme { get; } = new();
-    /// <summary>The SETTINGS → Dev Tools tab (the Developer-page visibility toggle).</summary>
-    public DevToolsViewModel DevTools { get; } = new();
     /// <summary>The SETTINGS → Shortcut tab (create a Start-menu shortcut; Windows-only).</summary>
     public ShortcutViewModel Shortcut { get; } = new();
 
@@ -200,8 +198,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             VMulti);
         // The SETTINGS tabbed page holds OTA's own preference subpages, sharing the same VM instances,
         // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
-        // (#572) are folded in as tabs — Per-App is feature-gated, Developer is gated by the Dev Tools toggle.
-        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, DevTools, Shortcut, DriverCleanup,
+        // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
+        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DriverCleanup,
             Presets, PerApp, Developer);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
