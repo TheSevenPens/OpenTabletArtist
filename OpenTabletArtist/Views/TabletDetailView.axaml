@@ -710,11 +710,6 @@
                                                              TurningCounterClockwise="{Binding TurningCounterClockwise}"
                                                              AccentBrush="{DynamicResource AccentBrush}"
                                                              Width="104" Height="104" HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding StepInfo}"
-                                                       IsVisible="{Binding HasStepInfo}"
-                                                       HorizontalAlignment="Center" TextAlignment="Center"
-                                                       MaxWidth="130" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
                                         </StackPanel>
 
                                         <!-- All mappings for this wheel, as flat rows in the one card. -->
