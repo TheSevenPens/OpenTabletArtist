@@ -42,14 +42,19 @@
             <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
         </Style>
         <!-- The switcher/detection statusDot + statusSquare styles moved into TabletSwitcherBar (#580). -->
+
+        <!-- Hairline between the flat rows inside a wheel card. -->
+        <Style Selector="Border.wheelRowDivider">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Resources>
-        <!-- Shared binding card: a label + the current binding as text + an Edit button that opens the
-             modal type-tabbed editor (BindingEditorDialog). Bound to a ButtonBinding. Two variants:
-             ButtonBindingCard carries the button glyph for the ExpressKeys tab; WheelBindingCard is the
-             same card without an icon, for the rotation-direction/wheel-button rows nested inside a wheel
-             card (which is itself an entity — the extra glyphs there just add clutter). -->
+        <!-- Binding UI: a label + the current binding as text + an Edit button that opens the modal
+             type-tabbed editor (BindingEditorDialog). Bound to a ButtonBinding. ButtonBindingCard is a
+             full Entity card (with the button glyph) for the ExpressKeys tab; WheelBindingRow (below) is
+             a flat row for the direction/button rows that live directly inside a single wheel card. -->
         <DataTemplate x:Key="ButtonBindingCard">
             <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
                     Icon="{StaticResource IconButtonPointer}"
@@ -74,27 +79,27 @@
             </ctrl:Entity>
         </DataTemplate>
 
-        <DataTemplate x:Key="WheelBindingCard">
-            <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
-                    Padding="16,12" Margin="0,0,0,10">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                    </StackPanel>
-                    <Button Grid.Column="1" Command="{Binding EditCommand}"
-                            IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit">
-                        <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
-                                  Foreground="{Binding $parent[Button].Foreground}" />
-                    </Button>
-                </Grid>
-            </ctrl:Entity>
+        <!-- Wheel binding as a flat ROW (no card): a wheel is a single Entity, and its direction/button
+             rows sit directly inside it separated by hairlines — nesting Entities-in-an-Entity read as
+             muddy card-in-card clutter. Bound to a ButtonBinding. -->
+        <DataTemplate x:Key="WheelBindingRow">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,8">
+                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding EditCommand}"
+                        IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                        Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit">
+                    <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
+                              Foreground="{Binding $parent[Button].Foreground}" />
+                </Button>
+            </Grid>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -712,15 +717,17 @@
                                                        Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" />
                                         </StackPanel>
 
-                                        <!-- All mappings for this wheel. -->
+                                        <!-- All mappings for this wheel, as flat rows in the one card. -->
                                         <StackPanel Grid.Column="1" MinWidth="0">
                                             <!-- Clockwise binding. -->
                                             <ContentControl Content="{Binding Clockwise}"
-                                                            ContentTemplate="{StaticResource WheelBindingCard}" />
+                                                            ContentTemplate="{StaticResource WheelBindingRow}" />
+
+                                            <Border Classes="wheelRowDivider" />
 
                                             <!-- Counter-clockwise binding. -->
                                             <ContentControl Content="{Binding CounterClockwise}"
-                                                            ContentTemplate="{StaticResource WheelBindingCard}" />
+                                                            ContentTemplate="{StaticResource WheelBindingRow}" />
 
                                             <!-- Per-direction "Sensitivity" (activation threshold) sliders were removed
                                                  for the RC: the continuous slider is a poor fit for a setting whose only
@@ -729,9 +736,18 @@
                                                  (ClockwiseThreshold, ThresholdMin/Max/Tick, ApplyWheelThresholdAsync) is
                                                  kept for when a better-designed control returns. See #584. -->
 
-                                            <!-- Wheel button(s). -->
-                                            <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
-                                                          ItemTemplate="{StaticResource WheelBindingCard}" />
+                                            <!-- Wheel button(s), each its own row under a hairline. -->
+                                            <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <Border Classes="wheelRowDivider" />
+                                                            <ContentControl Content="{Binding}"
+                                                                            ContentTemplate="{StaticResource WheelBindingRow}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
