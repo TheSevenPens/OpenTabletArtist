@@ -37,7 +37,7 @@
     <!-- DataContext is the TestViewModel, supplied by the typed-nav DataTemplate (#15). -->
     <DockPanel LastChildFill="True">
 
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+        <StackPanel DockPanel.Dock="Top">
             <!-- No page title — the "scribble" wordmark names the section (Zune). -->
             <!-- Active-tablet picker, only when more than one tablet is connected (#190 phase 3). -->
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"
