@@ -12,7 +12,8 @@ public class WheelEditorTests
         new(0, AuxBinding.Unbound, isOtherBinding: false, otherLabel: "", canEdit: false,
             applyBinding: null, label: label);
 
-    private static WheelEditor MakeEditor(double? stepSizeDegrees = 30)
+    private static WheelEditor MakeEditor(double? stepSizeDegrees = 30,
+        System.Func<int, bool, double, Task>? applyThreshold = null)
     {
         var cw = Row("Clockwise");
         var ccw = Row("Counter-clockwise");
@@ -26,7 +27,7 @@ public class WheelEditorTests
             clockwiseThreshold: 30,
             counterClockwiseThreshold: 30,
             stepSizeDegrees: stepSizeDegrees,
-            applyThreshold: null);
+            applyThreshold: applyThreshold);
     }
 
     [Fact]
@@ -95,5 +96,43 @@ public class WheelEditorTests
         var editor = MakeEditor(stepSizeDegrees: 30);
         Assert.True(editor.HasStepInfo);
         Assert.Contains("30", editor.StepInfo);
+    }
+
+    [Fact]
+    public void Threshold_UserChange_AboveMinimum_Applies()
+    {
+        var applied = new List<(bool Clockwise, double Deg)>();
+        var editor = MakeEditor(stepSizeDegrees: 30, applyThreshold: (_, cw, deg) =>
+        {
+            applied.Add((cw, deg));
+            return Task.CompletedTask;
+        });
+
+        editor.ClockwiseThreshold = 60; // a real slider gesture (>= ThresholdMin = 30)
+
+        Assert.Single(applied);
+        Assert.Equal((true, 60), applied[0]);
+        Assert.Equal(60, editor.ClockwiseThreshold);
+    }
+
+    [Fact]
+    public void Threshold_SubMinimumWriteback_IsIgnoredAndSnappedBack()
+    {
+        // A slider rebuilt by RefreshWheels can push its raw stored value back through the TwoWay binding
+        // before Minimum is applied, landing below ThresholdMin. That must not persist (it would clobber
+        // the applied value and loop) — the display snaps back to a valid value instead (#wheel-sensitivity).
+        var applied = new List<(bool Clockwise, double Deg)>();
+        var editor = MakeEditor(stepSizeDegrees: 30, applyThreshold: (_, cw, deg) =>
+        {
+            applied.Add((cw, deg));
+            return Task.CompletedTask;
+        });
+
+        editor.ClockwiseThreshold = 1;         // below ThresholdMin (30) — spurious rebuilt-slider writeback
+        editor.CounterClockwiseThreshold = 1;
+
+        Assert.Empty(applied);                 // nothing persisted
+        Assert.Equal(30, editor.ClockwiseThreshold);         // snapped back to the minimum
+        Assert.Equal(30, editor.CounterClockwiseThreshold);
     }
 }

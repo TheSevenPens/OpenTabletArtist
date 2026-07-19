@@ -96,13 +96,33 @@ public partial class WheelEditor : ObservableObject
     partial void OnClockwiseThresholdChanged(double value)
     {
         OnPropertyChanged(nameof(ClockwiseThresholdText));
-        if (!_suppress) _ = _applyThreshold?.Invoke(WheelIndex, true, value);
+        if (_suppress || IsSpuriousWriteback(value)) return;
+        _ = _applyThreshold?.Invoke(WheelIndex, true, value);
     }
 
     partial void OnCounterClockwiseThresholdChanged(double value)
     {
         OnPropertyChanged(nameof(CounterClockwiseThresholdText));
-        if (!_suppress) _ = _applyThreshold?.Invoke(WheelIndex, false, value);
+        if (_suppress || IsSpuriousWriteback(value)) return;
+        _ = _applyThreshold?.Invoke(WheelIndex, false, value);
+    }
+
+    /// <summary>
+    /// A slider rebuilt by RefreshWheels (which runs after every apply) can push its raw stored value back
+    /// through the TwoWay binding before its Minimum is applied. For wheels whose stored threshold sits
+    /// below one full step, that lands below <see cref="ThresholdMin"/> — which the slider clamps user
+    /// input to, so it's never a real gesture. Persisting it would clobber the just-applied value and, via
+    /// the rebuild it triggers, loop forever (the sensitivity slider "snapping back"). Snap the display
+    /// back to a valid value and don't apply it.
+    /// </summary>
+    private bool IsSpuriousWriteback(double value)
+    {
+        if (value >= ThresholdMin) return false;
+        _suppress = true;
+        ClockwiseThreshold = Clamp(ClockwiseThreshold);
+        CounterClockwiseThreshold = Clamp(CounterClockwiseThreshold);
+        _suppress = false;
+        return true;
     }
 
     // ── Live rotation feedback ──────────────────────────────────────────────
