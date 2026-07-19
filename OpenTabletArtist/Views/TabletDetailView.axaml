@@ -682,7 +682,7 @@
                             VerticalAlignment="Center" />
                 </Grid>
 
-                <TextBlock Text="Bind an action to each direction the wheel turns, plus its button. Sensitivity sets how far you turn before the action repeats."
+                <TextBlock Text="Bind an action to each direction the wheel turns, plus its button."
                            Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,0,0,10" TextWrapping="Wrap" />
 
@@ -714,27 +714,20 @@
 
                                         <!-- All mappings for this wheel. -->
                                         <StackPanel Grid.Column="1" MinWidth="0">
-                                            <!-- Clockwise: binding card + sensitivity. -->
+                                            <!-- Clockwise binding. -->
                                             <ContentControl Content="{Binding Clockwise}"
                                                             ContentTemplate="{StaticResource WheelBindingCard}" />
-                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
-                                                                Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                                                TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                                                IsEnabled="{Binding CanEdit}"
-                                                                Value="{Binding ClockwiseThreshold}"
-                                                                ValueTextOverride="{Binding ClockwiseThresholdText}"
-                                                                Monospace="True" ValueWidth="130" />
 
-                                            <!-- Counter-clockwise: binding card + sensitivity. -->
+                                            <!-- Counter-clockwise binding. -->
                                             <ContentControl Content="{Binding CounterClockwise}"
                                                             ContentTemplate="{StaticResource WheelBindingCard}" />
-                                            <ctrl:LabeledSlider Label="Sensitivity" LabelWidth="72" Margin="12,0,2,6"
-                                                                Minimum="{Binding ThresholdMin}" Maximum="{Binding ThresholdMax}"
-                                                                TickFrequency="{Binding ThresholdTick}" IsSnapToTickEnabled="True"
-                                                                IsEnabled="{Binding CanEdit}"
-                                                                Value="{Binding CounterClockwiseThreshold}"
-                                                                ValueTextOverride="{Binding CounterClockwiseThresholdText}"
-                                                                Monospace="True" ValueWidth="130" />
+
+                                            <!-- Per-direction "Sensitivity" (activation threshold) sliders were removed
+                                                 for the RC: the continuous slider is a poor fit for a setting whose only
+                                                 meaningful values are a few whole multiples of the wheel's step size, and
+                                                 it only matters once a rotation is bound. The WheelEditor plumbing
+                                                 (ClockwiseThreshold, ThresholdMin/Max/Tick, ApplyWheelThresholdAsync) is
+                                                 kept for when a better-designed control returns. See #584. -->
 
                                             <!-- Wheel button(s). -->
                                             <ItemsControl ItemsSource="{Binding Buttons}" IsVisible="{Binding HasButtons}"
