@@ -97,9 +97,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private IReadOnlyList<DisplayInfo> _displays = [];
     [ObservableProperty] private int? _selectedDisplayNumber;
 
-    /// <summary>A display is selected, so "Apply" can map to it.</summary>
-    public bool CanApplyDisplay => SelectedDisplayNumber != null && _applyAction != null;
-
     /// <summary>How the stored display mapping relates to the connected monitors, so the tab can flag an
     /// off-screen or custom mapping instead of silently rendering it. Recomputed via
     /// <see cref="RefreshTabletArea"/> on every mapping/display change.</summary>
@@ -115,30 +112,25 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         DisplayMappingValidity.OffScreen =>
             "This tablet's mapped area extends beyond your displays — part of the tablet maps to off-screen " +
-            "space, so the pen reaches dead zones there. Pick a display below and Apply mapping to fix it.",
+            "space, so the pen reaches dead zones there. Pick a display below to fix it.",
         DisplayMappingValidity.Custom =>
             "This tablet isn't mapped to a single whole display (a custom or multi-display area). Pick a " +
-            "display below and Apply mapping for a standard, undistorted 1:1 setup.",
+            "display below for a standard, undistorted 1:1 setup.",
         _ => "",
     };
 
-    /// <summary>The selected display differs from the one currently applied, so the change still needs
-    /// "Apply mapping" — drives the pending hint so it's obvious the selection isn't live yet (#179
-    /// follow-up). Suppressed during the initial load so an as-opened profile doesn't read as pending
-    /// before the user changes anything.</summary>
-    [ObservableProperty] private bool _mappingChangePending;
-    private bool _suppressMappingPending;
-
-    private void RecomputeMappingPending() =>
-        MappingChangePending = _applyAction != null
-            && SelectedDisplayNumber != null
-            && SelectedDisplayNumber != CurrentlyMappedNumber();
+    // Set while the selection is moved programmatically (initial load, an adopted external change, a
+    // display hot-plug) so it isn't mistaken for a user pick and auto-applied.
+    private bool _suppressMappingApply;
 
     partial void OnSelectedDisplayNumberChanged(int? value)
     {
-        OnPropertyChanged(nameof(CanApplyDisplay));
-        ApplyDisplayCommand.NotifyCanExecuteChanged();
-        if (!_suppressMappingPending) RecomputeMappingPending();
+        // Picking a display applies immediately — consistent with every other edit on this tab, so there's
+        // no separate Apply step. No-op when it's already the mapped display, so re-selecting the current
+        // monitor doesn't needlessly re-fit the active area.
+        if (_suppressMappingApply || _applyAction == null || value == null || value == CurrentlyMappedNumber())
+            return;
+        _ = ApplyDisplayAsync();
     }
 
     partial void OnIsAbsoluteOutputModeChanged(bool value)
@@ -617,11 +609,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshFromProfile();
         RefreshDetectionStatus();
         RefreshConfigOverride();
-        // Highlight the display the tablet is currently mapped to (else the primary). Suppress the
-        // pending flag for this initial, programmatic selection so it doesn't open "pending".
-        _suppressMappingPending = true;
+        // Highlight the display the tablet is currently mapped to (else the primary). Suppress auto-apply
+        // for this initial, programmatic selection so opening the page doesn't re-apply the mapping.
+        _suppressMappingApply = true;
         SelectedDisplayNumber = DefaultSelectedDisplay();
-        _suppressMappingPending = false;
+        _suppressMappingApply = false;
     }
 
     /// <summary>Show the Filters tab — a developer-only view of the profile's raw filters, hidden unless
@@ -805,12 +797,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         RefreshWarning = null;
         ClearExternalChange();
         RefreshFromProfile();
-        // Move the display picker to the now-current mapping (suppress the pending flag for this
-        // programmatic selection so it doesn't read as an unapplied change).
-        _suppressMappingPending = true;
+        // Move the display picker to the now-current mapping (suppress auto-apply for this programmatic
+        // selection so adopting an external change doesn't push it straight back).
+        _suppressMappingApply = true;
         SelectedDisplayNumber = DefaultSelectedDisplay();
-        _suppressMappingPending = false;
-        MappingChangePending = false; // the selection now matches the adopted mapping (any prior pick is discarded)
+        _suppressMappingApply = false;
         RefreshDetectionStatus();
     }
 
@@ -858,9 +849,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The user has a change here that isn't yet persisted, so an external reload must not
-    /// silently overwrite it. Currently just a picked-but-unapplied display mapping — every other edit
-    /// auto-applies immediately; extend this if more deferred edits are added.</summary>
-    private bool HasUnsavedEdit => MappingChangePending;
+    /// silently overwrite it. Every edit on the page now auto-applies immediately (the display mapping
+    /// was the last deferred one — it applies on selection now), so nothing is ever unsaved. Kept as the
+    /// single extension point: set this true if a future deferred edit is added, and the reconcile banner
+    /// re-activates for it.</summary>
+    private bool HasUnsavedEdit => false;
 
     private async Task ApplySettingsChange(Action<Profile> modify)
     {
@@ -1088,15 +1081,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         await SetOutputMode(WinInkAbsoluteModePath);
     }
 
-    [RelayCommand(CanExecute = nameof(CanApplyDisplay))]
-    private async Task ApplyDisplay()
+    /// <summary>Map the tablet to the currently-selected display. Called automatically when the user picks
+    /// a display in the diagram (there's no separate Apply button — the pick applies immediately).</summary>
+    private async Task ApplyDisplayAsync()
     {
         var display = Displays.FirstOrDefault(d => d.Number == SelectedDisplayNumber);
         if (_applyAction == null || _settings == null || display == null) return;
 
         // Same mapping the tray's "Switch display" uses — aspect-locked, full-monitor (#187).
         await ApplySettingsChange(p => DisplayMappingApplier.ApplyToProfile(p, _tabletDigitizer, display, Displays));
-        MappingChangePending = false; // the selection is now the applied mapping
     }
 
     /// <summary>Re-read the connected monitors from Windows (manual Refresh or a live display change).</summary>
@@ -1105,9 +1098,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         var keep = SelectedDisplayNumber;
         Displays = DisplayEnumerator.Enumerate();
+        // A display hot-plug moves the selection programmatically — suppress auto-apply so re-enumerating
+        // monitors never silently remaps the tablet.
+        _suppressMappingApply = true;
         SelectedDisplayNumber =
             (keep != null && Displays.Any(d => d.Number == keep)) ? keep
             : DefaultSelectedDisplay();
+        _suppressMappingApply = false;
         RefreshTabletArea(); // displays changed → recompute the mapped-display side of the diagram
     }
 

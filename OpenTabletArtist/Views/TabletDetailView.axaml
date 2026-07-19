@@ -453,29 +453,17 @@
                                            Foreground="{DynamicResource TextMutedBrush}" />
                             </StackPanel>
                         </Border>
-                        <!-- Apply leads the row (primary action), then the display helpers. The manual
-                             "Refresh Display Settings" button is gone: OnScreensChanged already fires
-                             RefreshDisplaysCommand whenever Windows reports a display change, so the
-                             list refreshes itself. -->
-                        <WrapPanel Orientation="Horizontal">
-                            <Button Content="Apply" Command="{Binding ApplyDisplayCommand}"
-                                    ToolTip.Tip="Map the tablet to the selected display"
-                                    Theme="{StaticResource AccentButton}" Padding="10,5" Margin="0,0,6,4" />
-                            <Button Content="Display Settings"
-                                    Command="{Binding OpenDisplaySettingsCommand}"
-                                    ToolTip.Tip="Open Windows Display Settings"
-                                    Theme="{StaticResource GhostButton}" Padding="10,5" Margin="0,0,0,4" />
-                        </WrapPanel>
-                        <!-- A changed display selection isn't live until Apply mapping (#179 follow-up);
-                             sits directly under the button row. -->
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
-                                    IsVisible="{Binding MappingChangePending}">
-                            <Ellipse Width="9" Height="9" VerticalAlignment="Center"
-                                     Fill="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="Display selection changed — click Apply mapping to save it."
-                                       FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                        </StackPanel>
+                        <!-- No Apply button: clicking a display in the diagram below maps the tablet to it
+                             immediately, like every other edit on this tab. Only the Windows helper remains.
+                             (The manual "Refresh Display Settings" button is also gone — OnScreensChanged
+                             fires RefreshDisplaysCommand on any display change, so the list self-refreshes.) -->
+                        <Button Content="Display Settings"
+                                Command="{Binding OpenDisplaySettingsCommand}"
+                                ToolTip.Tip="Open Windows Display Settings"
+                                Theme="{StaticResource GhostButton}" Padding="10,5" HorizontalAlignment="Left" />
+                        <TextBlock Text="Click a display below to map the tablet to it."
+                                   Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
                         <ctrl:ScreenMappingDiagram Displays="{Binding Displays}" Margin="0,8,0,0"
                                                    SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
                                                    Area="{Binding TabletArea}"

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 
@@ -82,32 +83,38 @@ public class TabletDetailViewModelTests
         Assert.Same(original, pushed);
     }
 
-    // #179 follow-up: a changed display selection must read as "pending" until Apply, but the dialog
-    // must not open already-pending before the user touches anything.
+    // Picking a display now applies immediately (no Apply button) — selecting a monitor that isn't the
+    // current mapping pushes the new mapping straight through, but opening the page doesn't (the initial,
+    // programmatic selection is suppressed).
     [Fact]
-    public void MappingChangePending_FalseOnOpen_TrueAfterChangingSelection()
+    public void SelectingDisplay_AutoApplies()
     {
         var settings = SettingsWith("T");
+        settings.Profiles.First().AbsoluteModeSettings = new AbsoluteModeSettings
+        {
+            Display = new AreaSettings { Width = 1000, Height = 1000, X = 500, Y = 500 }, // matches no display below
+            Tablet = new AreaSettings { Width = 100, Height = 60, X = 50, Y = 30 },
+        };
+        Settings? pushed = null;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.CompletedTask);
+            applyAction: s => { pushed = s; return Task.CompletedTask; });
 
-        Assert.False(vm.MappingChangePending); // as opened, nothing changed
+        // A known monitor to pick (7 avoids any real display number the ctor may have pre-selected).
+        vm.Displays = new List<DisplayInfo> { new(7, "Main", 1920, 1080, 0, 0, true) };
+        Assert.Null(pushed); // opening the page / setting displays didn't apply anything
 
-        // Selecting a display that isn't the applied mapping marks the change pending.
-        vm.SelectedDisplayNumber = 999;
-        Assert.True(vm.MappingChangePending);
+        vm.SelectedDisplayNumber = 7; // picking a display that isn't the current mapping
+        Assert.Same(settings, pushed); // applied immediately, no separate Apply step
     }
 
     [Fact]
-    public void MappingChangePending_False_WhenNoApplyAction()
+    public void SelectingDisplay_NoApplyAction_DoesNotThrow()
     {
         var settings = SettingsWith("T");
         var vm = new TabletDetailViewModel(settings.Profiles.First(), settings); // read-only (no apply)
 
-        vm.SelectedDisplayNumber = 999;
-
-        Assert.False(vm.MappingChangePending); // can't apply, so never "pending"
+        vm.SelectedDisplayNumber = 999; // nothing to apply through — must be a no-op, not a crash
     }
 
     // #177: calibration needs an Absolute mode AND a live tablet. With absolute mode but the tablet
@@ -205,36 +212,9 @@ public class TabletDetailViewModelTests
         Assert.Same(reloaded, pushed);                         // now persisting through the adopted settings
     }
 
-    // With an unsaved edit (a picked-but-unapplied display), an external change must NOT be silently
-    // adopted — it raises a non-destructive banner and keeps the user's in-progress state, until they
-    // choose Reload.
-    [Fact]
-    public async Task ReconcileExternalChange_WithUnsavedEdit_ShowsBanner_ThenReloadAdopts()
-    {
-        var original = MappedSettings("T", 50);
-        var reloaded = MappedSettings("T", 80);
-        Settings? pushed = null;
-
-        var vm = new TabletDetailViewModel(
-            original.Profiles.First(), original,
-            applyAction: s => { pushed = s; return Task.CompletedTask; });
-
-        vm.SelectedDisplayNumber = 999;           // an unsaved mapping selection
-        Assert.True(vm.MappingChangePending);
-
-        vm.ReconcileExternalChange(reloaded, reloaded.Profiles.First());
-
-        Assert.True(vm.HasExternalChange);                    // banner shown, not adopted
-        Assert.False(string.IsNullOrEmpty(vm.ExternalChangeText));
-        await vm.FixOutputModeCommand.ExecuteAsync(null);
-        Assert.Same(original, pushed);                        // still persisting through the un-adopted settings
-
-        pushed = null;
-        vm.ReloadExternalChangeCommand.Execute(null);         // user accepts the external change
-        Assert.False(vm.HasExternalChange);
-        await vm.FixOutputModeCommand.ExecuteAsync(null);
-        Assert.Same(reloaded, pushed);                        // now persisting through the adopted settings
-    }
+    // (The "unsaved edit shows a banner" case was removed with the mapping Apply button: every edit on the
+    // tab now auto-applies, so HasUnsavedEdit is always false and the reconcile always adopts silently.
+    // The banner infrastructure is retained as an extension point — see HasUnsavedEdit.)
 
     // An identical reload (no real change) is a no-op: no banner, and it clears any prior one.
     [Fact]
