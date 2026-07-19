@@ -140,6 +140,14 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         bool foreign = _connection.IsForeignDaemon;
         static bool DynamicsOk(ProfileItem p) =>
             PressureCurveProfile.ReadProfile(p.Profile) is null or { Enabled: true };
+        // A non-cardinal active-area rotation (not a multiple of 90°): the app only offers 0/90/180/270,
+        // so anything else was set by external tooling and skews the pen off the screen (#health-rotation).
+        static bool IsNonCardinalRotation(ProfileItem p)
+        {
+            if (p.Profile.AbsoluteModeSettings?.Tablet is not { } tablet) return false;
+            double n = ((tablet.Rotation % 360f) + 360f) % 360f;
+            return System.Math.Abs(n - System.Math.Round(n / 90.0) * 90.0) > 0.5;
+        }
         // Which built-in configs are shadowed by a user override file in the daemon's config folder (#467).
         var overriddenConfigs = TabletConfigInspector.OverriddenBaseNames(_device.ConfigurationDirectory);
         var tablets = _device.Profiles
@@ -153,6 +161,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 Mapping: p.IsDetected
                     ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
                     : DisplayMappingValidity.None,
+                NonCardinalRotation: p.IsDetected && IsNonCardinalRotation(p),
                 DynamicsFilterActive: foreign || DynamicsOk(p),
                 ConfigIsOverride: overriddenConfigs.Contains(p.Tablet),
                 // A non-WinInk mode is intentional (mouse-compatibility) when the tablet is opted out (#549).

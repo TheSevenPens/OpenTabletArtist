@@ -71,6 +71,14 @@
                     </StackPanel>
 
                     <StackPanel Spacing="6">
+                        <TextBlock Text="Rotate active area to a non-standard angle" FontWeight="SemiBold" />
+                        <Button Content="Set rotation to 20°"
+                                Command="{Binding PushMappingRotationCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
                         <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
                         <Button Content="Create off calibration"
                                 Command="{Binding CreateBadCalibrationCommand}"

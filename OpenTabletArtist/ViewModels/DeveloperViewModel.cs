@@ -82,6 +82,31 @@ public sealed partial class DeveloperViewModel : ObservableObject
                             "Home's Needs attention list should now flag it. Remap the tablet to a display to restore it.";
     }
 
+    /// <summary>Deliberately set the active tablet's active-area rotation to a non-cardinal angle (20°) — a
+    /// <em>real</em>, persisted settings change — so the "unusual active-area rotation" health warning can
+    /// be reproduced. The app only offers 0/90/180/270, so this angle can otherwise only arrive via external
+    /// tooling. Undo by picking a standard rotation on the tablet's Display Mapping tab.</summary>
+    [RelayCommand]
+    private async Task PushMappingRotation()
+    {
+        var settings = _settings?.CurrentSettings;
+        if (settings == null) { ConfigErrorStatus = "No settings loaded yet — connect the daemon first."; return; }
+
+        var tabletName = _device?.ActiveTabletName ?? _device?.DetectedTablets.FirstOrDefault()?.Name;
+        if (string.IsNullOrEmpty(tabletName)) { ConfigErrorStatus = "No active tablet to rotate."; return; }
+
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        var abs = profile?.AbsoluteModeSettings;
+        if (abs?.Tablet == null) { ConfigErrorStatus = $"{tabletName} isn't in an absolute mapping."; return; }
+
+        abs.Tablet.Rotation = 20f; // non-cardinal → trips the rotation health check
+
+        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        ConfigErrorStatus = $"Set {tabletName}'s active-area rotation to 20° (a non-standard angle). " +
+                            "Home's Needs attention list should now flag it. Pick a standard rotation " +
+                            "(0/90/180/270) on the Display Mapping tab to restore it.";
+    }
+
     // Each simulated corner tap is jittered up to this many px off the target, so the solved calibration
     // is slightly — but visibly — wrong, and the report shows small random deltas.
     private const float MaxCalibrationJitterPx = 12f;

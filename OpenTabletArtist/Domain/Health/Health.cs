@@ -68,6 +68,9 @@ public sealed record HealthIssue(
 public sealed record TabletHealthInput(
     string Name, bool Detected, bool OutputModeIsWinInk,
     DisplayMappingValidity Mapping = DisplayMappingValidity.None,
+    // The active-area rotation is a non-cardinal angle (not 0/90/180/270). The app only offers the cardinal
+    // angles, so this comes from external tooling and skews the pen axes off the screen. Defaults false.
+    bool NonCardinalRotation = false,
     // The Pen Dynamics filter is present + enabled on this profile. Defaults true so a check only fires
     // when a detected tablet is definitively missing/disabled (the always-on invariant regressed).
     bool DynamicsFilterActive = true,
@@ -309,6 +312,18 @@ public static class HealthEvaluator
                         "Re-map it to one display for a standard, undistorted 1:1 setup.",
                         new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
                     break;
+            }
+
+            // Independent of the mapping-validity classification: a non-cardinal active-area rotation
+            // (anything but 0/90/180/270) skews the pen axes off the screen, so strokes come out slanted.
+            if (t.NonCardinalRotation)
+            {
+                issues.Add(new HealthIssue($"tablet.mappingRotation:{t.Name}", HealthSeverity.Misconfigured,
+                    $"{t.Name}: unusual active-area rotation",
+                    "This tablet's active area is rotated by an angle that isn't 0°, 90°, 180°, or 270°, so the " +
+                    "pen axes don't line up with the screen and strokes come out skewed. Set the rotation back " +
+                    "to one of the standard angles on the Display Mapping tab.",
+                    new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
             }
         }
     }

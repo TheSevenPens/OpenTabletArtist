@@ -186,6 +186,40 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void NonCardinalRotation_IsMisconfigured_WithDisplayMappingTarget()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Wacom PTK-870", Detected: true, OutputModeIsWinInk: true,
+                    NonCardinalRotation: true),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.mappingRotation:Wacom PTK-870", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+        Assert.Equal("Wacom PTK-870", issue.Remediation.TabletName);
+    }
+
+    [Fact]
+    public void NonCardinalRotation_AndOffScreen_BothFlagged()
+    {
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: true,
+                    Mapping: DisplayMappingValidity.OffScreen, NonCardinalRotation: true),
+            },
+        };
+        var ids = HealthEvaluator.Evaluate(input).Select(x => x.Id).ToList();
+        Assert.Contains("tablet.mappingOffScreen:Tablet A", ids);
+        Assert.Contains("tablet.mappingRotation:Tablet A", ids);
+    }
+
+    [Fact]
     public void ConfigOverride_IsRecommendation_WithConfigsTarget()
     {
         var input = Healthy() with
