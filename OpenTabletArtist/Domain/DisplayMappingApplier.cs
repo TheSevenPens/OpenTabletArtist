@@ -198,6 +198,11 @@ public static class DisplayMappingApplier
     }
 }
 
+/// <summary>The stored display-output rectangle in 0-based virtual-desktop coordinates (top-left origin,
+/// the same space the display diagram lays monitors out in). Lets the mapping diagram overlay where the
+/// tablet actually maps — and, for an off-screen/custom mapping, how it sits relative to the monitors.</summary>
+public readonly record struct MappedOutputArea(double Left, double Top, double Width, double Height);
+
 /// <summary>How a tablet's stored Absolute-mode display mapping relates to the connected monitors
 /// (see <see cref="DisplayMappingApplier.ClassifyMapping"/>).</summary>
 public enum DisplayMappingValidity

@@ -479,7 +479,10 @@
                         <ctrl:ScreenMappingDiagram Displays="{Binding Displays}" Margin="0,8,0,0"
                                                    SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
                                                    Area="{Binding TabletArea}"
+                                                   MappedOutput="{Binding MappedOutput}"
+                                                   MappingValidity="{Binding MappingValidity}"
                                                    AccentBrush="{DynamicResource AccentBrush}"
+                                                   WarningBrush="{DynamicResource WarningBrush}"
                                                    Height="320" />
 
                         <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->

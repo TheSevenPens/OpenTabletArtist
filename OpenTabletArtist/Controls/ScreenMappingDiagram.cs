@@ -50,18 +50,32 @@ public sealed class ScreenMappingDiagram : Control
         AvaloniaProperty.Register<ScreenMappingDiagram, TabletAreaInfo?>(nameof(Area));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(AccentBrush));
+    // The stored output rectangle + how it grades, so an off-screen/custom mapping is drawn (overlaid on
+    // the monitors), not just described in the note above (#mapping-visual).
+    public static readonly StyledProperty<MappedOutputArea?> MappedOutputProperty =
+        AvaloniaProperty.Register<ScreenMappingDiagram, MappedOutputArea?>(nameof(MappedOutput));
+    public static readonly StyledProperty<DisplayMappingValidity> MappingValidityProperty =
+        AvaloniaProperty.Register<ScreenMappingDiagram, DisplayMappingValidity>(nameof(MappingValidity));
+    public static readonly StyledProperty<IBrush?> WarningBrushProperty =
+        AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(WarningBrush));
 
     public IReadOnlyList<DisplayInfo>? Displays { get => GetValue(DisplaysProperty); set => SetValue(DisplaysProperty, value); }
     public int? SelectedNumber { get => GetValue(SelectedNumberProperty); set => SetValue(SelectedNumberProperty, value); }
     public TabletAreaInfo? Area { get => GetValue(AreaProperty); set => SetValue(AreaProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
+    public MappedOutputArea? MappedOutput { get => GetValue(MappedOutputProperty); set => SetValue(MappedOutputProperty, value); }
+    public DisplayMappingValidity MappingValidity { get => GetValue(MappingValidityProperty); set => SetValue(MappingValidityProperty, value); }
+    public IBrush? WarningBrush { get => GetValue(WarningBrushProperty); set => SetValue(WarningBrushProperty, value); }
 
     static ScreenMappingDiagram()
     {
         AffectsRender<ScreenMappingDiagram>(DisplaysProperty, SelectedNumberProperty, AreaProperty,
-            AccentBrushProperty);
-        AffectsMeasure<ScreenMappingDiagram>(DisplaysProperty, AreaProperty);
+            AccentBrushProperty, MappedOutputProperty, MappingValidityProperty, WarningBrushProperty);
+        AffectsMeasure<ScreenMappingDiagram>(DisplaysProperty, AreaProperty, MappedOutputProperty,
+            MappingValidityProperty);
     }
+
+    private static readonly Color FallbackWarning = Color.FromRgb(0xE0, 0x8A, 0x1E);
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -93,18 +107,37 @@ public sealed class ScreenMappingDiagram : Control
 
         // ── Displays ──
         double minX = displays.Min(d => d.X), minY = displays.Min(d => d.Y);
-        double vbW = displays.Max(d => d.X + d.Width) - minX, vbH = displays.Max(d => d.Y + d.Height) - minY;
+        double monW = displays.Max(d => d.X + d.Width) - minX, monH = displays.Max(d => d.Y + d.Height) - minY;
+        if (monW <= 0 || monH <= 0) return;
+
+        // When the stored mapping is off-screen/custom, overlay its output rectangle (0-based desktop
+        // coords — same origin as the monitors) so the problem is shown, not just described. Expand the
+        // fitted viewbox to include it, so an off-screen area is visibly seen spilling past the monitors.
+        var overlay = MappedOutput;
+        bool showOverlay = overlay is not null && (MappingValidity == DisplayMappingValidity.OffScreen
+                                                   || MappingValidity == DisplayMappingValidity.Custom);
+        double vbMinX = 0, vbMinY = 0, vbMaxX = monW, vbMaxY = monH;
+        if (showOverlay && overlay is { } ov0)
+        {
+            vbMinX = Math.Min(vbMinX, ov0.Left);
+            vbMinY = Math.Min(vbMinY, ov0.Top);
+            vbMaxX = Math.Max(vbMaxX, ov0.Left + ov0.Width);
+            vbMaxY = Math.Max(vbMaxY, ov0.Top + ov0.Height);
+        }
+        double vbW = vbMaxX - vbMinX, vbH = vbMaxY - vbMinY;
         if (vbW <= 0 || vbH <= 0) return;
         double dScale = Math.Min(dispRegion.Width / vbW, dispRegion.Height / vbH);
-        double dOffX = dispRegion.X + (dispRegion.Width - vbW * dScale) / 2;
-        double dOffY = dispRegion.Y + (dispRegion.Height - vbH * dScale) / 2;
+        // Project a rectangle given in 0-based desktop coords (monitor origin) into the fitted region.
+        double dBaseX = dispRegion.X + (dispRegion.Width - vbW * dScale) / 2 - vbMinX * dScale;
+        double dBaseY = dispRegion.Y + (dispRegion.Height - vbH * dScale) / 2 - vbMinY * dScale;
+        Rect Project0(double left0, double top0, double w, double h) =>
+            new(dBaseX + left0 * dScale, dBaseY + top0 * dScale, w * dScale, h * dScale);
 
         Rect? selectedBox = null;
         DisplayInfo? selDisplay = null;
         foreach (var d in displays)
         {
-            var box = new Rect(dOffX + (d.X - minX) * dScale, dOffY + (d.Y - minY) * dScale,
-                               d.Width * dScale, d.Height * dScale).Deflate(3);
+            var box = Project0(d.X - minX, d.Y - minY, d.Width, d.Height).Deflate(3);
             if (box.Width <= 1 || box.Height <= 1) continue;
             _hitRects.Add((d, box));
             if (SelectedNumber == d.Number) { selectedBox = box; selDisplay = d; continue; } // drawn last
@@ -226,6 +259,26 @@ public sealed class ScreenMappingDiagram : Control
         {
             ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(sbx), Glow);
             DrawDisplayLabels(ctx, sbx, sdd, true);
+        }
+
+        // ── Problem overlay: the stored output rectangle over the monitors, so an off-screen mapping is
+        //    seen spilling into dead space (solid warning fill) and a custom/multi-display one is seen not
+        //    lining up with a single monitor (dashed warning outline). Drawn on top so the issue reads. ──
+        if (showOverlay && overlay is { } ov)
+        {
+            var warnColor = (WarningBrush as ISolidColorBrush)?.Color ?? FallbackWarning;
+            var oRect = Project0(ov.Left, ov.Top, ov.Width, ov.Height);
+            if (MappingValidity == DisplayMappingValidity.OffScreen)
+            {
+                var fill = new SolidColorBrush(Color.FromArgb(0x38, warnColor.R, warnColor.G, warnColor.B));
+                ctx.DrawRectangle(fill, new Pen(new SolidColorBrush(warnColor), 2), oRect);
+            }
+            else // Custom — fully on-screen but not a single whole monitor.
+            {
+                var pen = new Pen(new SolidColorBrush(warnColor), 1.75)
+                { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) };
+                ctx.DrawRectangle(null, pen, oRect);
+            }
         }
 
         // TEMP (gradient-direction scratch): label the 8 points of the selected display (A–H) and the

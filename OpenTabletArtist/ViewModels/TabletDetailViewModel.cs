@@ -106,6 +106,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public DisplayMappingValidity MappingValidity => DisplayMappingApplier.ClassifyMapping(_profile, Displays);
     public bool ShowMappingOffScreen => MappingValidity == DisplayMappingValidity.OffScreen;
     public bool ShowMappingCustom => MappingValidity == DisplayMappingValidity.Custom;
+
+    /// <summary>The stored display-output rectangle (0-based desktop coords) the screen-mapping diagram
+    /// overlays so an off-screen/custom mapping is shown, not just described. Null when there's no
+    /// Absolute area to map. Recomputed by <see cref="RefreshTabletArea"/>.</summary>
+    [ObservableProperty] private MappedOutputArea? _mappedOutput;
     public string MappingValidityText => MappingValidity switch
     {
         DisplayMappingValidity.OffScreen =>
@@ -1845,6 +1850,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             TabletArea = null;
         }
+        // The stored display-output rectangle (0-based desktop coords; stored X/Y is its centre) for the
+        // diagram overlay — null when there's no absolute area to map.
+        var disp = _profile.AbsoluteModeSettings?.Display;
+        MappedOutput = disp is { Width: > 0, Height: > 0 }
+            ? new MappedOutputArea(disp.X - disp.Width / 2f, disp.Y - disp.Height / 2f, disp.Width, disp.Height)
+            : null;
         // The mapped display drives where the calibration overlay pops up (Calibration tab hint).
         OnPropertyChanged(nameof(CalibrationDisplayText));
         // The stored mapping's validity drives the Display Mapping tab's warning/note.
