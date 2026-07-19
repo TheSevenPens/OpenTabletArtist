@@ -137,7 +137,9 @@ public sealed class ScreenMappingDiagram : Control
         DisplayInfo? selDisplay = null;
         foreach (var d in displays)
         {
-            var box = Project0(d.X - minX, d.Y - minY, d.Width, d.Height).Deflate(3);
+            // No inset: adjacent monitors touch, matching how Windows Display Settings and OTD draw them
+            // (a gap would misrepresent the real desktop layout).
+            var box = Project0(d.X - minX, d.Y - minY, d.Width, d.Height);
             if (box.Width <= 1 || box.Height <= 1) continue;
             _hitRects.Add((d, box));
             if (SelectedNumber == d.Number) { selectedBox = box; selDisplay = d; continue; } // drawn last
