@@ -78,9 +78,9 @@
                        IsVisible="{Binding PointerOnlyWithDynamics}" Margin="0,6,0,0"
                        TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}" />
 
-            <!-- Controls + live readouts, grouped in one card so they read as a single panel instead
-                 of floating text over the themed backdrop. -->
-            <c:Section Margin="0,12,0,0">
+            <!-- Controls + live readouts, in a ControlPanel (ribbon-style control cluster) — bordered with
+                 the Entity glass fill so it reads as a single panel over the themed backdrop. -->
+            <c:ControlPanel Margin="0,12,0,0">
                 <StackPanel>
                     <!-- Controls -->
                     <WrapPanel Orientation="Horizontal">
@@ -145,7 +145,7 @@
                         </StackPanel>
                     </UniformGrid>
                 </StackPanel>
-            </c:Section>
+            </c:ControlPanel>
         </StackPanel>
 
         <!-- Paint surface fills the rest. Square corners (override the default card rounding). -->

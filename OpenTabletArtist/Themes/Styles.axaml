@@ -174,6 +174,33 @@
             </Setter>
         </ControlTheme>
 
+        <!-- ControlPanel (control-cluster role): a bordered box that holds interactive controls grouped
+             like a ribbon (e.g. the Scribble mode/input controls). Same glass fill + border as an Entity;
+             a distinct role so control clusters can be styled on their own terms later. -->
+        <ControlTheme x:Key="{x:Type c:ControlPanel}" TargetType="c:ControlPanel">
+            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Panel>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            <Border Classes="roleTag" Background="#0891B2"
+                                    IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
+                                <TextBlock Text="CONTROLPANEL" Classes="roleTagText" />
+                            </Border>
+                        </Panel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
         <!-- ComplexHeader: a tabbed page's header — a title (plain or custom) on the left + optional
              trailing actions/status on the right. See docs/design/ux-terminology.md. -->
         <ControlTheme x:Key="{x:Type c:ComplexHeader}" TargetType="c:ComplexHeader">
