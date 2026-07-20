@@ -14,11 +14,9 @@
             <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
                 <RadioButton Content="FORCE WARNINGS" IsChecked="True" x:Name="ForceWarningsTab"
                              Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
+                <RadioButton Content="INTERFACE" x:Name="InterfaceTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="SCREENSHOT" x:Name="ScreenshotTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="WINDOW SIZE" x:Name="WindowSizeTab"
                              Theme="{StaticResource TabRadioButton}" />
             </StackPanel>
         </Border>
@@ -94,24 +92,56 @@
             </Grid>
         </ScrollViewer>
 
-        <!-- Reveal the normally-hidden tablet-page tabs. -->
+        <!-- INTERFACE: two columns — tablet-page extras (hidden tabs / controls) on the left, and the
+             force-window-size presets on the right. Both tweak how the app's own UI is shown. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #TabletTabsTab.IsChecked}">
-            <c:Section MaxWidth="720" HorizontalAlignment="Left" Title="Tablet page extras"
+                      IsVisible="{Binding #InterfaceTab.IsChecked}">
+            <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
+
+                <!-- LEFT: reveal the normally-hidden tablet-page tabs / controls. -->
+                <c:Section Grid.Column="0" Title="Tablet page extras"
                            Description="Show extra diagnostic tabs and rarely-needed controls on a tablet's page. Hidden by default.">
-                <StackPanel Spacing="4">
-                    <c:ToggleSetting Label="Show the Filters tab"
-                                     IsChecked="{Binding Settings.ShowFiltersTab}" />
-                    <c:ToggleSetting Label="Show the JSON tab"
-                                     IsChecked="{Binding Settings.ShowJsonTab}" />
-                    <c:ToggleSetting Label="Show the ‘Cut below input minimum’ pressure option"
-                                     Description="Re-enable the dead-zone checkbox in Pressure Dynamics (#569)."
-                                     IsChecked="{Binding Settings.ShowCutBelowMinimum}" />
-                    <c:ToggleSetting Label="Show card-role tags"
-                                     Description="Overlay a SECTION / ALERT / SELECT tag on the bottom-right of every card (#574) — a dev aid for the cardless redesign."
-                                     IsChecked="{Binding Settings.ShowCardRoleTags}" />
-                </StackPanel>
-            </c:Section>
+                    <StackPanel Spacing="4">
+                        <c:ToggleSetting Label="Show the Filters tab"
+                                         IsChecked="{Binding Settings.ShowFiltersTab}" />
+                        <c:ToggleSetting Label="Show the JSON tab"
+                                         IsChecked="{Binding Settings.ShowJsonTab}" />
+                        <c:ToggleSetting Label="Show the ‘Cut below input minimum’ pressure option"
+                                         Description="Re-enable the dead-zone checkbox in Pressure Dynamics (#569)."
+                                         IsChecked="{Binding Settings.ShowCutBelowMinimum}" />
+                        <c:ToggleSetting Label="Show card-role tags"
+                                         Description="Overlay a SECTION / ALERT / SELECT tag on the bottom-right of every card (#574) — a dev aid for the cardless redesign."
+                                         IsChecked="{Binding Settings.ShowCardRoleTags}" />
+                    </StackPanel>
+                </c:Section>
+
+                <!-- RIGHT: force the window to an exact ACTUAL-PIXEL size (#546) — preview small-display
+                     layouts or get a consistent window for screenshots. Presets are real pixels
+                     (scaling-independent) and relax the normal minimum. Reset by restarting the app. -->
+                <c:Section Grid.Column="2" Title="Window size"
+                           Description="Force the app window to an exact pixel size — for previewing small-display layouts or consistent screenshots. Reset by restarting.">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Current size:" FontWeight="SemiBold" />
+                            <TextBlock x:Name="WindowSizeText" Text="—"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <!-- Wraps so every preset stays reachable when the window itself is forced narrow. -->
+                        <WrapPanel>
+                            <Button Content="2560 × 1440" Tag="2560,1440" Click="OnSetWindowSize"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                            <Button Content="1920 × 1080" Tag="1920,1080" Click="OnSetWindowSize"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                            <Button Content="1600 × 900" Tag="1600,900" Click="OnSetWindowSize"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                            <Button Content="1366 × 768" Tag="1366,768" Click="OnSetWindowSize"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                            <Button Content="1280 × 720" Tag="1280,720" Click="OnSetWindowSize"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
+                        </WrapPanel>
+                    </StackPanel>
+                </c:Section>
+            </Grid>
         </ScrollViewer>
 
         <!-- Capture the live app UI to a PNG via RenderTargetBitmap (#437). Renders the actual controls,
@@ -148,34 +178,5 @@
             </c:Section>
         </ScrollViewer>
 
-        <!-- Force the window to an exact ACTUAL-PIXEL size (#546): preview how the layout responds on
-             smaller displays, or get a consistent window for screenshots. The presets are real pixels
-             (scaling-independent); forcing relaxes the window's normal minimum so small sizes aren't
-             clamped up. Reset by restarting the app. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #WindowSizeTab.IsChecked}">
-            <c:Section MaxWidth="720" HorizontalAlignment="Left" Title="Window size">
-                <StackPanel Spacing="12">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Current size:" FontWeight="SemiBold" />
-                        <TextBlock x:Name="WindowSizeText" Text="—"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                    </StackPanel>
-                    <!-- Wraps so every preset stays reachable when the window itself is forced narrow. -->
-                    <WrapPanel>
-                        <Button Content="2560 × 1440" Tag="2560,1440" Click="OnSetWindowSize"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
-                        <Button Content="1920 × 1080" Tag="1920,1080" Click="OnSetWindowSize"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
-                        <Button Content="1600 × 900" Tag="1600,900" Click="OnSetWindowSize"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
-                        <Button Content="1366 × 768" Tag="1366,768" Click="OnSetWindowSize"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
-                        <Button Content="1280 × 720" Tag="1280,720" Click="OnSetWindowSize"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,8" />
-                    </WrapPanel>
-                </StackPanel>
-            </c:Section>
-        </ScrollViewer>
     </Grid>
 </UserControl>
