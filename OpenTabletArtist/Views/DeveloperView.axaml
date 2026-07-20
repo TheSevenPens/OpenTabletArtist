@@ -12,9 +12,7 @@
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
-                <RadioButton Content="WARNINGS" IsChecked="True" x:Name="ActualTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
+                <RadioButton Content="FORCE WARNINGS" IsChecked="True" x:Name="ForceWarningsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="TABLET TABS" x:Name="TabletTabsTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -25,72 +23,75 @@
             </StackPanel>
         </Border>
 
-        <!-- Trigger actual health warnings: force each real catalog warning with its true copy. -->
+        <!-- FORCE WARNINGS: two columns — synthetic catalog-warning toggles on the left, and real
+             (persisted) config-error triggers on the right. Both drive Home's "Needs attention" list. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ActualTab.IsChecked}">
-            <c:Section MaxWidth="720" HorizontalAlignment="Left" Title="Trigger health warnings"
+                      IsVisible="{Binding #ForceWarningsTab.IsChecked}">
+            <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
+
+                <!-- LEFT: force each real catalog warning with its true copy (synthetic, non-persisted). -->
+                <c:Section Grid.Column="0" Title="Trigger health warnings"
                            Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
-                <StackPanel Spacing="4">
-                    <c:ToggleSetting Label="Windows Ink plugin not installed"
-                                     IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
-                    <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
-                                     IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
-                    <c:ToggleSetting Label="VMulti driver not installed"
-                                     IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
-                    <c:ToggleSetting Label="Conflicting tablet driver detected"
-                                     IsChecked="{Binding Settings.ForceDriverConflict}" />
-                    <c:ToggleSetting Label="Running as administrator"
-                                     IsChecked="{Binding Settings.ForceRunningElevated}" />
-                    <c:ToggleSetting Label="Using an external daemon"
-                                     IsChecked="{Binding Settings.ForceForeignDaemon}" />
-                    <c:ToggleSetting Label="Tablet: not using Windows Ink"
-                                     Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
-                                     IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
-                    <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
-                                     IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
-                    <c:ToggleSetting Label="Tablet: custom display mapping"
-                                     IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
-                    <c:ToggleSetting Label="Tablet: using a custom config override"
-                                     Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
-                                     IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
-                </StackPanel>
-            </c:Section>
-        </ScrollViewer>
-
-        <!-- Introduce REAL misconfigurations (persisted settings changes) for reproducing UX issues. -->
-        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ConfigErrorsTab.IsChecked}">
-            <c:Section MaxWidth="720" HorizontalAlignment="Left" Title="Introduce config errors">
-                <StackPanel Spacing="14">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
-                        <Button Content="Push active area off-screen"
-                                Command="{Binding PushMappingOffScreenCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6"
-                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    <StackPanel Spacing="4">
+                        <c:ToggleSetting Label="Windows Ink plugin not installed"
+                                         IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
+                        <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
+                                         IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
+                        <c:ToggleSetting Label="VMulti driver not installed"
+                                         IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
+                        <c:ToggleSetting Label="Conflicting tablet driver detected"
+                                         IsChecked="{Binding Settings.ForceDriverConflict}" />
+                        <c:ToggleSetting Label="Running as administrator"
+                                         IsChecked="{Binding Settings.ForceRunningElevated}" />
+                        <c:ToggleSetting Label="Using an external daemon"
+                                         IsChecked="{Binding Settings.ForceForeignDaemon}" />
+                        <c:ToggleSetting Label="Tablet: not using Windows Ink"
+                                         Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
+                                         IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
+                        <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
+                                         IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
+                        <c:ToggleSetting Label="Tablet: custom display mapping"
+                                         IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+                        <c:ToggleSetting Label="Tablet: using a custom config override"
+                                         Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
+                                         IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
                     </StackPanel>
+                </c:Section>
 
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Rotate active area to a non-standard angle" FontWeight="SemiBold" />
-                        <Button Content="Set rotation to 20°"
-                                Command="{Binding PushMappingRotationCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6"
-                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                <!-- RIGHT: introduce REAL (persisted) misconfigurations for reproducing UX issues. -->
+                <c:Section Grid.Column="2" Title="Introduce config errors"
+                           Description="These make a real, persisted settings change on the active tablet, so the matching warning appears for genuine bad state. Undo each from the tablet's own tabs.">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
+                            <Button Content="Push active area off-screen"
+                                    Command="{Binding PushMappingOffScreenCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Rotate active area to a non-standard angle" FontWeight="SemiBold" />
+                            <Button Content="Set rotation to 20°"
+                                    Command="{Binding PushMappingRotationCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
+                            <Button Content="Create off calibration"
+                                    Command="{Binding CreateBadCalibrationCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
                     </StackPanel>
-
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
-                        <Button Content="Create off calibration"
-                                Command="{Binding CreateBadCalibrationCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="12,6"
-                                HorizontalAlignment="Left" Margin="0,4,0,0" />
-                    </StackPanel>
-
-                    <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
-                </StackPanel>
-            </c:Section>
+                </c:Section>
+            </Grid>
         </ScrollViewer>
 
         <!-- Reveal the normally-hidden tablet-page tabs. -->
