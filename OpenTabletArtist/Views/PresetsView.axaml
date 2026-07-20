@@ -79,10 +79,17 @@
                                     <PathIcon Data="{StaticResource IconContentDuplicate}" Width="16" Height="16"
                                               Foreground="{Binding $parent[Button].Foreground}" />
                                 </Button>
-                                <Button Content="Rename" Theme="{StaticResource GhostButton}"
+                                <Button Theme="{StaticResource GhostButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
                                         CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" />
+                                        Width="34" Height="30" Padding="0"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        ToolTip.Tip="Rename this preset"
+                                        AutomationProperties.Name="Rename"
+                                        Margin="0,0,6,0">
+                                    <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
+                                              Foreground="{Binding $parent[Button].Foreground}" />
+                                </Button>
                                 <Button Content="Delete" Padding="12,6"
                                         Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
