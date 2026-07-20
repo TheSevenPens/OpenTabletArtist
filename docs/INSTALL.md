@@ -73,7 +73,7 @@ a different one:
 
 1. Click your tablet under **Tablets**, then open the **Screen Mapping** tab. The diagram shows your
    monitors along the top and the tablet's active area below.
-2. **Click the monitor** you want to draw on, then click **Apply mapping**.
+2. **Click the monitor** you want to draw on — the tablet maps to it immediately.
 
 
 ## Step 6 — Test it with the built-in Scribble feature
