@@ -240,7 +240,7 @@
                 <StackPanel Grid.Column="0">
                 <ctrl:Section>
                     <StackPanel>
-                        <TextBlock Text="SPECIFICATIONS" Classes="SectionLabel largetitle" />
+                        <TextBlock Text="BASICS" Classes="SectionLabel largetitle" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
                         <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,10,0,0"
                                       IsVisible="{Binding HasTabletFacts}">
@@ -582,7 +582,7 @@
                 <ctrl:Section Margin="0,4,0,0" IsVisible="{Binding CanCalibrate}">
                     <StackPanel Spacing="10">
                         <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel" />
-                        <TextBlock Text="Save this tablet's calibration (its recorded taps + solved model) to a file, then load it back later without re-tapping. Importing only works when the tablet's current mapping matches the saved one."
+                        <TextBlock Text="Save this tablet's calibration data to a file. Import it later to restore the calibration. Importing only works when the tablet's current mapping matches the saved one."
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Export calibration…" Click="OnExportCalibration"
@@ -674,10 +674,6 @@
                             Theme="{StaticResource GhostButton}" Padding="12,6"
                             VerticalAlignment="Center" />
                 </Grid>
-
-                <TextBlock Text="Bind an action to each direction the wheel turns, plus its button."
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           Margin="0,0,0,10" TextWrapping="Wrap" />
 
                 <!-- One card per wheel: the live gauge on the left, and every mapping for that wheel
                      (clockwise + counter-clockwise actions with sensitivity, and the wheel button)
@@ -788,7 +784,7 @@
                         <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                                 BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"
                                 IsVisible="{Binding PressureDisabledNote}">
-                            <TextBlock Text="Binary pressure is on, so this curve has no effect right now. Turn it off above to use the curve."
+                            <TextBlock Text="Binary pressure is on, so this curve has no effect right now."
                                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                         </Border>
 

@@ -740,7 +740,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (a.PenButtons is { } pb) facts.Add(new("Pen buttons", pb.ToString()));
         if (a.ExpressKeys is > 0) facts.Add(new("Buttons", a.ExpressKeys!.Value.ToString()));
         if (a.MouseButtons is > 0) facts.Add(new("Mouse buttons", a.MouseButtons!.Value.ToString()));
-        if (a.WheelCount > 0) facts.Add(new("Touch ring / wheel", a.WheelCount == 1 ? "Yes" : a.WheelCount.ToString()));
+        if (a.WheelCount > 0) facts.Add(new("Wheels", a.WheelCount == 1 ? "Yes" : a.WheelCount.ToString()));
         if (a.StripCount > 0) facts.Add(new("Touch strips", a.StripCount.ToString()));
         if (a.HasTouch) facts.Add(new("Touch input", "Supported"));
         return facts;

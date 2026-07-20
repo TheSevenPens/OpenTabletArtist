@@ -8,10 +8,10 @@
     <StackPanel HorizontalAlignment="Stretch">
         <c:Section>
             <StackPanel>
-                <TextBlock Classes="SectionLabel largetitle" Text="WHAT IS OPENTABLETARTIST?" Margin="0,0,0,12" />
+                <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" Margin="0,0,0,12" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
-                    An alternative, artist-focused experience for OpenTabletDriver on Windows.
+                    OpenTablet Artist is an alternative, artist-friendly experience for OpenTabletDriver on Windows.
                 </TextBlock>
                 <!-- Version (moved here from the sidebar footer) -->
                 <TextBlock Text="{Binding AppVersionLabel}" Margin="0,12,0,0"
@@ -27,7 +27,7 @@
                 <TextBlock Classes="SectionLabel largetitle" Text="HELP" Margin="0,0,0,2" />
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
                            Foreground="{DynamicResource TextSecondaryBrush}">
-                    Need help? Post in the <Run FontWeight="SemiBold">#help-forum</Run> channel on the
+                    Post in the <Run FontWeight="SemiBold">#help-forum</Run> channel on the
                     Drawing Tablet Discord and put <Run FontWeight="SemiBold">“OTA”</Run> in the title, so it
                     reaches the right people.
                 </TextBlock>
