@@ -118,17 +118,19 @@
                                                TextWrapping="Wrap" />
                                     <TextBlock Text="{Binding StatusText}" Margin="0,4,0,0"
                                                Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding SpecsText}" Margin="0,2,0,0"
-                                               IsVisible="{Binding HasSpecs}"
-                                               Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                     <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0"
                                                IsVisible="{Binding HasLastSeenDetail}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             VerticalAlignment="Center">
-                                    <Button Content="Settings" Command="{Binding OpenCommand}"
-                                            Theme="{StaticResource AccentButton}" Padding="12,6" />
+                                    <Button Command="{Binding OpenCommand}"
+                                            Theme="{StaticResource AccentButton}" Padding="9,6"
+                                            ToolTip.Tip="Open this tablet's settings"
+                                            AutomationProperties.Name="Settings">
+                                        <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
+                                                  Foreground="{Binding $parent[Button].Foreground}" />
+                                    </Button>
                                     <!-- Forget (remove saved settings). Managing connections lives here on Home.
                                          Offered for every tablet (#575): removes a remembered one, or resets a
                                          connected one to defaults — the tooltip + confirm dialog say which. -->
