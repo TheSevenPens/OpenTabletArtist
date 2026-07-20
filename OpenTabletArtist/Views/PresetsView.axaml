@@ -90,10 +90,17 @@
                                     <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
                                               Foreground="{Binding $parent[Button].Foreground}" />
                                 </Button>
-                                <Button Content="Delete" Padding="12,6"
-                                        Theme="{StaticResource DeleteButton}"
+                                <Button Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
-                                        CommandParameter="{Binding Name}" Margin="0,0,0,4" />
+                                        CommandParameter="{Binding Name}"
+                                        Width="34" Height="30" Padding="0"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        ToolTip.Tip="Delete this preset"
+                                        AutomationProperties.Name="Delete"
+                                        Margin="0,0,0,4">
+                                    <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
+                                              Foreground="{Binding $parent[Button].Foreground}" />
+                                </Button>
                             </WrapPanel>
                         </Grid>
                     </c:Entity>
