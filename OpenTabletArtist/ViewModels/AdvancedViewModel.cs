@@ -55,12 +55,13 @@ public partial class AdvancedViewModel : ObservableObject
         _diagnostics = diagnostics;
         _configs = configs;
 
-        // Zune merges: Daemon stacks the Console log; Drivers stacks Windows Ink + VMulti (Windows-only).
-        var daemonSection = new CompositeSectionViewModel(daemon, log);
+        // Daemon status + version get their own tab; the Console log is its own tab beside it. Drivers
+        // still stacks Windows Ink + VMulti (Windows-only).
         var drivers = new CompositeSectionViewModel(windowsInk, vmulti);
         var tabs = new AdvancedTabItem[]
         {
-            new("DAEMON", AdvancedTab.Daemon, daemonSection),
+            new("DAEMON", AdvancedTab.Daemon, daemon),
+            new("CONSOLE", AdvancedTab.Console, log),
             new("DRIVERS", AdvancedTab.Drivers, drivers),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),

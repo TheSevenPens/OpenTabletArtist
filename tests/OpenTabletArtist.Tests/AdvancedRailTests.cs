@@ -21,6 +21,7 @@ public class AdvancedRailTests
 
     [Theory]
     [InlineData(AdvancedTab.Daemon)]
+    [InlineData(AdvancedTab.Console)]
     [InlineData(AdvancedTab.CustomTabletConfigs)]
     [InlineData(AdvancedTab.Diagnostics)]
     [InlineData(AdvancedTab.Plugins)]
