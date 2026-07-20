@@ -367,17 +367,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _tabletDetails.Remove(key);
         }
 
-        // Rebuild the richer overview rows (Home cards, same order) — status, last-seen, specs, navigable (#307).
-        var specByName = new Dictionary<string, DetectedTablet>(StringComparer.OrdinalIgnoreCase);
-        foreach (var d in _session.DetectedTablets) specByName[d.Name] = d;
+        // Rebuild the richer overview rows (Home cards, same order) — status, last-seen, navigable (#307).
         TabletsOverview.Tablets = ordered
             .Select(p =>
             {
-                specByName.TryGetValue(p.Tablet, out var d);
-                var specs = d != null ? $"{d.Area} · {d.Pressure} pressure levels · {d.Buttons} buttons" : "";
                 var tablet = p.Tablet;
                 return new TabletOverviewItemViewModel(tablet, p.IsDetected, p.StatusText,
-                    p.LastSeenDetail, specs, () => NavigateToTabletByName(tablet),
+                    p.LastSeenDetail, () => NavigateToTabletByName(tablet),
                     () => ForgetTabletByNameAsync(tablet));
             })
             .ToList();
