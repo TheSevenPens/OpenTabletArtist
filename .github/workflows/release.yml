@@ -48,7 +48,8 @@ jobs:
       - name: Test
         run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug
 
-      # Self-contained so end users need no .NET runtime installed.
+      # Self-contained so end users need no .NET runtime installed. (Debug symbols are stripped from the
+      # whole bundle just before zipping — see the "Strip debug symbols" step below.)
       - name: Publish app (self-contained win-x64)
         run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
 
@@ -100,6 +101,18 @@ jobs:
           $dest = "publish/OpenTabletArtist/Bundled"
           New-Item -ItemType Directory -Force $dest | Out-Null
           Invoke-WebRequest -Uri "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip" -OutFile "$dest/VMulti.Driver.zip"
+
+      # Strip all debug symbols (.pdb) from the bundle — end users don't need them, and they're huge:
+      # the native libSkiaSharp.pdb / libHarfBuzzSharp.pdb alone are ~100 MB (they ship in the
+      # SkiaSharp/HarfBuzz NuGet packages, so -p:DebugType=none doesn't touch them). Managed and native
+      # symbols across the app + daemon come to well over half the uncompressed payload.
+      - name: Strip debug symbols (.pdb)
+        shell: pwsh
+        run: |
+          $pdbs = Get-ChildItem publish/OpenTabletArtist -Recurse -Filter *.pdb
+          $mb = [math]::Round(($pdbs | Measure-Object Length -Sum).Sum / 1MB, 1)
+          $pdbs | Remove-Item -Force
+          Write-Host "Removed $($pdbs.Count) .pdb file(s), $mb MB"
 
       - name: Package zip
         shell: pwsh
