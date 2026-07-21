@@ -1,0 +1,75 @@
+name: OTD release watch
+
+# Weekly check for a newer OpenTabletDriver release than our pinned submodule. When one exists, open a
+# PR bumping external/OpenTabletDriver to that release tag. Never touches the default branch and never
+# auto-merges — a human reviews and merges. See #587 (and #182 for why Dependabot doesn't fit: its
+# gitsubmodule ecosystem tracks a branch's latest commit, not release tags, so it would drag us onto
+# unreleased 0.6.x commits instead of vetted releases).
+#
+# CI-on-the-PR note: a PR opened with the default GITHUB_TOKEN does NOT trigger other workflows (GitHub's
+# recursion guard), so build.yml won't auto-run on the bump PR. To get automatic CI, add a repo secret
+# OTD_BUMP_TOKEN (a fine-grained PAT with contents + pull-requests write) — the steps below use it when
+# present and fall back to GITHUB_TOKEN otherwise. Without it, kick CI on the PR by pushing an empty
+# commit or re-running.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+  workflow_dispatch: {}     # run on demand from the Actions tab
+
+permissions:
+  contents: write        # push the bump branch
+  pull-requests: write   # open the PR
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with OpenTabletDriver submodule)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.OTD_BUMP_TOKEN || github.token }}
+
+      - name: Open a bump PR if OTD has a newer release than our pin
+        env:
+          GH_TOKEN: ${{ secrets.OTD_BUMP_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+
+          current=$(git -C external/OpenTabletDriver describe --tags --exact-match 2>/dev/null || echo "")
+          latest=$(gh release view --repo OpenTabletDriver/OpenTabletDriver --json tagName --jq .tagName)
+          echo "Pinned: ${current:-unknown}   Latest OTD release: $latest"
+          if [ "$current" = "$latest" ]; then
+            echo "Already up to date."
+            exit 0
+          fi
+
+          branch="otd-bump-$latest"
+          if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[0].number // empty')" ]; then
+            echo "A PR for $branch already exists — nothing to do."
+            exit 0
+          fi
+
+          # Move the submodule to the release tag (leaves the parent repo's gitlink pointer modified).
+          git -C external/OpenTabletDriver fetch --tags --force origin
+          git -C external/OpenTabletDriver checkout --detach "$latest"
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add external/OpenTabletDriver
+          git commit -m "chore: bump OpenTabletDriver submodule to $latest"
+          git push -u origin "$branch"
+
+          notes=$(gh release view "$latest" --repo OpenTabletDriver/OpenTabletDriver --json body --jq .body)
+          {
+            printf 'Bumps the pinned **OpenTabletDriver** submodule from `%s` to **`%s`**.\n\n' "${current:-unknown}" "$latest"
+            printf 'Opened automatically by `.github/workflows/otd-release-watch.yml` (#587). Review the diff, make sure CI is green (build + tests against the new daemon), then merge.\n\n'
+            printf -- '---\n### OpenTabletDriver %s release notes\n\n%s\n' "$latest" "$notes"
+          } > pr-body.md
+
+          gh pr create --base master --head "$branch" \
+            --title "chore: bump OpenTabletDriver submodule to $latest" \
+            --body-file pr-body.md
