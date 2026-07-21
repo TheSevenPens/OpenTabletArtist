@@ -27,6 +27,11 @@ We are now a **redistributor** of third-party binaries. Release artifacts must i
 
 - The Windows Ink bundle step in `.github/workflows/release.yml` **must succeed** — releases cannot silently ship without the offline WinInk bundle.
 - VMulti bundle step already fails the workflow on error.
+- A **strip-symbols** step deletes every `.pdb` before zipping. This isn't cosmetic: the native `libSkiaSharp.pdb` (~80 MB) + `libHarfBuzzSharp.pdb` (~20 MB) shipped by the SkiaSharp/HarfBuzz NuGet packages are ~100 MB of dead weight, and `-p:DebugType=none` doesn't touch them (it's managed-symbols-only), so they must be removed as files.
+
+## Size & packaging (see `docs/ARCHITECTURE.md` → Releases)
+
+The zip is dominated by **two self-contained .NET runtimes** (app net10 + bundled daemon net8) — the price of a zero-install download, and the reason our zip is much larger than OTD's *framework-dependent* Windows builds. After PDB stripping it's ~87 MB. **Single-file publishing** (`PublishSingleFile` + `EnableCompressionInSingleFile` + `IncludeNativeLibrariesForSelfExtract`) is the next lever: verified to collapse the ~250 loose root files to a single `OpenTabletArtist.exe` and shrink the payload (#585/#586). Kept out of the current release flow pending a check that the bundled-daemon auto-start and offline plugin installs still resolve from a packaged single-file build.
 
 ## Rationale for the change
 
