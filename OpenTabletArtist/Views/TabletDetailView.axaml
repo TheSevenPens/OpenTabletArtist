@@ -453,15 +453,12 @@
                                            Foreground="{DynamicResource TextMutedBrush}" />
                             </StackPanel>
                         </Border>
-                        <!-- No Apply button: clicking a display in the diagram below maps the tablet to it
-                             immediately, like every other edit on this tab. Only the Windows helper remains.
-                             (The manual "Refresh Display Settings" button is also gone — OnScreensChanged
-                             fires RefreshDisplaysCommand on any display change, so the list self-refreshes.) -->
-                        <Button Content="Display Settings"
-                                Command="{Binding OpenDisplaySettingsCommand}"
-                                ToolTip.Tip="Open Windows Display Settings"
-                                Theme="{StaticResource GhostButton}" Padding="10,5" HorizontalAlignment="Left" />
-                        <ctrl:ScreenMappingDiagram Displays="{Binding Displays}" Margin="0,8,0,0"
+                        <!-- No Apply button: clicking a display in the diagram maps the tablet to it
+                             immediately, like every other edit on this tab. Only the Windows helper remains
+                             (below the diagram). (The manual "Refresh Display Settings" button is also gone —
+                             OnScreensChanged fires RefreshDisplaysCommand on any display change, so the list
+                             self-refreshes.) -->
+                        <ctrl:ScreenMappingDiagram Displays="{Binding Displays}"
                                                    SelectedNumber="{Binding SelectedDisplayNumber, Mode=TwoWay}"
                                                    Area="{Binding TabletArea}"
                                                    MappedOutput="{Binding MappedOutput}"
@@ -469,6 +466,10 @@
                                                    AccentBrush="{DynamicResource AccentBrush}"
                                                    WarningBrush="{DynamicResource WarningBrush}"
                                                    Height="320" />
+                        <Button Content="Display Settings" Margin="0,10,0,0"
+                                Command="{Binding OpenDisplaySettingsCommand}"
+                                ToolTip.Tip="Open Windows Display Settings"
+                                Theme="{StaticResource GhostButton}" Padding="10,5" HorizontalAlignment="Left" />
 
                         <!-- Per-display hardware: which connector/port and GPU drives each monitor. -->
                         <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,12" />
@@ -799,27 +800,29 @@
                                                          VerticalAlignment="Top" Margin="0,0,16,0" />
 
                                 <StackPanel Grid.Column="1">
-                                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,8">
-                                        <TextBlock Grid.Column="0" Text="Presets" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Width="70" />
-                                        <WrapPanel Grid.Column="1" Orientation="Horizontal">
-                                            <Button Content="Linear" Command="{Binding ApplyPresetCommand}" CommandParameter="linear"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
-                                            <Button Content="Soft" Command="{Binding ApplyPresetCommand}" CommandParameter="soft"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,6,4" />
-                                            <Button Content="Firm" Command="{Binding ApplyPresetCommand}" CommandParameter="firm"
-                                                    Theme="{StaticResource GhostButton}" Padding="12,5" Margin="0,0,0,4" />
-                                        </WrapPanel>
-                                    </Grid>
-
-                                    <!-- Capped at ±0.95 (±1.0 is mathematically degenerate); the end ticks
-                                         sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
-                                    <ctrl:LabeledSlider Label="Softness" LabelWidth="70" Margin="0,0,0,8"
-                                                        Minimum="-0.95" Maximum="0.95"
-                                                        Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
-                                                        Value="{Binding Softness}" ValueTextOverride="{Binding SoftnessText}"
-                                                        Monospace="True" ValueWidth="40"
-                                                        ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
+                                    <!-- Curve presets as a Soft→Hard ramp of curve-shape thumbnails (each
+                                         applies its softness); replaces the old Linear/Soft/Firm text buttons. -->
+                                    <StackPanel HorizontalAlignment="Left" Spacing="3" Margin="0,0,0,8">
+                                        <TextBlock Text="Soft" HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="0.6"
+                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
+                                                ToolTip.Tip="Soft — lighter touch (concave)">
+                                            <ctrl:PressureCurveThumbnail Softness="0.6" Width="30" Height="30" />
+                                        </Button>
+                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="0"
+                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
+                                                ToolTip.Tip="Linear (no curve)">
+                                            <ctrl:PressureCurveThumbnail Softness="0" Width="30" Height="30" />
+                                        </Button>
+                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="-0.6"
+                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
+                                                ToolTip.Tip="Hard — firmer touch (convex)">
+                                            <ctrl:PressureCurveThumbnail Softness="-0.6" Width="30" Height="30" />
+                                        </Button>
+                                        <TextBlock Text="Hard" HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    </StackPanel>
 
                                     <!-- Hidden by default (#569); re-enabled from the Developer tab. -->
                                     <CheckBox Content="Cut below input minimum (dead zone)"
@@ -828,33 +831,16 @@
                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                               ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
 
-                                    <!-- Min/max node read-outs as input → output text (was a table with a live row). -->
-                                    <StackPanel Spacing="4">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="MIN" Width="40" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <TextBlock Text="{Binding InputMinimumText}"
-                                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                            <TextBlock Text="→" Foreground="{DynamicResource TextMutedBrush}" />
-                                            <TextBlock Text="{Binding OutputMinimumText}"
-                                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="MAX" Width="40" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            <TextBlock Text="{Binding InputMaximumText}"
-                                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                            <TextBlock Text="→" Foreground="{DynamicResource TextMutedBrush}" />
-                                            <TextBlock Text="{Binding OutputMaximumText}"
-                                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        </StackPanel>
-                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
+                        <!-- Softness: full-width below the chart. Capped at ±0.95 (±1.0 is mathematically
+                             degenerate); the end ticks sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
+                        <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
+                                            Minimum="-0.95" Maximum="0.95"
+                                            Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
+                                            Value="{Binding Softness}" ValueTextOverride="{Binding SoftnessText}"
+                                            Monospace="True" ValueWidth="44"
+                                            ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
                         <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps. -->
                         <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"
                                             Minimum="0" Maximum="{Binding PressureSmoothingMax}"

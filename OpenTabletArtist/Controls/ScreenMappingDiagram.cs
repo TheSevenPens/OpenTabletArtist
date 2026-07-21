@@ -100,10 +100,12 @@ public sealed class ScreenMappingDiagram : Control
         var inner = new Rect(Bounds.Size).Deflate(pad);
         if (inner.Width <= 0 || inner.Height <= 0) return;
 
-        // Top ~52% = displays, bottom ~30% = tablet, the gap between holds the connector.
+        // Top ~52% = displays, bottom ~30% = tablet, the gap between holds the connector. The tablet
+        // region sits flush to the inner bottom (only the outer `pad` below it) — no extra cushion, so
+        // the drawn tablet ends near the control's bottom edge instead of leaving dead space.
         var dispRegion = new Rect(inner.X, inner.Y, inner.Width, inner.Height * 0.52);
         double tabH = inner.Height * 0.30;
-        var tabRegion = new Rect(inner.X, inner.Bottom - tabH - 16, inner.Width, tabH);
+        var tabRegion = new Rect(inner.X, inner.Bottom - tabH, inner.Width, tabH);
 
         // ── Displays ──
         double minX = displays.Min(d => d.X), minY = displays.Min(d => d.Y);
@@ -158,7 +160,7 @@ public sealed class ScreenMappingDiagram : Control
         double rotRad = rot * Math.PI / 180.0;
 
         double tabBoxW = Math.Min(tabRegion.Width * 0.5, tabRegion.Height * 2.4);
-        var tabBox = new Rect(tabRegion.X + (tabRegion.Width - tabBoxW) / 2, tabRegion.Y, tabBoxW, tabRegion.Height - 16);
+        var tabBox = new Rect(tabRegion.X + (tabRegion.Width - tabBoxW) / 2, tabRegion.Y, tabBoxW, tabRegion.Height);
 
         // Fit the tablet's (rotated) bounding box, then centre the un-rotated outline and turn it.
         double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;

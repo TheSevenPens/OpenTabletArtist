@@ -1670,13 +1670,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     public string SoftnessText => Curve.Softness.ToString("0.00");
 
-    // Read-only display of the node values (#131). Editing is via dragging the chart nodes; these
-    // just show where the pink (min) / cyan (max) nodes currently sit (input → output).
-    public string InputMinimumText => Curve.InputMinimum.ToString("0.00");
-    public string OutputMinimumText => Curve.Minimum.ToString("0.00");
-    public string InputMaximumText => Curve.InputMaximum.ToString("0.00");
-    public string OutputMaximumText => Curve.Maximum.ToString("0.00");
-
     // Live pressure read-out (#559): the current input pressure, for the LIVE PRESSURE bar's "raw" label.
     // "—" when the pen is up.
     public string LiveInputText => LivePressure is { } v ? v.ToString("0.00") : "—";
@@ -1701,21 +1694,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
         OnPropertyChanged(nameof(SoftnessText));
-        OnPropertyChanged(nameof(InputMinimumText));
-        OnPropertyChanged(nameof(InputMaximumText));
-        OnPropertyChanged(nameof(OutputMinimumText));
-        OnPropertyChanged(nameof(OutputMaximumText));
         NotifyDynamicsStatus();
         SchedulePersist();
     }
 
-    /// <summary>Quick-start curve presets (#103).</summary>
+    /// <summary>Quick-start curve presets (#103): a Soft→Hard ramp shown as curve thumbnails. The
+    /// parameter is the target <see cref="PressureCurveSettings.Softness"/> (0 = linear, &gt;0 soft/concave,
+    /// &lt;0 hard/convex); everything else resets to Default so a preset is a clean starting point.</summary>
     [RelayCommand]
-    private void ApplyPreset(string kind) => Curve = kind switch
+    private void ApplyPreset(string softness) => Curve = PressureCurveSettings.Default with
     {
-        "soft" => PressureCurveSettings.Default with { Softness = 0.5 },   // lighter touch (concave)
-        "firm" => PressureCurveSettings.Default with { Softness = -0.5 },  // firmer (convex)
-        _ => PressureCurveSettings.Default,                               // linear
+        Softness = double.Parse(softness, System.Globalization.CultureInfo.InvariantCulture),
     };
 
     // ── Live device-report preview: pen-pressure dot (#102) + aux-button highlight + area map ──

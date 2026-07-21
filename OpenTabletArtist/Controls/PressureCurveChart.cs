@@ -1,11 +1,9 @@
 using System;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Media;
-using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Controls;
@@ -19,16 +17,15 @@ namespace OpenTabletArtist.Controls;
 /// </summary>
 public sealed class PressureCurveChart : Control
 {
-    private const double PadLeft = 40;
+    private const double PadLeft = 16;
     private const double PadRight = 16;
     private const double PadTop = 16;
-    private const double PadBottom = 28;
+    private const double PadBottom = 16;
     private const double NodeRadius = 9;     // hit-test radius
     private const double NodeDrawRadius = 6;
 
     // Light palette to match the app's surfaces (white panels, dark text).
     private static readonly IBrush PlotBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-    private static readonly IBrush LabelBrush = new SolidColorBrush(Color.FromArgb(0x99, 0x00, 0x00, 0x00));
     private static readonly IPen GridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x1F, 0x00, 0x00, 0x00)), 1);
     private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)), 2.2);
     private static readonly IBrush MinNodeBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0x1E, 0x7A));
@@ -39,8 +36,6 @@ public sealed class PressureCurveChart : Control
     private static readonly IBrush LiveDotBrush = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
     private static readonly IPen LiveGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0x10, 0xB9, 0x81)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
-    private static Typeface ChartTypeface => AppFonts.UiTypeface();
-    private const double ChartFontSize = 10;
 
     public static readonly StyledProperty<PressureCurveSettings> CurveProperty =
         AvaloniaProperty.Register<PressureCurveChart, PressureCurveSettings>(
@@ -112,7 +107,6 @@ public sealed class PressureCurveChart : Control
             context.DrawLine(GridPen, new Point(PadLeft, gy), new Point(PadLeft + plotW, gy));
         }
 
-        DrawLabels(context, plotW, plotH);
         DrawCurve(context, plotW, plotH);
 
         var curve = Curve;
@@ -127,23 +121,6 @@ public sealed class PressureCurveChart : Control
             context.DrawLine(LiveGuidePen, new Point(dotX, PadTop + plotH), new Point(dotX, dotY));
             context.DrawLine(LiveGuidePen, new Point(PadLeft, dotY), new Point(dotX, dotY));
             context.DrawEllipse(LiveDotBrush, null, new Point(dotX, dotY), 4, 4);
-        }
-    }
-
-    private void DrawLabels(DrawingContext context, double plotW, double plotH)
-    {
-        for (int i = 0; i <= 4; i++)
-        {
-            // Only label 0 / 0.5 / 1; the 0.25 and 0.75 ticks stay as gridlines with no label.
-            if (i == 1 || i == 3) continue;
-
-            double gx = Math.Round(PadLeft + i / 4.0 * plotW);
-            var ft = Text(FormatTick(i * 0.25));
-            context.DrawText(ft, new Point(gx - ft.Width / 2, Math.Round(PadTop + plotH + 6)));
-
-            double gy = Math.Round(PadTop + plotH - i / 4.0 * plotH);
-            var fy = Text(FormatTick(i * 0.25));
-            context.DrawText(fy, new Point(Math.Round(PadLeft - 6) - fy.Width, gy - fy.Height / 2));
         }
     }
 
@@ -173,15 +150,6 @@ public sealed class PressureCurveChart : Control
         context.DrawLine(NodeGuidePen, new Point(cx, cy), new Point(cx, PadTop + plotH));
         context.DrawLine(NodeGuidePen, new Point(cx, cy), new Point(PadLeft, cy));
         context.DrawEllipse(color, NodeOutline, new Point(cx, cy), NodeDrawRadius, NodeDrawRadius);
-    }
-
-    private static FormattedText Text(string s) => new(
-        s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, ChartTypeface, ChartFontSize, LabelBrush);
-
-    private static string FormatTick(double v)
-    {
-        string s = v.ToString("0.00", CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
-        return s.Length == 0 ? "0" : s;
     }
 
     // ── Pointer interaction ─────────────────────────────────────
