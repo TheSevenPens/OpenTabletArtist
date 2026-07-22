@@ -50,10 +50,8 @@
                             Theme="{StaticResource GhostButton}" FontSize="{DynamicResource TypeCaptionSize}" Padding="8,3" MinHeight="0"
                             VerticalAlignment="Center" Margin="0,0,8,0"
                             ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Scribble" />
-                    <!-- "Dynamics on" pill grouped with the specific-aspect chips (moved off the banner). -->
-                    <Border Classes="DynChip" IsVisible="{Binding DynamicsActive}">
-                        <TextBlock Text="Dynamics on" />
-                    </Border>
+                    <!-- The specific-aspect chips spell out exactly what's altering the pen; a generic
+                         "Dynamics on" pill was redundant with them, so it was removed. -->
                     <Border Classes="DynChip" IsVisible="{Binding CurveActive}">
                         <TextBlock Text="Pressure curve" />
                     </Border>
@@ -63,8 +61,6 @@
                     <Border Classes="DynChip" IsVisible="{Binding PositionSmoothingActive}">
                         <TextBlock Text="Position smoothing" />
                     </Border>
-                    <TextBlock Text="No curve or smoothing — behaves linear" VerticalAlignment="Center"
-                               IsVisible="{Binding DynamicsNoOp}" Foreground="{DynamicResource TextMutedBrush}" />
                 </WrapPanel>
 
                 <!-- The same switcher dropdown the Tablet/Pen pages use (dropdown only — no refresh here),
@@ -88,7 +84,7 @@
                 <StackPanel>
                     <!-- Controls -->
                     <WrapPanel Orientation="Horizontal">
-                        <ToggleSwitch OffContent="Windows Ink" OnContent="Raw input"
+                        <ToggleSwitch OffContent="App" OnContent="Driver"
                                       IsChecked="{Binding UseDriverInput}"
                                       VerticalAlignment="Center" Margin="0,0,20,0" />
                         <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"

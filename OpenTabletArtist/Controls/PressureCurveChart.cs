@@ -27,7 +27,7 @@ public sealed class PressureCurveChart : Control
     // Light palette to match the app's surfaces (white panels, dark text).
     private static readonly IBrush PlotBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
     private static readonly IPen GridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x1F, 0x00, 0x00, 0x00)), 1);
-    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)), 2.2);
+    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0x00)), 2.2);
     private static readonly IBrush MinNodeBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0x1E, 0x7A));
     private static readonly IBrush MaxNodeBrush = new SolidColorBrush(Color.FromRgb(0x0E, 0x9F, 0xD6));
     private static readonly IPen NodeGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x40, 0x00, 0x00, 0x00)), 1)

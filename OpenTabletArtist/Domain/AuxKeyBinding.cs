@@ -204,13 +204,13 @@ public static class AuxKeyBinding
     };
 
     /// <summary>Human-readable summary of a binding for the read-only card: "Ctrl + Z", "Left click",
-    /// "Scroll up", or "Unbound".</summary>
+    /// "Scroll up", or "Do nothing" when the button/wheel isn't bound to anything.</summary>
     public static string Describe(AuxBinding binding) => binding.Kind switch
     {
-        AuxKind.Keyboard => binding.Combo.IsBound ? DescribeCombo(binding.Combo) : "Unbound",
-        AuxKind.Mouse => IsBoundValue(binding.MouseButton) ? DescribeMouse(binding.MouseButton) : "Unbound",
-        AuxKind.Scroll => IsBoundValue(binding.Scroll) ? $"Scroll {binding.Scroll.ToLowerInvariant()}" : "Unbound",
-        _ => "Unbound",
+        AuxKind.Keyboard => binding.Combo.IsBound ? DescribeCombo(binding.Combo) : "Do nothing",
+        AuxKind.Mouse => IsBoundValue(binding.MouseButton) ? DescribeMouse(binding.MouseButton) : "Do nothing",
+        AuxKind.Scroll => IsBoundValue(binding.Scroll) ? $"Scroll {binding.Scroll.ToLowerInvariant()}" : "Do nothing",
+        _ => "Do nothing",
     };
 
     private static bool IsBoundValue(string v) => !string.IsNullOrEmpty(v) && v != None;

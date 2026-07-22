@@ -2207,7 +2207,7 @@ public partial class ButtonBinding : ObservableObject
     public string Label => _label ?? $"Button {Index}";
 
     /// <summary>Read-only summary shown on the card: the friendly name of a binding this editor can't
-    /// model, else "Ctrl + Z" / "Left click" / "Scroll up" / "Unbound".</summary>
+    /// model, else "Ctrl + Z" / "Left click" / "Scroll up" / "Do nothing".</summary>
     public string Summary => IsOtherBinding && !_applied.IsBound ? OtherLabel : AuxKeyBinding.Describe(_applied);
 
     /// <summary>False disables the Edit button (read-only host, or button mapping suspended).</summary>

@@ -72,7 +72,7 @@ public class ButtonBindingTests
         await vm.EditCommand.ExecuteAsync(null);
 
         Assert.False(last!.IsBound);
-        Assert.Equal("Unbound", vm.Summary);
+        Assert.Equal("Do nothing", vm.Summary);
     }
 
     // Summary renders each binding type for the read-only card.
@@ -101,7 +101,7 @@ public class ButtonBindingTests
 
     [Fact]
     public void Summary_Unbound() =>
-        Assert.Equal("Unbound",
+        Assert.Equal("Do nothing",
             new ButtonBinding(1, AuxBinding.Unbound, false, "", true, applyBinding: null).Summary);
 
     // A binding the editor can't model shows its friendly "other" name until replaced.

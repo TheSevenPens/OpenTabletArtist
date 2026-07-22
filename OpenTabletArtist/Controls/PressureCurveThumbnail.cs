@@ -18,7 +18,7 @@ public sealed class PressureCurveThumbnail : Control
 
     private static readonly IBrush PlotBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
     private static readonly IPen BorderPen = new Pen(new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x00, 0x00)), 1);
-    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1)), 1.6);
+    private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0x00)), 1.6);
 
     /// <summary>Preset softness in the same units as <see cref="PressureCurveSettings.Softness"/>
     /// (0 = linear, &gt;0 concave/soft, &lt;0 convex/hard).</summary>
