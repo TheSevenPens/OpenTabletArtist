@@ -23,6 +23,8 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+          fetch-depth: 0      # full history + tags, so the changelog step can diff against the previous tag
+          fetch-tags: true
 
       - name: Set up .NET (app targets net10.0, daemon targets net8.0)
         uses: actions/setup-dotnet@v5
@@ -118,6 +120,40 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish/OpenTabletArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force
 
+      # Build descriptive release notes from the commit messages since the previous tag. Each commit's
+      # subject becomes a heading and its body is included verbatim (minus the Co-Authored-By trailer and
+      # the "chore: bump version" bump commit), so well-written commit messages carry straight into the
+      # changelog. Falls back to GitHub's auto-generated notes if there's no previous tag / no history.
+      - name: Generate release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.ver.outputs.tag }}'
+          $notesFile = Join-Path $env:RUNNER_TEMP 'RELEASE_NOTES.md'
+          $prev = (git describe --tags --abbrev=0 "$tag^" 2>$null)
+          $useGenerated = $true
+          if ($LASTEXITCODE -eq 0 -and $prev) {
+            $hashes = git log --no-merges --format='%H' "$prev..$tag"
+            $sections = foreach ($h in $hashes) {
+              $subject = (git show -s --format='%s' $h).Trim()
+              if ($subject -match '^chore: bump version') { continue }
+              $bodyRaw = git show -s --format='%b' $h
+              $bodyLines = ($bodyRaw -split "`n") | Where-Object { $_ -notmatch '^\s*Co-Authored-By:' }
+              $bodyText = (($bodyLines -join "`n").Trim())
+              if ($bodyText) { "### $subject`n`n$bodyText" } else { "### $subject" }
+            }
+            if ($sections) {
+              $repo = '${{ github.repository }}'
+              $body = "## What's changed`n`n" + ($sections -join "`n`n") +
+                      "`n`n**Full Changelog**: https://github.com/$repo/compare/$prev...$tag"
+              Set-Content -Path $notesFile -Value $body -Encoding utf8
+              $useGenerated = $false
+              Write-Host "Generated notes from $prev..$tag ($($sections.Count) commit section(s))"
+            }
+          }
+          "file=$notesFile" >> $env:GITHUB_OUTPUT
+          "useGenerated=$useGenerated" >> $env:GITHUB_OUTPUT
+
       - name: Create release & upload asset
         shell: pwsh
         env:
@@ -126,6 +162,10 @@ jobs:
           $tag = '${{ steps.ver.outputs.tag }}'
           gh release view $tag 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "OpenTabletArtist $tag" --generate-notes
+            if ('${{ steps.notes.outputs.useGenerated }}' -eq 'False') {
+              gh release create $tag --title "OpenTabletArtist $tag" --notes-file '${{ steps.notes.outputs.file }}'
+            } else {
+              gh release create $tag --title "OpenTabletArtist $tag" --generate-notes
+            }
           }
           gh release upload $tag '${{ steps.ver.outputs.zip }}' --clobber
