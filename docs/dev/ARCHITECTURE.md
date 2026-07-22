@@ -26,7 +26,7 @@
 
 **UX & navigation terminology:** the canonical vocabulary for the app's navigation and page structure —
 *page navigation bar / node*, *page*, *tabbed page / subpage navigation / tab*, *title / complex header* —
-is defined in [docs/design/ux-terminology.md](design/ux-terminology.md). Use those terms in code and comments.
+is defined in [docs/design/ux-terminology.md](../design/ux-terminology.md). Use those terms in code and comments.
 
 **Key directories:**
 - `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `DialogService.cs` (the `IDialogService` seam — all app dialogs), `ConfigurationsDirectoryProvider.cs` (locates the OTD configs folder), `DaemonPenInputSource.cs` (Test tab — daemon `DeviceReport` stream → pen samples), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
@@ -68,7 +68,7 @@ A page VM takes only the slice of the session it actually needs, via a narrow **
 
 `AppSession` mutates its observable state only on the UI thread — the daemon's Connected/Disconnected callbacks marshal via the dispatcher, and `Dispatcher.UIThread.VerifyAccess()` guards the data-load and settings-mutation entry points so an off-thread caller fails loudly instead of corrupting bindings.
 
-**Settings sync is pull-only, last-writer-wins.** The daemon has no settings-changed event, so OTA re-pulls the whole `Settings` (from `GetSettings`, not `settings.json`) on window focus (~1 s) and a 30 s fallback poll; an apply sends the entire `Settings` object (`SetSettings`) and OTA separately persists `settings.json` — the same file OTD's own UX writes, with no locking or version check. A concurrent external edit is reconciled on the next pull but can be clobbered by an OTA apply that races it. Full write-up (and the #162 concurrent-editor case) in [docs/design/settings-sync.md](design/settings-sync.md).
+**Settings sync is pull-only, last-writer-wins.** The daemon has no settings-changed event, so OTA re-pulls the whole `Settings` (from `GetSettings`, not `settings.json`) on window focus (~1 s) and a 30 s fallback poll; an apply sends the entire `Settings` object (`SetSettings`) and OTA separately persists `settings.json` — the same file OTD's own UX writes, with no locking or version check. A concurrent external edit is reconciled on the next pull but can be clobbered by an OTA apply that races it. Full write-up (and the #162 concurrent-editor case) in [docs/design/settings-sync.md](../design/settings-sync.md).
 
 **Pages pull, the shell doesn't push.** Page VMs that show live data self-subscribe to the session — `IDeviceData.DataLoaded` (Paired Tablets and Saved Settings refresh themselves; the Dashboard refreshes its Windows Ink card) and `IConnectionState` (Diagnostics self-syncs its connected state). The shell pushes nothing into them; it only composes and disposes.
 

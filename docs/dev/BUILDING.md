@@ -1,6 +1,6 @@
 # Building OpenTabletArtist from source
 
-For end users, download a prebuilt release instead — see the [install guide](INSTALL.md). This doc is
+For end users, download a prebuilt release instead — see the [install guide](../user/INSTALL.md). This doc is
 for building and running from source.
 
 ## Prerequisites
@@ -9,7 +9,7 @@ for building and running from source.
 - **.NET 8 SDK** — the bundled OpenTabletDriver daemon (and our pen-dynamics plugin) target `net8.0`.
 - **Git** — OpenTabletDriver is a submodule, so clone recursively.
 - **Windows** for the full experience (VMulti / Windows Ink are Windows-only). The app builds and runs on
-  macOS/Linux too, with the Windows-only surface hidden; see [design/macos/](design/macos/).
+  macOS/Linux too, with the Windows-only surface hidden; see [design/macos/](../design/macos/).
 
 No separate OpenTabletDriver install is needed — it's built from the submodule and the app auto-starts it.
 

@@ -35,7 +35,7 @@ public partial class AboutViewModel : ObservableObject
     public string ReleasesUrl => $"{RepoUrl}/releases";
 
     /// <summary>The user manual, rendered on GitHub.</summary>
-    public string UserManualUrl => $"{RepoUrl}/blob/master/docs/USERMANUAL.md";
+    public string UserManualUrl => $"{RepoUrl}/blob/master/docs/user/USERMANUAL.md";
 
     /// <summary>The Drawing Tablet community Discord — where users should go for help (#568). Deliberately
     /// not the OpenTabletDriver forums: an issue is only forwarded to OTD once it's confirmed to be an OTD

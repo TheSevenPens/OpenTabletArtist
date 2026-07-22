@@ -22,10 +22,10 @@ Platforms:
 ## Install & use
 
 Download the latest Windows build and run it — no .NET install needed. See the
-**[install guide](docs/INSTALL.md)** for the full walkthrough, or the **[User Manual](docs/USERMANUAL.md)**
+**[install guide](docs/user/INSTALL.md)** for the full walkthrough, or the **[User Manual](docs/user/USERMANUAL.md)**
 for the interface in depth.
 
-Also in [`docs/`](docs/): [Overview](docs/OVERVIEW.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md)
+Also in [`docs/`](docs/): [Overview](docs/OVERVIEW.md) · [Architecture](docs/dev/ARCHITECTURE.md) · [Diagnostics](docs/dev/DIAGNOSTICS.md)
 
 ## Build from source
 
@@ -36,4 +36,4 @@ dotnet build OpenTabletArtist.slnx   # builds the app AND the bundled OTD daemon
 dotnet run --project OpenTabletArtist
 ```
 
-Full build prerequisites and options are in **[BUILDING.md](docs/BUILDING.md)**.
+Full build prerequisites and options are in **[BUILDING.md](docs/dev/BUILDING.md)**.

@@ -118,7 +118,7 @@ public partial class AdvancedViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentTabTitle));
 
         // Turn the daemon debug stream off when leaving the Diagnostics tab so it doesn't keep cloning
-        // reports (see docs/DIAGNOSTICS.md). Leaving the ADVANCED page entirely is covered by the shell
+        // reports (see docs/dev/DIAGNOSTICS.md). Leaving the ADVANCED page entirely is covered by the shell
         // (MainViewModel.OnCurrentPageChanged).
         if (oldValue == AdvancedTab.Diagnostics && newValue != AdvancedTab.Diagnostics)
             _ = _diagnostics.StopDebuggingAsync();

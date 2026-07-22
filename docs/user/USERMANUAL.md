@@ -1,7 +1,7 @@
 # User Manual
 
 This manual documents the interface in depth. For the full first-time setup walkthrough see the
-[Windows install guide](INSTALL.md); to build from source see [BUILDING.md](BUILDING.md).
+[Windows install guide](INSTALL.md); to build from source see [BUILDING.md](../dev/BUILDING.md).
 
 ## Quick Start
 
@@ -145,7 +145,7 @@ Manages OpenTabletDriver's tablet **configuration** files — the per-tablet JSO
 
 ### Diagnostics
 
-Live tablet input visualization. See `docs/DIAGNOSTICS.md` for details. When more than one tablet is connected, a **Show** selector picks which tablet's live reports to display (the daemon's debug stream carries all tablets at once); with a single tablet it's hidden.
+Live tablet input visualization. See `docs/dev/DIAGNOSTICS.md` for details. When more than one tablet is connected, a **Show** selector picks which tablet's live reports to display (the daemon's debug stream carries all tablets at once); with a single tablet it's hidden.
 
 ### Scribble
 
