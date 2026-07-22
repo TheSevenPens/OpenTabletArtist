@@ -19,11 +19,15 @@ Platforms:
 - MacOs - Under investigation. code complete.
 - Linux - Under investigation 
 
-📖 **[User Manual](docs/USERMANUAL.md)** — start here.
+## Install & use
+
+Download the latest Windows build and run it — no .NET install needed. See the
+**[install guide](docs/INSTALL.md)** for the full walkthrough, or the **[User Manual](docs/USERMANUAL.md)**
+for the interface in depth.
 
 Also in [`docs/`](docs/): [Overview](docs/OVERVIEW.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md)
 
-## Build & run
+## Build from source
 
 ```bash
 git clone --recursive https://github.com/TheSevenPens/OpenTabletArtist.git
@@ -31,3 +35,5 @@ cd OpenTabletArtist
 dotnet build OpenTabletArtist.slnx   # builds the app AND the bundled OTD daemon
 dotnet run --project OpenTabletArtist
 ```
+
+Full build prerequisites and options are in **[BUILDING.md](docs/BUILDING.md)**.

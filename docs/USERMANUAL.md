@@ -1,27 +1,39 @@
 # User Manual
 
-## Prerequisites
-
-- **.NET 10 SDK** — for building and running the app
-- OpenTabletDriver is included as a submodule — no separate install needed
+This manual documents the interface in depth. For the full first-time setup walkthrough see the
+[Windows install guide](INSTALL.md); to build from source see [BUILDING.md](BUILDING.md).
 
 ## Quick Start
 
-```bash
-git clone --recursive https://github.com/TheSevenPens/OpenTabletArtist.git
-cd OpenTabletArtist
-dotnet build OpenTabletArtist.slnx   # builds the app AND the OTD daemon from the submodule
-dotnet run --project OpenTabletArtist
-```
+OpenTabletArtist ships a **self-contained Windows build** — you don't need to install .NET or
+OpenTabletDriver separately. You need **Windows 11 (64-bit)** and a
+[supported tablet](https://opentabletdriver.net/Tablets).
 
-> Build the **solution** (`.slnx`), not just `OpenTabletArtist/`. The daemon (`OpenTabletDriver.Daemon.exe`) is a separate project built from the submodule; if you build only the app it won't exist and the app will sit at "Not connected".
+1. **Download.** Grab `OpenTabletArtist-<version>-win-x64.zip` from the
+   [latest release](https://github.com/TheSevenPens/OpenTabletArtist/releases/latest) (under **Assets**).
+2. **Extract.** Right-click the zip → **Extract All**, into a permanent folder (for example
+   `C:\OpenTabletArtist`) — not inside your Downloads folder.
+3. **Run.** Open the folder and double-click **`OpenTabletArtist.exe`**. *Don't* run it as Administrator.
+   It auto-starts the bundled OpenTabletDriver daemon and connects — **Home** shows **Daemon running**.
+4. **Attach your tablet.** Plug it in; OTA detects it within a few seconds and moving the pen moves the
+   pointer. (On a multi-monitor setup it auto-maps to your primary display; change it on the tablet's
+   **mapping** tab.)
+5. **Test it — Scribble.** Open the **Scribble** page and draw. You should see the stroke respond to
+   **pressure** (and tilt/twist if your pen supports them), with live readouts — confirming the pen works.
 
-> **Prefer the build script for a predictable build.** `scripts/build.ps1` builds the solution and
-> first clears the usual blockers — it stops a running app/daemon that would lock the build outputs,
-> initializes the OTD submodule if it's missing, and confirms the daemon exe was produced. Run
-> `./scripts/build.ps1` (add `-Test` to run the suite, `-Configuration Release` for a release build).
+### If the pen isn't working, or you want pressure & tilt in your apps
 
-On launch the app auto-starts the daemon if it isn't already running, then connects.
+A little one-time Windows setup is needed, and OTA walks you through each item from **Home → Needs
+attention** with a one-click **Fix**:
+
+- **Remove manufacturer tablet drivers** (Wacom, Huion, XP-Pen, …) — they conflict with OpenTabletDriver.
+  OTA flags them and offers the OTD team's cleanup tool on the **Driver Cleanup** page.
+- **Install the VMulti driver** — required on Windows for pressure and tilt. OTA flags it and installs it
+  in one click (a Windows restart finishes it).
+- **Turn on Windows Ink** in your drawing app's tablet/stylus settings (Krita is a good free app to start
+  with).
+
+The [install guide](INSTALL.md) has the complete step-by-step version of all of this.
 
 ## Using the Interface
 
@@ -42,80 +54,69 @@ The landing page stays quiet when everything is healthy and surfaces things only
 - **Your tablets** — every paired or currently-connected tablet as a card (status dot + connection state) with a **Settings** button (a pencil icon) that opens its Tablet page and a **Forget** button. An explicit "No tablets connected or remembered" state shows when there are none.
 - **Supported tablets** — **View list** opens an in-app dialog listing every tablet OpenTabletDriver supports (read from the bundled daemon, offline). It's **searchable**, has a **brand filter**, and its columns are **sortable** (click a header; click again to reverse). A **X of 339** count updates as you filter, each row is numbered with its active area / pressure levels / button count, and a **support status** (Supported / Has Quirks / Missing Features, colour-coded) plus any **notes** (the same as opentabletdriver.net — e.g. setup caveats). Your connected tablet is highlighted (and scrolled to) if it's in the list.
 
-### Tablet & Pen pages (per-tablet settings)
+### Tablet page
 
-A tablet's settings live on two top-nav pages — **Tablet** and **Pen** — each with a **switcher** at the top (shown when more than one tablet is connected) and a **Refresh** in the header that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its card on Home.
+A tablet's settings live on two top-nav pages — **Tablet** and **Pen** — each with a **switcher** at the top (shown when more than one tablet is connected; the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet) and a **Refresh** in the header that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its card on Home.
 
-The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **hover**, **filters**, and **json**, hidden unless enabled on **Settings → Developer**). *(Pen **dynamics** moved to the **Pen** page — see below.)*
+The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **hover**, **filters**, and **json**, hidden unless enabled on **Settings → Developer**). *(Pen **dynamics** moved to the **Pen** page — see below.)* Each tab is its own section below.
 
-- **about** — A read-out of the connected tablet's specs, split into two cards — **Basics** (name, active area in mm & inches, its diagonal, and aspect ratio) and **Features** (digitizer resolution in LP/mm and LPI, pressure levels, pen/express/mouse button counts, and wheels/touch-strip/touch support).
-- **mapping** — Maps the tablet to a monitor and sets its active area, side by side in one two-column tab. On the **display** side, a diagram shows the whole picture in one view: your monitors across the top (to scale/position, numbered, with the primary monitor marked — resolution, refresh, and port are listed below the diagram, with **(PRIMARY)** beside the primary monitor's name, rather than crowding the boxes), the **tablet's active area** below, and two **gradient beams** joining the active area's left and right edges to the selected display's matching edges (so the left↔left / right↔right correspondence is obvious). **Click a monitor** to map the tablet to that whole display (aspect-locked) — it applies immediately, with no separate Apply step. If the stored mapping isn't a clean single display, the tab flags it — a **warning** when part of the area falls off-screen (the pen would reach dead zones) or a **note** for a custom/multi-display area — and the diagram also **overlays the mapped region** on the monitors (spilling into empty space for an off-screen mapping, or a dashed outline for a custom one) so the problem is visible, not just described; clicking a display fixes it. **Display Settings** (below the diagram) opens Windows Display Settings; the diagram refreshes automatically when you add or remove a display.
-  - **Active area** — A picture of the region of the tablet that's currently mapped to the display (the effective area inside the full digitizer), with usage stats — percentage of the tablet used, the effective and full sizes, and the diagonal. A **Millimeters / Inches** toggle switches every length between metric and imperial. The diagram is **interactive** (#199/#59): **drag the highlighted area** to move it, or **drag a corner** to resize it proportionally (the shape stays locked to your display's aspect, so the mapping is never distorted). A **Size** slider (10–100%) does the same resize precisely, and **Maximize** snaps back to the largest centered fit. A smaller active area maps less of the tablet to the whole screen, so the pen is effectively more precise. Changes apply when you release.
-  - **Rotation** — a **None / 90° / 180° / 270°** selector rotates the active area to match how you physically turn the tablet — **180°** puts the express keys on the opposite side; **90°/270°** are portrait, which shrink the active area to the largest that fits the tablet once rotated (the display stays filled and undistorted). When rotated, the diagram draws the **tablet turned** the way you're holding it (with a marker on its top edge) while the active area stays upright, so you always edit the same rectangle. Rotating changes the mapping, so re-run calibration if you use it. (Portrait on a **pen display** — rotating the whole panel + the Windows display — is tracked separately in #490.)
-- **calibration** — *(Absolute mode)* Three cards, one per density — **4 point**, **9 point**, and **25 point** — each with a diagram of the point grid on a screen, a note on when to use it, and a **Start** button. The currently-active calibration is marked with an accent border and an **"In use"** badge. A status card shows the current state with an **On/Off toggle** that turns the correction off and back on *without clearing it* — so you can compare the pointer with and without calibration — and a **Clear calibration** button that removes it entirely. Starting one opens a full-screen overlay on the mapped display where you record each target so the cursor lands where you see the nib. **Rest the pen on the target and hold still** — a ring fills as you hold, and the point is recorded once it's full (holding averages out jitter for an accurate point; lifting or drifting off the target before it fills just resets the ring). **Hold the pen at your natural drawing angle** — tilted the way you actually draw, not bolt-upright — so the calibration matches your real hand position; the overlay reminds you of this. If you misfire, **Undo last point** removes just the most recent point and re-arms that target (versus **Redo all**, which starts over).
-  - **4 point** — the recommended choice; tap the four corners. Fits an **affine** correction (offset/scale/rotation/shear), averaged over the four taps so it stays steady even if a tap is slightly off.
-  - **9 point** (3×3 grid) and **25 point** (5×5 grid) currently fit the **same affine** correction — the extra taps just make the least-squares fit more robust, so try them if 4-point feels slightly off. (On flat, accurate pen displays affine measured best at every density; a per-node grid over-corrects. The grid solver is kept for tablets with genuine localized distortion, #486.) The correction is tied to the current mapping — recalibrate if you change it.
-  - **Calibration report** — after a calibration, a **View report** button on the status card opens a dialog (#500/#501) listing the recorded points as a positional report. Screen coordinates are **relative to the display you calibrated** (0 to its width/height), not whole-desktop pixels, so they read naturally against that one display. For each point it shows the on-screen **target** (display pixels), the **measured (px)** — where the *uncorrected* pen actually landed, in the same pixels, so it's directly comparable to the target — the **Δ (px)** between them (the parallax that point had), the **raw** tablet coordinate the pen reported (a debugging detail; it's in the tablet's own digitizer units, which run to tens of thousands, so it looks nothing like the pixel columns), and the number of samples averaged. A **fit line** summarizes the pointing error the calibration corrected (RMS and worst-case px) and flags a tap that stands out as a likely misfire. When the tablet reports pen tilt, a **tilt line** shows the average angle you held the pen at (altitude above the surface + lean direction), so you can see your natural drawing angle was captured. **Copy** puts the whole table plus the fit and tilt summary on the clipboard for sharing or debugging. It stays with the calibration, so it's there whenever one is active.
-  - **Backup & Restore** — **Export calibration** writes the calibration (its recorded taps + solved model) to a file; **Import calibration** loads one back so you can restore it without re-tapping. Import is matching-only — it applies only when the tablet's current mapping matches the saved one.
-- **buttons** — The tablet's auxiliary buttons (express keys on the tablet body; the pen's own switches live on the **Pen** page), **fully editable**, one card each. Pick a binding **type** (None / Keyboard / Mouse button / Mouse scroll): Keyboard offers Ctrl/Shift/Alt modifiers + a key (a combo writes a Multi-Key binding); Mouse button is Left/Right/Middle/Back/Forward; Mouse scroll is a direction. **Pressing a physical button highlights its card live.** A **Buttons enabled** master toggle suspends all mappings (kept and restored when re-enabled), and **Clear all** removes every binding.
-- **wheels** — Per-direction bindings (clockwise / counter-clockwise) and any wheel buttons, on hardware with a wheel or dial. Each wheel is one card with a live gauge; a **Wheel enabled** master toggle suspends all wheel mappings and **Clear all** removes them.
-- **hover / filters / json** *(hidden — enable on **Settings → Developer → Interface**)* — **hover** shows the live hover distance; **filters** lists the tablet's input filters (friendly name, full type path, enabled/disabled — a stale filter from an older app name is flagged **Legacy** and cleaned up; OpenTabletArtist keeps only its own approved filters enabled, notably **Pen Dynamics**, and disables any third-party/driver-built-in one so it can't alter the stroke); **json** is a raw view of the tablet's settings.
+### about  *(Tablet page)*
 
-The **Pen** page's tabs are **movement**, **inputs**, and **dynamics**:
+A read-out of the connected tablet's specs, split into two cards — **Basics** (name, active area in mm & inches, its diagonal, and aspect ratio) and **Features** (digitizer resolution in LP/mm and LPI, pressure levels, pen/express/mouse button counts, and wheels/touch-strip/touch support).
 
-- **movement** — The tablet's **output mode**. Pick a movement mode — **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games) — and below both is a **Don't use Windows Ink** toggle *(Windows only)*. Windows Ink carries pressure & tilt, but Windows treats the pen like touch, so in some apps dragging the pen scrolls the page instead of selecting. Turning Windows Ink off switches to OpenTabletDriver's plain output, so the pen acts like a mouse — dragging selects text and objects — at the cost of pressure and tilt. The toggle is independent of the movement mode, so all four combinations are possible. While Windows Ink is off, Home shows an **informational** note (not a warning) that pressure/tilt are disabled. *(A tablet that lands on a non-Windows-Ink mode **without** this being an intentional choice still gets a warning + **Fix** to switch it back.)*
-- **inputs** — The pen's switches in three columns: on the **left**, the **tip** and **eraser** cards plus a **Pen input** card; in the **middle**, a diagram of the pen standing tip-down with its side buttons highlighted and **numbered** for the ones this pen has; on the **right**, a card per **barrel button** (numbered 3·2·1 top-to-bottom, to line up with the diagram). Each tip/eraser/button is a status card (#495): a green **"Adaptive Binding — recommended"** badge when it's on Adaptive Binding, or an amber "Not the recommended setting" + a **Use Adaptive** button when it's drifted onto anything else. Adaptive is the only supported choice — under Windows Ink (which OTA's output modes use) the other binding types don't work — so there's nothing else to pick. The **Pen input** card holds **Disable pen tip** (#493 — clears the tip binding so tapping does nothing; your previous tip binding is stashed and restored when you turn it back off). A pen with no barrel buttons just shows the left column beside a plain pen.
-- **dynamics** — Pressure, position, and tilt dynamics, grouped on one tab (moved here from the Tablet page). The pressure/position parts are enforced by the bundled *OpenTabletArtist – Pen Dynamics* filter so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one. There's **no on/off switch** — dynamics simply do nothing until you shape the curve or raise a smoothing slider (a linear curve with zero smoothing is a true no-op), and the filter stays enabled from then on. Edits are debounced and applied to the daemon automatically. The tab has these sections:
-  - **Pressure** — a live pressure bar, the pressure curve, and pressure smoothing. A **Live pressure** bar at the top shows a dot for the raw incoming pressure and, when the curve or smoothing are shaping it, a second dot for the processed value (curve + smoothing, so it lags exactly as your apps receive it); both values read out to four decimals. Below that, **Disable pressure sensitivity** (#494, moved here from Pen Inputs) gives apps a flat on/off contact by dropping pressure entirely; while it's on the curve is inert and the tab flags it. (Smoothing always runs after the curve; the old order toggle was removed.)
-  - **Curve** — drag the pink **min** node and cyan **max** node to set where pressure starts and saturates. Beside the chart, a column of **preset thumbnails** (Soft · Linear · Hard) previews each curve shape as a mini graph — click one for a quick starting point. Below the chart, the **Softness** slider fine-tunes the response (positive = lighter/concave, negative = firmer/convex; the ↺ button resets it to linear). While you draw, a green dot tracks your **live pen pressure** on the curve.
-  - **Pressure smoothing (jitter reduction)** — evens out pressure jitter (0 = off to 1 = max; perceptually scaled, like Slimy Scylla, so the slider feels even across its range). Smoothing runs after the curve. It applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over.
-  - **Position** — **Position smoothing** steadies wobbly lines (0 = off to 1 = max, perceptually scaled). Applies while the pen is down and resets on lift.
-  - **Tilt** — a single **Disable tilt** toggle that stops any tilt being reported to your apps; a tilt curve/smoothing may join it later.
+### mapping  *(Tablet page)*
+
+Maps the tablet to a monitor and sets its active area, side by side in one two-column tab. On the **display** side, a diagram shows the whole picture in one view: your monitors across the top (to scale/position, numbered, with the primary monitor marked — resolution, refresh, and port are listed below the diagram, with **(PRIMARY)** beside the primary monitor's name, rather than crowding the boxes), the **tablet's active area** below, and two **gradient beams** joining the active area's left and right edges to the selected display's matching edges (so the left↔left / right↔right correspondence is obvious). **Click a monitor** to map the tablet to that whole display (aspect-locked) — it applies immediately, with no separate Apply step. If the stored mapping isn't a clean single display, the tab flags it — a **warning** when part of the area falls off-screen (the pen would reach dead zones) or a **note** for a custom/multi-display area — and the diagram also **overlays the mapped region** on the monitors (spilling into empty space for an off-screen mapping, or a dashed outline for a custom one) so the problem is visible, not just described; clicking a display fixes it. **Display Settings** (below the diagram) opens Windows Display Settings; the diagram refreshes automatically when you add or remove a display.
+
+- **Active area** — A picture of the region of the tablet that's currently mapped to the display (the effective area inside the full digitizer), with usage stats — percentage of the tablet used, the effective and full sizes, and the diagonal. A **Millimeters / Inches** toggle switches every length between metric and imperial. The diagram is **interactive** (#199/#59): **drag the highlighted area** to move it, or **drag a corner** to resize it proportionally (the shape stays locked to your display's aspect, so the mapping is never distorted). A **Size** slider (10–100%) does the same resize precisely, and **Maximize** snaps back to the largest centered fit. A smaller active area maps less of the tablet to the whole screen, so the pen is effectively more precise. Changes apply when you release.
+- **Rotation** — a **None / 90° / 180° / 270°** selector rotates the active area to match how you physically turn the tablet — **180°** puts the express keys on the opposite side; **90°/270°** are portrait, which shrink the active area to the largest that fits the tablet once rotated (the display stays filled and undistorted). When rotated, the diagram draws the **tablet turned** the way you're holding it (with a marker on its top edge) while the active area stays upright, so you always edit the same rectangle. Rotating changes the mapping, so re-run calibration if you use it. (Portrait on a **pen display** — rotating the whole panel + the Windows display — is tracked separately in #490.)
+
+### calibration  *(Tablet page)*
+
+*(Absolute mode)* Three cards, one per density — **4 point**, **9 point**, and **25 point** — each with a diagram of the point grid on a screen, a note on when to use it, and a **Start** button. The currently-active calibration is marked with an accent border and an **"In use"** badge. A status card shows the current state with an **On/Off toggle** that turns the correction off and back on *without clearing it* — so you can compare the pointer with and without calibration — and a **Clear calibration** button that removes it entirely. Starting one opens a full-screen overlay on the mapped display where you record each target so the cursor lands where you see the nib. **Rest the pen on the target and hold still** — a ring fills as you hold, and the point is recorded once it's full (holding averages out jitter for an accurate point; lifting or drifting off the target before it fills just resets the ring). **Hold the pen at your natural drawing angle** — tilted the way you actually draw, not bolt-upright — so the calibration matches your real hand position; the overlay reminds you of this. If you misfire, **Undo last point** removes just the most recent point and re-arms that target (versus **Redo all**, which starts over).
+
+- **4 point** — the recommended choice; tap the four corners. Fits an **affine** correction (offset/scale/rotation/shear), averaged over the four taps so it stays steady even if a tap is slightly off.
+- **9 point** (3×3 grid) and **25 point** (5×5 grid) currently fit the **same affine** correction — the extra taps just make the least-squares fit more robust, so try them if 4-point feels slightly off. (On flat, accurate pen displays affine measured best at every density; a per-node grid over-corrects. The grid solver is kept for tablets with genuine localized distortion, #486.) The correction is tied to the current mapping — recalibrate if you change it.
+- **Calibration report** — after a calibration, a **View report** button on the status card opens a dialog (#500/#501) listing the recorded points as a positional report. Screen coordinates are **relative to the display you calibrated** (0 to its width/height), not whole-desktop pixels, so they read naturally against that one display. For each point it shows the on-screen **target** (display pixels), the **measured (px)** — where the *uncorrected* pen actually landed, in the same pixels, so it's directly comparable to the target — the **Δ (px)** between them (the parallax that point had), the **raw** tablet coordinate the pen reported (a debugging detail; it's in the tablet's own digitizer units, which run to tens of thousands, so it looks nothing like the pixel columns), and the number of samples averaged. A **fit line** summarizes the pointing error the calibration corrected (RMS and worst-case px) and flags a tap that stands out as a likely misfire. When the tablet reports pen tilt, a **tilt line** shows the average angle you held the pen at (altitude above the surface + lean direction), so you can see your natural drawing angle was captured. **Copy** puts the whole table plus the fit and tilt summary on the clipboard for sharing or debugging. It stays with the calibration, so it's there whenever one is active.
+- **Backup & Restore** — **Export calibration** writes the calibration (its recorded taps + solved model) to a file; **Import calibration** loads one back so you can restore it without re-tapping. Import is matching-only — it applies only when the tablet's current mapping matches the saved one.
+
+### buttons  *(Tablet page)*
+
+The tablet's auxiliary buttons (express keys on the tablet body; the pen's own switches live on the **Pen** page), **fully editable**, one card each. Pick a binding **type** (None / Keyboard / Mouse button / Mouse scroll): Keyboard offers Ctrl/Shift/Alt modifiers + a key (a combo writes a Multi-Key binding); Mouse button is Left/Right/Middle/Back/Forward; Mouse scroll is a direction. **Pressing a physical button highlights its card live.** A **Buttons enabled** master toggle suspends all mappings (kept and restored when re-enabled), and **Clear all** removes every binding.
+
+### wheels  *(Tablet page)*
+
+Per-direction bindings (clockwise / counter-clockwise) and any wheel buttons, on hardware with a wheel or dial. Each wheel is one card with a live gauge; a **Wheel enabled** master toggle suspends all wheel mappings and **Clear all** removes them.
+
+### hover / filters / json  *(Tablet page — hidden)*
+
+*(Enable on **Settings → Developer → Interface**.)* **hover** shows the live hover distance; **filters** lists the tablet's input filters (friendly name, full type path, enabled/disabled — a stale filter from an older app name is flagged **Legacy** and cleaned up; OpenTabletArtist keeps only its own approved filters enabled, notably **Pen Dynamics**, and disables any third-party/driver-built-in one so it can't alter the stroke); **json** is a raw view of the tablet's settings.
+
+### Pen page
+
+The **Pen** page's tabs are **movement**, **inputs**, and **dynamics** — each its own section below. It shares the Tablet page's header (linked switcher + Refresh).
+
+### movement  *(Pen page)*
+
+The tablet's **output mode**. Pick a movement mode — **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games) — and below both is a **Don't use Windows Ink** toggle *(Windows only)*. Windows Ink carries pressure & tilt, but Windows treats the pen like touch, so in some apps dragging the pen scrolls the page instead of selecting. Turning Windows Ink off switches to OpenTabletDriver's plain output, so the pen acts like a mouse — dragging selects text and objects — at the cost of pressure and tilt. The toggle is independent of the movement mode, so all four combinations are possible. While Windows Ink is off, Home shows an **informational** note (not a warning) that pressure/tilt are disabled. *(A tablet that lands on a non-Windows-Ink mode **without** this being an intentional choice still gets a warning + **Fix** to switch it back.)*
+
+### inputs  *(Pen page)*
+
+The pen's switches in three columns: on the **left**, the **tip** and **eraser** cards plus a **Pen input** card; in the **middle**, a diagram of the pen standing tip-down with its side buttons highlighted and **numbered** for the ones this pen has; on the **right**, a card per **barrel button** (numbered 3·2·1 top-to-bottom, to line up with the diagram). Each tip/eraser/button is a status card (#495): a green **"Adaptive Binding — recommended"** badge when it's on Adaptive Binding, or an amber "Not the recommended setting" + a **Use Adaptive** button when it's drifted onto anything else. Adaptive is the only supported choice — under Windows Ink (which OTA's output modes use) the other binding types don't work — so there's nothing else to pick. The **Pen input** card holds **Disable pen tip** (#493 — clears the tip binding so tapping does nothing; your previous tip binding is stashed and restored when you turn it back off). A pen with no barrel buttons just shows the left column beside a plain pen.
+
+### dynamics  *(Pen page)*
+
+Pressure, position, and tilt dynamics, grouped on one tab (moved here from the Tablet page). The pressure/position parts are enforced by the bundled *OpenTabletArtist – Pen Dynamics* filter so they affect **every** app (Krita, Clip Studio Paint, Photoshop, …), not just one. There's **no on/off switch** — dynamics simply do nothing until you shape the curve or raise a smoothing slider (a linear curve with zero smoothing is a true no-op), and the filter stays enabled from then on. Edits are debounced and applied to the daemon automatically. The tab has these sections:
+
+- **Pressure** — a live pressure bar, the pressure curve, and pressure smoothing. A **Live pressure** bar at the top shows a dot for the raw incoming pressure and, when the curve or smoothing are shaping it, a second dot for the processed value (curve + smoothing, so it lags exactly as your apps receive it); both values read out to four decimals. Below that, **Disable pressure sensitivity** (#494, moved here from Pen Inputs) gives apps a flat on/off contact by dropping pressure entirely; while it's on the curve is inert and the tab flags it. (Smoothing always runs after the curve; the old order toggle was removed.)
+- **Curve** — drag the pink **min** node and cyan **max** node to set where pressure starts and saturates. Beside the chart, a column of **preset thumbnails** (Soft · Linear · Hard) previews each curve shape as a mini graph — click one for a quick starting point. Below the chart, the **Softness** slider fine-tunes the response (positive = lighter/concave, negative = firmer/convex; the ↺ button resets it to linear). While you draw, a green dot tracks your **live pen pressure** on the curve.
+- **Pressure smoothing (jitter reduction)** — evens out pressure jitter (0 = off to 1 = max; perceptually scaled, like Slimy Scylla, so the slider feels even across its range). Smoothing runs after the curve. It applies while the pen is down and resets each time it lifts, so strokes start crisp with no carry-over.
+- **Position** — **Position smoothing** steadies wobbly lines (0 = off to 1 = max, perceptually scaled). Applies while the pen is down and resets on lift.
+- **Tilt** — a single **Disable tilt** toggle that stops any tilt being reported to your apps; a tilt curve/smoothing may join it later.
 
 ### Presets
 
-*(Settings → Presets tab.)* At the top, a pinned **Current settings** card ("In use now") represents the configuration your tablet is using right now — the live `settings.json` you edit on the Tablet pages. It's what hotkey switches revert to, and every **preset** below is a *saved copy* of it.
-
-A **preset** is a named backup of your entire OTD configuration (all tablets' settings). Cards show the preset name and file last-modified time, sorted newest first. Presets are what **Load** and preset hotkeys apply.
-
-> Note: a **preset** is a whole-configuration backup saved by OpenTabletArtist — not OpenTabletDriver's own per-tablet `Profile`. Each preset file contains the complete OTD `Settings` (all tablets).
-
-On the Current settings card:
-
-- **Save as preset** — Saves the current settings as a copy with an auto-numbered name: `Preset`, `Preset 2`, `Preset 3`, ... (lowest available number is reused if you delete one). Rename freely after saving.
-- **Browse** — Opens the presets folder in Explorer.
-
-Each preset card has:
-
-- **Load** — Applies the preset and makes it your **Current settings** (this is a permanent switch — see [Switching presets](#switching-presets)).
-- **Update** — Overwrites the preset with the current settings.
-- **Duplicate** — Saves a copy of the preset under a new auto-named `<name> copy` (numbered if that's taken, e.g. `<name> copy 2`). The copy is independent — it doesn't carry the original's hotkey.
-- **Rename** — Prompts for a new name (simple text dialog, no file picker).
-- **Delete** — Removes the preset file after a confirmation prompt.
-
-The "No presets" empty state appears only when the presets folder is actually empty.
-
-### Switching presets
-
-There are several ways to change the active configuration, split by whether the change is **permanent** (rewrites your Current settings) or **temporary** (a live override that's restored later).
-
-Whole-preset switches:
-
-| How | Where | Effect |
-|---|---|---|
-| **Load** a preset | Presets page | **Permanent** — applies it and makes it your Current settings. |
-| **Preset hotkey** | Settings → Hotkeys | **Temporary** — a global keyboard shortcut applies a preset as a live override; a "Preset override" chip shows while active. Your Current settings are untouched. |
-
-Monitor-mapping switches (change only which monitor the tablet maps to — all **permanent**):
-
-- **Cycle mapped monitor** hotkey (Settings → Hotkeys).
-- **Switch Display** in the system-tray menu.
-- The display picker on a tablet's page.
-
-Notes:
-
-- Only **Load** is a permanent whole-preset switch; the preset hotkey is temporary and leaves your Current settings intact.
-- There's currently no one-click "back to Current settings" button for a hotkey-driven override — it clears when you switch again.
+Save, load, rename, and delete whole-configuration snapshots (all tablets), and change the active configuration by preset hotkey, the tray's Switch Display, or a tablet's display picker. **See [Presets](PRESETS.md).**
 
 ### Hotkeys
 
@@ -201,11 +202,7 @@ A single toggle — **Start OpenTabletArtist when Windows starts** — that laun
 
 ### Developer
 
-*(Settings → Developer tab.)* Testing aids, not needed for normal use. Three sub-tabs:
-
-- **Force warnings** — two columns. **Trigger health warnings** (left) is a set of toggles that force each real *Needs attention* warning to appear on Home with its true text and **Fix** button, so the cards can be reviewed and screenshotted without reproducing the underlying problem (right-clicking an induced card on Home offers a hidden **Dismiss**; genuine warnings can't be dismissed this way). **Introduce config errors** (right) instead makes a *real, persisted* change to the active tablet so a genuinely broken state can be reproduced: **Push active area off-screen** (trips the off-screen mapping check — undo by remapping to a display), **Set rotation to 20°** (a non-standard angle that trips the rotation check — undo by picking a standard rotation on the mapping tab), and **Create off calibration** (fabricates a slightly-wrong 4-point calibration — undo with **Clear calibration** on the Calibration tab).
-- **Interface** — two columns. **Tablet page extras** reveals the otherwise-hidden **hover**, **filters**, and **json** tabs on a tablet's page, re-enables the **Cut below input minimum** dead-zone checkbox on the pressure curve, and toggles **card-role tags** (a dev overlay). **Window size** forces the app window to an exact pixel size (presets from 2560×1440 down to 1280×720), for previewing small-display layouts or consistent screenshots; reset by restarting.
-- **Screenshot** — **Screenshot all pages** visits every page and sub-tab in turn, saving an image of each (PNG, JPG, or both) into a new timestamped folder under `Pictures\OpenTabletArtist`; a separate toggle adds an on-page **Capture** button so you can screenshot whichever page you're viewing. Because it renders the actual controls, captures are pixel-perfect and free of the window-focus / occlusion / DPI issues of manual capture.
+*(Settings → Developer tab.)* Testing aids not needed for normal use — force/introduce *Needs attention* warnings, reveal the hidden tablet tabs, pin the window to an exact size, and screenshot every page. **See [Developer tools](DEVELOPER.md).**
 
 ### About
 
@@ -251,30 +248,4 @@ The app's own tray icon (above) can also Stop/Restart the daemon directly.
 
 ## Troubleshooting
 
-### "Not connected to daemon" on Home
-
-1. Click **Fix** on the "Not connected to daemon" card — it starts the daemon (built from the submodule) and connects, morphing into a "Connecting to daemon…" state while it works.
-2. If that doesn't resolve it, click **Open daemon page** (Advanced → Daemon) for the full controls — **Start**, **Restart**, and a **Refresh** to re-check the connection.
-3. The daemon auto-starts on app launch — if it didn't, check whether another OTD instance is already running.
-
-If the daemon page reports that **OpenTabletDriver.Daemon.exe wasn't found**, the daemon exe was never built. The app checks for it before every connection attempt and says so plainly instead of silently timing out. Build the whole solution so the daemon is produced:
-
-```bash
-dotnet build OpenTabletArtist.slnx
-```
-
-Building only the app project, or only running the test suite, does **not** produce the daemon exe (it's a standalone project the app launches as a separate process).
-
-### "No Tablet Detected" even though my tablet is plugged in
-
-1. Make sure the daemon is running (Advanced → Daemon).
-2. Wait a few seconds — the app reconciles with the daemon every 30 seconds (and immediately on connect).
-3. Click the refresh icon to force an immediate check.
-
-### Build fails with "file is locked by OpenTabletArtist"
-
-The running app or daemon holds the build outputs (the app exe or the OTD DLLs) open. Use
-`scripts/build.ps1`, which stops those processes before building so this can't happen. To fix it by
-hand, close the running app **and** stop the daemon (Task Manager → `OpenTabletDriver.Daemon.exe`, or
-the tray's Quit + Stop) before rebuilding. If a previous instance hasn't fully exited it may still
-hold the .exe. We have an open investigation item in `docs/FUTURES.md` to make shutdown cleaner.
+Common issues and fixes — a "Not connected to daemon" card, or a tablet that isn't detected. **See [Troubleshooting](TROUBLESHOOTING.md).**
