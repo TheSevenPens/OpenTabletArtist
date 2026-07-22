@@ -224,7 +224,7 @@ switcher + refresh right). **dynamics** moved here from the tablet page (#pen-dy
 |-------|-----------------------|
 | **movement** | output mode (Normal/Absolute · Mouse-like/Relative); **Don't use Windows Ink** toggle *(Win)* |
 | **inputs** | tip + eraser Adaptive status cards + Use Adaptive; **Disable pen tip**; upright pen diagram (tip down) beside the cards; barrel-button Adaptive cards (self-hide when the pen has none) |
-| **dynamics** | shared `DynamicsView`: live-pressure bar (raw/processed to 4 decimals); **Binary pressure**; pressure curve (draggable min/max nodes, no axis labels; curve-shape **preset thumbnails** Soft/Linear/Hard; **Softness** slider below the chart; live dot); **Cut below input minimum** *(dev-gated, #569)*; pressure smoothing; position smoothing; **Disable tilt** |
+| **dynamics** | shared `DynamicsView`: live-pressure bar (raw/processed to 4 decimals); **Disable pressure sensitivity**; pressure curve (draggable min/max nodes, no axis labels; curve-shape **preset thumbnails** Soft/Linear/Hard; **Softness** slider below the chart; live dot); **Cut below input minimum** *(dev-gated, #569)*; pressure smoothing; position smoothing; **Disable tilt** |
 
 ### settings  (8 tabs → 5 pivots)
 

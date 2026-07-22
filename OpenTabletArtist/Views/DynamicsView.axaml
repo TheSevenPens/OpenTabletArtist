@@ -39,18 +39,18 @@
                                            ProcessedBrush="{DynamicResource SuccessBrush}" />
                 </Grid>
 
-                <!-- Binary pressure (#494): a flat on/off contact that drops pressure entirely, so
-                     the curve below is inert while it's on. -->
-                <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,8,0,0"
-                                    Description="Flat on/off contact — ignores the curve below."
+                <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops pressure
+                     entirely, so the curve below is inert while it's on. -->
+                <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True" Margin="2,8,0,0"
+                                    Description="Flat on/off contact"
                                     IsChecked="{Binding DisablePressure}" />
 
-                <!-- #469: when Binary pressure is on the output stage drops pressure, so this curve
-                     has no effect. Flag it here so the tab isn't silently inert. -->
+                <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
+                     curve has no effect. Flag it here so the tab isn't silently inert. -->
                 <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                         BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"
                         IsVisible="{Binding PressureDisabledNote}">
-                    <TextBlock Text="Binary pressure is on, so this curve has no effect right now."
+                    <TextBlock Text="Pressure sensitivity is disabled, so this curve has no effect right now."
                                Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                 </Border>
 
@@ -144,7 +144,7 @@
                     <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel largetitle" />
                     <!-- Moved here from Pen Inputs (#494). -->
                     <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                        Description="Apps receive no tilt from this tablet."
+                                        Description="Apps will receive no tilt from this tablet."
                                         IsChecked="{Binding DisableTilt}" />
                 </StackPanel>
             </ctrl:Section>
