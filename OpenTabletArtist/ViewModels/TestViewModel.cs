@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Numerics;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -40,10 +42,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         RecomputeMapping();
         RefreshTabletStatus();
-        // The connected-tablet set may have changed → refresh the picker (#190 phase 3).
-        OnPropertyChanged(nameof(TabletNames));
-        OnPropertyChanged(nameof(ShowTabletPicker));
-        OnPropertyChanged(nameof(SelectedTablet));
+        // The connected-tablet set may have changed → rebuild the picker (#190 phase 3).
+        RebuildTablets();
     }
 
     private void OnDeviceDataPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -53,23 +53,88 @@ public partial class TestViewModel : ObservableObject, IDisposable
         {
             RecomputeMapping();
             RefreshTabletStatus();
-            OnPropertyChanged(nameof(SelectedTablet));
+            SyncSelectionFromActive();
         }
     }
 
-    // --- Active-tablet picker (#190 phase 3): shown only when more than one tablet is connected ---
+    // --- Active-tablet picker (#190 phase 3): shown only when more than one tablet is connected. Uses the
+    //     shared TabletSwitcherBar (dropdown only — no detection chip/refresh here), so the choice items are
+    //     TabletChoiceViewModel, the same type the Tablet/Pen pages feed that control. ---
 
-    /// <summary>Names of the currently-connected tablets, for the picker.</summary>
-    public IReadOnlyList<string> TabletNames => _deviceData.DetectedTablets.Select(t => t.Name).ToList();
+    /// <summary>The currently-connected tablets, as switcher choices. Reconciled in place on each data load.</summary>
+    public ObservableCollection<TabletChoiceViewModel> Tablets { get; } = new();
 
     /// <summary>Only offer the picker when there's a choice to make.</summary>
-    public bool ShowTabletPicker => _deviceData.DetectedTablets.Count > 1;
+    public bool ShowTabletPicker => Tablets.Count > 1;
+
+    private TabletChoiceViewModel? _selectedTablet;
+    // Last real selection + guards, to shrug off the spurious null the ComboBox writes back when its bound
+    // ItemsSource is (re)set during a page crossfade, and to avoid re-activating during a device-driven
+    // sync. Mirrors TabletPageViewModel — without this the switcher blanks out on the Scribble page.
+    private TabletChoiceViewModel? _lastSelected;
+    private bool _restoringSelection;
+    private bool _suppressActivate;
 
     /// <summary>The tablet this page shows; setting it updates the app-wide active tablet.</summary>
-    public string? SelectedTablet
+    public TabletChoiceViewModel? SelectedTablet
     {
-        get => _deviceData.ActiveTabletName;
-        set { if (value != null) _deviceData.SetActiveTablet(value); }
+        get => _selectedTablet;
+        set
+        {
+            // The ComboBox writes a spurious null when its ItemsSource is (re)set during a page crossfade;
+            // re-assert the last real selection so the switcher doesn't drop to blank.
+            if (value == null && !_restoringSelection && Tablets.Count > 0
+                && _lastSelected is { } keep && Tablets.Contains(keep))
+            {
+                _restoringSelection = true;
+                SelectedTablet = keep;
+                _restoringSelection = false;
+                return;
+            }
+            if (ReferenceEquals(_selectedTablet, value)) return;
+            _selectedTablet = value;
+            if (value != null) _lastSelected = value;
+            OnPropertyChanged();
+            if (!_suppressActivate && value != null) _deviceData.SetActiveTablet(value.Name);
+        }
+    }
+
+    /// <summary>Reconcile the switcher choices with the connected tablets IN PLACE — never Clear()+rebuild,
+    /// which momentarily clears the ComboBox's selection and blanks the switcher — then re-point the
+    /// selection at the active tablet.</summary>
+    private void RebuildTablets()
+    {
+        var ordered = _deviceData.DetectedTablets.Select(t => t.Name).ToList();
+        var wanted = new HashSet<string>(ordered, StringComparer.OrdinalIgnoreCase);
+        for (int i = Tablets.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(Tablets[i].Name)) Tablets.RemoveAt(i);
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            int at = IndexOfTablet(ordered[i]);
+            if (at >= 0) { if (at != i) Tablets.Move(at, i); }
+            else Tablets.Insert(i, new TabletChoiceViewModel(ordered[i], isDetected: true));
+        }
+        SyncSelectionFromActive();
+        OnPropertyChanged(nameof(ShowTabletPicker));
+    }
+
+    private int IndexOfTablet(string name)
+    {
+        for (int i = 0; i < Tablets.Count; i++)
+            if (string.Equals(Tablets[i].Name, name, StringComparison.OrdinalIgnoreCase)) return i;
+        return -1;
+    }
+
+    /// <summary>Point the selection at the app-wide active tablet (or the first available) without
+    /// re-triggering SetActiveTablet, keeping the surviving instance so the ComboBox stays in sync.</summary>
+    private void SyncSelectionFromActive()
+    {
+        var match = Tablets.FirstOrDefault(t => t.Name == _deviceData.ActiveTabletName)
+                    ?? Tablets.FirstOrDefault();
+        if (ReferenceEquals(match, _selectedTablet)) return;
+        _suppressActivate = true;
+        SelectedTablet = match;
+        _suppressActivate = false;
     }
 
     // --- Tablet status banner (#128/#129/#130) ---

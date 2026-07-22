@@ -225,8 +225,8 @@ public class TestViewModelTests
         using var vm2 = NewVm(two);
         two.RaiseDataLoaded();
         Assert.True(vm2.ShowTabletPicker);
-        Assert.Equal(new[] { "A", "B" }, vm2.TabletNames);
-        Assert.Equal("A", vm2.SelectedTablet);
+        Assert.Equal(new[] { "A", "B" }, vm2.Tablets.Select(t => t.Name));
+        Assert.Equal("A", vm2.SelectedTablet?.Name);
     }
 
     [Fact]
@@ -238,8 +238,9 @@ public class TestViewModelTests
             ActiveTabletName = "A",
         };
         using var vm = NewVm(data);
+        data.RaiseDataLoaded();
 
-        vm.SelectedTablet = "B";
+        vm.SelectedTablet = vm.Tablets.First(t => t.Name == "B");
 
         Assert.Equal("B", data.ActiveTabletName);
     }

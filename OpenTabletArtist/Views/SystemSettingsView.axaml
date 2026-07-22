@@ -1,0 +1,25 @@
+<UserControl x:Class="OpenTabletArtist.Views.SystemSettingsView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The SETTINGS System pivot in two columns: left = Startup + Shortcut, right = Driver Cleanup
+         (conflicting-driver warnings + the cleanup tool). Each sub-VM resolves to its own view via the
+         typed DataTemplates (App.axaml), same as CompositeSectionView. Columns wrap independently; the
+         right column stays top-aligned so its warnings sit beside the left toggles. -->
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="28">
+        <ItemsControl Grid.Column="0" ItemsSource="{Binding LeftSections}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding}" Margin="0,0,0,28" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl Grid.Column="1" ItemsSource="{Binding RightSections}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding}" Margin="0,0,0,28" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

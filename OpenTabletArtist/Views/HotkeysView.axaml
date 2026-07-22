@@ -4,14 +4,14 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the HotkeysViewModel — the SETTINGS > HOTKEYS tab (the tab rail supplies the title). -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <!-- ── Tablet mapping ─────────────────────────────────────────────────── -->
-        <TextBlock Text="DISPLAY MAPPING" FontWeight="SemiBold" LetterSpacing="0.5"
-                   Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
+    <!-- Two columns: the tablet display-toggle hotkey on the left, preset-switching hotkeys on the right. -->
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="28">
+        <!-- ── LEFT: tablet mapping (display toggle) ─────────────────────────────── -->
+        <StackPanel Grid.Column="0" VerticalAlignment="Top">
         <c:Section Margin="0,0,0,24">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="TOGGLE BETWEEN DISPLAYS" TextWrapping="Wrap" />
+                    <TextBlock Classes="SectionLabel" Text="DISPLAY TOGGLE" TextWrapping="Wrap" />
                     <TextBlock Text="Moves the active tablet's area to the next monitor (wraps around)."
                                Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
@@ -41,8 +41,10 @@
                         Command="{Binding AssignMonitorHotkeyCommand}" />
             </Grid>
         </c:Section>
+        </StackPanel>
 
-        <!-- ── Profile switching ──────────────────────────────────────────────── -->
+        <!-- ── RIGHT: preset switching ───────────────────────────────────────────── -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Top">
         <TextBlock Text="PRESET SWITCHING" FontWeight="SemiBold" LetterSpacing="0.5"
                    Foreground="{DynamicResource TextMutedBrush}" Margin="2,0,0,8" />
 
@@ -94,5 +96,6 @@
                            HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
         </c:Section>
-    </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

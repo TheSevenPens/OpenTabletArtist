@@ -45,8 +45,10 @@ public partial class SettingsViewModel : ObservableObject
         ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup,
         PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
-        // "System" stacks the three Windows integration/maintenance pages into one pivot (Zune merge).
-        var system = new CompositeSectionViewModel(startup, shortcut, driverCleanup);
+        // "System" groups the three Windows integration/maintenance pages into one pivot (Zune merge),
+        // laid out in two columns: Startup + Shortcut on the left, Driver Cleanup (warnings + cleanup)
+        // on the right.
+        var system = new SystemSettingsViewModel(startup, shortcut, driverCleanup);
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),

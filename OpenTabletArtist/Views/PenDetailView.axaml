@@ -25,16 +25,17 @@
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
+                    <!-- dynamics moved here from the tablet page (#pen-dynamics-move). -->
+                    <RadioButton Content="dynamics" x:Name="DynamicsTab"
+                                 Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 </WrapPanel>
 
-                <!-- Right cluster: switcher + detection + refresh (shared TabletSwitcherBar, #580). The
-                     switcher's list/selection come from the hosting PenPageViewModel (ancestor); detection
-                     + refresh from this detail VM. Forget lives on the Home cards (#575). -->
+                <!-- Right cluster: switcher + refresh (shared TabletSwitcherBar, #580). The switcher's
+                     list/selection come from the hosting PenPageViewModel (ancestor); refresh from this
+                     detail VM. Detection now reads off the dropdown's per-row link icon. Forget on Home cards (#575). -->
                 <views:TabletSwitcherBar Grid.Column="1"
                     Tablets="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
                     SelectedTablet="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
-                    IsDetected="{Binding IsTabletDetected}"
-                    DetectionText="{Binding DetectionText}"
                     RefreshCommand="{Binding RefreshCommand}" />
             </Grid>
         </Border>
@@ -183,6 +184,13 @@
                 </StackPanel>
                 </Grid>
             </StackPanel>
+        </ScrollViewer>
+
+        <!-- DYNAMICS — pressure/position/tilt (moved from the tablet page, #pen-dynamics-move). Shared
+             DynamicsView, same control the focused Pen Dynamics editor hosts. -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #DynamicsTab.IsChecked}">
+            <views:DynamicsView />
         </ScrollViewer>
     </Grid>
 </UserControl>

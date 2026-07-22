@@ -196,31 +196,35 @@ to its new home, so nothing is lost when 12/8/7 tabs collapse into pivots. Modal
 capture overlay, report dialog, supported-tablets dialog) are overlays — unaffected by nav — and
 carry over as-is.
 
-### tablet  (5 pivots — `about · dynamics · mapping · calibration · controls`)
+### tablet  (`about · mapping · calibration · controls`)
+
+*(**dynamics** moved to the PEN page — see below (#pen-dynamics-move). The tablet page's dynamics content
+is now a shared `DynamicsView`, still hosted by the tray's focused Pen Dynamics editor.)*
 
 | Pivot | From (pre-Zune tabs) | Controls carried over |
 |-------|--------------|-----------------------|
 | **about** | About | full spec readout; Resources → View supported tablets |
-| **dynamics** | Pressure · Position · Tilt Dynamics | live-pressure bar; **Binary pressure**; pressure curve (draggable min/max nodes, no axis labels; curve-shape **preset thumbnails** Soft/Linear/Hard; **Softness** slider below the chart; live dot); **Cut below input minimum** *(dev-gated, #569)*; pressure smoothing; position smoothing; **Disable tilt**; per-tab Reset + status line |
 | **mapping** | Display Mapping · Active Area | one two-column card: **left** = editable active-area diagram (drag-move, drag-corner resize), **Rotation None/90/180/270**, Size slider, Maximize, mm/inches, usage + diagonal + aspect-ratio stats; **right** = click-to-select display picker (Apply, Display Settings, off-screen/custom flags, connector to the mapped display, per-display hardware list). *(A single merged diagram was tried and reverted — two read more clearly.)* |
 | **calibration** | Calibration | 4/9/25-point cards + Start; active-cal status (Correction On/Off, Clear); **View report** dialog; **Backup & restore** (export/import, #545); full-screen capture overlay (Undo last / Redo all) |
 | **controls** | Tablet Buttons · Wheels | aux-button cards, binding type (None/Keyboard/Mouse button/Mouse scroll), live-press highlight, **Buttons enabled** master, **Clear all**; wheel/dial bindings |
 | *(dev)* filters · json | Filters · JSON | shown behind the pivot only when Developer is enabled |
 
-The tablet **switcher** (dropdown) + **detection chip** + **Refresh** sit at the *right* of the pivot
-row (grouped, #switcher-right); the pivots start at the left edge like the other pages. **Forget** moved
-to the Home tablet cards (#575).
+The tablet **switcher** (dropdown) + **Refresh** sit at the *right* of the pivot row (grouped,
+#switcher-right); the pivots start at the left edge like the other pages. **Forget** moved to the Home
+tablet cards (#575). The switcher's separate detection chip was dropped (#580 follow-up) — detection now
+reads off the per-row **link / link-off icon** inside the dropdown itself. The tablet, pen, and scribble
+switchers are **linked** to the app-wide active tablet, so all three always show the same tablet.
 
-### pen  (own top-level page — `movement · inputs · buttons`)
+### pen  (own top-level page — `movement · inputs · dynamics`)
 
 Split out of the tablet page (`2bc43d0`). Same toolbar structure as the tablet page (pivots left,
-switcher + detection + refresh right).
+switcher + refresh right). **dynamics** moved here from the tablet page (#pen-dynamics-move).
 
 | Pivot | Controls carried over |
 |-------|-----------------------|
 | **movement** | output mode (Normal/Absolute · Mouse-like/Relative); **Don't use Windows Ink** toggle *(Win)* |
-| **inputs** | tip + eraser Adaptive status cards + Use Adaptive; **Disable pen tip**; upright pen diagram (tip down) beside the cards |
-| **buttons** | barrel-button Adaptive cards beside the pen diagram; pivot hidden when the pen has no barrel buttons |
+| **inputs** | tip + eraser Adaptive status cards + Use Adaptive; **Disable pen tip**; upright pen diagram (tip down) beside the cards; barrel-button Adaptive cards (self-hide when the pen has none) |
+| **dynamics** | shared `DynamicsView`: live-pressure bar (raw/processed to 4 decimals); **Binary pressure**; pressure curve (draggable min/max nodes, no axis labels; curve-shape **preset thumbnails** Soft/Linear/Hard; **Softness** slider below the chart; live dot); **Cut below input minimum** *(dev-gated, #569)*; pressure smoothing; position smoothing; **Disable tilt** |
 
 ### settings  (8 tabs → 5 pivots)
 

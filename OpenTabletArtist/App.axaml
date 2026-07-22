@@ -90,6 +90,7 @@
         <DataTemplate DataType="{x:Type vm:AdvancedViewModel}"><views:AdvancedView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CompositeSectionViewModel}"><views:CompositeSectionView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SystemSettingsViewModel}"><views:SystemSettingsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:StartupViewModel}"><views:StartupView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DeveloperViewModel}"><views:DeveloperView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ShortcutViewModel}"><views:ShortcutView /></DataTemplate>

@@ -1672,7 +1672,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     // Live pressure read-out (#559): the current input pressure, for the LIVE PRESSURE bar's "raw" label.
     // "—" when the pen is up.
-    public string LiveInputText => LivePressure is { } v ? v.ToString("0.00") : "—";
+    public string LiveInputText => LivePressure is { } v ? v.ToString("0.0000") : "—";
     public bool HasLivePressure => LivePressure is not null;
 
     // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
@@ -1681,7 +1681,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // the curve. (Its exact magnitude tracks the UI sample rate, which may be coarser than the daemon's.)
     private readonly PenDynamicsProcessor _liveProcessor = new();
     [ObservableProperty] private double? _liveProcessed;
-    public string LiveProcessedText => LiveProcessed is { } v ? v.ToString("0.00") : "—";
+    public string LiveProcessedText => LiveProcessed is { } v ? v.ToString("0.0000") : "—";
     partial void OnLiveProcessedChanged(double? value) => OnPropertyChanged(nameof(LiveProcessedText));
 
     /// <summary>Whether pen dynamics actually change the pressure, so the bar shows a processed dot.</summary>

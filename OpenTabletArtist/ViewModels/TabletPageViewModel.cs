@@ -173,5 +173,18 @@ public partial class TabletPageViewModel : ObservableObject
         if (tab is { } t) Content?.RequestTab(t);
     }
 
+    /// <summary>Follow an externally-chosen active tablet (another page's switcher, the tray, or auto-select
+    /// on connect) so the tablet switchers stay linked. Unlike <see cref="Select"/> this is not a user
+    /// action: it suppresses the last-used persist, so it doesn't loop back into SetActiveTablet. No-op if
+    /// the tablet isn't in this list or is already selected.</summary>
+    public void SyncSelection(string name)
+    {
+        if (Tablets.FirstOrDefault(t => Eq(t.Name, name)) is not { } match) return;
+        if (ReferenceEquals(match, SelectedTablet)) return;
+        _suppressPersist = true;
+        SelectedTablet = match;
+        _suppressPersist = false;
+    }
+
     private static bool Eq(string a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }

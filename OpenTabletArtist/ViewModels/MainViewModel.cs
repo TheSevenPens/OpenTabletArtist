@@ -204,10 +204,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
-        TabletPage = new TabletPageViewModel(ResolveTabletDetail);
+        // Its switcher is linked to the app-wide active tablet (IDeviceData.ActiveTabletName), so the TABLET,
+        // PEN, and SCRIBBLE dropdowns all share one selection: picking a tablet here sets the active tablet,
+        // and the default follows it. SyncPagesToActiveTablet pushes external changes back (see below).
+        TabletPage = new TabletPageViewModel(ResolveTabletDetail,
+            getLastUsed: () => _session.ActiveTabletName,
+            setLastUsed: name => _session.SetActiveTablet(name));
         // The PEN page shares the same resolver (so it edits the same per-tablet detail VM as the tablet
-        // page) and the same last-used store (one shared default tablet across both pages).
-        PenPage = new PenPageViewModel(ResolveTabletDetail);
+        // page) and the same active-tablet selection.
+        PenPage = new PenPageViewModel(ResolveTabletDetail,
+            getLastUsed: () => _session.ActiveTabletName,
+            setLastUsed: name => _session.SetActiveTablet(name));
 
         // The whole top-level nav as one ordered list (Zune Phase 0.2). Presets + Per-App Presets live in
         // SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged. TABLET's page carries a
@@ -218,6 +225,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavSections.Add(new NavLeafViewModel("SCRIBBLE", Test));
         NavSections.Add(new NavLeafViewModel("SETTINGS", Settings));
         NavSections.Add(new NavLeafViewModel("ADVANCED", Advanced));
+
+        // Keep the TABLET + PEN switchers pointed at the app-wide active tablet, so all three tablet
+        // switchers (incl. SCRIBBLE, which drives it directly) stay linked when it changes from anywhere
+        // (another switcher, the tray, or auto-selection on connect).
+        _session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IDeviceData.ActiveTabletName))
+                SyncPagesToActiveTablet();
+        };
 
         // Build the per-tablet nav children now and on every data load (tablets connect/pair/forget).
         _session.DataLoaded += RebuildTablets;
@@ -384,6 +400,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var choices = ordered.Select(p => (p.Tablet, p.IsDetected)).ToList();
         TabletPage.SetTablets(choices);
         PenPage.SetTablets(choices);
+        // Both switchers now reflect the shared active tablet (e.g. after the daemon auto-selected one).
+        SyncPagesToActiveTablet();
+    }
+
+    /// <summary>Point the TABLET + PEN switchers at the app-wide active tablet, keeping all three tablet
+    /// switchers (incl. SCRIBBLE) linked. A no-op when they already match; suppresses re-persist so it
+    /// doesn't loop back into <see cref="AppSession.SetActiveTablet"/>.</summary>
+    private void SyncPagesToActiveTablet()
+    {
+        if (_session.ActiveTabletName is not { } name) return;
+        TabletPage.SyncSelection(name);
+        PenPage.SyncSelection(name);
     }
 
     /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded

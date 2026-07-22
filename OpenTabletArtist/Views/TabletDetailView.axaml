@@ -186,7 +186,10 @@
             <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                 <RadioButton Content="about" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
-                <RadioButton Content="dynamics" x:Name="DynamicsTab"
+                <!-- The dynamics pivot moved to the PEN page (#pen-dynamics-move). This RadioButton is kept
+                     but hidden: it's no longer a selectable tablet-page pivot, and only the focused Pen
+                     Dynamics editor (DynamicsOnly) checks it programmatically to show the dynamics content. -->
+                <RadioButton Content="dynamics" x:Name="DynamicsTab" IsVisible="False"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <RadioButton Content="mapping" x:Name="MappingTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
@@ -216,15 +219,13 @@
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding ShowJsonTab}" />
             </WrapPanel>
-                <!-- Right cluster: switcher + detection + refresh (shared TabletSwitcherBar, #580). The
-                     switcher's list/selection come from the hosting TabletPageViewModel (ancestor);
-                     detection + refresh from this detail VM. Embedded only (!ShowHeader) — the tray dialog
-                     uses the ComplexHeader above instead. Forget lives on the Home cards (#575). -->
+                <!-- Right cluster: switcher + refresh (shared TabletSwitcherBar, #580). The switcher's
+                     list/selection come from the hosting TabletPageViewModel (ancestor); refresh from this
+                     detail VM. Detection now reads off the dropdown's per-row link icon. Embedded only
+                     (!ShowHeader) — the tray dialog uses the ComplexHeader above. Forget on Home cards (#575). -->
                 <views:TabletSwitcherBar Grid.Column="1" IsVisible="{Binding !ShowHeader}"
                     Tablets="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
                     SelectedTablet="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
-                    IsDetected="{Binding IsTabletDetected}"
-                    DetectionText="{Binding DetectionText}"
                     RefreshCommand="{Binding RefreshCommand}" />
             </Grid>
         </Border>
@@ -740,152 +741,12 @@
 
         <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
              stacked sections (merged, Zune 2c prep). -->
+        <!-- Dynamics content — now a shared control (#pen-dynamics-move). On the tablet page it's only
+             reached via the focused Pen Dynamics editor (DynamicsOnly checks the hidden DynamicsTab); the
+             selectable pivot lives on the PEN page. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DynamicsTab.IsChecked}">
-            <StackPanel IsEnabled="{Binding CanEditPressure}">
-              <!-- Two columns (#dynamics-2col): pressure on the left, position + tilt on the right. -->
-              <Grid ColumnDefinitions="*,32,*">
-                <!-- LEFT — pressure: live bar · binary · curve · smoothing. -->
-                <StackPanel Grid.Column="0">
-                <!-- Combined pressure card (#dynamics-merge): live bar · binary · curve · smoothing in one
-                     card. The card's own PRESSURE DYNAMICS label (largetitle) is the section heading; the
-                     filter is always enabled internally (neutralize it with a linear curve + zero smoothing). -->
-                <ctrl:Section Margin="0,2,0,10">
-                    <StackPanel>
-                        <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics
-                             shape it, a processed dot at the value after the curve. -->
-                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="PRESSURE DYNAMICS" Classes="SectionLabel largetitle"
-                                       VerticalAlignment="Center" />
-                            <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
-                                        VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
-                                <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
-                                           FontFamily="{DynamicResource MonoFontFamily}"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                                <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
-                                           FontFamily="{DynamicResource MonoFontFamily}"
-                                           Foreground="{DynamicResource SuccessBrush}"
-                                           IsVisible="{Binding ShowLiveProcessed}" />
-                            </StackPanel>
-                            <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
-                                                   Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
-                                                   ShowProcessed="{Binding ShowLiveProcessed}"
-                                                   RawBrush="{DynamicResource AccentBrush}"
-                                                   ProcessedBrush="{DynamicResource SuccessBrush}" />
-                        </Grid>
-
-                        <!-- Binary pressure (#494): a flat on/off contact that drops pressure entirely, so
-                             the curve below is inert while it's on. -->
-                        <ctrl:ToggleSetting Label="Binary pressure" InlineDescription="True" Margin="2,8,0,0"
-                                            Description="Flat on/off contact — ignores the curve below."
-                                            IsChecked="{Binding DisablePressure}" />
-
-                        <!-- #469: when Binary pressure is on the output stage drops pressure, so this curve
-                             has no effect. Flag it here so the tab isn't silently inert. -->
-                        <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
-                                BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"
-                                IsVisible="{Binding PressureDisabledNote}">
-                            <TextBlock Text="Binary pressure is on, so this curve has no effect right now."
-                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                        </Border>
-
-                        <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" Margin="0,10,0,0" />
-
-                            <!-- Two columns: compact chart on the left, controls on the right. -->
-                            <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
-                                <!-- Compact 1:1 chart; the green dot tracks live pen pressure (#102). -->
-                                <ctrl:PressureCurveChart Grid.Column="0" Curve="{Binding Curve, Mode=TwoWay}"
-                                                         LivePressure="{Binding LivePressure}"
-                                                         Width="180" Height="180"
-                                                         VerticalAlignment="Top" Margin="0,0,16,0" />
-
-                                <StackPanel Grid.Column="1">
-                                    <!-- Curve presets as a Soft→Hard ramp of curve-shape thumbnails (each
-                                         applies its softness); replaces the old Linear/Soft/Firm text buttons. -->
-                                    <StackPanel HorizontalAlignment="Left" Spacing="3" Margin="0,0,0,8">
-                                        <TextBlock Text="Soft" HorizontalAlignment="Center"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="0.6"
-                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
-                                                ToolTip.Tip="Soft — lighter touch (concave)">
-                                            <ctrl:PressureCurveThumbnail Softness="0.6" Width="30" Height="30" />
-                                        </Button>
-                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="0"
-                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
-                                                ToolTip.Tip="Linear (no curve)">
-                                            <ctrl:PressureCurveThumbnail Softness="0" Width="30" Height="30" />
-                                        </Button>
-                                        <Button Command="{Binding ApplyPresetCommand}" CommandParameter="-0.6"
-                                                Theme="{StaticResource GhostButton}" Padding="3" HorizontalAlignment="Center"
-                                                ToolTip.Tip="Hard — firmer touch (convex)">
-                                            <ctrl:PressureCurveThumbnail Softness="-0.6" Width="30" Height="30" />
-                                        </Button>
-                                        <TextBlock Text="Hard" HorizontalAlignment="Center"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    </StackPanel>
-
-                                    <!-- Hidden by default (#569); re-enabled from the Developer tab. -->
-                                    <CheckBox Content="Cut below input minimum (dead zone)"
-                                              IsChecked="{Binding CutBelowMinimum}" Margin="0,0,0,8"
-                                              IsVisible="{Binding ShowCutBelowMinimum}"
-                                              Foreground="{DynamicResource TextSecondaryBrush}"
-                                              ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
-
-                                </StackPanel>
-                            </Grid>
-                        <!-- Softness: full-width below the chart. Capped at ±0.95 (±1.0 is mathematically
-                             degenerate); the end ticks sit at the slider ends so the marks read as -1/-0.5/0/0.5/1. -->
-                        <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
-                                            Minimum="-0.95" Maximum="0.95"
-                                            Ticks="-0.95,-0.5,0,0.5,0.95" TickPlacement="BottomRight"
-                                            Value="{Binding Softness}" ValueTextOverride="{Binding SoftnessText}"
-                                            Monospace="True" ValueWidth="44"
-                                            ToolTip.Tip="Positive = lighter touch (concave) · Negative = firmer (convex)" />
-                        <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps. -->
-                        <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"
-                                            Minimum="0" Maximum="{Binding PressureSmoothingMax}"
-                                            Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
-                                            Value="{Binding PressureSmoothing}"
-                                            ValueTextOverride="{Binding PressureSmoothingText}"
-                                            Monospace="True" ValueWidth="44" />
-                    </StackPanel>
-                </ctrl:Section>
-
-                </StackPanel>
-
-                <!-- RIGHT — position + tilt. -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Top">
-                    <!-- Position Dynamics section (merged into DYNAMICS, Zune 2c prep). The section heading
-                         lives on the card's label (largetitle) rather than a separate TabTitle + status. -->
-                    <ctrl:Section Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="POSITION DYNAMICS" Classes="SectionLabel largetitle"
-                                       ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
-                            <!-- Capped at 0.25 (#487): heavier position smoothing is too laggy to be useful. -->
-                            <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
-                                                Minimum="0" Maximum="{Binding PositionSmoothingMax}"
-                                                Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
-                                                Value="{Binding PositionSmoothing}"
-                                                ValueTextOverride="{Binding PositionSmoothingText}"
-                                                Monospace="True" ValueWidth="44" />
-                        </StackPanel>
-                    </ctrl:Section>
-
-                    <!-- Tilt Dynamics section (merged into DYNAMICS, #494). For now just the disable toggle;
-                         a tilt curve / smoothing may join later, matching Pressure/Position. The section
-                         heading lives on the card's label (largetitle) rather than a separate TabTitle. -->
-                    <ctrl:Section Margin="0,28,0,10">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="TILT DYNAMICS" Classes="SectionLabel largetitle" />
-                            <!-- Moved here from Pen Inputs (#494). -->
-                            <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                                Description="Apps receive no tilt from this tablet."
-                                                IsChecked="{Binding DisableTilt}" />
-                        </StackPanel>
-                    </ctrl:Section>
-                </StackPanel>
-              </Grid>
-            </StackPanel>
+            <views:DynamicsView />
         </ScrollViewer>
 
         <!-- Hover tab content (#188) -->

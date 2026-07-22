@@ -19,25 +19,21 @@ public partial class TabletSwitcherBar : UserControl
         AvaloniaProperty.Register<TabletSwitcherBar, object?>(
             nameof(SelectedTablet), defaultBindingMode: BindingMode.TwoWay);
 
-    public static readonly StyledProperty<bool> IsDetectedProperty =
-        AvaloniaProperty.Register<TabletSwitcherBar, bool>(nameof(IsDetected));
-
-    public static readonly StyledProperty<string?> DetectionTextProperty =
-        AvaloniaProperty.Register<TabletSwitcherBar, string?>(nameof(DetectionText));
-
     public static readonly StyledProperty<ICommand?> RefreshCommandProperty =
         AvaloniaProperty.Register<TabletSwitcherBar, ICommand?>(nameof(RefreshCommand));
+
+    public static readonly StyledProperty<bool> ShowRefreshProperty =
+        AvaloniaProperty.Register<TabletSwitcherBar, bool>(nameof(ShowRefresh), defaultValue: true);
 
     /// <summary>The connected + remembered tablets to switch between (from the page VM).</summary>
     public IEnumerable? Tablets { get => GetValue(TabletsProperty); set => SetValue(TabletsProperty, value); }
     /// <summary>The selected tablet (two-way, back to the page VM).</summary>
     public object? SelectedTablet { get => GetValue(SelectedTabletProperty); set => SetValue(SelectedTabletProperty, value); }
-    /// <summary>Whether the current tablet is detected — drives the status chip (from the detail VM).</summary>
-    public bool IsDetected { get => GetValue(IsDetectedProperty); set => SetValue(IsDetectedProperty, value); }
-    /// <summary>The status chip's tooltip text (from the detail VM).</summary>
-    public string? DetectionText { get => GetValue(DetectionTextProperty); set => SetValue(DetectionTextProperty, value); }
     /// <summary>Reload-from-daemon command (from the detail VM).</summary>
     public ICommand? RefreshCommand { get => GetValue(RefreshCommandProperty); set => SetValue(RefreshCommandProperty, value); }
+    /// <summary>Show the Refresh button. False = just the switcher dropdown (e.g. Scribble, which only needs
+    /// to pick which tablet the Dynamics shortcut and Driver-mode mapping target).</summary>
+    public bool ShowRefresh { get => GetValue(ShowRefreshProperty); set => SetValue(ShowRefreshProperty, value); }
 
     public TabletSwitcherBar() => InitializeComponent();
 }
