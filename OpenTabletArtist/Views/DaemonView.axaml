@@ -122,6 +122,68 @@
             </StackPanel>
         </c:Section>
 
+        <!-- Linux only: is OTD installed as a system RPM package (the normal Fedora/RHEL install), or is
+             it running from source / a tarball? Checked on-demand (tab entry + the Refresh button). -->
+        <c:Section Margin="0,0,0,12" IsVisible="{Binding IsLinux}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" MinWidth="0">
+                    <TextBlock Classes="SectionLabel" Text="SYSTEM PACKAGE" TextWrapping="Wrap" />
+
+                    <!-- Installed via RPM -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                IsVisible="{Binding OtdPackageInstalled}">
+                        <TextBlock Classes="success" />
+                        <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SuccessBrush}"
+                                   Text="{Binding OtdPackageVersion, StringFormat='Installed as a system package (RPM) — v{0}'}"
+                                   ToolTip.Tip="OpenTabletDriver is installed via your package manager (rpm -q opentabletdriver)" />
+                    </StackPanel>
+
+                    <!-- Service running -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                IsVisible="{Binding OtdServiceActive}">
+                        <TextBlock Classes="success" />
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Text="Service is running (opentabletdriver.service)" />
+                    </StackPanel>
+
+                    <!-- Start the packaged systemd user service (shown when installed but not running) -->
+                    <Button Content="Start OpenTabletDriver service" Margin="0,8,0,0"
+                            Command="{Binding StartOtdServiceCommand}"
+                            IsVisible="{Binding ShowStartOtdService}"
+                            Theme="{StaticResource AccentButton}" Padding="12,6"
+                            HorizontalAlignment="Left" />
+
+                    <!-- Result of the last Start action -->
+                    <TextBlock Text="{Binding OtdServiceStatus}" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasOtdServiceStatus}" />
+
+                    <!-- Checked and not installed -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                IsVisible="{Binding ShowOtdPackageMissing}">
+                        <TextBlock Classes="neutral" />
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Text="Not installed as a system package — the daemon is running from source or a tarball."
+                                   ToolTip.Tip="No 'opentabletdriver' RPM package is installed (rpm -q opentabletdriver)" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Refresh: re-run the package check on demand. -->
+                <Button Grid.Column="1" Command="{Binding CheckOtdPackageCommand}"
+                        ToolTip.Tip="Re-check whether OTD is installed as a system package"
+                        AutomationProperties.Name="Re-check system package"
+                        Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        VerticalAlignment="Top">
+                    <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                              Foreground="{Binding $parent[Button].Foreground}" />
+                </Button>
+            </Grid>
+        </c:Section>
+
         <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
         <c:Section Margin="0,0,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
