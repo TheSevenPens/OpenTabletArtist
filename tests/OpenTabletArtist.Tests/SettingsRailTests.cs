@@ -5,19 +5,23 @@ using Xunit;
 namespace OpenTabletArtist.Tests;
 
 /// <summary>
-/// The SETTINGS rail hides the Windows-only System pivot off-Windows (Startup registry Run key + Shortcut
-/// .lnk + Driver Cleanup, merged into one pivot for the Zune redesign). The filter is a pure predicate
+/// The SETTINGS rail's System pivot holds OS-specific integration capabilities — the Windows pages (Startup
+/// Run key + Shortcut .lnk + Driver Cleanup) on Windows, the application-menu-entry (.desktop) card on Linux
+/// — so it shows on both and is hidden only on macOS. The filter is a pure predicate
 /// (<see cref="SettingsViewModel.TabAppliesToOs"/>) so it's testable without constructing the whole
 /// view-model graph — mirroring <see cref="AdvancedRailTests"/>.
 /// </summary>
 public class SettingsRailTests
 {
-    [Theory]
-    [InlineData(SettingsTab.System)]  // Startup + Shortcut + Driver Cleanup — all Windows-only
-    public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(SettingsTab tab)
+    [Fact]
+    public void System_ShownOnWindowsAndLinux_HiddenOnMac()
     {
-        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));
-        Assert.False(SettingsViewModel.TabAppliesToOs(tab, isWindows: false));
+        // Windows: the Startup + Shortcut + Driver Cleanup pages.
+        Assert.True(SettingsViewModel.TabAppliesToOs(SettingsTab.System, isWindows: true, isLinux: false));
+        // Linux: the application-menu-entry card.
+        Assert.True(SettingsViewModel.TabAppliesToOs(SettingsTab.System, isWindows: false, isLinux: true));
+        // macOS (neither): no equivalent yet, so the pivot is hidden.
+        Assert.False(SettingsViewModel.TabAppliesToOs(SettingsTab.System, isWindows: false, isLinux: false));
     }
 
     [Theory]
@@ -26,7 +30,8 @@ public class SettingsRailTests
     [InlineData(SettingsTab.Hotkeys)]
     public void CrossPlatformTabs_ShownOnEveryOs(SettingsTab tab)
     {
-        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true));
-        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: false));
+        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: true, isLinux: false));
+        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: false, isLinux: true));
+        Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: false, isLinux: false));
     }
 }

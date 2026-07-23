@@ -21,7 +21,8 @@ public class SingleInstanceTests
     [Fact]
     public void SecondInstance_IsNotPrimary_AndSignalsTheFirstToShow()
     {
-        if (!OperatingSystem.IsWindows()) return; // the signalling mechanism is Windows-only
+        // Signalling is implemented on Windows (named event) and Linux (Unix socket); macOS is a no-op.
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return;
 
         var key = Key();
         using var first = new SingleInstance(key);
@@ -45,7 +46,8 @@ public class SingleInstanceTests
     [Fact]
     public void AfterPrimaryDisposed_NextInstanceBecomesPrimary()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        // The claim (Windows mutex / Linux lock file) is released on Dispose; macOS is always primary.
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return;
 
         var key = Key();
         var first = new SingleInstance(key);

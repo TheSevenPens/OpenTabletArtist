@@ -42,13 +42,17 @@ public partial class SettingsViewModel : ObservableObject
     private readonly SettingsTabItem[] _allTabs;
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
-        ShortcutViewModel shortcut, DriverCleanupViewModel driverCleanup,
+        ShortcutViewModel shortcut, DesktopEntryViewModel desktopEntry, DriverCleanupViewModel driverCleanup,
         PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
-        // "System" groups the three Windows integration/maintenance pages into one pivot (Zune merge),
-        // laid out in two columns: Startup + Shortcut on the left, Driver Cleanup (warnings + cleanup)
-        // on the right.
-        var system = new SystemSettingsViewModel(startup, shortcut, driverCleanup);
+        // The "System" pivot holds each OS's own integration capabilities, kept deliberately separate so
+        // Windows and Linux each do their native thing (no shared abstraction). On Windows it's the three
+        // Windows pages in two columns (Startup + Shortcut | Driver Cleanup); on Linux it's the single
+        // application-menu-entry (.desktop) card, the counterpart to the Windows Start-menu shortcut. macOS
+        // has no equivalent yet, so the pivot is hidden there (see TabAppliesToOs).
+        object system = OperatingSystem.IsWindows()
+            ? new SystemSettingsViewModel(startup, shortcut, driverCleanup)
+            : desktopEntry;
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),
@@ -57,7 +61,7 @@ public partial class SettingsViewModel : ObservableObject
             new("APPEARANCE", SettingsTab.Theme, theme),
             new("SYSTEM", SettingsTab.System, system),
             new("DEVELOPER", SettingsTab.Developer, developer),
-        }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
+        }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows(), OperatingSystem.IsLinux())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
 
@@ -67,12 +71,13 @@ public partial class SettingsViewModel : ObservableObject
         UpdateSelection();
     }
 
-    /// <summary>Whether a SETTINGS pivot applies on the given OS. The <b>System</b> pivot (Startup registry
-    /// Run key + Shortcut .lnk + Driver Cleanup) is Windows-only and hidden off-Windows; the rest are
-    /// cross-platform. Pure (OS passed in, not checked inline) so it's unit-testable — matching
-    /// <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
-    public static bool TabAppliesToOs(SettingsTab tab, bool isWindows) =>
-        isWindows || tab != SettingsTab.System;
+    /// <summary>Whether a SETTINGS pivot applies on the given OS. The <b>System</b> pivot holds OS-specific
+    /// integration capabilities — the Windows pages (Startup Run key + Shortcut .lnk + Driver Cleanup) on
+    /// Windows, the application-menu-entry card on Linux — so it shows on both but is hidden on macOS, which
+    /// has no equivalent yet. Every other pivot is cross-platform. Pure (OS passed in, not checked inline)
+    /// so it's unit-testable — matching <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
+    public static bool TabAppliesToOs(SettingsTab tab, bool isWindows, bool isLinux) =>
+        tab != SettingsTab.System || isWindows || isLinux;
 
     /// <summary>The settings subpages, flat (no owner grouping). Gated tabs stay in the list but hide via
     /// their <see cref="SettingsTabItem.IsVisible"/>.</summary>

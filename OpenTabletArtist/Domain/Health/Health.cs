@@ -136,6 +136,11 @@ public sealed record HealthInputs
     public bool BlockingDriverConflict { get; init; }
     /// <summary>The app itself is running elevated (as Administrator), which breaks Windows Ink + per-app switching.</summary>
     public bool RunningElevated { get; init; }
+    /// <summary>The desktop has no host to render the app's tray icon: a GNOME session with no
+    /// StatusNotifierItem watcher on the bus. Avalonia still publishes the icon, but nothing shows it, so
+    /// closing the window hides the app with no visible icon to reopen from. Linux/GNOME-only — false
+    /// everywhere the tray works (Windows, macOS, non-GNOME Linux, GNOME with the AppIndicator extension).</summary>
+    public bool TrayHostUnavailable { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
     /// <summary>Synthetic warnings to emit, one per severity, induced from the Developer tab so the
     /// "Needs attention" UI can be reviewed/screenshotted. Empty in normal use.</summary>
@@ -231,6 +236,21 @@ public static class HealthEvaluator
             issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
                 "Running as administrator",
                 "This can break Windows Ink pressure/tilt and per-app switching — reopen it normally, not elevated.",
+                Remediation: null));
+        }
+
+        // --- Tray host missing (Linux/GNOME with no StatusNotifierItem host): the tray icon is published
+        //     to the bus but nothing renders it, so closing the window hides the app with no visible icon to
+        //     bring it back. Informational — tablet input is unaffected; it's a heads-up plus how to restore
+        //     the tray. No in-app fix (the GNOME extension is a manual install), so no Fix button. ---
+        if (i.TrayHostUnavailable)
+        {
+            issues.Add(new HealthIssue("tray.gnomeNoSni", HealthSeverity.Information,
+                "Tray icon can't be shown",
+                "Your GNOME desktop has no system-tray host, so OpenTabletArtist's tray icon won't appear — " +
+                "and closing the window hides it with no icon to reopen from (relaunching the app brings the " +
+                "window back). Install the \"AppIndicator and KStatusNotifierItem Support\" GNOME extension to " +
+                "restore the tray icon.",
                 Remediation: null));
         }
 

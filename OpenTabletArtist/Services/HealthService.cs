@@ -184,6 +184,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             HasDriverConflict = _conflicts.HasConflicts,
             BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
             RunningElevated = ProcessElevation.IsElevated,
+            TrayHostUnavailable = DesktopTrayEnvironment.TrayHostUnavailable,
             Tablets = tablets,
         };
         if (!applyDeveloper) return inputs;
@@ -222,6 +223,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             VMultiInstalled = dev.ForceVMultiNotInstalled ? false : _vmultiInstalled,
             HasDriverConflict = inputs.HasDriverConflict || dev.ForceDriverConflict,
             RunningElevated = inputs.RunningElevated || dev.ForceRunningElevated,
+            TrayHostUnavailable = inputs.TrayHostUnavailable || dev.ForceTrayHostUnavailable,
             Tablets = tablets,
             InducedSeverities = induced,
         };
