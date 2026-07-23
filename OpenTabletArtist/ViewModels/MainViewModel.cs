@@ -489,6 +489,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _session.DataLoaded -= ReconcileOpenTabletDetails;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
+        Daemon.Dispose();         // stops the connection card's uptime timer + unsubscribes
         _daemonStatus.Dispose();  // unsubscribes from session PropertyChanged
         foreach (var vm in _tabletDetails.Values) vm.Dispose(); // unsubscribe per-tablet detection
         Diagnostics.Dispose();    // stops debugging + unsubscribes connection sync

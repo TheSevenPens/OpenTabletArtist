@@ -3,203 +3,286 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the DaemonViewModel, supplied by the typed-nav DataTemplate (#15). -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
-        <!-- Full daemon status + controls (moved here from Home). Bound to the shared status VM so the
-             Home problem card and this page stay in sync. Home shows the daemon only when there's a
-             problem; this page always shows the full picture. -->
-        <c:Section Margin="0,0,0,12">
-            <StackPanel>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="DAEMON INFORMATION" TextWrapping="Wrap" />
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <TextBlock Text="{Binding Status.DaemonStatusText}"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                            <!-- Version read off the connected daemon's binary (#296). -->
-                            <TextBlock Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
-                                       Margin="6,0,0,0" IsVisible="{Binding Status.HasDaemonVersion}"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       ToolTip.Tip="Version of the connected OpenTabletDriver daemon" />
+    <!-- DataContext is the DaemonViewModel, supplied by the typed-nav DataTemplate (#15). Two columns:
+         left holds the daemon connection + process cards; right stacks the system-package card (Linux) and
+         the bundled-version card. Columns are top-aligned so the shorter right column doesn't stretch. -->
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="28" MaxWidth="1200" HorizontalAlignment="Left">
+
+        <!-- LEFT COLUMN: DAEMON CONNECTION on top, then DAEMON PROCESS. -->
+        <StackPanel Grid.Column="0" VerticalAlignment="Top">
+
+            <!-- DAEMON CONNECTION (#daemon-overhaul): whether OTA is connected to a daemon and for how long
+                 (measured from when OTA attached — not the daemon's own uptime, which is the PROCESS card).
+                 Bound to the connection sub-VM; Refresh comes from the shared status VM. -->
+            <c:Section DataContext="{Binding Connection}" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Grid.Column="0" MinWidth="0">
+                            <TextBlock Classes="SectionLabel" Text="DAEMON CONNECTION" TextWrapping="Wrap" />
+
+                            <!-- Connected / not connected -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding Status.IsConnected}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Connected to a daemon" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SuccessBrush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding !Status.IsConnected}">
+                                <TextBlock Classes="neutral" />
+                                <TextBlock Text="Not connected"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+
+                            <!-- Connection age (from when OTA attached) -->
+                            <StackPanel Margin="0,8,0,0" IsVisible="{Binding ShowConnectionTiming}">
+                                <TextBlock Text="{Binding ConnectedSince, StringFormat='Connected since {0}'}"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Text="{Binding ConnectedDuration, StringFormat='Up for {0}'}"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                            </StackPanel>
                         </StackPanel>
 
-                        <!-- Daemon ownership indicator (one of three states while connected) -->
+                        <!-- REFRESH (reconnect / reload) -->
+                        <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                            <Button Command="{Binding Status.RefreshCommand}"
+                                    ToolTip.Tip="Check daemon status"
+                                    AutomationProperties.Name="Check daemon status"
+                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                    Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                                <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                          Foreground="{Binding $parent[Button].Foreground}" />
+                            </Button>
+                        </WrapPanel>
+                    </Grid>
 
-                        <!-- App-owned: connected to this project's build -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                    IsVisible="{Binding Status.ShowAppOwnedDaemon}">
-                            <TextBlock Classes="success" />
-                            <TextBlock FontWeight="SemiBold"
-                                       Foreground="{DynamicResource SuccessBrush}"
-                                       Text="Bundled daemon"
-                                       ToolTip.Tip="{Binding Status.DaemonSourcePath}" TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <!-- External: connected to an OTD instance that isn't this project's build -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                    IsVisible="{Binding Status.ShowForeignDaemonWarning}">
+                    <!-- Auto-connect ran past the timeout: it's still retrying in the background, so say so
+                         (with an immediate Retry) rather than a silent "Not connected". (#296) -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0"
+                          IsVisible="{Binding Status.ConnectStalled}">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Classes="warning" />
-                            <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource WarningBrush}"
-                                       Text="External daemon (not app-owned) — click Restart to use this project's build"
-                                       ToolTip.Tip="{Binding Status.DaemonSourcePath}" />
+                            <TextBlock Text="Couldn't reach the daemon — still retrying in the background."
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WarningBrush}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Retry" Command="{Binding Status.RefreshCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="12,6"
+                                VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+            </c:Section>
+
+            <!-- DAEMON PROCESS (#daemon-overhaul): whether a daemon process is running, which one it is
+                 (ownership + path), its version + whether that matches OTA's build, and its process uptime.
+                 Process facts come from a direct process lookup (accurate even when not connected). Bound to
+                 the process sub-VM; Refresh/Start/Restart/Stop come from the shared status VM. -->
+            <c:Section DataContext="{Binding Process}" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Grid.Column="0" MinWidth="0">
+                            <TextBlock Classes="SectionLabel" Text="DAEMON PROCESS" TextWrapping="Wrap" />
+
+                            <!-- Running / not running (+ connected daemon version, when known) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding IsRunning}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Running" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SuccessBrush}" />
+                                <TextBlock Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
+                                           Margin="6,0,0,0" IsVisible="{Binding Status.HasDaemonVersion}"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           ToolTip.Tip="Version of the connected OpenTabletDriver daemon" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding !IsRunning}">
+                                <TextBlock Classes="neutral" />
+                                <TextBlock Text="Not running"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+
+                            <!-- Which daemon: ownership (only meaningful while connected) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding Status.ShowAppOwnedDaemon}">
+                                <TextBlock Classes="success" />
+                                <TextBlock Text="Bundled daemon (app-owned)" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding Status.ShowForeignDaemonWarning}">
+                                <TextBlock Classes="neutral" />
+                                <TextBlock Text="External daemon (not app-owned)" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+
+                            <!-- Path -->
+                            <TextBlock Text="{Binding ProcessPath}" Margin="0,2,0,0" FontSize="12"
+                                       IsVisible="{Binding IsRunning}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+
+                            <!-- Version match vs the version OTA was built with -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding ShowVersionMatch}">
+                                <TextBlock Classes="success" />
+                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="{Binding BuiltAgainstVersion, StringFormat='Matches the version OTA was built with (v{0})'}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        IsVisible="{Binding ShowVersionMismatch}">
+                                <TextBlock Classes="warning" />
+                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
+                                           Text="{Binding BuiltAgainstVersion, StringFormat='Differs from the version OTA was built with (v{0})'}" />
+                            </StackPanel>
+
+                            <!-- Process uptime (the daemon's own run time) -->
+                            <TextBlock Margin="0,8,0,0" IsVisible="{Binding ShowProcessUptime}"
+                                       Text="{Binding ProcessUptime, StringFormat='Uptime {0}'}"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
                         </StackPanel>
 
-                        <!-- Unknown: connected but couldn't read the daemon's exe path -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                    IsVisible="{Binding Status.ShowDaemonSourceUnknown}">
-                            <TextBlock Classes="neutral" />
-                            <TextBlock
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       Text="Daemon source unknown" />
-                        </StackPanel>
+                        <!-- REFRESH / START / RESTART / STOP -->
+                        <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                            <Button Command="{Binding Status.RefreshCommand}"
+                                    ToolTip.Tip="Check daemon status"
+                                    AutomationProperties.Name="Check daemon status"
+                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                    Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    Margin="0,0,6,0">
+                                <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                          Foreground="{Binding $parent[Button].Foreground}" />
+                            </Button>
+                            <!-- Start: shown when not connected and not mid-connect -->
+                            <Button Content="Start" Theme="{StaticResource AccentButton}"
+                                    Command="{Binding Status.StartDaemonCommand}"
+                                    IsVisible="{Binding Status.ShowStartButton}"
+                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                    Padding="12,6" />
+                            <!-- Restart: shown when connected -->
+                            <Button Content="Restart" Theme="{StaticResource AccentButton}"
+                                    Command="{Binding Status.RestartDaemonCommand}"
+                                    IsVisible="{Binding Status.IsConnected}"
+                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                    Padding="12,6" />
+                            <!-- Stop: shown when connected -->
+                            <Button Content="Stop" Theme="{StaticResource DeleteButton}"
+                                    Command="{Binding Status.StopDaemonCommand}"
+                                    IsVisible="{Binding Status.IsConnected}"
+                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                    Padding="12,6" Margin="6,0,0,0" />
+                        </WrapPanel>
+                    </Grid>
+
+                    <!-- Activity: indeterminate progress + phase text while a lifecycle op runs OR while the
+                         initial connect is in flight. -->
+                    <StackPanel IsVisible="{Binding Status.ShowDaemonActivity}" Margin="0,12,0,0">
+                        <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,6"
+                                     Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="{Binding Status.DaemonActivityText}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
 
-                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                        <!-- Refresh button -->
-                        <Button Command="{Binding Status.RefreshCommand}"
-                                ToolTip.Tip="Check daemon status"
-                                AutomationProperties.Name="Check daemon status"
-                                IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Margin="0,0,6,0">
-                            <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                                      Foreground="{Binding $parent[Button].Foreground}" />
-                        </Button>
-                        <!-- Start button: show when NOT connected and not mid-connect -->
-                        <Button Content="Start" Theme="{StaticResource AccentButton}"
-                                Command="{Binding Status.StartDaemonCommand}"
-                                IsVisible="{Binding Status.ShowStartButton}"
-                                IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                Padding="12,6" />
-                        <!-- Restart button: show when connected -->
-                        <Button Content="Restart" Theme="{StaticResource AccentButton}"
-                                Command="{Binding Status.RestartDaemonCommand}"
-                                IsVisible="{Binding Status.IsConnected}"
-                                IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                Padding="12,6" />
-                        <!-- Stop button: show when connected -->
-                        <Button Content="Stop" Theme="{StaticResource DeleteButton}"
-                                Command="{Binding Status.StopDaemonCommand}"
-                                IsVisible="{Binding Status.IsConnected}"
-                                IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                Padding="12,6" Margin="6,0,0,0" />
-                    </WrapPanel>
-                </Grid>
-
-                <!-- Activity: indeterminate progress + phase text while a lifecycle op runs OR while
-                     the initial connect is in flight. -->
-                <StackPanel IsVisible="{Binding Status.ShowDaemonActivity}" Margin="0,12,0,0">
-                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,6"
-                                 Foreground="{DynamicResource AccentBrush}" />
-                    <TextBlock Text="{Binding Status.DaemonActivityText}"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                </StackPanel>
-
-                <!-- Error: shown when a lifecycle op times out or fails -->
-                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
-                            IsVisible="{Binding Status.HasDaemonOperationError}">
-                    <TextBlock Classes="warning" />
-                    <TextBlock Text="{Binding Status.DaemonOperationError}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource WarningBrush}" />
-                </StackPanel>
-
-                <!-- Auto-connect ran past the timeout: it's still retrying in the background, so say
-                     so (with an immediate Retry) rather than a silent "Not connected" (#296). -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0"
-                      IsVisible="{Binding Status.ConnectStalled}">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Error: shown when a lifecycle op times out or fails -->
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                IsVisible="{Binding Status.HasDaemonOperationError}">
                         <TextBlock Classes="warning" />
-                        <TextBlock Text="Couldn't reach the daemon — still retrying in the background."
-                                   TextWrapping="Wrap"
+                        <TextBlock Text="{Binding Status.DaemonOperationError}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource WarningBrush}" />
                     </StackPanel>
-                    <Button Grid.Column="1" Content="Retry" Command="{Binding Status.RefreshCommand}"
-                            Theme="{StaticResource AccentButton}" Padding="12,6"
-                            VerticalAlignment="Center" />
-                </Grid>
-            </StackPanel>
-        </c:Section>
+                </StackPanel>
+            </c:Section>
+        </StackPanel>
 
-        <!-- Linux only: is OTD installed as a system RPM package (the normal Fedora/RHEL install), or is
-             it running from source / a tarball? Checked on-demand (tab entry + the Refresh button). -->
-        <c:Section Margin="0,0,0,12" IsVisible="{Binding IsLinux}">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="SYSTEM PACKAGE" TextWrapping="Wrap" />
+        <!-- RIGHT COLUMN: system-package state (Linux) + the bundled daemon version. -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Top">
 
-                    <!-- Installed via RPM -->
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                IsVisible="{Binding OtdPackageInstalled}">
-                        <TextBlock Classes="success" />
-                        <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource SuccessBrush}"
-                                   Text="{Binding OtdPackageVersion, StringFormat='Installed as a system package (RPM) — v{0}'}"
-                                   ToolTip.Tip="OpenTabletDriver is installed via your package manager (rpm -q opentabletdriver)" />
-                    </StackPanel>
+            <!-- Linux only: is OTD installed as a system RPM package (the normal Fedora/RHEL install), or is
+                 it running from source / a tarball? Checked on-demand (tab entry + the Refresh button). -->
+            <c:Section Margin="0,0,0,12" IsVisible="{Binding IsLinux}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" MinWidth="0">
+                        <TextBlock Classes="SectionLabel" Text="SYSTEM-INSTALLED DAEMON" TextWrapping="Wrap" />
 
-                    <!-- Service running -->
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                IsVisible="{Binding OtdServiceActive}">
-                        <TextBlock Classes="success" />
-                        <TextBlock TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Text="Service is running (opentabletdriver.service)" />
-                    </StackPanel>
+                        <!-- Installed via RPM -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding OtdPackageInstalled}">
+                            <TextBlock Classes="success" />
+                            <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SuccessBrush}"
+                                       Text="{Binding OtdPackageVersion, StringFormat='Installed as a system package (RPM) — v{0}'}"
+                                       ToolTip.Tip="OpenTabletDriver is installed via your package manager (rpm -q opentabletdriver)" />
+                        </StackPanel>
 
-                    <!-- Start the packaged systemd user service (shown when installed but not running) -->
-                    <Button Content="Start OpenTabletDriver service" Margin="0,8,0,0"
-                            Command="{Binding StartOtdServiceCommand}"
-                            IsVisible="{Binding ShowStartOtdService}"
-                            Theme="{StaticResource AccentButton}" Padding="12,6"
-                            HorizontalAlignment="Left" />
+                        <!-- Packaged daemon binary path -->
+                        <TextBlock Text="{Binding OtdDaemonPath}" Margin="0,2,0,0" FontSize="12"
+                                   IsVisible="{Binding HasOtdDaemonPath}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
 
-                    <!-- Result of the last Start action -->
-                    <TextBlock Text="{Binding OtdServiceStatus}" TextWrapping="Wrap" Margin="0,6,0,0"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               IsVisible="{Binding HasOtdServiceStatus}" />
+                        <!-- Service running -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding OtdServiceActive}">
+                            <TextBlock Classes="success" />
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Text="Service is running (opentabletdriver.service)" />
+                        </StackPanel>
 
-                    <!-- Checked and not installed -->
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                IsVisible="{Binding ShowOtdPackageMissing}">
-                        <TextBlock Classes="neutral" />
-                        <TextBlock TextWrapping="Wrap"
+                        <!-- Start the packaged systemd user service (shown when installed but not running) -->
+                        <Button Content="Start OpenTabletDriver service" Margin="0,8,0,0"
+                                Command="{Binding StartOtdServiceCommand}"
+                                IsVisible="{Binding ShowStartOtdService}"
+                                Theme="{StaticResource AccentButton}" Padding="12,6"
+                                HorizontalAlignment="Left" />
+
+                        <!-- Result of the last Start action -->
+                        <TextBlock Text="{Binding OtdServiceStatus}" TextWrapping="Wrap" Margin="0,6,0,0"
                                    Foreground="{DynamicResource TextMutedBrush}"
-                                   Text="Not installed as a system package — the daemon is running from source or a tarball."
-                                   ToolTip.Tip="No 'opentabletdriver' RPM package is installed (rpm -q opentabletdriver)" />
+                                   IsVisible="{Binding HasOtdServiceStatus}" />
+
+                        <!-- Checked and not installed -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsVisible="{Binding ShowOtdPackageMissing}">
+                            <TextBlock Classes="neutral" />
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Text="Not installed as a system package — the daemon is running from source or a tarball."
+                                       ToolTip.Tip="No 'opentabletdriver' RPM package is installed (rpm -q opentabletdriver)" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
 
-                <!-- Refresh: re-run the package check on demand. -->
-                <Button Grid.Column="1" Command="{Binding CheckOtdPackageCommand}"
-                        ToolTip.Tip="Re-check whether OTD is installed as a system package"
-                        AutomationProperties.Name="Re-check system package"
-                        Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        VerticalAlignment="Top">
-                    <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                              Foreground="{Binding $parent[Button].Foreground}" />
-                </Button>
-            </Grid>
-        </c:Section>
+                    <!-- Refresh: re-run the package check on demand. -->
+                    <Button Grid.Column="1" Command="{Binding CheckOtdPackageCommand}"
+                            ToolTip.Tip="Re-check whether OTD is installed as a system package"
+                            AutomationProperties.Name="Re-check system package"
+                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            VerticalAlignment="Top">
+                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
+                                  Foreground="{Binding $parent[Button].Foreground}" />
+                    </Button>
+                </Grid>
+            </c:Section>
 
-        <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
-        <c:Section Margin="0,0,0,12">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON VERSION"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding CurrentOtdVersion}" Margin="0,4,0,0"
-                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                </StackPanel>
+            <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
+            <c:Section>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" MinWidth="0">
+                        <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding CurrentOtdVersion, StringFormat='v{0}'}" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <!-- Bundled daemon binary path -->
+                        <TextBlock Text="{Binding BundledDaemonPath}" Margin="0,2,0,0" FontSize="12"
+                                   IsVisible="{Binding HasBundledDaemonPath}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                    </StackPanel>
 
-                <!-- Launch OTD's own UX -->
-                <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
-                        Command="{Binding Status.LaunchOtdUxCommand}"
-                        VerticalAlignment="Center"
-                        Padding="12,6" />
-            </Grid>
-        </c:Section>
-    </StackPanel>
+                    <!-- Launch OTD's own UX -->
+                    <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
+                            Command="{Binding Status.LaunchOtdUxCommand}"
+                            VerticalAlignment="Center"
+                            Padding="12,6" />
+                </Grid>
+            </c:Section>
+        </StackPanel>
+    </Grid>
 </UserControl>

@@ -5,41 +5,30 @@ namespace OpenTabletArtist.Services;
 
 /// <summary>
 /// Detects whether OpenTabletDriver is installed as a system RPM package — the normal Fedora/RHEL install —
-/// versus run from source or a tarball. Linux + RPM specific (the daemon page's Linux card). It queries the
-/// local RPM database with <c>rpm -q</c> (~10ms, no network); any failure — off Linux, rpm absent, timeout —
-/// reports "not installed" rather than throwing. Checked on-demand (daemon-tab entry + a Refresh button), so
-/// it never runs on the status-poll path.
+/// versus run from source or a tarball, and where the packaged daemon binary lives. Linux + RPM specific
+/// (the daemon page's Linux card). Queries the local RPM database with <c>rpm</c> (~10ms, no network); any
+/// failure — off Linux, rpm absent, timeout — reports "not installed" rather than throwing. Checked
+/// on-demand (daemon-tab entry + a Refresh button), so it never runs on the status-poll path.
 /// </summary>
 public static class OtdPackageInstall
 {
     /// <summary>The package name the OTD RPM spec ships under (OTD_LNAME).</summary>
     public const string PackageName = "opentabletdriver";
 
-    /// <summary>Whether the package is installed, and its <c>version-release</c> string when it is.</summary>
-    public sealed record Result(bool Installed, string? Version);
+    /// <summary>Whether the package is installed, its <c>version-release</c>, and the packaged daemon binary
+    /// path (all null/false when not installed).</summary>
+    public sealed record Result(bool Installed, string? Version, string? DaemonPath = null);
 
-    /// <summary>Query the RPM database for the OTD package. See the type summary for failure behavior.</summary>
+    /// <summary>Query the RPM database for the OTD package (version + daemon path). See the type summary for
+    /// failure behavior.</summary>
     public static Result Query()
     {
         if (!OperatingSystem.IsLinux()) return new Result(false, null);
         try
         {
-            var psi = new ProcessStartInfo("rpm")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            psi.ArgumentList.Add("-q");
-            psi.ArgumentList.Add("--queryformat");
-            psi.ArgumentList.Add("%{VERSION}-%{RELEASE}"); // just the version-release, not the full NEVRA
-            psi.ArgumentList.Add(PackageName);
-
-            using var proc = Process.Start(psi);
-            if (proc == null) return new Result(false, null);
-            // WaitForExit before reading (output is tiny, no full-pipe deadlock) so a hung rpm can't block.
-            if (!proc.WaitForExit(2000)) { try { proc.Kill(); } catch { /* best effort */ } return new Result(false, null); }
-            return Interpret(proc.ExitCode, proc.StandardOutput.ReadToEnd());
+            var (exit, output) = RunRpm("-q", "--queryformat", "%{VERSION}-%{RELEASE}", PackageName);
+            var result = Interpret(exit, output);
+            return result.Installed ? result with { DaemonPath = QueryDaemonPath() } : result;
         }
         catch
         {
@@ -56,5 +45,42 @@ public static class OtdPackageInstall
         return exitCode == 0 && version.Length > 0
             ? new Result(true, version)
             : new Result(false, null);
+    }
+
+    // The daemon executable the package installs — the real assembly (…/OpenTabletDriver.Daemon), falling
+    // back to the /usr/bin/otd-daemon launcher. Null if the file list can't be read.
+    private static string? QueryDaemonPath()
+    {
+        var (exit, output) = RunRpm("-ql", PackageName);
+        if (exit != 0) return null;
+        string? launcher = null;
+        foreach (var line in output.Split('\n'))
+        {
+            var path = line.Trim();
+            if (path.EndsWith("/OpenTabletDriver.Daemon", StringComparison.Ordinal)) return path;
+            if (path.EndsWith("/otd-daemon", StringComparison.Ordinal)) launcher = path;
+        }
+        return launcher;
+    }
+
+    // Run `rpm <args>` with a timeout guard; returns the exit code and stdout (tiny, so reading after
+    // WaitForExit can't deadlock the pipe). Throws on spawn failure — callers wrap in try/catch.
+    private static (int exit, string output) RunRpm(params string[] args)
+    {
+        var psi = new ProcessStartInfo("rpm")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to launch rpm.");
+        if (!proc.WaitForExit(2000))
+        {
+            try { proc.Kill(); } catch { /* best effort */ }
+            throw new TimeoutException("rpm did not respond in time.");
+        }
+        return (proc.ExitCode, proc.StandardOutput.ReadToEnd());
     }
 }
