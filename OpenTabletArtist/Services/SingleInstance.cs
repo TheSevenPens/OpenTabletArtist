@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 
 namespace OpenTabletArtist.Services;
@@ -23,6 +24,7 @@ public sealed class SingleInstance : IDisposable
     private Mutex? _mutex;
     private EventWaitHandle? _showEvent;
     private RegisteredWaitHandle? _registration;
+    private FileStream? _lockFile;
 
     public SingleInstance(string? key = null)
     {
@@ -41,6 +43,9 @@ public sealed class SingleInstance : IDisposable
     /// </summary>
     public bool TryAcquire()
     {
+        if (OperatingSystem.IsLinux())
+            return TryAcquireLinux();
+
         if (!OperatingSystem.IsWindows())
         {
             IsPrimary = true;
@@ -64,6 +69,25 @@ public sealed class SingleInstance : IDisposable
         return IsPrimary;
     }
 
+    private bool TryAcquireLinux()
+    {
+        var dir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR")
+                  ?? Path.Combine(Path.GetTempPath(), $"opentabletartist-{Environment.UserName}");
+        Directory.CreateDirectory(dir);
+        var lockPath = Path.Combine(dir, _mutexName + ".lock");
+        try
+        {
+            // FileShare.None ensures exclusive access — a second instance's open will throw IOException.
+            _lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            IsPrimary = true;
+        }
+        catch (IOException)
+        {
+            IsPrimary = false; // another instance holds the lock
+        }
+        return IsPrimary;
+    }
+
     /// <summary>
     /// Primary-only: run <paramref name="onActivate"/> whenever a later instance signals (i.e. the
     /// user relaunched the app). The callback runs on a thread-pool thread, so it must marshal to the
@@ -84,6 +108,12 @@ public sealed class SingleInstance : IDisposable
         _registration = null;
         _showEvent?.Dispose();
         _showEvent = null;
+
+        if (_lockFile != null)
+        {
+            _lockFile.Dispose(); // releasing the stream releases the exclusive file handle
+            _lockFile = null;
+        }
 
         if (_mutex != null)
         {

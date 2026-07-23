@@ -16,7 +16,9 @@ public static class ClipboardText
 
     public static bool TrySet(string? text)
     {
-        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text)) return false;
+        if (OperatingSystem.IsLinux()) return TrySetLinux(text);
+        if (!OperatingSystem.IsWindows()) return false;
 
         var buffer = Encoding.Unicode.GetBytes(text + '\0');
         var hMem = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)buffer.Length);
@@ -39,6 +41,38 @@ public static class ClipboardText
             return true; // on success the clipboard owns hMem
         }
         finally { CloseClipboard(); }
+    }
+
+    private static bool TrySetLinux(string text)
+    {
+        // Try Wayland first, then X11 tools.
+        string[][] commands =
+        [
+            ["wl-copy"],
+            ["xclip", "-selection", "clipboard"],
+            ["xsel", "--clipboard", "--input"],
+        ];
+        foreach (var cmd in commands)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(cmd[0])
+                {
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                for (int i = 1; i < cmd.Length; i++) psi.ArgumentList.Add(cmd[i]);
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc == null) continue;
+                proc.StandardInput.Write(text);
+                proc.StandardInput.Close();
+                proc.WaitForExit(3000);
+                if (proc.ExitCode == 0) return true;
+            }
+            catch { /* tool not installed — try next */ }
+        }
+        return false;
     }
 
     [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint uFlags, UIntPtr dwBytes);

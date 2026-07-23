@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace OpenTabletArtist.Services;
@@ -20,7 +21,9 @@ public static class ClipboardImage
     /// failure (the caller can surface that however it likes).</summary>
     public static bool CopyBgra(byte[] bgraTopDown, int width, int height)
     {
-        if (!OperatingSystem.IsWindows() || width <= 0 || height <= 0) return false;
+        if (width <= 0 || height <= 0) return false;
+        if (OperatingSystem.IsLinux()) return CopyBgraLinux(bgraTopDown, width, height);
+        if (!OperatingSystem.IsWindows()) return false;
         int stride = width * 4;
         if (bgraTopDown.Length < (long)stride * height) return false;
 
@@ -67,6 +70,46 @@ public static class ClipboardImage
         {
             CloseClipboard();
         }
+    }
+
+    private static bool CopyBgraLinux(byte[] bgraTopDown, int width, int height)
+    {
+        // Encode as PNG via SkiaSharp and pipe to a clipboard tool.
+        byte[] png;
+        using (var bmp = new SkiaSharp.SKBitmap(width, height, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Premul))
+        {
+            var span = bmp.GetPixelSpan();
+            bgraTopDown.AsSpan(0, width * 4 * height).CopyTo(span);
+            using var data = bmp.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+            png = data.ToArray();
+        }
+
+        string[][] commands =
+        [
+            ["wl-copy", "--type", "image/png"],
+            ["xclip", "-selection", "clipboard", "-target", "image/png"],
+        ];
+        foreach (var cmd in commands)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(cmd[0])
+                {
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                for (int i = 1; i < cmd.Length; i++) psi.ArgumentList.Add(cmd[i]);
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc == null) continue;
+                proc.StandardInput.BaseStream.Write(png, 0, png.Length);
+                proc.StandardInput.Close();
+                proc.WaitForExit(3000);
+                if (proc.ExitCode == 0) return true;
+            }
+            catch { /* tool not installed — try next */ }
+        }
+        return false;
     }
 
     [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint uFlags, UIntPtr dwBytes);

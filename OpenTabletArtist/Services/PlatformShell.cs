@@ -28,7 +28,8 @@ public static class PlatformShell
                 Process.Start(new ProcessStartInfo("ms-settings:display") { UseShellExecute = true });
             else if (OperatingSystem.IsMacOS())
                 Launch("open", "x-apple.systempreferences:com.apple.preference.displays");
-            // Linux: no portable display-settings target — no-op.
+            else if (OperatingSystem.IsLinux())
+                OpenLinuxDisplaySettings();
         }
         catch { /* best-effort */ }
     }
@@ -37,6 +38,17 @@ public static class PlatformShell
     /// <c>xdg-open</c> (Linux). Pure — unit-tested.</summary>
     public static string FileManagerExe(bool isWindows, bool isMacOS)
         => isWindows ? "explorer.exe" : isMacOS ? "open" : "xdg-open";
+
+    private static void OpenLinuxDisplaySettings()
+    {
+        var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "";
+        if (desktop.Contains("GNOME", StringComparison.OrdinalIgnoreCase))
+            Launch("gnome-control-center", "display");
+        else if (desktop.Contains("KDE", StringComparison.OrdinalIgnoreCase))
+            Launch("systemsettings", "kcm_kscreen");
+        else
+            Launch("xdg-open", "x-settings:display"); // best-effort freedesktop fallback
+    }
 
     private static void Launch(string exe, string arg)
     {
