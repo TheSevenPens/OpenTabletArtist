@@ -41,7 +41,7 @@ A **top navigation bar** runs across the top of the window with six pages — **
 
 - **Tablet** and **Pen** carry the selected tablet's settings. A tablet **switcher** dropdown at the top-right picks which tablet you're editing (shown when more than one is connected) — the **Tablet**, **Pen**, and **Scribble** switchers are linked, so they always show the same tablet. The **Tablet** page's tabs are **about · mapping · calibration · buttons · wheels**; the **Pen** page's tabs are **movement · inputs · dynamics**.
 - **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
-- **Advanced** hosts OpenTabletDriver's pages: **Daemon** (status + version), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
+- **Advanced** hosts OpenTabletDriver's pages: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
 
 Every paired or connected tablet also appears on **Home** under *Your tablets*, each with a **Settings** button (opens the Tablet page for it) and a **Forget** button.
 
