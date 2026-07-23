@@ -1,20 +1,27 @@
 using System;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace OpenTabletArtist.Services;
 
 /// <summary>
-/// Ensures only one instance of the app runs at a time (#191). The first ("primary") instance owns a
-/// named <see cref="Mutex"/> and listens on a named <see cref="EventWaitHandle"/>; a second instance
-/// detects the mutex, signals that event (so the primary surfaces its window) and exits immediately —
-/// avoiding the duplicate window + duplicate tray icon you'd otherwise get.
+/// Ensures only one instance of the app runs at a time (#191). The first ("primary") instance holds the
+/// claim and listens for activation; a second instance detects the primary, signals it to surface its
+/// window, and exits immediately — avoiding the duplicate window + duplicate tray icon you'd otherwise get.
 ///
-/// Windows-only: the named-event signalling isn't supported on other platforms, so there it's a no-op
-/// (every launch is treated as primary). Cross-platform single-instance is out of scope for now
-/// (see the macOS/Linux investigations, #140/#192).
+/// The signalling is platform-specific:
+/// <list type="bullet">
+/// <item><b>Windows</b> — a named <see cref="Mutex"/> for the claim + a named <see cref="EventWaitHandle"/>
+/// the second instance sets.</item>
+/// <item><b>Linux</b> — an exclusive lock file for the claim + a Unix-domain socket the second instance
+/// connects to; the connection is the whole signal. Fully raises the window on X11; on Wayland the
+/// compositor may only flag the window for attention rather than foreground it, since it forbids an app
+/// from raising itself (#192).</item>
+/// <item><b>Other (macOS)</b> — a no-op: every launch is treated as primary (#140).</item>
+/// </list>
 ///
-/// The name suffix is injectable so tests can use an isolated mutex/event per run.
+/// The name suffix is injectable so tests can use an isolated claim/channel per run.
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {
@@ -25,6 +32,11 @@ public sealed class SingleInstance : IDisposable
     private EventWaitHandle? _showEvent;
     private RegisteredWaitHandle? _registration;
     private FileStream? _lockFile;
+
+    // Linux activation channel: the primary binds/listens on this socket, a second instance connects to it.
+    private string? _socketPath;
+    private Socket? _listenSocket;
+    private Thread? _acceptThread;
 
     public SingleInstance(string? key = null)
     {
@@ -75,6 +87,7 @@ public sealed class SingleInstance : IDisposable
                   ?? Path.Combine(Path.GetTempPath(), $"opentabletartist-{Environment.UserName}");
         Directory.CreateDirectory(dir);
         var lockPath = Path.Combine(dir, _mutexName + ".lock");
+        _socketPath = Path.Combine(dir, _eventName + ".sock"); // where the primary listens for a nudge
         try
         {
             // FileShare.None ensures exclusive access — a second instance's open will throw IOException.
@@ -83,9 +96,24 @@ public sealed class SingleInstance : IDisposable
         }
         catch (IOException)
         {
-            IsPrimary = false; // another instance holds the lock
+            IsPrimary = false;   // another instance holds the lock
+            NudgePrimaryLinux(); // ask it to surface its window (best-effort)
         }
         return IsPrimary;
+    }
+
+    /// <summary>Second-instance side: connect to the primary's socket to signal it. The connection itself
+    /// is the signal (no payload); the primary's accept loop reacts. Best-effort — if the primary is still
+    /// starting up (socket not yet bound) or the file is stale, the connect just fails and we exit anyway.</summary>
+    private void NudgePrimaryLinux()
+    {
+        if (_socketPath == null) return;
+        try
+        {
+            using var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            client.Connect(new UnixDomainSocketEndPoint(_socketPath));
+        }
+        catch { /* primary not listening (yet) — worst case the user surfaces the window themselves */ }
     }
 
     /// <summary>
@@ -95,11 +123,61 @@ public sealed class SingleInstance : IDisposable
     /// </summary>
     public void ListenForActivation(Action onActivate)
     {
-        if (!IsPrimary || !OperatingSystem.IsWindows()) return;
+        if (!IsPrimary) return;
+
+        if (OperatingSystem.IsLinux())
+        {
+            ListenForActivationLinux(onActivate);
+            return;
+        }
+
+        if (!OperatingSystem.IsWindows()) return;
 
         _showEvent = new EventWaitHandle(initialState: false, EventResetMode.AutoReset, _eventName);
         _registration = ThreadPool.RegisterWaitForSingleObject(
             _showEvent, (_, _) => onActivate(), state: null, Timeout.Infinite, executeOnlyOnce: false);
+    }
+
+    private void ListenForActivationLinux(Action onActivate)
+    {
+        if (_socketPath == null) return;
+        try
+        {
+            // We hold the lock, so any leftover socket file is from a crashed prior primary — remove it so
+            // Bind doesn't fail with "address already in use".
+            if (File.Exists(_socketPath)) File.Delete(_socketPath);
+
+            _listenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            _listenSocket.Bind(new UnixDomainSocketEndPoint(_socketPath));
+            _listenSocket.Listen(backlog: 4);
+        }
+        catch
+        {
+            _listenSocket?.Dispose();
+            _listenSocket = null;
+            return; // dedup still works; we just can't be nudged to the front
+        }
+
+        // Blocking accept loop on a background thread. Disposing the listener unblocks Accept (it throws),
+        // which ends the loop. Each connection is one "surface the window" request.
+        _acceptThread = new Thread(() => AcceptLoop(_listenSocket, onActivate))
+        {
+            IsBackground = true,
+            Name = "OTA-single-instance",
+        };
+        _acceptThread.Start();
+    }
+
+    private static void AcceptLoop(Socket listener, Action onActivate)
+    {
+        while (true)
+        {
+            Socket client;
+            try { client = listener.Accept(); }
+            catch { break; } // listener disposed on shutdown (or a fatal socket error) — stop listening
+            try { onActivate(); } catch { /* activation callback must never kill the loop */ }
+            try { client.Dispose(); } catch { }
+        }
     }
 
     public void Dispose()
@@ -108,6 +186,19 @@ public sealed class SingleInstance : IDisposable
         _registration = null;
         _showEvent?.Dispose();
         _showEvent = null;
+
+        // Closing the listener unblocks the accept loop (Accept throws → the thread exits).
+        if (_listenSocket != null)
+        {
+            try { _listenSocket.Dispose(); } catch { }
+            _listenSocket = null;
+            _acceptThread?.Join(500); // best-effort; it's a background thread so exit isn't blocked regardless
+            _acceptThread = null;
+        }
+        if (_socketPath != null && IsPrimary)
+        {
+            try { if (File.Exists(_socketPath)) File.Delete(_socketPath); } catch { }
+        }
 
         if (_lockFile != null)
         {
