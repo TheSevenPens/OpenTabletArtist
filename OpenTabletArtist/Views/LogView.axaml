@@ -3,10 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the LogViewModel, supplied by the typed-nav DataTemplate (#15). -->
-    <StackPanel HorizontalAlignment="Stretch">
+    <!-- DataContext is the LogViewModel, supplied by the typed-nav DataTemplate (#15). The page fills the
+         viewport (the shell disables the outer scroll for the Console tab): the toolbar is pinned at the
+         top and only the log list scrolls, so there's never a second, outer scrollbar. -->
+    <Grid RowDefinitions="Auto,*">
         <!-- Toolbar: level filter, search, auto-scroll, copy/clear -->
-        <c:Section Margin="0,0,0,12">
+        <c:Section Grid.Row="0" Margin="0,0,0,12">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="14" VerticalAlignment="Center">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Text="Level" VerticalAlignment="Center"
@@ -50,11 +52,12 @@
             </Grid>
         </c:Section>
 
-        <!-- Log -->
-        <c:Section Padding="0" ClipToBounds="True">
-            <Panel>
+        <!-- Log — fills the remaining height; the ListBox scrolls internally. A plain Panel (not c:Section,
+             whose template stacks its content and would let the ListBox size to all its rows) so the list
+             is bounded to the row and its own scrollbar engages. -->
+        <Panel Grid.Row="1" ClipToBounds="True">
                 <ListBox x:Name="LogList" ItemsSource="{Binding Entries}"
-                         Height="560" Background="Transparent" BorderThickness="0"
+                         Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
@@ -88,7 +91,6 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            IsHitTestVisible="False"
                            IsVisible="{Binding ShowEmptyState}" />
-            </Panel>
-        </c:Section>
-    </StackPanel>
+        </Panel>
+    </Grid>
 </UserControl>

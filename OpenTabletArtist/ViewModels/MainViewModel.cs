@@ -111,12 +111,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // no view-lookup converter, and no per-view DataContext re-point.
     [ObservableProperty] private ObservableObject? _currentPage;
 
-    /// <summary>The tablet detail page manages its own scrolling — a fixed header + tab rail with a
-    /// per-tab scroll region — so the outer content ScrollViewer is <c>Disabled</c> for it, bounding the
-    /// page to the viewport so its inner scroll engages and the header no longer scrolls away (#507).
-    /// Every other page is plain content and uses the outer scroll (<c>Auto</c>).</summary>
+    /// <summary>Pages that manage their own scrolling get the outer content ScrollViewer <c>Disabled</c>,
+    /// which bounds them to the viewport so their inner scroll engages and their fixed chrome stops
+    /// scrolling away: the tablet detail page (fixed header + per-tab scroll, #507), and the ADVANCED
+    /// <c>Console</c> tab (fixed toolbar + an internally-scrolling log list, so it never shows dual
+    /// scrollbars). Every other page is plain content and uses the outer scroll (<c>Auto</c>).</summary>
     public Avalonia.Controls.Primitives.ScrollBarVisibility ContentScrollBarVisibility =>
         CurrentPage is TabletPageViewModel or TabletDetailViewModel
+        || (CurrentPage is AdvancedViewModel adv && adv.SelectedTab == Domain.AdvancedTab.Console)
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
             : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
 
@@ -196,6 +198,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
             VMulti);
+        // The Console tab manages its own scroll, so the outer scroll toggles as the ADVANCED tab changes
+        // (not just when the top-level page changes) — re-evaluate ContentScrollBarVisibility on tab switch.
+        Advanced.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AdvancedViewModel.SelectedTab))
+                OnPropertyChanged(nameof(ContentScrollBarVisibility));
+        };
         // The SETTINGS tabbed page holds OTA's own preference subpages, sharing the same VM instances,
         // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
         // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
