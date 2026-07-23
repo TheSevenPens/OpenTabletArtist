@@ -91,6 +91,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ThemeViewModel Theme { get; } = new();
     /// <summary>The SETTINGS → Shortcut tab (create a Start-menu shortcut; Windows-only).</summary>
     public ShortcutViewModel Shortcut { get; } = new();
+    public DesktopEntryViewModel DesktopEntry { get; } = new();
 
     /// <summary>Tablets list + supported-tablets link, now rendered as a section of Home (the standalone
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
@@ -208,7 +209,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // The SETTINGS tabbed page holds OTA's own preference subpages, sharing the same VM instances,
         // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
         // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
-        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DriverCleanup,
+        Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DesktopEntry, DriverCleanup,
             Presets, PerApp, Developer);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail

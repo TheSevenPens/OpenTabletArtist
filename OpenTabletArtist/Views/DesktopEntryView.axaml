@@ -1,0 +1,21 @@
+<UserControl x:Class="OpenTabletArtist.Views.DesktopEntryView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls">
+
+    <!-- DataContext is the DesktopEntryViewModel. The Linux counterpart to ShortcutView (Windows). -->
+    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+        <c:Section Title="Application menu entry"
+                       Description="Create a per-user application-menu entry (.desktop) for this app, so it appears in your launcher / app grid. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
+            <StackPanel Spacing="8">
+                <Button Content="Create application menu entry"
+                        Command="{Binding CreateDesktopEntryCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                        HorizontalAlignment="Left" />
+                <TextBlock Text="{Binding EntryStatus}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           IsVisible="{Binding HasEntryStatus}" />
+            </StackPanel>
+        </c:Section>
+    </StackPanel>
+</UserControl>
