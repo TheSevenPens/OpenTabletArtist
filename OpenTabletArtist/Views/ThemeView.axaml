@@ -80,7 +80,7 @@
         <StackPanel Grid.Column="2">
         <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
              opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
-        <c:Section Title="Colours &amp; translucency" IsVisible="{Binding ShowFrostControls}"
+        <c:Section Title="Colors &amp; opacity" IsVisible="{Binding ShowFrostControls}"
                        Description="Pick colours from the palette and set how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
             <StackPanel Spacing="14">
                 <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
