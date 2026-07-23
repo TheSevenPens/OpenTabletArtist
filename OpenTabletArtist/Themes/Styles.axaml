@@ -533,6 +533,30 @@
             </Style>
         </ControlTheme>
 
+        <!-- LinkButton: a borderless, background-free button that reads as plain clickable text. No chrome
+             (no box/border), no uppercasing — the content shows verbatim; use accent foreground on the
+             content to signal it's a link. -->
+        <ControlTheme x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalContentAlignment="Left"
+                                          VerticalContentAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <!-- A ControlTheme can't contain a descendant selector (e.g. "^:pointerover TextBlock"), so hover
+                 feedback is just a slightly dimmer content via opacity on the whole button. -->
+            <Style Selector="^:pointerover">
+                <Setter Property="Opacity" Value="0.75" />
+            </Style>
+        </ControlTheme>
+
         <!-- Tab RadioButton (for dialog tabs) -->
         <!-- Real-tab look: flat header with a 2px accent underline on the selected tab (sits on the
              tab strip's baseline), instead of a pill button. -->

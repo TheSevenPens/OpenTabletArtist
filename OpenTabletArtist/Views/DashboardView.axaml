@@ -28,50 +28,42 @@
                             <c:Alert Margin="0,0,0,8" Padding="14,11"
                                      Severity="{Binding Severity, Converter={x:Static conv:HealthSeverityToAlertSeverityConverter.Instance}}">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-                                    <Border Grid.Column="0" Classes="severityBar"
-                                            Classes.error="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}"
-                                            Classes.warning="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}"
-                                            Classes.neutral="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}"
-                                            Classes.information="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}">
-                                        <Panel>
-                                            <PathIcon Data="{StaticResource IconAlertCircle}" Width="22" Height="22" Foreground="White"
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}" />
-                                            <PathIcon Data="{StaticResource IconAlert}" Width="22" Height="22" Foreground="White"
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}" />
-                                            <PathIcon Data="{StaticResource IconLightbulbOn}" Width="22" Height="22" Foreground="White"
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
-                                            <PathIcon Data="{StaticResource IconInformationOutline}" Width="22" Height="22" Foreground="White"
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}" />
-                                        </Panel>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
+                                    <!-- Per-tier icon, no coloured box (#health-icon): dark so it reads on the
+                                         card's tint, and top-aligned to sit with the title. -->
+                                    <Panel Grid.Column="0" VerticalAlignment="Top" Margin="0,1,0,0">
+                                        <PathIcon Data="{StaticResource IconAlertCircle}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}" />
+                                        <PathIcon Data="{StaticResource IconAlert}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}" />
+                                        <PathIcon Data="{StaticResource IconLightbulbOn}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
+                                        <PathIcon Data="{StaticResource IconInformationOutline}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}" />
+                                    </Panel>
+                                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Top">
                                         <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Detail}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                                         <!-- Multi-part issues (#artist-pen-health): a review link per offending
                                              setting, each deep-linking to the Pen pivot that owns it. Only the
                                              artist-pen-behavior card sets Links; other issues leave it null. -->
-                                        <ItemsControl ItemsSource="{Binding Links}" Margin="0,8,0,0"
+                                        <ItemsControl ItemsSource="{Binding Links}" Margin="0,6,0,0"
                                                       IsVisible="{Binding Links, Converter={StaticResource NotNull}}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
+                                                    <!-- A simple bullet list; each item is a clickable link that
+                                                         reads "location › setting" and jumps to that pivot. -->
                                                     <Button Command="{Binding $parent[ItemsControl].DataContext.FollowLinkCommand}"
                                                             CommandParameter="{Binding}"
-                                                            Theme="{StaticResource GhostButton}" Padding="8,5" Margin="0,0,0,4"
-                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                                            ToolTip.Tip="Review this setting">
-                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                            <TextBlock Grid.Column="0" Text="{Binding Setting}" TextWrapping="Wrap"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                            <TextBlock Grid.Column="1" Text="{Binding Destination}" VerticalAlignment="Center"
-                                                                       FontSize="{DynamicResource TypeCaptionSize}"
+                                                            Theme="{StaticResource LinkButton}" Padding="0,2" Margin="0"
+                                                            HorizontalAlignment="Left"
+                                                            ToolTip.Tip="Go to this setting">
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <TextBlock Text="•" VerticalAlignment="Top"
+                                                                       Foreground="{DynamicResource TextMutedBrush}" />
+                                                            <TextBlock Text="{Binding Label}" TextWrapping="Wrap"
                                                                        Foreground="{DynamicResource AccentBrush}" />
-                                                        </Grid>
+                                                        </StackPanel>
                                                     </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -138,10 +130,21 @@
                         <c:Entity Margin="0,0,0,10" Icon="{StaticResource IconMonitor}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding StatusText}" Margin="0,4,0,0"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <!-- Detection status as the same link / link-off icon the tablet
+                                             dropdown uses (green = detected, muted = not); the old
+                                             "Detected"/"Not detected" word is now the icon's tooltip. -->
+                                        <Panel Width="16" Height="16" VerticalAlignment="Center"
+                                               ToolTip.Tip="{Binding StatusText}">
+                                            <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16"
+                                                      Foreground="{DynamicResource SuccessBrush}"
+                                                      IsVisible="{Binding IsDetected}" />
+                                            <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16"
+                                                      Foreground="{DynamicResource NeutralBrush}"
+                                                      IsVisible="{Binding !IsDetected}" />
+                                        </Panel>
+                                    </StackPanel>
                                     <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0"
                                                IsVisible="{Binding HasLastSeenDetail}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
