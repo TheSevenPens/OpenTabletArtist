@@ -67,7 +67,7 @@ public class HoverProfileTests
         HoverProfile.Write(settings, "Tab", 200, enable: true);
 
         var filters = settings.Profiles.First().Filters;
-        Assert.Single(filters.Where(f => f.Path == HoverProfile.FilterTypeName));
+        Assert.Single(filters, f => f.Path == HoverProfile.FilterTypeName);
         Assert.Equal(200, HoverProfile.Read(settings, "Tab")!.MaxHoverDistance);
     }
 }

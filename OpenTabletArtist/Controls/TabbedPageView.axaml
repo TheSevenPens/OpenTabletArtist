@@ -1,8 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:OpenTabletArtist.Converters"
+             xmlns:c="using:OpenTabletArtist.Controls"
              x:Class="OpenTabletArtist.Controls.TabbedPageView"
              x:Name="Root">
+
+    <!-- Section-card titles are shown at the larger `largetitle` size on the SETTINGS + ADVANCED tabbed
+         pages (this control hosts both, and only them). Covers both forms: a c:Section's own Title (its
+         template's PART_Title) and standalone TextBlock.SectionLabel headings. Scoped here so it applies to
+         every tab of these two pages without touching each tab view. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.SectionLabel">
+            <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
+        </Style>
+        <Style Selector="c|Section /template/ TextBlock#PART_Title">
+            <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
+        </Style>
+    </UserControl.Styles>
 
     <!-- Shared host for the SETTINGS + ADVANCED tabbed pages. Zune pivot layout (Phase 2): a horizontal
          row of lowercase pivots (the subpage names) over the selected subpage. No page-entity title — the

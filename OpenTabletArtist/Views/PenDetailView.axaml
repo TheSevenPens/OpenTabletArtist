@@ -110,13 +110,11 @@
                         <StackPanel Spacing="10">
                             <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
                             <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                                Description="Tapping does nothing; your tip binding returns when off."
                                                 IsChecked="{Binding DisablePenTip}" />
                             <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
                                  pressure entirely (the Pen Dynamics curve is then inert). Moved here from
                                  the Dynamics tab. -->
                             <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
-                                                Description="Flat on/off contact — the pen registers full pressure on contact."
                                                 IsChecked="{Binding DisablePressure}" />
                             <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
                             <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
