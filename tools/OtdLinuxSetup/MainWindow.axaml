@@ -1,0 +1,105 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OtdLinuxSetup.MainWindow"
+        Title="OTD Linux Setup"
+        Width="600" Height="520"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E">
+
+    <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#2A2A3C"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style Selector="TextBlock.title">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="TextBlock.desc">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style Selector="TextBlock.status-icon">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.fix">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="24">
+        <!-- Header -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+            <TextBlock Text="OpenTabletDriver — Linux Setup"
+                       FontSize="20" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="Checks and configures your system for OTD tablet support."
+                       FontSize="13" Foreground="#9CA3AF" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Footer buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="8">
+            <Button x:Name="RefreshButton" Content="Refresh" Click="OnRefreshClick"
+                    Background="#374151" Foreground="White" CornerRadius="4" Padding="16,8"
+                    FontSize="13" Cursor="Hand"/>
+            <Button x:Name="FixAllButton" Content="Fix All" Click="OnFixAllClick"
+                    Background="#16A34A" Foreground="White" CornerRadius="4" Padding="16,8"
+                    FontSize="13" Cursor="Hand"/>
+        </StackPanel>
+
+        <!-- Progress area -->
+        <StackPanel x:Name="ProgressPanel" DockPanel.Dock="Bottom" Margin="0,8,0,0"
+                    IsVisible="False">
+            <TextBlock x:Name="ProgressStepText" FontSize="12" Foreground="#60A5FA"
+                       TextWrapping="Wrap" Margin="0,0,0,4"/>
+            <ProgressBar x:Name="ProgressBar" IsIndeterminate="True" Height="4"
+                         Foreground="#3B82F6" Background="#374151"/>
+        </StackPanel>
+
+        <!-- Status message -->
+        <TextBlock x:Name="StatusText" DockPanel.Dock="Bottom"
+                   FontSize="12" Foreground="#FBBF24" TextWrapping="Wrap"
+                   Margin="0,8,0,0"/>
+
+        <!-- Health cards -->
+        <ScrollViewer>
+            <ItemsControl x:Name="ChecksList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="card">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <!-- Status icon -->
+                                <TextBlock Grid.Column="0" Text="{Binding StatusIcon}"
+                                           Foreground="{Binding StatusColor}"
+                                           Classes="status-icon"
+                                           Margin="0,0,12,0" Width="20"/>
+                                <!-- Title + description -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" Classes="title"/>
+                                    <TextBlock Text="{Binding Description}" Classes="desc"/>
+                                </StackPanel>
+                                <!-- Fix button -->
+                                <Button Grid.Column="2" Content="{Binding FixLabel}"
+                                        Classes="fix" IsVisible="{Binding CanFix}"
+                                        Click="OnFixClick" Tag="{Binding Id}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
