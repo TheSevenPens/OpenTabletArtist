@@ -30,6 +30,11 @@ public partial class LogViewModel : ObservableObject, IDisposable
     private readonly IConnectionState? _connection;
     // Unfiltered history, so changing the level filter can rebuild the visible list without a reseed.
     private readonly List<LogEntry> _all = new();
+    // Incoming messages are queued (as raw LogMessage) and flushed to the UI in batches.
+    // LogEntry construction happens on the UI thread because it creates Avalonia Brush objects.
+    private readonly List<LogMessage> _pending = new();
+    private readonly object _pendingLock = new();
+    private bool _flushScheduled;
 
     /// <summary>The currently-visible (level-filtered) log entries.</summary>
     public ObservableCollection<LogEntry> Entries { get; } = new();
@@ -98,23 +103,47 @@ public partial class LogViewModel : ObservableObject, IDisposable
         });
     }
 
-    // The daemon pushes Message off the RPC thread — marshal to the UI thread before touching state.
-    private void OnLogReceived(LogMessage message) =>
-        Dispatcher.UIThread.Post(() =>
+    // The daemon pushes Message off the RPC thread — queue and flush in batches to avoid
+    // per-message UI rendering overhead (collection changed + property notifications + scroll).
+    private void OnLogReceived(LogMessage message)
+    {
+        lock (_pendingLock)
         {
-            var entry = new LogEntry(message);
+            _pending.Add(message);
+            if (_flushScheduled) return;
+            _flushScheduled = true;
+        }
+        // Schedule a single UI-thread flush; subsequent messages within the window are coalesced.
+        Dispatcher.UIThread.Post(FlushPending, DispatcherPriority.Background);
+    }
+
+    private void FlushPending()
+    {
+        List<LogMessage> batch;
+        lock (_pendingLock)
+        {
+            batch = new List<LogMessage>(_pending);
+            _pending.Clear();
+            _flushScheduled = false;
+        }
+
+        // Create LogEntry on the UI thread — its constructor creates Avalonia Brush objects
+        // which are thread-affine.
+        foreach (var msg in batch)
+        {
+            var entry = new LogEntry(msg);
             _all.Add(entry);
-            if (_all.Count > MaxEntries) _all.RemoveAt(0);
-            if (!Passes(entry)) return;
-            Entries.Add(entry);
-            if (Entries.Count > MaxEntries) Entries.RemoveAt(0);
-            OnPropertyChanged(nameof(HasEntries));
-            OnPropertyChanged(nameof(ShowEmptyState));
-            OnPropertyChanged(nameof(EmptyStateText));
-            OnPropertyChanged(nameof(FilterSummary));
-            OnPropertyChanged(nameof(ShowFilterSummary));
-            if (AutoScroll) ScrollToEndRequested?.Invoke();
-        });
+            if (Passes(entry)) Entries.Add(entry);
+        }
+        if (_all.Count > MaxEntries) _all.RemoveRange(0, _all.Count - MaxEntries);
+        while (Entries.Count > MaxEntries) Entries.RemoveAt(0);
+        OnPropertyChanged(nameof(HasEntries));
+        OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(EmptyStateText));
+        OnPropertyChanged(nameof(FilterSummary));
+        OnPropertyChanged(nameof(ShowFilterSummary));
+        if (AutoScroll) ScrollToEndRequested?.Invoke();
+    }
 
     private bool Passes(LogEntry e) => LogFilter.Matches(e.RawLevel, MinLevel, e.Message, SearchText);
 
