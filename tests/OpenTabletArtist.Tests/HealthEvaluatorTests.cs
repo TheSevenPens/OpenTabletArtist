@@ -168,6 +168,15 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void TrayHostUnavailable_IsInformation_WithNoFix()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { TrayHostUnavailable = true }));
+        Assert.Equal("tray.gnomeNoSni", issue.Id);
+        Assert.Equal(HealthSeverity.Information, issue.Severity);
+        Assert.Null(issue.Remediation); // heads-up only — the GNOME extension is a manual install
+    }
+
+    [Fact]
     public void MissingVMultiAndWinInk_BothSurfaceAtOnce()
     {
         var issues = HealthEvaluator.Evaluate(Healthy() with { VMultiInstalled = false, WinInkInstalled = false });

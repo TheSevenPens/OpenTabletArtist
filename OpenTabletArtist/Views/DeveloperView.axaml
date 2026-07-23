@@ -41,6 +41,9 @@
                                          IsChecked="{Binding Settings.ForceDriverConflict}" />
                         <c:ToggleSetting Label="Running as administrator"
                                          IsChecked="{Binding Settings.ForceRunningElevated}" />
+                        <c:ToggleSetting Label="Tray icon can't be shown"
+                                         Description="GNOME with no StatusNotifierItem host; Linux-only in reality."
+                                         IsChecked="{Binding Settings.ForceTrayHostUnavailable}" />
                         <c:ToggleSetting Label="Using an external daemon"
                                          IsChecked="{Binding Settings.ForceForeignDaemon}" />
                         <c:ToggleSetting Label="Tablet: not using Windows Ink"

@@ -71,6 +71,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     [ObservableProperty] private bool _forceVMultiNotInstalled;
     [ObservableProperty] private bool _forceDriverConflict;
     [ObservableProperty] private bool _forceRunningElevated;
+    [ObservableProperty] private bool _forceTrayHostUnavailable;
     [ObservableProperty] private bool _forceForeignDaemon;
     [ObservableProperty] private bool _forceTabletNotWinInk;
     [ObservableProperty] private bool _forceTabletMappingOffScreen;
@@ -90,7 +91,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     public bool HasActiveHealthOverride =>
         InduceRecommendation || InduceMisconfigured || InduceBroken
         || ForceWinInkNotInstalled || ForceWinInkVersionMismatch || ForceVMultiNotInstalled
-        || ForceDriverConflict || ForceRunningElevated || ForceForeignDaemon
+        || ForceDriverConflict || ForceRunningElevated || ForceTrayHostUnavailable || ForceForeignDaemon
         || ForceTabletNotWinInk || ForceTabletMappingOffScreen || ForceTabletMappingCustom
         || ForceTabletConfigOverride || ForceArtistPenBehavior;
 
@@ -150,6 +151,7 @@ public sealed partial class DeveloperSettings : ObservableObject
             case "vmulti.notInstalled": ForceVMultiNotInstalled = false; break;
             case "driver.conflict": ForceDriverConflict = false; break;
             case "app.elevated": ForceRunningElevated = false; break;
+            case "tray.gnomeNoSni": ForceTrayHostUnavailable = false; break;
             case "daemon.foreign": ForceForeignDaemon = false; break;
             default:
                 if (issue.Id.StartsWith("tablet.notWinInk:", System.StringComparison.Ordinal))
