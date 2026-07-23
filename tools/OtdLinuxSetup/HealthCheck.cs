@@ -181,11 +181,15 @@ public static class HealthChecker
         }
         else
         {
-            // Check if the fix was already applied (user in input group) but needs re-login
+            // Check if the fix was already applied (user in input group) but isn't active yet.
             if (IsUserInGroupOnDisk("input") && !IsUserInActiveGroup("input"))
             {
                 c.Status = CheckStatus.PendingRelogin;
-                c.Description = "Permissions configured — log out and back in to activate the input group.";
+                c.Description = IsUserManagerRunning()
+                    ? "Permissions configured — reboot to activate the input group. A logout likely won't "
+                      + "suffice: your systemd user manager is still running and hands its old group set to "
+                      + "every app it launches."
+                    : "Permissions configured — reboot to activate the input group.";
             }
             else
             {
@@ -322,7 +326,7 @@ public static class HealthChecker
         if (groupResult.ExitCode != 0)
             return $"Error adding to group: {groupResult.StdErr}";
 
-        return $"Permissions fixed. User '{user}' added to input group. Log out and back in to apply.";
+        return $"Permissions fixed. User '{user}' added to input group. Reboot to apply.";
     }
 
     // --- Helpers ---
@@ -366,6 +370,25 @@ public static class HealthChecker
                 .Any(g => g.Trim() == group);
         }
         catch { return false; }
+    }
+
+    /// <summary>
+    /// True if a per-user systemd manager (<c>systemd --user</c>) is running for this session.
+    /// When it is, a plain logout/login often won't refresh group membership — the manager
+    /// survives the logout and hands its stale group set to newly launched apps — so a reboot
+    /// is the reliable way to activate a freshly added group.
+    /// </summary>
+    private static bool IsUserManagerRunning()
+    {
+        try
+        {
+            // $XDG_RUNTIME_DIR/systemd exists exactly while the user manager is up.
+            var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+            if (!string.IsNullOrEmpty(runtimeDir))
+                return Directory.Exists(Path.Combine(runtimeDir, "systemd"));
+        }
+        catch { }
+        return false;
     }
 
     private static bool IsModuleLoaded(string module)

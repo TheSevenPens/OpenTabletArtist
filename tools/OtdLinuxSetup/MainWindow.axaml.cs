@@ -31,9 +31,9 @@ public partial class MainWindow : Window
         StatusText.Text = (unhealthy, pending) switch
         {
             (0, 0) => "All checks passed.",
-            (0, _) => $"{pending} item(s) waiting for logout/login to take effect.",
+            (0, _) => $"{pending} item(s) waiting for a reboot to take effect.",
             (_, 0) => $"{unhealthy} issue(s) need attention.",
-            _ => $"{unhealthy} issue(s) need attention. {pending} waiting for logout/login.",
+            _ => $"{unhealthy} issue(s) need attention. {pending} waiting for a reboot.",
         };
     }
 
@@ -120,7 +120,7 @@ public class HealthCardViewModel
     {
         CheckStatus.Healthy => "✓",
         CheckStatus.Unhealthy => "✗",
-        CheckStatus.PendingRelogin => "⏎",
+        CheckStatus.PendingRelogin => "⟳",
         _ => "?",
     };
 
