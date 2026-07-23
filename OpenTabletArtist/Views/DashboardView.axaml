@@ -52,6 +52,30 @@
                                         <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Detail}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <!-- Multi-part issues (#artist-pen-health): a review link per offending
+                                             setting, each deep-linking to the Pen pivot that owns it. Only the
+                                             artist-pen-behavior card sets Links; other issues leave it null. -->
+                                        <ItemsControl ItemsSource="{Binding Links}" Margin="0,8,0,0"
+                                                      IsVisible="{Binding Links, Converter={StaticResource NotNull}}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[ItemsControl].DataContext.FollowLinkCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Theme="{StaticResource GhostButton}" Padding="8,5" Margin="0,0,0,4"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                                            ToolTip.Tip="Review this setting">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Setting}" TextWrapping="Wrap"
+                                                                       VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Destination}" VerticalAlignment="Center"
+                                                                       FontSize="{DynamicResource TypeCaptionSize}"
+                                                                       Foreground="{DynamicResource AccentBrush}" />
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                     <Button Grid.Column="2" Content="{Binding Remediation.ActionLabel}"
                                             IsVisible="{Binding Remediation, Converter={StaticResource NotNull}}"

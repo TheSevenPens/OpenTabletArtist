@@ -101,6 +101,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 // Re-enable the always-on Pen Dynamics filter across profiles and persist.
                 _ = _session.EnsureDynamicsAndSaveAsync();
                 break;
+            case RemediationArea.RestorePenBehavior:
+                // Artist-pen-behavior bundle: re-enable Windows Ink + tip + pressure + tilt in one apply.
+                _ = _session.RestoreRecommendedPenBehaviorAsync(r.TabletName);
+                break;
             case RemediationArea.Configs:
                 // Open the CONFIGS page so the user can review/remove the override.
                 _openConfigs?.Invoke();
@@ -110,6 +114,21 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 Services.DeveloperSettings.Instance.ClearInduced(issue.Severity);
                 break;
         }
+    }
+
+    /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
+    /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
+    [RelayCommand]
+    private void FollowLink(HealthLink? link)
+    {
+        if (link is null) return;
+        var tab = link.Area switch
+        {
+            RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,
+            RemediationArea.TabletPenTilt => TabletDetailTab.PenDynamics,
+            _ => TabletDetailTab.PenBehavior, // TabletPenBehavior → Movement
+        };
+        (_navigateToPen ?? _navigateToTablet)(link.TabletName, tab);
     }
 
     /// <summary>Hidden developer affordance: right-clicking a synthetic ("developer-induced") card on Home

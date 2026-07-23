@@ -55,12 +55,15 @@ public partial class PenDetailView : UserControl
         SelectTab(tab);
     }
 
-    // The pen page carries the pen-behaviour deep-link (health "Fix" for output mode) → the Movement pivot.
+    // The pen page carries the pen deep-links: the pen-behaviour "Fix" (output mode) → Movement, and the
+    // artist-pen-behavior health links → Inputs (tip/pressure) and Dynamics (tilt) (#artist-pen-health).
     private void SelectTab(TabletDetailTab tab)
     {
         switch (tab)
         {
             case TabletDetailTab.PenBehavior: MovementTab.IsChecked = true; break;
+            case TabletDetailTab.PenInputs: InputsTab.IsChecked = true; break;
+            case TabletDetailTab.PenDynamics: DynamicsTab.IsChecked = true; break;
         }
     }
 }

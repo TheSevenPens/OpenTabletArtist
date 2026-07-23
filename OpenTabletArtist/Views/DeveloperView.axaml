@@ -53,6 +53,9 @@
                         <c:ToggleSetting Label="Tablet: using a custom config override"
                                          Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
                                          IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
+                        <c:ToggleSetting Label="Tablet: pen isn't set up for drawing"
+                                         Description="The artist-pen-behavior bundle for a sample tablet — all four offenders, with per-setting review links."
+                                         IsChecked="{Binding Settings.ForceArtistPenBehavior}" />
                     </StackPanel>
                 </c:Section>
 
@@ -80,6 +83,14 @@
                             <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
                             <Button Content="Create off calibration"
                                     Command="{Binding CreateBadCalibrationCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Break the pen for drawing (artist health check)" FontWeight="SemiBold" />
+                            <Button Content="Turn off Windows Ink + tip + pressure + tilt"
+                                    Command="{Binding BreakPenForDrawingCommand}"
                                     Theme="{StaticResource GhostButton}" Padding="12,6"
                                     HorizontalAlignment="Left" Margin="0,4,0,0" />
                         </StackPanel>

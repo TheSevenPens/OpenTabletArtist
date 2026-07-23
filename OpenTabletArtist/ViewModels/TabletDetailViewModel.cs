@@ -22,6 +22,9 @@ public enum TabletDetailTab
 {
     PenBehavior,
     DisplayMapping,
+    // Pen-page pivots targeted by the artist-pen-behavior health links (#artist-pen-health).
+    PenInputs,
+    PenDynamics,
 }
 
 /// <summary>One row of the Calibration tab's positional report (#460): the target it was captured for
@@ -525,15 +528,22 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         // Never re-apply the mode we're already on (also makes a redundant card click a no-op).
         if (OutputModePath.Equals(path, StringComparison.OrdinalIgnoreCase)) return;
+
+        // Record the Windows-Ink opt-out BEFORE applying, not after. The apply triggers a daemon reload
+        // whose WindowsInkAutoSetup re-enables Windows Ink on every detected tablet that isn't opted out
+        // (Services/WindowsInkAutoSetup). If the flag is set only after the await, that reconcile races in
+        // first, sees this tablet as still-not-opted-out, and flips it back to Windows Ink — so "Don't use
+        // Windows Ink" would switch on for a moment then immediately revert (#winink-revert).
+        if (path.Contains("WinInk", StringComparison.OrdinalIgnoreCase))
+            WinInkAutoOptOut.Clear(_profile.Tablet);
+        else
+            WinInkAutoOptOut.OptOut(_profile.Tablet);
+
         await ApplySettingsChange(p =>
         {
             p.OutputMode ??= new PluginSettingStore(path, true);
             p.OutputMode.Path = path;
         });
-        if (path.Contains("WinInk", StringComparison.OrdinalIgnoreCase))
-            WinInkAutoOptOut.Clear(_profile.Tablet);
-        else
-            WinInkAutoOptOut.OptOut(_profile.Tablet);
     }
 
     // ── "Don't use Windows Ink" toggle — Windows-only, applies to both movement modes (#549) ─────────

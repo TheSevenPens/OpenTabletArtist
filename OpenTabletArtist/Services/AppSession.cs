@@ -816,6 +816,30 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             await ApplyAndSaveSettingsAsync(_settings);
     }
 
+    /// <summary>The one-click "Restore recommended pen settings" fix for the artist-pen-behavior health
+    /// bundle (#artist-pen-health): re-enable Windows Ink + pen tip + pressure + tilt on the tablet's
+    /// profile in a single apply. No-op if the tablet isn't found or nothing needed changing.</summary>
+    public async Task RestoreRecommendedPenBehaviorAsync(string? tabletName)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile == null) return;
+
+        var changed = Domain.PenBehaviorRestore.ToRecommended(profile, OperatingSystem.IsWindows());
+
+        // The Windows-Ink-off health offender reads the opt-out flag (WinInkAutoOptOut), not just the
+        // output-mode path — so switching the mode back to Windows Ink above isn't enough; clear the flag
+        // too, or the offender (and the auto-setup's "leave this tablet off Windows Ink" behaviour) persists.
+        if (OperatingSystem.IsWindows() && WinInkAutoOptOut.IsOptedOut(tabletName))
+        {
+            WinInkAutoOptOut.Clear(tabletName);
+            changed = true;
+        }
+
+        if (changed) await ApplyAndSaveSettingsAsync(_settings);
+    }
+
     public (float Width, float Height)? GetTabletDigitizer(string tabletName)
     {
         if (Tablets is not JArray tablets) return null;

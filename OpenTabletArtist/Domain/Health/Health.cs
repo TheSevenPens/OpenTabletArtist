@@ -45,11 +45,24 @@ public enum RemediationArea
     Configs,
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
+    /// <summary>One-click fix for the artist-pen-behavior bundle: re-enable Windows Ink + pen tip + pressure
+    /// + tilt on the tablet in a single apply (#artist-pen-health).</summary>
+    RestorePenBehavior,
+    /// <summary>Deep-link to a tablet's Pen page › Inputs pivot (pen tip / pressure sensitivity).</summary>
+    TabletPenInputs,
+    /// <summary>Deep-link to a tablet's Pen page › Dynamics pivot (the Disable tilt toggle).</summary>
+    TabletPenTilt,
 }
 
 /// <summary>A fix action for an issue: a button label + where it leads. <see cref="TabletName"/> is set
 /// for the per-tablet areas so the shell can deep-link to that tablet's tab.</summary>
 public sealed record Remediation(string ActionLabel, RemediationArea Area, string? TabletName = null);
+
+/// <summary>One row of a multi-part issue (#artist-pen-health): the specific setting that's off plus a
+/// link to where it's reviewed. Used when a single Fix isn't possible because the offending settings live
+/// in different places. <see cref="Setting"/> names the problem, <see cref="Destination"/> is the link
+/// label (e.g. "Pen › inputs"), and <see cref="Area"/>/<see cref="TabletName"/> drive the navigation.</summary>
+public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName);
 
 /// <summary>One detected configuration/health problem. <see cref="Id"/> is a stable key used to dedupe
 /// and to keep the list steady across re-evaluations (and for tests).</summary>
@@ -61,7 +74,10 @@ public sealed record HealthIssue(
     Remediation? Remediation,
     // True when this issue is only present because a Developer-tab toggle forced it (not genuinely true).
     // Drives the hidden right-click "dismiss" on Home; always false for real issues. Set by HealthService.
-    bool IsDeveloperInduced = false);
+    bool IsDeveloperInduced = false,
+    // Per-setting review links for an issue whose offenders live in several places (no single fix). Null/
+    // empty for ordinary issues, which render just a title + one Fix button (#artist-pen-health).
+    IReadOnlyList<HealthLink>? Links = null);
 
 /// <summary>Per-tablet inputs the checks read. <see cref="Mapping"/> is the display-mapping
 /// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>
@@ -79,7 +95,12 @@ public sealed record TabletHealthInput(
     bool ConfigIsOverride = false,
     // The user deliberately turned Windows Ink off for this tablet (the "Disable Windows Ink" sub-option,
     // #549). When set, a non-WinInk mode is an informational note, not a misconfiguration to fix.
-    bool WinInkOptedOut = false);
+    bool WinInkOptedOut = false,
+    // Artist-pen-behavior offenders (#artist-pen-health) — settings that individually work but together
+    // leave the pen useless for drawing. All default false so existing tests/inputs are unchanged.
+    bool PenTipDisabled = false,     // the pen tip has no binding, so tapping does nothing (#493)
+    bool PressureDisabled = false,   // BindingSettings.DisablePressure — flat, pressure-less strokes (#494)
+    bool TiltDisabled = false);      // BindingSettings.DisableTilt — apps receive no tilt
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -183,6 +204,11 @@ public static class HealthEvaluator
         //     built-in. Often deliberate, but worth surfacing (support / odd-behaviour context). ---
         AddTabletConfigOverrideIssues(issues, i);
 
+        // --- Per-tablet artist-pen-behavior bundle: several settings that each work but together make the
+        //     pen useless for drawing (Windows Ink off, pen tip / pressure / tilt disabled). Bundled into
+        //     one card because there's no single place to fix or review them (#artist-pen-health). ---
+        AddTabletPenBehaviorIssues(issues, i);
+
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —
         //     this parses OTD's Windows manufacturer-driver warnings and the fix runs a Windows tool (#140). ---
         if (i.IsWindows && i.HasDriverConflict)
@@ -240,6 +266,10 @@ public static class HealthEvaluator
             {
                 if (t.WinInkOptedOut)
                 {
+                    // Absorbed into the artist-pen-behavior bundle when that fires (it always does once
+                    // Windows Ink is off), so the two don't double up on Home (#artist-pen-health).
+                    if (ArtistBundleFires(t, i.IsWindows)) continue;
+
                     // Deliberate: the "Don't use Windows Ink" sub-option is on (#549). Not a problem to fix —
                     // just a heads-up that this fundamentally changes how the pen behaves.
                     issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Information,
@@ -289,6 +319,41 @@ public static class HealthEvaluator
                     "the pen behaves oddly, removing the override to restore the built-in is worth trying.",
                     new Remediation("Review", RemediationArea.Configs, t.Name)));
             }
+        }
+    }
+
+    // The artist-pen-behavior bundle fires for a detected tablet as soon as any one of its offenders —
+    // Windows Ink off, or the pen tip / pressure / tilt disabled — is active. Each is individually enough
+    // to noticeably hurt drawing, so even a lone one is worth surfacing (#artist-pen-health).
+    private static bool ArtistBundleFires(TabletHealthInput t, bool isWindows)
+    {
+        if (!t.Detected) return false;
+        bool winInkOff = isWindows && t.WinInkOptedOut;
+        return winInkOff || t.PenTipDisabled || t.PressureDisabled || t.TiltDisabled;
+    }
+
+    private static void AddTabletPenBehaviorIssues(List<HealthIssue> issues, HealthInputs i)
+    {
+        foreach (var t in i.Tablets)
+        {
+            if (!ArtistBundleFires(t, i.IsWindows)) continue;
+
+            var links = new List<HealthLink>();
+            if (i.IsWindows && t.WinInkOptedOut)
+                links.Add(new HealthLink("Windows Ink is off", "Pen › movement", RemediationArea.TabletPenBehavior, t.Name));
+            if (t.PenTipDisabled)
+                links.Add(new HealthLink("Pen tip is disabled", "Pen › inputs", RemediationArea.TabletPenInputs, t.Name));
+            if (t.PressureDisabled)
+                links.Add(new HealthLink("Pressure sensitivity is off", "Pen › inputs", RemediationArea.TabletPenInputs, t.Name));
+            if (t.TiltDisabled)
+                links.Add(new HealthLink("Tilt is disabled", "Pen › dynamics", RemediationArea.TabletPenTilt, t.Name));
+
+            issues.Add(new HealthIssue($"tablet.penBehavior:{t.Name}", HealthSeverity.Recommendation,
+                $"{t.Name}: pen isn't set up for drawing",
+                "Settings artists rely on are turned off — and each lives in a different place. Restore them " +
+                "all in one click, or review each below.",
+                new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
+                Links: links));
         }
     }
 

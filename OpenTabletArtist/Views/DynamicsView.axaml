@@ -39,13 +39,9 @@
                                            ProcessedBrush="{DynamicResource SuccessBrush}" />
                 </Grid>
 
-                <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops pressure
-                     entirely, so the curve below is inert while it's on. -->
-                <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True" Margin="2,8,0,0"
-                                    Description="Flat on/off contact"
-                                    IsChecked="{Binding DisablePressure}" />
-
-                <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
+                <!-- Disable pressure sensitivity (#494) moved to the Pen page's Inputs tab; the note below
+                     still flags, on this tab, that the curve is inert while it's on.
+                     #469: when pressure sensitivity is disabled the output stage drops pressure, so this
                      curve has no effect. Flag it here so the tab isn't silently inert. -->
                 <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                         BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"

@@ -71,10 +71,10 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
-    public void DetectedTablet_NotWinInk_ButOptedOut_IsInformation_NotMisconfigured()
+    public void DetectedTablet_WinInkOptedOut_FiresArtistBundle_AbsorbingTheFyiNote()
     {
-        // "Don't use Windows Ink" is on (#549): a deliberate mouse-compatibility choice, so it's an FYI,
-        // not a misconfiguration to fix. The blunt "not using Windows Ink" issue must not also fire.
+        // "Don't use Windows Ink" is on (#549) → the artist-pen-behavior bundle fires (Windows Ink off is
+        // enough on its own) and absorbs the standalone FYI note so the two don't double up.
         var input = Healthy() with
         {
             Tablets = new List<TabletHealthInput>
@@ -83,10 +83,53 @@ public class HealthEvaluatorTests
             },
         };
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
-        Assert.Equal("tablet.winInkOff:Wacom PTH-660", issue.Id);
-        Assert.Equal(HealthSeverity.Information, issue.Severity);
-        Assert.Equal(RemediationArea.TabletPenBehavior, issue.Remediation!.Area);
+        Assert.Equal("tablet.penBehavior:Wacom PTH-660", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal(RemediationArea.RestorePenBehavior, issue.Remediation!.Area);
+        Assert.Equal("Wacom PTH-660", issue.Remediation.TabletName);
+        var link = Assert.Single(issue.Links!);
+        Assert.Equal(RemediationArea.TabletPenBehavior, link.Area);
+        // The old standalone notes must not also fire.
+        Assert.False(Has(HealthEvaluator.Evaluate(input), "tablet.winInkOff:Wacom PTH-660"));
         Assert.False(Has(HealthEvaluator.Evaluate(input), "tablet.notWinInk:Wacom PTH-660"));
+    }
+
+    [Fact]
+    public void ArtistBundle_FiresOnTwoOffenders_WithWindowsInkOn()
+    {
+        // Windows Ink is on, but pressure + tilt are both disabled → two offenders, so the bundle fires
+        // with a review link for each and no Windows-Ink link.
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: true,
+                    PressureDisabled: true, TiltDisabled: true),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.penBehavior:Tablet A", issue.Id);
+        Assert.Equal(2, issue.Links!.Count);
+        Assert.Contains(issue.Links!, l => l.Area == RemediationArea.TabletPenInputs);   // pressure
+        Assert.Contains(issue.Links!, l => l.Area == RemediationArea.TabletPenTilt);      // tilt
+        Assert.DoesNotContain(issue.Links!, l => l.Area == RemediationArea.TabletPenBehavior);
+    }
+
+    [Fact]
+    public void ArtistBundle_FiresOnASingleOffender()
+    {
+        // Even one offender (tilt off, Windows Ink on) is enough to surface the card, with a single link.
+        var input = Healthy() with
+        {
+            Tablets = new List<TabletHealthInput>
+            {
+                new("Tablet A", Detected: true, OutputModeIsWinInk: true, TiltDisabled: true),
+            },
+        };
+        var issue = Assert.Single(HealthEvaluator.Evaluate(input));
+        Assert.Equal("tablet.penBehavior:Tablet A", issue.Id);
+        var link = Assert.Single(issue.Links!);
+        Assert.Equal(RemediationArea.TabletPenTilt, link.Area);
     }
 
     [Fact]

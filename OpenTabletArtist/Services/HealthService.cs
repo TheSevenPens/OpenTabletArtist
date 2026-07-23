@@ -165,7 +165,12 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 DynamicsFilterActive: foreign || DynamicsOk(p),
                 ConfigIsOverride: overriddenConfigs.Contains(p.Tablet),
                 // A non-WinInk mode is intentional (mouse-compatibility) when the tablet is opted out (#549).
-                WinInkOptedOut: WinInkAutoOptOut.IsOptedOut(p.Tablet)))
+                WinInkOptedOut: WinInkAutoOptOut.IsOptedOut(p.Tablet),
+                // Artist-pen-behavior offenders read straight off the profile's binding settings
+                // (#artist-pen-health). The tip is "disabled" when it has no binding (#493).
+                PenTipDisabled: p.Profile.BindingSettings.TipButton?.Path == null,
+                PressureDisabled: p.Profile.BindingSettings.DisablePressure,
+                TiltDisabled: p.Profile.BindingSettings.DisableTilt))
             .ToList();
 
         var inputs = new HealthInputs
@@ -202,6 +207,10 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         if (dev.ForceTabletConfigOverride)
             tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: true,
                 ConfigIsOverride: true));
+        // All four artist-pen-behavior offenders on one sample tablet, so the multi-link card shows in full.
+        if (dev.ForceArtistPenBehavior)
+            tablets.Add(new TabletHealthInput("Sample Tablet", Detected: true, OutputModeIsWinInk: false,
+                WinInkOptedOut: true, PenTipDisabled: true, PressureDisabled: true, TiltDisabled: true));
 
         // OR-in the scalar force flags so each real catalog entry appears with its exact UX.
         return inputs with

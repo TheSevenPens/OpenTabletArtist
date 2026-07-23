@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OpenTabletDriver.Desktop.Reflection;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -105,6 +106,38 @@ public sealed partial class DeveloperViewModel : ObservableObject
         ConfigErrorStatus = $"Set {tabletName}'s active-area rotation to 20° (a non-standard angle). " +
                             "Home's Needs attention list should now flag it. Pick a standard rotation " +
                             "(0/90/180/270) on the Display Mapping tab to restore it.";
+    }
+
+    /// <summary>Deliberately turn on every artist-pen-behavior offender on the active tablet — Windows Ink
+    /// off, pen tip / pressure / tilt disabled — a <em>real</em>, persisted change, so the "pen isn't set up
+    /// for drawing" bundle card (and its one-click Fix) can be exercised on a real profile. The card's Fix
+    /// restores all of them; this is the inverse (#artist-pen-health).</summary>
+    [RelayCommand]
+    private async Task BreakPenForDrawing()
+    {
+        var settings = _settings?.CurrentSettings;
+        if (settings == null) { ConfigErrorStatus = "No settings loaded yet — connect the daemon first."; return; }
+
+        var tabletName = _device?.ActiveTabletName ?? _device?.DetectedTablets.FirstOrDefault()?.Name;
+        if (string.IsNullOrEmpty(tabletName)) { ConfigErrorStatus = "No active tablet."; return; }
+
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile == null) { ConfigErrorStatus = $"{tabletName} has no profile."; return; }
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows Ink off: a native (non-WinInk) output mode + the opt-out flag the health check reads.
+            profile.OutputMode ??= new PluginSettingStore(typeof(object), true);
+            profile.OutputMode.Path = "OpenTabletDriver.Desktop.Output.AbsoluteMode";
+            WinInkAutoOptOut.OptOut(tabletName);
+        }
+        profile.BindingSettings.TipButton = null;       // disable the pen tip
+        profile.BindingSettings.DisablePressure = true; // flat, pressure-less strokes
+        profile.BindingSettings.DisableTilt = true;     // no tilt
+
+        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        ConfigErrorStatus = $"Turned off Windows Ink + pen tip + pressure + tilt on {tabletName}. Home should now " +
+                            "flag \"pen isn't set up for drawing\" — its Fix restores them all in one click.";
     }
 
     // Each simulated corner tap is jittered up to this many px off the target, so the solved calibration

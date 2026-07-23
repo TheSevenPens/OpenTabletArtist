@@ -76,6 +76,7 @@ public sealed partial class DeveloperSettings : ObservableObject
     [ObservableProperty] private bool _forceTabletMappingOffScreen;
     [ObservableProperty] private bool _forceTabletMappingCustom;
     [ObservableProperty] private bool _forceTabletConfigOverride;
+    [ObservableProperty] private bool _forceArtistPenBehavior;
 
     /// <summary>True for any developer flag that changes the health catalog (everything except the
     /// tab-visibility toggles), so the health service knows to re-evaluate.</summary>
@@ -91,7 +92,7 @@ public sealed partial class DeveloperSettings : ObservableObject
         || ForceWinInkNotInstalled || ForceWinInkVersionMismatch || ForceVMultiNotInstalled
         || ForceDriverConflict || ForceRunningElevated || ForceForeignDaemon
         || ForceTabletNotWinInk || ForceTabletMappingOffScreen || ForceTabletMappingCustom
-        || ForceTabletConfigOverride;
+        || ForceTabletConfigOverride || ForceArtistPenBehavior;
 
     partial void OnShowFiltersTabChanged(bool value)
     {
@@ -159,6 +160,8 @@ public sealed partial class DeveloperSettings : ObservableObject
                     ForceTabletMappingCustom = false;
                 else if (issue.Id.StartsWith("tablet.configOverride:", System.StringComparison.Ordinal))
                     ForceTabletConfigOverride = false;
+                else if (issue.Id.StartsWith("tablet.penBehavior:", System.StringComparison.Ordinal))
+                    ForceArtistPenBehavior = false;
                 break;
         }
     }
