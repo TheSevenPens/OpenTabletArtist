@@ -10,10 +10,12 @@ namespace OpenTabletArtist.Controls;
 
 /// <summary>
 /// Interactive editor + visualization for the Extended pressure curve
-/// (<see cref="PressureCurveSettings"/>). Draws the live curve trace and two draggable control
-/// nodes — min (input/output minimum, pink) and max (input/output maximum, cyan). Softness and the
-/// Clamp/Cut dead-zone are driven from the host's controls; this control owns the node geometry.
-/// Adapted from PenDynamicsLab's PressureChartControl, trimmed to the single curve type we ship.
+/// (<see cref="PressureCurveSettings"/>). Draws the live curve trace and three draggable control
+/// nodes — min (input/output minimum, pink), max (input/output maximum, cyan), and a bend node
+/// (amber) that sits on the curve at the middle of the input range and shapes <see cref="Softness"/>
+/// by vertical drag: pull up = softer (concave), down = firmer (convex). The bend node and the host's
+/// Softness slider both write the same <see cref="PressureCurveSettings.Softness"/>, so they stay in
+/// sync. Adapted from PenDynamicsLab's PressureChartControl, trimmed to the single curve type we ship.
 /// </summary>
 public sealed class PressureCurveChart : Control
 {
@@ -30,6 +32,7 @@ public sealed class PressureCurveChart : Control
     private static readonly IPen CurvePen = new Pen(new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0x00)), 2.2);
     private static readonly IBrush MinNodeBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0x1E, 0x7A));
     private static readonly IBrush MaxNodeBrush = new SolidColorBrush(Color.FromRgb(0x0E, 0x9F, 0xD6));
+    private static readonly IBrush BendNodeBrush = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)); // softness
     private static readonly IPen NodeGuidePen = new Pen(new SolidColorBrush(Color.FromArgb(0x40, 0x00, 0x00, 0x00)), 1)
     { DashStyle = new DashStyle(new double[] { 3, 4 }, 0) };
     private static readonly IPen NodeOutline = new Pen(Brushes.White, 1.5);
@@ -79,6 +82,14 @@ public sealed class PressureCurveChart : Control
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
     private static double Round2(double v) => Math.Round(v * 100) / 100;
 
+    /// <summary>Input-space x of the softness bend node: the middle of the active input range,
+    /// i.e. the remapped xNorm = 0.5 where the power curve bends most. Null when the range is empty.</summary>
+    private static double? BendInputX(PressureCurveSettings c)
+    {
+        double range = c.InputMaximum - c.InputMinimum;
+        return range > 0 ? c.InputMinimum + 0.5 * range : (double?)null;
+    }
+
     private double XValueFromCanvas(double x)
     {
         var (plotW, _) = Layout();
@@ -112,6 +123,16 @@ public sealed class PressureCurveChart : Control
         var curve = Curve;
         DrawNode(context, curve.InputMinimum, curve.Minimum, MinNodeBrush);
         DrawNode(context, curve.InputMaximum, curve.Maximum, MaxNodeBrush);
+
+        // Bend (softness) node — rides on the curve at the middle of the input range. No axis guides
+        // (it tracks the curve, not an input/output value), so it reads as a handle on the line itself.
+        if (BendInputX(curve) is { } bendX)
+        {
+            double bendY = PressureCurve.Apply(bendX, curve);
+            double cx = PadLeft + bendX * plotW;
+            double cy = PadTop + plotH - bendY * plotH;
+            context.DrawEllipse(BendNodeBrush, NodeOutline, new Point(cx, cy), NodeDrawRadius, NodeDrawRadius);
+        }
 
         if (LivePressure is { } live)
         {
@@ -154,7 +175,7 @@ public sealed class PressureCurveChart : Control
 
     // ── Pointer interaction ─────────────────────────────────────
 
-    private enum DragKind { None, Min, Max }
+    private enum DragKind { None, Min, Max, Softness }
     private DragKind _dragging = DragKind.None;
 
     private static double Distance(Point p, double cx, double cy)
@@ -164,10 +185,17 @@ public sealed class PressureCurveChart : Control
     {
         var (plotW, plotH) = Layout();
         var c = Curve;
+        // Endpoints take priority — the bend node can visually overlap them at narrow input ranges.
         if (Distance(p, PadLeft + c.InputMinimum * plotW, PadTop + plotH - c.Minimum * plotH) <= NodeRadius)
             return DragKind.Min;
         if (Distance(p, PadLeft + c.InputMaximum * plotW, PadTop + plotH - c.Maximum * plotH) <= NodeRadius)
             return DragKind.Max;
+        if (BendInputX(c) is { } bendX)
+        {
+            double bendY = PressureCurve.Apply(bendX, c);
+            if (Distance(p, PadLeft + bendX * plotW, PadTop + plotH - bendY * plotH) <= NodeRadius)
+                return DragKind.Softness;
+        }
         return DragKind.None;
     }
 
@@ -189,13 +217,25 @@ public sealed class PressureCurveChart : Control
         var pos = e.GetPosition(this);
         if (_dragging == DragKind.None)
         {
-            Cursor = HitTest(pos) != DragKind.None ? new Cursor(StandardCursorType.SizeAll) : Cursor.Default;
+            // Bend node only travels vertically → a vertical-resize cursor; endpoints move freely.
+            Cursor = HitTest(pos) switch
+            {
+                DragKind.Softness => new Cursor(StandardCursorType.SizeNorthSouth),
+                DragKind.None => Cursor.Default,
+                _ => new Cursor(StandardCursorType.SizeAll),
+            };
+            return;
+        }
+
+        var c = Curve;
+        if (_dragging == DragKind.Softness)
+        {
+            DragSoftness(pos, c);
             return;
         }
 
         double inVal = Round2(XValueFromCanvas(pos.X));
         double outVal = Round2(YValueFromCanvas(pos.Y));
-        var c = Curve;
         if (_dragging == DragKind.Min)
         {
             inVal = Math.Min(inVal, c.InputMaximum - 0.01);
@@ -208,6 +248,30 @@ public sealed class PressureCurveChart : Control
             outVal = Math.Max(outVal, c.Minimum);
             Curve = c with { InputMaximum = Clamp01(inVal), Maximum = Clamp01(outVal) };
         }
+    }
+
+    /// <summary>
+    /// Invert the bend node's vertical position back into <see cref="PressureCurveSettings.Softness"/>.
+    /// At the input midpoint the (pre-output-scale) curve value is 0.5^exponent, so from the node's
+    /// height y we recover exponent = ln(curved)/ln(0.5) — then map exponent back to the slider's
+    /// softness. Identical inverse of <see cref="PressureCurve.Apply"/>'s power step, so node and
+    /// slider agree exactly. Horizontal drag is ignored (x is pinned to the input midpoint).
+    /// </summary>
+    private void DragSoftness(Point pos, PressureCurveSettings c)
+    {
+        double outRange = c.Maximum - c.Minimum;
+        if (outRange <= 0) return; // flat output range — nothing to shape
+
+        // Un-scale the node's output value back to the [0,1] curved value, away from the log's poles.
+        double curved = Math.Clamp((YValueFromCanvas(pos.Y) - c.Minimum) / outRange, 0.001, 0.999);
+        double exponent = Math.Log(curved) / Math.Log(0.5);
+
+        // Inverse of Apply()'s softness→exponent mapping.
+        double softness = exponent <= 1 ? 1 - exponent : 1 / exponent - 1;
+        softness = Math.Clamp(Round2(softness), -0.95, 0.95);
+
+        if (softness != c.Softness)
+            Curve = c with { Softness = softness };
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)

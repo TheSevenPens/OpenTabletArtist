@@ -47,7 +47,7 @@
             <CrossFade x:Key="PageFade" Duration="0:0:0.18" />
 
             <!-- One shared width for every tabbed page's vertical tab rail, so they line up across pages.
-                 Sized to fit the longest tab name in the app ("PRESSURE DYNAMICS" / "POSITION DYNAMICS"). -->
+                 Sized to comfortably fit the longest subpage name. -->
             <sys:Double x:Key="TabRailWidth">160</sys:Double>
 
             <!-- Square everything (Metro/Zune). Overriding Fluent's control + overlay corner radii squares

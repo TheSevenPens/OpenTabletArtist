@@ -1660,13 +1660,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     partial void OnSmoothAfterCurveChanged(bool value) => SchedulePersist();
 
-    /// <summary>Softness slider value, projected onto the <see cref="Curve"/> struct.</summary>
-    public double Softness
-    {
-        get => Curve.Softness;
-        set { if (Curve.Softness != value) Curve = Curve with { Softness = value }; }
-    }
-
     /// <summary>Cut (dead-zone) vs Clamp (floor) below the input minimum.</summary>
     public bool CutBelowMinimum
     {
@@ -1677,8 +1670,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             if (Curve.MinApproach != want) Curve = Curve with { MinApproach = want };
         }
     }
-
-    public string SoftnessText => Curve.Softness.ToString("0.00");
 
     // Live pressure read-out (#559): the current input pressure, for the LIVE PRESSURE bar's "raw" label.
     // "—" when the pen is up.
@@ -1701,9 +1692,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     partial void OnCurveChanged(PressureCurveSettings value)
     {
-        OnPropertyChanged(nameof(Softness));
         OnPropertyChanged(nameof(CutBelowMinimum));
-        OnPropertyChanged(nameof(SoftnessText));
         NotifyDynamicsStatus();
         SchedulePersist();
     }

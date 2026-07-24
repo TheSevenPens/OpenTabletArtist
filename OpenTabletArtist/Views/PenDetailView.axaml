@@ -14,7 +14,7 @@
          pivot-gated content. Only ever embedded in the PEN page, so the switcher/actions always show. -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Toolbar row: switcher · pivots (movement · inputs) · compact actions (D · R · F). -->
+        <!-- Toolbar row: switcher · pivots (movement · inputs · pressure) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
             <Grid ColumnDefinitions="*,Auto">
@@ -25,8 +25,9 @@
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
-                    <!-- dynamics moved here from the tablet page (#pen-dynamics-move). -->
-                    <RadioButton Content="dynamics" x:Name="DynamicsTab"
+                    <!-- The pressure tab (formerly "dynamics") — pressure curve + pressure smoothing. Moved
+                         here from the tablet page (#pen-dynamics-move); x:Name kept for the code-behind. -->
+                    <RadioButton Content="pressure" x:Name="DynamicsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 </WrapPanel>
 
@@ -87,6 +88,21 @@
                         Padding="12,6" Margin="0,6,0,0"
                         HorizontalAlignment="Left"
                         IsVisible="{Binding CanFixOutputMode}" />
+
+                <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
+                     on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
+                     too laggy to be useful. The group has a fixed width so the slider's star-sized track
+                     renders (a left-aligned/size-to-content slider collapses the track to nothing). -->
+                <StackPanel Width="480" HorizontalAlignment="Left" Margin="0,28,0,0">
+                    <TextBlock Text="POSITION SMOOTHING" Classes="SectionLabel" />
+                    <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
+                                        Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                        Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
+                                        Value="{Binding PositionSmoothing}"
+                                        ValueTextOverride="{Binding PositionSmoothingText}"
+                                        Monospace="True" ValueWidth="44"
+                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
@@ -116,6 +132,10 @@
                                  the Dynamics tab. -->
                             <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
                                                 IsChecked="{Binding DisablePressure}" />
+                            <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
+                                 the Dynamics tab so all pen-input opt-outs live together. -->
+                            <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                                IsChecked="{Binding DisableTilt}" />
                             <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
                             <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
                                                 Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
@@ -190,8 +210,9 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- DYNAMICS — pressure/position/tilt (moved from the tablet page, #pen-dynamics-move). Shared
-             DynamicsView, same control the focused Pen Dynamics editor hosts. -->
+        <!-- PRESSURE — the pressure curve + pressure smoothing (moved from the tablet page,
+             #pen-dynamics-move). Shared DynamicsView, same control the focused Pen Dynamics editor hosts.
+             Position smoothing now lives on the movement tab above. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #DynamicsTab.IsChecked}">
             <views:DynamicsView />
