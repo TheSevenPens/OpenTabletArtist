@@ -116,7 +116,7 @@ How the app actually talks to the daemon, end to end.
 **Client API (`Services/DaemonClient.cs`).** A thin typed wrapper over the RPC methods, using OTD's own model types (from the submodule) so writes round-trip exactly like OTD's UX:
 - `GetSettings()` / `SetSettings(Settings)`, `GetApplicationInfo()`, `GetTablets()` (returns `JArray` — complex runtime data we parse selectively), `CheckForUpdates()`
 - plugins: `DownloadPlugin` / `UninstallPlugin` / `LoadPlugins`
-- `SetTabletDebug(bool)` — toggles the live pen stream. It's a single global daemon flag but has several consumers (Diagnostics, the Test tab's Driver mode, the Dynamics tab's live-pressure dot), so `DaemonClient` **reference-counts** it: the RPC fires only on a 0↔1 transition (a failed enable rolls the count back; a disconnect resets it), so one consumer turning it off can't starve another.
+- `SetTabletDebug(bool)` — toggles the live pen stream. It's a single global daemon flag but has several consumers (Diagnostics, the Test tab's Driver mode, the Pen page's pressure tab live-pressure dot), so `DaemonClient` **reference-counts** it: the RPC fires only on a 0↔1 transition (a failed enable rolls the count back; a disconnect resets it), so one consumer turning it off can't starve another.
 - **Server → client push:** the client registers a *local* RPC method via `AddLocalRpcMethod("DeviceReport", …)`; the daemon invokes it to push pen reports, which `DaemonClient` re-raises as its `DeviceReport` event (consumed by Diagnostics and the Test tab's Driver mode). `IsConnected` is derived from the live `JsonRpc` instance.
 
 **Connect / reconnect lifecycle (`Services/AppSession.cs`).** `AppSession` owns the client and drives connection:
