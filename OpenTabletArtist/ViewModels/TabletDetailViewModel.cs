@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
+using System.Numerics;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
@@ -1725,6 +1726,35 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return string.Equals(reportTablet, ourTablet, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Raised per pen sample for the pressure tab's preview canvas: the pen-pointer position
+    /// (0..1 within the mapped display) with the pressure already run through the curve + smoothing, so the
+    /// canvas previews the exact response you're editing (and works even when Windows Ink is off). A sample
+    /// with <c>IsDown == false</c> ends the current stroke.</summary>
+    public event Action<PenSample>? PreviewSample;
+
+    // Cached raw→desktop mapping (active area → mapped display), rebuilt when live input starts. Null in
+    // Relative / unmapped modes. Same context the Scribble page's Driver mode uses; the view does the
+    // desktop-pixel → canvas-local step (only it knows where the canvas sits on screen).
+    private (TabletDigitizerSpec Digi, MappingArea Input, MappingArea Output, bool Clip, bool Limit)? _previewMapping;
+
+    private void RecomputePreviewMapping()
+    {
+        if (TryCalibrationContext(out var ctx, out _))
+        {
+            var abs = _profile.AbsoluteModeSettings;
+            _previewMapping = (ctx.Digi, ctx.Input, ctx.Output, abs?.EnableClipping ?? false, abs?.EnableAreaLimiting ?? false);
+        }
+        else _previewMapping = null;
+    }
+
+    /// <summary>Map a raw tablet point to a virtual-desktop pixel — the same transform that drives the
+    /// pointer — or null when there's no absolute mapping (Relative mode). The preview canvas converts this
+    /// to a canvas-local position exactly as the Scribble page does.</summary>
+    public Vector2? MapRawToDesktop(double rawX, double rawY) =>
+        _previewMapping is { } m
+            ? AbsolutePositionMapper.MapToDesktop(new Vector2((float)rawX, (float)rawY), m.Digi, m.Input, m.Output, m.Clip, m.Limit)
+            : null;
+
     // DeviceReportSample normalizes to 0..1; feed both the pressure dot and the active-area map.
     private void OnPenSample(PenSample s)
     {
@@ -1738,12 +1768,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             // reflects smoothing's lag. Settings are refreshed each sample to track live edits.
             _liveProcessor.Settings = CurrentDynamics;
             LiveProcessed = _liveProcessor.ProcessPressure(raw);
+            // Preview canvas gets the raw position (RawX/RawY, mapped by the view) + the SHAPED pressure.
+            PreviewSample?.Invoke(s with { Pressure = LiveProcessed ?? raw });
         }
         else
         {
             LivePressure = null;
             _liveProcessor.ResetPressure(); // next press starts crisp, matching the filter
             LiveProcessed = null;
+            PreviewSample?.Invoke(s); // IsDown = false → the canvas ends the stroke
         }
     }
 
@@ -1763,7 +1796,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>Enables the daemon's device-report stream (live pressure dot + aux highlight). Driven
     /// by the view: on while the Dynamics or ExpressKeys tab is visible, off otherwise.</summary>
-    public void StartLiveInput() => _ = _penInput?.StartAsync();
+    public void StartLiveInput()
+    {
+        RecomputePreviewMapping(); // resolve the pen-pointer mapping for the preview canvas
+        _ = _penInput?.StartAsync();
+    }
 
     /// <summary>Stops the stream and clears any live state so nothing stays lit after we look away.</summary>
     public void StopLiveInput()

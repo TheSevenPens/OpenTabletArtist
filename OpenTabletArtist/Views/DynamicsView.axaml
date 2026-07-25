@@ -27,10 +27,8 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
                     </Border>
 
-                    <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
-
                     <!-- Two columns: compact chart on the left, controls on the right. -->
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+                    <Grid ColumnDefinitions="Auto,*">
                         <!-- Compact 1:1 chart; the green dot tracks live pen pressure (#102). -->
                         <ctrl:PressureCurveChart Grid.Column="0" Curve="{Binding Curve, Mode=TwoWay}"
                                                  LivePressure="{Binding LivePressure}"
@@ -90,7 +88,6 @@
                  Ink pressure is already shaped by this curve — so you can feel the curve while you edit it. -->
             <ctrl:Section Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="LIVE PRESSURE" Classes="SectionLabel" />
                     <!-- Fixed-height slot so the readouts appearing/disappearing while you draw don't push
                          the canvas below up and down. -->
                     <Panel Height="40">
@@ -110,9 +107,10 @@
                                            RawBrush="{DynamicResource AccentBrush}"
                                            ProcessedBrush="{DynamicResource SuccessBrush}" />
 
-                    <TextBlock Text="TRY IT" Classes="SectionLabel" Margin="0,6,0,0" />
                     <!-- Same paint surface the Scribble page uses; PressureToSize shows the pressure→size
-                         response. App-mode pointer input, so no view-model wiring is needed here. -->
+                         response. Painted from the daemon's pen stream (see DynamicsView.axaml.cs) with the
+                         pressure shaped by the curve + smoothing, so it previews the response you're editing
+                         and works even when Windows Ink is off. -->
                     <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
                         <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" />
                     </ctrl:Canvas>
