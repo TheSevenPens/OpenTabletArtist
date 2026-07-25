@@ -53,6 +53,11 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
     public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
 
+    // Sakura-only: choose the cherry-blossom image or a flat colour fill for the backdrop.
+    public bool ShowSakuraBackground => IsSakura;
+    public bool SakuraSolidBackground => SkinColorSettings.SakuraSolidBackground;
+    public bool SakuraImageBackground => !SakuraSolidBackground;
+
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
     // in SkinColorSettings. Their default reproduces each skin's original pink.
     private string ActiveAccentHex() => IsCustom ? CustomThemeSettings.AccentHex
@@ -211,6 +216,9 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowBackgroundImageOpacity));
         OnPropertyChanged(nameof(ShowSidebarColor));
         OnPropertyChanged(nameof(ShowAccentControl));
+        OnPropertyChanged(nameof(ShowSakuraBackground));
+        OnPropertyChanged(nameof(SakuraSolidBackground));
+        OnPropertyChanged(nameof(SakuraImageBackground));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
         // doesn't re-persist — it's a display sync, not a user edit). Each skin keeps separate settings.
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
@@ -229,6 +237,16 @@ public partial class ThemeViewModel : ObservableObject
 
     partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;
     partial void OnPetalsOpacityChanged(double value) => AnimationSettings.PetalsOpacity = value;
+
+    /// <summary>Radio choice for the Sakura backdrop: "image" (cherry-blossom) or "color" (flat fill).</summary>
+    [RelayCommand]
+    private void SelectSakuraBackground(string mode)
+    {
+        SkinColorSettings.SakuraSolidBackground = mode == "color";
+        OnPropertyChanged(nameof(SakuraSolidBackground));
+        OnPropertyChanged(nameof(SakuraImageBackground));
+        RefreshSkin();
+    }
 
     // ── Live resource overrides ────────────────────────────────────────────────────────────────
     // The translucent skins customise app brushes at runtime by writing directly into
@@ -259,6 +277,10 @@ public partial class ThemeViewModel : ObservableObject
         else
         {
             app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, IsDarkSakura ? 0.25 : 0.08));
+            // Sakura backdrop: a flat colour instead of the cherry-blossom image when the user chose it.
+            // (SkinOverrides.Clear above removed any prior override, so the image returns when unchecked.)
+            if (IsSakura && SkinColorSettings.SakuraSolidBackground)
+                app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(SkinColorSettings.SakuraSolidBgColor));
         }
     }
 

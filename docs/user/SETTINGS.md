@@ -23,6 +23,7 @@ The **Appearance** tab holds theme preferences:
 
 - **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, and **Sakura** (a pink skin with a cherry-blossom backdrop and frosted-glass panels — the default). Applied immediately and remembered across restarts.
 - **Falling petals** *(Sakura only)* — toggles the drifting cherry-blossom animation.
+- **Background** *(Sakura only)* — choose the **cherry-blossom image** (default) or a flat **solid colour** (`#FDE4E8`) for the backdrop. Applied live and remembered across restarts.
 - **Frosted glass** *(Sakura only)* — a **Card opacity** slider that tunes how translucent the cards are (the backdrop shows through). Live and persisted; scoped to the Sakura skin.
 
 ## System

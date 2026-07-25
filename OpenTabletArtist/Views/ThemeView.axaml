@@ -45,6 +45,19 @@
                                  ValueFormat="0%" Margin="0,8,0,0"
                                  IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
                                  ToolTip.Tip="How opaque the falling petals are" />
+
+                <!-- Sakura-only: cherry-blossom image (default) or a flat colour backdrop. IsChecked is OneWay
+                     (display); the choice is driven by the Command, matching the movement-mode radios. -->
+                <StackPanel IsVisible="{Binding ShowSakuraBackground}" Margin="0,14,0,0">
+                    <TextBlock Text="Background" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <RadioButton GroupName="SakuraBackground" Content="Cherry-blossom image" Margin="0,4,0,0"
+                                 IsChecked="{Binding SakuraImageBackground, Mode=OneWay}"
+                                 Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="image" />
+                    <RadioButton GroupName="SakuraBackground" Content="Solid colour"
+                                 IsChecked="{Binding SakuraSolidBackground, Mode=OneWay}"
+                                 Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="color"
+                                 ToolTip.Tip="A flat #FDE4E8 background instead of the cherry-blossom image" />
+                </StackPanel>
             </StackPanel>
         </c:Section>
 
