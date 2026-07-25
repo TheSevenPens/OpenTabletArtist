@@ -63,4 +63,22 @@ public static class StartMenuShortcut
             return false;
         }
     }
+
+    /// <summary>Delete the shortcut. Succeeds (no-op) if it's already gone.</summary>
+    /// <returns>true on success; false with <paramref name="error"/> set on failure.</returns>
+    public static bool TryDelete(out string? error)
+    {
+        error = null;
+        try
+        {
+            if (File.Exists(ShortcutPath))
+                File.Delete(ShortcutPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
 }

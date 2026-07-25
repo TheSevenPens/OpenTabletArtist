@@ -6,12 +6,10 @@
     <!-- DataContext is the ShortcutViewModel. Moved out of the DEVELOPER page into SETTINGS. -->
     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
         <c:Section Title="Start-menu shortcut"
-                       Description="Create a per-user Start-menu shortcut to this app. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
+                       Description="A per-user Start-menu shortcut to this app — check to create it, uncheck to remove it. A dev build run from its build folder isn't a registered app; this registers it under its name (needed by desktop-automation / screenshot tooling).">
             <StackPanel Spacing="8">
-                <Button Content="Create Start-menu shortcut"
-                        Command="{Binding CreateStartMenuShortcutCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="12,6"
-                        HorizontalAlignment="Left" />
+                <CheckBox Content="Create a Start-menu shortcut for this app"
+                          IsChecked="{Binding ShortcutExists}" />
                 <TextBlock Text="{Binding ShortcutStatus}" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding HasShortcutStatus}" />
