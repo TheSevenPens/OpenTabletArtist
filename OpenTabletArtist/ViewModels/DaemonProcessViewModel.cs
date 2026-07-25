@@ -41,7 +41,6 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
     public string BuiltAgainstVersion { get; }
 
     [ObservableProperty] private bool _isRunning;
-    [ObservableProperty] private string _processPath = "";
 
     /// <summary>Start polling the process state (when the card comes on screen). Refreshes immediately.</summary>
     public void StartPolling() { Refresh(); _pollTimer.Start(); }
@@ -65,9 +64,6 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
         var info = DaemonProcess.Query();
         IsRunning = info.Running;
         _startTime = info.StartTime;
-        // Prefer the live process path; fall back to the connected daemon's source path.
-        ProcessPath = !string.IsNullOrEmpty(info.Path) ? info.Path!
-            : _status.IsConnected ? _status.DaemonSourcePath : "";
         OnPropertyChanged(nameof(ProcessUptime));
         OnPropertyChanged(nameof(ShowProcessUptime));
     }

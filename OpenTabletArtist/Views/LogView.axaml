@@ -46,7 +46,7 @@
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <Button Grid.Column="5" Content="Clear" Command="{Binding ClearCommand}"
+                <Button Grid.Column="5" Content="CLEAR" Command="{Binding ClearCommand}"
                         Theme="{StaticResource GhostButton}" Padding="12,6"
                         IsEnabled="{Binding HasEntries}" />
             </Grid>
