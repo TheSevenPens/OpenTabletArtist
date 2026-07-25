@@ -76,6 +76,7 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 - **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Scribble / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
+- **Quit and stop the daemon** — exit the app *and* stop the OTD daemon (shown only while a daemon is running). Use this when you want nothing left running afterward.
 
 ## Stopping the daemon from outside this app
 

@@ -40,6 +40,7 @@ public sealed class AppTray : IDisposable
     private readonly NativeMenuItem _startItem;
     private readonly NativeMenuItem _stopItem;
     private readonly NativeMenuItem _restartItem;
+    private readonly NativeMenuItem _quitStopItem; // Quit + stop the daemon (#596)
 
     // Signatures of the last-built submenus (so the 3s data poll doesn't churn an open menu): the
     // display submenu (active tablet + monitor geometry + mapped display) and the active-tablet
@@ -83,8 +84,12 @@ public sealed class AppTray : IDisposable
         _restartItem = new NativeMenuItem("Restart Daemon") { Command = _conn.RestartDaemonCommand };
         _stopItem = new NativeMenuItem("Stop Daemon") { Command = _conn.StopDaemonCommand };
 
+        // Quit leaves the daemon running (it's a separate process); "Quit and stop the daemon" also
+        // stops it (#596), shown only when there's a running daemon to stop.
         var quitItem = new NativeMenuItem("Quit");
         quitItem.Click += (_, _) => Quit();
+        _quitStopItem = new NativeMenuItem("Quit and stop the daemon");
+        _quitStopItem.Click += (_, _) => Quit(stopDaemon: true);
 
         var menu = new NativeMenu();
         menu.Items.Add(showItem);
@@ -97,6 +102,7 @@ public sealed class AppTray : IDisposable
         menu.Items.Add(_stopItem);
         menu.Items.Add(new NativeMenuItemSeparator());
         menu.Items.Add(quitItem);
+        menu.Items.Add(_quitStopItem);
         _tray.Menu = menu;
 
         _tray.Clicked += (_, _) => ShowWindow();
@@ -127,6 +133,7 @@ public sealed class AppTray : IDisposable
         _startItem.IsVisible = _conn.ShowStartButton;
         _restartItem.IsVisible = connected;
         _stopItem.IsVisible = connected;
+        _quitStopItem.IsVisible = connected; // only offer "quit + stop" when there's a daemon to stop
         _tray.ToolTipText = $"OpenTabletArtist — {_conn.DaemonStatusText}";
 
         UpdateTabletItems(connected);
@@ -245,7 +252,7 @@ public sealed class AppTray : IDisposable
 
     private void ShowWindow() => _window.BringToFront();
 
-    private async void Quit()
+    private async void Quit(bool stopDaemon = false)
     {
         _window.AllowCloseForQuit();
         // Restore the user's default while the daemon is still connected, so no per-app snapshot lingers
@@ -258,6 +265,18 @@ public sealed class AppTray : IDisposable
                 var delay = Task.Delay(5000);
                 if (await Task.WhenAny(restore, delay) == delay)
                     Trace.TraceWarning("Per-app restore on quit timed out after 5s; a snapshot may remain applied.");
+            }
+            catch { }
+        }
+        // #596 — optionally stop the daemon too (after the restore above, which needs the connection).
+        // Bounded like the restore so a stuck stop can't hang Quit.
+        if (stopDaemon)
+        {
+            try
+            {
+                var stop = _conn.StopDaemonCommand.ExecuteAsync(null);
+                if (await Task.WhenAny(stop, Task.Delay(5000)) != stop)
+                    Trace.TraceWarning("Stopping the daemon on quit timed out after 5s.");
             }
             catch { }
         }
