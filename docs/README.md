@@ -4,7 +4,8 @@ Start with the **[Overview](OVERVIEW.md)** for what OpenTabletArtist is and who 
 
 ## [`user/`](user/) — using the app
 - **[Install guide](user/INSTALL.md)** — download, run, and set up on Windows.
-- **[User manual](user/USERMANUAL.md)** — the interface in depth (start here once installed).
+- **[User manual](user/USERMANUAL.md)** — the interface in depth (start here once installed); indexes the per-page guides below.
+- Per-page guides: [Home](user/HOME.md) · [Tablet](user/TABLET.md) · [Pen](user/PEN.md) · [Scribble](user/SCRIBBLE.md) · [Settings](user/SETTINGS.md) · [Advanced](user/ADVANCED.md)
 - [Presets](user/PRESETS.md) · [Developer tools](user/DEVELOPER.md) · [Troubleshooting](user/TROUBLESHOOTING.md)
 
 ## [`dev/`](dev/) — building & contributing
