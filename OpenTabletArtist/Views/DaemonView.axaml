@@ -100,17 +100,12 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
 
-                            <!-- Which daemon: ownership (only meaningful while connected) -->
+                            <!-- Which daemon: app-owned shown here; the external-daemon case has its own
+                                 EXTERNAL DAEMON card in the right column (#591). -->
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                         IsVisible="{Binding Status.ShowAppOwnedDaemon}">
                                 <TextBlock Classes="success" />
                                 <TextBlock Text="Bundled daemon (app-owned)" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                        IsVisible="{Binding Status.ShowForeignDaemonWarning}">
-                                <TextBlock Classes="neutral" />
-                                <TextBlock Text="External daemon (not app-owned)" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
 
@@ -187,8 +182,34 @@
             </c:Section>
         </StackPanel>
 
-        <!-- RIGHT COLUMN: system-package state (Linux) + the bundled daemon version. -->
+        <!-- RIGHT COLUMN: the external-daemon card (when applicable), system-package state (Linux), and the
+             bundled daemon version. -->
         <StackPanel Grid.Column="1" VerticalAlignment="Top">
+
+            <!-- EXTERNAL DAEMON (#591): OTA connects to whatever daemon is already running — including an
+                 officially-installed / separately-started OpenTabletDriver — and only launches its own
+                 bundled copy when nothing is running. When the connected daemon isn't OTA's build, present
+                 that here as a supported setup (path + version), with a one-click switch back to bundled. -->
+            <c:Section Margin="0,0,0,12" IsVisible="{Binding Status.ShowForeignDaemonWarning}">
+                <StackPanel>
+                    <TextBlock Classes="SectionLabel" Text="EXTERNAL DAEMON" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Text="OTA is connected to a daemon it didn't start — for example an officially-installed OpenTabletDriver. This is supported: OTA configures whichever daemon is running, and only starts its own bundled copy when none is." />
+                    <!-- The external daemon's exe path + version. -->
+                    <TextBlock Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap"
+                               Text="{Binding Status.DaemonSourcePath}"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <TextBlock Margin="0,2,0,0" IsVisible="{Binding Status.HasDaemonVersion}"
+                               Text="{Binding Status.DaemonVersion, StringFormat='Version v{0}'}"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                    <!-- Didn't mean to use it? Restart stops the external daemon and launches OTA's bundled build. -->
+                    <Button Content="Use bundled daemon instead" Margin="0,10,0,0" HorizontalAlignment="Left"
+                            Command="{Binding Status.RestartDaemonCommand}"
+                            IsEnabled="{Binding !Status.IsDaemonBusy}"
+                            Theme="{StaticResource GhostButton}" Padding="12,6"
+                            ToolTip.Tip="Stop the external daemon and start OTA's own bundled build" />
+                </StackPanel>
+            </c:Section>
 
             <!-- Linux only: is OTD installed as a system RPM package (the normal Fedora/RHEL install), or is
                  it running from source / a tarball? Checked on-demand (tab entry + the Refresh button). -->
