@@ -3,50 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls">
 
-    <!-- The pressure-dynamics content — a single card: live bar · curve · pressure smoothing. Shared
-         control (#pen-dynamics-move): hosted by the PEN page's "pressure" pivot and by the tray's focused
-         Pen Dynamics editor (TabletDetailView in DynamicsOnly mode). DataContext is a TabletDetailViewModel,
-         inherited from the host. (Disable tilt → Pen › inputs; position smoothing → Pen › movement.) -->
+    <!-- The pressure-dynamics content — two columns: the curve editor + smoothing on the left, the live
+         pressure bar on its own on the right. Shared control (#pen-dynamics-move): hosted by the PEN page's
+         "pressure" pivot and by the tray's focused Pen Dynamics editor (TabletDetailView in DynamicsOnly
+         mode). DataContext is a TabletDetailViewModel, inherited from the host. (Disable tilt → Pen › inputs;
+         position smoothing → Pen › movement.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
-        <!-- Combined pressure card (#dynamics-merge): live bar · curve · smoothing in one card. No card
-             heading — the "pressure" pivot already names the tab; the filter is always enabled internally
-             (neutralize it with a linear curve + zero smoothing). Left-aligned + width-capped so the single
-             card stays compact on the wide Pen page (it shrinks to fit the focused editor). -->
-        <ctrl:Section Margin="0,2,0,10" MaxWidth="480" HorizontalAlignment="Left">
-            <StackPanel>
-                <!-- Live pressure (#559): a raw dot for the incoming pressure and, when dynamics
-                     shape it, a processed dot at the value after the curve. (The card's PRESSURE DYNAMICS
-                     largetitle was dropped — the "pressure" pivot already names the tab.) -->
-                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="14"
-                                VerticalAlignment="Center" IsVisible="{Binding HasLivePressure}">
-                        <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
-                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                   Foreground="{DynamicResource AccentBrush}" />
-                        <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
-                                   FontFamily="{DynamicResource MonoFontFamily}"
-                                   Foreground="{DynamicResource SuccessBrush}"
-                                   IsVisible="{Binding ShowLiveProcessed}" />
-                    </StackPanel>
-                    <ctrl:PressureLevelBar Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Height="18"
-                                           Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
-                                           ShowProcessed="{Binding ShowLiveProcessed}"
-                                           RawBrush="{DynamicResource AccentBrush}"
-                                           ProcessedBrush="{DynamicResource SuccessBrush}" />
-                </Grid>
+        <!-- Fixed column widths (not Left-aligned/size-to-content) so the smoothing slider's star-sized
+             track renders, and so the whole block (~656px) still fits the tray's focused editor (700px). -->
+        <Grid ColumnDefinitions="360,16,280" HorizontalAlignment="Left">
 
-                <!-- Disable pressure sensitivity (#494) moved to the Pen page's Inputs tab; the note below
-                     still flags, on this tab, that the curve is inert while it's on.
-                     #469: when pressure sensitivity is disabled the output stage drops pressure, so this
-                     curve has no effect. Flag it here so the tab isn't silently inert. -->
-                <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
-                        BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,8,0,0"
-                        IsVisible="{Binding PressureDisabledNote}">
-                    <TextBlock Text="Pressure sensitivity is disabled, so this curve has no effect right now."
-                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
-                </Border>
+            <!-- LEFT — everything but the live bar: the inert-pressure note, the pressure curve + presets,
+                 and pressure smoothing. No card heading — the "pressure" pivot already names the tab. -->
+            <ctrl:Section Grid.Column="0" VerticalAlignment="Top" Margin="0,2,0,10">
+                <StackPanel>
+                    <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
+                         curve has no effect. Flag it here so the tab isn't silently inert. (The toggle lives
+                         on the Pen page's Inputs tab, #494.) -->
+                    <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
+                            BorderThickness="1" CornerRadius="0" Padding="10,7" Margin="0,0,0,8"
+                            IsVisible="{Binding PressureDisabledNote}">
+                        <TextBlock Text="Pressure sensitivity is disabled, so this curve has no effect right now."
+                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                    </Border>
 
-                <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" Margin="0,10,0,0" />
+                    <TextBlock Text="PRESSURE CURVE" Classes="SectionLabel" />
 
                     <!-- Two columns: compact chart on the left, controls on the right. -->
                     <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,0">
@@ -87,20 +68,63 @@
                                       IsVisible="{Binding ShowCutBelowMinimum}"
                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                       ToolTip.Tip="Below the input minimum, produce zero output (a dead zone) instead of holding at the output minimum." />
-
                         </StackPanel>
                     </Grid>
-                <!-- Softness is now shaped by dragging the amber bend node on the curve (PressureCurveChart);
-                     the standalone Softness slider was retired once the node reached parity. -->
-                <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps.
-                     Position smoothing was moved out to the Pen page's movement tab. -->
-                <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"
-                                    Minimum="0" Maximum="{Binding PressureSmoothingMax}"
-                                    Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
-                                    Value="{Binding PressureSmoothing}"
-                                    ValueTextOverride="{Binding PressureSmoothingText}"
-                                    Monospace="True" ValueWidth="44" />
-            </StackPanel>
-        </ctrl:Section>
+
+                    <!-- Softness is shaped by dragging the amber bend node on the curve (PressureCurveChart);
+                         the standalone Softness slider was retired once the node reached parity. -->
+                    <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps.
+                         Position smoothing was moved out to the Pen page's movement tab. -->
+                    <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"
+                                        Minimum="0" Maximum="{Binding PressureSmoothingMax}"
+                                        Ticks="0,0.1,0.2,0.3,0.4,0.5" TickPlacement="BottomRight"
+                                        Value="{Binding PressureSmoothing}"
+                                        ValueTextOverride="{Binding PressureSmoothingText}"
+                                        Monospace="True" ValueWidth="44" />
+                </StackPanel>
+            </ctrl:Section>
+
+            <!-- RIGHT — live pressure (#559): a raw dot for the incoming pressure and, when dynamics shape
+                 it, a processed dot at the value after the curve. Readouts stack (the column is narrow).
+                 Below it, a small paint canvas: drawing on it uses the OS pointer (App mode), whose Windows
+                 Ink pressure is already shaped by this curve — so you can feel the curve while you edit it. -->
+            <ctrl:Section Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,10">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="LIVE PRESSURE" Classes="SectionLabel" />
+                    <!-- Fixed-height slot so the readouts appearing/disappearing while you draw don't push
+                         the canvas below up and down. -->
+                    <Panel Height="40">
+                        <StackPanel Spacing="2" VerticalAlignment="Top" IsVisible="{Binding HasLivePressure}">
+                            <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource SuccessBrush}"
+                                       IsVisible="{Binding ShowLiveProcessed}" />
+                        </StackPanel>
+                    </Panel>
+                    <ctrl:PressureLevelBar Height="18"
+                                           Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
+                                           ShowProcessed="{Binding ShowLiveProcessed}"
+                                           RawBrush="{DynamicResource AccentBrush}"
+                                           ProcessedBrush="{DynamicResource SuccessBrush}" />
+
+                    <TextBlock Text="TRY IT" Classes="SectionLabel" Margin="0,6,0,0" />
+                    <!-- Same paint surface the Scribble page uses; PressureToSize shows the pressure→size
+                         response. App-mode pointer input, so no view-model wiring is needed here. -->
+                    <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
+                        <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" />
+                    </ctrl:Canvas>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Clear" Click="OnClearPreview"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" />
+                        <Button Content="Copy" Click="OnCopyPreview"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                ToolTip.Tip="Copy the drawing to the clipboard as an image" />
+                    </StackPanel>
+                </StackPanel>
+            </ctrl:Section>
+        </Grid>
     </StackPanel>
 </UserControl>
