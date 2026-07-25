@@ -19,8 +19,7 @@ namespace OpenTabletArtist;
 /// <see cref="MainWindow"/>); the app keeps running until Quit is chosen here.
 ///
 /// The tray also surfaces a few tablet actions so they're reachable with the window closed:
-/// a read-only line revealing whether pen dynamics are affecting the pen (#186), and "Open Tablet
-/// Settings" + a "Switch display" submenu for the detected tablet (#187).
+/// an "Active Tablet" picker (#190) and a "Switch display" submenu for the active tablet (#187).
 /// </summary>
 public sealed class AppTray : IDisposable
 {
@@ -29,14 +28,12 @@ public sealed class AppTray : IDisposable
     private readonly IConnectionState _conn;
     private readonly IDeviceData _deviceData;
     private readonly ISettingsCoordinator _settingsCoord;
-    private readonly IDialogService _dialogs;
     private readonly Func<Task>? _onQuitAsync; // restore per-app default before exit (#167)
 
     private readonly TrayIcon _tray;
     private readonly NativeMenuItem _activeTabletItem;
+
     private readonly NativeMenu _activeTabletMenu;
-    private readonly NativeMenuItem _dynamicsItem;
-    private readonly NativeMenuItem _openSettingsItem;
     private readonly NativeMenuItem _switchDisplayItem;
     private readonly NativeMenu _displayMenu;
     private readonly NativeMenuItemSeparator _tabletSeparator;
@@ -51,7 +48,7 @@ public sealed class AppTray : IDisposable
     private string _activeTabletSignature = "";
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
-        IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord, IDialogService dialogs,
+        IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord,
         Func<Task>? onQuitAsync = null)
     {
         _desktop = desktop;
@@ -59,7 +56,6 @@ public sealed class AppTray : IDisposable
         _conn = conn;
         _deviceData = deviceData;
         _settingsCoord = settingsCoord;
-        _dialogs = dialogs;
         _onQuitAsync = onQuitAsync;
 
         _tray = new TrayIcon { ToolTipText = "OpenTabletArtist", IsVisible = true };
@@ -78,10 +74,7 @@ public sealed class AppTray : IDisposable
         _activeTabletMenu = new NativeMenu();
         _activeTabletItem = new NativeMenuItem("Active Tablet") { Menu = _activeTabletMenu };
 
-        // Tablet group (#186/#187): a non-clickable dynamics-reveal line, then the tablet actions.
-        _dynamicsItem = new NativeMenuItem("Pen dynamics: off") { IsEnabled = false };
-        _openSettingsItem = new NativeMenuItem("Open Tablet Settings…");
-        _openSettingsItem.Click += (_, _) => _ = OpenTabletSettingsAsync();
+        // Tablet group (#187): the "Switch Display" submenu for the active tablet.
         _displayMenu = new NativeMenu();
         _switchDisplayItem = new NativeMenuItem("Switch Display") { Menu = _displayMenu };
         _tabletSeparator = new NativeMenuItemSeparator();
@@ -97,8 +90,6 @@ public sealed class AppTray : IDisposable
         menu.Items.Add(showItem);
         menu.Items.Add(new NativeMenuItemSeparator());
         menu.Items.Add(_activeTabletItem);
-        menu.Items.Add(_dynamicsItem);
-        menu.Items.Add(_openSettingsItem);
         menu.Items.Add(_switchDisplayItem);
         menu.Items.Add(_tabletSeparator);
         menu.Items.Add(_startItem);
@@ -147,19 +138,6 @@ public sealed class AppTray : IDisposable
     {
         var activeProfile = connected ? ActiveProfile() : null;
 
-        // #186 — reveal what dynamics are doing to the pen, for the active tablet.
-        if (activeProfile != null)
-        {
-            var read = PressureCurveProfile.ReadProfile(activeProfile);
-            var enabled = read is { Enabled: true };
-            var dynamics = enabled ? read!.Value.Dynamics : PenDynamicsSettings.Default;
-            _dynamicsItem.Header = DynamicsStatus.Describe(enabled, dynamics);
-        }
-        _dynamicsItem.IsVisible = activeProfile != null;
-
-        // #187 — open the active tablet's settings dialog.
-        _openSettingsItem.IsVisible = activeProfile != null;
-
         // #187 — switch the active tablet's mapped display. Only when it's in an Absolute mode we can
         // map (otherwise there's no display area to set).
         var mappable = activeProfile != null && IsAbsoluteMappable(activeProfile);
@@ -177,8 +155,7 @@ public sealed class AppTray : IDisposable
         else
             _activeTabletSignature = "";
 
-        _tabletSeparator.IsVisible =
-            _dynamicsItem.IsVisible || _openSettingsItem.IsVisible || mappable || multipleTablets;
+        _tabletSeparator.IsVisible = mappable || multipleTablets;
     }
 
     /// <summary>The detected profile for the active tablet, falling back to any detected one.</summary>
@@ -243,17 +220,6 @@ public sealed class AppTray : IDisposable
             item.Click += (_, _) => _ = SwitchDisplayAsync(target);
             _displayMenu.Items.Add(item);
         }
-    }
-
-    private async Task OpenTabletSettingsAsync()
-    {
-        var profile = ActiveProfile();
-        if (profile == null) return;
-
-        // The dialog is owned by the main window, so it must be visible first (we may be in the tray).
-        ShowWindow();
-        try { await _dialogs.ShowTabletSettingsAsync(profile); }
-        catch { /* dialog flow failed — nothing actionable from the tray */ }
     }
 
     private async Task SwitchDisplayAsync(DisplayInfo display)

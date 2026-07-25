@@ -34,7 +34,7 @@
                         IsEnabled="{Binding HasEntries}"
                         ToolTip.Tip="Copy the visible log to the clipboard">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="Copy" VerticalAlignment="Center" />
+                        <TextBlock Text="COPY" VerticalAlignment="Center" />
                         <PathIcon Data="{StaticResource IconChevronDown}" Width="10" Height="10"
                                   VerticalAlignment="Center" />
                     </StackPanel>

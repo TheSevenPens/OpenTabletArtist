@@ -114,11 +114,6 @@
                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                             </StackPanel>
 
-                            <!-- Path -->
-                            <TextBlock Text="{Binding ProcessPath}" Margin="0,2,0,0" FontSize="12"
-                                       IsVisible="{Binding IsRunning}" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextMutedBrush}" />
-
                             <!-- Version match vs the version OTA was built with -->
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                         IsVisible="{Binding ShowVersionMatch}">
