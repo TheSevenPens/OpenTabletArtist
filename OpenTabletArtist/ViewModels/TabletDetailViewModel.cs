@@ -570,7 +570,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         (float Width, float Height)? tabletDigitizer = null,
         IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null,
-        bool dynamicsOnly = false,
         IDeviceData? deviceData = null,
         Func<Task>? forgetAction = null,
         Func<CalibrationOptions, Task>? onCalibrate = null,
@@ -588,7 +587,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _forgetAction = forgetAction;
         _onCalibrate = onCalibrate;
         _openConfigsPage = openConfigsPage;
-        DynamicsOnly = dynamicsOnly;
 
         if (penInput != null)
         {
@@ -661,10 +659,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// it was opened); surfaced as a header warning. Cleared on a successful refresh.
     /// (#124 / Cursor review on #125)</summary>
     [ObservableProperty] private string? _refreshWarning;
-
-    /// <summary>When true, this is the focused Pen Dynamics editor: the tab bar is hidden and only the
-    /// Dynamics content shows (#133). The Dynamics tab is preselected by the view.</summary>
-    [ObservableProperty] private bool _dynamicsOnly;
 
     // --- Tablet detected/connected banner (#132) ---
 

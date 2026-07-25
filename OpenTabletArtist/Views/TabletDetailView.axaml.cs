@@ -15,10 +15,9 @@ namespace OpenTabletArtist.Views;
 
 /// <summary>
 /// Hosts a single tablet's tabbed settings (DataContext is a <see cref="TabletDetailViewModel"/>).
-/// Owns the view-side lifecycle the old dialog used to: stream the live pen-pressure dot only while
-/// the Dynamics tab is visible (#102), refresh the display list when monitors change (#95), and
-/// preselect the Dynamics tab in the focused editor (#133). Scoped to the view's attach/detach, so it
-/// works whether hosted as the in-app page or in the tray dialog.
+/// Owns the view-side lifecycle: stream the live device reports only while a live tab (Buttons /
+/// Wheels) is visible (#102), refresh the display list when monitors change (#95), and deep-link to
+/// the tab that carries a health-issue fix. Scoped to the view's attach/detach.
 /// </summary>
 public partial class TabletDetailView : UserControl
 {
@@ -40,9 +39,6 @@ public partial class TabletDetailView : UserControl
     {
         base.OnAttachedToVisualTree(e);
 
-        // Focused Pen Dynamics editor (#133): open straight on the Dynamics tab.
-        if (Vm?.DynamicsOnly == true) DynamicsTab.IsChecked = true;
-
         // Health-issue "Fix" deep-link: open on the tab that carries the fix (e.g. Display Mapping for an
         // off-screen mapping) instead of the default About tab. Also handle a request that arrives while
         // the page is already shown (re-navigation wouldn't re-attach the view).
@@ -51,9 +47,8 @@ public partial class TabletDetailView : UserControl
 
         _screens = TopLevel.GetTopLevel(this)?.Screens;
         if (_screens != null) _screens.Changed += OnScreensChanged;
-        // Live device-report stream feeds the pressure dot (Dynamics tab), the aux-button highlight
-        // (Buttons tab), and the wheel gauge (Wheels tab), so watch those tabs.
-        DynamicsTab.IsCheckedChanged += OnLiveTabChanged;
+        // Live device-report stream feeds the aux-button highlight (Buttons tab) and the wheel gauge
+        // (Wheels tab), so watch those tabs.
         ButtonsTab.IsCheckedChanged += OnLiveTabChanged;
         WheelsTab.IsCheckedChanged += OnLiveTabChanged;
         UpdateLiveInput(); // start now if we opened on a live tab
@@ -67,7 +62,6 @@ public partial class TabletDetailView : UserControl
         base.OnDetachedFromVisualTree(e);
         if (Vm != null) Vm.TabRequested -= OnTabRequested;
         if (_screens != null) { _screens.Changed -= OnScreensChanged; _screens = null; }
-        DynamicsTab.IsCheckedChanged -= OnLiveTabChanged;
         ButtonsTab.IsCheckedChanged -= OnLiveTabChanged;
         WheelsTab.IsCheckedChanged -= OnLiveTabChanged;
         ActiveAreaDiagramControl.AreaCommitted -= OnActiveAreaCommitted;
@@ -175,7 +169,7 @@ public partial class TabletDetailView : UserControl
     private void UpdateLiveInput()
     {
         if (Vm is not { } vm) return;
-        if (DynamicsTab.IsChecked == true || ButtonsTab.IsChecked == true || WheelsTab.IsChecked == true)
+        if (ButtonsTab.IsChecked == true || WheelsTab.IsChecked == true)
             vm.StartLiveInput();
         else vm.StopLiveInput();
     }

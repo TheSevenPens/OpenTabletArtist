@@ -179,18 +179,12 @@
              RadioButtons switched by ElementName (content gates on #XTab.IsChecked; code-behind reads the
              x:Names for live-input, deep-links, screenshot sweep). The switcher + actions show only when
              this view is embedded in the TABLET page (!ShowHeader) — the tray dialog uses the
-             ComplexHeader above instead. Hidden entirely in the focused Pen Dynamics view (#133). -->
+             ComplexHeader above instead. -->
         <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
-                Margin="0,0,0,14" Padding="0,0,0,7"
-                IsVisible="{Binding !DynamicsOnly}">
+                Margin="0,0,0,14" Padding="0,0,0,7">
             <Grid ColumnDefinitions="*,Auto">
             <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                 <RadioButton Content="about" IsChecked="True" x:Name="AboutTab"
-                             Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
-                <!-- The dynamics pivot moved to the PEN page (#pen-dynamics-move). This RadioButton is kept
-                     but hidden: it's no longer a selectable tablet-page pivot, and only the focused Pen
-                     Dynamics editor (DynamicsOnly) checks it programmatically to show the dynamics content. -->
-                <RadioButton Content="dynamics" x:Name="DynamicsTab" IsVisible="False"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <RadioButton Content="mapping" x:Name="MappingTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
@@ -757,16 +751,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
-        </ScrollViewer>
-
-        <!-- Dynamics tab content: Pressure (live bar + curve + smoothing), then Position and Tilt as
-             stacked sections (merged, Zune 2c prep). -->
-        <!-- Dynamics content — now a shared control (#pen-dynamics-move). On the tablet page it's only
-             reached via the focused Pen Dynamics editor (DynamicsOnly checks the hidden DynamicsTab); the
-             selectable pivot lives on the PEN page. -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #DynamicsTab.IsChecked}">
-            <views:DynamicsView />
         </ScrollViewer>
 
         <!-- Hover tab content (#188) -->

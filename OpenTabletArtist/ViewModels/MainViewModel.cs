@@ -188,7 +188,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             () => OpenAdvancedTab(AdvancedTab.Drivers),  // VMulti → Drivers pivot
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
-        Test = new TestViewModel(_session.Daemon, _session, dialogs);
+        Test = new TestViewModel(_session.Daemon, _session);
         Log = new LogViewModel(_session.Daemon, _session);
         Plugins = new PluginsViewModel(_session, _session);
         Daemon = new DaemonViewModel(_daemonStatus);

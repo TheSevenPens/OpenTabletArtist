@@ -70,8 +70,6 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 
 - **Click the icon** — reopen the window.
 - **Show OpenTabletArtist** — reopen the window.
-- **Pen dynamics status** — a read-only line revealing whether the bundled Pen Dynamics filter is affecting the active tablet's pen: *off*, *on (behaves linear)*, or *Affecting your pen: Pressure curve, Pressure smoothing, Position smoothing* (only the parts actually in effect). Mirrors the Scribble page's indicator so the effect is never a mystery with the window closed. Shown only when a tablet is connected.
-- **Open Tablet Settings…** — reopens the window and shows the active tablet's settings. Shown when a tablet is connected. (The tray also offers a focused **Pen Dynamics** editor.)
 - **Switch Display** — a submenu listing your monitors; pick one to map the active tablet to that whole display (aspect-locked, the same mapping as clicking a display on the Tablet page's **mapping** tab). The currently-mapped display is check-marked. Shown only when the active tablet is in an Absolute output mode (otherwise there's no display area to set).
 - **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Scribble / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.

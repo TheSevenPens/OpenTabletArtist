@@ -25,15 +25,13 @@ public partial class TestViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonPenInputSource _driver;
     private readonly IDeviceData _deviceData;
-    private readonly IDialogService _dialogs;
     private bool _active;
 
-    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData, IDialogService dialogs)
+    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData)
     {
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
         _deviceData = deviceData;
-        _dialogs = dialogs;
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
     }
@@ -178,24 +176,6 @@ public partial class TestViewModel : ObservableObject, IDisposable
         DynamicsNoOp = DynamicsActive && d.IsNoOp;
     }
 
-    /// <summary>Open a focused Pen Dynamics editor (curve + smoothing only) without leaving Test —
-    /// targets the detected tablet, falling back to the first known profile (#133).</summary>
-    [RelayCommand]
-    private async Task OpenDynamics()
-    {
-        var profile = (_deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == _deviceData.ActiveTabletName)
-                       ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected)
-                       ?? _deviceData.Profiles.FirstOrDefault())?.Profile;
-        if (profile == null) return;
-
-        // Pointer-only mode draws nothing, so dynamics edits would be invisible. Switch to a pressure
-        // view first so the user can actually see the effect of what they're about to tweak (#183).
-        if (BrushMode == PenBrushMode.PointerOnly)
-            BrushMode = PenBrushMode.PressureToSize;
-
-        await _dialogs.ShowTabletSettingsAsync(profile, dynamicsOnly: true);
-    }
-
     /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>
     [ObservableProperty] private bool _useDriverInput;
 
@@ -203,8 +183,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
 
     /// <summary>Pointer-only mode draws nothing, so active dynamics can't be seen — warn while both
-    /// are true (the user can switch Mode to a pressure view). Complements the auto-switch on the
-    /// Dynamics button (#183).</summary>
+    /// are true (the user can switch Mode to a pressure view). (#183)</summary>
     public bool PointerOnlyWithDynamics => BrushMode == PenBrushMode.PointerOnly && DynamicsActive;
 
     partial void OnBrushModeChanged(PenBrushMode value) => OnPropertyChanged(nameof(PointerOnlyWithDynamics));

@@ -40,16 +40,12 @@
 
         <StackPanel DockPanel.Dock="Top">
             <!-- No page title — the "scribble" wordmark names the section (Zune). -->
-            <!-- One row: on the LEFT, the Dynamics button + the chips that spell out which dynamics are
-                 actually altering the pen (#184) — always shown, so the button stays available when
-                 dynamics are off; on the RIGHT, the active-tablet switcher (only when more than one tablet
-                 is connected, #190 phase 3), matching where the Tablet/Pen pages place their switcher. -->
+            <!-- One row: on the LEFT, the chips that spell out which dynamics are actually altering the pen
+                 (#184); on the RIGHT, the active-tablet switcher (only when more than one tablet is
+                 connected, #190 phase 3), matching where the Tablet/Pen pages place their switcher.
+                 (Edit the pressure curve + smoothing on the Pen page's "pressure" tab.) -->
             <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Dynamics" Command="{Binding OpenDynamicsCommand}"
-                            Theme="{StaticResource GhostButton}" FontSize="{DynamicResource TypeCaptionSize}" Padding="8,3" MinHeight="0"
-                            VerticalAlignment="Center" Margin="0,0,8,0"
-                            ToolTip.Tip="Open this tablet's Dynamics settings (curve + smoothing) without leaving Scribble" />
                     <!-- The specific-aspect chips spell out exactly what's altering the pen; a generic
                          "Dynamics on" pill was redundant with them, so it was removed. -->
                     <Border Classes="DynChip" IsVisible="{Binding CurveActive}">

@@ -4,9 +4,8 @@
              xmlns:ctrl="using:OpenTabletArtist.Controls">
 
     <!-- The pressure-dynamics content — two columns: the curve editor + smoothing on the left, the live
-         pressure bar on its own on the right. Shared control (#pen-dynamics-move): hosted by the PEN page's
-         "pressure" pivot and by the tray's focused Pen Dynamics editor (TabletDetailView in DynamicsOnly
-         mode). DataContext is a TabletDetailViewModel, inherited from the host. (Disable tilt → Pen › inputs;
+         pressure bar on its own on the right. Hosted by the PEN page's "pressure" pivot (#pen-dynamics-move).
+         DataContext is a TabletDetailViewModel, inherited from the host. (Disable tilt → Pen › inputs;
          position smoothing → Pen › movement.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
         <!-- Fixed column widths (not Left-aligned/size-to-content) so the smoothing slider's star-sized

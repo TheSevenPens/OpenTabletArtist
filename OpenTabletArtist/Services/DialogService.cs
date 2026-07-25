@@ -14,11 +14,6 @@ namespace OpenTabletArtist.Services;
 /// </summary>
 public interface IDialogService
 {
-    /// <summary>Opens the per-tablet settings dialog for <paramref name="profile"/> and awaits its
-    /// close. When <paramref name="dynamicsOnly"/> is true, the dialog opens as a focused Pen Dynamics
-    /// editor — the tab bar is hidden and only the Dynamics panel shows (#133).</summary>
-    Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false);
-
     /// <summary>Builds a <see cref="TabletDetailViewModel"/> for the in-app Tablets page, wired to the
     /// session (apply/save, reload, detection, live pen input, calibration owned by the main window).
     /// <paramref name="onForget"/> removes the tablet's profile and is invoked by the page's Forget.</summary>
@@ -75,7 +70,6 @@ public class DialogService : IDialogService
             tabletDigitizer: _session.GetTabletDigitizer(tabletName),
             penInput: _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
             isDetected: () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
-            dynamicsOnly: false,
             deviceData: _session, // live detection updates while the page is open (#177)
             forgetAction: onForget,
             // Calibration overlay is owned by the main window (the page has no window of its own, #127).
@@ -99,44 +93,6 @@ public class DialogService : IDialogService
             },
             // ABOUT tab → the config-override card's Review button navigates to the CONFIGS page (#467).
             openConfigsPage: openConfigsPage);
-    }
-
-    public async Task ShowTabletSettingsAsync(Profile profile, bool dynamicsOnly = false)
-    {
-        var tabletName = profile.Tablet;
-        var digitizer = _session.GetTabletDigitizer(tabletName);
-        var dialog = new Views.TabletSettingsDialog(
-            profile,
-            _session.CurrentSettings,
-            async updatedSettings => await _session.ApplyAndSaveSettingsAsync(updatedSettings),
-            async () =>
-            {
-                // Authoritative refresh through the session so its CurrentSettings cache stays
-                // coherent (and the rest of the UI updates too). (Codex #43.) Return the reloaded
-                // settings together with the profile so the dialog keeps both in sync — the profile
-                // is a reference inside these settings, and later edits persist through them (#124).
-                await _session.ReloadAsync();
-                var settings = _session.CurrentSettings;
-                return (settings, settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
-            },
-            digitizer,
-            dynamicsOnly,
-            _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
-            // Is this tablet the currently-connected one? Drives the detected/connected banner (#132).
-            () => _session.Profiles.Any(p => p.IsDetected && p.Profile.Tablet == tabletName),
-            // Open the pointer-calibration overlay owned by the settings dialog (#127), using the
-            // capture mode the user picked (corners → homography, or a finer grid; #195/#196). Resolve
-            // the profile live (by name) so the overlay follows the current display mapping (#124).
-            (owner, options) => ShowCalibrationAsync(
-                _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName) ?? profile,
-                owner, options),
-            // Live-refresh the detection banner + tablet-dependent actions while the dialog is open
-            // (#177): the session reloads on the daemon's TabletsChanged push (#170) and raises DataLoaded.
-            _session);
-
-        var mainWindow = Dialogs.GetMainWindow();
-        if (mainWindow != null)
-            await dialog.ShowDialog(mainWindow);
     }
 
     /// <summary>Opens the 4-tap pointer-calibration overlay on the display this tablet is mapped to
