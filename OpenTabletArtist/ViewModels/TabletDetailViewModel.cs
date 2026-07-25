@@ -171,8 +171,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             var mapped = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
             return mapped != null
-                ? $"Calibration opens on Display {mapped.Number} ({mapped.Name}) — where your tablet is mapped."
-                : "Calibration opens on the display your tablet is mapped to.";
+                ? $"Calibration opens on: Display {mapped.Number} ({mapped.Name})"
+                : "Calibration opens on: your tablet's mapped display.";
         }
     }
 

@@ -503,32 +503,67 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #CalibrationTab.IsChecked}">
             <StackPanel>
-                <!-- Current calibration status card — sits before the density options so the user sees
-                     the current state (and can clear it) first. Leads with which display the calibration
-                     overlay pops up on (the tablet's mapped display), so the user knows where to look;
-                     this line used to be a separate accent box above the card (folded in, #500). -->
-                <ctrl:Section Margin="0,0,0,12" IsVisible="{Binding CanCalibrate}">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="{Binding CalibrationStatusText}" FontWeight="SemiBold"
-                                       VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <ToggleSwitch IsChecked="{Binding CalibrationEnabled}" IsVisible="{Binding HasCalibration}"
-                                          OnContent="On" OffContent="Off" VerticalAlignment="Center" MinWidth="0"
-                                          ToolTip.Tip="Turn the calibration correction on or off without clearing it — to compare with and without." />
-                            <Button Content="View report" Click="OnViewCalibrationReport" IsVisible="{Binding HasCalibrationReport}"
-                                    Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center"
-                                    ToolTip.Tip="See the recorded points, fit quality and natural tilt from the last calibration" />
-                            <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
-                                    Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center"
-                                    ToolTip.Tip="Remove the calibration entirely and return the pointer to its uncorrected default" />
+                <!-- Top row: two columns — STATUS on the left (which display the overlay opens on + the
+                     current calibration state/actions) and BACKUP & RESTORE on the right. Both gate on
+                     CanCalibrate; the density options follow below. -->
+                <Grid ColumnDefinitions="*,32,*">
+                    <!-- LEFT — STATUS. Leads with which display the calibration overlay pops up on (the
+                         tablet's mapped display) so the user knows where to look, then the current state
+                         with its On/Off, View report, and Clear actions. -->
+                    <ctrl:Section Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Top"
+                                  IsVisible="{Binding CanCalibrate}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="STATUS" Classes="SectionLabel largetitle" />
+                            <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
+                            <!-- Wraps so the toggle + buttons reflow in the narrower column. -->
+                            <WrapPanel>
+                                <TextBlock Text="{Binding CalibrationStatusText}" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,10,6" />
+                                <ToggleSwitch IsChecked="{Binding CalibrationEnabled}" IsVisible="{Binding HasCalibration}"
+                                              OnContent="On" OffContent="Off" VerticalAlignment="Center" MinWidth="0" Margin="0,0,10,6"
+                                              ToolTip.Tip="Turn the calibration correction on or off without clearing it — to compare with and without." />
+                                <Button Content="View report" Click="OnViewCalibrationReport" IsVisible="{Binding HasCalibrationReport}"
+                                        Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center" Margin="0,0,10,6"
+                                        ToolTip.Tip="See the recorded points, fit quality and natural tilt from the last calibration" />
+                                <Button Content="Clear calibration" Command="{Binding ClearCalibrationCommand}" IsVisible="{Binding CanClearCalibration}"
+                                        Theme="{StaticResource GhostButton}" Padding="10,4" VerticalAlignment="Center" Margin="0,0,0,6"
+                                        ToolTip.Tip="Remove the calibration entirely and return the pointer to its uncorrected default" />
+                            </WrapPanel>
+                            <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
+                                       Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                       IsVisible="{Binding CalibrationStale}" />
                         </StackPanel>
-                        <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
-                                   Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
-                                   IsVisible="{Binding CalibrationStale}" />
-                    </StackPanel>
-                </ctrl:Section>
+                    </ctrl:Section>
+
+                    <!-- RIGHT — BACKUP & RESTORE (#545): save this tablet's calibration to a portable JSON
+                         and restore it later without re-tapping. Import is matching-only. -->
+                    <ctrl:Section Grid.Column="2" Margin="0,0,0,12" VerticalAlignment="Top"
+                                  IsVisible="{Binding CanCalibrate}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel largetitle" />
+                            <TextBlock Text="Save this tablet's calibration data to a file. Import it later to restore the calibration. Importing only works when the tablet's current mapping matches the saved one."
+                                       Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Export calibration…" Click="OnExportCalibration"
+                                        IsEnabled="{Binding CanExportCalibration}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                                        ToolTip.Tip="Save the current calibration to a JSON file" />
+                                <Button Content="Import calibration…" Click="OnImportCalibration"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                                        ToolTip.Tip="Load a saved calibration and apply it to this tablet" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding CaptureStatus}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       IsVisible="{Binding HasCaptureStatus}" />
+                        </StackPanel>
+                    </ctrl:Section>
+                </Grid>
+
+                <!-- Heading over the three density cards below. -->
+                <TextBlock Text="CALIBRATION OPTIONS" Classes="SectionLabel largetitle"
+                           Margin="0,4,0,10" IsVisible="{Binding CanCalibrate}" />
 
                 <!-- One card per calibration density; START begins that mode. The card of the calibration
                      currently in use gets an accent outline + "In use" badge. Equal-size cards
@@ -537,9 +572,13 @@
                 <UniformGrid Columns="3" IsVisible="{Binding CanCalibrate}">
                     <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent4Point}">
                         <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="4 points" Classes="CardTitle" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
+                            <!-- Title centered over the (centered) thumbnail below. The left column is an
+                                 invisible mirror of the "In use" badge so, when this card is the active
+                                 calibration, the badge on the right doesn't pull the title off-centre. -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0" Classes="calBadge" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
+                                <TextBlock Grid.Column="1" Text="4 POINT CALIBRATION" Classes="CardTitle" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Grid.Column="2" Classes="calBadge" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="4" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
@@ -551,9 +590,10 @@
                     </ctrl:Section>
                     <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent9Point}">
                         <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="9 points" Classes="CardTitle" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0" Classes="calBadge" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
+                                <TextBlock Grid.Column="1" Text="9 POINT CALIBRATION" Classes="CardTitle" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Grid.Column="2" Classes="calBadge" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="9" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
@@ -565,9 +605,10 @@
                     </ctrl:Section>
                     <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent25Point}">
                         <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="25 points" Classes="CardTitle" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Classes="calBadge" IsVisible="{Binding IsCurrent25Point}"><TextBlock Text="In use" /></Border>
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0" Classes="calBadge" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent25Point}"><TextBlock Text="In use" /></Border>
+                                <TextBlock Grid.Column="1" Text="25 POINT CALIBRATION" Classes="CardTitle" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Grid.Column="2" Classes="calBadge" IsVisible="{Binding IsCurrent25Point}"><TextBlock Text="In use" /></Border>
                             </Grid>
                             <ctrl:CalibrationDots Points="25" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[2]}"
@@ -578,28 +619,6 @@
                         </StackPanel>
                     </ctrl:Section>
                 </UniformGrid>
-
-                <!-- Import / export calibration (#545): save this tablet's calibration to a portable JSON
-                     and restore it later without re-tapping. Import is matching-only. -->
-                <ctrl:Section Margin="0,4,0,0" IsVisible="{Binding CanCalibrate}">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel" />
-                        <TextBlock Text="Save this tablet's calibration data to a file. Import it later to restore the calibration. Importing only works when the tablet's current mapping matches the saved one."
-                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Export calibration…" Click="OnExportCalibration"
-                                    IsEnabled="{Binding CanExportCalibration}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    ToolTip.Tip="Save the current calibration to a JSON file" />
-                            <Button Content="Import calibration…" Click="OnImportCalibration"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    ToolTip.Tip="Load a saved calibration and apply it to this tablet" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding CaptureStatus}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   IsVisible="{Binding HasCaptureStatus}" />
-                    </StackPanel>
-                </ctrl:Section>
 
                 <TextBlock Text="Calibration is available in Absolute mode." Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0" IsVisible="{Binding !CanCalibrate}" />
