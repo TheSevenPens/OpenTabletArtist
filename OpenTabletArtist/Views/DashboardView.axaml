@@ -133,12 +133,13 @@
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         <!-- Detection status as the same link / link-off icon the tablet
-                                             dropdown uses (green = detected, muted = not); the old
-                                             "Detected"/"Not detected" word is now the icon's tooltip. -->
+                                             dropdown uses (#593: both neutral — the link vs link-off icon,
+                                             not colour, shows state); the old "Detected"/"Not detected" word
+                                             is now the icon's tooltip. -->
                                         <Panel Width="16" Height="16" VerticalAlignment="Center"
                                                ToolTip.Tip="{Binding StatusText}">
                                             <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16"
-                                                      Foreground="{DynamicResource SuccessBrush}"
+                                                      Foreground="{DynamicResource NeutralBrush}"
                                                       IsVisible="{Binding IsDetected}" />
                                             <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16"
                                                       Foreground="{DynamicResource NeutralBrush}"

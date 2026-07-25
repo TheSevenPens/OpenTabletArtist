@@ -352,12 +352,14 @@
                     </StackPanel>
                 </ControlTemplate>
             </Setter>
+            <!-- Success is conveyed by the check-circle glyph + wording, not colour (#593: green as a
+                 status colour reads poorly in some themes). -->
             <Style Selector="^[Kind=Success] /template/ PathIcon#PART_Glyph">
                 <Setter Property="Data" Value="{StaticResource IconCheckCircle}" />
-                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </Style>
             <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Text">
-                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </Style>
             <Style Selector="^[Kind=Warning] /template/ PathIcon#PART_Glyph">
                 <Setter Property="Data" Value="{StaticResource IconAlert}" />
@@ -376,7 +378,7 @@
         </ControlTheme>
 
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
-             Green outline + text when detected; neutral gray otherwise (undetected isn't a warning, #489). -->
+             Neutral outline in both states (#593: no green status colour); the text conveys detection. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="Template">
@@ -401,9 +403,9 @@
                     </Border>
                 </ControlTemplate>
             </Setter>
-            <!-- Detected → success outline (default is the neutral gray outline above). -->
+            <!-- Detected keeps the neutral outline (#593); the text says "Detected". -->
             <Style Selector="^[IsDetected=True] /template/ Border#PART_Pill">
-                <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource TextMutedBrush}" />
             </Style>
         </ControlTheme>
 
@@ -718,7 +720,7 @@
 
     <!-- ===== Status marks ===========================================================
          A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
-           success → green   warning → amber   neutral → muted   error → red
+           success → muted (#593: no green)   warning → amber   neutral → muted   error → red
 
          Two bool-driven base classes for the common "success vs not" indicator.
          Apply Classes.success="{Binding ...}" to toggle the success state:
@@ -742,14 +744,14 @@
     <Style Selector="TextBlock.statusMarkWarn">
         <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
     </Style>
-    <!-- Success override for either base -->
+    <!-- Success override for either base — muted, not green (#593). The check-mark/label carries "good". -->
     <Style Selector="TextBlock.statusMark.success, TextBlock.statusMarkWarn.success">
-        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>
 
     <!-- Literal single-state marks (for multi-state rows) -->
     <Style Selector="TextBlock.success">
-        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>
     <Style Selector="TextBlock.warning">
         <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />

@@ -209,7 +209,7 @@ public partial class MainWindow : Window
     // Icon + label ("Saved"/"Failed") built in code, since the content is swapped transiently (#551).
     private static Control FlashContent(bool ok)
     {
-        var brushKey = ok ? "SuccessBrush" : "ErrorBrush";
+        var brushKey = ok ? "TextPrimaryBrush" : "ErrorBrush"; // #593: success is the check icon, not green
         var brush = Application.Current?.TryFindResource(brushKey, out var b) == true && b is IBrush ib
             ? ib : Brushes.Gray;
         var geo = Application.Current?.TryFindResource(ok ? "IconCheckCircle" : "IconAlertCircle",

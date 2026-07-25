@@ -10,7 +10,7 @@ The full daemon status and controls (this moved off Home, which now shows the da
 
 Below the "Daemon running" line, a **daemon ownership indicator** shows which daemon the app is actually connected to (one of three states):
 
-- **App-owned daemon** (green check) — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
+- **App-owned daemon** — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
 - **External daemon (not app-owned)** — connected to a daemon OTA didn't start, e.g. an officially-installed OpenTabletDriver you already had running. This is a **supported** setup: OTA connects to whichever daemon is running and only starts its own bundled copy when none is. It's presented in its own **EXTERNAL DAEMON** card (right column) showing the daemon's path + version, with a **Use bundled daemon instead** button (Restart) if you didn't intend it.
 - **Daemon source unknown** (grey) — connected, but the daemon's exe path couldn't be read (e.g. it's running elevated). The app reports this honestly rather than guessing.
 
@@ -28,7 +28,7 @@ The **Drivers** tab stacks two cards: the **Windows Ink Plugin** on top and the 
 
 Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
 
-- **Install status** — a green dot + "Installed" (with the **plugin version** as a chip next to the name) or a grey dot + "Not installed."
+- **Install status** — the plugin version folded into the text (e.g. "v0.5.2 installed"), or "Not installed."
 - **Output mode** — whether the tablet actually uses a Windows Ink mode ("Plugin active" / "Not configured").
 - **Supported driver vs OTD** — the plugin's declared supported driver version alongside the running OTD version. A warning indicator appears if the installed plugin doesn't declare support for the current OTD version (per OTD's own compatibility rule).
 - **Buttons** — **Install** (when not installed); **Check for Update** (when installed) which queries the official OTD Plugin-Repository — if a newer plugin version is found the button becomes **Install Update (vX)**, otherwise it reports "Up to date"; **Uninstall**; and a **Refresh** icon (top-right) that re-reads the installed plugin and re-checks the repository in one step. Install/update/uninstall are driven through the daemon's plugin RPC; the card updates its status as soon as each operation completes.

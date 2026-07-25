@@ -16,11 +16,11 @@
             <ComboBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <!-- Detection icon (matches the detection chip): green link when detected,
-                             muted link-off when not. -->
+                        <!-- Detection icon: link when detected, link-off when not — both neutral (#593);
+                             the icon shape, not colour, shows state. -->
                         <Panel Width="15" Height="15" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource IconLink}" Width="15" Height="15"
-                                      Foreground="{DynamicResource SuccessBrush}"
+                                      Foreground="{DynamicResource NeutralBrush}"
                                       IsVisible="{Binding IsDetected}" />
                             <PathIcon Data="{StaticResource IconLinkOff}" Width="15" Height="15"
                                       Foreground="{DynamicResource NeutralBrush}"

@@ -78,7 +78,9 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        <Border Background="{DynamicResource SuccessBrush}" CornerRadius="0"
+                                        <!-- Highlights your connected tablet in the catalog — accent (a theme-safe
+                                             highlight), not a green status colour (#593). -->
+                                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="0"
                                                 Padding="7,1" VerticalAlignment="Center" IsVisible="{Binding IsDetected}">
                                             <TextBlock Text="Detected" Foreground="White" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" />
                                         </Border>

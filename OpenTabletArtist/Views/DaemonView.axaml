@@ -25,7 +25,7 @@
                                         IsVisible="{Binding Status.IsConnected}">
                                 <TextBlock Classes="success" />
                                 <TextBlock Text="Connected to a daemon" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource SuccessBrush}" />
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                         IsVisible="{Binding !Status.IsConnected}">
@@ -88,7 +88,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding IsRunning}">
                                 <TextBlock Classes="success" />
                                 <TextBlock Text="Running" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource SuccessBrush}" />
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
                                            Margin="6,0,0,0" IsVisible="{Binding Status.HasDaemonVersion}"
                                            Foreground="{DynamicResource TextMutedBrush}"
@@ -223,7 +223,7 @@
                                     IsVisible="{Binding OtdPackageInstalled}">
                             <TextBlock Classes="success" />
                             <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource SuccessBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        Text="{Binding OtdPackageVersion, StringFormat='Installed as a system package (RPM) — v{0}'}"
                                        ToolTip.Tip="OpenTabletDriver is installed via your package manager (rpm -q opentabletdriver)" />
                         </StackPanel>
