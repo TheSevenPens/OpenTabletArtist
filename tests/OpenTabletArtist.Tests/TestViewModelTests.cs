@@ -25,7 +25,7 @@ public class TestViewModelTests
     }
 
     private static TestViewModel NewVm(FakeDeviceData data) =>
-        new(new NoopDebugSession(), data, new FakeDialogService());
+        new(new NoopDebugSession(), data);
 
     private static Profile DetectedProfileWithDynamics(string tablet, bool enabled)
         => ProfileWithDynamics(tablet, PenDynamicsSettings.Default, enabled);
@@ -114,21 +114,6 @@ public class TestViewModelTests
         Assert.Equal("No tablet detected", vm.TabletStatusText);
     }
 
-    // #133: the Test "Dynamics" button opens the focused dynamics-only editor for the detected tablet.
-    [Fact]
-    public async Task OpenDynamics_OpensDynamicsOnlyDialog_ForDetectedProfile()
-    {
-        var profile = new Profile { Tablet = "Wacom" };
-        var data = new FakeDeviceData { Profiles = new List<ProfileItem> { new(profile, IsDetected: true, LastSeen: null) } };
-        var dialogs = new FakeDialogService();
-        using var vm = new TestViewModel(new NoopDebugSession(), data, dialogs);
-
-        await vm.OpenDynamicsCommand.ExecuteAsync(null);
-
-        Assert.Same(profile, dialogs.ShownProfile);
-        Assert.True(dialogs.ShownDynamicsOnly);
-    }
-
     // --- #184: spell out which dynamics aspects are altering the pen ---
 
     [Fact]
@@ -194,21 +179,6 @@ public class TestViewModelTests
         Assert.True(vm.PointerOnlyWithDynamics);
     }
 
-    [Fact]
-    public async Task OpenDynamics_FromPointerOnly_SwitchesToPressureMode()
-    {
-        var profile = new Profile { Tablet = "Wacom" };
-        var dialogs = new FakeDialogService();
-        using var vm = new TestViewModel(new NoopDebugSession(), DetectedWith(profile), dialogs)
-        {
-            BrushMode = PenBrushMode.PointerOnly,
-        };
-
-        await vm.OpenDynamicsCommand.ExecuteAsync(null);
-
-        Assert.Equal(PenBrushMode.PressureToSize, vm.BrushMode);
-    }
-
     // --- #190 phase 3: active-tablet picker + targeting ---
 
     [Fact]
@@ -243,24 +213,5 @@ public class TestViewModelTests
         vm.SelectedTablet = vm.Tablets.First(t => t.Name == "B");
 
         Assert.Equal("B", data.ActiveTabletName);
-    }
-
-    [Fact]
-    public async Task OpenDynamics_TargetsActiveTablet_NotJustTheFirstDetected()
-    {
-        var first = new Profile { Tablet = "A" };
-        var second = new Profile { Tablet = "B" };
-        var data = new FakeDeviceData
-        {
-            Profiles = new List<ProfileItem> { new(first, IsDetected: true, LastSeen: null), new(second, IsDetected: true, LastSeen: null) },
-            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
-            ActiveTabletName = "B",
-        };
-        var dialogs = new FakeDialogService();
-        using var vm = new TestViewModel(new NoopDebugSession(), data, dialogs);
-
-        await vm.OpenDynamicsCommand.ExecuteAsync(null);
-
-        Assert.Same(second, dialogs.ShownProfile);
     }
 }
