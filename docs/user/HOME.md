@@ -11,6 +11,6 @@ The landing page stays quiet when everything is healthy and surfaces things only
 
 ## About
 
-Project information — what OpenTabletArtist is, the app version, and a **Resources** list (source code, releases, user manual). It's folded into Home's right column.
+Project information — what OpenTabletArtist is, the app version, a **Resources** list (source code, releases, user manual), and the app icon at the bottom. It's folded into Home's right column.
 
 A **Help** card is the obvious place to get support: it points you to the **#help-forum** channel on the [Drawing Tablet Discord](https://discord.gg/Rr2MXeM7Ny) and asks you to put **"OTA"** in the title so it reaches the right people. (Start here rather than the OpenTabletDriver forums — most questions aren't OTD-specific, and anything that turns out to be an OTD issue can be escalated from there.)
