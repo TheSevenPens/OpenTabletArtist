@@ -74,5 +74,9 @@
                 </Button>
             </StackPanel>
         </c:Section>
+
+        <!-- App icon at the bottom of the About column (the full 256px asset). -->
+        <Image Source="/Assets/appicon.png" Width="200" Height="200"
+               HorizontalAlignment="Left" Margin="0,20,0,0" />
     </StackPanel>
 </UserControl>
