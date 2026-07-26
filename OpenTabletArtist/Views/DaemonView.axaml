@@ -280,24 +280,28 @@
 
             <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
             <c:Section>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Grid.Column="0" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding CurrentOtdVersion, StringFormat='v{0}'}" Margin="0,4,0,0"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <!-- Bundled daemon binary path -->
-                        <TextBlock Text="{Binding BundledDaemonPath}" Margin="0,2,0,0" FontSize="12"
-                                   IsVisible="{Binding HasBundledDaemonPath}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
-                    </StackPanel>
+                <StackPanel MinWidth="0">
+                    <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding CurrentOtdVersion, StringFormat='v{0}'}" Margin="0,4,0,0"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <!-- Bundled daemon binary path -->
+                    <TextBlock Text="{Binding BundledDaemonPath}" Margin="0,2,0,0" FontSize="12"
+                               IsVisible="{Binding HasBundledDaemonPath}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}" />
+                </StackPanel>
+            </c:Section>
 
-                    <!-- Launch OTD's own UX -->
-                    <Button Grid.Column="1" Content="OTD UX" Theme="{StaticResource GhostButton}"
+            <!-- OTD UX: launch OpenTabletDriver's own interface (comparison / settings OTA doesn't surface). -->
+            <c:Section Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Classes="SectionLabel" Text="OTD UX" TextWrapping="Wrap" />
+                    <TextBlock Text="Open OpenTabletDriver's own interface — for comparison, or for settings OTA doesn't surface."
+                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <Button Content="LAUNCH OTD UI" Theme="{StaticResource GhostButton}"
                             Command="{Binding Status.LaunchOtdUxCommand}"
-                            VerticalAlignment="Center"
-                            Padding="12,6" />
-                </Grid>
+                            HorizontalAlignment="Left" Padding="12,6" Margin="0,10,0,0" />
+                </StackPanel>
             </c:Section>
         </StackPanel>
     </Grid>

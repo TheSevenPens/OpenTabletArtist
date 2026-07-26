@@ -14,7 +14,7 @@ Below the "Daemon running" line, a **daemon ownership indicator** shows which da
 - **External daemon (not app-owned)** — connected to a daemon OTA didn't start, e.g. an officially-installed OpenTabletDriver you already had running. This is a **supported** setup: OTA connects to whichever daemon is running and only starts its own bundled copy when none is. It's presented in its own **EXTERNAL DAEMON** card (right column) showing the daemon's path + version, with a **Use bundled daemon instead** button (Restart) if you didn't intend it.
 - **Daemon source unknown** (grey) — connected, but the daemon's exe path couldn't be read (e.g. it's running elevated). The app reports this honestly rather than guessing.
 
-Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The page also shows the embedded OTD version and an **OTD UX** launcher to open the original OpenTabletDriver interface for comparison.
+Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The right column also shows a **Bundled daemon** card (embedded OTD version + path) and an **OTD UX** card whose **Launch OTD UI** button opens the original OpenTabletDriver interface — for comparison, or for settings OTA doesn't surface.
 
 ## Console
 
