@@ -53,10 +53,11 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
     public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
 
-    // Sakura-only: choose the cherry-blossom image or a flat colour fill for the backdrop.
+    // Sakura-only: choose the cherry-blossom image, a flat colour, or a code-generated gradient backdrop.
     public bool ShowSakuraBackground => IsSakura;
-    public bool SakuraSolidBackground => SkinColorSettings.SakuraSolidBackground;
-    public bool SakuraImageBackground => !SakuraSolidBackground;
+    public bool SakuraImageBackground => SkinColorSettings.SakuraBackground == "image";
+    public bool SakuraSolidBackground => SkinColorSettings.SakuraBackground == "solid";
+    public bool SakuraCodeGenBackground => SkinColorSettings.SakuraBackground == "codegen";
 
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
     // in SkinColorSettings. Their default reproduces each skin's original pink.
@@ -217,8 +218,9 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowSidebarColor));
         OnPropertyChanged(nameof(ShowAccentControl));
         OnPropertyChanged(nameof(ShowSakuraBackground));
-        OnPropertyChanged(nameof(SakuraSolidBackground));
         OnPropertyChanged(nameof(SakuraImageBackground));
+        OnPropertyChanged(nameof(SakuraSolidBackground));
+        OnPropertyChanged(nameof(SakuraCodeGenBackground));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
         // doesn't re-persist — it's a display sync, not a user edit). Each skin keeps separate settings.
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
@@ -238,15 +240,18 @@ public partial class ThemeViewModel : ObservableObject
     partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;
     partial void OnPetalsOpacityChanged(double value) => AnimationSettings.PetalsOpacity = value;
 
-    /// <summary>Radio choice for the Sakura backdrop: "image" (cherry-blossom) or "color" (flat fill).</summary>
+    /// <summary>Radio choice for the Sakura backdrop: "image" (cherry-blossom), "solid" (flat colour),
+    /// or "codegen" (a code-generated gradient).</summary>
     [RelayCommand]
     private void SelectSakuraBackground(string mode)
     {
-        SkinColorSettings.SakuraSolidBackground = mode == "color";
-        OnPropertyChanged(nameof(SakuraSolidBackground));
+        SkinColorSettings.SakuraBackground = mode;
         OnPropertyChanged(nameof(SakuraImageBackground));
+        OnPropertyChanged(nameof(SakuraSolidBackground));
+        OnPropertyChanged(nameof(SakuraCodeGenBackground));
         RefreshSkin();
     }
+
 
     // ── Live resource overrides ────────────────────────────────────────────────────────────────
     // The translucent skins customise app brushes at runtime by writing directly into
@@ -277,10 +282,23 @@ public partial class ThemeViewModel : ObservableObject
         else
         {
             app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, IsDarkSakura ? 0.25 : 0.08));
-            // Sakura backdrop: a flat colour instead of the cherry-blossom image when the user chose it.
-            // (SkinOverrides.Clear above removed any prior override, so the image returns when unchecked.)
-            if (IsSakura && SkinColorSettings.SakuraSolidBackground)
-                app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(SkinColorSettings.SakuraSolidBgColor));
+            // Sakura backdrop mode (#556): override the cherry-blossom image with a flat colour or a
+            // code-generated gradient when the user picked one. (SkinOverrides.Clear above removed any prior
+            // override, so "image" falls back to the theme dictionary's ImageBrush.)
+            if (IsSakura)
+            {
+                if (SkinColorSettings.SakuraBackground == "solid")
+                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(SkinColorSettings.SakuraSolidBgColor));
+                else if (SkinColorSettings.SakuraBackground == "codegen")
+                {
+                    // Flat base fills the window; the glows (from the persisted/edited settings) fill the
+                    // fixed-height top/bottom bands. All tunable live via Developer → Gradients (#556).
+                    var glows = GradientBackground.Load();
+                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(GradientBackground.BaseColor));
+                    app.Resources["AppBackdropGlowBrush"] = GradientBackground.BuildGlowBrush(glows, top: false);
+                    app.Resources["AppBackdropGlowTopBrush"] = GradientBackground.BuildGlowBrush(glows, top: true);
+                }
+            }
         }
     }
 

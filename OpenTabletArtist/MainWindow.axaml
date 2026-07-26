@@ -27,6 +27,18 @@
              the translucent sidebar + glass cards show it through. -->
         <Border Background="{DynamicResource AppBackdropBrush}" />
 
+        <!-- Fixed-height bottom glow band for the code-generated Sakura backdrop (#556): the glows live in
+             this strip so each glow's height is a constant number of px regardless of window height. Height
+             MUST equal GradientBackground.BandHeight (glow heights are measured against it). Transparent
+             unless codegen mode sets AppBackdropGlowBrush; hit-test invisible so it never blocks input. -->
+        <Border VerticalAlignment="Bottom" Height="600" IsHitTestVisible="False"
+                Background="{DynamicResource AppBackdropGlowBrush}" />
+
+        <!-- Matching fixed-height glow band at the TOP edge, for glows anchored to the top (#556). Same
+             band height so top-glow px heights measure identically to bottom ones. -->
+        <Border VerticalAlignment="Top" Height="600" IsHitTestVisible="False"
+                Background="{DynamicResource AppBackdropGlowTopBrush}" />
+
         <!-- Custom skin's background image, layered over the base-colour backdrop at the user's chosen
              opacity so a less-opaque image lets the base colour below show through. Transparent otherwise. -->
         <Border Background="{DynamicResource AppBackdropImageBrush}" />

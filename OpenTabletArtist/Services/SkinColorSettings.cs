@@ -86,17 +86,15 @@ public static class SkinColorSettings
         set => AppSettings.Set(CustomBaseKey, value);
     }
 
-    // Sakura background: the cherry-blossom image (default) or a flat colour fill.
-    private const string SakuraSolidBgKey = "Sakura:SolidBackground";
-    /// <summary>The flat colour the Sakura skin uses instead of the cherry-blossom image when
-    /// <see cref="SakuraSolidBackground"/> is on.</summary>
+    // Sakura background: the cherry-blossom image (default), a flat colour, or a code-generated gradient.
+    private const string SakuraBackgroundKey = "Sakura:Background";
+    /// <summary>The flat colour the Sakura skin uses for the "solid" background mode.</summary>
     public const string SakuraSolidBgColor = "#FDE4E8";
 
-    /// <summary>Sakura background: false = the cherry-blossom image (default), true = a flat
-    /// <see cref="SakuraSolidBgColor"/> fill.</summary>
-    public static bool SakuraSolidBackground
+    /// <summary>Sakura background mode: "image" (default), "solid", or "codegen".</summary>
+    public static string SakuraBackground
     {
-        get => AppSettings.Get(SakuraSolidBgKey) == "true";
-        set => AppSettings.Set(SakuraSolidBgKey, value ? "true" : "false");
+        get => AppSettings.Get(SakuraBackgroundKey) ?? "image";
+        set => AppSettings.Set(SakuraBackgroundKey, value);
     }
 }

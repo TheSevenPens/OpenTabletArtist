@@ -27,6 +27,9 @@ public sealed partial class DeveloperViewModel : ObservableObject
     private readonly ISettingsCoordinator? _settings;
     private readonly IDeviceData? _device;
 
+    /// <summary>Live editor for the code-generated Sakura backdrop's glows (Developer → Gradients, #556).</summary>
+    public GradientEditorViewModel Gradients { get; } = new();
+
     public DeveloperViewModel(ISettingsCoordinator? settings = null, IDeviceData? device = null)
     {
         _settings = settings;
