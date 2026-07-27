@@ -60,9 +60,12 @@ public partial class DynamicsView : UserControl
     // Clear/Copy mirror the Scribble page's buttons.
     private void OnClearPreview(object? sender, RoutedEventArgs e) => PreviewCanvas.Clear();
 
+    // Copy the pressure-preview drawing to the clipboard. A clipboard failure surfaces a toast rather than
+    // silently doing nothing — most likely no wl-copy/xclip on a minimal Linux install (#609).
     private void OnCopyPreview(object? sender, RoutedEventArgs e)
     {
-        if (PreviewCanvas.Snapshot() is { } snap)
-            ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height);
+        if (PreviewCanvas.Snapshot() is not { } snap) return;
+        if (!ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height))
+            ProfileToast.Show(ClipboardImage.FailureHint, "IconAlert");
     }
 }

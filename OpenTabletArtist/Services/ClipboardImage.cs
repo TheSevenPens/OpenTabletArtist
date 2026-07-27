@@ -17,6 +17,12 @@ public static class ClipboardImage
     private const int BI_RGB = 0;
     private const int HeaderSize = 40; // BITMAPINFOHEADER
 
+    /// <summary>A short, platform-appropriate message to show when <see cref="CopyBgra"/> fails — on Linux
+    /// the usual cause is no wl-copy/xclip/xsel, so it names what to install (#609).</summary>
+    public static string FailureHint => OperatingSystem.IsLinux()
+        ? "Couldn't copy — install wl-clipboard (Wayland) or xclip / xsel (X11)."
+        : "Couldn't copy the image to the clipboard.";
+
     /// <summary>Places the image on the clipboard. Returns false on non-Windows, bad input, or a Win32
     /// failure (the caller can surface that however it likes).</summary>
     public static bool CopyBgra(byte[] bgraTopDown, int width, int height)

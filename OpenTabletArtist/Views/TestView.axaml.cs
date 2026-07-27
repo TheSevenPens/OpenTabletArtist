@@ -84,11 +84,12 @@ public partial class TestView : UserControl
     private void OnClearRequested() => PaintCanvas.Clear();
 
     // Copy the current drawing to the clipboard as an image (Windows CF_DIB), so it can be pasted into
-    // another app. Best-effort: a snapshot/clipboard failure is a no-op.
+    // another app. A snapshot/clipboard failure surfaces a toast instead of silently doing nothing (#609).
     private void OnCopy(object? sender, RoutedEventArgs e)
     {
-        if (PaintCanvas.Snapshot() is { } snap)
-            ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height);
+        if (PaintCanvas.Snapshot() is not { } snap) return;
+        if (!ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height))
+            ProfileToast.Show(ClipboardImage.FailureHint, "IconAlert");
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
