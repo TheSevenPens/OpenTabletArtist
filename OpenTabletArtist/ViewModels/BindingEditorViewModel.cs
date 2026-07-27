@@ -303,23 +303,3 @@ public partial class KeyCap : ObservableObject
         PickCommand = pickCommand;
     }
 }
-
-/// <summary>One element of the footer combo preview — a key/modifier chip, or a "+" separator between
-/// them. <see cref="IsPlaceholder"/> marks the "no key yet" chip when only modifiers are set.</summary>
-public sealed class ComboPart
-{
-    public string Text { get; }
-    public bool IsSeparator { get; }
-    public bool IsPlaceholder { get; }
-    public bool IsChip => !IsSeparator;
-
-    private ComboPart(string text, bool separator, bool placeholder)
-    {
-        Text = text;
-        IsSeparator = separator;
-        IsPlaceholder = placeholder;
-    }
-
-    public static ComboPart Chip(string text, bool placeholder = false) => new(text, false, placeholder);
-    public static ComboPart Sep() => new("+", true, false);
-}
