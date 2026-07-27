@@ -12,6 +12,7 @@ using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using System.Numerics;
+using OpenTabletArtist.Concurrency;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
@@ -127,6 +128,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // display hot-plug) so it isn't mistaken for a user pick and auto-applied.
     private bool _suppressMappingApply;
 
+    // Serialize + coalesce display-pick applies (#607): ApplyDisplayAsync mutates the shared profile before
+    // awaiting the daemon RPC, so unawaited fast re-picks could complete out of order and leave the mapping
+    // diverging from the last click. "Latest wins" — the in-flight apply finishes, then only the most
+    // recently picked display is applied.
+    private readonly LatestOnlyGate _mappingApplyGate = new();
+
     partial void OnSelectedDisplayNumberChanged(int? value)
     {
         // Picking a display applies immediately — consistent with every other edit on this tab, so there's
@@ -134,7 +141,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // monitor doesn't needlessly re-fit the active area.
         if (_suppressMappingApply || _applyAction == null || value == null || value == CurrentlyMappedNumber())
             return;
-        _ = ApplyDisplayAsync();
+        _ = _mappingApplyGate.RunAsync(ApplyDisplayAsync);
     }
 
     partial void OnIsAbsoluteOutputModeChanged(bool value)
@@ -2109,6 +2116,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
         DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
         StopLiveInput();
+        _mappingApplyGate.Dispose();
     }
 }
 

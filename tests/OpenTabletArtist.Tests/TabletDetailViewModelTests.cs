@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -115,6 +116,48 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(settings.Profiles.First(), settings); // read-only (no apply)
 
         vm.SelectedDisplayNumber = 999; // nothing to apply through — must be a no-op, not a crash
+    }
+
+    // #607: display-pick applies are serialized + coalesced (latest wins). If picks race while one apply is
+    // in flight, only the in-flight one and the most-recently-picked display are applied — intermediate
+    // picks are dropped, and the final mapping matches the last selection (not whichever RPC finished last).
+    [Fact]
+    public async Task RapidDisplayRepicks_CoalesceToLastSelection()
+    {
+        var settings = SettingsWith("T");
+        var profile = settings.Profiles.First();
+        profile.AbsoluteModeSettings = new AbsoluteModeSettings
+        {
+            Display = new AreaSettings { Width = 1000, Height = 1000, X = 500, Y = 500 }, // matches no display below
+            Tablet = new AreaSettings { Width = 100, Height = 60, X = 50, Y = 30 },
+        };
+        // Numbers 5/6/7 avoid whatever real monitor the ctor's DisplayEnumerator pre-selected.
+        var displays = new List<DisplayInfo>
+        {
+            new(5, "A", 1920, 1080, 0, 0, false),
+            new(6, "B", 1920, 1080, 1920, 0, true),
+            new(7, "C", 1920, 1080, 3840, 0, false),
+        };
+
+        var appliedTo = new List<int?>();
+        var hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        var vm = new TabletDetailViewModel(profile, settings, applyAction: async _ =>
+        {
+            appliedTo.Add(DisplayMappingApplier.CurrentlyMapped(profile, displays)?.Number);
+            if (Interlocked.Increment(ref calls) == 1) await hold.Task; // keep the first apply in flight
+        });
+        vm.Displays = displays;
+
+        vm.SelectedDisplayNumber = 5; // in flight — blocks on `hold`
+        vm.SelectedDisplayNumber = 6; // queued behind the gate
+        vm.SelectedDisplayNumber = 7; // queued — supersedes 6
+
+        hold.SetResult(); // release the in-flight apply; the gate drains
+        for (int i = 0; i < 200 && Volatile.Read(ref calls) < 2; i++) await Task.Delay(10);
+
+        // Exactly the in-flight (5) and the last pick (7) applied; the middle pick (6) was coalesced away.
+        Assert.Equal(new int?[] { 5, 7 }, appliedTo);
     }
 
     // #177: calibration needs an Absolute mode AND a live tablet. With absolute mode but the tablet
