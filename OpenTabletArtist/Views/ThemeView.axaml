@@ -1,7 +1,8 @@
 <UserControl x:Class="OpenTabletArtist.Views.ThemeView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:OpenTabletArtist.Controls">
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters">
 
     <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). Two columns:
          appearance (+ custom look) on the left, colours & translucency on the right. -->
@@ -51,17 +52,27 @@
                      matching the movement-mode radios. -->
                 <StackPanel IsVisible="{Binding ShowSakuraBackground}" Margin="0,14,0,0">
                     <TextBlock Text="Background" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <RadioButton GroupName="SakuraBackground" Content="Cherry-blossom image" Margin="0,4,0,0"
-                                 IsChecked="{Binding SakuraImageBackground, Mode=OneWay}"
-                                 Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="image" />
-                    <RadioButton GroupName="SakuraBackground" Content="Solid colour"
+                    <RadioButton GroupName="SakuraBackground" Content="Solid colour" Margin="0,4,0,0"
                                  IsChecked="{Binding SakuraSolidBackground, Mode=OneWay}"
                                  Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="solid"
-                                 ToolTip.Tip="A flat #FDE4E8 background instead of the cherry-blossom image" />
+                                 ToolTip.Tip="A flat #FDE4E8 background instead of the gradient" />
                     <RadioButton GroupName="SakuraBackground" Content="CodeGen background"
                                  IsChecked="{Binding SakuraCodeGenBackground, Mode=OneWay}"
                                  Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="codegen"
                                  ToolTip.Tip="A code-generated gradient instead of the bitmap (working name)" />
+
+                    <!-- CodeGen only: the flat base colour behind the glows. Full picker, alpha hidden (the
+                         base is always opaque); the glows themselves are tuned in Developer → Gradients. -->
+                    <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,10,0,0" Spacing="4">
+                        <TextBlock Text="Background colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ColorPicker VerticalAlignment="Center" IsAlphaEnabled="False" IsAlphaVisible="False"
+                                         Color="{Binding SakuraBaseColor, Mode=TwoWay,
+                                                 Converter={x:Static conv:HexColorConverter.Instance}}" />
+                            <TextBox Text="{Binding SakuraBaseColor}" Width="92" VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource MonoFontFamily}" />
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </c:Section>

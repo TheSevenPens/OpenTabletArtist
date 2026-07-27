@@ -14,13 +14,15 @@ public sealed partial class GradientEditorViewModel : ObservableObject
 {
     public ObservableCollection<GradientGlowItem> Glows { get; } = new();
 
-    /// <summary>Pretty-printed JSON of the current glows — copy this and paste it to bake in as the default.</summary>
+    /// <summary>Pretty-printed JSON of the whole background (base colour + glows) — copy this and paste it
+    /// to bake in as the default. The base colour is owned by the Appearance tab; the editor just reflects
+    /// its current persisted value here.</summary>
     [ObservableProperty] private string _settingsText = "";
 
     public GradientEditorViewModel()
     {
         foreach (var g in GradientBackground.Load()) Attach(new GradientGlowItem(g));
-        RefreshText(); // don't apply on load — the theme already applied the saved glows
+        RefreshText(); // don't apply on load — the theme already applied the saved background
     }
 
     private void Attach(GradientGlowItem item)
@@ -35,12 +37,34 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     [RelayCommand]
     private void RemoveGlow(GradientGlowItem item) { Glows.Remove(item); Apply(); }
 
+    /// <summary>Insert a copy of <paramref name="item"/> right after it, so tweaks start from an existing glow.</summary>
+    [RelayCommand]
+    private void DuplicateGlow(GradientGlowItem item)
+    {
+        var copy = new GradientGlowItem(item.ToModel());
+        copy.PropertyChanged += (_, _) => Apply();
+        Glows.Insert(Glows.IndexOf(item) + 1, copy);
+        Apply();
+    }
+
+    /// <summary>Discard the edited glows and restore the baked-in defaults (<see cref="GradientBackground.Defaults"/>).</summary>
+    [RelayCommand]
+    private void ResetGlows()
+    {
+        Glows.Clear();
+        foreach (var g in GradientBackground.Defaults()) Attach(new GradientGlowItem(g));
+        Apply();
+    }
+
     private void Apply()
     {
         var list = Glows.Select(i => i.ToModel()).ToList();
         GradientBackground.Save(list);
-        SettingsText = GradientBackground.Serialize(list);
-        if (Application.Current is { } app)
+        var baseColor = GradientBackground.LoadBaseColor();
+        SettingsText = GradientBackground.Serialize(baseColor, list);
+        // Only touch the live backdrop when the codegen background is actually showing, so editing here
+        // never overrides the image / solid Sakura backgrounds (or other skins).
+        if (Application.Current is { } app && SkinColorSettings.SakuraBackground == "codegen")
         {
             app.Resources["AppBackdropGlowBrush"] = GradientBackground.BuildGlowBrush(list, top: false);
             app.Resources["AppBackdropGlowTopBrush"] = GradientBackground.BuildGlowBrush(list, top: true);
@@ -48,7 +72,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     }
 
     private void RefreshText() =>
-        SettingsText = GradientBackground.Serialize(Glows.Select(i => i.ToModel()));
+        SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(), Glows.Select(i => i.ToModel()));
 }
 
 /// <summary>Editable view of one <see cref="GradientGlow"/>; any change re-applies the backdrop.</summary>

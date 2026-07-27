@@ -53,11 +53,40 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
     public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
 
-    // Sakura-only: choose the cherry-blossom image, a flat colour, or a code-generated gradient backdrop.
+    // Sakura-only: choose a code-generated gradient backdrop or a flat colour.
     public bool ShowSakuraBackground => IsSakura;
-    public bool SakuraImageBackground => SkinColorSettings.SakuraBackground == "image";
     public bool SakuraSolidBackground => SkinColorSettings.SakuraBackground == "solid";
     public bool SakuraCodeGenBackground => SkinColorSettings.SakuraBackground == "codegen";
+
+    // CodeGen-only: the flat base colour behind the glows (#556). Editing it saves + re-tints live; the
+    // glows themselves are tuned in Developer → Gradients. Invalid hex (mid-typing) is kept for display but
+    // not applied, so a partial value never crashes the parse in RefreshSkin.
+    [ObservableProperty] private string _sakuraBaseColor = GradientBackground.LoadBaseColor();
+
+    // Avalonia's ColorPicker can echo its own default colour back through the two-way binding while the
+    // view loads (before the real value binds), which would silently persist garbage. Persistence stays
+    // disarmed until the view signals it's loaded; see Arm/DisarmBaseColorPersistence.
+    private bool _baseColorPersistArmed;
+
+    partial void OnSakuraBaseColorChanged(string value)
+    {
+        if (!_baseColorPersistArmed || !Color.TryParse(value, out _)) return;
+        GradientBackground.SaveBaseColor(value);
+        RefreshSkin();
+    }
+
+    /// <summary>Called when the appearance view finishes loading: re-assert the persisted base colour
+    /// (overwriting any spurious value the ColorPicker pushed during load — storage is still intact because
+    /// persistence was disarmed) and enable persistence of genuine user edits.</summary>
+    public void ArmBaseColorPersistence()
+    {
+        SakuraBaseColor = GradientBackground.LoadBaseColor();
+        _baseColorPersistArmed = true;
+    }
+
+    /// <summary>Called when the appearance view unloads: stop persisting so the next load's ColorPicker echo
+    /// can't corrupt the stored colour (the VM is a singleton, so it outlives the view).</summary>
+    public void DisarmBaseColorPersistence() => _baseColorPersistArmed = false;
 
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
     // in SkinColorSettings. Their default reproduces each skin's original pink.
@@ -218,7 +247,6 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowSidebarColor));
         OnPropertyChanged(nameof(ShowAccentControl));
         OnPropertyChanged(nameof(ShowSakuraBackground));
-        OnPropertyChanged(nameof(SakuraImageBackground));
         OnPropertyChanged(nameof(SakuraSolidBackground));
         OnPropertyChanged(nameof(SakuraCodeGenBackground));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
@@ -240,13 +268,12 @@ public partial class ThemeViewModel : ObservableObject
     partial void OnPetalsEnabledChanged(bool value) => AnimationSettings.PetalsEnabled = value;
     partial void OnPetalsOpacityChanged(double value) => AnimationSettings.PetalsOpacity = value;
 
-    /// <summary>Radio choice for the Sakura backdrop: "image" (cherry-blossom), "solid" (flat colour),
-    /// or "codegen" (a code-generated gradient).</summary>
+    /// <summary>Radio choice for the Sakura backdrop: "codegen" (a code-generated gradient) or "solid"
+    /// (a flat colour).</summary>
     [RelayCommand]
     private void SelectSakuraBackground(string mode)
     {
         SkinColorSettings.SakuraBackground = mode;
-        OnPropertyChanged(nameof(SakuraImageBackground));
         OnPropertyChanged(nameof(SakuraSolidBackground));
         OnPropertyChanged(nameof(SakuraCodeGenBackground));
         RefreshSkin();
@@ -282,19 +309,19 @@ public partial class ThemeViewModel : ObservableObject
         else
         {
             app.Resources["SidebarBgBrush"] = SidebarBrush(SidebarColor, Darken(SidebarColor, IsDarkSakura ? 0.25 : 0.08));
-            // Sakura backdrop mode (#556): override the cherry-blossom image with a flat colour or a
-            // code-generated gradient when the user picked one. (SkinOverrides.Clear above removed any prior
-            // override, so "image" falls back to the theme dictionary's ImageBrush.)
+            // Sakura backdrop mode (#556): a code-generated gradient (default) or a flat colour. The
+            // cherry-blossom image mode was retired; "image" migrates to "codegen" in SkinColorSettings.
             if (IsSakura)
             {
                 if (SkinColorSettings.SakuraBackground == "solid")
                     app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(SkinColorSettings.SakuraSolidBgColor));
-                else if (SkinColorSettings.SakuraBackground == "codegen")
+                else
                 {
                     // Flat base fills the window; the glows (from the persisted/edited settings) fill the
                     // fixed-height top/bottom bands. All tunable live via Developer → Gradients (#556).
                     var glows = GradientBackground.Load();
-                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(GradientBackground.BaseColor));
+                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(
+                        ParseColorOr(GradientBackground.LoadBaseColor(), Color.Parse(GradientBackground.DefaultBaseColor)));
                     app.Resources["AppBackdropGlowBrush"] = GradientBackground.BuildGlowBrush(glows, top: false);
                     app.Resources["AppBackdropGlowTopBrush"] = GradientBackground.BuildGlowBrush(glows, top: true);
                 }
@@ -402,7 +429,8 @@ public partial class ThemeViewModel : ObservableObject
     }
 
     /// <summary>Restore the active translucent skin's tunables (card tint/opacity, left-pane opacity,
-    /// petals, and — for Custom — accent, base colour, and background image) to their defaults.</summary>
+    /// petals, accent, the Sakura codegen backdrop colour, and — for Custom — base colour and background
+    /// image) to their defaults.</summary>
     [RelayCommand]
     private void ResetToDefaults()
     {
@@ -415,6 +443,7 @@ public partial class ThemeViewModel : ObservableObject
         CardColor = Color.Parse(DefaultCardHexForSkin);
         if (ShowSidebarColor) SidebarColor = Color.Parse(DefaultSidebarHexForSkin);
         AccentColor = Color.Parse(DefaultAccentHexForSkin); // per-skin highlight (#557)
+        if (IsSakura) SakuraBaseColor = GradientBackground.DefaultBaseColor; // codegen backdrop base (#556)
         if (IsCustom)
         {
             BaseColor = Color.Parse(SkinColorSettings.CustomBaseDefault);

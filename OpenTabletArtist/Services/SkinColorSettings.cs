@@ -86,15 +86,20 @@ public static class SkinColorSettings
         set => AppSettings.Set(CustomBaseKey, value);
     }
 
-    // Sakura background: the cherry-blossom image (default), a flat colour, or a code-generated gradient.
+    // Sakura background: a code-generated gradient (default) or a flat colour.
     private const string SakuraBackgroundKey = "Sakura:Background";
     /// <summary>The flat colour the Sakura skin uses for the "solid" background mode.</summary>
     public const string SakuraSolidBgColor = "#FDE4E8";
 
-    /// <summary>Sakura background mode: "image" (default), "solid", or "codegen".</summary>
+    /// <summary>Sakura background mode: "codegen" (default) or "solid". The retired "image" mode migrates
+    /// to "codegen" so existing users with it saved get the gradient backdrop.</summary>
     public static string SakuraBackground
     {
-        get => AppSettings.Get(SakuraBackgroundKey) ?? "image";
+        get
+        {
+            var v = AppSettings.Get(SakuraBackgroundKey) ?? "codegen";
+            return v == "image" ? "codegen" : v;
+        }
         set => AppSettings.Set(SakuraBackgroundKey, value);
     }
 }

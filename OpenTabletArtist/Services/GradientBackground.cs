@@ -31,10 +31,16 @@ public static class GradientBackground
     /// match the Height of the glow-band Border in MainWindow.axaml.</summary>
     public const double BandHeight = 600;
 
-    /// <summary>Flat base colour that fills the whole window behind the glows.</summary>
-    public const string BaseColor = "#FCE7EE";
+    /// <summary>Default flat base colour that fills the whole window behind the glows.</summary>
+    public const string DefaultBaseColor = "#FCE7EE";
 
     private const string Key = "Sakura:CodeGenGlows";
+    private const string BaseColorKey = "Sakura:CodeGenBaseColor";
+
+    /// <summary>The persisted flat base colour (editable in Developer → Gradients), or the default.</summary>
+    public static string LoadBaseColor() => AppSettings.Get(BaseColorKey) ?? DefaultBaseColor;
+
+    public static void SaveBaseColor(string hex) => AppSettings.Set(BaseColorKey, hex);
 
     public static List<GradientGlow> Defaults() => new()
     {
@@ -60,9 +66,10 @@ public static class GradientBackground
     public static void Save(IEnumerable<GradientGlow> glows) =>
         AppSettings.Set(Key, JsonConvert.SerializeObject(glows.ToList()));
 
-    /// <summary>Human-readable JSON for the editor's copy box (and for pasting back into Defaults()).</summary>
-    public static string Serialize(IEnumerable<GradientGlow> glows) =>
-        JsonConvert.SerializeObject(glows.ToList(), Formatting.Indented);
+    /// <summary>Human-readable JSON for the editor's copy box (and for pasting back into Defaults()).
+    /// Emits the whole background — base colour + glows — as one object so it round-trips as a unit.</summary>
+    public static string Serialize(string baseColor, IEnumerable<GradientGlow> glows) =>
+        JsonConvert.SerializeObject(new { BaseColor = baseColor, Glows = glows.ToList() }, Formatting.Indented);
 
     /// <summary>The glow layer for one edge as a DrawingBrush, sized to fill that edge's fixed-height band.
     /// Pass <paramref name="top"/> = false for the bottom band, true for the top band; only glows anchored to
