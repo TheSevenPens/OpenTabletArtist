@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 
@@ -56,7 +57,7 @@ public partial class TestView : UserControl
         if (!_vm.DriverPositioned) return; // disabled state: readouts only
 
         if (_vm.MapRawToDesktop(s.RawX, s.RawY) is not { } desktop
-            || !TryDesktopToCanvasNormalized(desktop, out var nx, out var ny)
+            || !PenSampleMapping.TryDesktopToCanvasNormalized(PaintCanvas, desktop, out var nx, out var ny)
             || nx < 0 || nx > 1 || ny < 0 || ny > 1)
         {
             PaintCanvas.EndStroke(); // pen points outside the canvas region — break the stroke
@@ -65,19 +66,6 @@ public partial class TestView : UserControl
 
         PaintCanvas.AddSample(s with { X = nx, Y = ny, IsDown = s.Pressure > 0 });
         _vm.UpdateCanvasPosition(nx * PaintCanvas.Bounds.Width, ny * PaintCanvas.Bounds.Height);
-    }
-
-    // Virtual-desktop pixel → canvas-local normalized (0..1). PointToScreen + RenderScaling are
-    // physical px (same space OTD maps into); divide by scaling to DIPs, then by the canvas size.
-    private bool TryDesktopToCanvasNormalized(Vector2 desktopPx, out double nx, out double ny)
-    {
-        nx = ny = 0;
-        double w = PaintCanvas.Bounds.Width, h = PaintCanvas.Bounds.Height;
-        if (w <= 0 || h <= 0 || TopLevel.GetTopLevel(PaintCanvas) is not { } top) return false;
-        var origin = PaintCanvas.PointToScreen(new Point(0, 0));
-        nx = (desktopPx.X - origin.X) / top.RenderScaling / w;
-        ny = (desktopPx.Y - origin.Y) / top.RenderScaling / h;
-        return true;
     }
 
     // Typed nav creates a fresh TestView each visit; detach from the long-lived VM on unload so
