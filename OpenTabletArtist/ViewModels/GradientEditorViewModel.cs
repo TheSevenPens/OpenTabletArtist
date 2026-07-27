@@ -1,6 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia;
+using Avalonia.Media;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Services;
@@ -19,32 +22,39 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     /// its current persisted value here.</summary>
     [ObservableProperty] private string _settingsText = "";
 
+    // A slider drag fires PropertyChanged continuously; rebuilding the live brushes each tick is cheap, but
+    // persisting is a synchronous settings-file write, so it's debounced to a short idle (#612). Structural
+    // edits (add/remove/duplicate/reset) persist immediately so they can't be lost to the debounce window.
+    private readonly DispatcherTimer _saveTimer;
+
     public GradientEditorViewModel()
     {
+        _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _saveTimer.Tick += (_, _) => PersistNow();
         foreach (var g in GradientBackground.Load()) Attach(new GradientGlowItem(g));
         RefreshText(); // don't apply on load — the theme already applied the saved background
     }
 
     private void Attach(GradientGlowItem item)
     {
-        item.PropertyChanged += (_, _) => Apply();
+        item.PropertyChanged += (_, _) => ApplyLive(persist: PersistMode.Debounced);
         Glows.Add(item);
     }
 
     [RelayCommand]
-    private void AddGlow() { Attach(new GradientGlowItem(new GradientGlow())); Apply(); }
+    private void AddGlow() { Attach(new GradientGlowItem(new GradientGlow())); ApplyLive(PersistMode.Immediate); }
 
     [RelayCommand]
-    private void RemoveGlow(GradientGlowItem item) { Glows.Remove(item); Apply(); }
+    private void RemoveGlow(GradientGlowItem item) { Glows.Remove(item); ApplyLive(PersistMode.Immediate); }
 
     /// <summary>Insert a copy of <paramref name="item"/> right after it, so tweaks start from an existing glow.</summary>
     [RelayCommand]
     private void DuplicateGlow(GradientGlowItem item)
     {
         var copy = new GradientGlowItem(item.ToModel());
-        copy.PropertyChanged += (_, _) => Apply();
+        copy.PropertyChanged += (_, _) => ApplyLive(PersistMode.Debounced);
         Glows.Insert(Glows.IndexOf(item) + 1, copy);
-        Apply();
+        ApplyLive(PersistMode.Immediate);
     }
 
     /// <summary>Discard the edited glows and restore the baked-in defaults (<see cref="GradientBackground.Defaults"/>).</summary>
@@ -53,15 +63,17 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     {
         Glows.Clear();
         foreach (var g in GradientBackground.Defaults()) Attach(new GradientGlowItem(g));
-        Apply();
+        ApplyLive(PersistMode.Immediate);
     }
 
-    private void Apply()
+    private enum PersistMode { Debounced, Immediate }
+
+    // Updates the live backdrop + copy text every call (cheap), then either debounces or immediately runs the
+    // settings-file write.
+    private void ApplyLive(PersistMode persist)
     {
         var list = Glows.Select(i => i.ToModel()).ToList();
-        GradientBackground.Save(list);
-        var baseColor = GradientBackground.LoadBaseColor();
-        SettingsText = GradientBackground.Serialize(baseColor, list);
+        SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(), list);
         // Only touch the live backdrop when the codegen background is actually showing, so editing here
         // never overrides the image / solid Sakura backgrounds (or other skins).
         if (Application.Current is { } app && SkinColorSettings.SakuraBackground == "codegen")
@@ -69,6 +81,19 @@ public sealed partial class GradientEditorViewModel : ObservableObject
             app.Resources["AppBackdropGlowBrush"] = GradientBackground.BuildGlowBrush(list, top: false);
             app.Resources["AppBackdropGlowTopBrush"] = GradientBackground.BuildGlowBrush(list, top: true);
         }
+
+        if (persist == PersistMode.Immediate) PersistNow();
+        else { _saveTimer.Stop(); _saveTimer.Start(); } // restart the idle window
+    }
+
+    // Persist the current glows — but only if every colour parses, so a mid-typed / invalid hex (e.g. "#12")
+    // is never written to settings (#606). The live preview above already falls back gracefully.
+    private void PersistNow()
+    {
+        _saveTimer.Stop();
+        var list = Glows.Select(i => i.ToModel()).ToList();
+        if (list.All(g => Color.TryParse(g.Color, out _)))
+            GradientBackground.Save(list);
     }
 
     private void RefreshText() =>

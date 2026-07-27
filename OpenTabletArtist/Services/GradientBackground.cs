@@ -55,9 +55,12 @@ public static class GradientBackground
         new() { CenterX = 1.00, Width = 0.465, HeightPx = 46, Color = "#007BFF", CenterOpacity = 0.255, Top = true },
     };
 
-    public static List<GradientGlow> Load()
+    public static List<GradientGlow> Load() => Parse(AppSettings.Get(Key));
+
+    /// <summary>Parse persisted glow JSON, falling back to <see cref="Defaults"/> for null/blank/invalid
+    /// input. Pure (no settings access) so the fallback behaviour is unit-testable.</summary>
+    public static List<GradientGlow> Parse(string? json)
     {
-        var json = AppSettings.Get(Key);
         if (string.IsNullOrWhiteSpace(json)) return Defaults();
         try { return JsonConvert.DeserializeObject<List<GradientGlow>>(json) ?? Defaults(); }
         catch { return Defaults(); }
