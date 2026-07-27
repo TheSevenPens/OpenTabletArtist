@@ -35,16 +35,12 @@
             <TextBlock Classes="SectionLabel largetitle" Grid.Column="0" Text="SAVED PRESETS" FontWeight="SemiBold"
                        LetterSpacing="0.5" Foreground="{DynamicResource TextMutedBrush}"
                        VerticalAlignment="Center" />
-            <Button Grid.Column="1" Theme="{StaticResource GhostButton}"
-                    Width="34" Height="30" Padding="0" VerticalAlignment="Center"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                    ToolTip.Tip="Open the folder where presets are stored"
-                    AutomationProperties.Name="Open the folder where presets are stored"
-                    Command="{Binding OpenFolderCommand}"
-                    CommandParameter="{Binding PresetDirectory}">
-                <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
-                          Foreground="{Binding $parent[Button].Foreground}" />
-            </Button>
+            <c:IconButton Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Open the folder where presets are stored"
+                          AutomationProperties.Name="Open the folder where presets are stored"
+                          Command="{Binding OpenFolderCommand}"
+                          CommandParameter="{Binding PresetDirectory}" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Presets}">
@@ -68,28 +64,18 @@
                                         Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
                                         CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" />
-                                <Button Theme="{StaticResource GhostButton}"
-                                        Command="{Binding $parent[ItemsControl].DataContext.DuplicatePresetCommand}"
-                                        CommandParameter="{Binding Name}"
-                                        Width="34" Height="30" Padding="0"
-                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                        ToolTip.Tip="Save a copy of this preset"
-                                        AutomationProperties.Name="Duplicate"
-                                        Margin="0,0,6,0">
-                                    <PathIcon Data="{StaticResource IconContentDuplicate}" Width="16" Height="16"
-                                              Foreground="{Binding $parent[Button].Foreground}" />
-                                </Button>
-                                <Button Theme="{StaticResource GhostButton}"
-                                        Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
-                                        CommandParameter="{Binding Name}"
-                                        Width="34" Height="30" Padding="0"
-                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                        ToolTip.Tip="Rename this preset"
-                                        AutomationProperties.Name="Rename"
-                                        Margin="0,0,6,0">
-                                    <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
-                                              Foreground="{Binding $parent[Button].Foreground}" />
-                                </Button>
+                                <c:IconButton Icon="{StaticResource IconContentDuplicate}"
+                                              Command="{Binding $parent[ItemsControl].DataContext.DuplicatePresetCommand}"
+                                              CommandParameter="{Binding Name}"
+                                              ToolTip.Tip="Save a copy of this preset"
+                                              AutomationProperties.Name="Duplicate"
+                                              Margin="0,0,6,0" />
+                                <c:IconButton Icon="{StaticResource IconEdit}"
+                                              Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
+                                              CommandParameter="{Binding Name}"
+                                              ToolTip.Tip="Rename this preset"
+                                              AutomationProperties.Name="Rename"
+                                              Margin="0,0,6,0" />
                                 <Button Theme="{StaticResource DeleteButton}"
                                         Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
                                         CommandParameter="{Binding Name}"

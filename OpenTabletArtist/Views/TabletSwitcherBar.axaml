@@ -1,6 +1,7 @@
 <UserControl x:Class="OpenTabletArtist.Views.TabletSwitcherBar"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:OpenTabletArtist.Controls"
              x:Name="Root">
 
     <!-- switcher · refresh, grouped at the right of the pivot row (#switcher-right/#580). Detection status
@@ -31,14 +32,10 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
-        <Button Command="{Binding #Root.RefreshCommand}"
-                ToolTip.Tip="Reload settings from daemon"
-                AutomationProperties.Name="Reload settings from daemon"
-                IsVisible="{Binding #Root.ShowRefresh}"
-                Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-            <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                      Foreground="{Binding $parent[Button].Foreground}" />
-        </Button>
+        <c:IconButton Icon="{StaticResource IconRefresh}"
+                      Command="{Binding #Root.RefreshCommand}"
+                      ToolTip.Tip="Reload settings from daemon"
+                      AutomationProperties.Name="Reload settings from daemon"
+                      IsVisible="{Binding #Root.ShowRefresh}" />
     </StackPanel>
 </UserControl>

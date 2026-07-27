@@ -68,14 +68,10 @@
                         <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-                    <Button Grid.Column="1" Command="{Binding EditCommand}"
-                            IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit">
-                        <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
-                                  Foreground="{Binding $parent[Button].Foreground}" />
-                    </Button>
+                    <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconEdit}"
+                                     Command="{Binding EditCommand}"
+                                     IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                                     ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit" />
                 </Grid>
             </ctrl:Entity>
         </DataTemplate>
@@ -92,14 +88,10 @@
                     <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
-                <Button Grid.Column="1" Command="{Binding EditCommand}"
-                        IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                        Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit">
-                    <PathIcon Data="{StaticResource IconEdit}" Width="16" Height="16"
-                              Foreground="{Binding $parent[Button].Foreground}" />
-                </Button>
+                <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconEdit}"
+                                 Command="{Binding EditCommand}"
+                                 IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                                 ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>

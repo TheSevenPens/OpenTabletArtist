@@ -535,6 +535,29 @@
             </Style>
         </ControlTheme>
 
+        <!-- IconButton (#616): the GhostButton look at a fixed compact size with a single centred, colour-
+             following PathIcon. BasedOn GhostButton so it inherits the ghost colours + hover; it swaps the
+             template for a PathIcon bound to the control's Icon/IconSize. Default theme (keyed by type), so
+             callers just write <c:IconButton Icon="{StaticResource IconX}" Command=… ToolTip.Tip=… />. -->
+        <ControlTheme x:Key="{x:Type c:IconButton}" TargetType="c:IconButton" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="0" Padding="{TemplateBinding Padding}">
+                        <PathIcon Data="{TemplateBinding Icon}"
+                                  Width="{TemplateBinding IconSize}" Height="{TemplateBinding IconSize}"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
         <!-- LinkButton: a borderless, background-free button that reads as plain clickable text. No chrome
              (no box/border), no uppercasing — the content shows verbatim; use accent foreground on the
              content to signal it's a link. -->

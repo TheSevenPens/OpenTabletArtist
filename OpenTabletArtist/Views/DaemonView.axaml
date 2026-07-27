@@ -45,15 +45,11 @@
 
                         <!-- REFRESH (reconnect / reload) -->
                         <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                            <Button Command="{Binding Status.RefreshCommand}"
-                                    ToolTip.Tip="Check daemon status"
-                                    AutomationProperties.Name="Check daemon status"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-                                <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                                          Foreground="{Binding $parent[Button].Foreground}" />
-                            </Button>
+                            <c:IconButton Icon="{StaticResource IconRefresh}"
+                                          Command="{Binding Status.RefreshCommand}"
+                                          ToolTip.Tip="Check daemon status"
+                                          AutomationProperties.Name="Check daemon status"
+                                          IsEnabled="{Binding !Status.IsDaemonBusy}" />
                         </WrapPanel>
                     </Grid>
 
@@ -131,16 +127,12 @@
 
                         <!-- REFRESH / START / RESTART / STOP -->
                         <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                            <Button Command="{Binding Status.RefreshCommand}"
-                                    ToolTip.Tip="Check daemon status"
-                                    AutomationProperties.Name="Check daemon status"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                    Margin="0,0,6,0">
-                                <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                                          Foreground="{Binding $parent[Button].Foreground}" />
-                            </Button>
+                            <c:IconButton Icon="{StaticResource IconRefresh}"
+                                          Command="{Binding Status.RefreshCommand}"
+                                          ToolTip.Tip="Check daemon status"
+                                          AutomationProperties.Name="Check daemon status"
+                                          IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                          Margin="0,0,6,0" />
                             <!-- Start: shown when not connected and not mid-connect -->
                             <Button Content="Start" Theme="{StaticResource AccentButton}"
                                     Command="{Binding Status.StartDaemonCommand}"
@@ -266,15 +258,11 @@
                     </StackPanel>
 
                     <!-- Refresh: re-run the package check on demand. -->
-                    <Button Grid.Column="1" Command="{Binding CheckOtdPackageCommand}"
-                            ToolTip.Tip="Re-check whether OTD is installed as a system package"
-                            AutomationProperties.Name="Re-check system package"
-                            Theme="{StaticResource GhostButton}" Width="34" Height="30" Padding="0"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            VerticalAlignment="Top">
-                        <PathIcon Data="{StaticResource IconRefresh}" Width="16" Height="16"
-                                  Foreground="{Binding $parent[Button].Foreground}" />
-                    </Button>
+                    <c:IconButton Grid.Column="1" Icon="{StaticResource IconRefresh}"
+                                  Command="{Binding CheckOtdPackageCommand}"
+                                  ToolTip.Tip="Re-check whether OTD is installed as a system package"
+                                  AutomationProperties.Name="Re-check system package"
+                                  VerticalAlignment="Top" />
                 </Grid>
             </c:Section>
 
