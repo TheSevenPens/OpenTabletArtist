@@ -913,6 +913,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
     }
 
+    // Stop the running daemon in the cleanest way for how it's managed (#601): a systemd user service is
+    // stopped via `systemctl --user stop` (killing it by name bypasses systemd — it looks like a crash in
+    // journald, and a Restart= unit revives it); otherwise the process is killed by name. Off Linux,
+    // IsActive() is always false, so this is exactly the previous kill-by-name behaviour.
+    private async Task StopDaemonProcessAsync()
+    {
+        if (OtdSystemdService.IsActive())
+            await OtdSystemdService.StopAsync();
+        else
+            _daemonLifecycle.StopAll();
+    }
+
     [RelayCommand]
     private async Task StopDaemon()
     {
@@ -925,7 +937,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // User-initiated stop: suppress auto-reconnect so the client doesn't immediately spin
             // trying to reconnect to the daemon we're about to kill (which races a later Start).
             _daemon.AutoReconnect = false;
-            _daemonLifecycle.StopAll();
+            await StopDaemonProcessAsync();
 
             if (!await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout))
                 DaemonOperationError = "The daemon didn't stop within 30 seconds.";
@@ -953,7 +965,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
             DaemonOperationStatus = "Stopping daemon…";
             _daemon.AutoReconnect = false;
-            _daemonLifecycle.StopAll();
+            await StopDaemonProcessAsync();
             await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout);
 
             // Start phase: relaunch and connect to the fresh instance.

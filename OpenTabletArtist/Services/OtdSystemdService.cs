@@ -31,13 +31,20 @@ public static class OtdSystemdService
 
     /// <summary>Start the user service (off the calling thread). Returns (true, null) on success,
     /// (false, message) on failure.</summary>
-    public static Task<(bool ok, string? error)> StartAsync() => Task.Run(() =>
+    public static Task<(bool ok, string? error)> StartAsync() => RunVerbAsync("start");
+
+    /// <summary>Stop the user service (off the calling thread). Used instead of killing the daemon process by
+    /// name when it's systemd-managed (#601): a plain <c>kill</c> bypasses <c>systemctl</c> — it can look like
+    /// a crash in journald, and a unit with <c>Restart=</c> just brings the daemon straight back.</summary>
+    public static Task<(bool ok, string? error)> StopAsync() => RunVerbAsync("stop");
+
+    private static Task<(bool ok, string? error)> RunVerbAsync(string verb) => Task.Run(() =>
     {
         if (!OperatingSystem.IsLinux())
             return (false, (string?)"The OpenTabletDriver service is only available on Linux.");
         try
         {
-            var (exit, output) = Run("start", timeoutMs: 15000);
+            var (exit, output) = Run(verb, timeoutMs: 15000);
             if (exit == 0) return (true, (string?)null);
             return (false, string.IsNullOrWhiteSpace(output) ? $"systemctl exited with code {exit}." : output.Trim());
         }
