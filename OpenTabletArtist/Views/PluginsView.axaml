@@ -43,11 +43,7 @@
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            IsVisible="{Binding Version, Converter={StaticResource NonEmptyToBool}}" />
                             </StackPanel>
-                            <Border Grid.Column="1" Background="{DynamicResource AccentMutedBrush}"
-                                    CornerRadius="0" Padding="10,3" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                            </Border>
+                            <c:Chip Grid.Column="1" Text="{Binding Status}" Kind="Accent" />
                         </Grid>
                     </c:Entity>
                 </DataTemplate>

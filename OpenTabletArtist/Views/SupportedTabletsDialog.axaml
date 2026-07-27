@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:OpenTabletArtist.Controls"
         x:Class="OpenTabletArtist.Views.SupportedTabletsDialog"
         Title="Supported tablets"
         Width="1040" Height="600" MinWidth="820" MinHeight="440"
@@ -80,10 +81,7 @@
                                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <!-- Highlights your connected tablet in the catalog — accent (a theme-safe
                                              highlight), not a green status colour (#593). -->
-                                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="0"
-                                                Padding="7,1" VerticalAlignment="Center" IsVisible="{Binding IsDetected}">
-                                            <TextBlock Text="Detected" Foreground="White" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" />
-                                        </Border>
+                                        <c:Chip Text="Detected" Kind="AccentSolid" IsVisible="{Binding IsDetected}" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="2" Text="{Binding ActiveArea}" HorizontalAlignment="Right"
                                                VerticalAlignment="Top" FontFamily="{DynamicResource MonoFontFamily}"

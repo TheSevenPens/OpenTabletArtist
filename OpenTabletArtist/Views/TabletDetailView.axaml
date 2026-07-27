@@ -18,18 +18,6 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
-        <!-- "In use" pill shown on the current calibration card. -->
-        <Style Selector="Border.calBadge">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="8,2" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="Border.calBadge > TextBlock">
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
         <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid colour by
              state: neutral grey when the tablet isn't detected, green when it is. -->
         <Style Selector="Border.tabletStatusChip">
@@ -563,9 +551,9 @@
                                  invisible mirror of the "In use" badge so, when this card is the active
                                  calibration, the badge on the right doesn't pull the title off-centre. -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0" Classes="calBadge" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
+                                <ctrl:Chip Grid.Column="0" Text="In use" Kind="AccentSolid" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent4Point}" />
                                 <TextBlock Grid.Column="1" Text="4 POINT CALIBRATION" Classes="CardTitle" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Column="2" Classes="calBadge" IsVisible="{Binding IsCurrent4Point}"><TextBlock Text="In use" /></Border>
+                                <ctrl:Chip Grid.Column="2" Text="In use" Kind="AccentSolid" IsVisible="{Binding IsCurrent4Point}" />
                             </Grid>
                             <ctrl:CalibrationDots Points="4" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[0]}"
@@ -578,9 +566,9 @@
                     <ctrl:Section MaxWidth="280" Margin="0,0,12,12" Classes.calCurrent="{Binding IsCurrent9Point}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0" Classes="calBadge" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
+                                <ctrl:Chip Grid.Column="0" Text="In use" Kind="AccentSolid" Opacity="0" IsHitTestVisible="False" IsVisible="{Binding IsCurrent9Point}" />
                                 <TextBlock Grid.Column="1" Text="9 POINT CALIBRATION" Classes="CardTitle" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                <Border Grid.Column="2" Classes="calBadge" IsVisible="{Binding IsCurrent9Point}"><TextBlock Text="In use" /></Border>
+                                <ctrl:Chip Grid.Column="2" Text="In use" Kind="AccentSolid" IsVisible="{Binding IsCurrent9Point}" />
                             </Grid>
                             <ctrl:CalibrationDots Points="9" Width="130" Height="80" HorizontalAlignment="Center" DotBrush="{DynamicResource AccentBrush}" />
                             <Button Content="START" Command="{Binding StartCalibrationCommand}" CommandParameter="{Binding CalibrationModeChoices[1]}"
@@ -809,13 +797,8 @@
                                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                                        TextWrapping="Wrap" VerticalAlignment="Center" />
                                             <!-- Stale leftover from an older app/plugin name: inert, should be cleaned. -->
-                                            <Border IsVisible="{Binding IsLegacy}"
-                                                    Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
-                                                    CornerRadius="0" Padding="6,1" VerticalAlignment="Center"
-                                                    ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically.">
-                                                <TextBlock Text="Legacy" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource WarningBrush}" />
-                                            </Border>
+                                            <ctrl:Chip Text="Legacy" Kind="Warning" IsVisible="{Binding IsLegacy}"
+                                                       ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically." />
                                         </StackPanel>
                                         <TextBlock Text="{Binding FullPath}"
                                                    Foreground="{DynamicResource TextMutedBrush}"

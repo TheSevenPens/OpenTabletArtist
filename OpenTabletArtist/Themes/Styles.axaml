@@ -377,6 +377,44 @@
             </Style>
         </ControlTheme>
 
+        <!-- Chip (#621): a small text-only status pill. One canonical padding + caption typography; the
+             fill/text colour comes from Kind. Default theme (keyed by type) so callers write just
+             <c:Chip Text="In use" Kind="AccentSolid" />. -->
+        <ControlTheme x:Key="{x:Type c:Chip}" TargetType="c:Chip">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0"
+                            Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}"
+                                   FontWeight="{TemplateBinding FontWeight}" FontSize="{TemplateBinding FontSize}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <!-- Muted accent (default): translucent accent fill + accent text. -->
+            <Style Selector="^[Kind=Accent]">
+                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            </Style>
+            <!-- Solid accent: accent fill + white text. -->
+            <Style Selector="^[Kind=AccentSolid]">
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+            </Style>
+            <!-- Muted warning: warning fill + 1px warning outline + warning text. -->
+            <Style Selector="^[Kind=Warning]">
+                <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+            </Style>
+        </ControlTheme>
+
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
              Neutral outline in both states (#593: no green status colour); the text conveys detection. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
@@ -392,13 +430,8 @@
                             <TextBlock Text="{TemplateBinding Text}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" TextWrapping="Wrap" />
-                            <Border IsVisible="{TemplateBinding DynamicsOn}" VerticalAlignment="Center"
-                                    Background="{DynamicResource AccentMutedBrush}"
-                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                    CornerRadius="0" Padding="6,1" Margin="10,0,0,0">
-                                <TextBlock Text="Dynamics on" FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                            </Border>
+                            <c:Chip Text="Dynamics on" Kind="Accent" Margin="10,0,0,0"
+                                    IsVisible="{TemplateBinding DynamicsOn}" />
                         </StackPanel>
                     </Border>
                 </ControlTemplate>

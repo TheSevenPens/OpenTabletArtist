@@ -15,11 +15,7 @@
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Classes="SectionLabel" Text="CURRENT SETTINGS" VerticalAlignment="Center" />
-                    <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="0" Padding="8,2"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="In use now" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource AccentBrush}" />
-                    </Border>
+                    <c:Chip Text="In use now" Kind="Accent" />
                 </StackPanel>
                 <TextBlock Text="The configuration your tablet is using right now. It saves automatically as you edit it on the Tablet pages — everything below is a saved copy you can switch back to."
                            Foreground="{DynamicResource TextSecondaryBrush}"
