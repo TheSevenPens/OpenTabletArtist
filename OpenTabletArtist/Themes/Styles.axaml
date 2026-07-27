@@ -294,6 +294,8 @@
                                 TickFrequency="{TemplateBinding TickFrequency}"
                                 IsSnapToTickEnabled="{TemplateBinding IsSnapToTickEnabled}"
                                 TickPlacement="{TemplateBinding TickPlacement}"
+                                SmallChange="{TemplateBinding SmallChange}"
+                                LargeChange="{TemplateBinding LargeChange}"
                                 Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
                         <TextBlock Grid.Column="2" x:Name="PART_Value" Text="{TemplateBinding ValueText}"
                                    Width="{TemplateBinding ValueWidth}" MinWidth="36"

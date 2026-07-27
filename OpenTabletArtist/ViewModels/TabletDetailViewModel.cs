@@ -1620,6 +1620,19 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PressureCurveSettings _curve = PressureCurveSettings.Default;
     [ObservableProperty] private bool _canEditPressure;
 
+    /// <summary>The curve's softness (−0.9 hard … 0 linear … 0.9 soft) as a bindable value, so it has a
+    /// keyboard-operable slider alongside the drag node on the chart (#603). Both write the same
+    /// <see cref="PressureCurveSettings.Softness"/>, so they stay in sync.</summary>
+    public double Softness
+    {
+        get => Curve.Softness;
+        set { if (Math.Abs(Curve.Softness - value) > 1e-6) Curve = Curve with { Softness = value }; }
+    }
+
+    /// <summary>Softness slider bounds — matches the range the curve model accepts (see PressureCurve).</summary>
+    public double SoftnessMin => -0.9;
+    public double SoftnessMax => 0.9;
+
     // The Pen Dynamics filter is always enabled internally (#dynamics-always-on); there's no on/off toggle.
     // Users neutralize dynamics by leaving the curve linear and smoothing at 0 (a genuine no-op).
     private PenDynamicsSettings CurrentDynamics =>
@@ -1695,6 +1708,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnCurveChanged(PressureCurveSettings value)
     {
         OnPropertyChanged(nameof(CutBelowMinimum));
+        OnPropertyChanged(nameof(Softness)); // keep the Softness slider in sync with node drags / presets
         NotifyDynamicsStatus();
         SchedulePersist();
     }

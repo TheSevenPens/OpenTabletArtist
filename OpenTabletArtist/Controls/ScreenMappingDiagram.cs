@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
@@ -70,6 +71,15 @@ public sealed class ScreenMappingDiagram : Control
     }
 
     private static readonly Color FallbackWarning = Color.FromRgb(0xE0, 0x8A, 0x1E);
+
+    public ScreenMappingDiagram()
+    {
+        // Keyboard-operable (#603): the diagram is the main in-page way to choose a display, so it must be
+        // reachable and drivable without a mouse. Focusable → tab-stop + a focus adorner; arrow keys move
+        // the selection like a radio group.
+        Focusable = true;
+        UpdateAutomationName();
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -322,8 +332,64 @@ public sealed class ScreenMappingDiagram : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        Focus(); // clicking should also focus, so the keyboard can take over from there
         var p = e.GetPosition(this);
         foreach (var (display, box) in _hitRects)
             if (box.Contains(p)) { SelectedNumber = display.Number; break; }
+    }
+
+    // Arrow keys move the selection through the connected displays (radio-group semantics — moving the
+    // selection applies it, the same as clicking a monitor). Home/End jump to the first/last (#603).
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        switch (e.Key)
+        {
+            case Key.Left: case Key.Up: MoveSelection(-1); e.Handled = true; break;
+            case Key.Right: case Key.Down: MoveSelection(1); e.Handled = true; break;
+            case Key.Home: SelectIndex(0); e.Handled = true; break;
+            case Key.End: SelectIndex((Displays?.Count ?? 0) - 1); e.Handled = true; break;
+        }
+    }
+
+    private void MoveSelection(int dir)
+    {
+        var displays = Displays;
+        if (displays == null || displays.Count == 0) return;
+        int cur = SelectedNumber is { } n ? IndexOfNumber(displays, n) : -1;
+        int next = cur < 0 ? (dir > 0 ? 0 : displays.Count - 1)
+                           : Math.Clamp(cur + dir, 0, displays.Count - 1);
+        SelectIndex(next);
+    }
+
+    private void SelectIndex(int i)
+    {
+        var displays = Displays;
+        if (displays != null && i >= 0 && i < displays.Count)
+            SelectedNumber = displays[i].Number;
+    }
+
+    private static int IndexOfNumber(IReadOnlyList<DisplayInfo> displays, int number)
+    {
+        for (int i = 0; i < displays.Count; i++)
+            if (displays[i].Number == number) return i;
+        return -1;
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == SelectedNumberProperty || change.Property == DisplaysProperty)
+            UpdateAutomationName();
+    }
+
+    // A screen-reader-friendly name that reflects the current selection (the custom-drawn diagram has no
+    // per-monitor controls of its own).
+    private void UpdateAutomationName()
+    {
+        var sel = Displays?.FirstOrDefault(d => d.Number == SelectedNumber);
+        AutomationProperties.SetName(this, sel != null
+            ? $"Display mapping — {sel.Name} (display {sel.Number}) selected. Arrow keys choose a monitor."
+            : "Display mapping — no monitor selected. Arrow keys choose a monitor.");
     }
 }

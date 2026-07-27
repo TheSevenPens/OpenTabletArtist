@@ -68,8 +68,17 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Softness is shaped by dragging the amber bend node on the curve (PressureCurveChart);
-                         the standalone Softness slider was retired once the node reached parity. -->
+                    <!-- Softness slider (#603): mirrors the amber bend node on the curve so Softness has a
+                         keyboard-operable path too (both write PressureCurveSettings.Softness, staying in
+                         sync). −0.9 hard … 0 linear … 0.9 soft. -->
+                    <ctrl:LabeledSlider Label="Softness" LabelWidth="130" Margin="0,10,0,0"
+                                        Minimum="{Binding SoftnessMin}" Maximum="{Binding SoftnessMax}"
+                                        Value="{Binding Softness}" ValueFormat="0.00"
+                                        SmallChange="0.02" LargeChange="0.1"
+                                        Ticks="-0.9,-0.45,0,0.45,0.9" TickPlacement="BottomRight"
+                                        IsEnabled="{Binding CanEditPressure}"
+                                        ToolTip.Tip="Curve softness: negative is firmer (convex), positive is lighter (concave). Same as dragging the amber node on the curve." />
+
                     <!-- Pressure smoothing (EMA); capped at 0.5 (#496) — heavier lags more than it helps.
                          Position smoothing was moved out to the Pen page's movement tab. -->
                     <ctrl:LabeledSlider Label="Pressure smoothing" LabelWidth="130" Margin="0,10,0,0"

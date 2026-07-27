@@ -30,6 +30,13 @@ public class LabeledSlider : TemplatedControl
         AvaloniaProperty.Register<LabeledSlider, double>(nameof(Value), 0, defaultBindingMode: BindingMode.TwoWay);
     public static readonly StyledProperty<double> TickFrequencyProperty =
         AvaloniaProperty.Register<LabeledSlider, double>(nameof(TickFrequency), 0);
+    // Keyboard step for arrow keys (SmallChange) / PageUp-Down (LargeChange). Defaults match Avalonia's
+    // Slider so existing callers are unchanged; set a fine SmallChange for keyboard accessibility on
+    // narrow-range sliders where the default step of 1 would jump the whole range (#603).
+    public static readonly StyledProperty<double> SmallChangeProperty =
+        AvaloniaProperty.Register<LabeledSlider, double>(nameof(SmallChange), 1);
+    public static readonly StyledProperty<double> LargeChangeProperty =
+        AvaloniaProperty.Register<LabeledSlider, double>(nameof(LargeChange), 10);
     public static readonly StyledProperty<bool> IsSnapToTickEnabledProperty =
         AvaloniaProperty.Register<LabeledSlider, bool>(nameof(IsSnapToTickEnabled));
     public static readonly StyledProperty<TickPlacement> TickPlacementProperty =
@@ -68,6 +75,8 @@ public class LabeledSlider : TemplatedControl
     public double Maximum { get => GetValue(MaximumProperty); set => SetValue(MaximumProperty, value); }
     public double Value { get => GetValue(ValueProperty); set => SetValue(ValueProperty, value); }
     public double TickFrequency { get => GetValue(TickFrequencyProperty); set => SetValue(TickFrequencyProperty, value); }
+    public double SmallChange { get => GetValue(SmallChangeProperty); set => SetValue(SmallChangeProperty, value); }
+    public double LargeChange { get => GetValue(LargeChangeProperty); set => SetValue(LargeChangeProperty, value); }
     public bool IsSnapToTickEnabled { get => GetValue(IsSnapToTickEnabledProperty); set => SetValue(IsSnapToTickEnabledProperty, value); }
     public TickPlacement TickPlacement { get => GetValue(TickPlacementProperty); set => SetValue(TickPlacementProperty, value); }
     public string? Ticks { get => GetValue(TicksProperty); set => SetValue(TicksProperty, value); }
