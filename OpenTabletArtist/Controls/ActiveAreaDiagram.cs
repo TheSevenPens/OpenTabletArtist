@@ -20,11 +20,6 @@ public readonly record struct ActiveAreaEdit(double Width, double Height, double
 /// </summary>
 public sealed class ActiveAreaDiagram : Control
 {
-    private static readonly IBrush FullFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
-    private static readonly IPen FullBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
-    private static Typeface UiFace => AppFonts.UiTypeface();
-    private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
-
     private const double Pad = 10;
     private const double HandleHit = 11;   // px radius for grabbing a corner
     private const double HandleSize = 8;    // px drawn handle square
@@ -86,7 +81,7 @@ public sealed class ActiveAreaDiagram : Control
         double rot = ((area.Rotation % 360) + 360) % 360;
         bool perp = Math.Abs(rot % 180) > 0.5;
         double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;
-        var fit = FitAspect(bboxW, bboxH, box);
+        var fit = DiagramDrawing.FitAspect(bboxW, bboxH, box);
         double scale = fit.Height / bboxH;
         return new Layout(true, scale, fit.Center, fullW, fullH, rot * Math.PI / 180.0, perp);
     }
@@ -235,19 +230,18 @@ public sealed class ActiveAreaDiagram : Control
     public override void Render(DrawingContext ctx)
     {
         var area = Area;
-        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? FallbackAccent;
+        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackAccent;
 
         var box = new Rect(Bounds.Size).Deflate(Pad);
         if (box.Width <= 0 || box.Height <= 0) return;
 
         double fullW = area?.FullWidth ?? 16, fullH = area?.FullHeight ?? 10;
-        double rot = area != null ? (((area.Rotation % 360) + 360) % 360) : 0;
 
         if (area is not { FullWidth: > 0, FullHeight: > 0 })
         {
-            var fr = FitAspect(fullW, fullH, box);
-            ctx.DrawRectangle(FullFill, FullBorder, fr);
-            DrawCentered(ctx, fr, "No active-area data", 12, Brushes.White);
+            var fr = DiagramDrawing.FitAspect(fullW, fullH, box);
+            ctx.DrawRectangle(DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder, fr);
+            DiagramDrawing.DrawCentered(ctx, fr, "No active-area data", 12, Brushes.White);
             return;
         }
 
@@ -259,20 +253,8 @@ public sealed class ActiveAreaDiagram : Control
         // Tablet outline, turned as physically held when rotated (portrait for 90/270).
         var tabletRect = new Rect(l.Center.X - fullW * l.Scale / 2, l.Center.Y - fullH * l.Scale / 2,
                                   fullW * l.Scale, fullH * l.Scale);
-        if (rot < 0.5)
-        {
-            ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
-        }
-        else
-        {
-            var m = Matrix.CreateTranslation(-l.Center.X, -l.Center.Y)
-                    * Matrix.CreateRotation(-l.RotRad)
-                    * Matrix.CreateTranslation(l.Center.X, l.Center.Y);
-            using (ctx.PushTransform(m))
-            {
-                ctx.DrawRectangle(FullFill, FullBorder, tabletRect);
-            }
-        }
+        DiagramDrawing.DrawRotatedOutline(ctx, tabletRect, l.Center, l.RotRad,
+            DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder);
 
         // Effective area (upright) and — when editable — corner handles. (The size read-out lives in the
         // TABLET / ACTIVE AREA table below the diagram now, not on the area itself.)
@@ -289,19 +271,4 @@ public sealed class ActiveAreaDiagram : Control
         }
     }
 
-    private static Rect FitAspect(double w, double h, Rect box)
-    {
-        if (w <= 0 || h <= 0 || box.Width <= 0 || box.Height <= 0) return box;
-        double s = Math.Min(box.Width / w, box.Height / h);
-        return new Rect(box.X + (box.Width - w * s) / 2, box.Y + (box.Height - h * s) / 2, w * s, h * s);
-    }
-
-    private static void DrawCentered(DrawingContext ctx, Rect area, string text, double size, IBrush brush)
-    {
-        var ft = Text(text, size, brush);
-        ctx.DrawText(ft, new Point(area.X + (area.Width - ft.Width) / 2, area.Y + (area.Height - ft.Height) / 2));
-    }
-
-    private static FormattedText Text(string s, double size, IBrush brush) =>
-        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
 }

@@ -31,14 +31,8 @@ public sealed class ScreenMappingDiagram : Control
     private static readonly BoxShadows Glow = new(new BoxShadow
     { OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 2, Color = Color.FromArgb(0xB0, 0x63, 0x66, 0xF1) });
 
-    private static readonly IBrush TabletFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
-    private static readonly IPen TabletBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
     private static readonly IBrush EffFill = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0x99, 0x33, 0x33, 0x33));
-    private static Typeface UiFace => AppFonts.UiTypeface();
-
-    // The connector/effective-area accent; bound to the theme accent so it's pink in Sakura, etc.
-    private static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
 
@@ -89,11 +83,11 @@ public sealed class ScreenMappingDiagram : Control
         var displays = Displays;
         if (displays == null || displays.Count == 0)
         {
-            DrawCentered(ctx, new Rect(Bounds.Size), "No displays detected", 13, UnselText);
+            DiagramDrawing.DrawCentered(ctx, new Rect(Bounds.Size), "No displays detected", 13, UnselText);
             return;
         }
 
-        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? FallbackAccent;
+        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackAccent;
         var accentBrush = new SolidColorBrush(accent);
 
         const double pad = 20;
@@ -164,25 +158,13 @@ public sealed class ScreenMappingDiagram : Control
 
         // Fit the tablet's (rotated) bounding box, then centre the un-rotated outline and turn it.
         double bboxW = perp ? fullH : fullW, bboxH = perp ? fullW : fullH;
-        var fitBox = FitAspect(bboxW, bboxH, tabBox);
+        var fitBox = DiagramDrawing.FitAspect(bboxW, bboxH, tabBox);
         double tScale = bboxH > 0 ? fitBox.Height / bboxH : 1;
         var tCenter = fitBox.Center;
         var fullRect = new Rect(tCenter.X - fullW * tScale / 2, tCenter.Y - fullH * tScale / 2,
                                 fullW * tScale, fullH * tScale);
-        if (rot < 0.5)
-        {
-            ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
-        }
-        else
-        {
-            var m = Matrix.CreateTranslation(-tCenter.X, -tCenter.Y)
-                    * Matrix.CreateRotation(-rotRad)
-                    * Matrix.CreateTranslation(tCenter.X, tCenter.Y);
-            using (ctx.PushTransform(m))
-            {
-                ctx.DrawRectangle(TabletFill, TabletBorder, fullRect);
-            }
-        }
+        DiagramDrawing.DrawRotatedOutline(ctx, fullRect, tCenter, rotRad,
+            DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder);
 
         // Effective area — upright, positioned within the (possibly turned) tablet (mirrors the Active
         // Area diagram's TabletToScreen mapping).
@@ -311,7 +293,7 @@ public sealed class ScreenMappingDiagram : Control
         var chip = new SolidColorBrush(Color.FromArgb(0xE0, 0, 0, 0));
         for (int i = 0; i < pts.Length && i < labels.Length; i++)
         {
-            var ft = Text(labels[i], 12, Brushes.White);
+            var ft = DiagramDrawing.Text(labels[i], 12, Brushes.White);
             var p = pts[i];
             var bg = new Rect(p.X - ft.Width / 2 - 3, p.Y - ft.Height / 2 - 1, ft.Width + 6, ft.Height + 2);
             ctx.DrawRectangle(chip, null, bg, 3, 3);
@@ -322,34 +304,18 @@ public sealed class ScreenMappingDiagram : Control
     private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, bool selected)
     {
         double numSize = Math.Clamp(Math.Min(box.Height * 0.34, box.Width * 0.4), 12, 30);
-        var num = Text(d.Number.ToString(), numSize, selected ? SelText : UnselText);
+        var num = DiagramDrawing.Text(d.Number.ToString(), numSize, selected ? SelText : UnselText);
         var subBrush = selected ? SubTextOnSel : SubText;
         bool roomy = box.Height > numSize + 24 && box.Width > 70;
         // Number + a "Primary" marker only; resolution/refresh and port live in the per-display list
         // below the diagram, so the boxes stay uncluttered (#570).
-        var res = roomy && d.IsPrimary ? Text("Primary", 10, subBrush) : null;
+        var res = roomy && d.IsPrimary ? DiagramDrawing.Text("Primary", 10, subBrush) : null;
 
         double totalH = num.Height + (res != null ? res.Height + 1 : 0);
         double y = box.Y + (box.Height - totalH) / 2, cx = box.Center.X;
         ctx.DrawText(num, new Point(cx - num.Width / 2, y));
         if (res != null) ctx.DrawText(res, new Point(cx - res.Width / 2, y + num.Height + 1));
     }
-
-    private static Rect FitAspect(double w, double h, Rect box)
-    {
-        if (w <= 0 || h <= 0 || box.Width <= 0 || box.Height <= 0) return box;
-        double s = Math.Min(box.Width / w, box.Height / h);
-        return new Rect(box.X + (box.Width - w * s) / 2, box.Y + (box.Height - h * s) / 2, w * s, h * s);
-    }
-
-    private static void DrawCentered(DrawingContext ctx, Rect area, string text, double size, IBrush brush)
-    {
-        var ft = Text(text, size, brush);
-        ctx.DrawText(ft, new Point(area.X + (area.Width - ft.Width) / 2, area.Y + (area.Height - ft.Height) / 2));
-    }
-
-    private static FormattedText Text(string s, double size, IBrush brush) =>
-        new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFace, size, brush);
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
