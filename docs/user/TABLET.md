@@ -4,7 +4,7 @@
 
 A tablet's settings live on two top-nav pages — **Tablet** and **Pen** — each with a **switcher** at the top (shown when more than one tablet is connected; the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet) and a **Refresh** in the header that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its card on Home.
 
-The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **hover**, **filters**, and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each tab is its own section below.
+The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **hover**, **filters**, and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below.
 
 ## about
 
@@ -13,7 +13,7 @@ The about section just gives you some basic information about the tablet.
 ## mapping
 
 
-The mapping section controls how the active area of the tablet is mapped to a display. If you click on any display, the active area will immediately be mapped to that display. Note that the Pen tablet artist does not give you the ability to map the active area so that it spans multiple splits. By default, as much as possible of the full active area of the tablet is mapped to the display, and this is done in a way that preserves the correct proportions as you draw. Some of you may like to draw with a smaller active area than is enabled. You can use the size slider on the right column to shrink the active area. If you want to restore it back to its maximum possible size, press the maximize button.
+The mapping section controls how the active area of the tablet is mapped to a display. If you click on any display, the active area will immediately be mapped to that display. Note that OpenTabletArtist does not give you the ability to map the active area so that it spans multiple displays. By default, as much as possible of the full active area of the tablet is mapped to the display, and this is done in a way that preserves the correct proportions as you draw. Some of you may like to draw with a smaller active area than is enabled. You can use the size slider on the right column to shrink the active area. If you want to restore it back to its maximum possible size, press the maximize button.
 
 ## calibration
 

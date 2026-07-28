@@ -8,7 +8,7 @@ The **Pen** page's tabs are **movement**, **inputs**, and **pressure** — each 
 
 Pick a movement mode — **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games).
 
-Some people on Windows find that the typical behavior of a drawing tablet when using Windows Ink works well in drawing apps, but does weird things for other apps because pen taps are treated as touch gestures. If you want to make windows treat the pen less like touch and more like a normal mouse in terms of tapping and clicking - then enable **Don't use Windows Ink** toggle *(Windows only)*. While enabled you will not be able to use pressure and tilt. 
+Some people on Windows find that the typical behavior of a drawing tablet when using Windows Ink works well in drawing apps, but does weird things for other apps because pen taps are treated as touch gestures. If you want to make Windows treat the pen less like touch and more like a normal mouse in terms of tapping and clicking - then enable **Don't use Windows Ink** toggle *(Windows only)*. While enabled you will not be able to use pressure and tilt. 
 
 Below the modes is a **Position smoothing** slider (moved here from the pressure tab, since it steadies the pen's on-screen position) — 0 = off to 1 = max, perceptually scaled; it applies while the pen is down and resets on lift. 
 

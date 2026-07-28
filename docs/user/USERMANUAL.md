@@ -30,7 +30,7 @@ A **top navigation bar** runs across the top of the window with six pages — **
 - **Tablet** and **Pen** carry the selected tablet's settings.
 - A tablet **switcher** dropdown at the top-right picks which tablet you're editing (shown when more than one is connected)
 - **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. 
-- **Advanced** - this is really advanced stuff related to OTD. You should never need to go here. 
+- **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
 Every paired or connected tablet also appears on **Home** under *Your tablets*, each with a **Settings** button (opens the Tablet page for it) and a **Forget** button.
 
@@ -49,7 +49,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*, 
 **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
 
 - **Show OpenTabletArtist** — reopen the OTA window.
-- **Switch Display** — Quckly reassign the current tablet to a different display
+- **Switch Display** — Quickly reassign the current tablet to a different display
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 - **Quit and stop the daemon** — exit the app *and* stop the OTD daemon (shown only while a daemon is running). Use this when you want nothing left running afterward.
@@ -58,7 +58,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*, 
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
 
-- **Use The app's own tray icon** (above) can also Stop/Restart the daemon directly.
+- **The app's own tray icon** (above) can also Stop/Restart the daemon directly.
 - **Use the OTD UX**: Click **OTD UX** on the **Daemon** tab (Advanced → Daemon) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
