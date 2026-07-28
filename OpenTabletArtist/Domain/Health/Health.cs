@@ -52,6 +52,13 @@ public enum RemediationArea
     TabletPenInputs,
     /// <summary>Deep-link to a tablet's Pen page › Dynamics pivot (the Disable tilt toggle).</summary>
     TabletPenTilt,
+    /// <summary>One-click fix for an off-screen (or custom) tablet mapping (#629): re-map the active area
+    /// cleanly to the primary display (whole-monitor, undistorted 1:1). Paired with a "Review" secondary
+    /// that opens the Display Mapping tab instead of changing anything.</summary>
+    TabletMapToPrimary,
+    /// <summary>One-click fix for a non-cardinal active-area rotation (#629): snap it to the nearest standard
+    /// angle (0/90/180/270) and re-fit. Paired with a "Review" secondary that opens the Display Mapping tab.</summary>
+    TabletResetRotation,
 }
 
 /// <summary>A fix action for an issue: a button label + where it leads. <see cref="TabletName"/> is set
@@ -81,7 +88,11 @@ public sealed record HealthIssue(
     bool IsDeveloperInduced = false,
     // Per-setting review links for an issue whose offenders live in several places (no single fix). Null/
     // empty for ordinary issues, which render just a title + one Fix button (#artist-pen-health).
-    IReadOnlyList<HealthLink>? Links = null);
+    IReadOnlyList<HealthLink>? Links = null,
+    // An optional second action button rendered beside the primary Fix (#629). Used when Fix performs the
+    // change directly but a "Review" that just navigates to where the setting lives is still useful. Null
+    // for ordinary single-button issues.
+    Remediation? Secondary = null);
 
 /// <summary>Per-tablet inputs the checks read. <see cref="Mapping"/> is the display-mapping
 /// classification (only meaningful for a detected, Absolute-mode tablet; None otherwise).</summary>
@@ -307,8 +318,9 @@ public static class HealthEvaluator
                     issues.Add(new HealthIssue($"tablet.notWinInk:{t.Name}", HealthSeverity.Misconfigured,
                         $"{t.Name}: not using Windows Ink",
                         "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
-                        "won't reach your apps.",
-                        new Remediation("Fix", RemediationArea.TabletPenBehavior, t.Name)));
+                        "won't reach your apps. Fix switches it to Windows Ink, or Review to change it yourself.",
+                        new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
+                        Secondary: new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
                 }
             }
         }
@@ -391,15 +403,19 @@ public static class HealthEvaluator
                     issues.Add(new HealthIssue($"tablet.mappingOffScreen:{t.Name}", HealthSeverity.Misconfigured,
                         $"{t.Name}: mapped area is partly off-screen",
                         "This tablet's mapped area extends beyond your displays, so part of the tablet maps " +
-                        "to space with no screen there and the pen reaches dead zones. Re-map it to a display.",
-                        new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
+                        "to space with no screen there and the pen reaches dead zones. Fix re-maps it cleanly " +
+                        "to your primary display, or Review to adjust the mapping yourself.",
+                        new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
+                        Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
                     break;
                 case DisplayMappingValidity.Custom:
                     issues.Add(new HealthIssue($"tablet.mappingCustom:{t.Name}", HealthSeverity.Recommendation,
                         $"{t.Name}: custom display mapping",
                         "This tablet isn't mapped to a single whole display (a custom or multi-display area). " +
-                        "Re-map it to one display for a standard, undistorted 1:1 setup.",
-                        new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
+                        "Fix re-maps it cleanly to your primary display for a standard, undistorted 1:1 setup, " +
+                        "or Review to adjust the mapping yourself.",
+                        new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
+                        Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
                     break;
             }
 
@@ -410,9 +426,10 @@ public static class HealthEvaluator
                 issues.Add(new HealthIssue($"tablet.mappingRotation:{t.Name}", HealthSeverity.Misconfigured,
                     $"{t.Name}: unusual active-area rotation",
                     "This tablet's active area is rotated by an angle that isn't 0°, 90°, 180°, or 270°, so the " +
-                    "pen axes don't line up with the screen and strokes come out skewed. Set the rotation back " +
-                    "to one of the standard angles on the Display Mapping tab.",
-                    new Remediation("Fix", RemediationArea.TabletDisplayMapping, t.Name)));
+                    "pen axes don't line up with the screen and strokes come out skewed. Fix snaps it to the " +
+                    "nearest standard angle, or Review to set it yourself.",
+                    new Remediation("Fix", RemediationArea.TabletResetRotation, t.Name),
+                    Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
             }
         }
     }

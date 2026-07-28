@@ -67,12 +67,24 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// dialog service so its RESOURCES "Supported tablets" link can open the in-app catalog).</summary>
     public AboutViewModel About { get; }
 
-    /// <summary>Perform an issue's fix: run the relevant command in place or navigate to where the
+    /// <summary>Perform an issue's primary fix: run the relevant command in place or navigate to where the
     /// setting lives.</summary>
     [RelayCommand]
     private void Remediate(HealthIssue? issue)
     {
-        if (issue?.Remediation is not { } r) return;
+        if (issue?.Remediation is { } r) Dispatch(r, issue);
+    }
+
+    /// <summary>Perform an issue's secondary action (#629) — the extra button beside Fix, e.g. an
+    /// off-screen mapping's "Review", which opens the Display Mapping tab while Fix does the re-map.</summary>
+    [RelayCommand]
+    private void RemediateSecondary(HealthIssue? issue)
+    {
+        if (issue?.Secondary is { } r) Dispatch(r, issue);
+    }
+
+    private void Dispatch(Remediation r, HealthIssue issue)
+    {
         switch (r.Area)
         {
             case RemediationArea.WindowsInk:
@@ -96,6 +108,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             case RemediationArea.TabletDisplayMapping:
                 // Deep-link to the tablet's page, on the Display Mapping tab that carries the fix.
                 if (!string.IsNullOrEmpty(r.TabletName)) _navigateToTablet(r.TabletName, TabletDetailTab.DisplayMapping);
+                break;
+            case RemediationArea.TabletMapToPrimary:
+                // Re-map the tablet's active area cleanly to the primary display in place, and persist.
+                if (!string.IsNullOrEmpty(r.TabletName)) _ = _session.MapTabletToPrimaryDisplayAsync(r.TabletName);
+                break;
+            case RemediationArea.TabletResetRotation:
+                // Snap the tablet's non-cardinal active-area rotation to the nearest standard angle, and persist.
+                if (!string.IsNullOrEmpty(r.TabletName)) _ = _session.ResetTabletRotationToCardinalAsync(r.TabletName);
                 break;
             case RemediationArea.TabletPenDynamics:
                 // Re-enable the always-on Pen Dynamics filter across profiles and persist.

@@ -840,6 +840,46 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (changed) await ApplyAndSaveSettingsAsync(_settings);
     }
 
+    /// <summary>The Home health-check "Fix" for an off-screen mapping (#629): re-map the tablet's active
+    /// area cleanly to the primary display — a whole-monitor, undistorted 1:1 fit — and persist, pulling the
+    /// pen back onto real screen space. No-op if the tablet/profile or the display set is unavailable.</summary>
+    public async Task MapTabletToPrimaryDisplayAsync(string? tabletName)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile == null) return;
+
+        var displays = DisplayEnumerator.Enumerate();
+        if (displays is not { Count: > 0 }) return;
+        var primary = displays.FirstOrDefault(d => d.IsPrimary) ?? displays[0];
+
+        if (!Domain.DisplayMappingApplier.ApplyToProfile(profile, GetTabletDigitizer(tabletName), primary, displays))
+            return;
+
+        await ApplyAndSaveSettingsAsync(_settings);
+    }
+
+    /// <summary>The Home health-check "Fix" for a non-cardinal active-area rotation (#629): snap the tablet's
+    /// rotation to the nearest standard angle (0/90/180/270) and re-fit the area to its mapped display, then
+    /// persist — un-skewing the pen axes. No-op if the tablet/profile is unavailable.</summary>
+    public async Task ResetTabletRotationToCardinalAsync(string? tabletName)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
+        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (profile?.AbsoluteModeSettings?.Tablet == null) return;
+
+        double current = profile.AbsoluteModeSettings.Tablet.Rotation;
+        int cardinal = ((int)System.Math.Round(current / 90.0) * 90 % 360 + 360) % 360;
+
+        var displays = DisplayEnumerator.Enumerate();
+        if (!Domain.DisplayMappingApplier.ApplyRotation(profile, GetTabletDigitizer(tabletName), cardinal, displays))
+            return;
+
+        await ApplyAndSaveSettingsAsync(_settings);
+    }
+
     public (float Width, float Height)? GetTabletDigitizer(string tabletName)
     {
         if (Tablets is not JArray tablets) return null;

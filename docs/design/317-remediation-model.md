@@ -9,8 +9,9 @@ Give the user an experience that surfaces the right information and, when someth
 points them to where the fix is made. Concretely:
 
 - **Home shows only what needs attention.** When everything's healthy, Home is quiet.
-- **Warning/remediation cards** describe a problem and offer a **Fix** — but the fix doesn't have to
-  happen on Home; the card *directs* the user to where it lives.
+- **Warning/remediation cards** describe a problem and offer a **Fix**. When a clean one-click fix
+  exists the card performs it *in place*; otherwise it *directs* the user to where the fix lives. A card
+  can offer both — a **Fix** that acts plus a **Review** that opens the relevant tab (#629).
 - **The same issue can appear in more than one place** — on Home and locally at the top of the page
   that owns the fix.
 - **Four severity tiers:** *Broken* (a prerequisite is missing; core function won't work),
@@ -44,9 +45,10 @@ Live wiring in `Services/HealthService.cs` (an `ObservableObject`):
 Surfaces:
 
 - **Home "Needs attention" stack** (`DashboardView`): all issues, worst-first, hidden when healthy.
-  Each card = severity dot + title + detail + **Fix** button. `DashboardViewModel.Remediate` dispatches:
-  daemon → Refresh/Restart in place; Windows Ink → navigate to the Windows Ink Plugin page; tablet →
-  navigate to that tablet.
+  Each card = severity dot + title + detail + a **Fix** button (plus an optional **Review** button, #629).
+  `DashboardViewModel.Remediate` / `RemediateSecondary` dispatch per `RemediationArea`: some *act in
+  place* (daemon Refresh/Restart, re-enable dynamics, restore pen behavior, map to primary display, reset
+  rotation), others *navigate* to where the setting lives (Windows Ink / VMulti / Driver pages, a tablet's tab).
 - The shared instance lives in `MainViewModel` and is handed to the pages that need it.
 
 ## Catalog (phase 1)
@@ -86,6 +88,26 @@ VMulti's virtual HID device — see OTD's own README ("Windows Ink … and VMult
 - **Folded `DriverConflictMonitor` into the catalog** (`driver.conflict`) so Home has a *single*
   attention area instead of a separate conflict alert card. Blocking conflicts → Broken, else
   Misconfigured; Fix → the Driver cleanup page. `HealthService` subscribes to the monitor.
+
+## Done in phase 3
+
+- **In-place fixes + a `Review` companion (#629).** Where a card can be fixed in one click, its **Fix**
+  now *performs* the change instead of only navigating, and an optional **Review** button (backed by
+  `HealthIssue.Secondary`, rendered beside Fix in `DashboardView`) still opens the tab that owns it:
+  - `tablet.mappingOffScreen` / `tablet.mappingCustom` → **Fix** re-maps the active area cleanly to the
+    primary display (`AppSession.MapTabletToPrimaryDisplayAsync` → `DisplayMappingApplier.ApplyToProfile`);
+    **Review** opens Display Mapping.
+  - `tablet.mappingRotation` → **Fix** snaps a non-cardinal rotation to the nearest standard angle and
+    re-fits (`AppSession.ResetTabletRotationToCardinalAsync` → `DisplayMappingApplier.ApplyRotation`);
+    **Review** opens Display Mapping.
+  - `tablet.notWinInk` → **Fix** switches the tablet to Windows Ink (reuses the restore-pen-behavior
+    apply); **Review** opens Pen Behavior.
+  - Already in-place from earlier work: `tablet.dynamicsOff` (re-enable the always-on filter),
+    `tablet.penBehavior` (restore Ink + tip + pressure + tilt, with per-setting review links), and
+    `daemon.foreign` (restart to the bundled build).
+- **New `RemediationArea`s:** `TabletMapToPrimary`, `TabletResetRotation` — both persist via
+  `ApplyAndSaveSettingsAsync`. Informational cards with no in-app fix (`app.elevated`, `tray.gnomeNoSni`)
+  keep a null remediation and render no button.
 
 ## Decided against / skipped
 

@@ -66,8 +66,13 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
         Assert.Equal("tablet.notWinInk:Wacom PTH-660", issue.Id);
         Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
-        Assert.Equal(RemediationArea.TabletPenBehavior, issue.Remediation!.Area);
+        // Primary "Fix" switches the tablet to Windows Ink in place; "Review" opens the Pen Behavior tab.
+        Assert.Equal("Fix", issue.Remediation!.ActionLabel);
+        Assert.Equal(RemediationArea.RestorePenBehavior, issue.Remediation.Area);
         Assert.Equal("Wacom PTH-660", issue.Remediation.TabletName);
+        Assert.Equal("Review", issue.Secondary!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletPenBehavior, issue.Secondary.Area);
+        Assert.Equal("Wacom PTH-660", issue.Secondary.TabletName);
     }
 
     [Fact]
@@ -203,7 +208,7 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
-    public void OffScreenMapping_IsMisconfigured_WithDisplayMappingTarget()
+    public void OffScreenMapping_FixMapsToPrimary_ReviewOpensMapping()
     {
         var input = Healthy() with
         {
@@ -216,12 +221,18 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
         Assert.Equal("tablet.mappingOffScreen:Wacom PTK-670", issue.Id);
         Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
-        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+        // Primary "Fix" re-maps to the primary display directly.
+        Assert.Equal("Fix", issue.Remediation!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletMapToPrimary, issue.Remediation.Area);
         Assert.Equal("Wacom PTK-670", issue.Remediation.TabletName);
+        // Secondary "Review" just navigates to the Display Mapping tab.
+        Assert.Equal("Review", issue.Secondary!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Secondary.Area);
+        Assert.Equal("Wacom PTK-670", issue.Secondary.TabletName);
     }
 
     [Fact]
-    public void CustomMapping_IsRecommendation_WithDisplayMappingTarget()
+    public void CustomMapping_FixMapsToPrimary_ReviewOpensMapping()
     {
         var input = Healthy() with
         {
@@ -234,11 +245,14 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
         Assert.Equal("tablet.mappingCustom:Tablet A", issue.Id);
         Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
-        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+        Assert.Equal("Fix", issue.Remediation!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletMapToPrimary, issue.Remediation.Area);
+        Assert.Equal("Review", issue.Secondary!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Secondary.Area);
     }
 
     [Fact]
-    public void NonCardinalRotation_IsMisconfigured_WithDisplayMappingTarget()
+    public void NonCardinalRotation_FixResetsRotation_ReviewOpensMapping()
     {
         var input = Healthy() with
         {
@@ -251,8 +265,12 @@ public class HealthEvaluatorTests
         var issue = Assert.Single(HealthEvaluator.Evaluate(input));
         Assert.Equal("tablet.mappingRotation:Wacom PTK-870", issue.Id);
         Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
-        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Remediation!.Area);
+        Assert.Equal("Fix", issue.Remediation!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletResetRotation, issue.Remediation.Area);
         Assert.Equal("Wacom PTK-870", issue.Remediation.TabletName);
+        Assert.Equal("Review", issue.Secondary!.ActionLabel);
+        Assert.Equal(RemediationArea.TabletDisplayMapping, issue.Secondary.Area);
+        Assert.Equal("Wacom PTK-870", issue.Secondary.TabletName);
     }
 
     [Fact]
