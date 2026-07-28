@@ -66,9 +66,21 @@
                     <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,10,0,0" Spacing="4">
                         <TextBlock Text="Background colour" Foreground="{DynamicResource TextSecondaryBrush}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ColorPicker VerticalAlignment="Center" IsAlphaEnabled="False" IsAlphaVisible="False"
-                                         Color="{Binding SakuraBaseColor, Mode=TwoWay,
-                                                 Converter={x:Static conv:HexColorConverter.Instance}}" />
+                            <!-- Swatch button → hue-ring + triangle picker in a flyout. -->
+                            <Button VerticalAlignment="Center" Width="42" Height="26" Padding="0" Cursor="Hand"
+                                    Background="Transparent" BorderThickness="1"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    ToolTip.Tip="Pick a colour">
+                                <Border Margin="2" CornerRadius="0"
+                                        Background="{Binding SakuraBaseColor, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
+                                <Button.Flyout>
+                                    <Flyout Placement="Bottom">
+                                        <c:HueTriangleWheel Width="220" Height="220"
+                                                            Color="{Binding SakuraBaseColor, Mode=TwoWay,
+                                                                    Converter={x:Static conv:HexColorConverter.Instance}}" />
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <TextBox Text="{Binding SakuraBaseColor}" Width="92" VerticalAlignment="Center"
                                      FontFamily="{DynamicResource MonoFontFamily}" />
                         </StackPanel>
