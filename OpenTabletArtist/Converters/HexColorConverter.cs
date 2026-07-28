@@ -6,7 +6,7 @@ using Avalonia.Media;
 namespace OpenTabletArtist.Converters;
 
 /// <summary>Bridges a <c>#RRGGBB</c> hex string (as stored on the gradient glow model) and the
-/// <see cref="Color"/> that Avalonia's ColorPicker binds to. Alpha is dropped on the way back — the
+/// <see cref="Color"/> that the colour picker binds to. Alpha is dropped on the way back — the
 /// gradient's opacity is a separate control — so the string stays a plain 6-digit RGB hex.</summary>
 public sealed class HexColorConverter : IValueConverter
 {

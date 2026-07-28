@@ -9,14 +9,7 @@ namespace OpenTabletArtist.Views;
 
 public partial class ThemeView : UserControl
 {
-    public ThemeView()
-    {
-        InitializeComponent();
-        // Arm base-colour persistence only once the view (and its ColorPicker) has loaded, and disarm on
-        // unload — this defeats the ColorPicker's load-time two-way echo silently overwriting the colour.
-        Loaded += (_, _) => (DataContext as ThemeViewModel)?.ArmBaseColorPersistence();
-        Unloaded += (_, _) => (DataContext as ThemeViewModel)?.DisarmBaseColorPersistence();
-    }
+    public ThemeView() => InitializeComponent();
 
     /// <summary>Opens the native file picker for a background image and hands the path to the view model
     /// (which persists it and applies the Custom backdrop live). Done in code-behind so the VM stays free

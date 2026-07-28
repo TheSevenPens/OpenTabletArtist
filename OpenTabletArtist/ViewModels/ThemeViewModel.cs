@@ -63,30 +63,12 @@ public partial class ThemeViewModel : ObservableObject
     // not applied, so a partial value never crashes the parse in RefreshSkin.
     [ObservableProperty] private string _sakuraBaseColor = GradientBackground.LoadBaseColor();
 
-    // Avalonia's ColorPicker can echo its own default colour back through the two-way binding while the
-    // view loads (before the real value binds), which would silently persist garbage. Persistence stays
-    // disarmed until the view signals it's loaded; see Arm/DisarmBaseColorPersistence.
-    private bool _baseColorPersistArmed;
-
     partial void OnSakuraBaseColorChanged(string value)
     {
-        if (!_baseColorPersistArmed || !Color.TryParse(value, out _)) return;
+        if (!Color.TryParse(value, out _)) return;
         GradientBackground.SaveBaseColor(value);
         RefreshSkin();
     }
-
-    /// <summary>Called when the appearance view finishes loading: re-assert the persisted base colour
-    /// (overwriting any spurious value the ColorPicker pushed during load — storage is still intact because
-    /// persistence was disarmed) and enable persistence of genuine user edits.</summary>
-    public void ArmBaseColorPersistence()
-    {
-        SakuraBaseColor = GradientBackground.LoadBaseColor();
-        _baseColorPersistArmed = true;
-    }
-
-    /// <summary>Called when the appearance view unloads: stop persisting so the next load's ColorPicker echo
-    /// can't corrupt the stored colour (the VM is a singleton, so it outlives the view).</summary>
-    public void DisarmBaseColorPersistence() => _baseColorPersistArmed = false;
 
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
     // in SkinColorSettings. Their default reproduces each skin's original pink.
