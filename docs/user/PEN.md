@@ -2,15 +2,18 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-The **Pen** page's tabs are **movement**, **inputs**, and **pressure** — each its own section below. It shares the [Tablet page](TABLET.md)'s header (linked switcher + Refresh).
+The **Pen** page's tabs are **basics**, **inputs**, and **pressure** — each its own section below. It shares the [Tablet page](TABLET.md)'s header (linked switcher + Refresh).
 
-## movement
+## basics
 
-Pick a movement mode — **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games).
+Two columns — **Movement** on the left, **Pressing** on the right.
 
-Some people on Windows find that the typical behavior of a drawing tablet when using Windows Ink works well in drawing apps, but does weird things for other apps because pen taps are treated as touch gestures. If you want to make Windows treat the pen less like touch and more like a normal mouse in terms of tapping and clicking - then enable **Don't use Windows Ink** toggle *(Windows only)*. While enabled you will not be able to use pressure and tilt. 
+**Movement** picks how the pen maps to the screen: **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games). Below the modes is a **Position smoothing** slider (moved here from the pressure tab, since it steadies the pen's on-screen position) — 0 = off to 1 = max, perceptually scaled; it applies while the pen is down and resets on lift.
 
-Below the modes is a **Position smoothing** slider (moved here from the pressure tab, since it steadies the pen's on-screen position) — 0 = off to 1 = max, perceptually scaled; it applies while the pen is down and resets on lift. 
+**Pressing** *(Windows only)* controls how the pen's taps and clicks behave:
+
+- **Presses like drawing tablet pen** — the normal behavior, using Windows Ink, so you keep pressure and tilt.
+- **Presses like a mouse** — uses OpenTabletDriver's plain output, so the pen clicks like a mouse (handy for apps where pen taps get treated as touch and act oddly), but you lose pressure and tilt.
 
 ## inputs
 

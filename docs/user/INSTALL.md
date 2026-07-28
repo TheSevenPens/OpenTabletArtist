@@ -98,7 +98,7 @@ All of these live under the tablet's tabs or the sidebar — configure them any 
   (Pen Buttons). They ship on *Adaptive Binding* (the only supported choice); a **Use Adaptive** button restores it if a switch has drifted onto something else.
 - **Tablet Buttons** — map the tablet's hardware buttons (express keys) to keys, mouse buttons, or scroll.
 - **Pressure** *(Pen page)* — a pressure-curve editor (drag the curve's nodes to shape it) plus pressure
-  smoothing, applied to every app. Position smoothing lives on the Pen page's **movement** tab.
+  smoothing, applied to every app. Position smoothing lives on the Pen page's **basics** tab.
 - **Hotkeys** — global shortcuts to switch profiles or cycle the tablet's mapped monitor.
 - **Profiles / Per-App Profiles** — save named configurations and switch them by hotkey or
   automatically per foreground application.
