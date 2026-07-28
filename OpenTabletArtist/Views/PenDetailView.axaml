@@ -14,14 +14,14 @@
          pivot-gated content. Only ever embedded in the PEN page, so the switcher/actions always show. -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- Toolbar row: switcher · pivots (movement · inputs · pressure) · compact actions (D · R · F). -->
+        <!-- Toolbar row: switcher · pivots (basics · inputs · pressure) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
             <Grid ColumnDefinitions="*,Auto">
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
                      #XTab.IsChecked. "inputs" merges the old inputs + buttons sub-tabs (#pen-switches). -->
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
-                    <RadioButton Content="movement" IsChecked="True" x:Name="MovementTab"
+                    <RadioButton Content="basics" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
@@ -41,69 +41,79 @@
             </Grid>
         </Border>
 
-        <!-- MOVEMENT — Absolute vs Relative + Don't use Windows Ink. -->
+        <!-- BASICS — two columns: MOVEMENT (absolute/relative mode + position smoothing) on the left, and
+             PRESSING (the Windows-Ink toggle, which governs pressure/tilt) on the right. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #MovementTab.IsChecked}">
-            <StackPanel>
-                <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
-                     A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
-                <StackPanel Margin="0,12,0,0" Spacing="10">
-                    <RadioButton GroupName="Movement"
-                                 IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
-                                 Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
-                            <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
-                                       TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton GroupName="Movement"
-                                 IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
-                                 Command="{Binding SelectMovementCommand}" CommandParameter="relative">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
-                            <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
-                                       TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                        </StackPanel>
-                    </RadioButton>
+            <Grid ColumnDefinitions="480,40,300" HorizontalAlignment="Left" Margin="0,12,0,0">
 
-                    <!-- Windows-only, applies to either mode above: drop Windows Ink for OTD's plain output
-                         so the pen behaves like a mouse in stubborn apps, at the cost of pressure/tilt (#549). -->
+                <!-- LEFT — MOVEMENT: how the pen maps to the screen, plus position smoothing. -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="MOVEMENT" Classes="SectionLabel largetitle" />
+
+                    <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
+                         A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
+                    <StackPanel Margin="0,12,0,0" Spacing="10">
+                        <RadioButton GroupName="Movement"
+                                     IsChecked="{Binding IsAbsoluteMode, Mode=OneWay}"
+                                     Command="{Binding SelectMovementCommand}" CommandParameter="absolute">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Normal (Absolute)" Classes="CardTitle" />
+                                <TextBlock Text="The pen maps 1:1 to the screen — good for artists."
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton GroupName="Movement"
+                                     IsChecked="{Binding IsAbsoluteMode, Converter={StaticResource InvBool}, Mode=OneWay}"
+                                     Command="{Binding SelectMovementCommand}" CommandParameter="relative">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Mouse-like (Relative)" Classes="CardTitle" />
+                                <TextBlock Text="The pen moves the cursor like a mouse — often used with games."
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
+                    <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
+                               Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding CanFixOutputMode}" />
+                    <Button Content="Fix" Theme="{StaticResource AccentButton}"
+                            Command="{Binding FixOutputModeCommand}"
+                            Padding="12,6" Margin="0,6,0,0"
+                            HorizontalAlignment="Left"
+                            IsVisible="{Binding CanFixOutputMode}" />
+
+                    <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
+                         on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
+                         too laggy to be useful. Fills the fixed-width column so the slider's star-sized track
+                         renders (a size-to-content slider collapses the track to nothing). -->
+                    <StackPanel Margin="0,28,0,0">
+                        <TextBlock Text="POSITION SMOOTHING" Classes="SectionLabel" />
+                        <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
+                                            Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                            Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
+                                            Value="{Binding PositionSmoothing}"
+                                            ValueTextOverride="{Binding PositionSmoothingText}"
+                                            Monospace="True" ValueWidth="44"
+                                            ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- RIGHT — PRESSING: dropping Windows Ink changes how taps/clicks feel, at the cost of
+                     pressure and tilt. Windows-only; applies to either movement mode (#549). -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="PRESSING" Classes="SectionLabel largetitle" />
                     <ctrl:ToggleSetting Label="Don't use Windows Ink"
                                         Description="You'll lose pressure and tilt, but the pen may work better in some apps."
                                         IsChecked="{Binding DisableWindowsInk}"
                                         IsVisible="{Binding CanDisableWindowsInk}"
-                                        Margin="0,14,0,0" />
+                                        Margin="0,12,0,0" />
                 </StackPanel>
-
-                <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
-                <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                           Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
-                           TextWrapping="Wrap"
-                           IsVisible="{Binding CanFixOutputMode}" />
-                <Button Content="Fix" Theme="{StaticResource AccentButton}"
-                        Command="{Binding FixOutputModeCommand}"
-                        Padding="12,6" Margin="0,6,0,0"
-                        HorizontalAlignment="Left"
-                        IsVisible="{Binding CanFixOutputMode}" />
-
-                <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
-                     on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
-                     too laggy to be useful. The group has a fixed width so the slider's star-sized track
-                     renders (a left-aligned/size-to-content slider collapses the track to nothing). -->
-                <StackPanel Width="480" HorizontalAlignment="Left" Margin="0,28,0,0">
-                    <TextBlock Text="POSITION SMOOTHING" Classes="SectionLabel" />
-                    <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
-                                        Minimum="0" Maximum="{Binding PositionSmoothingMax}"
-                                        Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
-                                        Value="{Binding PositionSmoothing}"
-                                        ValueTextOverride="{Binding PositionSmoothingText}"
-                                        Monospace="True" ValueWidth="44"
-                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
-                </StackPanel>
-            </StackPanel>
+            </Grid>
         </ScrollViewer>
 
         <!-- INPUTS — pen inputs (tip · eraser · pen-input) + barrel buttons in one view (#pen-switches):
