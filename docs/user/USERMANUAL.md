@@ -23,33 +23,18 @@ OpenTabletDriver separately. You need **Windows 11 (64-bit)** and a
 5. **Test it — Scribble.** Open the **Scribble** page and draw. You should see the stroke respond to
    **pressure** (and tilt/twist if your pen supports them), with live readouts — confirming the pen works.
 
-### If the pen isn't working, or you want pressure & tilt in your apps
-
-A little one-time Windows setup is needed, and OTA walks you through each item from **Home → Needs
-attention** with a one-click **Fix**:
-
-- **Remove manufacturer tablet drivers** (Wacom, Huion, XP-Pen, …) — they conflict with OpenTabletDriver.
-  OTA flags them and offers the OTD team's cleanup tool on the **Driver Cleanup** page.
-- **Install the VMulti driver** — required on Windows for pressure and tilt. OTA flags it and installs it
-  in one click (a Windows restart finishes it).
-- **Turn on Windows Ink** in your drawing app's tablet/stylus settings (Krita is a good free app to start
-  with).
-
-The [install guide](INSTALL.md) has the complete step-by-step version of all of this.
-
 ## Using the Interface
 
 A **top navigation bar** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced** — and the active page is underlined in the accent colour. Most pages have their own **pivot row** of tabs just beneath the bar.
 
-- **Tablet** and **Pen** carry the selected tablet's settings. A tablet **switcher** dropdown at the top-right picks which tablet you're editing (shown when more than one is connected) — the **Tablet**, **Pen**, and **Scribble** switchers are linked, so they always show the same tablet. The **Tablet** page's tabs are **about · mapping · calibration · buttons · wheels**; the **Pen** page's tabs are **movement · inputs · pressure**.
-- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
-- **Advanced** hosts OpenTabletDriver's pages: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
+- **Tablet** and **Pen** carry the selected tablet's settings.
+- A tablet **switcher** dropdown at the top-right picks which tablet you're editing (shown when more than one is connected)
+- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. 
+- **Advanced** - this is really advanced stuff related to OTD. You should never need to go here. 
 
 Every paired or connected tablet also appears on **Home** under *Your tablets*, each with a **Settings** button (opens the Tablet page for it) and a **Forget** button.
 
 ### Per-page guides
-
-Each top-level page is documented in its own guide:
 
 - **[Home](HOME.md)** — the health-check landing page, *Your tablets*, supported-tablets list, and the About/Help cards.
 - **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the hidden hover/filters/json tabs).
@@ -58,20 +43,13 @@ Each top-level page is documented in its own guide:
 - **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Appearance · System (Startup/Shortcut/Driver Cleanup) · Developer.
 - **[Advanced page](ADVANCED.md)** — Daemon · Console · Drivers · Configs · Diagnostics · Plugins.
 
-## Navigation
-
-Click a page in the top navigation bar to switch pages; the active page is underlined in the accent colour. Pages with sub-sections (Tablet, Pen, Settings, Advanced) show a pivot row of tabs beneath the bar.
 
 ## System tray & background mode
 
-The app is **single-instance**: launching it again while it's already running (including when it's minimized to the tray) doesn't open a second window or tray icon — it just brings the existing window to the front.
+**Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
 
-The app runs with a **system tray icon**. **Closing the window minimizes it to the tray** rather than exiting — the app keeps running so its daemon controls stay one click away (the first time you close, a one-time hint explains this). From the tray you can:
-
-- **Click the icon** — reopen the window.
-- **Show OpenTabletArtist** — reopen the window.
-- **Switch Display** — a submenu listing your monitors; pick one to map the active tablet to that whole display (aspect-locked, the same mapping as clicking a display on the Tablet page's **mapping** tab). The currently-mapped display is check-marked. Shown only when the active tablet is in an Absolute output mode (otherwise there's no display area to set).
-- **Active Tablet** — when more than one tablet is connected, a submenu to choose which tablet the tray actions (and the Scribble / Diagnostics pages) act on. With a single tablet it's hidden and that tablet is used automatically.
+- **Show OpenTabletArtist** — reopen the OTA window.
+- **Switch Display** — Quckly reassign the current tablet to a different display
 - **Start / Stop / Restart Daemon** — control the daemon directly (Start appears when it's stopped; Stop/Restart when it's running). The tray tooltip shows the current daemon status.
 - **Quit** — fully exit the app (the OTD daemon, a separate process, keeps running).
 - **Quit and stop the daemon** — exit the app *and* stop the OTD daemon (shown only while a daemon is running). Use this when you want nothing left running afterward.
@@ -80,11 +58,10 @@ The app runs with a **system tray icon**. **Closing the window minimizes it to t
 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
 
+- **Use The app's own tray icon** (above) can also Stop/Restart the daemon directly.
 - **Use the OTD UX**: Click **OTD UX** on the **Daemon** tab (Advanced → Daemon) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
-The app's own tray icon (above) can also Stop/Restart the daemon directly.
-
 ## Troubleshooting
 
-Common issues and fixes — a "Not connected to daemon" card, or a tablet that isn't detected. **See [Troubleshooting](TROUBLESHOOTING.md).**
+**See [Troubleshooting](TROUBLESHOOTING.md).**
