@@ -61,29 +61,12 @@
                                  Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="codegen"
                                  ToolTip.Tip="A code-generated gradient instead of the bitmap (working name)" />
 
-                    <!-- CodeGen only: the flat base colour behind the glows. Full picker, alpha hidden (the
+                    <!-- CodeGen only: the flat base colour behind the glows. The picker is opaque-only (the
                          base is always opaque); the glows themselves are tuned in Developer → Gradients. -->
                     <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,10,0,0" Spacing="4">
                         <TextBlock Text="Background colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <!-- Swatch button → hue-ring + triangle picker in a flyout. -->
-                            <Button VerticalAlignment="Center" Width="42" Height="26" Padding="0" Cursor="Hand"
-                                    Background="Transparent" BorderThickness="1"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    ToolTip.Tip="Pick a colour">
-                                <Border Margin="2" CornerRadius="0"
-                                        Background="{Binding SakuraBaseColor, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
-                                <Button.Flyout>
-                                    <Flyout Placement="Bottom">
-                                        <c:HueTriangleWheel Width="220" Height="220"
-                                                            Color="{Binding SakuraBaseColor, Mode=TwoWay,
-                                                                    Converter={x:Static conv:HexColorConverter.Instance}}" />
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
-                            <TextBox Text="{Binding SakuraBaseColor}" Width="92" VerticalAlignment="Center"
-                                     FontFamily="{DynamicResource MonoFontFamily}" />
-                        </StackPanel>
+                        <c:ColorPicker Color="{Binding SakuraBaseColor, Mode=TwoWay,
+                                              Converter={x:Static conv:HexColorConverter.Instance}}" />
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -96,7 +79,7 @@
             <StackPanel Spacing="12">
                 <StackPanel Spacing="4">
                     <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:SwatchPicker Color="{Binding BaseColor, Mode=TwoWay}" />
+                    <c:ColorPicker Color="{Binding BaseColor, Mode=TwoWay}" />
                 </StackPanel>
                 <c:LabeledField Label="Background image">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -127,18 +110,18 @@
                 <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
                 <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
                     <TextBlock Text="Highlight colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:SwatchPicker Color="{Binding AccentColor, Mode=TwoWay}" />
+                    <c:ColorPicker Color="{Binding AccentColor, Mode=TwoWay}" />
                 </StackPanel>
                 <StackPanel Spacing="4">
                     <TextBlock Text="Card colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:SwatchPicker Color="{Binding CardColor, Mode=TwoWay}" />
+                    <c:ColorPicker Color="{Binding CardColor, Mode=TwoWay}" />
                 </StackPanel>
                 <c:LabeledSlider Label="Card opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
                 <!-- Left-pane (sidebar) tint — Sakura / Dark Sakura only (#554). -->
                 <StackPanel Spacing="4" IsVisible="{Binding ShowSidebarColor}">
                     <TextBlock Text="Left pane colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:SwatchPicker Color="{Binding SidebarColor, Mode=TwoWay}" />
+                    <c:ColorPicker Color="{Binding SidebarColor, Mode=TwoWay}" />
                 </StackPanel>
                 <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />

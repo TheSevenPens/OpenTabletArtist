@@ -239,25 +239,12 @@
                                                      Value="{Binding HeightPx}" ValueFormat="0" />
                                     <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
                                                      Value="{Binding CenterOpacity}" ValueFormat="0.00" />
-                                    <!-- Colour: swatch → hue-ring + triangle picker in a flyout, hex box for exact
-                                         codes, and the top/bottom anchor, all on one compact row. -->
+                                    <!-- Colour: the unified picker (wheel + palette + hex in a flyout), plus the
+                                         top/bottom anchor, on one compact row. -->
                                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                        <Button VerticalAlignment="Center" Width="42" Height="26" Padding="0" Cursor="Hand"
-                                                Background="Transparent" BorderThickness="1"
-                                                BorderBrush="{DynamicResource GlassBorderBrush}"
-                                                ToolTip.Tip="Pick a colour">
-                                            <Border Margin="2" CornerRadius="0"
-                                                    Background="{Binding Color, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
-                                            <Button.Flyout>
-                                                <Flyout Placement="Bottom">
-                                                    <c:HueTriangleWheel Width="220" Height="220"
-                                                                        Color="{Binding Color, Mode=TwoWay,
-                                                                                Converter={x:Static conv:HexColorConverter.Instance}}" />
-                                                </Flyout>
-                                            </Button.Flyout>
-                                        </Button>
-                                        <TextBox Text="{Binding Color}" Width="92" VerticalAlignment="Center"
-                                                 FontFamily="{DynamicResource MonoFontFamily}" />
+                                        <c:ColorPicker VerticalAlignment="Center"
+                                                       Color="{Binding Color, Mode=TwoWay,
+                                                               Converter={x:Static conv:HexColorConverter.Instance}}" />
                                         <CheckBox Content="Top" VerticalAlignment="Center"
                                                   ToolTip.Tip="Anchor this glow to the top edge (default: bottom)"
                                                   IsChecked="{Binding Top}" />

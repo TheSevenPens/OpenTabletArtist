@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:OpenTabletArtist.Converters"
+             xmlns:c="using:OpenTabletArtist.Controls"
+             x:Class="OpenTabletArtist.Controls.ColorPicker"
+             x:Name="Root">
+    <!-- The single colour picker (#622): merges the old fixed-palette SwatchPicker and the freeform
+         HueTriangleWheel behind one trigger. The compact trigger shows the current colour + its hex/RGB;
+         clicking opens a flyout with two tabs — a full hue-ring + saturation/value wheel and the curated
+         palette — plus a shared hex field. All three edit the same two-way Color, so they stay in sync. -->
+    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="0">
+        <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+            <Border Width="20" Height="20" CornerRadius="0"
+                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
+                <Border.Background>
+                    <SolidColorBrush Color="{Binding #Root.Color}" />
+                </Border.Background>
+            </Border>
+            <TextBlock Text="{Binding #Root.Color, Converter={x:Static conv:ColorHexRgbConverter.Instance}}"
+                       FontFamily="{DynamicResource MonoFontFamily}"
+                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+            <PathIcon Data="{StaticResource IconChevronDown}" Width="10" Height="10"
+                      VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" />
+        </StackPanel>
+        <Button.Flyout>
+            <Flyout Placement="BottomEdgeAlignedLeft">
+                <StackPanel Width="250">
+                    <TabControl Padding="0" Margin="0,-6,0,0">
+                        <TabControl.Styles>
+                            <!-- Compact headers so the two tabs sit neatly in the narrow flyout. -->
+                            <Style Selector="TabItem">
+                                <Setter Property="FontSize" Value="13" />
+                                <Setter Property="MinHeight" Value="34" />
+                                <Setter Property="Padding" Value="12,6" />
+                                <Setter Property="Margin" Value="0" />
+                            </Style>
+                        </TabControl.Styles>
+
+                        <TabItem Header="Wheel">
+                            <!-- The freeform hue-ring + SV-triangle picker (any colour). -->
+                            <c:HueTriangleWheel Width="200" Height="200" Margin="0,10,0,0"
+                                                Color="{Binding #Root.Color, Mode=TwoWay}" />
+                        </TabItem>
+
+                        <TabItem Header="Palette">
+                            <!-- The curated fixed palette (quick, on-brand picks). SelectedItem is OneWay so a
+                                 non-palette colour (from the wheel/hex) simply shows no highlight without
+                                 clobbering it; the actual pick is applied in OnSwatchTapped. -->
+                            <ListBox x:Name="Swatches" Margin="0,10,0,0"
+                                     ItemsSource="{Binding #Root.Palette}"
+                                     SelectedItem="{Binding #Root.Color, Mode=OneWay}"
+                                     Tapped="OnSwatchTapped"
+                                     Background="Transparent" BorderThickness="0" Padding="2"
+                                     MaxWidth="320" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="Template">
+                                            <ControlTemplate>
+                                                <!-- Swatches sit flush; the selected/hover ring is an overlay
+                                                     (drawn over the swatch edge) so it reserves no gap. -->
+                                                <Panel>
+                                                    <ContentPresenter Content="{TemplateBinding Content}"
+                                                                      ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                                    <Border x:Name="ring" BorderThickness="2" CornerRadius="0"
+                                                            BorderBrush="Transparent" />
+                                                </Panel>
+                                            </ControlTemplate>
+                                        </Setter>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:pointerover /template/ Border#ring">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+                                    </Style>
+                                    <Style Selector="ListBoxItem:selected /template/ Border#ring">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="22" Height="22" CornerRadius="0"
+                                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
+                                            <Border.Background>
+                                                <SolidColorBrush Color="{Binding}" />
+                                            </Border.Background>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+                    </TabControl>
+
+                    <!-- Shared hex field: exact codes, and always visible under whichever tab is open. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,4,4,6" VerticalAlignment="Center">
+                        <TextBlock Text="HEX" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" />
+                        <TextBox Text="{Binding #Root.Color, Mode=TwoWay,
+                                        Converter={x:Static conv:ColorToHexConverter.Instance}}"
+                                 Width="150" VerticalAlignment="Center"
+                                 FontFamily="{DynamicResource MonoFontFamily}" />
+                    </StackPanel>
+                </StackPanel>
+            </Flyout>
+        </Button.Flyout>
+    </Button>
+</UserControl>
