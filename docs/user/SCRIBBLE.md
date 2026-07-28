@@ -2,15 +2,8 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-A paint canvas for confirming the pen is working — draw with the pen and watch pressure, tilt, and twist live.
+The scribble page is essentially a mini paint app built into OpenTabletDriver. It's intended to give you a way of trying more of the Pen tablet and pen's features without always having to open up an application.
 
-- **Tablet picker** — when more than one tablet is connected, a selector chooses which tablet this page (and the other single-tablet flows) acts on; hidden with a single tablet.
+It is useful for debugging whether a problem you're experiencing lies with the tablet, the driver, or an application. For example, if you're having trouble with pressure in an application, check the scribble page to see if that same problem occurs. If it does, then the problem is either with the driver or perhaps with the tablet itself, but probably not with the application.
 
-- **Dynamics indicators** — a row of chips spells out exactly what's altering the stroke — **Pressure curve** (the curve is bent, not linear), **Pressure smoothing**, and/or **Position smoothing** — so behavior changes are never a mystery. With everything at its default the row shows no chips (nothing is shaping the pen). (Edit the pressure curve + smoothing on the Pen page's **pressure** tab.)
-- **Pointer-only warning** — *Pointer-only* Mode draws nothing, so active dynamics can't be seen. Picking it while dynamics is on shows a short warning — pick a pressure Mode to see them.
-- **Input source** (toggle) — where both the position and the pressure/tilt come from:
-  - **App** — the OS pointer (what a drawing app actually receives, via Windows Ink). The stroke renders under the pen.
-  - **Driver** — the raw OTD daemon signal, before the Windows Ink output stage — so it works even when Windows Ink isn't delivering pointer events. The raw tablet position is mapped to the canvas through the active tablet's **Absolute** area mapping, so the stroke still lands under the pen. This needs an **Absolute output mode** (e.g. Windows Ink Absolute); in **Relative** mode there's no absolute position to map, so the canvas is disabled with a note.
-- **Mode** — what to visualize: **Pressure Brush** (pressure → brush size), **Tilt Brush 1** (tilt azimuth → brush rotation), **Tilt Brush 2** (tilt altitude → brush size), **Barrel Rotation Brush** (twist → brush rotation), or **Crosshairs (No drawing)** (a crosshair, no drawing).
-- **Readouts** — live values, with X/Y shown paired in one cell: **Canvas** (where the stroke lands), **Raw** (the source's raw coordinates — tablet units in Driver mode), pressure, **Tilt** X/Y, azimuth, altitude, twist, and hover.
-- **Clearing** — the **Clear** button, or press **Delete** / **Backspace**.
+The scribble page has several brush types to explore different facets of the pen, from pressure to tilt and barrel rotation. You can configure which data from the pen the scribble page is using and change it to use either the pen data that is sent to the application or the raw pen data that the driver has. This is useful for debugging if an issue has to do with the tablet and the driver versus Windows Ink.
