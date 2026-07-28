@@ -571,6 +571,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         _ = SetOutputMode(ModePath(IsAbsoluteOutputMode, value));
     }
 
+    /// <summary>User picked a Press mode: "pen" = Windows Ink (pressure + tilt) or "mouse" = OTD's plain
+    /// output. Command-driven and display-only for the same reason as <see cref="SelectMovementCommand"/> —
+    /// two grouped RadioButtons TwoWay-bound to <see cref="DisableWindowsInk"/> would fight on reload.</summary>
+    [RelayCommand]
+    private void SelectPressMode(string mode)
+    {
+        bool wantDisable = mode == "mouse";
+        if (DisableWindowsInk == wantDisable) return; // no-op if already there
+        DisableWindowsInk = wantDisable; // OnDisableWindowsInkChanged applies the mode change
+    }
+
     public TabletDetailViewModel(Profile profile, Settings? settings,
         Func<Settings, Task>? applyAction = null,
         Func<Task<(Settings? Settings, Profile? Profile)>>? refreshAction = null,

@@ -103,15 +103,28 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- RIGHT — PRESSING: dropping Windows Ink changes how taps/clicks feel, at the cost of
-                     pressure and tilt. Windows-only; applies to either movement mode (#549). -->
+                <!-- RIGHT — PRESSING: Windows Ink (pen, with pressure/tilt) vs OTD's plain output (mouse-like),
+                     at the cost of pressure/tilt. Windows-only; applies to either movement mode (#549).
+                     Command-driven, display-only radios mirror the Movement cards to avoid the grouped-radio
+                     reload loop (see IsAbsoluteMode / SelectMovementCommand). -->
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="PRESSING" Classes="SectionLabel largetitle" />
-                    <ctrl:ToggleSetting Label="Don't use Windows Ink"
-                                        Description="You'll lose pressure and tilt, but the pen may work better in some apps."
-                                        IsChecked="{Binding DisableWindowsInk}"
-                                        IsVisible="{Binding CanDisableWindowsInk}"
-                                        Margin="0,12,0,0" />
+                    <StackPanel Margin="0,12,0,0" Spacing="10" IsVisible="{Binding CanDisableWindowsInk}">
+                        <RadioButton GroupName="PressMode"
+                                     IsChecked="{Binding DisableWindowsInk, Converter={StaticResource InvBool}, Mode=OneWay}"
+                                     Command="{Binding SelectPressModeCommand}" CommandParameter="pen">
+                            <TextBlock Text="Presses like drawing tablet pen" Classes="CardTitle" TextWrapping="Wrap" />
+                        </RadioButton>
+                        <RadioButton GroupName="PressMode"
+                                     IsChecked="{Binding DisableWindowsInk, Mode=OneWay}"
+                                     Command="{Binding SelectPressModeCommand}" CommandParameter="mouse">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Presses like a mouse" Classes="CardTitle" TextWrapping="Wrap" />
+                                <TextBlock Text="No pressure sensitivity or tilt" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </ScrollViewer>
