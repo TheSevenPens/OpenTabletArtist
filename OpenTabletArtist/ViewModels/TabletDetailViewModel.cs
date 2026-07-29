@@ -1765,10 +1765,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private void RecomputePreviewMapping()
     {
-        if (TryCalibrationContext(out var ctx, out _))
+        // The preview canvas only needs raw→desktop (digitizer + tablet area + display area) — exactly what
+        // the Scribble page's Driver mode builds. It deliberately does NOT go through TryCalibrationContext:
+        // that also requires DisplayMappingApplier.CurrentlyMapped to match the mapped area to a *connected*
+        // display, which can fail on some multi-display layouts (seen on macOS) even when the absolute mapping
+        // itself is perfectly valid — leaving the pressure preview dead (#pressure-preview-nomap). That match
+        // only matters for calibration (drawing targets on a specific display); the preview never uses it.
+        var abs = _profile.AbsoluteModeSettings;
+        if (abs?.Tablet is { } t && abs.Display is { } disp
+            && t.Width > 0 && t.Height > 0 && disp.Width > 0 && disp.Height > 0
+            && _deviceData?.GetDigitizerSpec(_profile.Tablet ?? "") is { } digi)
         {
-            var abs = _profile.AbsoluteModeSettings;
-            _previewMapping = (ctx.Digi, ctx.Input, ctx.Output, abs?.EnableClipping ?? false, abs?.EnableAreaLimiting ?? false);
+            _previewMapping = (digi,
+                new MappingArea(t.X, t.Y, t.Width, t.Height, t.Rotation),
+                new MappingArea(disp.X, disp.Y, disp.Width, disp.Height),
+                abs.EnableClipping, abs.EnableAreaLimiting);
         }
         else _previewMapping = null;
     }
