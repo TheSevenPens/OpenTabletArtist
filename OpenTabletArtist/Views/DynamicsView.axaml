@@ -96,10 +96,12 @@
                  Ink pressure is already shaped by this curve — so you can feel the curve while you edit it. -->
             <ctrl:Section Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel Spacing="8">
-                    <!-- Fixed-height slot so the readouts appearing/disappearing while you draw don't push
-                         the canvas below up and down. -->
+                    <!-- The readouts show all the time so they don't pop in/out as you press: "—" when no
+                         pressure is being reported (pen up / out of range), a value — including 0.0000 — when
+                         it is. Fixed-height slot so the processed line toggling with dynamics doesn't shift
+                         the canvas below. -->
                     <Panel Height="40">
-                        <StackPanel Spacing="2" VerticalAlignment="Top" IsVisible="{Binding HasLivePressure}">
+                        <StackPanel Spacing="2" VerticalAlignment="Top">
                             <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
                                        FontFamily="{DynamicResource MonoFontFamily}"
                                        Foreground="{DynamicResource AccentBrush}" />

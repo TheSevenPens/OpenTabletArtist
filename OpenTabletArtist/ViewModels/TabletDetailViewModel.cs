@@ -1698,9 +1698,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     }
 
     // Live pressure read-out (#559): the current input pressure, for the LIVE PRESSURE bar's "raw" label.
-    // "—" when the pen is up.
+    // "—" when the pen is up / no pressure is being reported (the read-out shows all the time, so the dash
+    // distinguishes "no data" from an actual 0).
     public string LiveInputText => LivePressure is { } v ? v.ToString("0.0000") : "—";
-    public bool HasLivePressure => LivePressure is not null;
 
     // Live processed pressure for the top pressure-level bar (#559): the raw pressure run through the SAME
     // pipeline the daemon's Pen Dynamics filter uses — curve, then EMA smoothing — via a stateful
@@ -1821,7 +1821,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     partial void OnLivePressureChanged(double? value)
     {
         OnPropertyChanged(nameof(LiveInputText));
-        OnPropertyChanged(nameof(HasLivePressure));
     }
 
     // Light up each aux-button card while its physical button is held (express-key live highlight).
