@@ -51,19 +51,34 @@ Surfaces:
   rotation), others *navigate* to where the setting lives (Windows Ink / VMulti / Driver pages, a tablet's tab).
 - The shared instance lives in `MainViewModel` and is handed to the pages that need it.
 
-## Catalog (phase 1)
+## Catalog
 
-| Id | Severity | Fix area |
-| --- | --- | --- |
-| `daemon.missing` | Broken | Daemon |
-| `daemon.disconnected` | Broken | Daemon |
-| `winink.notInstalled` | Broken | Windows Ink page |
-| `winink.versionMismatch` | Misconfigured | Windows Ink page |
-| `vmulti.notInstalled` | Broken | VMulti page |
-| `driver.conflict` | Broken if blocking, else Misconfigured | Driver cleanup page |
-| `tablet.notWinInk:<name>` | Misconfigured | that tablet's Pen Behavior |
-| `tablet.winInkOff:<name>` | Information | that tablet's Pen Behavior *(deliberate "Don't use Windows Ink"; suppresses `tablet.notWinInk`, #549)* |
-| `daemon.foreign` | Recommendation | Daemon |
+Every check `HealthEvaluator.Evaluate` can emit. The **primary button** is the card's main action — it
+acts *in place* unless noted; **Secondary** is the optional **Review** button (#629) or, for the
+pen-behavior bundle, its per-setting review links. Ids ending `:<name>` are per-tablet.
+
+| Id | Severity | When it fires | Primary button → action | Secondary |
+| --- | --- | --- | --- | --- |
+| `winink.notInstalled` | Broken | Windows Ink plugin missing from the daemon plugin dir *(Windows)* | **Fix** → Advanced › Drivers (install) | — |
+| `winink.versionMismatch` | Misconfigured | Installed plugin doesn't declare support for the running driver *(Windows)* | **Fix** → Advanced › Drivers (update) | — |
+| `vmulti.notInstalled` | Broken | VMulti virtual-pen driver not installed *(Windows)* | **Fix** → Advanced › Drivers (install) | — |
+| `tablet.notWinInk:<name>` | Misconfigured | Detected tablet not on a Windows Ink output mode (and not deliberately opted out) | **Fix** → switch the tablet to Windows Ink | **Review** → Pen Behavior |
+| `tablet.winInkOff:<name>` | Information | Detected tablet with "Don't use Windows Ink" on (deliberate, #549); suppressed when the pen-behavior bundle fires | **Review** → Pen Behavior | — |
+| `tablet.mappingOffScreen:<name>` | Misconfigured | Mapped area extends past every monitor (dead zones) | **Fix** → map active area to the primary display | **Review** → Display Mapping |
+| `tablet.mappingCustom:<name>` | Recommendation | Mapped on-screen but not to one whole monitor (sub-region / spanning) | **Fix** → map to the primary display | **Review** → Display Mapping |
+| `tablet.mappingRotation:<name>` | Misconfigured | Active-area rotation is a non-cardinal angle | **Fix** → snap to the nearest standard angle + re-fit | **Review** → Display Mapping |
+| `tablet.dynamicsOff:<name>` | Recommendation | Detected tablet's Pen Dynamics filter is off/missing | **Fix** → re-enable the always-on filter | — |
+| `tablet.configOverride:<name>` | Recommendation | Detected tablet driven by a custom config overriding OTD's built-in (#467) | **Review** → Configs page | — |
+| `tablet.penBehavior:<name>` | Recommendation | Any artist-pen offender: Windows Ink off, or pen tip / pressure / tilt disabled (#artist-pen-health) | **Fix** → restore recommended (Ink + tip + pressure + tilt) | per-offender review links → the Pen pivot that owns each |
+| `driver.conflict` | Broken if blocking, else Misconfigured | A manufacturer tablet driver is detected *(Windows)* | **Fix** → Settings › System (Driver cleanup) | — |
+| `app.elevated` | Misconfigured | The app is running as Administrator | *(no button — relaunch unelevated yourself)* | — |
+| `tray.gnomeNoSni` | Information | GNOME session with no StatusNotifierItem tray host *(Linux)* | *(no button — install the AppIndicator extension)* | — |
+| `daemon.foreign` | Recommendation | Connected to a daemon this app didn't launch | **Fix** → restart the daemon to the bundled build | — |
+| `dev.induced.<severity>` | the induced tier | A Developer-tab toggle forced a synthetic card (for reviewing / screenshotting the UI) | **Clear** → clears the Developer flag | — |
+
+> Daemon reachability (not-connected / exe-missing) is deliberately **not** in this list — it's surfaced by
+> Home's daemon problem card so it can morph through the "connecting…" state and offer an in-place retry.
+> Only the `daemon.foreign` recommendation stays a health item.
 
 The pen-pressure setup chain is **three** prerequisites, all independent so they surface at once when
 missing: the **VMulti driver** (the virtual pen device), the **Windows Ink plugin**, and the tablet's
@@ -91,23 +106,12 @@ VMulti's virtual HID device — see OTD's own README ("Windows Ink … and VMult
 
 ## Done in phase 3
 
-- **In-place fixes + a `Review` companion (#629).** Where a card can be fixed in one click, its **Fix**
-  now *performs* the change instead of only navigating, and an optional **Review** button (backed by
-  `HealthIssue.Secondary`, rendered beside Fix in `DashboardView`) still opens the tab that owns it:
-  - `tablet.mappingOffScreen` / `tablet.mappingCustom` → **Fix** re-maps the active area cleanly to the
-    primary display (`AppSession.MapTabletToPrimaryDisplayAsync` → `DisplayMappingApplier.ApplyToProfile`);
-    **Review** opens Display Mapping.
-  - `tablet.mappingRotation` → **Fix** snaps a non-cardinal rotation to the nearest standard angle and
-    re-fits (`AppSession.ResetTabletRotationToCardinalAsync` → `DisplayMappingApplier.ApplyRotation`);
-    **Review** opens Display Mapping.
-  - `tablet.notWinInk` → **Fix** switches the tablet to Windows Ink (reuses the restore-pen-behavior
-    apply); **Review** opens Pen Behavior.
-  - Already in-place from earlier work: `tablet.dynamicsOff` (re-enable the always-on filter),
-    `tablet.penBehavior` (restore Ink + tip + pressure + tilt, with per-setting review links), and
-    `daemon.foreign` (restart to the bundled build).
-- **New `RemediationArea`s:** `TabletMapToPrimary`, `TabletResetRotation` — both persist via
-  `ApplyAndSaveSettingsAsync`. Informational cards with no in-app fix (`app.elevated`, `tray.gnomeNoSni`)
-  keep a null remediation and render no button.
+- **In-place fixes + a `Review` companion (#629).** Cards whose **Fix** used to only navigate now
+  *perform* the change (map to primary display, snap rotation to a cardinal angle, switch to Windows Ink),
+  and carry an optional **Review** button — a second `Remediation` on `HealthIssue.Secondary`, dispatched
+  by `DashboardViewModel.RemediateSecondary` and rendered beside Fix in `DashboardView`. New
+  `RemediationArea`s `TabletMapToPrimary` / `TabletResetRotation` (both persist via
+  `ApplyAndSaveSettingsAsync`). Per-check specifics live in the [Catalog](#catalog) above.
 
 ## Decided against / skipped
 
