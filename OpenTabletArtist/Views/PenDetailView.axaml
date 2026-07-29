@@ -92,7 +92,6 @@
                          too laggy to be useful. Fills the fixed-width column so the slider's star-sized track
                          renders (a size-to-content slider collapses the track to nothing). -->
                     <StackPanel Margin="0,28,0,0">
-                        <TextBlock Text="POSITION SMOOTHING" Classes="SectionLabel" />
                         <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
                                             Minimum="0" Maximum="{Binding PositionSmoothingMax}"
                                             Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
@@ -107,9 +106,12 @@
                      at the cost of pressure/tilt. Windows-only; applies to either movement mode (#549).
                      Command-driven, display-only radios mirror the Movement cards to avoid the grouped-radio
                      reload loop (see IsAbsoluteMode / SelectMovementCommand). -->
-                <StackPanel Grid.Column="2">
+                <!-- Whole column is Windows-only (the Windows Ink toggle). CanDisableWindowsInk == IsWindows(),
+                     so the entire column — header included — hides off-Windows: no lonely "PRESSING" heading on
+                     macOS/Linux, where pressure/tilt come through OTD's native output anyway. -->
+                <StackPanel Grid.Column="2" IsVisible="{Binding CanDisableWindowsInk}">
                     <TextBlock Text="PRESSING" Classes="SectionLabel largetitle" />
-                    <StackPanel Margin="0,12,0,0" Spacing="10" IsVisible="{Binding CanDisableWindowsInk}">
+                    <StackPanel Margin="0,12,0,0" Spacing="10">
                         <RadioButton GroupName="PressMode"
                                      IsChecked="{Binding DisableWindowsInk, Converter={StaticResource InvBool}, Mode=OneWay}"
                                      Command="{Binding SelectPressModeCommand}" CommandParameter="pen">
