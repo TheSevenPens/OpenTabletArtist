@@ -8,7 +8,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OpenTabletDriver.Configurations;
+using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
+using OpenTabletDriver.Plugin.Tablet;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -34,9 +37,105 @@ public sealed partial class DeveloperViewModel : ObservableObject
     {
         _settings = settings;
         _device = device;
+        // Restore the picker to whatever was force-added this session (if anything).
+        var forced = DeveloperSettings.Instance.ForcedTabletName;
+        _selectedForcedTablet = string.IsNullOrEmpty(forced) ? null : forced;
     }
 
     public DeveloperSettings Settings => DeveloperSettings.Instance;
+
+    // --- Force a tablet into Home's list (#force-tablet) -----------------------------------------------
+
+    private IReadOnlyList<string>? _supportedTabletNames;
+
+    /// <summary>Every tablet OpenTabletDriver supports (by name), for the "force a tablet" picker. Loaded
+    /// lazily from the bundled config catalog (the same source the Supported Tablets dialog uses) the first
+    /// time the picker binds, so it doesn't cost anything at app startup.</summary>
+    public IReadOnlyList<string> SupportedTabletNames =>
+        _supportedTabletNames ??= SupportedTabletsCatalog.All.Select(t => t.Name).ToList();
+
+    /// <summary>The tablet chosen in the picker to force into Home's list.</summary>
+    [ObservableProperty] private string? _selectedForcedTablet;
+
+    /// <summary>Result of the last force/clear action.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForceTabletStatus))]
+    private string _forceTabletStatus = "";
+
+    public bool HasForceTabletStatus => !string.IsNullOrEmpty(ForceTabletStatus);
+
+    /// <summary>Add a real, saved (but not-detected) profile for the picked tablet, so it appears in Home's
+    /// tablet list without the hardware — for debugging the cards, mapping line, and navigation. Replaces any
+    /// tablet previously force-added this session. It's a genuine remembered profile: it survives restart and
+    /// is removed via the card's Forget button (or Clear here).</summary>
+    [RelayCommand]
+    private async Task AddForcedTablet()
+    {
+        var settings = _settings?.CurrentSettings;
+        if (settings == null) { ForceTabletStatus = "No settings loaded yet — connect the daemon first."; return; }
+
+        var name = SelectedForcedTablet;
+        if (string.IsNullOrWhiteSpace(name)) { ForceTabletStatus = "Pick a tablet first."; return; }
+
+        // Replace: drop the previously force-added tablet (if it's still present) before adding the new one.
+        var prev = Settings.ForcedTabletName;
+        if (!string.IsNullOrEmpty(prev) && !string.Equals(prev, name, StringComparison.OrdinalIgnoreCase))
+            RemoveProfilesNamed(settings, prev);
+
+        if (!settings.Profiles.Any(p => string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            var profile = BuildForcedProfile(name);
+            if (profile == null) { ForceTabletStatus = $"Couldn't build a profile for \"{name}\"."; return; }
+            settings.Profiles.Add(profile);
+        }
+
+        Settings.ForcedTabletName = name;
+        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        ForceTabletStatus = $"Added \"{name}\" to Home's tablet list as a remembered (not-detected) tablet. " +
+                            "It's a real saved profile — remove it with the card's Forget button, or Clear here.";
+    }
+
+    /// <summary>Remove the tablet force-added this session from Home's list (and settings).</summary>
+    [RelayCommand]
+    private async Task ClearForcedTablet()
+    {
+        var settings = _settings?.CurrentSettings;
+        var name = Settings.ForcedTabletName;
+        if (settings == null || string.IsNullOrEmpty(name)) { ForceTabletStatus = "No forced tablet to clear."; return; }
+
+        bool removed = RemoveProfilesNamed(settings, name);
+        Settings.ForcedTabletName = "";
+        SelectedForcedTablet = null;
+        if (removed) await _settings!.ApplyAndSaveSettingsAsync(settings);
+        ForceTabletStatus = removed ? $"Removed \"{name}\" from the tablet list." : "Nothing to remove.";
+    }
+
+    private static bool RemoveProfilesNamed(OpenTabletDriver.Desktop.Settings settings, string name)
+    {
+        bool removed = false;
+        foreach (var p in settings.Profiles.Where(p => string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase)).ToList())
+        { settings.Profiles.Remove(p); removed = true; }
+        return removed;
+    }
+
+    /// <summary>Build a full default profile for <paramref name="name"/> from OTD's bundled config catalog
+    /// (output mode + area + bindings defaults), falling back to a minimal name-only profile if the config
+    /// or its specs can't be read — either way it appears in Home as a remembered tablet.</summary>
+    private static Profile? BuildForcedProfile(string name)
+    {
+        try
+        {
+            var config = new DeviceConfigurationProvider().TabletConfigurations
+                .FirstOrDefault(c => c != null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (config == null) return null;
+            var reference = new TabletReference(config, Array.Empty<DeviceIdentifier>());
+            return Profile.GetDefaults(reference);
+        }
+        catch
+        {
+            return new Profile { Tablet = name };
+        }
+    }
 
     /// <summary>Result of the last "introduce a config error" action (what changed, or why it couldn't).</summary>
     [ObservableProperty]

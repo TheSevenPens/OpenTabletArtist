@@ -63,8 +63,10 @@
                     </StackPanel>
                 </c:Section>
 
-                <!-- RIGHT: introduce REAL (persisted) misconfigurations for reproducing UX issues. -->
-                <c:Section Grid.Column="2" Title="Introduce config errors"
+                <!-- RIGHT: introduce REAL (persisted) misconfigurations for reproducing UX issues, and force
+                     a supported tablet into Home's list for debugging without the hardware. -->
+                <StackPanel Grid.Column="2" Spacing="24">
+                <c:Section Title="Introduce config errors"
                            Description="These make a real, persisted settings change on the active tablet, so the matching warning appears for genuine bad state. Undo each from the tablet's own tabs.">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="6">
@@ -104,6 +106,29 @@
                                    IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
                     </StackPanel>
                 </c:Section>
+
+                <!-- Force a supported tablet into Home's tablet list (#force-tablet): adds a real, saved
+                     (but not-detected) profile so its card can be exercised without the hardware. -->
+                <c:Section Title="Force a tablet in the list"
+                           Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the card, its mapped-display line, and navigation. It's a real profile: remove it with the card's Forget button, or Clear here. Adding a tablet replaces the one previously forced this session.">
+                    <StackPanel Spacing="10">
+                        <AutoCompleteBox ItemsSource="{Binding SupportedTabletNames}"
+                                         SelectedItem="{Binding SelectedForcedTablet, Mode=TwoWay}"
+                                         FilterMode="ContainsOrdinal"
+                                         MinWidth="300" MaxWidth="380" HorizontalAlignment="Left"
+                                         PlaceholderText="Type to find a tablet…" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Add to tablet list" Command="{Binding AddForcedTabletCommand}"
+                                    Theme="{StaticResource AccentButton}" Padding="12,6" />
+                            <Button Content="Clear" Command="{Binding ClearForcedTabletCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding ForceTabletStatus}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding HasForceTabletStatus}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </c:Section>
+                </StackPanel>
             </Grid>
         </ScrollViewer>
 

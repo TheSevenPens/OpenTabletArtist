@@ -56,6 +56,11 @@ public sealed partial class DeveloperSettings : ObservableObject
     public ScreenshotFormat[] ScreenshotFormatOptions { get; } =
         { ScreenshotFormat.PNG, ScreenshotFormat.JPG, ScreenshotFormat.Both };
 
+    /// <summary>The tablet last force-added to Home's list from the Developer tab (#force-tablet). The
+    /// profile itself is a real saved profile; this session-only field just remembers which tablet was
+    /// dev-added this session, so "Add" can replace the previous one and "Clear" can remove it.</summary>
+    [ObservableProperty] private string _forcedTabletName = "";
+
     // Induced health warnings, one per severity, for reviewing/screenshotting the "Needs attention" UI.
     // Session-only (not persisted): fixing one just clears its flag (see ClearInduced).
     [ObservableProperty] private bool _induceRecommendation;
