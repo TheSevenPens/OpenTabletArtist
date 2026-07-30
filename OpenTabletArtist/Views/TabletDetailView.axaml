@@ -133,7 +133,7 @@
                        Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding DetectionDetail, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <TextBlock Text="{Binding RefreshWarning}" FontStyle="Italic"
-                       Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <!-- Settings changed outside OTA (e.g. the OTD UX) while the user had an unsaved edit here.
                  Non-destructive: Reload adopts the external values; otherwise it's picked up silently. -->
@@ -143,7 +143,7 @@
                     CornerRadius="0" Padding="12,8" Margin="0,4,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ExternalChangeText}"
-                               Foreground="{DynamicResource WarningBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                TextWrapping="Wrap" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Reload"
                             Command="{Binding ReloadExternalChangeCommand}"
@@ -507,7 +507,7 @@
                                         ToolTip.Tip="Remove the calibration entirely and return the pointer to its uncorrected default" />
                             </WrapPanel>
                             <TextBlock Text="This tablet's calibration was made for a different display mapping — recalibrate to keep it accurate."
-                                       Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
                                        IsVisible="{Binding CalibrationStale}" />
                         </StackPanel>
                     </ctrl:Section>

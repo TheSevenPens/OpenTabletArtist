@@ -204,7 +204,7 @@
                                 IsVisible="{Binding Status.HasDaemonOperationError}">
                         <TextBlock Classes="warning" />
                         <TextBlock Text="{Binding Status.DaemonOperationError}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource WarningBrush}" />
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
                 </StackPanel>
             </c:Section>

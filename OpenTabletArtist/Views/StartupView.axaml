@@ -12,7 +12,7 @@
                                  Description="Launches minimized to the tray at sign-in, so hotkeys and per-app profile switching are ready without opening it yourself."
                                  IsChecked="{Binding StartWithWindows}" />
                 <TextBlock Text="{Binding RegistryMessage}" TextWrapping="Wrap"
-                           Foreground="{DynamicResource WarningBrush}"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
                            IsVisible="{Binding HasRegistryMessage}" />
             </StackPanel>
         </c:Section>

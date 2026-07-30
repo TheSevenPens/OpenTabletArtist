@@ -15,7 +15,7 @@
         <Border Background="{DynamicResource WarningMutedBrush}" BorderBrush="{DynamicResource WarningBrush}"
                 BorderThickness="1" CornerRadius="0" Padding="14,10" Margin="0,0,0,18"
                 IsVisible="{Binding IsForeignDaemon}">
-            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"
                        Text="Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running — its settings and preset files may not match yours. Stop that daemon (or let OpenTabletArtist manage it) to use this feature." />
         </Border>
 
@@ -77,7 +77,7 @@
                                                   Foreground="{DynamicResource WarningBrush}" />
                                         <TextBlock Text="preset missing" FontWeight="SemiBold"
                                                    VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource WarningBrush}" />
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                                     </StackPanel>
                                 </StackPanel>
 

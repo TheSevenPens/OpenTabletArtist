@@ -115,7 +115,7 @@
                             <TextBlock Text="{Binding Daemon.HomeProblemText}" Classes="CardTitle" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Daemon.DaemonOperationError}" Margin="0,4,0,0" TextWrapping="Wrap"
                                        IsVisible="{Binding Daemon.HasDaemonOperationError}"
-                                       Foreground="{DynamicResource WarningBrush}" />
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
                             <TextBlock Text="Open the daemon page to start it or see details." Margin="0,4,0,0" TextWrapping="Wrap"
                                        IsVisible="{Binding Daemon.IsDaemonExeMissing}"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -162,14 +162,15 @@
                                         </Panel>
                                     </StackPanel>
                                     <!-- Where the active area is mapped (#tablet-card-mapping): the mapped
-                                         display when it's a clean single-monitor mapping (secondary text), or a
-                                         warning-coloured "needs attention" line when it isn't. -->
+                                         display when it's a clean single-monitor mapping, or a "needs attention"
+                                         line when it isn't. State reads from the wording, not colour (#no-orange-text):
+                                         the attention line is a touch more prominent (primary vs secondary text). -->
                                     <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                IsVisible="{Binding MappingIsNormal}"
                                                Foreground="{DynamicResource TextSecondaryBrush}" />
                                     <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                IsVisible="{Binding MappingNeedsAttention}"
-                                               Foreground="{DynamicResource WarningBrush}" />
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0"
                                                IsVisible="{Binding HasLastSeenDetail}"
                                                Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />

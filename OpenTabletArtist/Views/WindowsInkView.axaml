@@ -41,7 +41,7 @@
                                 IsVisible="{Binding WinInkVersionMismatch}">
                         <TextBlock Classes="warning" />
                         <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource WarningBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    Text="{Binding CurrentOtdVersion, StringFormat='May be incompatible with OpenTabletDriver v{0}'}" />
                     </StackPanel>
 

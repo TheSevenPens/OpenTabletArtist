@@ -14,11 +14,13 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="3,0,0,0" />
         </Style>
-        <!-- Status pill colours: green Supported, amber Has Quirks, neutral Missing Features. -->
-        <Style Selector="Border.stSupported"><Setter Property="Background" Value="{DynamicResource SuccessMutedBrush}" /></Style>
-        <Style Selector="Border.stSupported TextBlock"><Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" /></Style>
-        <Style Selector="Border.stQuirks"><Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" /></Style>
-        <Style Selector="Border.stQuirks TextBlock"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}" /></Style>
+        <!-- Status pills (#no-orange-text): neutralized to a single neutral fill + text across all three
+             support levels, so the legend has no coloured (green/amber) text or tint. The pill's word
+             ("Supported" / "Has Quirks" / "Missing Features") carries the level. -->
+        <Style Selector="Border.stSupported"><Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" /></Style>
+        <Style Selector="Border.stSupported TextBlock"><Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" /></Style>
+        <Style Selector="Border.stQuirks"><Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" /></Style>
+        <Style Selector="Border.stQuirks TextBlock"><Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" /></Style>
         <Style Selector="Border.stMissing"><Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" /></Style>
         <Style Selector="Border.stMissing TextBlock"><Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" /></Style>
     </Window.Styles>

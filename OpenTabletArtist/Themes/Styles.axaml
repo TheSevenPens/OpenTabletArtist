@@ -370,12 +370,13 @@
                 <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="Foreground" Value="White" />
             </Style>
-            <!-- Muted warning: warning fill + 1px warning outline + warning text. -->
+            <!-- Muted warning: warning fill + 1px warning outline, but neutral text (#no-orange-text) —
+                 the fill/outline carry the warning tone; the label stays readable in the primary colour. -->
             <Style Selector="^[Kind=Warning]">
                 <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             </Style>
         </ControlTheme>
 
@@ -653,7 +654,8 @@
         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
     <Style Selector="TextBlock.saveStatus.failed">
-        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+        <!-- Save-failed reads via wording + weight, not orange text (#no-orange-text). -->
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 

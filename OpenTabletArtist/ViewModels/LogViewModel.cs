@@ -223,11 +223,13 @@ public partial class LogViewModel : ObservableObject, IDisposable
 /// <summary>One log line, projected from a daemon <see cref="LogMessage"/> for display.</summary>
 public sealed class LogEntry
 {
-    // Fixed per-level accent colours (shared instances). A console reads fine with stable level
-    // colours rather than theme-driven ones.
+    // Fixed per-level accent colours (shared instances) for the small LEVEL tag. A console reads fine
+    // with stable level colours rather than theme-driven ones. Warning is a neutral grey rather than
+    // orange (#no-orange-text) — the "WARNING" label carries the level; only the Error tag stays a
+    // colour (red), so genuine failures still stand out.
     private static readonly IBrush DebugBrush = new SolidColorBrush(Color.Parse("#9CA3AF"));
     private static readonly IBrush InfoBrush = new SolidColorBrush(Color.Parse("#3B82F6"));
-    private static readonly IBrush WarnBrush = new SolidColorBrush(Color.Parse("#F59E0B"));
+    private static readonly IBrush WarnBrush = new SolidColorBrush(Color.Parse("#9CA3AF"));
     private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#EF4444"));
 
     public LogEntry(LogMessage m)

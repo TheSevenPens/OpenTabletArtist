@@ -72,7 +72,7 @@
             <!-- Pointer-only mode paints nothing, so active dynamics are invisible — warn (#183). -->
             <TextBlock Text="Pointer-only mode doesn't draw, so you won't see the dynamics above. Pick a pressure Mode to see them."
                        IsVisible="{Binding PointerOnlyWithDynamics}" Margin="0,6,0,0"
-                       TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}" />
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
 
             <!-- Controls + live readouts, in a ControlPanel (ribbon-style control cluster) — bordered with
                  the Entity glass fill so it reads as a single panel over the themed backdrop. -->

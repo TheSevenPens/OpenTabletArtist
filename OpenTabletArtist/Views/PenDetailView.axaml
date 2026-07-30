@@ -78,7 +78,7 @@
 
                     <!-- Only when the current mode isn't Windows Ink: pressure/tilt won't work; offer a fix. -->
                     <TextBlock Text="Output mode needs to use Windows Ink for pressure and tilt to work"
-                               Foreground="{DynamicResource WarningBrush}" FontStyle="Italic" Margin="0,12,0,0"
+                               Foreground="{DynamicResource TextPrimaryBrush}" FontStyle="Italic" Margin="0,12,0,0"
                                TextWrapping="Wrap"
                                IsVisible="{Binding CanFixOutputMode}" />
                     <Button Content="Fix" Theme="{StaticResource AccentButton}"

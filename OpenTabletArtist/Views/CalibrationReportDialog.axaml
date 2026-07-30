@@ -37,7 +37,7 @@
                            IsVisible="{Binding HasCalibrationFit}"
                            ToolTip.Tip="How far the uncorrected pen landed from each target, across all taps. This is the parallax the calibration removes — the post-correction residual is essentially zero." />
                 <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
-                           Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding HasCalibrationFitWarning}" />
                 <!-- Average natural pen tilt across the taps (#481). -->
                 <TextBlock Text="{Binding CalibrationTiltText}" FontSize="12"
