@@ -68,6 +68,33 @@ public static class PenSwitchBinding
         };
     }
 
+    /// <summary>A short, plain-language name for what a switch is currently bound to — for the "Currently: …"
+    /// line on the simplified pen-input cards (#pen-inputs-simplify). Avoids the internal plugin jargon that
+    /// <see cref="GetDisplayLabel"/> exposes: the recommended state reads "Normal", legacy reads "Windows Ink
+    /// (legacy)", and the common custom bindings map to friendly names, falling back to the plugin's friendly
+    /// name for anything unrecognised.</summary>
+    public static string GetPlainCurrentLabel(
+        PluginSettingStore? store,
+        PenSwitchKind kind,
+        int penButtonIndex = 1,
+        Func<string?, string?>? friendlyName = null)
+    {
+        switch (DetectMode(store, kind, penButtonIndex))
+        {
+            case PenSwitchBindingMode.Auto: return "Normal";
+            case PenSwitchBindingMode.Legacy: return "Windows Ink (legacy)";
+        }
+
+        var path = store?.Path;
+        if (path == null) return "None";
+        if (path == MouseBindingPath) return "Mouse button";
+        if (path.EndsWith("MouseScrollBinding", StringComparison.Ordinal)) return "Mouse scroll";
+        if (path.EndsWith("MultiKeyBinding", StringComparison.Ordinal)
+            || path.EndsWith("KeyBinding", StringComparison.Ordinal)) return "Keyboard key";
+        if (path.EndsWith("PresetBinding", StringComparison.Ordinal)) return "Preset";
+        return FormatOtherBindingName(store!, friendlyName);
+    }
+
     public static PluginSettingStore MakeAdaptiveBinding(PenSwitchKind kind, int penButtonIndex = 1)
     {
         var value = kind switch

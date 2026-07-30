@@ -2214,6 +2214,9 @@ public partial class PenSwitchRowViewModel : ObservableObject
     public bool IsFirst { get; set; }
 
     [ObservableProperty] private string _bindingLabel = "None";
+    /// <summary>Plain-language name of the current binding for the simplified card's "Currently: …" line
+    /// (e.g. "Mouse button", "Windows Ink (legacy)") — no plugin jargon (#pen-inputs-simplify).</summary>
+    [ObservableProperty] private string _currentPlainLabel = "None";
     [ObservableProperty] private PenSwitchBindingMode _mode;
     [ObservableProperty] private bool _canEdit;
 
@@ -2242,6 +2245,7 @@ public partial class PenSwitchRowViewModel : ObservableObject
         CanEdit = canEdit;
         Mode = PenSwitchBinding.DetectMode(store, _kind, _penButtonIndex);
         BindingLabel = PenSwitchBinding.GetDisplayLabel(store, _kind, _penButtonIndex, GetPluginFriendlyName);
+        CurrentPlainLabel = PenSwitchBinding.GetPlainCurrentLabel(store, _kind, _penButtonIndex, GetPluginFriendlyName);
     }
 
     private static string? GetPluginFriendlyName(string? path) =>

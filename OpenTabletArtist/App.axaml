@@ -30,10 +30,13 @@
 
             <!-- ===== Zune type ramp (redesign Phase 0.4) ===================================
                  Named heading scale so the redesign can retune the display sizes in one place
-                 (Phase 3 grows the page/pivot type). Segoe UI Light is the Zune display face.
+                 (Phase 3 grows the page/pivot type). Inter Light is the Zune display face.
                  Values match today's look — this is a rename, not a resize. `TypeBodySize` == the
                  content scale above. See docs/design/zune-redesign.md. -->
-            <FontFamily x:Key="DisplayFontFamily">Segoe UI, Inter</FontFamily>
+            <!-- App text uses Inter across all platforms (#mono-font-followup): it's embedded via
+                 .WithInterFont() (Program.cs), so it renders identically on Windows/macOS/Linux rather
+                 than falling back to each OS's default UI font. -->
+            <FontFamily x:Key="DisplayFontFamily">Inter</FontFamily>
             <sys:Double x:Key="TypeDisplaySize">28</sys:Double>   <!-- page title (later: pivots) -->
             <sys:Double x:Key="TypeTitleSize">15</sys:Double>     <!-- subpage / body title -->
             <sys:Double x:Key="TypeBodySize">12</sys:Double>      <!-- body + labels -->

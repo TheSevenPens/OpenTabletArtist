@@ -28,13 +28,14 @@ public static class AnimationSettings
         }
     }
 
-    /// <summary>Overall opacity of the falling petals (0..1). Defaults to fully opaque (1).</summary>
+    /// <summary>Overall opacity of the falling petals (0..1). Defaults to 0.25 — a soft, unobtrusive
+    /// scatter over the Sakura backdrop rather than fully opaque petals.</summary>
     public static double PetalsOpacity
     {
         get => double.TryParse(AppSettings.Get(PetalsOpacityKey), NumberStyles.Float,
                    CultureInfo.InvariantCulture, out var v)
             ? Math.Clamp(v, 0, 1)
-            : 1.0;
+            : 0.25;
         set
         {
             AppSettings.Set(PetalsOpacityKey, Math.Clamp(value, 0, 1).ToString(CultureInfo.InvariantCulture));

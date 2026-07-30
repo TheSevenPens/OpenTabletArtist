@@ -115,7 +115,12 @@
                         <RadioButton GroupName="PressMode"
                                      IsChecked="{Binding DisableWindowsInk, Converter={StaticResource InvBool}, Mode=OneWay}"
                                      Command="{Binding SelectPressModeCommand}" CommandParameter="pen">
-                            <TextBlock Text="Presses like drawing tablet pen" Classes="CardTitle" TextWrapping="Wrap" />
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Presses normally" Classes="CardTitle" TextWrapping="Wrap" />
+                                <TextBlock Text="Works like an artist would expect, with pressure sensitivity and tilt"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
                         </RadioButton>
                         <RadioButton GroupName="PressMode"
                                      IsChecked="{Binding DisableWindowsInk, Mode=OneWay}"

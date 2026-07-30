@@ -176,8 +176,10 @@ public partial class TestViewModel : ObservableObject, IDisposable
         DynamicsNoOp = DynamicsActive && d.IsNoOp;
     }
 
-    /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).</summary>
-    [ObservableProperty] private bool _useDriverInput;
+    /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).
+    /// Defaults to Driver: it's the driver's own view of the pen and works even before Windows Ink is
+    /// set up, so it's the more reliable first thing to see on the Scribble page.</summary>
+    [ObservableProperty] private bool _useDriverInput = true;
 
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));

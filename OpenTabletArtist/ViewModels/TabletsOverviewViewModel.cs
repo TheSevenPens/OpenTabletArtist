@@ -29,12 +29,15 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     private readonly Func<Task> _forget;
 
     public TabletOverviewItemViewModel(string name, bool isDetected, string statusText,
-        string? lastSeenDetail, Action navigate, Func<Task> forget)
+        string? lastSeenDetail, string mappingText, bool mappingNeedsAttention,
+        Action navigate, Func<Task> forget)
     {
         Name = name;
         IsDetected = isDetected;
         StatusText = statusText;
         LastSeenDetail = lastSeenDetail;
+        MappingText = mappingText;
+        MappingNeedsAttention = mappingNeedsAttention;
         _navigate = navigate;
         _forget = forget;
     }
@@ -44,12 +47,31 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     public string StatusText { get; }
     public string? LastSeenDetail { get; }
     public bool HasLastSeenDetail => !string.IsNullOrEmpty(LastSeenDetail);
-    /// <summary>Forget is offered for every tablet (#575). For a remembered (disconnected) tablet it
-    /// removes it from the list; for a connected one it can't truly be removed — the daemon regenerates a
-    /// default profile — so it resets to defaults instead. The tooltip + confirm say which.</summary>
-    public string ForgetTooltip => IsDetected
-        ? "Reset this tablet's saved settings to defaults"
-        : "Forget this tablet — remove its saved settings";
+
+    /// <summary>Where this tablet's active area is mapped, e.g. "Mapped to Display 1", or a short
+    /// "needs attention" phrase when it isn't a standard single-display mapping (#tablet-card-mapping).
+    /// Observable so a live display change can refresh it in place (see <see cref="UpdateMapping"/>).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMapping))]
+    [NotifyPropertyChangedFor(nameof(MappingIsNormal))]
+    private string _mappingText;
+
+    /// <summary>True when <see cref="MappingText"/> is a warning, so the card draws it emphasised.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MappingIsNormal))]
+    private bool _mappingNeedsAttention;
+
+    public bool HasMapping => !string.IsNullOrEmpty(MappingText);
+    /// <summary>A normal (non-warning) mapping line — drawn in secondary text rather than the warning colour.</summary>
+    public bool MappingIsNormal => HasMapping && !MappingNeedsAttention;
+
+    /// <summary>Refresh the mapped-display line in place — used when the connected monitors change so the
+    /// card updates without a full list rebuild (#tablet-card-mapping).</summary>
+    public void UpdateMapping(string text, bool needsAttention)
+    {
+        MappingText = text;
+        MappingNeedsAttention = needsAttention;
+    }
 
     [RelayCommand]
     private void Open() => _navigate();

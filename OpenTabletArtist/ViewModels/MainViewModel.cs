@@ -393,13 +393,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _tabletDetails.Remove(key);
         }
 
-        // Rebuild the richer overview rows (Home cards, same order) — status, last-seen, navigable (#307).
+        // Rebuild the richer overview rows (Home cards, same order) — status, last-seen, mapped display,
+        // navigable (#307). Enumerate displays once so every card's mapping summary is computed against
+        // the same live monitor set.
+        var displays = DisplayEnumerator.Enumerate();
         TabletsOverview.Tablets = ordered
             .Select(p =>
             {
                 var tablet = p.Tablet;
+                var mapping = DisplayMappingApplier.DescribeMapping(p.Profile, displays);
                 return new TabletOverviewItemViewModel(tablet, p.IsDetected, p.StatusText,
-                    p.LastSeenDetail, () => NavigateToTabletByName(tablet),
+                    p.LastSeenDetail, mapping.Text, mapping.NeedsAttention,
+                    () => NavigateToTabletByName(tablet),
                     () => ForgetTabletByNameAsync(tablet));
             })
             .ToList();
@@ -412,6 +417,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         PenPage.SetTablets(choices);
         // Both switchers now reflect the shared active tablet (e.g. after the daemon auto-selected one).
         SyncPagesToActiveTablet();
+    }
+
+    /// <summary>Re-read the connected monitors and refresh each Home tablet card's mapped-display line in
+    /// place, without a full list rebuild. Called when the displays change (a monitor is (un)plugged), so
+    /// "Mapped to Display 2" / "needs attention" stays accurate even while Home is open (#tablet-card-mapping).</summary>
+    public void RefreshTabletMappings()
+    {
+        var items = TabletsOverview.Tablets;
+        if (items.Count == 0) return;
+
+        var displays = DisplayEnumerator.Enumerate();
+        foreach (var item in items)
+        {
+            var profile = _session.Profiles.FirstOrDefault(p =>
+                string.Equals(p.Tablet, item.Name, StringComparison.OrdinalIgnoreCase));
+            if (profile == null) continue;
+            var mapping = DisplayMappingApplier.DescribeMapping(profile.Profile, displays);
+            item.UpdateMapping(mapping.Text, mapping.NeedsAttention);
+        }
     }
 
     /// <summary>Point the TABLET + PEN switchers at the app-wide active tablet, keeping all three tablet

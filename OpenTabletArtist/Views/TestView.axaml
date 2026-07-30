@@ -78,27 +78,30 @@
                  the Entity glass fill so it reads as a single panel over the themed backdrop. -->
             <c:ControlPanel Margin="0,12,0,0">
                 <StackPanel>
-                    <!-- Controls -->
-                    <WrapPanel Orientation="Horizontal">
-                        <ToggleSwitch OffContent="App" OnContent="Driver"
+                    <!-- Controls. Mode + actions group on the left; the App/Driver source toggle sits at
+                         the far right of the row. -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
+                                      MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:PenBrushModeNameConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Content="Clear" Command="{Binding ClearCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6" />
+                            <Button Content="Copy" Click="OnCopy"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
+                                    ToolTip.Tip="Copy the drawing to the clipboard as an image" />
+                        </WrapPanel>
+                        <ToggleSwitch Grid.Column="1" OffContent="App" OnContent="Driver"
                                       IsChecked="{Binding UseDriverInput}"
-                                      VerticalAlignment="Center" Margin="0,0,20,0" />
-                        <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
-                                  MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={x:Static conv:PenBrushModeNameConverter.Instance}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <Button Content="Clear" Command="{Binding ClearCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="14,6" />
-                        <Button Content="Copy" Click="OnCopy"
-                                Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
-                                ToolTip.Tip="Copy the drawing to the clipboard as an image" />
-                    </WrapPanel>
+                                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0,0,0" />
+                    </Grid>
 
                     <!-- Live readouts. X/Y pairs share a cell ("x, y") so the panel is 4×2 instead of a
                          taller 5-wide grid; left-aligned + content-sized columns keep it horizontally

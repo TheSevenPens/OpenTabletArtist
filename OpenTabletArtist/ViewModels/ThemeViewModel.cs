@@ -421,7 +421,7 @@ public partial class ThemeViewModel : ObservableObject
         CardOpacity = DefaultCardOpacityForSkin;
         SidebarOpacity = DefaultSidebarOpacityForSkin;
         PetalsEnabled = true;
-        PetalsOpacity = 1;
+        PetalsOpacity = 0.25; // matches AnimationSettings.PetalsOpacity's default (a soft scatter)
         CardColor = Color.Parse(DefaultCardHexForSkin);
         if (ShowSidebarColor) SidebarColor = Color.Parse(DefaultSidebarHexForSkin);
         AccentColor = Color.Parse(DefaultAccentHexForSkin); // per-skin highlight (#557)

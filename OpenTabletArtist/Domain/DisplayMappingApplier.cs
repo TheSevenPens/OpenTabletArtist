@@ -124,6 +124,38 @@ public static class DisplayMappingApplier
     private static bool Approx(float a, float b) => System.Math.Abs(a - b) <= MatchTolerance;
 
     /// <summary>
+    /// A one-line summary of where a tablet's active area is mapped, for the Home tablet cards: the
+    /// display it maps to when the mapping is clean, or a short "needs attention" flag when it isn't a
+    /// standard single-monitor mapping. Relative-mode profiles don't map to a display, so they get a
+    /// plain description (not a warning). Returns an empty text only when there's nothing to say (e.g.
+    /// no displays could be enumerated), so the card can hide the line rather than cry wolf.
+    /// </summary>
+    public static TabletMappingSummary DescribeMapping(Profile profile, IReadOnlyList<DisplayInfo> displays)
+    {
+        // Relative mode tracks movement rather than mapping to a fixed screen region — a valid setup, so
+        // describe it plainly instead of flagging it.
+        var path = profile.OutputMode?.Path ?? "";
+        if (path.Contains("Relative", StringComparison.OrdinalIgnoreCase))
+            return new TabletMappingSummary("Relative mode — tracks movement, not a display", false);
+
+        // Absolute (or unspecified) mode maps to a display area. Without a monitor list we can't say which,
+        // so stay quiet rather than guess.
+        if (displays is not { Count: > 0 })
+            return new TabletMappingSummary("", false);
+
+        return ClassifyMapping(profile, displays) switch
+        {
+            DisplayMappingValidity.Clean when CurrentlyMapped(profile, displays) is { } d
+                => new TabletMappingSummary($"Mapped to Display {d.Number}", false),
+            DisplayMappingValidity.Custom
+                => new TabletMappingSummary("Custom area, not a single display — needs attention", true),
+            DisplayMappingValidity.OffScreen
+                => new TabletMappingSummary("Maps partly off-screen — needs attention", true),
+            _ => new TabletMappingSummary("No display mapping — needs attention", true),
+        };
+    }
+
+    /// <summary>
     /// Classify a profile's stored Absolute-mode display mapping for predictability, so the UI can flag
     /// an unusual or broken mapping instead of silently rendering it. The stored Display area is the
     /// output region in 0-based virtual-desktop coordinates (X/Y is its <em>centre</em>; see
@@ -202,6 +234,14 @@ public static class DisplayMappingApplier
 /// the same space the display diagram lays monitors out in). Lets the mapping diagram overlay where the
 /// tablet actually maps — and, for an off-screen/custom mapping, how it sits relative to the monitors.</summary>
 public readonly record struct MappedOutputArea(double Left, double Top, double Width, double Height);
+
+/// <summary>A one-line summary of where a tablet's active area is mapped, for the Home tablet cards.
+/// <see cref="NeedsAttention"/> is true when the mapping isn't a standard single-display one and the
+/// card should draw the line as a warning (see <see cref="DisplayMappingApplier.DescribeMapping"/>).</summary>
+public readonly record struct TabletMappingSummary(string Text, bool NeedsAttention)
+{
+    public bool HasText => !string.IsNullOrEmpty(Text);
+}
 
 /// <summary>How a tablet's stored Absolute-mode display mapping relates to the connected monitors
 /// (see <see cref="DisplayMappingApplier.ClassifyMapping"/>).</summary>

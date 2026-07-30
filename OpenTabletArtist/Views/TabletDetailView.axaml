@@ -99,15 +99,15 @@
             <ctrl:ComplexHeader Margin="0">
                 <ctrl:ComplexHeader.TitleContent>
                     <!-- model (rest) large, over the brand (first word) small — the PageTitle look
-                         (Segoe UI Light, uppercase) split across two lines. -->
+                         (Inter Light, uppercase) split across two lines. -->
                     <StackPanel VerticalAlignment="Center" MaxWidth="360">
                         <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
-                                   FontFamily="Segoe UI, Inter" FontSize="30" FontWeight="Light"
+                                   FontFamily="Inter" FontSize="30" FontWeight="Light"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    TextWrapping="Wrap" />
                         <TextBlock Text="{Binding TabletBrand, Converter={x:Static otac:UpperCaseConverter.Instance}}"
                                    IsVisible="{Binding HasTabletBrand}"
-                                   FontFamily="Segoe UI, Inter" FontSize="18" FontWeight="Light"
+                                   FontFamily="Inter" FontSize="18" FontWeight="Light"
                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                    Margin="0,-2,0,0" />
                     </StackPanel>

@@ -18,8 +18,8 @@ public enum ChipKind
 /// <summary>
 /// A small text-only status pill (tag). Consolidates the hand-rolled Border+TextBlock pills scattered
 /// across the app (#621) into one control with a single canonical padding/typography; the fill/text colour
-/// comes from <see cref="Kind"/>. Unlike <see cref="StatusBadge"/> (an inline icon+text status line), a Chip
-/// is a filled rounded label. The default <c>ControlTheme</c> lives in Themes/Styles.axaml.
+/// comes from <see cref="Kind"/>. A Chip is a filled rounded label. The default <c>ControlTheme</c> lives in
+/// Themes/Styles.axaml.
 /// </summary>
 public class Chip : TemplatedControl
 {

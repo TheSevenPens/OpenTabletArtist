@@ -341,44 +341,6 @@
             </Style>
         </ControlTheme>
 
-        <!-- StatusBadge: glyph + text, coloured by Kind. -->
-        <ControlTheme x:Key="{x:Type c:StatusBadge}" TargetType="c:StatusBadge">
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <!-- PathIcon glyph, coloured + shaped per Kind by the selectors below (#551). -->
-                        <PathIcon x:Name="PART_Glyph" Width="13" Height="13"
-                                  VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBlock x:Name="PART_Text" Text="{TemplateBinding Text}" FontSize="{DynamicResource TypeCaptionSize}"
-                                   VerticalAlignment="Center" TextWrapping="Wrap" />
-                    </StackPanel>
-                </ControlTemplate>
-            </Setter>
-            <!-- Success is conveyed by the check-circle glyph + wording, not colour (#593: green as a
-                 status colour reads poorly in some themes). -->
-            <Style Selector="^[Kind=Success] /template/ PathIcon#PART_Glyph">
-                <Setter Property="Data" Value="{StaticResource IconCheckCircle}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-            </Style>
-            <Style Selector="^[Kind=Success] /template/ TextBlock#PART_Text">
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-            </Style>
-            <Style Selector="^[Kind=Warning] /template/ PathIcon#PART_Glyph">
-                <Setter Property="Data" Value="{StaticResource IconAlert}" />
-                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
-            </Style>
-            <Style Selector="^[Kind=Warning] /template/ TextBlock#PART_Text">
-                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
-            </Style>
-            <Style Selector="^[Kind=Error] /template/ PathIcon#PART_Glyph">
-                <Setter Property="Data" Value="{StaticResource IconAlertCircle}" />
-                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
-            </Style>
-            <Style Selector="^[Kind=Error] /template/ TextBlock#PART_Text">
-                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
-            </Style>
-        </ControlTheme>
-
         <!-- Chip (#621): a small text-only status pill. One canonical padding + caption typography; the
              fill/text colour comes from Kind. Default theme (keyed by type) so callers write just
              <c:Chip Text="In use" Kind="AccentSolid" />. -->
@@ -479,7 +441,7 @@
             </Style>
         </ControlTheme>
 
-        <!-- PivotTab: the Zune subpage pivot (redesign Phase 2) — big lowercase Segoe UI Light headers
+        <!-- PivotTab: the Zune subpage pivot (redesign Phase 2) — big lowercase Inter Light headers
              that replace the vertical tab rail on tabbed pages. Same active cue as the wordmarks (accent +
              weight, no rule). Content is lowercased by the pivot item template. -->
         <ControlTheme x:Key="PivotTab" TargetType="RadioButton">
@@ -519,7 +481,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Segoe UI, Inter" />
+            <Setter Property="FontFamily" Value="Inter" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -548,7 +510,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Segoe UI, Inter" />
+            <Setter Property="FontFamily" Value="Inter" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -666,7 +628,7 @@
             <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Segoe UI, Inter" />
+            <Setter Property="FontFamily" Value="Inter" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -695,11 +657,13 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
-    <!-- App-wide default font. Every window/popup gets Segoe UI, and text inherits it, so unstyled
-         content (labels, ComboBox/ToggleSwitch text, dropdown items) no longer falls back to the
-         Fluent theme's default family. Any explicit FontFamily on a style or control still wins. -->
+    <!-- App-wide default font (#mono-font-followup). Every window/popup gets Inter — embedded via
+         .WithInterFont() (Program.cs), so it renders the same on Windows/macOS/Linux instead of falling
+         back to each OS's default UI family — and text inherits it, so unstyled content (labels,
+         ComboBox/ToggleSwitch text, dropdown items) no longer uses the Fluent theme's default family.
+         Any explicit FontFamily on a style or control still wins. -->
     <Style Selector=":is(TopLevel)">
-        <Setter Property="FontFamily" Value="Segoe UI, Inter" />
+        <Setter Property="FontFamily" Value="Inter" />
     </Style>
 
     <!-- Card-role tag (#574): a small colour-coded label pinned to a card's bottom-right, shown only when

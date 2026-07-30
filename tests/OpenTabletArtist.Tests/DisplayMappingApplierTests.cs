@@ -1,5 +1,6 @@
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection;
 using OpenTabletArtist.Domain;
 using Xunit;
 
@@ -202,6 +203,64 @@ public class DisplayMappingApplierTests
         DisplayMappingApplier.ApplyToProfile(mapped, (152f, 95f), displays[0], displays);
         Assert.Equal(DisplayMappingValidity.None,
             DisplayMappingApplier.ClassifyMapping(mapped, System.Array.Empty<DisplayInfo>()));
+    }
+
+    [Fact]
+    public void DescribeMapping_CleanMapping_NamesTheDisplay_NoAttention()
+    {
+        var displays = TwoMonitors();
+        var p = ProfileWithAbsolute();
+        DisplayMappingApplier.ApplyToProfile(p, (152f, 95f), displays[1], displays); // map to monitor 2
+
+        var summary = DisplayMappingApplier.DescribeMapping(p, displays);
+        Assert.False(summary.NeedsAttention);
+        Assert.Equal("Mapped to Display 2", summary.Text); // just the display number, no name / primary marker
+    }
+
+    [Fact]
+    public void DescribeMapping_CustomArea_NeedsAttention()
+    {
+        var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
+        var p = ProfileWithAbsolute();
+        var d = p.AbsoluteModeSettings.Display;
+        d.Width = 800; d.Height = 600; d.X = 400; d.Y = 300; // on-screen sub-region
+
+        var summary = DisplayMappingApplier.DescribeMapping(p, displays);
+        Assert.True(summary.NeedsAttention);
+        Assert.Contains("needs attention", summary.Text);
+    }
+
+    [Fact]
+    public void DescribeMapping_OffScreen_NeedsAttention()
+    {
+        var displays = new[] { Display(1, 0, 0, 1920, 1080, primary: true) };
+        var p = ProfileWithAbsolute();
+        var d = p.AbsoluteModeSettings.Display;
+        d.Width = 2560; d.Height = 1440; d.X = 1500; d.Y = 800; // spills past the monitor
+
+        Assert.True(DisplayMappingApplier.DescribeMapping(p, displays).NeedsAttention);
+    }
+
+    [Fact]
+    public void DescribeMapping_RelativeMode_IsDescribed_NotFlagged()
+    {
+        var p = ProfileWithAbsolute();
+        // The object-source ctor sets Path from the argument's type, so set the mode path explicitly
+        // (mirrors how TabletDetailViewModel assigns OutputMode.Path).
+        p.OutputMode = new PluginSettingStore("x", true) { Path = "OpenTabletDriver.Desktop.Output.RelativeMode" };
+
+        var summary = DisplayMappingApplier.DescribeMapping(p, TwoMonitors());
+        Assert.False(summary.NeedsAttention);
+        Assert.Contains("Relative", summary.Text);
+    }
+
+    [Fact]
+    public void DescribeMapping_NoDisplays_SaysNothing()
+    {
+        var summary = DisplayMappingApplier.DescribeMapping(ProfileWithAbsolute(),
+            System.Array.Empty<DisplayInfo>());
+        Assert.False(summary.HasText);
+        Assert.False(summary.NeedsAttention);
     }
 
     [Fact]
