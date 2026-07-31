@@ -42,6 +42,21 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void SettingsUnreadable_IsMisconfigured_WithNoFix()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { SettingsUnreadable = true }));
+        Assert.Equal("settings.unreadable", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Null(issue.Remediation); // recovery is restoring the backup; nothing to click here
+    }
+
+    [Fact]
+    public void SettingsReadable_ProducesNoSettingsIssue()
+    {
+        Assert.False(Has(HealthEvaluator.Evaluate(Healthy()), "settings.unreadable"));
+    }
+
+    [Fact]
     public void WinInkNotInstalled_IsBroken_AndSuppressesPerTabletCheck()
     {
         // With one detected non-WinInk tablet: installing WinInk is the root fix, so we don't also

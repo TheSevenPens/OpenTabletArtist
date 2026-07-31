@@ -185,6 +185,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
             RunningElevated = ProcessElevation.IsElevated,
             TrayHostUnavailable = DesktopTrayEnvironment.TrayHostUnavailable,
+            // A corrupt/unreadable settings file was detected + preserved on startup (#21); surface it.
+            SettingsUnreadable = AppSettings.LoadError != null,
             Tablets = tablets,
         };
         if (!applyDeveloper) return inputs;

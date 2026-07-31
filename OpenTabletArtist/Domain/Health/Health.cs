@@ -152,6 +152,10 @@ public sealed record HealthInputs
     /// closing the window hides the app with no visible icon to reopen from. Linux/GNOME-only — false
     /// everywhere the tray works (Windows, macOS, non-GNOME Linux, GNOME with the AppIndicator extension).</summary>
     public bool TrayHostUnavailable { get; init; }
+    /// <summary>The app's own settings file existed but couldn't be read/parsed on startup, so it fell back
+    /// to defaults (the unreadable file was preserved as a backup). Surfaced so a corrupt settings file
+    /// isn't silently swallowed (#21). Defaults false. Platform-independent.</summary>
+    public bool SettingsUnreadable { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
     /// <summary>Synthetic warnings to emit, one per severity, induced from the Developer tab so the
     /// "Needs attention" UI can be reviewed/screenshotted. Empty in normal use.</summary>
@@ -262,6 +266,19 @@ public static class HealthEvaluator
                 "and closing the window hides it with no icon to reopen from (relaunching the app brings the " +
                 "window back). Install the \"AppIndicator and KStatusNotifierItem Support\" GNOME extension to " +
                 "restore the tray icon.",
+                Remediation: null));
+        }
+
+        // --- Settings file couldn't be read (#21): the app started with defaults and preserved the
+        //     unreadable file as a backup. No in-app fix (recovery is restoring the backup, and it clears
+        //     itself on the next clean start), so it's a heads-up with no Fix button. ---
+        if (i.SettingsUnreadable)
+        {
+            issues.Add(new HealthIssue("settings.unreadable", HealthSeverity.Misconfigured,
+                "Your settings couldn't be read",
+                "OpenTabletArtist couldn't read its saved settings, so it started with defaults. The " +
+                "unreadable file was set aside as a timestamped backup next to settings.json, so nothing " +
+                "was lost — restore that backup to recover your settings, or ignore this if the defaults are fine.",
                 Remediation: null));
         }
 
