@@ -1,4 +1,5 @@
-using System.Reflection;
+using System;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
@@ -52,20 +53,23 @@ public class WindowsInkPluginService
         Path.Combine(pluginDirectory, PluginName);
 
     /// <summary>
-    /// Downloads the official Plugin-Repository and returns the newest "Windows Ink"
-    /// release that is compatible with the current OTD version. Null on network
-    /// failure or if no compatible release exists.
+    /// Downloads the official Plugin-Repository and returns the newest "Windows Ink" release compatible
+    /// with the current OTD version. Returns a typed <see cref="PluginLookupResult"/> so callers can tell
+    /// a genuine "reached it, nothing compatible" from a network or parse failure, rather than every case
+    /// collapsing into null (#21).
     /// </summary>
-    public async Task<PluginMetadata?> GetLatestCompatibleAsync()
+    public async Task<PluginLookupResult> GetLatestCompatibleAsync()
     {
         try
         {
             var all = await PluginMetadataCollection.DownloadAsync();
-            return WinInkUpdateState.SelectNewestCompatible(all, OtdVersion, PluginName);
+            var metadata = WinInkUpdateState.SelectNewestCompatible(all, OtdVersion, PluginName);
+            return metadata != null ? PluginLookupResult.Found(metadata) : PluginLookupResult.NoCompatibleRelease;
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            // Distinguish "couldn't reach the repo" from "reached it but couldn't read it" (#21).
+            return PluginLookupResult.FromException(ex);
         }
     }
 

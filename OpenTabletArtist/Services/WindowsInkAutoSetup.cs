@@ -61,7 +61,7 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
 
         // Online first (newest compatible from the plugin repo), then the copy bundled with the app.
         var latest = await _winInk.GetLatestCompatibleAsync();
-        if (latest != null && await _session.Daemon.DownloadPluginAsync(latest))
+        if (latest.Metadata is { } release && await _session.Daemon.DownloadPluginAsync(release))
         {
             await _session.Daemon.LoadPluginsAsync();
             return;
