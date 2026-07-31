@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
 
@@ -17,50 +19,18 @@ public static class AppSettings
 
     private static JObject? _cache;
 
-    /// <summary>Non-null when the settings file existed but couldn't be read/parsed on load: a short,
-    /// user-facing explanation (including where the unreadable file was preserved). The Home health check
-    /// surfaces it so a corrupt settings file isn't silently swallowed — and, crucially, not silently
-    /// overwritten and lost by the next save (#21). Null when settings loaded cleanly (or none existed).</summary>
-    public static string? LoadError { get; private set; }
+    /// <summary>How the settings file loaded on startup (#21). <see cref="SettingsLoadStatus.Ok"/> normally;
+    /// otherwise the file was unreadable and either preserved to a backup (recoverable) or, worse, couldn't
+    /// even be moved aside. The Home health check reads this so a corrupt settings file isn't silently
+    /// swallowed — and the copy it shows matches what actually happened (backup name and all).</summary>
+    public static SettingsLoadOutcome LoadOutcome { get; private set; } = SettingsLoadOutcome.Ok;
 
     private static JObject Load()
     {
         if (_cache != null) return _cache;
-        try
-        {
-            if (File.Exists(SettingsPath))
-            {
-                _cache = JObject.Parse(File.ReadAllText(SettingsPath));
-                return _cache;
-            }
-        }
-        catch (Exception ex)
-        {
-            // The file exists but couldn't be read/parsed. Move it aside (timestamped) BEFORE we continue,
-            // so the next Set() doesn't overwrite it and permanently lose the user's settings — the whole
-            // danger of the old silent `catch {}`. Record why so Home can surface it (#21).
-            LoadError = PreserveUnreadable(ex);
-        }
-        _cache = new JObject();
+        // The read + corrupt-file preservation lives in the testable SettingsFile helper (#21).
+        (_cache, LoadOutcome) = SettingsFile.Read(SettingsPath, DateTime.Now);
         return _cache;
-    }
-
-    /// <summary>Move an unreadable settings file to a timestamped backup so it isn't clobbered by the next
-    /// save. Returns a user-facing explanation; best-effort — if the move itself fails, still explains that
-    /// the app fell back to defaults.</summary>
-    private static string PreserveUnreadable(Exception ex)
-    {
-        try
-        {
-            var backup = $"{SettingsPath}.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}";
-            File.Move(SettingsPath, backup, overwrite: true);
-            return $"Your settings file couldn't be read ({ex.Message}). It was set aside as \"{Path.GetFileName(backup)}\" " +
-                   "and the app started with defaults — restore that file to recover your settings.";
-        }
-        catch
-        {
-            return $"Your settings file couldn't be read ({ex.Message}), so the app started with defaults.";
-        }
     }
 
     public static string? Get(string key)

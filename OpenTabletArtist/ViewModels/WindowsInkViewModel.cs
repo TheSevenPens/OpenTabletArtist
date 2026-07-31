@@ -167,11 +167,12 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
         try
         {
             await FetchLatestWindowsInkAsync();
-            // Honest status from the typed lookup (#21): only a genuine network/parse failure reads as an
-            // error; reaching the repo and finding nothing newer (or nothing compatible) reads "up to date".
+            // Honest status from the typed lookup (#21). An update available → clear. A genuine network/parse
+            // failure, or the repo having nothing compatible for this build, shows that reason precisely
+            // (never the old "couldn't reach the repository" guess). Otherwise it's simply up to date.
             WinInkUpdateCheckStatus = WinInkUpdateAvailable
                 ? ""
-                : _winInkLookup is { IsFailure: true } lookup
+                : _winInkLookup is { } lookup && lookup.Status != PluginLookupStatus.Success
                     ? lookup.StatusMessage
                     : $"Up to date (v{WinInkPluginVersion})";
         }

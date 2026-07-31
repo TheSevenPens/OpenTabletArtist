@@ -152,10 +152,14 @@ public sealed record HealthInputs
     /// closing the window hides the app with no visible icon to reopen from. Linux/GNOME-only — false
     /// everywhere the tray works (Windows, macOS, non-GNOME Linux, GNOME with the AppIndicator extension).</summary>
     public bool TrayHostUnavailable { get; init; }
-    /// <summary>The app's own settings file existed but couldn't be read/parsed on startup, so it fell back
-    /// to defaults (the unreadable file was preserved as a backup). Surfaced so a corrupt settings file
-    /// isn't silently swallowed (#21). Defaults false. Platform-independent.</summary>
-    public bool SettingsUnreadable { get; init; }
+    /// <summary>How the app's own settings file loaded on startup (#21). <see cref="SettingsLoadStatus.Ok"/>
+    /// raises nothing; Preserved/NotPreserved raise the settings-unreadable check with copy that matches what
+    /// actually happened. Platform-independent.</summary>
+    public SettingsLoadStatus SettingsLoad { get; init; } = SettingsLoadStatus.Ok;
+    /// <summary>The backup filename the unreadable settings file was moved to, when
+    /// <see cref="SettingsLoad"/> is <see cref="SettingsLoadStatus.Preserved"/>; null otherwise. Named in the
+    /// health copy so the user can find it.</summary>
+    public string? SettingsBackupName { get; init; }
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
     /// <summary>Synthetic warnings to emit, one per severity, induced from the Developer tab so the
     /// "Needs attention" UI can be reviewed/screenshotted. Empty in normal use.</summary>
@@ -269,16 +273,26 @@ public static class HealthEvaluator
                 Remediation: null));
         }
 
-        // --- Settings file couldn't be read (#21): the app started with defaults and preserved the
-        //     unreadable file as a backup. No in-app fix (recovery is restoring the backup, and it clears
-        //     itself on the next clean start), so it's a heads-up with no Fix button. ---
-        if (i.SettingsUnreadable)
+        // --- Settings file couldn't be read (#21): the app started with defaults. Two cases, with copy that
+        //     matches what actually happened — never claim a backup exists when the move failed. No in-app fix
+        //     (recovery is restoring/copying the file, and it self-clears on the next clean start). ---
+        if (i.SettingsLoad == SettingsLoadStatus.Preserved)
         {
             issues.Add(new HealthIssue("settings.unreadable", HealthSeverity.Misconfigured,
                 "Your settings couldn't be read",
                 "OpenTabletArtist couldn't read its saved settings, so it started with defaults. The " +
-                "unreadable file was set aside as a timestamped backup next to settings.json, so nothing " +
+                $"unreadable file was set aside as \"{i.SettingsBackupName}\" next to settings.json, so nothing " +
                 "was lost — restore that backup to recover your settings, or ignore this if the defaults are fine.",
+                Remediation: null));
+        }
+        else if (i.SettingsLoad == SettingsLoadStatus.NotPreserved)
+        {
+            // Worse: the file couldn't be read AND couldn't be moved aside, so a later save may overwrite it.
+            issues.Add(new HealthIssue("settings.unreadable", HealthSeverity.Broken,
+                "Your settings couldn't be read or backed up",
+                "OpenTabletArtist couldn't read its saved settings and couldn't move the file aside to a " +
+                "backup, so it started with defaults — and the unreadable settings.json may be overwritten. " +
+                "Copy settings.json out of the OpenTabletArtist folder now if you want to try to recover it.",
                 Remediation: null));
         }
 

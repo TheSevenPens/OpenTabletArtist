@@ -36,11 +36,15 @@ public sealed record PluginLookupResult(PluginLookupStatus Status, PluginMetadat
     public static PluginLookupResult FromException(Exception ex) =>
         IsNetworkFailure(ex) ? NetworkFailure : ParseFailure;
 
+    // Note: TaskCanceledException / OperationCanceledException are treated as network failures because the
+    // only cancellation source today is HttpClient's own request timeout (PluginMetadataCollection.
+    // DownloadAsync takes no caller CancellationToken). If a caller token is ever threaded through, an
+    // intentional user-cancel would need to be handled separately rather than reported as "couldn't reach".
     private static bool IsNetworkFailure(Exception ex) => ex switch
     {
         HttpRequestException => true,
         SocketException => true,
-        TaskCanceledException => true,   // GetStreamAsync timeout / cancellation
+        TaskCanceledException => true,   // HttpClient timeout
         OperationCanceledException => true,
         TimeoutException => true,
         _ => ex.InnerException is { } inner && IsNetworkFailure(inner),
