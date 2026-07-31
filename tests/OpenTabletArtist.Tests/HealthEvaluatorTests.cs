@@ -42,6 +42,40 @@ public class HealthEvaluatorTests
     }
 
     [Fact]
+    public void SettingsPreserved_IsMisconfigured_NamesBackup_NoFix()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            SettingsLoad = SettingsLoadStatus.Preserved,
+            SettingsBackupName = "settings.json.corrupt-20260101-120000",
+        }));
+        Assert.Equal("settings.unreadable", issue.Id);
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Contains("settings.json.corrupt-20260101-120000", issue.Detail); // the copy names the real backup
+        Assert.Null(issue.Remediation); // recovery is restoring the backup; nothing to click here
+    }
+
+    [Fact]
+    public void SettingsNotPreserved_IsBroken_AndDoesNotClaimABackup()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            SettingsLoad = SettingsLoadStatus.NotPreserved,
+        }));
+        Assert.Equal("settings.unreadable", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity); // more urgent: the file may be overwritten
+        Assert.DoesNotContain("set aside", issue.Detail);    // must not claim a backup was made
+        Assert.Null(issue.Remediation);
+    }
+
+    [Fact]
+    public void SettingsOk_ProducesNoSettingsIssue()
+    {
+        // Healthy() leaves SettingsLoad at its Ok default.
+        Assert.False(Has(HealthEvaluator.Evaluate(Healthy()), "settings.unreadable"));
+    }
+
+    [Fact]
     public void WinInkNotInstalled_IsBroken_AndSuppressesPerTabletCheck()
     {
         // With one detected non-WinInk tablet: installing WinInk is the root fix, so we don't also

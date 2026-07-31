@@ -26,6 +26,9 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
     private readonly SetupActions _setup;
 
     private PluginMetadata? _winInkLatest;
+    // The last repository lookup's typed outcome, so the update check can report an honest reason (up to
+    // date vs. couldn't reach vs. couldn't read) instead of guessing from a null (#21).
+    private PluginLookupResult? _winInkLookup;
     private string _winInkPluginDirectory = "";
 
     public WindowsInkViewModel(AppSession session, IDialogService dialogs, HealthService health)
@@ -135,7 +138,8 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
 
     private async Task FetchLatestWindowsInkAsync()
     {
-        _winInkLatest = await _winInk.GetLatestCompatibleAsync();
+        _winInkLookup = await _winInk.GetLatestCompatibleAsync();
+        _winInkLatest = _winInkLookup.Metadata;
         WinInkLatestVersion = _winInkLatest?.PluginVersion?.ToString() ?? "";
         RecomputeWinInkUpdate();
     }
@@ -163,10 +167,13 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
         try
         {
             await FetchLatestWindowsInkAsync();
+            // Honest status from the typed lookup (#21). An update available → clear. A genuine network/parse
+            // failure, or the repo having nothing compatible for this build, shows that reason precisely
+            // (never the old "couldn't reach the repository" guess). Otherwise it's simply up to date.
             WinInkUpdateCheckStatus = WinInkUpdateAvailable
                 ? ""
-                : _winInkLatest == null
-                    ? "Couldn't reach the plugin repository"
+                : _winInkLookup is { } lookup && lookup.Status != PluginLookupStatus.Success
+                    ? lookup.StatusMessage
                     : $"Up to date (v{WinInkPluginVersion})";
         }
         finally
@@ -216,7 +223,11 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
         WinInkUpdateCheckStatus = "";
         try
         {
-            _winInkLatest ??= await _winInk.GetLatestCompatibleAsync();
+            if (_winInkLatest == null)
+            {
+                _winInkLookup = await _winInk.GetLatestCompatibleAsync();
+                _winInkLatest = _winInkLookup.Metadata;
+            }
 
             WinInkBusyStatus = _winInkLatest != null
                 ? (isUpgrade ? $"Installing update v{_winInkLatest.PluginVersion}..."

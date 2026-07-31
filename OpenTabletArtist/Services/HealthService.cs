@@ -185,6 +185,10 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
             RunningElevated = ProcessElevation.IsElevated,
             TrayHostUnavailable = DesktopTrayEnvironment.TrayHostUnavailable,
+            // A corrupt/unreadable settings file detected on startup (#21) — surface it with the exact
+            // outcome (preserved to a named backup, or not) so the Home copy is truthful.
+            SettingsLoad = AppSettings.LoadOutcome.Status,
+            SettingsBackupName = AppSettings.LoadOutcome.BackupName,
             Tablets = tablets,
         };
         if (!applyDeveloper) return inputs;

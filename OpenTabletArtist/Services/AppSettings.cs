@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
 
@@ -17,19 +19,17 @@ public static class AppSettings
 
     private static JObject? _cache;
 
+    /// <summary>How the settings file loaded on startup (#21). <see cref="SettingsLoadStatus.Ok"/> normally;
+    /// otherwise the file was unreadable and either preserved to a backup (recoverable) or, worse, couldn't
+    /// even be moved aside. The Home health check reads this so a corrupt settings file isn't silently
+    /// swallowed — and the copy it shows matches what actually happened (backup name and all).</summary>
+    public static SettingsLoadOutcome LoadOutcome { get; private set; } = SettingsLoadOutcome.Ok;
+
     private static JObject Load()
     {
         if (_cache != null) return _cache;
-        try
-        {
-            if (File.Exists(SettingsPath))
-            {
-                _cache = JObject.Parse(File.ReadAllText(SettingsPath));
-                return _cache;
-            }
-        }
-        catch { }
-        _cache = new JObject();
+        // The read + corrupt-file preservation lives in the testable SettingsFile helper (#21).
+        (_cache, LoadOutcome) = SettingsFile.Read(SettingsPath, DateTime.Now);
         return _cache;
     }
 
