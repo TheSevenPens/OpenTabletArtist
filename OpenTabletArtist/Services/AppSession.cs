@@ -662,7 +662,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // connection). Fire-and-forget so it can't stall the load.
             _ = EnsurePressurePluginAsync();
         }
-        catch { /* Data load failed — will retry on next connection/poll */ }
+        catch (Exception ex)
+        {
+            // Data load failed — retried on the next connection/poll, so it's not fatal, but log it (#21)
+            // rather than swallow: a persistent failure here is why the UI can look stale.
+            AppLog.Warn("Session data load failed; will retry on the next poll.", ex);
+        }
     }
 
     /// <summary>Parse one daemon tablet token into a <see cref="DetectedTablet"/> (name + formatted specs).</summary>
@@ -706,7 +711,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (IsConnected)
             {
                 try { await Dispatcher.UIThread.InvokeAsync(LoadDataAsync); }
-                catch { }
+                catch (Exception ex) { AppLog.Debug($"Fallback poll reload skipped: {ex.Message}"); }
             }
         }
     }

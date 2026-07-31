@@ -114,11 +114,15 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             }
             catch (TimeoutException)
             {
+                // Expected while the daemon isn't up yet — Debug so it's traceable without being noisy (#21).
+                AppLog.Debug("Daemon connect timed out; retrying in 3s.");
                 await Task.Delay(3000, ct);
             }
             catch (OperationCanceledException) { return; }
-            catch
+            catch (Exception ex)
             {
+                // Unexpected connect failure — worth a Warn with the reason (was silently swallowed, #21).
+                AppLog.Warn("Daemon connect failed; retrying in 3s.", ex);
                 await Task.Delay(3000, ct);
             }
         }
@@ -151,8 +155,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
         {
             return await _rpc.InvokeAsync<SerializedUpdateInfo?>("CheckForUpdates");
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Warn("Daemon update check failed.", ex);
             return null;
         }
     }
@@ -191,8 +196,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             var log = await _rpc.InvokeAsync<List<LogMessage>>("GetCurrentLog");
             return log ?? [];
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Warn("Couldn't fetch the daemon's current log buffer.", ex);
             return [];
         }
     }
@@ -211,7 +217,11 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             if (GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint pid))
                 return (int)pid;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Best-effort ownership probe (can fail for an elevated daemon) — Debug, not a real problem (#21).
+            AppLog.Debug($"Couldn't read the daemon's server process id: {ex.Message}");
+        }
         return null;
     }
 
