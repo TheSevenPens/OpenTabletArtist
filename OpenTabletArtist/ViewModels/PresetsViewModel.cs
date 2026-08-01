@@ -83,7 +83,12 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
                     Content: content,
                     LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // One unreadable preset shouldn't drop the rest — skip it, but log so a missing preset
+                // isn't a mystery (#21).
+                AppLog.Warn($"Skipped a preset that couldn't be read: {file}", ex);
+            }
         }
         Presets = presetList;
     }
