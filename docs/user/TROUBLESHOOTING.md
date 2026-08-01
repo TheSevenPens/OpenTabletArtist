@@ -13,3 +13,17 @@ If the daemon page reports that **OpenTabletDriver.Daemon.exe wasn't found**, th
 1. Make sure the daemon is running (Advanced → Daemon).
 2. Wait a few seconds — the app reconciles with the daemon every 30 seconds (and immediately on connect).
 3. Click the refresh icon to force an immediate check.
+
+## Diagnostic log (for bug reports)
+
+OpenTabletArtist keeps a small diagnostics log of its own at:
+
+`%LOCALAPPDATA%\OpenTabletArtist\logs\app.log` *(rolled to `app.log.1` once it gets large)*
+
+It records the background problems the app would otherwise handle quietly — daemon connection failures and retries, settings / preset / tablet-config read or save problems, plugin-repository lookups, and per-app profile switches that didn't apply. It only writes when something actually goes wrong, so a healthy run leaves little or nothing. If something isn't behaving and the reason isn't obvious, this file is the first place to look and the most useful thing to attach to a bug report.
+
+*(This is separate from **Advanced → Console**, which streams the OpenTabletDriver **daemon's** log live.)*
+
+## "Your settings couldn't be read" on Home
+
+If your `settings.json` ever becomes corrupt or unreadable, OpenTabletArtist starts with defaults rather than crashing, and moves the unreadable file aside to a timestamped backup (`settings.json.corrupt-…`) next to it so nothing is lost. Home shows a "Your settings couldn't be read" card naming the backup. To recover, close the app and restore that backup file over `settings.json` in `%LOCALAPPDATA%\OpenTabletArtist\`. If the card instead says the file **couldn't be backed up**, copy `settings.json` somewhere safe before making changes — a later save may overwrite it.
