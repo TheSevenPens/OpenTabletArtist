@@ -30,8 +30,10 @@ public sealed class PerAppApplier : IPerAppApplier
     {
         var settings = _settings.CurrentSettings;
         if (settings == null) return;
-        // Swallow a disconnected-daemon failure: the switch is best-effort background automation.
-        try { await _settings.ApplyEphemeralAsync(settings); } catch { }
+        // Best-effort background automation (a disconnected daemon shouldn't throw here), but a silent
+        // failure means per-app switching quietly stopped working — log it (#21).
+        try { await _settings.ApplyEphemeralAsync(settings); }
+        catch (Exception ex) { AppLog.Warn("Per-app switch to the default profile failed to apply.", ex); }
     }
 
     public async Task<bool> ApplySnapshotAsync(string snapshotName)
@@ -47,8 +49,10 @@ public sealed class PerAppApplier : IPerAppApplier
         if (_settings.CurrentSettings is { } current)
             OpenTabletArtist.Domain.DisplayMappingApplier.PreserveAreaMapping(settings, current);
 
-        // The snapshot exists; treat a daemon hiccup as best-effort (don't misreport it as "missing").
-        try { await _settings.ApplyEphemeralAsync(settings); } catch { }
+        // The snapshot exists; treat a daemon hiccup as best-effort (don't misreport it as "missing"),
+        // but log so a silently non-applying per-app switch is diagnosable (#21).
+        try { await _settings.ApplyEphemeralAsync(settings); }
+        catch (Exception ex) { AppLog.Warn($"Per-app switch to snapshot \"{snapshotName}\" failed to apply.", ex); }
         return true;
     }
 }
