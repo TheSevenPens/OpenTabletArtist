@@ -56,7 +56,8 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         // Fallback: if a daemon is already running, use its path.
         foreach (var proc in Process.GetProcessesByName(ProcessName))
         {
-            try { var p = proc.MainModule?.FileName; if (p != null) return p; } catch { }
+            try { var p = proc.MainModule?.FileName; if (p != null) return p; }
+            catch (Exception ex) { AppLog.Debug($"Couldn't read a running daemon's exe path (pid {proc.Id}).", ex); }
         }
         return null;
     }
@@ -80,7 +81,9 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     {
         foreach (var proc in Process.GetProcessesByName(ProcessName))
         {
-            try { proc.Kill(); } catch { }
+            // A failed Kill means the Stop didn't fully take — worth a Warn, not a silent no-op (#21).
+            try { proc.Kill(); }
+            catch (Exception ex) { AppLog.Warn($"Couldn't stop daemon process (pid {proc.Id}).", ex); }
         }
     }
 
@@ -91,7 +94,12 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             using var proc = Process.GetProcessById(processId);
             return proc.MainModule?.FileName;
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            // Reading another process's module path can fail (e.g. an elevated daemon) — expected, Debug (#21).
+            AppLog.Debug($"Couldn't read daemon exe path for pid {processId}.", ex);
+            return null;
+        }
     }
 
     public string? GetSingleRunningDaemonPath()
@@ -102,7 +110,11 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             // Only when unambiguous — with multiple daemons we can't tell which the pipe connects to.
             return procs.Length == 1 ? procs[0].MainModule?.FileName : null;
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            AppLog.Debug("Couldn't read the running daemon's exe path.", ex);
+            return null;
+        }
         finally { foreach (var p in procs) p.Dispose(); }
     }
 }
