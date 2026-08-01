@@ -57,7 +57,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         foreach (var proc in Process.GetProcessesByName(ProcessName))
         {
             try { var p = proc.MainModule?.FileName; if (p != null) return p; }
-            catch (Exception ex) { AppLog.Debug($"Couldn't read a running daemon's exe path (pid {proc.Id}): {ex.Message}"); }
+            catch (Exception ex) { AppLog.Debug($"Couldn't read a running daemon's exe path (pid {proc.Id}).", ex); }
         }
         return null;
     }
@@ -97,7 +97,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         catch (Exception ex)
         {
             // Reading another process's module path can fail (e.g. an elevated daemon) — expected, Debug (#21).
-            AppLog.Debug($"Couldn't read daemon exe path for pid {processId}: {ex.Message}");
+            AppLog.Debug($"Couldn't read daemon exe path for pid {processId}.", ex);
             return null;
         }
     }
@@ -112,7 +112,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         }
         catch (Exception ex)
         {
-            AppLog.Debug($"Couldn't read the running daemon's exe path: {ex.Message}");
+            AppLog.Debug("Couldn't read the running daemon's exe path.", ex);
             return null;
         }
         finally { foreach (var p in procs) p.Dispose(); }

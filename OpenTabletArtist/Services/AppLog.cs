@@ -31,7 +31,7 @@ public static class AppLog
     /// in-app log viewer mirror the file, and lets tests observe output without touching disk.</summary>
     public static event Action<string>? LineWritten;
 
-    public static void Debug(string message) => Write(AppLogLevel.Debug, message, null);
+    public static void Debug(string message, Exception? ex = null) => Write(AppLogLevel.Debug, message, ex);
     public static void Info(string message) => Write(AppLogLevel.Info, message, null);
     public static void Warn(string message, Exception? ex = null) => Write(AppLogLevel.Warning, message, ex);
     public static void Error(string message, Exception? ex = null) => Write(AppLogLevel.Error, message, ex);
