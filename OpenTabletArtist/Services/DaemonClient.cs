@@ -135,7 +135,7 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                 // Expected while the daemon isn't up yet — Debug, and throttled so a long wait doesn't
                 // flood the log (#21).
                 if (ShouldLog(ref _lastTimeoutLogTick))
-                    AppLog.Debug("Daemon connect timed out; still retrying (throttled).");
+                    AppLog.Debug("Daemon connect timed out; retrying (repeats throttled to 5 min).");
                 await Task.Delay(3000, ct);
             }
             catch (OperationCanceledException) { return; }
@@ -144,7 +144,7 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                 // Unexpected connect failure — Warn with the reason (was silently swallowed), throttled the
                 // same way for a persistent failure (#21).
                 if (ShouldLog(ref _lastConnectErrorLogTick))
-                    AppLog.Warn("Daemon connect failed; still retrying (throttled).", ex);
+                    AppLog.Warn("Daemon connect failed; retrying (repeats throttled to 5 min).", ex);
                 await Task.Delay(3000, ct);
             }
         }
