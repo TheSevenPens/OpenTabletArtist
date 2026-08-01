@@ -53,7 +53,12 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     private async Task LoadSafelyAsync()
     {
         try { await LoadAsync(); }
-        catch { /* preset refresh failure must not surface */ }
+        catch (Exception ex)
+        {
+            // Must not surface as an unobserved exception, but a whole-list refresh failure (e.g. the
+            // directory is inaccessible) shouldn't vanish either (#21).
+            AppLog.Warn("Preset list refresh failed.", ex);
+        }
     }
 
     /// <summary>Rescans the preset directory, newest first. Called by the shell after connect.</summary>
@@ -83,7 +88,12 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
                     Content: content,
                     LastModified: lastWrite.ToString("yyyy-MM-dd HH:mm:ss")));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // One unreadable preset shouldn't drop the rest — skip it, but log so a missing preset
+                // isn't a mystery (#21).
+                AppLog.Warn($"Skipped a preset that couldn't be read: {file}", ex);
+            }
         }
         Presets = presetList;
     }
@@ -204,7 +214,18 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
 
         if (!confirmed) return;
 
-        File.Delete(path);
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            // User-initiated: don't let it look deleted, and don't clear its hotkey, when the file remains (#21).
+            AppLog.Warn($"Failed to delete preset {path}.", ex);
+            await _dialogs.ShowMessageAsync("Delete Preset",
+                $"Couldn't delete the profile \"{name}\": {ex.Message}");
+            return;
+        }
         _hotkeys.ClearHotkey(name); // drop its hotkey mapping (#320)
         await LoadAsync();
     }

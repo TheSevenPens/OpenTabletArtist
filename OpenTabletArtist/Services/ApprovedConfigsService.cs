@@ -118,7 +118,12 @@ public sealed class ApprovedConfigsService
             foreach (var f in Directory.EnumerateFiles(dir, "*.json", SearchOption.AllDirectories))
                 set.Add(Path.GetFileName(f));
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // A read failure here makes the installed set look empty, skewing the approved-vs-installed
+            // comparison — log it rather than silently mis-report (#21).
+            AppLog.Warn($"Couldn't enumerate installed configs in {dir}.", ex);
+        }
         return set;
     }
 

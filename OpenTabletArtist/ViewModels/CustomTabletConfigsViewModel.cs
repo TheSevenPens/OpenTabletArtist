@@ -64,7 +64,8 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
 
                 // Friendly name derived from the JSON contents, with filename/folder fallbacks.
                 string? raw = null;
-                try { raw = File.ReadAllText(file); } catch { }
+                try { raw = File.ReadAllText(file); }
+                catch (Exception ex) { AppLog.Debug($"Config name falls back to filename — couldn't read {file}: {ex.Message}"); }
                 string displayName = TabletConfigNaming.FriendlyName(file, raw);
 
                 items.Add(new ConfigurationItem(
@@ -73,7 +74,10 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
                     file,
                     $"{info.Length:N0} bytes"));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Warn($"Skipped a tablet config that couldn't be listed: {file}", ex);
+            }
         }
         Configurations = items;
         HasConfigurations = items.Count > 0;
@@ -113,7 +117,17 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
             "Delete Configuration",
             $"Delete \"{Path.GetFileName(path)}\"?\n\nThis cannot be undone.");
         if (!confirmed) return;
-        try { File.Delete(path); } catch { }
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            // User-initiated: don't let it look deleted when it wasn't — log and tell them why (#21).
+            AppLog.Warn($"Failed to delete config {path}.", ex);
+            await _dialogs.ShowMessageAsync("Delete Configuration",
+                $"Couldn't delete \"{Path.GetFileName(path)}\": {ex.Message}");
+        }
         LoadConfigurations();
     }
 

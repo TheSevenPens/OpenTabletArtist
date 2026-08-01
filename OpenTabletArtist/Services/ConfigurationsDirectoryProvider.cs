@@ -43,7 +43,14 @@ public class ConfigurationsDirectoryProvider : IConfigurationsDirectoryProvider
         {
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // If the configs dir can't be created, don't hand back a path that doesn't exist — return ""
+            // (already the "no directory" signal callers handle) so the failure is obvious at the source
+            // rather than surfacing opaquely later (#21).
+            AppLog.Warn($"Couldn't create the configurations directory {dir}.", ex);
+            return "";
+        }
         return dir;
     }
 }
