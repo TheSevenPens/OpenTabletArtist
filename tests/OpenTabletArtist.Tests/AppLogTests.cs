@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using OpenTabletArtist.Services;
 using Xunit;
 
@@ -24,16 +25,12 @@ public class AppLogTests
     }
 
     [Fact]
-    public void Warn_RaisesLineWritten_WithTheFormattedLine()
+    public void Format_WrappedException_UsesTheBaseCauseMessage()
     {
-        string? captured = null;
-        void Handler(string l) => captured = l;
-        AppLog.LineWritten += Handler;
-        try { AppLog.Warn("watch out", new Exception("x")); }
-        finally { AppLog.LineWritten -= Handler; }
-
-        Assert.NotNull(captured);
-        Assert.Contains("[WARNING] watch out", captured);
-        Assert.Contains("Exception: x", captured);
+        // I/O and RPC failures are usually wrapped; keep the outer type but surface the inner detail.
+        var wrapped = new InvalidOperationException("outer", new IOException("the real cause"));
+        var line = AppLog.Format(new DateTime(2026, 1, 1), AppLogLevel.Warning, "op failed", wrapped);
+        Assert.Contains("— InvalidOperationException: the real cause", line);
+        Assert.DoesNotContain("outer", line);
     }
 }

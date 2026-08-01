@@ -37,7 +37,9 @@ public static class AppLog
     public static void Error(string message, Exception? ex = null) => Write(AppLogLevel.Error, message, ex);
 
     /// <summary>Format one log line: "<c>2026-07-31 15:41:58.123 [WARNING] message — ExceptionType: detail</c>".
-    /// Pure and deterministic (timestamp is passed in) so it's unit-testable.</summary>
+    /// The exception's <em>outer</em> type is kept for context, but the message comes from
+    /// <see cref="Exception.GetBaseException"/> — I/O and RPC failures are usually wrapped, and the useful
+    /// detail is on the inner exception. Pure and deterministic (timestamp is passed in) so it's unit-testable.</summary>
     public static string Format(DateTime timestamp, AppLogLevel level, string message, Exception? ex)
     {
         var sb = new StringBuilder()
@@ -45,7 +47,7 @@ public static class AppLog
             .Append(" [").Append(level.ToString().ToUpperInvariant()).Append("] ")
             .Append(message);
         if (ex != null)
-            sb.Append(" — ").Append(ex.GetType().Name).Append(": ").Append(ex.Message);
+            sb.Append(" — ").Append(ex.GetType().Name).Append(": ").Append(ex.GetBaseException().Message);
         return sb.ToString();
     }
 

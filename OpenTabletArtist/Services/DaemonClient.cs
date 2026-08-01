@@ -57,6 +57,22 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
     /// fires once established. Safe to call repeatedly (e.g. from the disconnect handler
     /// and UI commands) — extra requests coalesce.
     /// </summary>
+
+    // Connect-failure log throttle (#21). A persistent reconnect loop retries ~every 18s (15s connect
+    // timeout + 3s backoff); left unthrottled it would spam the single-generation log and wash out one-off
+    // Warns. Log the first failure of each kind immediately, then at most once every few minutes until a
+    // clean connect resets the counters.
+    private const long ConnectLogThrottleMs = 5 * 60 * 1000;
+    private long _lastTimeoutLogTick;
+    private long _lastConnectErrorLogTick;
+
+    private static bool ShouldLog(ref long lastTick)
+    {
+        var now = Environment.TickCount64;
+        if (lastTick == 0 || now - lastTick >= ConnectLogThrottleMs) { lastTick = now; return true; }
+        return false;
+    }
+
     public Task ConnectAsync(CancellationToken ct = default)
     {
         // An explicit connect request always re-enables auto-reconnect for later drops.
@@ -110,19 +126,25 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                 rpc.AddLocalRpcMethod("Message", new Action<JObject>(OnLogMessage));
                 rpc.StartListening();
                 Connected?.Invoke();
+                _lastTimeoutLogTick = 0;      // clean connect — let the next offline spell log immediately
+                _lastConnectErrorLogTick = 0;
                 return;
             }
             catch (TimeoutException)
             {
-                // Expected while the daemon isn't up yet — Debug so it's traceable without being noisy (#21).
-                AppLog.Debug("Daemon connect timed out; retrying in 3s.");
+                // Expected while the daemon isn't up yet — Debug, and throttled so a long wait doesn't
+                // flood the log (#21).
+                if (ShouldLog(ref _lastTimeoutLogTick))
+                    AppLog.Debug("Daemon connect timed out; still retrying (throttled).");
                 await Task.Delay(3000, ct);
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
             {
-                // Unexpected connect failure — worth a Warn with the reason (was silently swallowed, #21).
-                AppLog.Warn("Daemon connect failed; retrying in 3s.", ex);
+                // Unexpected connect failure — Warn with the reason (was silently swallowed), throttled the
+                // same way for a persistent failure (#21).
+                if (ShouldLog(ref _lastConnectErrorLogTick))
+                    AppLog.Warn("Daemon connect failed; still retrying (throttled).", ex);
                 await Task.Delay(3000, ct);
             }
         }
