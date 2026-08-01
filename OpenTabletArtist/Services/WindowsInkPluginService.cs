@@ -42,8 +42,9 @@ public class WindowsInkPluginService
         {
             return JsonConvert.DeserializeObject<PluginMetadata>(File.ReadAllText(path));
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Warn($"Couldn't read the installed Windows Ink plugin metadata at {path}.", ex);
             return null;
         }
     }
@@ -68,7 +69,9 @@ public class WindowsInkPluginService
         }
         catch (Exception ex)
         {
-            // Distinguish "couldn't reach the repo" from "reached it but couldn't read it" (#21).
+            // Distinguish "couldn't reach the repo" from "reached it but couldn't read it" (#21). The typed
+            // result drops the exception detail, so keep it in the log for diagnosing a failing check.
+            AppLog.Warn("Windows Ink plugin repository lookup failed.", ex);
             return PluginLookupResult.FromException(ex);
         }
     }

@@ -57,6 +57,22 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
     /// fires once established. Safe to call repeatedly (e.g. from the disconnect handler
     /// and UI commands) — extra requests coalesce.
     /// </summary>
+
+    // Connect-failure log throttle (#21). A persistent reconnect loop retries ~every 18s (15s connect
+    // timeout + 3s backoff); left unthrottled it would spam the single-generation log and wash out one-off
+    // Warns. Log the first failure of each kind immediately, then at most once every few minutes until a
+    // clean connect resets the counters.
+    private const long ConnectLogThrottleMs = 5 * 60 * 1000;
+    private long _lastTimeoutLogTick;
+    private long _lastConnectErrorLogTick;
+
+    private static bool ShouldLog(ref long lastTick)
+    {
+        var now = Environment.TickCount64;
+        if (lastTick == 0 || now - lastTick >= ConnectLogThrottleMs) { lastTick = now; return true; }
+        return false;
+    }
+
     public Task ConnectAsync(CancellationToken ct = default)
     {
         // An explicit connect request always re-enables auto-reconnect for later drops.
@@ -110,15 +126,25 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
                 rpc.AddLocalRpcMethod("Message", new Action<JObject>(OnLogMessage));
                 rpc.StartListening();
                 Connected?.Invoke();
+                _lastTimeoutLogTick = 0;      // clean connect — let the next offline spell log immediately
+                _lastConnectErrorLogTick = 0;
                 return;
             }
             catch (TimeoutException)
             {
+                // Expected while the daemon isn't up yet — Debug, and throttled so a long wait doesn't
+                // flood the log (#21).
+                if (ShouldLog(ref _lastTimeoutLogTick))
+                    AppLog.Debug("Daemon connect timed out; retrying (repeats throttled to 5 min).");
                 await Task.Delay(3000, ct);
             }
             catch (OperationCanceledException) { return; }
-            catch
+            catch (Exception ex)
             {
+                // Unexpected connect failure — Warn with the reason (was silently swallowed), throttled the
+                // same way for a persistent failure (#21).
+                if (ShouldLog(ref _lastConnectErrorLogTick))
+                    AppLog.Warn("Daemon connect failed; retrying (repeats throttled to 5 min).", ex);
                 await Task.Delay(3000, ct);
             }
         }
@@ -151,8 +177,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
         {
             return await _rpc.InvokeAsync<SerializedUpdateInfo?>("CheckForUpdates");
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Warn("Daemon update check failed.", ex);
             return null;
         }
     }
@@ -191,8 +218,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             var log = await _rpc.InvokeAsync<List<LogMessage>>("GetCurrentLog");
             return log ?? [];
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Warn("Couldn't fetch the daemon's current log buffer.", ex);
             return [];
         }
     }
@@ -211,7 +239,11 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
             if (GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint pid))
                 return (int)pid;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Best-effort ownership probe (can fail for an elevated daemon) — Debug, not a real problem (#21).
+            AppLog.Debug($"Couldn't read the daemon's server process id: {ex.Message}");
+        }
         return null;
     }
 
