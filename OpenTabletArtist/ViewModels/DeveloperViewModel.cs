@@ -123,17 +123,47 @@ public sealed partial class DeveloperViewModel : ObservableObject
     /// or its specs can't be read — either way it appears in Home as a remembered tablet.</summary>
     private static Profile? BuildForcedProfile(string name)
     {
+        Profile profile;
+        DigitizerSpecifications? digitizer = null;
         try
         {
             var config = new DeviceConfigurationProvider().TabletConfigurations
                 .FirstOrDefault(c => c != null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
             if (config == null) return null;
             var reference = new TabletReference(config, Array.Empty<DeviceIdentifier>());
-            return Profile.GetDefaults(reference);
+            profile = Profile.GetDefaults(reference);
+            digitizer = config.Specifications?.Digitizer;
         }
         catch
         {
-            return new Profile { Tablet = name };
+            profile = new Profile { Tablet = name };
+        }
+
+        // Profile.GetDefaults runs outside the daemon here, where the virtual-screen service is absent, so it
+        // can leave Display (and, without a digitizer spec, Tablet) null — which serializes a profile the OTD
+        // UX crashes on (#otd-null-areas). Give it valid, non-null areas.
+        FillValidAreas(profile, digitizer);
+        return profile;
+    }
+
+    /// <summary>Ensure a forced profile's Absolute-mode areas are non-null and non-degenerate: the tablet
+    /// area = the digitizer's full size (fallback 100×100 mm), the display area = a plain 1080p rectangle.
+    /// The user re-maps it properly from the tablet's page; this just keeps it well-formed for OTA and OTD.</summary>
+    private static void FillValidAreas(Profile profile, DigitizerSpecifications? digitizer)
+    {
+        var abs = profile.AbsoluteModeSettings ??= new AbsoluteModeSettings();
+        abs.Tablet ??= new AreaSettings();
+        abs.Display ??= new AreaSettings();
+
+        if (abs.Tablet.Width <= 0 || abs.Tablet.Height <= 0)
+        {
+            float w = digitizer is { Width: > 0 } ? digitizer.Width : 100f;
+            float h = digitizer is { Height: > 0 } ? digitizer.Height : 100f;
+            abs.Tablet.Width = w; abs.Tablet.Height = h; abs.Tablet.X = w / 2f; abs.Tablet.Y = h / 2f;
+        }
+        if (abs.Display.Width <= 0 || abs.Display.Height <= 0)
+        {
+            abs.Display.Width = 1920; abs.Display.Height = 1080; abs.Display.X = 960; abs.Display.Y = 540;
         }
     }
 

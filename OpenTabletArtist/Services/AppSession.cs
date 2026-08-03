@@ -741,6 +741,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
+        // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
+        // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the
+        // shared settings.json stays valid for OTD's own UI too (#otd-null-areas).
+        int repairedProfiles = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
+        if (repairedProfiles > 0)
+            AppLog.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
+                        "(would otherwise crash the OpenTabletDriver UX).");
         _settings = settings;
 
         SaveState = SettingsSaveState.Saving;
