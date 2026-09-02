@@ -719,6 +719,59 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var info = _deviceData != null ? TabletAboutInfo.From(_deviceData.Tablets, TabletName) : null;
         TabletFacts = info != null ? BuildFacts(info) : System.Array.Empty<TabletFact>();
         TabletFeatures = info != null ? BuildFeatures(info) : System.Array.Empty<TabletFact>();
+        SetAboutDiagram(info);
+    }
+
+    // ── ABOUT tab's active-area diagram ─────────────────────────────────────────────────────────────
+    // A to-scale rectangle of the tablet's active area, with its width, height and diagonal called out.
+    // The numbers are already in the fact list above; the point of the drawing is the SHAPE — how square
+    // or how wide a tablet is reads instantly here and not at all from "224 × 148 mm".
+
+    /// <summary>Longest edge of the drawing, in DIPs. The rectangle is scaled to fit this box on its longer
+    /// side, so a wide tablet and a squarer one are drawn at comparable visual weight.</summary>
+    private const double AboutDiagramMax = 232;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAboutDiagram))]
+    private double _aboutDiagramWidth;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AboutDiagramDiagonal))]
+    private double _aboutDiagramHeight;
+
+    /// <summary>The corner-to-corner line, built here rather than in the view: a Geometry bound straight to
+    /// Path.Data is an ordinary property binding, whereas binding a Point into a nested LineGeometry relies
+    /// on a non-visual element inheriting DataContext.</summary>
+    public Avalonia.Media.Geometry? AboutDiagramDiagonal => HasAboutDiagram
+        ? new Avalonia.Media.LineGeometry(new Avalonia.Point(0, 0),
+                                          new Avalonia.Point(AboutDiagramWidth, AboutDiagramHeight))
+        : null;
+
+    [ObservableProperty] private string _aboutDiagramWidthLabel = string.Empty;
+    [ObservableProperty] private string _aboutDiagramHeightLabel = string.Empty;
+    [ObservableProperty] private string _aboutDiagramDiagonalLabel = string.Empty;
+
+    /// <summary>Only drawn when the tablet is detected and reports a sane active area.</summary>
+    public bool HasAboutDiagram => AboutDiagramWidth > 0;
+
+    private void SetAboutDiagram(TabletAboutInfo? a)
+    {
+        if (a is null || a.WidthMm <= 0 || a.HeightMm <= 0)
+        {
+            AboutDiagramWidth = 0;
+            AboutDiagramHeight = 0;
+            return;
+        }
+
+        // Scale on the longer edge so the rectangle always fills the box in one direction.
+        double scale = AboutDiagramMax / System.Math.Max(a.WidthMm, a.HeightMm);
+        AboutDiagramWidth = System.Math.Round(a.WidthMm * scale);
+        AboutDiagramHeight = System.Math.Round(a.HeightMm * scale);
+
+        double diag = System.Math.Sqrt(a.WidthMm * a.WidthMm + a.HeightMm * a.HeightMm);
+        AboutDiagramWidthLabel = $"{a.WidthMm:0.#} mm";
+        AboutDiagramHeightLabel = $"{a.HeightMm:0.#} mm";
+        AboutDiagramDiagonalLabel = $"{diag:0.#} mm";
     }
 
     /// <summary>The tablet's core spec read-out for the ABOUT tab's SPECIFICATIONS card (identity + active
