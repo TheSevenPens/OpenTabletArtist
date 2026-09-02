@@ -171,9 +171,11 @@
                                     <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                IsVisible="{Binding MappingNeedsAttention}"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0"
+                                    <!-- The quiet end of the ramp (TextBlock.Detail): a timestamp is
+                                         context, not something you read the card for. -->
+                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0" Classes="Detail"
                                                IsVisible="{Binding HasLastSeenDetail}"
-                                               Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             VerticalAlignment="Center">
