@@ -25,14 +25,19 @@ OpenTabletDriver separately. You need **Windows 11 (64-bit)** and a
 
 ## Using the Interface
 
-A **top navigation bar** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced** — and the active page is underlined in the accent colour. Most pages have their own **pivot row** of tabs just beneath the bar.
+The app is made of **pages**, and a page may be divided into **tabs**. Two menus follow from that:
+
+- The **page menu** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced**.
+- The **tab menu** sits just beneath it, in larger type, listing that page's tabs. Pages with nothing to divide (**Home**, **Scribble**) have no tab menu.
+
+In both menus the current item is marked in the accent colour and a heavier weight — there's no underline.
 
 - **Tablet** and **Pen** carry the selected tablet's settings.
-- A tablet **switcher** dropdown at the top-right picks which tablet you're editing (shown when more than one is connected)
+- A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the **Tablet** and **Pen** pages and picks which tablet you're editing.
 - **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. 
 - **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
-Every paired or connected tablet also appears on **Home** under *Your tablets*, each with a **Settings** button (opens the Tablet page for it) and a **Forget** button.
+Every paired or connected tablet also appears on **Home** under *Your tablets*. **Double-click a row** to open that tablet's settings, and use its **trash** icon to forget a remembered tablet (or reset a connected one to defaults).
 
 ### Per-page guides
 

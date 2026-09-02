@@ -2,7 +2,7 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-**Advanced** hosts OpenTabletDriver's own pages, as a pivot row of tabs: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
+**Advanced** hosts OpenTabletDriver's own controls, divided into tabs: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
 
 ## Daemon
 

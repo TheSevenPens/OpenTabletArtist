@@ -2,7 +2,7 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-**Settings** holds OpenTabletArtist's own preferences, as a pivot row of tabs: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
+**Settings** holds OpenTabletArtist's own preferences, divided into tabs: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
 
 ## Presets
 
@@ -21,11 +21,21 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 
 The **Appearance** tab holds theme preferences:
 
-- **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, and **Sakura** (a pink skin with a soft gradient backdrop and frosted-glass panels — the default). Applied immediately and remembered across restarts.
-- **Falling petals** *(Sakura only)* — toggles the drifting cherry-blossom animation, with an opacity slider to tune how prominent the petals are (defaults to a soft 25%).
+- **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, **Sakura** (a pink skin with a soft gradient backdrop and frosted-glass panels — the default), **Dark Sakura** (the same cherry-blossom skin over a dark scheme), and **Custom** (a translucent skin you tune yourself). Applied immediately and remembered across restarts.
+- **Falling petals** *(Sakura, Dark Sakura, and Custom)* — toggles the drifting cherry-blossom animation, with an opacity slider to tune how prominent the petals are (defaults to a soft 25%).
 - **Background** *(Sakura only)* — choose the **CodeGen background** (default — a code-generated gradient of soft glows) or a flat **solid colour** (`#FDE4E8`). Applied live and remembered across restarts.
 - **Background colour** *(Sakura, CodeGen only)* — a colour picker (plus hex box) for the flat base tint behind the glows. Applied live; **Reset to defaults** restores it along with the other appearance tunables.
-- **Frosted glass** *(Sakura only)* — a **Card opacity** slider that tunes how translucent the cards are (the backdrop shows through). Live and persisted; scoped to the Sakura skin.
+
+### Colours & opacity
+
+*(Sakura, Dark Sakura, and Custom.)* Each control is a swatch with the current hex beside it; clicking one opens a picker with a colour wheel, a curated palette, and a hex box. Everything here applies live and is stored **per skin**, so tuning Sakura never changes how Dark Sakura or Custom look.
+
+- **Highlight colour** — the accent used for the current page and tab, selected options, links, and primary buttons.
+- **Card colour** — the tint of the frosted panels.
+- **Card opacity** — how translucent those panels are; lower lets more of the backdrop show through.
+- **Reset to defaults** — restores this skin's colours, opacity, and petals. It only affects the skin you're on.
+
+The **Custom** skin adds a **Base colour** and an optional **background image** with its own opacity, in place of Sakura's backdrop controls.
 
 ## System
 

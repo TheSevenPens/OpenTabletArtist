@@ -2,7 +2,7 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-A tablet's settings live on two top-nav pages — **Tablet** and **Pen** — each with a **switcher** at the top (shown when more than one tablet is connected; the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet) and a **Refresh** in the header that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its card on Home.
+A tablet's settings live on two pages — **Tablet** and **Pen**. Both are scoped by the **switcher** at the right of the page menu (the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet), with a **Refresh** beside it that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its row on Home.
 
 The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **filters** and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below, followed by the **filters** tab.
 
