@@ -132,10 +132,21 @@
                             <Grid ColumnDefinitions="Auto,*">
                                 <!-- Optional leading glyph; the column collapses to nothing when no Icon is
                                      set, so entities without an icon sit flush-left. -->
-                                <Viewbox Grid.Column="0" Width="32" Height="32" VerticalAlignment="Center"
-                                         Margin="0,0,14,0"
+                                <!-- Smaller and quieter (#row-icons). This glyph says what KIND of thing the
+                                     row is — a tablet, a plugin, a preset — which is supporting information,
+                                     not the thing you came to read. At 32px in full primary ink it was the
+                                     heaviest mark in a boxless row, out-shouting the name beside it.
+                                     It had drifted twice over: it lost the card border that used to balance
+                                     it (#debox-entity), and it got DARKER when the text brushes split
+                                     (f21debb) — TextPrimaryBrush resolved to TextSecondary before that, so
+                                     this went from 77% to 94% ink without anyone choosing it. -->
+                                <!-- Top-aligned, not centred: the glyph labels the NAME, and centring it in
+                                     the row left it level with the second line on rows that carry a detail
+                                     line too. The 32px version hid this because it spanned both lines. -->
+                                <Viewbox Grid.Column="0" Width="20" Height="20" VerticalAlignment="Top"
+                                         Margin="0,1,14,0"
                                          IsVisible="{TemplateBinding Icon, Converter={x:Static ac:ObjectConverters.IsNotNull}}">
-                                    <Path Data="{TemplateBinding Icon}" Fill="{DynamicResource TextPrimaryBrush}" />
+                                    <Path Data="{TemplateBinding Icon}" Fill="{DynamicResource TextMutedBrush}" />
                                 </Viewbox>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock x:Name="PART_Title" Classes="SectionLabel"
