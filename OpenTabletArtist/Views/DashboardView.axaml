@@ -18,7 +18,10 @@
                  when everything is healthy, so Home stays quiet when there's nothing to do. Each card's
                  Fix button runs the relevant action in place or jumps to where the setting lives. -->
             <StackPanel IsVisible="{Binding Health.HasIssues}" Margin="0,0,0,4">
-                <TextBlock Text="NEEDS ATTENTION" Classes="TabTitle" Margin="0,0,0,8" />
+                <!-- Home has no pivot row, so its section headings ARE the page's display layer: 44px
+                     Inter Light, lower-case, like the wordmarks and pivots. Left column only — the About
+                     column beside it stays on the eyebrow, and that asymmetry is the point. -->
+                <TextBlock Text="needs attention" Classes="Display" Margin="0,0,0,18" />
                 <ItemsControl ItemsSource="{Binding Health.Issues}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -132,7 +135,7 @@
             <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
                  navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
                  + specs. -->
-            <TextBlock Text="YOUR TABLETS" Classes="TabTitle" Margin="0,4,0,10" />
+            <TextBlock Text="your tablets" Classes="Display" Margin="0,30,0,14" />
             <ItemsControl ItemsSource="{Binding TabletsOverview.Tablets}"
                           IsVisible="{Binding TabletsOverview.HasTablets}">
                 <ItemsControl.ItemTemplate>

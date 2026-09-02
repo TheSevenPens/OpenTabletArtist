@@ -225,11 +225,11 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <!-- Title slot: custom TitleContent, else the plain Title in the PageTitle look. -->
+                        <!-- Title slot: custom TitleContent, else the plain Title in the Display look. -->
                         <ContentControl Grid.Column="0" VerticalAlignment="Center"
                                         Content="{TemplateBinding TitleContent}"
                                         IsVisible="{TemplateBinding HasTitleContent}" />
-                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="PageTitle" Margin="0"
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="Display" Margin="0"
                                    Text="{TemplateBinding Title}"
                                    IsVisible="{TemplateBinding HasTitleText}" />
                         <!-- Trailing actions / status. -->
@@ -675,20 +675,25 @@
          back. Since #debox only Alert still draws a box; the rest are hairlines and whitespace.) -->
 
     <!-- Base content text size (#fontstd): plain TextBlocks default to the one content size
-         (ContentFontSize). Page titles (PageTitle), card titles (CardTitle), section labels
+         (ContentFontSize). The display layer (Display), card titles (CardTitle), section labels
          (SectionLabel), status dots and the nav themes set their own size and win (classed selector or
          template-local value), so this only catches unclassed content text. -->
     <Style Selector="TextBlock">
         <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
     </Style>
 
-    <!-- Page Title -->
-    <Style Selector="TextBlock.PageTitle">
+    <!-- Display — the one big type layer, matching the pivots (PivotTab uses the same size, weight and
+         tracking). Exactly ONE display layer is visible per page: the pivot row on a pivoted page, or
+         section headings on a page without pivots (home). Never both, or they compete.
+         Set the text lower-case — the display layer is lower-case throughout, like the nav and pivots.
+         Was "PageTitle", which named the one thing it no longer does: page titles were dropped in the
+         Zune redesign, leaving the class reaching only ComplexHeader's plain-Title fallback. -->
+    <Style Selector="TextBlock.Display">
         <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
         <Setter Property="FontSize" Value="{DynamicResource TypeDisplaySize}" />
         <Setter Property="FontWeight" Value="Light" />
+        <Setter Property="LetterSpacing" Value="-1.4" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <!-- Header→content gap (previously carried by the now-removed PageSubtitle). -->
         <Setter Property="Margin" Value="0,0,0,20" />
     </Style>
 
