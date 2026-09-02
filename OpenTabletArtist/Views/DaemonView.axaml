@@ -332,8 +332,9 @@
             </c:Section>
 
             <!-- OTD UX: launch OpenTabletDriver's own interface (comparison / settings OTA doesn't surface).
-                 A pure action card (no properties), so it keeps its description + button. -->
-            <c:Section Margin="0,12,0,0">
+                 A pure action card (no properties), so it keeps its description + button. Hidden unless the
+                 UX is actually launchable — only a development tree has its sources. -->
+            <c:Section Margin="0,12,0,0" IsVisible="{Binding Status.CanLaunchOtdUx}">
                 <StackPanel>
                     <TextBlock Classes="SectionLabel" Text="OTD UX" TextWrapping="Wrap" />
                     <TextBlock Text="Open OpenTabletDriver's own interface — for comparison, or for settings OTA doesn't surface."

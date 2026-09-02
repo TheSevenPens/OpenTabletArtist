@@ -57,6 +57,9 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public IAsyncRelayCommand StopDaemonCommand => _session.StopDaemonCommand;
     public IAsyncRelayCommand RestartDaemonCommand => _session.RestartDaemonCommand;
     public IRelayCommand LaunchOtdUxCommand => _session.LaunchOtdUxCommand;
+    /// <summary>False in a published build — the Daemon page hides the OTD UX card rather than
+    /// showing a button that can't work.</summary>
+    public bool CanLaunchOtdUx => _session.CanLaunchOtdUx;
 
     /// <summary>Home surfaces the daemon only when there's a connection problem or an op in flight — never
     /// in the normal connected state (an <em>external</em> daemon is a separate Needs-attention item).</summary>

@@ -72,6 +72,9 @@ public interface IConnectionState : INotifyPropertyChanged
     IAsyncRelayCommand StopDaemonCommand { get; }
     IAsyncRelayCommand RestartDaemonCommand { get; }
     IRelayCommand LaunchOtdUxCommand { get; }
+    /// <summary>True when OpenTabletDriver's own UX can actually be launched — see
+    /// <see cref="AppSession.CanLaunchOtdUx"/>. False in a published build, where the UI hides the card.</summary>
+    bool CanLaunchOtdUx { get; }
 }
 
 /// <summary>Current OTD settings and the apply+persist path (#41 PR 2).</summary>
@@ -1061,21 +1064,42 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         return true;
     }
 
-    [RelayCommand]
+    /// <summary>
+    /// The OTD WPF UX project in the submodule (resolution in <see cref="OtdUxPaths"/>, so it's unit-
+    /// testable). Only present in a development tree: a published build ships the daemon but not the UX
+    /// sources, and launching it needs the .NET SDK's <c>dotnet run</c>.
+    /// </summary>
+    private static string OtdUxProjectPath => OtdUxPaths.ProjectPath(AppContext.BaseDirectory);
+
+    /// <summary>True when <see cref="OtdUxProjectPath"/> exists, i.e. we're running from a development
+    /// tree. The Daemon page hides the OTD UX card when this is false, rather than offering a button
+    /// that silently does nothing for everyone on a released build.</summary>
+    public bool CanLaunchOtdUx => Directory.Exists(OtdUxProjectPath);
+
+    [RelayCommand(CanExecute = nameof(CanLaunchOtdUx))]
     private void LaunchOtdUx()
     {
         // Launch the OTD WPF UX from the submodule via dotnet run
-        var otdUxProject = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..",
-            "external", "OpenTabletDriver", "OpenTabletDriver.UX.Wpf"));
+        var otdUxProject = OtdUxProjectPath;
+        if (!Directory.Exists(otdUxProject))
+        {
+            AppLog.Warn($"Can't launch the OTD UX: no project at {otdUxProject} " +
+                        "(expected — a published build doesn't ship the OTD UX sources).");
+            return;
+        }
 
-        if (Directory.Exists(otdUxProject))
+        try
         {
             Process.Start(new ProcessStartInfo("dotnet", $"run --project \"{otdUxProject}\"")
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
             });
+        }
+        catch (Exception ex)
+        {
+            // Needs the .NET SDK on PATH; report rather than swallowing.
+            AppLog.Warn("Couldn't start the OTD UX via 'dotnet run'.", ex);
         }
     }
 

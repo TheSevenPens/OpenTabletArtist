@@ -147,6 +147,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public IAsyncRelayCommand StopDaemonCommand => null!;
     public IAsyncRelayCommand RestartDaemonCommand => null!;
     public IRelayCommand LaunchOtdUxCommand => null!;
+    public bool CanLaunchOtdUx => false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 }
