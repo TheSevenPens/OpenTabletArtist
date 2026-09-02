@@ -4,7 +4,7 @@
 
 A tablet's settings live on two top-nav pages — **Tablet** and **Pen** — each with a **switcher** at the top (shown when more than one tablet is connected; the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet) and a **Refresh** in the header that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its card on Home.
 
-The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **hover**, **filters**, and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below.
+The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **filters** and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below, followed by the **filters** tab.
 
 ## about
 
@@ -32,3 +32,24 @@ You can assign actions to any buttons on the tablet. If you want to quickly disa
 If your tablet has wheels or dials, they'll show up here. You can assign actions to the clockwise and counterclockwise rotations.
 
 
+
+## filters
+
+*(Hidden unless enabled on **Settings → Developer**.)*
+
+A read-only list of the OpenTabletDriver **filters** on this tablet's profile — the plugin stages that sit in the pen pipeline between the tablet and your screen. Each card shows a friendly name (**Pen Dynamics**, **Hover Limit**, **Calibration**) or, for a filter OpenTabletArtist doesn't recognize, its raw type name; below that, the filter's full type path; and on the right, whether it's **Enabled** or **Disabled**.
+
+A **Legacy** chip marks a filter left behind by an older version of the app. The driver has no plugin for that type, so it does nothing — these are removed automatically.
+
+### Only OpenTabletArtist's own filters stay enabled
+
+When you're running the bundled daemon, OpenTabletArtist keeps **only its own three filters** enabled — Pen Dynamics, Calibration, and Hover Limit (see the [Plugins guide](PLUGINS.md#whats-inside-the-pen-dynamics-plugin); Hover Limit is currently inactive). Any other filter on the profile, whether from a third-party plugin or one of OpenTabletDriver's built-ins, is switched **off**: once when OTA loads your settings, and again every time it saves them. This is deliberate — it keeps the pen behaving the same way no matter what was enabled elsewhere.
+
+Two things worth knowing:
+
+- The filter is only **disabled**, never deleted. It stays on the profile and in this list (marked *Disabled*), with its settings intact — it just won't run.
+- If you enable a filter in the OpenTabletDriver UX and then open OpenTabletArtist, expect to find it turned off again.
+
+Only filters are affected; your **output mode** is left alone.
+
+This doesn't apply when OTA is connected to an **External (not started by OTA)** daemon — see [Advanced → Daemon](ADVANCED.md#daemon). In that case your filters are left exactly as you set them.
