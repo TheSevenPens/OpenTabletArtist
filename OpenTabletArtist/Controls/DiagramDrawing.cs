@@ -12,12 +12,25 @@ namespace OpenTabletArtist.Controls;
 /// the rotate-about-centre outline) lives here so it stays in sync (#620).</summary>
 internal static class DiagramDrawing
 {
-    /// <summary>Neutral tablet-outline fill/border used by both diagrams.</summary>
-    public static readonly IBrush TabletFill = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
-    public static readonly IPen TabletBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x5C, 0x5C, 0x63)), 1.5);
-
     /// <summary>Accent used when no themed <c>AccentBrush</c> is available.</summary>
     public static readonly Color FallbackAccent = Color.FromRgb(0xE0, 0x21, 0x8A);
+
+    /// <summary>Ink used when no themed <c>InkBrush</c> is available.</summary>
+    public static readonly Color FallbackInk = Color.FromRgb(0x22, 0x22, 0x22);
+
+    /// <summary>A neutral mixed from the theme's ink at <paramref name="alpha"/>.
+    ///
+    /// The diagrams used to carry fixed greys (a #8A8A92 tablet, a #D9D9E3 display), which read as
+    /// pasted-on wherever the ground was not near-white — most visibly on the Sakura skin, where cool
+    /// greys sat on a warm pink. Deriving every neutral from the ink instead lets each one tint itself
+    /// to whatever it is drawn on, in any theme, with no per-theme table to keep in step.</summary>
+    public static IBrush Neutral(Color ink, byte alpha) =>
+        new SolidColorBrush(Color.FromArgb(alpha, ink.R, ink.G, ink.B));
+
+    /// <summary>Neutral tablet-outline fill/border used by both diagrams — shared so the same tablet does
+    /// not read one way on the Active Area tab and another on Display Mapping.</summary>
+    public static (IBrush Fill, IPen Border) Tablet(Color ink) =>
+        (Neutral(ink, 0x1A), new Pen(Neutral(ink, 0x47), 1.5));
 
     /// <summary>Fit a <paramref name="w"/>×<paramref name="h"/> box inside <paramref name="box"/> preserving
     /// aspect, centred.</summary>

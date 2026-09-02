@@ -1,4 +1,4 @@
-<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
+﻿<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
@@ -347,6 +347,7 @@
                             <ctrl:ActiveAreaDiagram x:Name="ActiveAreaDiagramControl"
                                                     Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
+                                                    InkBrush="{DynamicResource TextPrimaryBrush}"
                                                     Editable="True" />
 
                             <!-- Proportional resize + maximize (#199). Drag the area / a corner on the
@@ -486,6 +487,7 @@
                                                    MappingValidity="{Binding MappingValidity}"
                                                    AccentBrush="{DynamicResource AccentBrush}"
                                                    WarningBrush="{DynamicResource WarningBrush}"
+                                                   InkBrush="{DynamicResource TextPrimaryBrush}"
                                                    Height="320" />
                         <Button Content="Display Settings" Margin="0,10,0,0"
                                 Command="{Binding OpenDisplaySettingsCommand}"

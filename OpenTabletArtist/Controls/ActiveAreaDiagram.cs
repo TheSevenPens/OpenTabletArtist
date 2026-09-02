@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -26,6 +26,10 @@ public sealed class ActiveAreaDiagram : Control
 
     public static readonly StyledProperty<TabletAreaInfo?> AreaProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, TabletAreaInfo?>(nameof(Area));
+    // The theme's text colour: the tablet outline's neutrals are mixed from it (DiagramDrawing.Tablet)
+    // so the diagram tints itself to the skin instead of carrying a fixed grey.
+    public static readonly StyledProperty<IBrush?> InkBrushProperty =
+        AvaloniaProperty.Register<ActiveAreaDiagram, IBrush?>(nameof(InkBrush));
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, IBrush?>(nameof(AccentBrush));
     public static readonly StyledProperty<bool> EditableProperty =
@@ -33,6 +37,7 @@ public sealed class ActiveAreaDiagram : Control
 
     public TabletAreaInfo? Area { get => GetValue(AreaProperty); set => SetValue(AreaProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
+    public IBrush? InkBrush { get => GetValue(InkBrushProperty); set => SetValue(InkBrushProperty, value); }
     /// <summary>Allow dragging to move / corner-dragging to resize the effective area (#199).</summary>
     public bool Editable { get => GetValue(EditableProperty); set => SetValue(EditableProperty, value); }
 
@@ -41,7 +46,8 @@ public sealed class ActiveAreaDiagram : Control
 
     static ActiveAreaDiagram()
     {
-        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty, EditableProperty);
+        AffectsRender<ActiveAreaDiagram>(AreaProperty, AccentBrushProperty, EditableProperty,
+            InkBrushProperty);
         AffectsMeasure<ActiveAreaDiagram>(AreaProperty);
     }
 
@@ -237,11 +243,16 @@ public sealed class ActiveAreaDiagram : Control
 
         double fullW = area?.FullWidth ?? 16, fullH = area?.FullHeight ?? 10;
 
+        var ink = (InkBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackInk;
+        var (tabFill, tabBorder) = DiagramDrawing.Tablet(ink);
+
         if (area is not { FullWidth: > 0, FullHeight: > 0 })
         {
             var fr = DiagramDrawing.FitAspect(fullW, fullH, box);
-            ctx.DrawRectangle(DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder, fr);
-            DiagramDrawing.DrawCentered(ctx, fr, "No active-area data", 12, Brushes.White);
+            ctx.DrawRectangle(tabFill, tabBorder, fr);
+            // Ink, not white: the tablet fill is now a light tint of the ground rather than a mid grey,
+            // so white would vanish into it on every light theme.
+            DiagramDrawing.DrawCentered(ctx, fr, "No active-area data", 12, DiagramDrawing.Neutral(ink, 0xA6));
             return;
         }
 
@@ -253,8 +264,7 @@ public sealed class ActiveAreaDiagram : Control
         // Tablet outline, turned as physically held when rotated (portrait for 90/270).
         var tabletRect = new Rect(l.Center.X - fullW * l.Scale / 2, l.Center.Y - fullH * l.Scale / 2,
                                   fullW * l.Scale, fullH * l.Scale);
-        DiagramDrawing.DrawRotatedOutline(ctx, tabletRect, l.Center, l.RotRad,
-            DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder);
+        DiagramDrawing.DrawRotatedOutline(ctx, tabletRect, l.Center, l.RotRad, tabFill, tabBorder);
 
         // Effective area (upright) and — when editable — corner handles. (The size read-out lives in the
         // TABLET / ACTIVE AREA table below the diagram now, not on the area itself.)
