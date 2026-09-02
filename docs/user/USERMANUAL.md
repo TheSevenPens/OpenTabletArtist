@@ -48,6 +48,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*. 
 - **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Appearance · System (Startup/Shortcut/Driver Cleanup) · Developer.
 - **[Advanced page](ADVANCED.md)** — Daemon · Console · Drivers · Configs · Diagnostics · Plugins.
 - **[Plugins](PLUGINS.md)** — what ships with OTA, what the Pen Dynamics plugin does, and whether you need any others.
+- **[Getting help](HELP.md)** — where to ask when something isn't working, and what to include.
 
 
 ## System tray & background mode
@@ -71,3 +72,7 @@ The OTD daemon is a separate process and keeps running after our app's window cl
 ## Troubleshooting
 
 **See [Troubleshooting](TROUBLESHOOTING.md).**
+
+## Getting help
+
+If Troubleshooting doesn't cover it, **see [Getting help](HELP.md)** — where to ask, and what to include so the first reply is a useful one.
