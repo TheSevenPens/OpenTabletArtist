@@ -13,10 +13,17 @@
              These back the TemplatedControls in OpenTabletArtist.Controls, consolidating settings-UI
              patterns that were hand-assembled across the views. -->
 
-        <!-- ===== Card roles (#574) ==================================================================
-             Section (grouping) · Alert (severity) · SelectableCard (pickable) replace the old shared
-             Border.GlassPanel. Each shows a colour-coded role tag at its bottom-right when the developer
-             "Show card-role tags" toggle is on (roleTag / roleTagText styles below). -->
+        <!-- ===== Card roles (#574, de-boxed by #debox) ==============================================
+             Section (grouping) · Alert (severity) · Entity (object) · ControlPanel (control cluster)
+             replace the old shared Border.GlassPanel. Each shows a colour-coded role tag at its
+             bottom-right when the developer "Show card-role tags" toggle is on (roleTag / roleTagText
+             styles below).
+
+             Only ALERT still draws a box. That is the whole design: a border reads as "act on this" only
+             while nothing else is bordered, so every other role carries its meaning with type, spacing and
+             at most a hairline. Section has no chrome, Entity and ControlPanel each draw one hairline, and
+             Canvas keeps a fill because it is a surface you draw on rather than a container. Think hard
+             before adding a fifth boxed thing. -->
 
         <!-- Section (grouping role): glass box + optional title/description header + content slot. Owns its
              border via template bindings (defaults here) so #573 can restyle it flush without a shared
@@ -181,15 +188,18 @@
             </Setter>
         </ControlTheme>
 
-        <!-- ControlPanel (control-cluster role): a bordered box that holds interactive controls grouped
-             like a ribbon (e.g. the Scribble mode/input controls). Same glass fill + border as an Entity;
-             a distinct role so control clusters can be styled on their own terms later. -->
+        <!-- ControlPanel (control-cluster role): interactive controls grouped like a ribbon — the console
+             toolbar and the Scribble controls. Boxless (#debox), like Entity before it: both of its uses
+             are a toolbar sitting directly ABOVE the thing it governs, so a single hairline underneath says
+             "these control what follows" without wrapping the controls in a panel. The controls are
+             already visually distinct — they are controls — so the fill was doing nothing the widgets
+             weren't. Horizontal padding is zero so the cluster aligns flush with the content below it. -->
         <ControlTheme x:Key="{x:Type c:ControlPanel}" TargetType="c:ControlPanel">
-            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
             <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="0,0,0,12" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
@@ -231,46 +241,13 @@
             </Setter>
         </ControlTheme>
 
-        <!-- SelectableCard: a RadioButton rendered as a selectable option card (card-style pickers, e.g.
-             Pen Behavior). The checked card is made obvious with an accent outline + a "Current mode"
-             badge; hovering an unchecked card hints with a muted accent border. -->
-        <ControlTheme x:Key="SelectableCard" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <!-- Glass look inlined (not via a shared grouping class) so the selectable role is
-                         decoupled from the grouping default and can't be swept by #573. The :checked /
-                         :pointerover selectors below override BorderBrush/Thickness on PART_Card. -->
-                    <Border Name="PART_Card" Background="{DynamicResource GlassBgBrush}"
-                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
-                            CornerRadius="{DynamicResource CardCornerRadius}" Padding="12">
-                        <Panel>
-                            <ContentPresenter Content="{TemplateBinding Content}"
-                                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                                              VerticalAlignment="Top" />
-                            <Border Name="PART_Badge" Background="{DynamicResource AccentBrush}" CornerRadius="0"
-                                    Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="False">
-                                <TextBlock Text="Current mode" Foreground="White" FontWeight="SemiBold" />
-                            </Border>
-                            <Border Classes="roleTag" Background="#16A34A"
-                                    IsVisible="{Binding ShowCardRoleTags, Source={x:Static svc:DeveloperSettings.Instance}}">
-                                <TextBlock Text="SELECT" Classes="roleTagText" />
-                            </Border>
-                        </Panel>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover:not(:checked) /template/ Border#PART_Card">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentMutedBrush}" />
-            </Style>
-            <Style Selector="^:checked /template/ Border#PART_Card">
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="BorderThickness" Value="2" />
-            </Style>
-            <Style Selector="^:checked /template/ Border#PART_Badge">
-                <Setter Property="IsVisible" Value="True" />
-            </Style>
-        </ControlTheme>
+
+
+        <!-- (SelectableCard removed with #debox: a RadioButton rendered as a glass option card, with an
+             accent outline and a "Current mode" badge when checked. Nothing had applied it since the pen
+             page moved to plain radio buttons — a role with no members, so there was nothing to de-box.
+             Selected state across the app is accent + weight now, the same cue as nav and pivots. In git
+             history if a card-style picker is ever wanted back.) -->
 
         <!-- LabeledField: fixed-width caption column + an arbitrary control. -->
         <ControlTheme x:Key="{x:Type c:LabeledField}" TargetType="c:LabeledField">
@@ -693,8 +670,9 @@
     </Style>
 
     <!-- (The old Border.GlassPanel escape-hatch style + CardPadding resource were removed with the
-         card-roles refactor (#574): every card now declares a role — Section / Alert / SelectableCard —
-         which own their glass look. A grep guard in CI keeps the escape-hatch class from coming back.) -->
+         card-roles refactor (#574): every card declares a role — Section / Alert / Entity / ControlPanel —
+         and those roles own their own look. A grep guard in CI keeps the escape-hatch class from coming
+         back. Since #debox only Alert still draws a box; the rest are hairlines and whitespace.) -->
 
     <!-- Base content text size (#fontstd): plain TextBlocks default to the one content size
          (ContentFontSize). Page titles (PageTitle), card titles (CardTitle), section labels
