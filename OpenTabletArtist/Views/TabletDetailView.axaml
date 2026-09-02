@@ -212,7 +212,7 @@
                 <StackPanel Grid.Column="0">
                 <ctrl:Section>
                     <StackPanel>
-                        <TextBlock Text="MODEL" Classes="SectionLabel largetitle" />
+                        <TextBlock Text="model" Classes="Display" Margin="0,0,0,2" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
                         <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,10,0,0"
                                       IsVisible="{Binding HasTabletFacts}">
@@ -237,11 +237,11 @@
                 </ctrl:Section>
 
                 <!-- ACTIVE AREA — the measurements and the drawing of the same thing, together. Hidden with
-                     the tablet undetected: there is nothing to measure, and MODEL above already carries the
+                     the tablet undetected: there is nothing to measure, and "model" above already carries the
                      "connect this tablet" line. -->
-                <ctrl:Section Margin="0,16,0,0" IsVisible="{Binding HasActiveAreaFacts}">
+                <ctrl:Section Margin="0,26,0,0" IsVisible="{Binding HasActiveAreaFacts}">
                     <StackPanel>
-                        <TextBlock Text="ACTIVE AREA" Classes="SectionLabel largetitle" />
+                        <TextBlock Text="active area" Classes="Display" Margin="0,0,0,2" />
                         <ItemsControl ItemsSource="{Binding ActiveAreaFacts}" Margin="0,10,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -309,7 +309,7 @@
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
                 <ctrl:Section IsVisible="{Binding HasTabletFeatures}">
                     <StackPanel>
-                        <TextBlock Text="FEATURES" Classes="SectionLabel largetitle" />
+                        <TextBlock Text="features" Classes="Display" Margin="0,0,0,2" />
                         <ItemsControl ItemsSource="{Binding TabletFeatures}" Margin="0,10,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
