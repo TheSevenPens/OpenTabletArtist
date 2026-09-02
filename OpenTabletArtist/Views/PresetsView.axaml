@@ -72,17 +72,17 @@
                                               ToolTip.Tip="Rename this preset"
                                               AutomationProperties.Name="Rename"
                                               Margin="0,0,6,0" />
-                                <Button Theme="{StaticResource DeleteButton}"
-                                        Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
-                                        CommandParameter="{Binding Name}"
-                                        Width="34" Height="30" Padding="0"
-                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                        ToolTip.Tip="Delete this preset"
-                                        AutomationProperties.Name="Delete"
-                                        Margin="0,0,0,4">
-                                    <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
-                                              Foreground="{Binding $parent[Button].Foreground}" />
-                                </Button>
+                                <!-- A danger IconButton, not a solid DeleteButton (#delete-weight): it sits
+                                     in a row beside Duplicate and Rename, and it should read as one of that
+                                     set — marked out by colour, not by being the only filled block on the
+                                     page. It commits to solid red on hover. -->
+                                <c:IconButton Classes="danger"
+                                              Icon="{StaticResource IconTrashCanOutline}"
+                                              Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
+                                              CommandParameter="{Binding Name}"
+                                              ToolTip.Tip="Delete this preset"
+                                              AutomationProperties.Name="Delete"
+                                              Margin="0,0,0,4" />
                             </WrapPanel>
                         </Grid>
                     </c:Entity>
