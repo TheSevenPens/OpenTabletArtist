@@ -218,4 +218,46 @@ public class TabletPageSelectionTests
         Assert.Null(vm.SelectedTablet);
         Assert.False(vm.HasTablet);
     }
+
+    [Fact]
+    public void UnforcedSync_LeavesAUserPickAlone()
+    {
+        // The ~15s rebuild re-asserts the app-wide active tablet, which is always a CONNECTED one. Picking
+        // a merely-remembered tablet used to survive only until the next poll dragged the switcher back.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Remembered B", false)));
+        vm.Select("Remembered B");
+
+        vm.SyncSelection("Detected A", force: false);
+
+        Assert.Equal("Remembered B", vm.SelectedTablet?.Name);
+    }
+
+    [Fact]
+    public void ForcedSync_FollowsAGenuineActiveTabletChange()
+    {
+        // When the active tablet actually changes (the tray, another switcher, auto-select on connect) the
+        // page must follow, even away from a tablet the user picked here.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets(("Detected A", true), ("Remembered B", false)));
+        vm.Select("Remembered B");
+
+        vm.SyncSelection("Detected A");
+
+        Assert.Equal("Detected A", vm.SelectedTablet?.Name);
+    }
+
+    [Fact]
+    public void UnforcedSync_StillFillsAnEmptySelection()
+    {
+        // Not overruling the user must not stop it seeding a selection when there isn't one.
+        var vm = Make(lastUsed: null, out _);
+        vm.SetTablets(Tablets());
+        Assert.Null(vm.SelectedTablet);
+
+        vm.SetTablets(Tablets(("Detected A", true)));
+        vm.SyncSelection("Detected A", force: false);
+
+        Assert.Equal("Detected A", vm.SelectedTablet?.Name);
+    }
 }
