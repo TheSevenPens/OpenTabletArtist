@@ -25,21 +25,27 @@
                  same value makes native controls (ComboBox, TextBox, CheckBox, …) match. Nav
                  bars and page headers set their own sizes and are unaffected. Change both to
                  retune the whole content scale. -->
-            <sys:Double x:Key="ContentFontSize">12</sys:Double>
-            <sys:Double x:Key="ControlContentThemeFontSize">12</sys:Double>
+            <sys:Double x:Key="ContentFontSize">13</sys:Double>
+            <sys:Double x:Key="ControlContentThemeFontSize">13</sys:Double>
 
-            <!-- ===== Zune type ramp (redesign Phase 0.4) ===================================
-                 Named heading scale so the redesign can retune the display sizes in one place
-                 (Phase 3 grows the page/pivot type). Inter Light is the Zune display face.
-                 Values match today's look — this is a rename, not a resize. `TypeBodySize` == the
-                 content scale above. See docs/design/zune-redesign.md. -->
-            <!-- App text uses Inter across all platforms (#mono-font-followup): it's embedded via
-                 .WithInterFont() (Program.cs), so it renders identically on Windows/macOS/Linux rather
-                 than falling back to each OS's default UI font. -->
+            <!-- ===== Zune type ramp ========================================================
+                 The heading scale, widened (#text-hierarchy). Phase 0.4 named these but kept the
+                 old values ("a rename, not a resize"); this is the resize. Zune's signature is a
+                 big INTERVAL — one display size against a small caption, with little in between —
+                 so the ramp deliberately skips from 44 to 17 rather than stepping evenly.
+
+                 One display-size layer is visible per page: the pivot row on a pivoted page, or
+                 the section headings on a page without pivots. Never both.
+
+                 App text uses Inter across all platforms (#mono-font-followup): it's embedded via
+                 .WithInterFont() (Program.cs), so it renders identically on Windows/macOS/Linux
+                 rather than falling back to each OS's default UI font.
+                 See docs/design/zune-redesign.md. -->
             <FontFamily x:Key="DisplayFontFamily">Inter</FontFamily>
-            <sys:Double x:Key="TypeDisplaySize">28</sys:Double>   <!-- page title (later: pivots) -->
-            <sys:Double x:Key="TypeTitleSize">15</sys:Double>     <!-- subpage / body title -->
-            <sys:Double x:Key="TypeBodySize">12</sys:Double>      <!-- body + labels -->
+            <sys:Double x:Key="TypeDisplaySize">44</sys:Double>   <!-- pivots (PivotTab) -->
+            <sys:Double x:Key="TypeNavSize">22</sys:Double>       <!-- top-level wordmarks (WordmarkNav) -->
+            <sys:Double x:Key="TypeTitleSize">17</sys:Double>     <!-- subpage / body title -->
+            <sys:Double x:Key="TypeDetailSize">11.5</sys:Double>  <!-- incidental detail under a title -->
             <sys:Double x:Key="TypeCaptionSize">10</sys:Double>   <!-- captions, badges, chips, status text -->
 
             <!-- Shared page transition: a quick crossfade for subpage/content swaps (the Zune motion

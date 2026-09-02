@@ -424,11 +424,11 @@
                              (IsVisible=False would not). Keep every metric here in sync with Word below. -->
                         <TextBlock Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="26" FontWeight="Normal" LetterSpacing="-0.2"
+                                   FontSize="{DynamicResource TypeNavSize}" FontWeight="Normal" LetterSpacing="-0.3"
                                    Opacity="0" IsHitTestVisible="False" />
                         <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="26" FontWeight="Light" LetterSpacing="-0.2"
+                                   FontSize="{DynamicResource TypeNavSize}" FontWeight="Light" LetterSpacing="-0.3"
                                    Foreground="{DynamicResource TextMutedBrush}" />
                     </Panel>
                 </ControlTemplate>
@@ -454,11 +454,11 @@
                         <!-- Width reserver — see WordmarkNav above (#nav-no-reflow). -->
                         <TextBlock Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="18" FontWeight="Normal" LetterSpacing="-0.2"
+                                   FontSize="{DynamicResource TypeDisplaySize}" FontWeight="Normal" LetterSpacing="-1.4"
                                    Opacity="0" IsHitTestVisible="False" />
                         <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="18" FontWeight="Light" LetterSpacing="-0.2" />
+                                   FontSize="{DynamicResource TypeDisplaySize}" FontWeight="Light" LetterSpacing="-1.4" />
                     </Panel>
                 </ControlTemplate>
             </Setter>
@@ -708,28 +708,42 @@
     </Style>
 
     <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning titles,
-         daemon status, option choices). At the content size but kept prominent by weight + primary colour,
-         so it reads above body text and the muted all-caps SectionLabel headings. (#fontstd) -->
+         daemon status, option choices). Now a size step above body rather than the same size in a heavier
+         weight: with the three text brushes split apart (#text-hierarchy) the primary ink carries the
+         prominence, so the weight can come back down to Normal and stop shouting. -->
     <Style Selector="TextBlock.CardTitle">
         <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
-        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 
-    <!-- Section Label — the one descriptive card/section heading treatment (#fontstd): all-caps (text is
-         written upper-case), SemiBold, muted, at the content size. Card content/identity titles (names,
-         warnings, option choices) use the prominent CardTitle instead. -->
+    <!-- Section Label — the one descriptive card/section heading treatment: all-caps (text is written
+         upper-case), SemiBold, muted. Now an EYEBROW: caption-size and letterspaced, so it labels the
+         block below without competing with it. It used to sit at the content size, which made every
+         heading the same size as the text it headed. Card content/identity titles (names, warnings,
+         option choices) use the prominent CardTitle instead. -->
     <Style Selector="TextBlock.SectionLabel">
-        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
+        <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="1.5" />
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
     </Style>
 
-    <!-- Size-bump modifier for SectionLabel: opt a specific label up to the tab-title size (TypeTitleSize)
-         while keeping its all-caps / SemiBold / muted treatment. Add "largetitle" alongside "SectionLabel". -->
+    <!-- Detail — the incidental line under a title: model numbers, timestamps, "last seen" hints. The
+         quiet end of the ramp; never put anything load-bearing here. -->
+    <Style Selector="TextBlock.Detail">
+        <Setter Property="FontSize" Value="{DynamicResource TypeDetailSize}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    </Style>
+
+    <!-- Size-bump modifier for SectionLabel: opt a specific label a step up while keeping its all-caps /
+         SemiBold / muted / letterspaced treatment. Add "largetitle" alongside "SectionLabel".
+         It used to bump to TypeTitleSize, which was a modest step when SectionLabel sat at the content
+         size. Against the caption-size eyebrow that became a 70% jump and the bumped labels shouted, so
+         this now steps to the content size instead — still clearly more prominent, still an eyebrow. -->
     <Style Selector="TextBlock.SectionLabel.largetitle">
-        <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
+        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
     </Style>
 
     <!-- Tab Title — the heading at the top of each tablet tab (matches the tab's rail label, #499). One
