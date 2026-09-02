@@ -35,8 +35,12 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- TabletDriverCleanup -->
-        <c:Section Margin="0,0,0,12">
+        <!-- TabletDriverCleanup, under its own heading so it reads as a separate thing from the conflict
+             scan above it: that list reports what is wrong on this machine, this manages a third-party tool
+             you install to fix it. Section.Title renders the label (uppercased) itself, so no hand-rolled
+             heading is needed — unlike the conflicts list above, which needs its own because it is an
+             ItemsControl rather than a Section. -->
+        <c:Section Title="Driver cleanup tool" Margin="0,4,0,12">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
