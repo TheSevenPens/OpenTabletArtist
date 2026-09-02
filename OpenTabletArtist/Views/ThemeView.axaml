@@ -86,8 +86,8 @@
                         <TextBlock Text="{Binding BackgroundImageLabel}" MaxWidth="220"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextMutedBrush}" />
-                        <Button Content="Choose image…" Click="OnChooseImage" />
-                        <Button Content="Clear" Command="{Binding ClearBackgroundImageCommand}"
+                        <Button Content="Choose image…" Click="OnChooseImage" Theme="{StaticResource GhostButton}" Padding="12,6" />
+                        <Button Content="Clear" Command="{Binding ClearBackgroundImageCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
                                 IsEnabled="{Binding HasBackgroundImage}" />
                     </StackPanel>
                 </c:LabeledField>
@@ -125,7 +125,7 @@
                 </StackPanel>
                 <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
-                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
+                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
                         HorizontalAlignment="Left" Margin="0,4,0,0"
                         ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
             </StackPanel>

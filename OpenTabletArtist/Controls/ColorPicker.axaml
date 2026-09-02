@@ -8,7 +8,26 @@
          HueTriangleWheel behind one trigger. The compact trigger shows the current colour + its hex/RGB;
          clicking opens a flyout with two tabs — a full hue-ring + saturation/value wheel and the curated
          palette — plus a shared hex field. All three edit the same two-way Color, so they stay in sync. -->
-    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="0">
+    <!-- The trigger is a FIELD, not an action: it shows the current value and opens an editor, exactly
+         like the ComboBox it sits beside. So it takes the glass field look rather than a button theme.
+         Without this it fell through to Fluent's default button fill — a grey box on the pink skin, which
+         was the last obviously-unthemed control left (#combobox-fills). Hover is restyled below: Fluent
+         sets the presenter's brushes directly on :pointerover, so a local Background alone would snap back
+         to grey under the cursor. -->
+    <UserControl.Styles>
+        <Style Selector="Button#Trigger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button#Trigger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Button x:Name="Trigger" HorizontalAlignment="Left" Padding="8,5" CornerRadius="0"
+            Background="{DynamicResource GlassBgBrush}"
+            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
         <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
             <Border Width="20" Height="20" CornerRadius="0"
                     BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1">
