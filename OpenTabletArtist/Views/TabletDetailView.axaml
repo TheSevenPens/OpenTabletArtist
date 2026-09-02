@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
+<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
@@ -535,7 +535,7 @@
                     <ctrl:Section Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Top"
                                   IsVisible="{Binding CanCalibrate}">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="STATUS" Classes="SectionLabel largetitle" />
+                            <TextBlock Text="status" Classes="Display section" />
                             <TextBlock Text="{Binding CalibrationDisplayText}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
                             <!-- Wraps so the toggle + buttons reflow in the narrower column. -->
@@ -564,7 +564,7 @@
                     <ctrl:Section Grid.Column="2" Margin="0,0,0,12" VerticalAlignment="Top"
                                   IsVisible="{Binding CanCalibrate}">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="BACKUP &amp; RESTORE" Classes="SectionLabel largetitle" />
+                            <TextBlock Text="backup &amp; restore" Classes="Display section" />
                             <TextBlock Text="Save this tablet's calibration data to a file. Import it later to restore the calibration. Importing only works when the tablet's current mapping matches the saved one."
                                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -584,7 +584,7 @@
                 </Grid>
 
                 <!-- Heading over the three density cards below. -->
-                <TextBlock Text="CALIBRATION OPTIONS" Classes="SectionLabel largetitle"
+                <TextBlock Text="calibration options" Classes="Display section"
                            Margin="0,4,0,10" IsVisible="{Binding CanCalibrate}" />
 
                 <!-- One card per calibration density; START begins that mode. The card of the calibration

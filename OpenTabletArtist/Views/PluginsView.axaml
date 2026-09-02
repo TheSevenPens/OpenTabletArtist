@@ -8,7 +8,7 @@
         <!-- Header card: title + rescan/browse actions. -->
         <c:Section>
             <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                <TextBlock Grid.Row="0" Text="INSTALLED PLUGINS" Classes="SectionLabel"
+                <TextBlock Grid.Row="0" Text="installed plugins" Classes="Display section"
                            VerticalAlignment="Center" />
                 <WrapPanel Grid.Row="1" Orientation="Horizontal">
                     <c:IconButton Icon="{StaticResource IconRefresh}"

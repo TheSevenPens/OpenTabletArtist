@@ -9,7 +9,7 @@
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="CONFIGURATIONS FOLDER" TextWrapping="Wrap" />
+                        <TextBlock Classes="Display section" Text="configurations folder" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding ConfigurationsDirectory}"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Margin="0,4,0,0" />
@@ -81,7 +81,7 @@
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="ADD TABLET SUPPORT" TextWrapping="Wrap" />
+                        <TextBlock Classes="Display section" Text="add tablet support" TextWrapping="Wrap" />
                         <TextBlock Text="Install approved tablet configs from OpenTabletDriver that your version doesn't ship yet — useful for a newly-supported tablet."
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    TextWrapping="Wrap" Margin="0,4,0,0" />
