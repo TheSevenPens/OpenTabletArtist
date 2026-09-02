@@ -24,7 +24,7 @@ public static class SkinOverrides
         "RadioButtonCheckGlyphFill", "RadioButtonCheckGlyphFillPointerOver", "RadioButtonCheckGlyphFillPressed",
         "AccentButtonFillBrush", "AccentButtonFillHoverBrush",
         "AccentButtonForegroundBrush", "AccentButtonForegroundHoverBrush",
-        "GlassBorderBrush", "CardShadow", "GlassBgBrush", "SidebarBgBrush",
+        "GlassBorderBrush", "CardShadow", "GlassBgBrush",
         "AppBackdropBrush", "AppBackdropImageBrush", "BackdropScrimBrush", "AppBackdropGlowBrush", "AppBackdropGlowTopBrush",
     };
 

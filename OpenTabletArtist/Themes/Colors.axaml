@@ -85,9 +85,6 @@
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
-            <!-- Sidebar fill — same as the card glass here; the Anime skin gives it its own look. -->
-            <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
-
             <!-- Accent + derived button/card resources. Per-theme (not top-level) so the Sakura skin
                  can override them — see the note at the top. Light + Dark share the indigo accent. -->
             <Color x:Key="Accent">#6366F1</Color>
@@ -143,8 +140,6 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
-
-            <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource GlassBg}" />
 
             <!-- Accent + derived button/card resources (indigo; matches Light). Per-theme so Sakura
                  can override — see the note at the top. -->
@@ -242,13 +237,6 @@
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
-            <!-- Themed sidebar: a soft pink translucent vertical gradient (deeper rose at the bottom)
-                 so the panel reads as part of the skin and the backdrop still glows through. -->
-            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Offset="0" Color="#D9FCDCEC" />
-                <GradientStop Offset="1" Color="#D9F7C2DC" />
-            </LinearGradientBrush>
-
             <!-- Accent buttons: a filled pink→rose gradient with white text (vs. the tinted/outline
                  look of the flat themes). The hover gradient lifts a touch brighter. -->
             <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">
@@ -341,12 +329,6 @@
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
 
-            <!-- Dark plum translucent sidebar so the backdrop glows through. -->
-            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Offset="0" Color="#8C2A1420" />
-                <GradientStop Offset="1" Color="#8C200E18" />
-            </LinearGradientBrush>
-
             <!-- Accent buttons: the same pink→rose gradient as Sakura. -->
             <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">
                 <GradientStop Offset="0" Color="#FF7EC4" />
@@ -437,12 +419,6 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource Divider}" />
-
-            <!-- Dark translucent sidebar so the backdrop glows through. -->
-            <LinearGradientBrush x:Key="SidebarBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Offset="0" Color="#73181820" />
-                <GradientStop Offset="1" Color="#73101018" />
-            </LinearGradientBrush>
 
             <!-- Accent buttons: filled indigo gradient with white text (overridden live to the accent). -->
             <LinearGradientBrush x:Key="AccentButtonFillBrush" StartPoint="0%,0%" EndPoint="100%,100%">

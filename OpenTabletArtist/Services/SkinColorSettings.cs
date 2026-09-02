@@ -32,26 +32,6 @@ public static class SkinColorSettings
         set => AppSettings.Set(DarkSakuraCardKey, value);
     }
 
-    // Left-pane (sidebar) tint per blossom skin (#554). The default reproduces each skin's original fixed
-    // gradient top stop; the gradient's darker bottom is derived from this. (Custom derives its sidebar
-    // from its Base colour, so it has no separate slot here.)
-    private const string SakuraSidebarKey = "Sakura:SidebarColor";
-    private const string DarkSakuraSidebarKey = "DarkSakura:SidebarColor";
-    public const string SakuraSidebarDefault = "#FCDCEC";
-    public const string DarkSakuraSidebarDefault = "#2A1420";
-
-    public static string SakuraSidebarHex
-    {
-        get => AppSettings.Get(SakuraSidebarKey) ?? SakuraSidebarDefault;
-        set => AppSettings.Set(SakuraSidebarKey, value);
-    }
-
-    public static string DarkSakuraSidebarHex
-    {
-        get => AppSettings.Get(DarkSakuraSidebarKey) ?? DarkSakuraSidebarDefault;
-        set => AppSettings.Set(DarkSakuraSidebarKey, value);
-    }
-
     // Highlight/accent tint per blossom skin (#557). Default reproduces each skin's original pink accent;
     // (Custom keeps its accent in CustomThemeSettings.AccentHex.)
     private const string SakuraAccentKey = "Sakura:AccentColor";
