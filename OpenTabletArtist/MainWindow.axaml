@@ -2,6 +2,7 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:OpenTabletArtist.ViewModels"
+        xmlns:views="using:OpenTabletArtist.Views"
         xmlns:controls="using:OpenTabletArtist.Controls"
         xmlns:conv="using:OpenTabletArtist.Converters"
         Title="OpenTabletArtist"
@@ -82,10 +83,22 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Right cluster: the dev screenshot aid (only when enabled) + the version stamp, pinned
-                     to the top so the version sits just under the native close button (not down on the
-                     wordmark baseline). -->
+                <!-- Right cluster: the tablet switcher (TABLET + PEN only), the dev screenshot aid (only
+                     when enabled) + the version stamp, pinned to the top so the version sits just under the
+                     native close button (not down on the wordmark baseline). -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Top">
+                    <!-- The switcher lives in the SHELL, not on the page (#switcher-in-shell). It selects
+                         the app-wide active tablet — TABLET, PEN and SCRIBBLE are all linked to it — so it
+                         belongs to the chrome rather than to one page, and hosting it here buys back a
+                         whole band of vertical space on both pages. Bound to TabletPage even while PEN is
+                         showing: both pages write through AppSession.SetActiveTablet and share one detail
+                         VM per tablet, so either one drives both. It clears the native caption buttons by
+                         sitting inside the row that already starts below them. -->
+                    <views:TabletSwitcherBar VerticalAlignment="Center"
+                        IsVisible="{Binding ShowTabletSwitcher}"
+                        Tablets="{Binding TabletPage.Tablets}"
+                        SelectedTablet="{Binding TabletPage.SelectedTablet, Mode=TwoWay}"
+                        RefreshCommand="{Binding TabletPage.Content.RefreshCommand}" />
                     <!-- On-page screenshot control (#437): a developer aid, shown only when enabled on the
                          Developer tab. Captures whatever page you're currently viewing. -->
                     <Button x:Name="CapturePageButton" Click="OnCapturePage"

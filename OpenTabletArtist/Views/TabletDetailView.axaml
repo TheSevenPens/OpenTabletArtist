@@ -164,16 +164,11 @@
              ComplexHeader above instead. -->
         <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
-            <!-- Switcher BELOW the pivots (#switcher-sandwich). It cannot share their line: at the display
-                 size five pivots ("about mapping calibration buttons wheels") already overflow what is left
-                 once the switcher takes its ~300px, and with Developer on there are seven, so sharing
-                 wrapped "wheels" onto a second row at the default 1100px width. It was put ABOVE them
-                 instead, which was worse in a way a screenshot of one page did not show: it wedged a
-                 control between the wordmark bar and the pivot bar, so the app's two levels of navigation
-                 no longer read as one hierarchy. Below the pivots it is page chrome — "which tablet all
-                 this applies to" — sitting with the content it scopes rather than interrupting the nav. -->
-            <Grid RowDefinitions="Auto,Auto">
-            <WrapPanel Grid.Row="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+            <!-- Pivots only. The tablet switcher moved to the shell's top bar (#switcher-in-shell):
+                 it selects the app-wide active tablet, so it is chrome rather than page content, and
+                 taking it off this row gives the pivots the full width and the page back a band of
+                 vertical space. -->
+            <WrapPanel Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                 <RadioButton Content="about" IsChecked="True" x:Name="AboutTab"
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 <RadioButton Content="mapping" x:Name="MappingTab"
@@ -204,16 +199,6 @@
                              Theme="{StaticResource PivotTab}" Margin="0,1,26,1"
                              IsVisible="{Binding ShowJsonTab}" />
             </WrapPanel>
-                <!-- Right cluster: switcher + refresh (shared TabletSwitcherBar, #580). The switcher's
-                     list/selection come from the hosting TabletPageViewModel (ancestor); refresh from this
-                     detail VM. Detection now reads off the dropdown's per-row link icon. Embedded only
-                     (!ShowHeader) — the tray dialog uses the ComplexHeader above. Forget on Home cards (#575). -->
-                <views:TabletSwitcherBar Grid.Row="1" HorizontalAlignment="Right" Margin="0,10,0,0"
-                    IsVisible="{Binding !ShowHeader}"
-                    Tablets="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
-                    SelectedTablet="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:TabletPageView}}}"
-                    RefreshCommand="{Binding RefreshCommand}" />
-            </Grid>
         </Border>
 
         <!-- About tab content: a clean read-out of the tablet's specs, plus a Resources area that will
