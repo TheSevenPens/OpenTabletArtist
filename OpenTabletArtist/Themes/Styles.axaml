@@ -103,12 +103,19 @@
         <!-- Entity (object role): same look as Section, but marks a card representing a discrete object the
              user acts on (a tablet, button, wheel, preset, plugin). Structurally a Section subclass so
              shared styles like expressCard still apply. -->
+        <!-- Boxless (#debox-entity). An Entity is a THING in a list — a tablet, a preset, a plugin, an
+             express key — and a list of things does not need a glass panel around every row to be read as
+             a list. It now separates its rows with a single hairline and lets the type carry the rest,
+             which is what the widened ramp (d90d7d7) and the split text brushes (f21debb) exist to do.
+             Padding is vertical only, so rows align flush with the section eyebrow above them instead of
+             sitting inset behind a border. Alert keeps its chrome — it is the one role where the box IS
+             the meaning, and it only reads as urgent while nothing else is boxed. -->
         <ControlTheme x:Key="{x:Type c:Entity}" TargetType="c:Entity">
-            <Setter Property="Background" Value="{DynamicResource GlassBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
             <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="0,14" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"

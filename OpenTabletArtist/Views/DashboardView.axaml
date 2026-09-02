@@ -140,7 +140,7 @@
                         <!-- Double-click the card to open the tablet's settings (#tablet-card-mapping): the
                              per-card "edit" button was removed in favour of this, so the card is one clear
                              target. The Forget button still handles its own click. -->
-                        <c:Entity Margin="0,0,0,10" Icon="{StaticResource IconMonitor}"
+                        <c:Entity Icon="{StaticResource IconMonitor}"
                                   DoubleTapped="OnTabletCardDoubleTapped"
                                   ToolTip.Tip="Double-click to open this tablet's settings">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
