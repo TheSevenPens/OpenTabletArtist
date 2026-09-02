@@ -446,14 +446,15 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <Panel>
-                        <!-- Width reserver — see WordmarkNav above (#nav-no-reflow). -->
+                        <!-- Width reserver — see WordmarkNav above (#nav-no-reflow). Its size/tracking MUST
+                             stay identical to Word below, or the slot stops measuring the checked state. -->
                         <TextBlock Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="{DynamicResource TypeDisplaySize}" FontWeight="Normal" LetterSpacing="-1.4"
+                                   FontSize="{DynamicResource TypePivotSize}" FontWeight="Normal" LetterSpacing="-1.3"
                                    Opacity="0" IsHitTestVisible="False" />
                         <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="{DynamicResource TypeDisplaySize}" FontWeight="Light" LetterSpacing="-1.4" />
+                                   FontSize="{DynamicResource TypePivotSize}" FontWeight="Light" LetterSpacing="-1.3" />
                     </Panel>
                 </ControlTemplate>
             </Setter>
