@@ -789,6 +789,18 @@
         <Setter Property="LetterSpacing" Value="0.3" />
     </Style>
 
+    <!-- Slider (#sakura-slider): the filled half of every enabled slider stayed Windows-blue on all five
+         skins — the last place Fluent's default accent showed through. Same trap as the RadioButton keys
+         (#207): the accent brushes the skin re-points do not reach it.
+
+         Fluent paints the filled portion of a Slider from the control's own FOREGROUND, which nothing had
+         ever set, so it fell through to the theme default. One setter fixes every slider in the app; no
+         per-skin resource is needed, because AccentBrush is already per-skin. (The thumb was always
+         correct — that one does follow the accent, which is why the mismatch looked so odd.) -->
+    <Style Selector="Slider">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
     <!-- ===== Status marks ===========================================================
          A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
            success → muted (#593: no green)   warning → amber   neutral → muted   error → red
