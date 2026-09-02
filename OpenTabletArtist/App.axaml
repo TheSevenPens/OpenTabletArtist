@@ -42,7 +42,14 @@
                  rather than falling back to each OS's default UI font.
                  See docs/design/zune-redesign.md. -->
             <FontFamily x:Key="DisplayFontFamily">Inter</FontFamily>
-            <sys:Double x:Key="TypeDisplaySize">44</sys:Double>   <!-- pivots (PivotTab) -->
+            <sys:Double x:Key="TypeDisplaySize">44</sys:Double>   <!-- section headings (TextBlock.Display) -->
+            <!-- The pivot row — the "tab menu" in the user manual — sits a step under the display size.
+                 It shared TypeDisplaySize until the two were asked to differ: the pivots run across the
+                 top of most pages and read heavier there than a section heading does on a page that has
+                 only one or two. They are still the same layer and never appear together (a page has
+                 pivots OR display headings, never both), so the small difference is never seen side by
+                 side. Keep them within a step of each other. -->
+            <sys:Double x:Key="TypePivotSize">40</sys:Double>     <!-- pivots (PivotTab) -->
             <sys:Double x:Key="TypeNavSize">22</sys:Double>       <!-- top-level wordmarks (WordmarkNav) -->
             <sys:Double x:Key="TypeTitleSize">17</sys:Double>     <!-- subpage / body title -->
             <sys:Double x:Key="TypeDetailSize">11.5</sys:Double>  <!-- incidental detail under a title -->
