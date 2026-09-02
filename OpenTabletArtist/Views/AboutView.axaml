@@ -7,11 +7,13 @@
          above YOUR TABLETS, so it stretches to fill whatever column hosts it. -->
     <c:Section>
         <StackPanel>
-            <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" Margin="0,0,0,12" />
+            <!-- Same treatment as "your tablets" below it: the display layer, lower-case. Home has no
+                 tab menu, so its section headings ARE that layer. -->
+            <TextBlock Text="about" Classes="Display" Margin="0,0,0,12" />
 
             <!-- Two columns under the heading: the blurb on the left, the links on the right. The links
-                 column is Auto so it takes exactly the width of its longest label ("Releases (downloads &
-                 release notes)") and the prose gets whatever is left — splitting 50/50 would wrap the
+                 column is Auto so it takes exactly the width of its longest label ("Source code on
+                 GitHub") and the prose gets whatever is left — splitting 50/50 would wrap the
                  links, which reads far worse than a narrower paragraph. Both top-aligned so they start on
                  the same line. -->
             <Grid ColumnDefinitions="*,28,Auto">
@@ -59,7 +61,7 @@
                     <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ReleasesUrl}"
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                             HorizontalAlignment="Left" ToolTip.Tip="{Binding ReleasesUrl}">
-                        <TextBlock Text="Releases (downloads &amp; release notes)"
+                        <TextBlock Text="Releases"
                                    Foreground="{DynamicResource AccentBrush}"
                                    TextDecorations="Underline" VerticalAlignment="Center" />
                     </Button>

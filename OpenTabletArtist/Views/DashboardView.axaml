@@ -18,12 +18,11 @@
 
             <!-- The folded-in About content (what-is · resources · version), rendered from the
                  AboutViewModel via the typed-nav DataTemplate so the markup isn't duplicated. -->
-            <!-- 14px down so the ABOUT eyebrow's cap-height lines up with "needs attention" opposite.
-                 The two columns start at the same y, but a 44px display heading carries far more leading
-                 above its glyphs than a 10px eyebrow does, so equal boxes read as unequal text. The
-                 offset goes on the LEFT because the right column is already flush against the page menu
-                 and has nowhere to move up to. -->
-            <ContentControl Content="{Binding About}" Margin="0,14,0,0" />
+            <!-- No nudge needed to line the columns up: "about" and "needs attention" are both the
+                 display layer now, so they carry identical leading and align on their own. (This used to
+                 need 14px, back when the left column opened with a 10px eyebrow against a 44px heading
+                 opposite — equal boxes, unequal text.) -->
+            <ContentControl Content="{Binding About}" />
 
             <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
                  navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
