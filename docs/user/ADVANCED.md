@@ -28,7 +28,7 @@ The **Drivers** tab stacks two cards: the **Windows Ink Plugin** on top and the 
 
 ### Windows Ink Plugin
 
-Manages the third-party Windows Ink output-mode plugin (from Kuuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
+Manages the third-party Windows Ink output-mode plugin (from Kuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
 
 - **Install status** — the plugin version folded into the text (e.g. "v0.5.2 installed"), or "Not installed."
 - **Output mode** — whether the tablet actually uses a Windows Ink mode ("Plugin active" / "Not configured").
