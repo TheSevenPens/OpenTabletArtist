@@ -210,14 +210,28 @@
             <Color x:Key="GlassBg">#CCFDF1F7</Color>
             <Color x:Key="GlassBgHover">#E6FEF7FB</Color>
             <Color x:Key="GlassBorder">#33E0218A</Color>
-            <Color x:Key="TextPrimary">#F03A0E26</Color>
-            <Color x:Key="TextSecondary">#C43A0E26</Color>
-            <!-- Muted sits at 65% rather than the 54% the other skins use: Sakura's page background is
-                 the lightest of any skin (#FCE3EE), so a plum ink needs more weight to clear 4.5:1. At
-                 0x8A it measured 3.6:1 on both the backdrop and the glass cards — legible-ish, but under
-                 AA. 0xA6 measures 4.9:1 on the backdrop. (This colour was unused until the text brushes
-                 were split apart, so nothing regressed — it had simply never been on screen.) -->
-            <Color x:Key="TextMuted">#A63A0E26</Color>
+            <!-- Sakura's text ink. Deepened from #3A0E26 (#muted-contrast). Two things were wrong with the
+                 lighter plum, and both trace to the same cause — it simply is not dark enough for a page
+                 background this light:
+
+                 1. It CAPPED the hierarchy. Even at 100% alpha #3A0E26 only reaches 13.7:1 on #FCE3EE, so
+                    Sakura's whole ladder sat at 11.9 / 7.2 / 4.9 where every other skin runs ~17 / 11.6 /
+                    5.5. The tiers were being squeezed into a narrower band than anywhere else in the app,
+                    which is exactly why the hierarchy read weakly here and nowhere else.
+                 2. Muted was UNDER AA where it mattered. 4.9:1 on the flat background, but the backdrop is
+                    not flat: the bottom glow tints it toward saturated pink, and over that ground the same
+                    text measured 4.25:1. Contrast was being checked against a background the user does not
+                    actually see everywhere.
+
+                 #280A1A fixes both at the same alphas — 13.3 / 8.0 / 5.4 flat, and 10.1 / 6.6 / 4.7 over
+                 the glow, so every tier now clears AA against the worst ground rather than the average one.
+
+                 Do NOT chase the mockups' 40% muted: on this background 4.5:1 needs 62% with this ink and
+                 55% even with pure black, so a quieter tier is not reachable by ink choice. Below the
+                 middle tier, separation has to come from SIZE (TypeDetailSize) rather than tone. -->
+            <Color x:Key="TextPrimary">#F0280A1A</Color>
+            <Color x:Key="TextSecondary">#C4280A1A</Color>
+            <Color x:Key="TextMuted">#A6280A1A</Color>
             <Color x:Key="Divider">#22E0218A</Color>
 
             <SolidColorBrush x:Key="BgBaseBrush" Color="{StaticResource BgBase}" />
