@@ -533,9 +533,18 @@
              template for a PathIcon bound to the control's Icon/IconSize. Default theme (keyed by type), so
              callers just write <c:IconButton Icon="{StaticResource IconX}" Command=… ToolTip.Tip=… />. -->
         <ControlTheme x:Key="{x:Type c:IconButton}" TargetType="c:IconButton" BasedOn="{StaticResource GhostButton}">
+            <!-- Borderless (#row-actions). A TEXT button's border is a real affordance — it says "this word
+                 is a button, not a label". An ICON button needs no such help: a glyph in a hit target is
+                 already unmistakably a control. Since the rows around it went boxless (95c40fd) its border
+                 was the only box left in an otherwise boxless row, which made a secondary action the most
+                 outlined thing on the page. GhostButton keeps its border; only the icon form drops it.
+                 The affordance moves to hover: the glyph goes to full ink over a tinted block. -->
             <Setter Property="Width" Value="34" />
             <Setter Property="Height" Value="30" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}"
@@ -549,6 +558,16 @@
                     </Border>
                 </ControlTemplate>
             </Setter>
+            <!-- Hover carries the whole affordance now that there is no resting border. Overrides
+                 GhostButton's pointerover, which also set an accent BorderBrush that would not render at
+                 zero thickness. -->
+            <Style Selector="^:pointerover">
+                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            </Style>
+            <Style Selector="^:disabled">
+                <Setter Property="Opacity" Value="0.4" />
+            </Style>
         </ControlTheme>
 
         <!-- LinkButton: a borderless, background-free button that reads as plain clickable text. No chrome
