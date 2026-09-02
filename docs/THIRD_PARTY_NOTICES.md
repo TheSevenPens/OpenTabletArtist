@@ -5,10 +5,10 @@ This file satisfies attribution and license-awareness obligations for bundled ar
 
 ## Bundled in release artifacts
 
-### Windows Ink plugin (Kuuube / VoidPlugins)
+### Windows Ink plugin (Kuuube / VoiDPlugins)
 
 - **License:** GPL-3.0
-- **Source:** https://github.com/Kuuuube/VoidPlugins (Windows Ink plugin)
+- **Source:** https://github.com/Kuuuube/VoiDPlugins (Windows Ink plugin)
 - **Shipped as:** `BundledPlugins/WindowsInk/` (DLLs + `metadata.json`)
 - **GPL note:** You may obtain source code for the GPL-licensed plugin from the upstream repository above.
 

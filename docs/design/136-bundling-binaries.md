@@ -9,7 +9,7 @@ Release builds ship offline-capable copies of:
 
 | Component | Release path | Runtime fallback |
 |-----------|--------------|------------------|
-| **Windows Ink plugin** (Kuuube/VoidPlugins, GPL-3.0) | `BundledPlugins/WindowsInk/` | Daemon downloads from Plugin-Repository |
+| **Windows Ink plugin** (Kuuube/VoiDPlugins, GPL-3.0) | `BundledPlugins/WindowsInk/` | Daemon downloads from Plugin-Repository |
 | **VMulti driver package** (djpnewton/vmulti-bin + WDK tools) | `Bundled/VMulti.Driver.zip` | `VMultiInstaller` downloads from GitHub |
 | **Dynamics plugin** (first-party) | `BundledPlugins/OpenTabletArtistDynamics/` | Built in CI |
 
