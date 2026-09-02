@@ -3,71 +3,75 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the AboutViewModel (typed-nav DataTemplate, #15). Folded into Home's right column
-         (#combine), so it stretches to fill whatever column hosts it. -->
-    <StackPanel HorizontalAlignment="Stretch">
-        <c:Section>
-            <StackPanel>
-                <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" Margin="0,0,0,12" />
+    <!-- DataContext is the AboutViewModel (typed-nav DataTemplate, #15). Folded into Home's left column,
+         above YOUR TABLETS, so it stretches to fill whatever column hosts it. -->
+    <c:Section>
+        <StackPanel>
+            <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" Margin="0,0,0,12" />
+
+            <!-- Two columns under the heading: the blurb on the left, the links on the right. The links
+                 column is Auto so it takes exactly the width of its longest label ("Releases (downloads &
+                 release notes)") and the prose gets whatever is left — splitting 50/50 would wrap the
+                 links, which reads far worse than a narrower paragraph. Both top-aligned so they start on
+                 the same line. -->
+            <Grid ColumnDefinitions="*,28,Auto">
                 <!-- The version closes the paragraph as an ordinary sentence rather than taking a row or a
                      heading suffix of its own. Split into Runs so the prose stays in the view and only the
                      version number comes from the model. The separating space lives at the END of the first
                      Run's text, and the two tags sit flush against each other: whitespace BETWEEN Run
                      elements is preserved as well, so laying them out on separate lines adds a second space
                      on top of any explicit one. -->
-                <TextBlock TextWrapping="Wrap" LineHeight="22"
+                <TextBlock Grid.Column="0" TextWrapping="Wrap" LineHeight="22" VerticalAlignment="Top"
                            Foreground="{DynamicResource TextSecondaryBrush}"><Run
                     Text="OpenTablet Artist is an alternative, artist-friendly experience for OpenTabletDriver on Windows. " /><Run
                     Text="{Binding AppVersionSentence}" /></TextBlock>
-            </StackPanel>
-        </c:Section>
 
-        <!-- Source code, releases, help and the user manual as one list of links. Each opens in the default
-             browser; the full URL is on hover. No heading: they are accent-coloured and underlined, which
-             already marks them as a group and as links — a RESOURCES label above them was naming something
-             the reader can see. The gap above does the separating instead. -->
-        <c:Section Margin="0,16,0,0">
-            <StackPanel Spacing="10">
-                <!-- First in the list: the Help card that used to sit above became a manual page, and
-                     this is the entry point to it. -->
-                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding HelpUrl}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left" ToolTip.Tip="{Binding HelpUrl}">
-                    <TextBlock Text="Get help"
-                               Foreground="{DynamicResource AccentBrush}"
-                               TextDecorations="Underline" VerticalAlignment="Center" />
-                </Button>
-                <!-- Opens OTD's supported-tablets catalog in the in-app dialog (#155), not a browser —
-                     replaces the former standalone Home "Supported tablets" card. -->
-                <Button Command="{Binding OpenSupportedTabletsCommand}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left" ToolTip.Tip="Show the tablets OpenTabletDriver supports">
-                    <TextBlock Text="Supported tablets"
-                               Foreground="{DynamicResource AccentBrush}"
-                               TextDecorations="Underline" VerticalAlignment="Center" />
-                </Button>
-                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left" ToolTip.Tip="{Binding RepoUrl}">
-                    <TextBlock Text="Source code on GitHub"
-                               Foreground="{DynamicResource AccentBrush}"
-                               TextDecorations="Underline" VerticalAlignment="Center" />
-                </Button>
-                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ReleasesUrl}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left" ToolTip.Tip="{Binding ReleasesUrl}">
-                    <TextBlock Text="Releases (downloads &amp; release notes)"
-                               Foreground="{DynamicResource AccentBrush}"
-                               TextDecorations="Underline" VerticalAlignment="Center" />
-                </Button>
-                <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UserManualUrl}"
-                        Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
-                        HorizontalAlignment="Left" ToolTip.Tip="{Binding UserManualUrl}">
-                    <TextBlock Text="User manual"
-                               Foreground="{DynamicResource AccentBrush}"
-                               TextDecorations="Underline" VerticalAlignment="Center" />
-                </Button>
-            </StackPanel>
-        </c:Section>
-    </StackPanel>
+                <!-- Source code, releases, help and the user manual as one list of links. Each opens in the
+                     default browser; the full URL is on hover. No heading: they are accent-coloured and
+                     underlined, which already marks them as a group and as links — a RESOURCES label above
+                     them was naming something the reader can see. -->
+                <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Top">
+                    <!-- First in the list: the Help card that used to sit above became a manual page, and
+                         this is the entry point to it. -->
+                    <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding HelpUrl}"
+                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                            HorizontalAlignment="Left" ToolTip.Tip="{Binding HelpUrl}">
+                        <TextBlock Text="Get help"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </Button>
+                    <!-- Opens OTD's supported-tablets catalog in the in-app dialog (#155), not a browser —
+                         replaces the former standalone Home "Supported tablets" card. -->
+                    <Button Command="{Binding OpenSupportedTabletsCommand}"
+                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                            HorizontalAlignment="Left" ToolTip.Tip="Show the tablets OpenTabletDriver supports">
+                        <TextBlock Text="Supported tablets"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
+                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                            HorizontalAlignment="Left" ToolTip.Tip="{Binding RepoUrl}">
+                        <TextBlock Text="Source code on GitHub"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding ReleasesUrl}"
+                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                            HorizontalAlignment="Left" ToolTip.Tip="{Binding ReleasesUrl}">
+                        <TextBlock Text="Releases (downloads &amp; release notes)"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UserManualUrl}"
+                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                            HorizontalAlignment="Left" ToolTip.Tip="{Binding UserManualUrl}">
+                        <TextBlock Text="User manual"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   TextDecorations="Underline" VerticalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </c:Section>
 </UserControl>
