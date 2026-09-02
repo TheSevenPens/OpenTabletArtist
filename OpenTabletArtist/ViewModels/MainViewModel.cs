@@ -505,7 +505,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var section in NavSections)
             section.IsSelected = ReferenceEquals(CurrentPage, section.Page);
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
+        OnPropertyChanged(nameof(ShowTabletSwitcher));
     }
+
+    /// <summary>Whether the shell's top bar shows the tablet switcher (#switcher-in-shell): on the TABLET
+    /// and PEN pages, which are the two that scope everything they show to one tablet. PenPageViewModel
+    /// derives from TabletPageViewModel, so the one type test covers both. SCRIBBLE keeps its own switcher
+    /// — there it sits among that page's other controls rather than standing alone.</summary>
+    public bool ShowTabletSwitcher => CurrentPage is TabletPageViewModel;
 
     public void Dispose()
     {

@@ -17,13 +17,11 @@
         <!-- Toolbar row: switcher · pivots (basics · inputs · pressure) · compact actions (D · R · F). -->
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">
-            <!-- Switcher above the pivots, matching the tablet page (#type-ramp). Pen's three pivots would
-                 still fit beside it, but these two pages are read as a pair and a divergent toolbar between
-                 them is more jarring than the row of whitespace this costs. -->
-            <Grid RowDefinitions="Auto,Auto">
+            <!-- Pivots only; the switcher moved to the shell top bar (#switcher-in-shell). -->
+            <Grid>
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
                      #XTab.IsChecked. "inputs" merges the old inputs + buttons sub-tabs (#pen-switches). -->
-                <WrapPanel Grid.Row="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+                <WrapPanel Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                     <RadioButton Content="basics" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
@@ -34,13 +32,6 @@
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                 </WrapPanel>
 
-                <!-- Right cluster: switcher + refresh (shared TabletSwitcherBar, #580). The switcher's
-                     list/selection come from the hosting PenPageViewModel (ancestor); refresh from this
-                     detail VM. Detection now reads off the dropdown's per-row link icon. Forget on Home cards (#575). -->
-                <views:TabletSwitcherBar Grid.Row="1" HorizontalAlignment="Right" Margin="0,10,0,0"
-                    Tablets="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
-                    SelectedTablet="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
-                    RefreshCommand="{Binding RefreshCommand}" />
             </Grid>
         </Border>
 
