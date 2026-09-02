@@ -8,17 +8,17 @@
     <StackPanel HorizontalAlignment="Stretch">
         <c:Section>
             <StackPanel>
-                <!-- The version rides on the heading rather than taking a row of its own: it is something
-                     you look up when reporting a problem, not something you read down the column. -->
-                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,0,12">
-                    <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" />
-                    <TextBlock Classes="SectionLabel" Text="{Binding AppVersionParenthetical}"
-                               VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Classes="SectionLabel largetitle" Text="ABOUT" Margin="0,0,0,12" />
+                <!-- The version closes the paragraph as an ordinary sentence rather than taking a row or a
+                     heading suffix of its own. Split into Runs so the prose stays in the view and only the
+                     version number comes from the model. The separating space lives at the END of the first
+                     Run's text, and the two tags sit flush against each other: whitespace BETWEEN Run
+                     elements is preserved as well, so laying them out on separate lines adds a second space
+                     on top of any explicit one. -->
                 <TextBlock TextWrapping="Wrap" LineHeight="22"
-                           Foreground="{DynamicResource TextSecondaryBrush}">
-                    OpenTablet Artist is an alternative, artist-friendly experience for OpenTabletDriver on Windows.
-                </TextBlock>
+                           Foreground="{DynamicResource TextSecondaryBrush}"><Run
+                    Text="OpenTablet Artist is an alternative, artist-friendly experience for OpenTabletDriver on Windows. " /><Run
+                    Text="{Binding AppVersionSentence}" /></TextBlock>
             </StackPanel>
         </c:Section>
 

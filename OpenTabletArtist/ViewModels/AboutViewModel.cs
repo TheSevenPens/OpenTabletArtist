@@ -49,10 +49,10 @@ public partial class AboutViewModel : ObservableObject
         Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
-    /// <summary>"(v0.6.0 BETA)"-style suffix, shown beside the ABOUT heading rather than on a line of its
-    /// own. The version is reference matter — worth having to hand when reporting a problem, not worth a
-    /// row in the column — so it rides along with the heading it belongs to.</summary>
-    public string AppVersionParenthetical => $"({AppVersion} BETA)";
+    /// <summary>"Version v0.6.0 BETA." — a closing sentence for the About paragraph rather than a line or
+    /// a heading suffix of its own. The version is reference matter: worth having to hand when reporting a
+    /// problem, not worth its own row in the column.</summary>
+    public string AppVersionSentence => $"Version {AppVersion} BETA.";
 
     /// <summary>Opens a URL in the user's default browser.</summary>
     [RelayCommand]
