@@ -37,11 +37,12 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*, 
 ### Per-page guides
 
 - **[Home](HOME.md)** — the health-check landing page, *Your tablets*, supported-tablets list, and the About/Help cards.
-- **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the hidden hover/filters/json tabs).
+- **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the developer-only filters/json tabs).
 - **[Pen page](PEN.md)** — basics · inputs · pressure (the pressure curve + smoothing).
 - **[Scribble page](SCRIBBLE.md)** — the paint canvas for confirming the pen, with live readouts.
 - **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Appearance · System (Startup/Shortcut/Driver Cleanup) · Developer.
 - **[Advanced page](ADVANCED.md)** — Daemon · Console · Drivers · Configs · Diagnostics · Plugins.
+- **[Plugins](PLUGINS.md)** — what ships with OTA, what the Pen Dynamics plugin does, and whether you need any others.
 
 
 ## System tray & background mode

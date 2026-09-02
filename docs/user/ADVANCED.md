@@ -16,7 +16,7 @@ The **Source** row tells you which daemon the app is actually connected to:
 - **Bundled (ships with OTA)** — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
 - **External (not started by OTA)** — connected to a daemon OTA didn't start, e.g. an officially-installed OpenTabletDriver you already had running. This is a **supported** setup: OTA connects to whichever daemon is running and only starts its own bundled copy when none is. It's also presented in its own **External Daemon** card (right column) showing the daemon's path + version, with a **Use bundled daemon instead** button (Restart) if you didn't intend it.
 
-Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The right column also shows a **Bundled Daemon** card (embedded OTD version + path) and an **OTD UX** card whose **Launch OTD UI** button opens the original OpenTabletDriver interface — for comparison, or for settings OTA doesn't surface.
+Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The right column also shows a **Bundled Daemon** card (embedded OTD version + path). A development build additionally shows an **OTD UX** card whose **Launch OTD UI** button opens the original OpenTabletDriver interface — for comparison, or for settings OTA doesn't surface; it's hidden in the released app, which ships the daemon but not that interface.
 
 ## Console
 
@@ -54,4 +54,8 @@ Live tablet input visualization. See [DIAGNOSTICS.md](../dev/DIAGNOSTICS.md) for
 
 ## Plugins
 
-A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter on a tablet) or just **Installed**. The OpenTabletArtist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (Installing/removing plugins is done through OpenTabletDriver itself; this view is informational.)
+A read-only list of the OpenTabletDriver plugins installed in the daemon's plugin folder. Each row shows the plugin's name, version (when available), and whether it's **Active** (referenced by an enabled output mode or filter on a tablet) or just **Installed**. The OpenTabletArtist – Pen Dynamics plugin appears here once it's installed. Use the refresh icon to rescan, or **Browse** to open the plugin folder in File Explorer. (This view is informational — it has no install or remove buttons.)
+
+Note that a plugin can be installed here and still not run: when OTA is using the bundled daemon, it keeps only its own **filters** enabled and switches off any others. See [Tablet → filters](TABLET.md#filters).
+
+For what OTA ships and installs on its own, whether you need anything else, and how to add a plugin by hand, see the **[Plugins guide](PLUGINS.md)**.
