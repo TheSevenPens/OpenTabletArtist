@@ -21,7 +21,7 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 
 The **Appearance** tab holds theme preferences:
 
-- **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, and **Sakura** (a pink skin with a soft gradient backdrop and frosted-glass panels — the default). Applied immediately and remembered across restarts.
+- **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, **Sakura** (a pink skin with a soft gradient backdrop and frosted-glass panels — the default), **Dark Sakura** (the same cherry-blossom skin over a dark scheme), and **Custom** (a translucent skin you tune yourself). Applied immediately and remembered across restarts.
 - **Falling petals** *(Sakura only)* — toggles the drifting cherry-blossom animation, with an opacity slider to tune how prominent the petals are (defaults to a soft 25%).
 - **Background** *(Sakura only)* — choose the **CodeGen background** (default — a code-generated gradient of soft glows) or a flat **solid colour** (`#FDE4E8`). Applied live and remembered across restarts.
 - **Background colour** *(Sakura, CodeGen only)* — a colour picker (plus hex box) for the flat base tint behind the glows. Applied live; **Reset to defaults** restores it along with the other appearance tunables.
