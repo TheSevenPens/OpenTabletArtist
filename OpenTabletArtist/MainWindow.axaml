@@ -60,7 +60,7 @@
              native min/max/close buttons and window-drag still own the top edge.
              (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
         <Border Grid.Row="0" Background="Transparent">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,34,20,2">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,34,20,0">
                 <!-- The wordmarks, left-aligned. (No brand mark here — the OS window caption + taskbar
                      already carry the app name; a second one read as a duplicate.) Wraps to a second row
                      on a narrow window instead of clipping. -->
@@ -78,7 +78,7 @@
                                          IsChecked="{Binding IsSelected, Mode=OneWay}"
                                          Command="{Binding $parent[ItemsControl].DataContext.NavigateCommand}"
                                          CommandParameter="{Binding Page}"
-                                         Margin="0,3,22,3" />
+                                         Margin="0,3,22,1" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -119,7 +119,7 @@
                       HorizontalScrollBarVisibility="Disabled">
             <!-- L/R/bottom padding stays above the Sakura cards' glow extent (16px blur, see CardShadow)
                  so the soft glow isn't clipped by the scroll viewport on those edges. -->
-            <Border Padding="24,4,24,18">
+            <Border Padding="24,0,24,18">
                 <!-- Top-level page switches snap (no transition). A crossfade here superimposed the two
                      pages for ~180ms, which read as a glitch when their content differed a lot (worst
                      Settings → Scribble, whose big flat canvas ghosted over Settings' cards). Sub-page
