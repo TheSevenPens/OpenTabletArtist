@@ -7,9 +7,9 @@
     <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). Two columns:
          appearance (+ custom look) on the left, colours & translucency on the right. -->
     <Grid ColumnDefinitions="*,24,*" MaxWidth="900" HorizontalAlignment="Left">
-        <!-- LEFT — appearance + custom look. -->
+        <!-- LEFT — theme &amp; backdrop + custom look. -->
         <StackPanel Grid.Column="0">
-        <c:Section Title="Appearance">
+        <c:Section Title="Theme &amp; backdrop">
             <StackPanel>
                 <c:LabeledField Label="Theme">
                     <ComboBox HorizontalAlignment="Left" MinWidth="220"
