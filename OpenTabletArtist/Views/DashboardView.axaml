@@ -10,10 +10,100 @@
     <!-- Two-column Home (#combine): the home content on the left, the folded-in About content on the
          right. Left-aligned block, capped so the two columns stay a comfortable reading width. -->
     <Grid ColumnDefinitions="*,32,*" MaxWidth="1360" HorizontalAlignment="Left">
-        <!-- LEFT — health · tablets. -->
+        <!-- LEFT — about · tablets. About/Resources lead as a short preamble, above the tablets
+             they introduce; everything wanting attention lives in the right column. -->
         <StackPanel Grid.Column="0">
             <!-- (The embedded OTD version + OTD UX launcher moved to the Advanced → OTD page.) -->
 
+
+            <!-- The folded-in About content (what-is · resources · version), rendered from the
+                 AboutViewModel via the typed-nav DataTemplate so the markup isn't duplicated. -->
+            <ContentControl Content="{Binding About}" />
+
+            <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
+                 navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
+                 + specs. -->
+            <TextBlock Text="your tablets" Classes="Display" Margin="0,18,0,12" />
+            <ItemsControl ItemsSource="{Binding TabletsOverview.Tablets}"
+                          IsVisible="{Binding TabletsOverview.HasTablets}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <!-- Double-click the card to open the tablet's settings (#tablet-card-mapping): the
+                             per-card "edit" button was removed in favour of this, so the card is one clear
+                             target. The Forget button still handles its own click. -->
+                        <c:Entity Icon="{StaticResource IconMonitor}"
+                                  DoubleTapped="OnTabletCardDoubleTapped"
+                                  ToolTip.Tip="Double-click to open this tablet's settings">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <!-- Detection status as the same link / link-off icon the tablet
+                                             dropdown uses (#593: both neutral — the link vs link-off icon,
+                                             not colour, shows state); the old "Detected"/"Not detected" word
+                                             is now the icon's tooltip. -->
+                                        <Panel Width="16" Height="16" VerticalAlignment="Center"
+                                               ToolTip.Tip="{Binding StatusText}">
+                                            <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16"
+                                                      Foreground="{DynamicResource NeutralBrush}"
+                                                      IsVisible="{Binding IsDetected}" />
+                                            <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16"
+                                                      Foreground="{DynamicResource NeutralBrush}"
+                                                      IsVisible="{Binding !IsDetected}" />
+                                        </Panel>
+                                    </StackPanel>
+                                    <!-- Where the active area is mapped (#tablet-card-mapping): the mapped
+                                         display when it's a clean single-monitor mapping, or a "needs attention"
+                                         line when it isn't. State reads from the wording, not colour (#no-orange-text):
+                                         the attention line is a touch more prominent (primary vs secondary text). -->
+                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                               IsVisible="{Binding MappingIsNormal}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                               IsVisible="{Binding MappingNeedsAttention}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <!-- The quiet end of the ramp (TextBlock.Detail): a timestamp is
+                                         context, not something you read the card for. -->
+                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0" Classes="Detail"
+                                               IsVisible="{Binding HasLastSeenDetail}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <!-- Forget (remove saved settings). Managing connections lives here on Home.
+                                         Offered for every tablet (#575): removes a remembered one, or resets a
+                                         connected one to defaults — the confirm dialog says which. -->
+                                    <!-- A c:IconButton rather than a hand-rolled GhostButton wrapping a
+                                         PathIcon: same thing, but it picks up the shared borderless icon
+                                         treatment (#row-actions) instead of drifting from it. -->
+                                    <c:IconButton Icon="{StaticResource IconTrashCanOutline}"
+                                                  Command="{Binding ForgetCommand}"
+                                                  ToolTip.Tip="Forget this tablet"
+                                                  AutomationProperties.Name="Forget this tablet" />
+                                </StackPanel>
+                            </Grid>
+                        </c:Entity>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- No tablets at all → a quiet inline empty state (boxless, left-aligned to the section
+                 rhythm — the full Zune hero lives on the TABLET page). -->
+            <StackPanel Spacing="4" Margin="0,0,0,6" IsVisible="{Binding !TabletsOverview.HasTablets}">
+                <TextBlock Text="No tablets connected or remembered"
+                           FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                <TextBlock Text="Connect a tablet and it'll appear here."
+                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- (The run-at-startup toggle moved to its own Advanced → Startup page.) -->
+
+        </StackPanel>
+
+        <!-- RIGHT — everything wanting attention, and nothing else. Both children hide themselves
+             when nothing is wrong, so on a healthy machine this column is empty by design: the
+             blank right half IS the "all good" signal. -->
+        <StackPanel Grid.Column="2" VerticalAlignment="Top">
             <!-- Needs attention (#317): the health-check catalog, worst severity first. Hidden entirely
                  when everything is healthy, so Home stays quiet when there's nothing to do. Each card's
                  Fix button runs the relevant action in place or jumps to where the setting lives. -->
@@ -131,90 +221,6 @@
                     </Grid>
                 </Panel>
             </c:Alert>
-
-            <!-- YOUR TABLETS: the former standalone Tablets page, merged into Home (#317). The cards are
-                 navigable (Settings) and mirror the sidebar's per-tablet children with detection timing
-                 + specs. -->
-            <TextBlock Text="your tablets" Classes="Display" Margin="0,30,0,14" />
-            <ItemsControl ItemsSource="{Binding TabletsOverview.Tablets}"
-                          IsVisible="{Binding TabletsOverview.HasTablets}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <!-- Double-click the card to open the tablet's settings (#tablet-card-mapping): the
-                             per-card "edit" button was removed in favour of this, so the card is one clear
-                             target. The Forget button still handles its own click. -->
-                        <c:Entity Icon="{StaticResource IconMonitor}"
-                                  DoubleTapped="OnTabletCardDoubleTapped"
-                                  ToolTip.Tip="Double-click to open this tablet's settings">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        <!-- Detection status as the same link / link-off icon the tablet
-                                             dropdown uses (#593: both neutral — the link vs link-off icon,
-                                             not colour, shows state); the old "Detected"/"Not detected" word
-                                             is now the icon's tooltip. -->
-                                        <Panel Width="16" Height="16" VerticalAlignment="Center"
-                                               ToolTip.Tip="{Binding StatusText}">
-                                            <PathIcon Data="{StaticResource IconLink}" Width="16" Height="16"
-                                                      Foreground="{DynamicResource NeutralBrush}"
-                                                      IsVisible="{Binding IsDetected}" />
-                                            <PathIcon Data="{StaticResource IconLinkOff}" Width="16" Height="16"
-                                                      Foreground="{DynamicResource NeutralBrush}"
-                                                      IsVisible="{Binding !IsDetected}" />
-                                        </Panel>
-                                    </StackPanel>
-                                    <!-- Where the active area is mapped (#tablet-card-mapping): the mapped
-                                         display when it's a clean single-monitor mapping, or a "needs attention"
-                                         line when it isn't. State reads from the wording, not colour (#no-orange-text):
-                                         the attention line is a touch more prominent (primary vs secondary text). -->
-                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
-                                               IsVisible="{Binding MappingIsNormal}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
-                                               IsVisible="{Binding MappingNeedsAttention}"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <!-- The quiet end of the ramp (TextBlock.Detail): a timestamp is
-                                         context, not something you read the card for. -->
-                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0" Classes="Detail"
-                                               IsVisible="{Binding HasLastSeenDetail}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                            VerticalAlignment="Center">
-                                    <!-- Forget (remove saved settings). Managing connections lives here on Home.
-                                         Offered for every tablet (#575): removes a remembered one, or resets a
-                                         connected one to defaults — the confirm dialog says which. -->
-                                    <!-- A c:IconButton rather than a hand-rolled GhostButton wrapping a
-                                         PathIcon: same thing, but it picks up the shared borderless icon
-                                         treatment (#row-actions) instead of drifting from it. -->
-                                    <c:IconButton Icon="{StaticResource IconTrashCanOutline}"
-                                                  Command="{Binding ForgetCommand}"
-                                                  ToolTip.Tip="Forget this tablet"
-                                                  AutomationProperties.Name="Forget this tablet" />
-                                </StackPanel>
-                            </Grid>
-                        </c:Entity>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- No tablets at all → a quiet inline empty state (boxless, left-aligned to the section
-                 rhythm — the full Zune hero lives on the TABLET page). -->
-            <StackPanel Spacing="4" Margin="0,0,0,6" IsVisible="{Binding !TabletsOverview.HasTablets}">
-                <TextBlock Text="No tablets connected or remembered"
-                           FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
-                <TextBlock Text="Connect a tablet and it'll appear here."
-                           Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
-            </StackPanel>
-
-            <!-- (The run-at-startup toggle moved to its own Advanced → Startup page.) -->
-
         </StackPanel>
-
-        <!-- RIGHT — the folded-in About content (what-is · help · resources · version). Rendered from
-             the AboutViewModel via the typed-nav DataTemplate, so the markup isn't duplicated. The
-             supported-tablets link now lives in that card's RESOURCES list. -->
-        <ContentControl Grid.Column="2" Content="{Binding About}" VerticalAlignment="Top" />
     </Grid>
 </UserControl>
