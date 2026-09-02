@@ -718,7 +718,61 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         var info = _deviceData != null ? TabletAboutInfo.From(_deviceData.Tablets, TabletName) : null;
         TabletFacts = info != null ? BuildFacts(info) : System.Array.Empty<TabletFact>();
+        ActiveAreaFacts = info != null ? BuildActiveAreaFacts(info) : System.Array.Empty<TabletFact>();
         TabletFeatures = info != null ? BuildFeatures(info) : System.Array.Empty<TabletFact>();
+        SetAboutDiagram(info);
+    }
+
+    // ── ABOUT tab's active-area diagram ─────────────────────────────────────────────────────────────
+    // A to-scale rectangle of the tablet's active area, with its width, height and diagonal called out.
+    // The numbers are already in the fact list above; the point of the drawing is the SHAPE — how square
+    // or how wide a tablet is reads instantly here and not at all from "224 × 148 mm".
+
+    /// <summary>Longest edge of the drawing, in DIPs. The rectangle is scaled to fit this box on its longer
+    /// side, so a wide tablet and a squarer one are drawn at comparable visual weight.</summary>
+    private const double AboutDiagramMax = 232;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAboutDiagram))]
+    private double _aboutDiagramWidth;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AboutDiagramDiagonal))]
+    private double _aboutDiagramHeight;
+
+    /// <summary>The corner-to-corner line, built here rather than in the view: a Geometry bound straight to
+    /// Path.Data is an ordinary property binding, whereas binding a Point into a nested LineGeometry relies
+    /// on a non-visual element inheriting DataContext.</summary>
+    public Avalonia.Media.Geometry? AboutDiagramDiagonal => HasAboutDiagram
+        ? new Avalonia.Media.LineGeometry(new Avalonia.Point(0, AboutDiagramHeight),
+                                          new Avalonia.Point(AboutDiagramWidth, 0))
+        : null;
+
+    [ObservableProperty] private string _aboutDiagramWidthLabel = string.Empty;
+    [ObservableProperty] private string _aboutDiagramHeightLabel = string.Empty;
+    [ObservableProperty] private string _aboutDiagramDiagonalLabel = string.Empty;
+
+    /// <summary>Only drawn when the tablet is detected and reports a sane active area.</summary>
+    public bool HasAboutDiagram => AboutDiagramWidth > 0;
+
+    private void SetAboutDiagram(TabletAboutInfo? a)
+    {
+        if (a is null || a.WidthMm <= 0 || a.HeightMm <= 0)
+        {
+            AboutDiagramWidth = 0;
+            AboutDiagramHeight = 0;
+            return;
+        }
+
+        // Scale on the longer edge so the rectangle always fills the box in one direction.
+        double scale = AboutDiagramMax / System.Math.Max(a.WidthMm, a.HeightMm);
+        AboutDiagramWidth = System.Math.Round(a.WidthMm * scale);
+        AboutDiagramHeight = System.Math.Round(a.HeightMm * scale);
+
+        double diag = System.Math.Sqrt(a.WidthMm * a.WidthMm + a.HeightMm * a.HeightMm);
+        AboutDiagramWidthLabel = $"{a.WidthMm:0.#} mm";
+        AboutDiagramHeightLabel = $"{a.HeightMm:0.#} mm";
+        AboutDiagramDiagonalLabel = $"{diag:0.#} mm";
     }
 
     /// <summary>The tablet's core spec read-out for the ABOUT tab's SPECIFICATIONS card (identity + active
@@ -728,6 +782,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private IReadOnlyList<TabletFact> _tabletFacts = System.Array.Empty<TabletFact>();
 
     public bool HasTabletFacts => TabletFacts.Count > 0;
+
+    /// <summary>The active area's measurements — size, diagonal, aspect ratio. Its own list so the ABOUT
+    /// tab can group them under ACTIVE AREA with the drawing, rather than trailing the model's identity.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActiveAreaFacts))]
+    private IReadOnlyList<TabletFact> _activeAreaFacts = System.Array.Empty<TabletFact>();
+
+    public bool HasActiveAreaFacts => ActiveAreaFacts.Count > 0;
 
     /// <summary>The tablet's capability read-out for the ABOUT tab's FEATURES card — everything after the
     /// active-area aspect ratio (resolution, pressure, buttons, wheels/strips, touch, USB id).</summary>
@@ -742,13 +804,22 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         var facts = new System.Collections.Generic.List<TabletFact>();
         if (!string.IsNullOrEmpty(a.Name)) facts.Add(new("Name", a.Name));
+        return facts;
+    }
+
+    // The active area's own measurements, split out of the identity card so the ACTIVE AREA section can
+    // hold them next to the drawing of the same thing. Labels drop the "Active area" prefix — the section
+    // heading carries it, and repeating it on every row was only there when they sat under "BASICS".
+    private static IReadOnlyList<TabletFact> BuildActiveAreaFacts(TabletAboutInfo a)
+    {
+        var facts = new System.Collections.Generic.List<TabletFact>();
         if (a.WidthMm > 0 && a.HeightMm > 0)
         {
-            facts.Add(new("Active area",
+            facts.Add(new("Size",
                 $"{a.WidthMm:0.#} × {a.HeightMm:0.#} mm  ({a.WidthMm / 25.4:0.0} × {a.HeightMm / 25.4:0.0} in)"));
             double diag = System.Math.Sqrt(a.WidthMm * a.WidthMm + a.HeightMm * a.HeightMm);
-            facts.Add(new("Active area diagonal", $"{diag:0.#} mm  ({diag / 25.4:0.0} in)"));
-            facts.Add(new("Active area aspect ratio", TabletAboutInfo.FormatAspectRatio(a.WidthMm, a.HeightMm)));
+            facts.Add(new("Diagonal", $"{diag:0.#} mm  ({diag / 25.4:0.0} in)"));
+            facts.Add(new("Aspect ratio", TabletAboutInfo.FormatAspectRatio(a.WidthMm, a.HeightMm)));
         }
         return facts;
     }

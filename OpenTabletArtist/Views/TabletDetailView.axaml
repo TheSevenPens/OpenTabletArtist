@@ -1,4 +1,4 @@
-<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
+﻿<UserControl x:Class="OpenTabletArtist.Views.TabletDetailView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls"
@@ -212,9 +212,9 @@
                 <StackPanel Grid.Column="0">
                 <ctrl:Section>
                     <StackPanel>
-                        <TextBlock Text="BASICS" Classes="SectionLabel largetitle" />
+                        <TextBlock Text="model" Classes="Display section" Margin="0,0,0,0" />
                         <!-- Spec rows; each is included by the VM only when the value is known. -->
-                        <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,10,0,0"
+                        <ItemsControl ItemsSource="{Binding TabletFacts}" Margin="0,6,0,0"
                                       IsVisible="{Binding HasTabletFacts}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -232,6 +232,55 @@
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,10,0,0" TextWrapping="Wrap"
                                    IsVisible="{Binding !HasTabletFacts}" />
+
+                    </StackPanel>
+                </ctrl:Section>
+
+                <!-- ACTIVE AREA — the measurements and the drawing of the same thing, together. Hidden with
+                     the tablet undetected: there is nothing to measure, and "model" above already carries the
+                     "connect this tablet" line. -->
+                <ctrl:Section Margin="0,20,0,0" IsVisible="{Binding HasActiveAreaFacts}">
+                    <StackPanel>
+                        <TextBlock Text="active area" Classes="Display section" Margin="0,0,0,0" />
+                        <ItemsControl ItemsSource="{Binding ActiveAreaFacts}" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="150,*" Margin="0,0,0,9">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- To scale. The numbers are in the rows above; what this adds is the SHAPE — how
+                             wide or how square a tablet is reads instantly from a rectangle and not at all
+                             from "224 × 148 mm". Scaled on its longer edge by the VM, so tablets of
+                             different proportions are drawn at comparable weight. Width sits under the
+                             rectangle, height beside it, and the diagonal is labelled on the line it
+                             measures. -->
+                        <Grid ColumnDefinitions="Auto,10,Auto" RowDefinitions="Auto,6,Auto"
+                              HorizontalAlignment="Left" Margin="0,8,0,2"
+                              IsVisible="{Binding HasAboutDiagram}">
+                            <Panel Grid.Row="0" Grid.Column="0"
+                                   Width="{Binding AboutDiagramWidth}" Height="{Binding AboutDiagramHeight}">
+                                <Border Background="{DynamicResource AccentMutedBrush}"
+                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5" />
+                                <!-- Dashed so it reads as a measurement over the area rather than an edge of it. -->
+                                <Path Data="{Binding AboutDiagramDiagonal}"
+                                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1"
+                                      StrokeDashArray="3,3" />
+                                <TextBlock Text="{Binding AboutDiagramDiagonalLabel}" Classes="Detail"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Padding="4,1" Background="{DynamicResource GlassBgBrush}" />
+                            </Panel>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="Detail"
+                                       Text="{Binding AboutDiagramHeightLabel}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="Detail"
+                                       Text="{Binding AboutDiagramWidthLabel}" HorizontalAlignment="Center" />
+                        </Grid>
                     </StackPanel>
                 </ctrl:Section>
 
@@ -260,8 +309,8 @@
                 <StackPanel Grid.Column="2" VerticalAlignment="Top">
                 <ctrl:Section IsVisible="{Binding HasTabletFeatures}">
                     <StackPanel>
-                        <TextBlock Text="FEATURES" Classes="SectionLabel largetitle" />
-                        <ItemsControl ItemsSource="{Binding TabletFeatures}" Margin="0,10,0,0">
+                        <TextBlock Text="features" Classes="Display section" Margin="0,0,0,0" />
+                        <ItemsControl ItemsSource="{Binding TabletFeatures}" Margin="0,6,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Grid ColumnDefinitions="150,*" Margin="0,0,0,9">
@@ -298,6 +347,7 @@
                             <ctrl:ActiveAreaDiagram x:Name="ActiveAreaDiagramControl"
                                                     Area="{Binding TabletArea}"
                                                     AccentBrush="{DynamicResource AccentBrush}"
+                                                    InkBrush="{DynamicResource TextPrimaryBrush}"
                                                     Editable="True" />
 
                             <!-- Proportional resize + maximize (#199). Drag the area / a corner on the
@@ -437,6 +487,7 @@
                                                    MappingValidity="{Binding MappingValidity}"
                                                    AccentBrush="{DynamicResource AccentBrush}"
                                                    WarningBrush="{DynamicResource WarningBrush}"
+                                                   InkBrush="{DynamicResource TextPrimaryBrush}"
                                                    Height="320" />
                         <Button Content="Display Settings" Margin="0,10,0,0"
                                 Command="{Binding OpenDisplaySettingsCommand}"

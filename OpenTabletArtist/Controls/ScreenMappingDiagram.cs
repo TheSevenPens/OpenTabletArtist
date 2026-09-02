@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -21,19 +21,38 @@ namespace OpenTabletArtist.Controls;
 /// </summary>
 public sealed class ScreenMappingDiagram : Control
 {
-    private static readonly IBrush SelFill = new SolidColorBrush(Color.FromRgb(0x63, 0x66, 0xF1));
-    private static readonly IBrush SelText = Brushes.White;
-    private static readonly IBrush UnselFill = new SolidColorBrush(Color.FromRgb(0xD9, 0xD9, 0xE3));
-    private static readonly IBrush UnselText = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22));
-    private static readonly IBrush SubText = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
-    private static readonly IBrush SubTextOnSel = new SolidColorBrush(Color.FromArgb(0xDD, 0xFF, 0xFF, 0xFF));
-    private static readonly IPen UnselBorder = new Pen(new SolidColorBrush(Color.FromRgb(0xBF, 0xBF, 0xCB)), 1);
-    private static readonly IPen SelBorder = new Pen(new SolidColorBrush(Color.FromRgb(0x4B, 0x4E, 0xC9)), 1.5);
-    private static readonly BoxShadows Glow = new(new BoxShadow
-    { OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 2, Color = Color.FromArgb(0xB0, 0x63, 0x66, 0xF1) });
-
-    private static readonly IBrush EffFill = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush Muted = new SolidColorBrush(Color.FromArgb(0x99, 0x33, 0x33, 0x33));
+    /// <summary>Every colour the diagram draws with, mixed once per render from the theme's accent and ink.
+    ///
+    /// Nothing here is a fixed value, and that is the point. The diagram used to be half themed and half
+    /// hardcoded: the beams and the active-area outline read <c>AccentBrush</c>, while the selected display
+    /// was nailed to #6366F1 — which is the Light theme's own accent. On any other skin the beams changed
+    /// colour and the box they pointed at did not, so pink beams arrived at an indigo screen. A hardcoded
+    /// #22C55E bottom beam and cool fixed greys added two more hue families on top.
+    ///
+    /// So the accent now marks only the mapping — the selected display's border, the active area's outline
+    /// and all three beams — and everything else is ink at a low alpha. Selection is carried by the border,
+    /// the glow and a slightly heavier fill rather than by a saturated block.</summary>
+    private readonly record struct Palette(
+        IBrush SelFill, IPen SelBorder, BoxShadows Glow,
+        IBrush UnselFill, IPen UnselBorder,
+        IBrush Text, IBrush SubText, IBrush EffFill)
+    {
+        public static Palette From(Color accent, Color ink) => new(
+            SelFill: DiagramDrawing.Neutral(ink, 0x21),
+            SelBorder: new Pen(new SolidColorBrush(accent), 2),
+            Glow: new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 1,
+                Color = Color.FromArgb(0x73, accent.R, accent.G, accent.B),
+            }),
+            UnselFill: DiagramDrawing.Neutral(ink, 0x0D),
+            UnselBorder: new Pen(DiagramDrawing.Neutral(ink, 0x24), 1),
+            Text: DiagramDrawing.Neutral(ink, 0xF0),
+            SubText: DiagramDrawing.Neutral(ink, 0xA6),
+            // Kept white rather than ink: this is a lightened *hole* in the tablet body, so it has to
+            // read brighter than the neutral around it in every theme.
+            EffFill: new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)));
+    }
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
 
@@ -53,6 +72,9 @@ public sealed class ScreenMappingDiagram : Control
         AvaloniaProperty.Register<ScreenMappingDiagram, DisplayMappingValidity>(nameof(MappingValidity));
     public static readonly StyledProperty<IBrush?> WarningBrushProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(WarningBrush));
+    // The theme's text colour, which every neutral in the diagram is mixed from (see Palette).
+    public static readonly StyledProperty<IBrush?> InkBrushProperty =
+        AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(InkBrush));
 
     public IReadOnlyList<DisplayInfo>? Displays { get => GetValue(DisplaysProperty); set => SetValue(DisplaysProperty, value); }
     public int? SelectedNumber { get => GetValue(SelectedNumberProperty); set => SetValue(SelectedNumberProperty, value); }
@@ -61,11 +83,13 @@ public sealed class ScreenMappingDiagram : Control
     public MappedOutputArea? MappedOutput { get => GetValue(MappedOutputProperty); set => SetValue(MappedOutputProperty, value); }
     public DisplayMappingValidity MappingValidity { get => GetValue(MappingValidityProperty); set => SetValue(MappingValidityProperty, value); }
     public IBrush? WarningBrush { get => GetValue(WarningBrushProperty); set => SetValue(WarningBrushProperty, value); }
+    public IBrush? InkBrush { get => GetValue(InkBrushProperty); set => SetValue(InkBrushProperty, value); }
 
     static ScreenMappingDiagram()
     {
         AffectsRender<ScreenMappingDiagram>(DisplaysProperty, SelectedNumberProperty, AreaProperty,
-            AccentBrushProperty, MappedOutputProperty, MappingValidityProperty, WarningBrushProperty);
+            AccentBrushProperty, MappedOutputProperty, MappingValidityProperty, WarningBrushProperty,
+            InkBrushProperty);
         AffectsMeasure<ScreenMappingDiagram>(DisplaysProperty, AreaProperty, MappedOutputProperty,
             MappingValidityProperty);
     }
@@ -90,15 +114,17 @@ public sealed class ScreenMappingDiagram : Control
     public override void Render(DrawingContext ctx)
     {
         _hitRects.Clear();
+        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackAccent;
+        var accentBrush = new SolidColorBrush(accent);
+        var ink = (InkBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackInk;
+        var pal = Palette.From(accent, ink);
+
         var displays = Displays;
         if (displays == null || displays.Count == 0)
         {
-            DiagramDrawing.DrawCentered(ctx, new Rect(Bounds.Size), "No displays detected", 13, UnselText);
+            DiagramDrawing.DrawCentered(ctx, new Rect(Bounds.Size), "No displays detected", 13, pal.SubText);
             return;
         }
-
-        var accent = (AccentBrush as ISolidColorBrush)?.Color ?? DiagramDrawing.FallbackAccent;
-        var accentBrush = new SolidColorBrush(accent);
 
         const double pad = 20;
         var inner = new Rect(Bounds.Size).Deflate(pad);
@@ -149,8 +175,8 @@ public sealed class ScreenMappingDiagram : Control
             if (box.Width <= 1 || box.Height <= 1) continue;
             _hitRects.Add((d, box));
             if (SelectedNumber == d.Number) { selectedBox = box; selDisplay = d; continue; } // drawn last
-            ctx.DrawRectangle(UnselFill, UnselBorder, box);
-            DrawDisplayLabels(ctx, box, d, false);
+            ctx.DrawRectangle(pal.UnselFill, pal.UnselBorder, box);
+            DrawDisplayLabels(ctx, box, d, pal);
         }
         // (The selected display is drawn later — after the connector beams — so it sits above them.)
 
@@ -173,8 +199,8 @@ public sealed class ScreenMappingDiagram : Control
         var tCenter = fitBox.Center;
         var fullRect = new Rect(tCenter.X - fullW * tScale / 2, tCenter.Y - fullH * tScale / 2,
                                 fullW * tScale, fullH * tScale);
-        DiagramDrawing.DrawRotatedOutline(ctx, fullRect, tCenter, rotRad,
-            DiagramDrawing.TabletFill, DiagramDrawing.TabletBorder);
+        var (tabFill, tabBorder) = DiagramDrawing.Tablet(ink);
+        DiagramDrawing.DrawRotatedOutline(ctx, fullRect, tCenter, rotRad, tabFill, tabBorder);
 
         // Effective area — upright, positioned within the (possibly turned) tablet (mirrors the Active
         // Area diagram's TabletToScreen mapping).
@@ -186,7 +212,7 @@ public sealed class ScreenMappingDiagram : Control
             var ec = new Point(tCenter.X + dx * cs - dy * sn, tCenter.Y + dx * sn + dy * cs);
             double ew = Math.Max(2, area.EffWidth * tScale), eh = Math.Max(2, area.EffHeight * tScale);
             effRect = new Rect(ec.X - ew / 2, ec.Y - eh / 2, ew, eh);
-            ctx.DrawRectangle(EffFill, new Pen(accentBrush, 1.5), effRect);
+            ctx.DrawRectangle(pal.EffFill, new Pen(accentBrush, 1.5), effRect);
         }
 
         // ── Connector: two gradient "beams" mapping like edges together — the active area's LEFT edge to
@@ -224,12 +250,14 @@ public sealed class ScreenMappingDiagram : Control
                     GradientStops =
                     {
                         new GradientStop(Color.FromArgb(0x00, color.R, color.G, color.B), 0.0),
-                        new GradientStop(Color.FromArgb(0x9C, color.R, color.G, color.B), 1.0),
+                        // 0x60, down from 0x9C. The beams used to be read against saturated display
+                        // boxes, which held them in place; against the tinted neutrals they now sit on
+                        // they were the loudest thing in the diagram, and the three of them overlap, so
+                        // the alpha compounded into a solid wedge where they crossed.
+                        new GradientStop(Color.FromArgb(0x60, color.R, color.G, color.B), 1.0),
                     }
                 };
             }
-
-            var green = Color.FromRgb(0x22, 0xC5, 0x5E);
 
             // Left beam (left edge → left edge): gradient from the active area's left-mid (Q) to the
             // display's left-mid (H).
@@ -243,18 +271,20 @@ public sealed class ScreenMappingDiagram : Control
             Beam(BeamBrush(new Point(effRect.Right, effRect.Center.Y), new Point(selBox.Right, selBox.Center.Y), rightQuad, accent),
                  selBox.TopRight, selBox.BottomRight, effRect.BottomRight, effRect.TopRight);
 
-            // Bottom beam (P N E G — active area's bottom edge → display's bottom edge): green gradient from
-            // the active area's bottom-mid (O) to the display's bottom-mid (F).
+            // Bottom beam (P N E G — active area's bottom edge → display's bottom edge): from the active
+            // area's bottom-mid (O) to the display's bottom-mid (F). It used to be green, which made a third
+            // hue out of what is the same relationship as the other two; the bottom edge is already the only
+            // beam meeting the tablet along its width, so geometry alone distinguishes it.
             var bottomQuad = new[] { effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft };
-            Beam(BeamBrush(new Point(effRect.Center.X, effRect.Bottom), new Point(selBox.Center.X, selBox.Bottom), bottomQuad, green),
+            Beam(BeamBrush(new Point(effRect.Center.X, effRect.Bottom), new Point(selBox.Center.X, selBox.Bottom), bottomQuad, accent),
                  effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
         // The selected display, drawn last so it sits above the connector beams.
         if (selectedBox is { } sbx && selDisplay is { } sdd)
         {
-            ctx.DrawRectangle(SelFill, SelBorder, new RoundedRect(sbx), Glow);
-            DrawDisplayLabels(ctx, sbx, sdd, true);
+            ctx.DrawRectangle(pal.SelFill, pal.SelBorder, new RoundedRect(sbx), pal.Glow);
+            DrawDisplayLabels(ctx, sbx, sdd, pal);
         }
 
         // ── Problem overlay: the stored output rectangle over the monitors, so an off-screen mapping is
@@ -311,11 +341,13 @@ public sealed class ScreenMappingDiagram : Control
         }
     }
 
-    private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, bool selected)
+    // No selected/unselected split in the text any more: with the selected display a tinted neutral
+    // rather than a saturated fill, both boxes take the same ink.
+    private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, Palette pal)
     {
         double numSize = Math.Clamp(Math.Min(box.Height * 0.34, box.Width * 0.4), 12, 30);
-        var num = DiagramDrawing.Text(d.Number.ToString(), numSize, selected ? SelText : UnselText);
-        var subBrush = selected ? SubTextOnSel : SubText;
+        var num = DiagramDrawing.Text(d.Number.ToString(), numSize, pal.Text);
+        var subBrush = pal.SubText;
         bool roomy = box.Height > numSize + 24 && box.Width > 70;
         // Number + a "Primary" marker only; resolution/refresh and port live in the per-display list
         // below the diagram, so the boxes stay uncluttered (#570).

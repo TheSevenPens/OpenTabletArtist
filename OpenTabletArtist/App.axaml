@@ -51,6 +51,12 @@
                  side. Keep them within a step of each other. -->
             <sys:Double x:Key="TypePivotSize">40</sys:Double>     <!-- pivots (PivotTab) -->
             <sys:Double x:Key="TypeNavSize">22</sys:Double>       <!-- top-level wordmarks (WordmarkNav) -->
+            <!-- Section headings INSIDE a tab (TextBlock.Display.section). Home's headings run at the full
+                 TypeDisplaySize because its page menu is only TypeNavSize — a 2x jump. Inside a tablet tab
+                 the tab menu is already TypePivotSize, so a 44 heading out-types the tab containing it;
+                 this steps it back under the tab menu. It happens to equal TypeNavSize today, but it is a
+                 separate role: retuning the page menu should not move section headings. -->
+            <sys:Double x:Key="TypeSectionSize">22</sys:Double>   <!-- section headings within a tab -->
             <sys:Double x:Key="TypeTitleSize">17</sys:Double>     <!-- subpage / body title -->
             <sys:Double x:Key="TypeDetailSize">11.5</sys:Double>  <!-- incidental detail under a title -->
             <sys:Double x:Key="TypeCaptionSize">10</sys:Double>   <!-- captions, badges, chips, status text -->
