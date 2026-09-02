@@ -741,6 +741,16 @@
         <Setter Property="Margin" Value="0,0,0,20" />
     </Style>
 
+    <!-- Display .section — the same voice one rung down, for headings that live INSIDE a tab rather than
+         at the top of a page. Home's page menu is TypeNavSize, so a full Display heading under it reads as
+         the level below; a tablet tab's menu is TypePivotSize, so the same heading would out-type the tab
+         it sits in. LetterSpacing scales with the size: -1.4 was drawn for TypeDisplaySize, and carrying it
+         unchanged onto a heading half that size sets the letters twice as tight. -->
+    <Style Selector="TextBlock.Display.section">
+        <Setter Property="FontSize" Value="{DynamicResource TypeSectionSize}" />
+        <Setter Property="LetterSpacing" Value="-0.7" />
+    </Style>
+
     <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning titles,
          daemon status, option choices). Now a size step above body rather than the same size in a heavier
          weight: with the three text brushes split apart (#text-hierarchy) the primary ink carries the
