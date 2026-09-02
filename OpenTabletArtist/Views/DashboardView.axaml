@@ -185,13 +185,13 @@
                                     <!-- Forget (remove saved settings). Managing connections lives here on Home.
                                          Offered for every tablet (#575): removes a remembered one, or resets a
                                          connected one to defaults — the confirm dialog says which. -->
-                                    <Button Command="{Binding ForgetCommand}"
-                                            Theme="{StaticResource GhostButton}" Padding="9,6"
-                                            ToolTip.Tip="Forget this tablet"
-                                            AutomationProperties.Name="Forget this tablet">
-                                        <PathIcon Data="{StaticResource IconTrashCanOutline}" Width="16" Height="16"
-                                                  Foreground="{Binding $parent[Button].Foreground}" />
-                                    </Button>
+                                    <!-- A c:IconButton rather than a hand-rolled GhostButton wrapping a
+                                         PathIcon: same thing, but it picks up the shared borderless icon
+                                         treatment (#row-actions) instead of drifting from it. -->
+                                    <c:IconButton Icon="{StaticResource IconTrashCanOutline}"
+                                                  Command="{Binding ForgetCommand}"
+                                                  ToolTip.Tip="Forget this tablet"
+                                                  AutomationProperties.Name="Forget this tablet" />
                                 </StackPanel>
                             </Grid>
                         </c:Entity>
