@@ -22,11 +22,12 @@
             </StackPanel>
         </c:Section>
 
-        <!-- Merged RESOURCES card: source code, releases, and the user manual as one list of links.
-             Each opens in the default browser; the full URL is on hover. -->
-        <c:Section Margin="0,12,0,0">
+        <!-- Source code, releases, help and the user manual as one list of links. Each opens in the default
+             browser; the full URL is on hover. No heading: they are accent-coloured and underlined, which
+             already marks them as a group and as links — a RESOURCES label above them was naming something
+             the reader can see. The gap above does the separating instead. -->
+        <c:Section Margin="0,16,0,0">
             <StackPanel Spacing="10">
-                <TextBlock Classes="SectionLabel largetitle" Text="RESOURCES" Margin="0,0,0,2" />
                 <!-- First in the list: the Help card that used to sit above became a manual page, and
                      this is the entry point to it. -->
                 <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding HelpUrl}"
