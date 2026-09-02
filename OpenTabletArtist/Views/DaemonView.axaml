@@ -46,11 +46,11 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="DAEMON CONNECTION" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="daemon connection" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto,Auto"
-                                  Margin="0,2,0,0">
+                                  Margin="0,6,0,0">
                                 <!-- Status: Connected / Not connected -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Status:" />
                                 <Panel Grid.Row="0" Grid.Column="1">
@@ -105,11 +105,11 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="DAEMON PROCESS" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="daemon process" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,2,0,0">
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,6,0,0">
                                 <!-- Status: Running / Not running -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Status:" />
                                 <Panel Grid.Row="0" Grid.Column="1">
@@ -220,7 +220,7 @@
                  that here as a supported setup (path + version), with a one-click switch back to bundled. -->
             <c:Section Margin="0,0,0,12" IsVisible="{Binding Status.ShowForeignDaemonWarning}">
                 <StackPanel>
-                    <TextBlock Classes="SectionLabel" Text="EXTERNAL DAEMON" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="external daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
                     <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
                                Text="OTA is connected to a daemon it didn't start — for example an officially-installed OpenTabletDriver. This is supported: OTA configures whichever daemon is running, and only starts its own bundled copy when none is." />
 
@@ -252,11 +252,11 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="SYSTEM-INSTALLED DAEMON" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="system-installed daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                  RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
+                                  RowDefinitions="Auto,Auto,Auto" Margin="0,6,0,0">
                                 <!-- Package: installed via RPM (+ version) or running from source/tarball -->
                                 <Panel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Classes="propLabel" Text="•  Package:"
@@ -315,10 +315,10 @@
             <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
             <c:Section>
                 <StackPanel MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="bundled daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                     <!-- property: value list -->
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,2,0,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Version:" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue mono"
                                    Text="{Binding CurrentOtdVersion, StringFormat='v{0}'}" />
@@ -336,9 +336,9 @@
                  UX is actually launchable — only a development tree has its sources. -->
             <c:Section Margin="0,12,0,0" IsVisible="{Binding Status.CanLaunchOtdUx}">
                 <StackPanel>
-                    <TextBlock Classes="SectionLabel" Text="OTD UX" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="otd ux" TextWrapping="Wrap" Margin="0,0,0,0" />
                     <TextBlock Text="Open OpenTabletDriver's own interface — for comparison, or for settings OTA doesn't surface."
-                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
                     <Button Content="LAUNCH OTD UI" Theme="{StaticResource GhostButton}"
                             Command="{Binding Status.LaunchOtdUxCommand}"
                             HorizontalAlignment="Left" Padding="12,6" Margin="0,10,0,0" />
