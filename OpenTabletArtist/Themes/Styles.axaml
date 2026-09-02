@@ -568,6 +568,19 @@
             <Style Selector="^:disabled">
                 <Setter Property="Opacity" Value="0.4" />
             </Style>
+            <!-- .danger — a destructive row action (delete a preset, a config). Same borderless shape as its
+                 neighbours so a row of actions reads as one set; the ERROR colour is what marks it out, and
+                 only on hover does it commit to a solid red block. A destructive secondary action should
+                 never be the loudest thing on its page: the solid-filled DeleteButton out-shouted even the
+                 accent primary once the rows around it went boxless. DeleteButton keeps the fill for its
+                 TEXT uses (Stop / Remove / Uninstall), where the button IS the page's main action. -->
+            <Style Selector="^.danger">
+                <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+            </Style>
+            <Style Selector="^.danger:pointerover">
+                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextInverseBrush}" />
+            </Style>
         </ControlTheme>
 
         <!-- LinkButton: a borderless, background-free button that reads as plain clickable text. No chrome
