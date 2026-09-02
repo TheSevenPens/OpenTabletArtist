@@ -35,7 +35,7 @@ If your tablet has wheels or dials, they'll show up here. You can assign actions
 
 ## filters
 
-*(Hidden unless enabled on **Settings → Developer**.)*
+*(Hidden unless you turn on **Show the Filters tab**, under *Tablet page extras* on **Settings → Developer**.)*
 
 A read-only list of the OpenTabletDriver **filters** on this tablet's profile — the plugin stages that sit in the pen pipeline between the tablet and your screen. Each card shows a friendly name (**Pen Dynamics**, **Hover Limit**, **Calibration**) or, for a filter OpenTabletArtist doesn't recognize, its raw type name; below that, the filter's full type path; and on the right, whether it's **Enabled** or **Disabled**.
 

@@ -60,7 +60,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*, 
 The OTD daemon is a separate process and keeps running after our app's window closes. Quick options for stopping it:
 
 - **The app's own tray icon** (above) can also Stop/Restart the daemon directly.
-- **Use the OTD UX**: Click **OTD UX** on the **Daemon** tab (Advanced → Daemon) to launch `OpenTabletDriver.UX.Wpf.exe`, which has its own system tray icon with quit/show controls.
+- **Use a standalone OpenTabletDriver install**: if you have the official OpenTabletDriver installed alongside OTA, its own interface has a system tray icon with quit/show controls.
 - **Use Task Manager**: `Ctrl+Shift+Esc`, find `OpenTabletDriver.Daemon.exe` in the Processes tab, right-click → End task.
 
 ## Troubleshooting
