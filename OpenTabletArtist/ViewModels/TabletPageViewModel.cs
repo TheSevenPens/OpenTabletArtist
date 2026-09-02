@@ -176,11 +176,18 @@ public partial class TabletPageViewModel : ObservableObject
     /// <summary>Follow an externally-chosen active tablet (another page's switcher, the tray, or auto-select
     /// on connect) so the tablet switchers stay linked. Unlike <see cref="Select"/> this is not a user
     /// action: it suppresses the last-used persist, so it doesn't loop back into SetActiveTablet. No-op if
-    /// the tablet isn't in this list or is already selected.</summary>
-    public void SyncSelection(string name)
+    /// the tablet isn't in this list or is already selected.
+    ///
+    /// <para>With <paramref name="force"/> false this only FILLS IN a selection — it leaves a valid one
+    /// alone. The periodic rebuild syncs that way so it cannot undo the user's pick: the active tablet is
+    /// always a connected one, so a forced sync on every poll pulled the switcher off any merely-remembered
+    /// tablet moments after it was chosen.</para></summary>
+    public void SyncSelection(string name, bool force = true)
     {
         if (Tablets.FirstOrDefault(t => Eq(t.Name, name)) is not { } match) return;
         if (ReferenceEquals(match, SelectedTablet)) return;
+        // A selection that is still in the list is the user's; only a forced sync may replace it.
+        if (!force && SelectedTablet is { } current && Tablets.Any(t => ReferenceEquals(t, current))) return;
         _suppressPersist = true;
         SelectedTablet = match;
         _suppressPersist = false;

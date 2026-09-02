@@ -415,8 +415,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var choices = ordered.Select(p => (p.Tablet, p.IsDetected)).ToList();
         TabletPage.SetTablets(choices);
         PenPage.SetTablets(choices);
-        // Both switchers now reflect the shared active tablet (e.g. after the daemon auto-selected one).
-        SyncPagesToActiveTablet();
+        // Both switchers now reflect the shared active tablet (e.g. after the daemon auto-selected one) —
+        // but only where they have nothing valid selected. This runs on every ~15s poll, so it must fill
+        // gaps, not overrule the user (#tablet-selection-sticks).
+        SyncPagesToActiveTablet(force: false);
     }
 
     /// <summary>Re-read the connected monitors and refresh each Home tablet card's mapped-display line in
@@ -440,12 +442,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Point the TABLET + PEN switchers at the app-wide active tablet, keeping all three tablet
     /// switchers (incl. SCRIBBLE) linked. A no-op when they already match; suppresses re-persist so it
-    /// doesn't loop back into <see cref="AppSession.SetActiveTablet"/>.</summary>
-    private void SyncPagesToActiveTablet()
+    /// doesn't loop back into <see cref="AppSession.SetActiveTablet"/>.
+    ///
+    /// <para><paramref name="force"/> distinguishes the two callers. When the active tablet genuinely
+    /// CHANGED (the tray, another switcher, auto-select on connect) the pages must follow, so it forces.
+    /// The periodic rebuild passes false: there it is only filling in a selection that is missing or
+    /// stale, and must not overwrite one the user made. Forcing there was the bug behind "selecting a
+    /// remembered tablet doesn't stick" — ActiveTabletName only ever names a CONNECTED tablet
+    /// (SetActiveTablet ignores anything else, deliberately, so single-target flows can't point at a
+    /// disconnected one), so re-asserting it every ~15s poll dragged the switcher off any tablet that
+    /// was merely remembered, seconds after the user picked it.</para></summary>
+    private void SyncPagesToActiveTablet(bool force = true)
     {
         if (_session.ActiveTabletName is not { } name) return;
-        TabletPage.SyncSelection(name);
-        PenPage.SyncSelection(name);
+        TabletPage.SyncSelection(name, force);
+        PenPage.SyncSelection(name, force);
     }
 
     /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded
