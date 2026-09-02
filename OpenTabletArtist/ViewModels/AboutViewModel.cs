@@ -37,10 +37,11 @@ public partial class AboutViewModel : ObservableObject
     /// <summary>The user manual, rendered on GitHub.</summary>
     public string UserManualUrl => $"{RepoUrl}/blob/master/docs/user/USERMANUAL.md";
 
-    /// <summary>The Drawing Tablet community Discord — where users should go for help (#568). Deliberately
-    /// not the OpenTabletDriver forums: an issue is only forwarded to OTD once it's confirmed to be an OTD
-    /// problem, so the first stop is the OTA help channel.</summary>
-    public string HelpDiscordUrl => "https://discord.gg/Rr2MXeM7Ny";
+    /// <summary>The manual's "Getting help" page — where to ask, and what to include when you do. Replaces
+    /// the Help card that used to sit on Home (#568): the guidance outgrew a paragraph, and a page can say
+    /// what to include in a post without turning the column into an essay. The Discord link lives there
+    /// now, along with the reason it is the first stop rather than the OpenTabletDriver forums.</summary>
+    public string HelpUrl => $"{RepoUrl}/blob/master/docs/user/HELP.md";
 
     /// <summary>App version, read from the assembly so it never drifts (the release workflow stamps
     /// the tag version at build). Moved here from the sidebar footer so version info lives on About.</summary>
@@ -48,9 +49,10 @@ public partial class AboutViewModel : ObservableObject
         Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
-    /// <summary>"Version v0.6.0 BETA"-style label for the About card — folds in the BETA tag that used
-    /// to sit in the title bar (#home-version).</summary>
-    public string AppVersionLabel => $"Version {AppVersion} BETA";
+    /// <summary>"(v0.6.0 BETA)"-style suffix, shown beside the ABOUT heading rather than on a line of its
+    /// own. The version is reference matter — worth having to hand when reporting a problem, not worth a
+    /// row in the column — so it rides along with the heading it belongs to.</summary>
+    public string AppVersionParenthetical => $"({AppVersion} BETA)";
 
     /// <summary>Opens a URL in the user's default browser.</summary>
     [RelayCommand]
