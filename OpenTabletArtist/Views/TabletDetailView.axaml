@@ -7,8 +7,11 @@
              xmlns:views="using:OpenTabletArtist.Views">
 
     <UserControl.Styles>
-        <!-- Express-key card lights up while its physical button is held. Only the border/background
-             change (thickness stays 1) so the highlight doesn't nudge the layout. -->
+        <!-- Express-key row lights up while its physical button is held. Only colours change — no size, no
+             border thickness — so the highlight never nudges the layout. Since Entity went boxless
+             (#debox-entity) the accent tint carries this on its own: it fills the whole row edge to edge
+             instead of a card, which reads more like a key lighting up than a card gaining an outline.
+             BorderBrush still accents the row's bottom hairline. -->
         <Style Selector="ctrl|Entity.expressCard.pressed">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
@@ -46,8 +49,7 @@
              a flat row for the direction/button rows that live directly inside a single wheel card. -->
         <DataTemplate x:Key="ButtonBindingCard">
             <ctrl:Entity Classes="expressCard" Classes.pressed="{Binding IsPressed}"
-                    Icon="{StaticResource IconButtonPointer}"
-                    Padding="16,12" Margin="0,0,0,10">
+                    Icon="{StaticResource IconButtonPointer}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
@@ -683,7 +685,7 @@
                 <ItemsControl ItemsSource="{Binding Wheels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <ctrl:Entity Padding="14,10" Margin="0,0,0,8">
+                            <ctrl:Entity>
                                 <StackPanel>
                                     <TextBlock Text="{Binding Title}" Classes="SectionLabel"
                                                IsVisible="{Binding ShowTitle}" Margin="0,0,0,6" />
