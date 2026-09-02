@@ -23,7 +23,7 @@
             <Grid RowDefinitions="Auto,Auto">
                 <!-- Pivots — the pen's sub-sections. RadioButtons switched by ElementName; content gates on
                      #XTab.IsChecked. "inputs" merges the old inputs + buttons sub-tabs (#pen-switches). -->
-                <WrapPanel Grid.Row="1" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
+                <WrapPanel Grid.Row="0" Orientation="Horizontal" x:Name="TabRail" VerticalAlignment="Center">
                     <RadioButton Content="basics" IsChecked="True" x:Name="MovementTab"
                                  Theme="{StaticResource PivotTab}" Margin="0,1,26,1" />
                     <RadioButton Content="inputs" x:Name="InputsTab"
@@ -37,7 +37,7 @@
                 <!-- Right cluster: switcher + refresh (shared TabletSwitcherBar, #580). The switcher's
                      list/selection come from the hosting PenPageViewModel (ancestor); refresh from this
                      detail VM. Detection now reads off the dropdown's per-row link icon. Forget on Home cards (#575). -->
-                <views:TabletSwitcherBar Grid.Row="0" HorizontalAlignment="Right" Margin="0,0,0,8"
+                <views:TabletSwitcherBar Grid.Row="1" HorizontalAlignment="Right" Margin="0,10,0,0"
                     Tablets="{Binding DataContext.Tablets, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
                     SelectedTablet="{Binding DataContext.SelectedTablet, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type views:PenPageView}}}"
                     RefreshCommand="{Binding RefreshCommand}" />
