@@ -105,7 +105,7 @@
         <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
              opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
         <c:Section Title="Colors &amp; opacity" IsVisible="{Binding ShowFrostControls}"
-                       Description="Pick colours from the palette and set how opaque the cards and left pane are — lower opacity lets more of the backdrop show through. Applies live.">
+                       Description="Pick colours from the palette and set how opaque the cards are — lower opacity lets more of the backdrop show through. Applies live.">
             <StackPanel Spacing="14">
                 <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
                 <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
@@ -118,13 +118,6 @@
                 </StackPanel>
                 <c:LabeledSlider Label="Card opacity" LabelWidth="130"
                                  Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
-                <!-- Left-pane (sidebar) tint — Sakura / Dark Sakura only (#554). -->
-                <StackPanel Spacing="4" IsVisible="{Binding ShowSidebarColor}">
-                    <TextBlock Text="Left pane colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:ColorPicker Color="{Binding SidebarColor, Mode=TwoWay}" />
-                </StackPanel>
-                <c:LabeledSlider Label="Left pane opacity" LabelWidth="130"
-                                 Minimum="0.15" Maximum="1" Value="{Binding SidebarOpacity}" />
                 <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
                         HorizontalAlignment="Left" Margin="0,4,0,0"
                         ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
