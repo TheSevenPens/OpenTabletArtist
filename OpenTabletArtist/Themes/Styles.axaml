@@ -43,9 +43,9 @@
                             Padding="{TemplateBinding Padding}">
                         <Panel>
                             <StackPanel>
-                                <TextBlock x:Name="PART_Title" Classes="SectionLabel"
-                                           Text="{TemplateBinding Title, Converter={x:Static conv:UpperCaseConverter.Instance}}"
-                                           Margin="0,0,0,12"
+                                <TextBlock x:Name="PART_Title" Classes="Display section"
+                                           Text="{TemplateBinding Title, Converter={x:Static conv:LowerCaseConverter.Instance}}"
+                                           Margin="0,0,0,6"
                                            IsVisible="{TemplateBinding Title, Converter={StaticResource NonEmpty}}" />
                                 <TextBlock Text="{TemplateBinding Description}"
                                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
@@ -749,6 +749,9 @@
     <Style Selector="TextBlock.Display.section">
         <Setter Property="FontSize" Value="{DynamicResource TypeSectionSize}" />
         <Setter Property="LetterSpacing" Value="-0.7" />
+        <!-- Display's own 20 is the gap under a 44px page heading; 6 is what this rung wants. Sites that
+             let the following element own the gap pass Margin="0,0,0,0" and are unaffected. -->
+        <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
 
     <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning titles,
@@ -779,15 +782,6 @@
     <Style Selector="TextBlock.Detail">
         <Setter Property="FontSize" Value="{DynamicResource TypeDetailSize}" />
         <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-    </Style>
-
-    <!-- Size-bump modifier for SectionLabel: opt a specific label a step up while keeping its all-caps /
-         SemiBold / muted / letterspaced treatment. Add "largetitle" alongside "SectionLabel".
-         It used to bump to TypeTitleSize, which was a modest step when SectionLabel sat at the content
-         size. Against the caption-size eyebrow that became a 70% jump and the bumped labels shouted, so
-         this now steps to the content size instead — still clearly more prominent, still an eyebrow. -->
-    <Style Selector="TextBlock.SectionLabel.largetitle">
-        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
     </Style>
 
     <!-- Tab Title — the heading at the top of each tablet tab (matches the tab's rail label, #499). One

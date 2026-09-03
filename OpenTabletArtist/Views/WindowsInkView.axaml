@@ -11,7 +11,7 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
                     <!-- Title -->
-                    <TextBlock Classes="SectionLabel" Text="KUUUBE'S WINDOWS INK PLUGIN"
+                    <TextBlock Classes="Display section" Text="kuuube's windows ink plugin"
                                TextWrapping="Wrap" />
 
                     <!-- Install status (version folded into the text, e.g. "v0.5.2 installed") -->

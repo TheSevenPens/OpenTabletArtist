@@ -7,10 +7,14 @@
          left holds the daemon connection + process cards; right stacks the system-package card (Linux) and
          the bundled-version card. Columns are top-aligned so the shorter right column doesn't stretch. -->
 
-    <!-- Every daemon fact reads as one consistent "property: value" list (#daemon-proplist): a muted,
-         bulleted label in the Auto column and its value in the * column, so values align down each card.
-         State is carried by the value text alone — no status dots, and no colour (so it reads the same
-         under every skin, incl. Sakura). Live numbers / versions / paths use the app's monospace font. -->
+    <!-- Every daemon fact reads as one consistent property/value pair (#daemon-proplist): a muted label
+         in the Auto column and its value in the * column, so values align down each card. The labels used
+         to carry a leading bullet and a trailing colon; the two-column grid is what separates label from
+         value, so both were punctuation standing in for a layout that already works — and the bullet
+         pushed every label off the margin the headings and body text share. Matches the tablet About
+         tab's fact rows. State is carried by the value text alone — no status dots, and no colour (so it
+         reads the same under every skin, incl. Sakura). Live numbers / versions / paths use the app's
+         monospace font. -->
     <UserControl.Styles>
         <Style Selector="TextBlock.propLabel">
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -46,13 +50,13 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="DAEMON CONNECTION" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="daemon connection" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto,Auto"
-                                  Margin="0,2,0,0">
+                                  Margin="0,6,0,0">
                                 <!-- Status: Connected / Not connected -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Status:" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Status" />
                                 <Panel Grid.Row="0" Grid.Column="1">
                                     <TextBlock Classes="propValue" Text="Connected"
                                                IsVisible="{Binding Status.IsConnected}" />
@@ -61,12 +65,12 @@
                                 </Panel>
 
                                 <!-- Connection age (from when OTA attached) -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="•  Connected since:"
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Connected since"
                                            IsVisible="{Binding ShowConnectionTiming}" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue mono"
                                            Text="{Binding ConnectedSince}" IsVisible="{Binding ShowConnectionTiming}" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="•  Up for:"
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="Up for"
                                            IsVisible="{Binding ShowConnectionTiming}" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Classes="propValue mono"
                                            Text="{Binding ConnectedDuration}" IsVisible="{Binding ShowConnectionTiming}" />
@@ -105,13 +109,13 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="DAEMON PROCESS" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="daemon process" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,2,0,0">
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,6,0,0">
                                 <!-- Status: Running / Not running -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Status:" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Status" />
                                 <Panel Grid.Row="0" Grid.Column="1">
                                     <TextBlock Classes="propValue" Text="Running" IsVisible="{Binding IsRunning}" />
                                     <TextBlock Classes="propValue" Text="Not running" IsVisible="{Binding !IsRunning}" />
@@ -119,9 +123,9 @@
 
                                 <!-- Source: bundled (ships with OTA) or an external daemon OTA didn't start -->
                                 <Panel Grid.Row="1" Grid.Column="0">
-                                    <TextBlock Classes="propLabel" Text="•  Source:"
+                                    <TextBlock Classes="propLabel" Text="Source"
                                                IsVisible="{Binding Status.ShowAppOwnedDaemon}" />
-                                    <TextBlock Classes="propLabel" Text="•  Source:"
+                                    <TextBlock Classes="propLabel" Text="Source"
                                                IsVisible="{Binding Status.ShowForeignDaemonWarning}" />
                                 </Panel>
                                 <Panel Grid.Row="1" Grid.Column="1">
@@ -132,7 +136,7 @@
                                 </Panel>
 
                                 <!-- Version of the connected daemon -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="•  Version:"
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="Version"
                                            IsVisible="{Binding Status.HasDaemonVersion}" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Classes="propValue mono"
                                            Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
@@ -140,9 +144,9 @@
 
                                 <!-- Build match vs the version OTA was built with -->
                                 <Panel Grid.Row="3" Grid.Column="0">
-                                    <TextBlock Classes="propLabel" Text="•  Build match:"
+                                    <TextBlock Classes="propLabel" Text="Build match"
                                                IsVisible="{Binding ShowVersionMatch}" />
-                                    <TextBlock Classes="propLabel" Text="•  Build match:"
+                                    <TextBlock Classes="propLabel" Text="Build match"
                                                IsVisible="{Binding ShowVersionMismatch}" />
                                 </Panel>
                                 <Panel Grid.Row="3" Grid.Column="1">
@@ -154,7 +158,7 @@
                                 </Panel>
 
                                 <!-- Process uptime (the daemon's own run time) -->
-                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="propLabel" Text="•  Uptime:"
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="propLabel" Text="Uptime"
                                            IsVisible="{Binding ShowProcessUptime}" />
                                 <TextBlock Grid.Row="4" Grid.Column="1" Classes="propValue mono"
                                            Text="{Binding ProcessUptime}" IsVisible="{Binding ShowProcessUptime}" />
@@ -220,17 +224,17 @@
                  that here as a supported setup (path + version), with a one-click switch back to bundled. -->
             <c:Section Margin="0,0,0,12" IsVisible="{Binding Status.ShowForeignDaemonWarning}">
                 <StackPanel>
-                    <TextBlock Classes="SectionLabel" Text="EXTERNAL DAEMON" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="external daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
                     <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
                                Text="OTA is connected to a daemon it didn't start — for example an officially-installed OpenTabletDriver. This is supported: OTA configures whichever daemon is running, and only starts its own bundled copy when none is." />
 
                     <!-- property: value list -->
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Path:" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Path" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue path"
                                    Text="{Binding Status.DaemonSourcePath}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="•  Version:"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Version"
                                    IsVisible="{Binding Status.HasDaemonVersion}" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue mono"
                                    Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
@@ -252,16 +256,16 @@
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" MinWidth="0">
-                            <TextBlock Classes="SectionLabel" Text="SYSTEM-INSTALLED DAEMON" TextWrapping="Wrap" />
+                            <TextBlock Classes="Display section" Text="system-installed daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <!-- property: value list -->
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                  RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
+                                  RowDefinitions="Auto,Auto,Auto" Margin="0,6,0,0">
                                 <!-- Package: installed via RPM (+ version) or running from source/tarball -->
                                 <Panel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Classes="propLabel" Text="•  Package:"
+                                    <TextBlock Classes="propLabel" Text="Package"
                                                IsVisible="{Binding OtdPackageInstalled}" />
-                                    <TextBlock Classes="propLabel" Text="•  Package:"
+                                    <TextBlock Classes="propLabel" Text="Package"
                                                IsVisible="{Binding ShowOtdPackageMissing}" />
                                 </Panel>
                                 <Panel Grid.Row="0" Grid.Column="1">
@@ -276,13 +280,13 @@
                                 </Panel>
 
                                 <!-- Packaged daemon binary path -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="•  Path:"
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Path"
                                            IsVisible="{Binding HasOtdDaemonPath}" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue path"
                                            Text="{Binding OtdDaemonPath}" IsVisible="{Binding HasOtdDaemonPath}" />
 
                                 <!-- Service running -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="•  Service:"
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="Service"
                                            IsVisible="{Binding OtdServiceActive}" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Classes="propValue"
                                            Text="Running (opentabletdriver.service)"
@@ -315,15 +319,15 @@
             <!-- Embedded OpenTabletDriver Version (moved here from Home). -->
             <c:Section>
                 <StackPanel MinWidth="0">
-                    <TextBlock Classes="SectionLabel" Text="BUNDLED DAEMON" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="bundled daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                     <!-- property: value list -->
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,2,0,0">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="•  Version:" />
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Version" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue mono"
                                    Text="{Binding CurrentOtdVersion, StringFormat='v{0}'}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="•  Path:"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Path"
                                    IsVisible="{Binding HasBundledDaemonPath}" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue path"
                                    Text="{Binding BundledDaemonPath}" IsVisible="{Binding HasBundledDaemonPath}" />
@@ -336,9 +340,9 @@
                  UX is actually launchable — only a development tree has its sources. -->
             <c:Section Margin="0,12,0,0" IsVisible="{Binding Status.CanLaunchOtdUx}">
                 <StackPanel>
-                    <TextBlock Classes="SectionLabel" Text="OTD UX" TextWrapping="Wrap" />
+                    <TextBlock Classes="Display section" Text="otd ux" TextWrapping="Wrap" Margin="0,0,0,0" />
                     <TextBlock Text="Open OpenTabletDriver's own interface — for comparison, or for settings OTA doesn't surface."
-                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                               Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
                     <Button Content="LAUNCH OTD UI" Theme="{StaticResource GhostButton}"
                             Command="{Binding Status.LaunchOtdUxCommand}"
                             HorizontalAlignment="Left" Padding="12,6" Margin="0,10,0,0" />

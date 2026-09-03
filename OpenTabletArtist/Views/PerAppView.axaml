@@ -41,7 +41,7 @@
             <c:Section>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                        <TextBlock Classes="SectionLabel" Text="DEFAULT FOR APPS" />
+                        <TextBlock Classes="Display section" Text="default for apps" />
                         <TextBlock Text="Used whenever the focused app isn't one of the mapped apps below."
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,2,0,0" TextWrapping="Wrap" />

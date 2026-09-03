@@ -43,7 +43,7 @@
 
                 <!-- LEFT — MOVEMENT: how the pen maps to the screen, plus position smoothing. -->
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="MOVEMENT" Classes="SectionLabel largetitle" />
+                    <TextBlock Text="movement" Classes="Display section" />
 
                     <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
                          A TwoWay IsChecked here made the two grouped radios fight into an apply↔reload loop. -->
@@ -104,7 +104,7 @@
                      so the entire column — header included — hides off-Windows: no lonely "PRESSING" heading on
                      macOS/Linux, where pressure/tilt come through OTD's native output anyway. -->
                 <StackPanel Grid.Column="2" IsVisible="{Binding CanDisableWindowsInk}">
-                    <TextBlock Text="PRESSING" Classes="SectionLabel largetitle" />
+                    <TextBlock Text="pressing" Classes="Display section" />
                     <StackPanel Margin="0,12,0,0" Spacing="10">
                         <RadioButton GroupName="PressMode"
                                      IsChecked="{Binding DisableWindowsInk, Converter={StaticResource InvBool}, Mode=OneWay}"
@@ -148,7 +148,7 @@
                          switch cards above so the column reads as one width. -->
                     <c:Section Width="240" HorizontalAlignment="Left">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="PEN INPUT" Classes="SectionLabel" />
+                            <TextBlock Text="pen input" Classes="Display section" />
                             <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
                                                 IsChecked="{Binding DisablePenTip}" />
                             <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
