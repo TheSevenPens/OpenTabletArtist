@@ -29,12 +29,18 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     // not-connected warning). Stays settable so tests can simulate connection state directly.
     [ObservableProperty] private bool _isConnected;
 
-    [ObservableProperty] private bool _isDebugging;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDebugReportRate))]
+    private bool _isDebugging;
     [ObservableProperty] private string _lastReportRaw = "";
     [ObservableProperty] private string _lastReportFormatted = "";
     [ObservableProperty] private int _reportCount;
-    [ObservableProperty] private string _debugReportRate = "";
-    [ObservableProperty] private string _debugTabletName = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDebugReportRate))]
+    private string _debugReportRate = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DebugTabletLabel))]
+    private string _debugTabletName = "";
     [ObservableProperty] private string _debugReportType = "";
     [ObservableProperty] private double _debugPenX;
     [ObservableProperty] private double _debugPenY;
@@ -53,6 +59,23 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _debugPenButtons = "";
     [ObservableProperty] private string _debugNearProximity = "";
     [ObservableProperty] private string _debugHoverDistance = "";
+
+    /// <summary>What the page actually shows for the tablet, so the row is never blank.
+    ///
+    /// <see cref="DebugTabletName"/> is "" until a report names a tablet — on first load and again on
+    /// every StartDebugging. The view used to lean on a binding FallbackValue for that, but a
+    /// FallbackValue only fires when a binding fails to RESOLVE; "" resolves fine, so the row rendered
+    /// as nothing at all and the user got an empty gap where a name or "No tablet" belonged.</summary>
+    public string DebugTabletLabel =>
+        string.IsNullOrWhiteSpace(DebugTabletName) ? "No tablet" : DebugTabletName;
+
+    /// <summary>Whether there is a report rate worth showing — and, with it, the separator in front of it.
+    ///
+    /// The same empty-string trap one step along: <see cref="DebugReportRate"/> stays "" until the EMA
+    /// produces a rate above 0, so for the first report or two of a session the row drew its " | "
+    /// separator against nothing. Gated on IsDebugging too, because the rate is not cleared when
+    /// debugging stops.</summary>
+    public bool ShowDebugReportRate => IsDebugging && !string.IsNullOrWhiteSpace(DebugReportRate);
 
     public DiagnosticsViewModel(IDaemonDebugSession daemon, IConnectionState? connection = null, IDeviceData? deviceData = null)
     {
