@@ -18,7 +18,7 @@ If you've found a bug or want to request a feature, [open an issue on GitHub](ht
 
 A post with these answered usually gets sorted in one reply:
 
-- **Your OTA version** — on the **Home** page, in parentheses next to *ABOUT*.
+- **Your OTA version** — on the **Home** page, at the end of the *About* paragraph.
 - **Your tablet** — the model as it appears in the tablet switcher, and whether OTA shows it as connected.
 - **What you expected, and what happened instead.** If it's about how the pen feels, say which app you were drawing in.
 - **Whether the daemon is connected** — Home tells you, and **Advanced → Daemon** has the details.

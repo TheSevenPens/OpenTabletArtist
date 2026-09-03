@@ -41,7 +41,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*. 
 
 ### Per-page guides
 
-- **[Home](HOME.md)** — the health-check landing page, *Your tablets*, supported-tablets list, and the About/Help cards.
+- **[Home](HOME.md)** — the health-check landing page: *Needs attention*, *Your tablets*, and *About* with its links out.
 - **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the developer-only filters/json tabs).
 - **[Pen page](PEN.md)** — basics · inputs · pressure (the pressure curve + smoothing).
 - **[Scribble page](SCRIBBLE.md)** — the paint canvas for confirming the pen, with live readouts.
