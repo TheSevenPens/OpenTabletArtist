@@ -12,14 +12,16 @@
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Classes="SectionLabel" Text="CURRENT TABLET" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="{Binding DebugTabletName, FallbackValue='No tablet'}"
+                        <!-- DebugTabletLabel, not DebugTabletName: the VM supplies the "No tablet" wording,
+                             because a binding FallbackValue does not fire for an empty string. -->
+                        <TextBlock Text="{Binding DebugTabletLabel}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap" />
                         <TextBlock Text=" | " Foreground="{DynamicResource TextMutedBrush}"
-                                   IsVisible="{Binding IsDebugging}" />
+                                   IsVisible="{Binding ShowDebugReportRate}" />
                         <TextBlock Text="{Binding DebugReportRate}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                   IsVisible="{Binding IsDebugging}" />
+                                   IsVisible="{Binding ShowDebugReportRate}" />
                         <TextBlock Text=" | " Foreground="{DynamicResource TextMutedBrush}"
                                    IsVisible="{Binding IsDebugging}" />
                         <TextBlock Text="{Binding ReportCount, StringFormat='Reports: {0}'}"

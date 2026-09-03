@@ -161,4 +161,56 @@ public class DiagnosticsViewModelTests
 
         Assert.True(vm.IsConnected); // stayed at the pre-dispose value
     }
+
+    // ── The page's tablet/rate line (#diagnostics-blank-name). Both properties are plain strings that
+    //    start "", and an empty string is not a failed binding, so a XAML FallbackValue never covered
+    //    them. These pin the projections that do.
+
+    [Fact]
+    public void TabletLabel_BeforeAnyReport_SaysNoTablet()
+    {
+        var vm = new DiagnosticsViewModel(new FakeDebugSession());
+
+        Assert.Equal("", vm.DebugTabletName);      // the raw value really is empty ...
+        Assert.Equal("No tablet", vm.DebugTabletLabel); // ... and the row still says something
+    }
+
+    [Fact]
+    public void TabletLabel_FollowsTheNameOnceAReportNamesOne()
+    {
+        var vm = new DiagnosticsViewModel(new FakeDebugSession()) { DebugTabletName = "Wacom PTH-660" };
+
+        Assert.Equal("Wacom PTH-660", vm.DebugTabletLabel);
+    }
+
+    [Fact]
+    public async Task TabletLabel_ReturnsToNoTablet_WhenDebuggingRestarts()
+    {
+        var fake = new FakeDebugSession();
+        var vm = new DiagnosticsViewModel(fake) { IsConnected = true, DebugTabletName = "Wacom PTH-660" };
+
+        await vm.ToggleDebuggingCommand.ExecuteAsync(null); // StartDebugging clears the name
+
+        Assert.Equal("No tablet", vm.DebugTabletLabel);
+    }
+
+    [Fact]
+    public void ReportRate_IsHidden_UntilThereIsARate()
+    {
+        var vm = new DiagnosticsViewModel(new FakeDebugSession()) { IsDebugging = true };
+
+        Assert.False(vm.ShowDebugReportRate);   // "" — would have drawn a separator against nothing
+
+        vm.DebugReportRate = "133 Hz";
+        Assert.True(vm.ShowDebugReportRate);
+    }
+
+    [Fact]
+    public void ReportRate_IsHidden_WhenNotDebugging()
+    {
+        // The rate is not cleared on stop, so it must be gated on IsDebugging as well as on being set.
+        var vm = new DiagnosticsViewModel(new FakeDebugSession()) { DebugReportRate = "133 Hz" };
+
+        Assert.False(vm.ShowDebugReportRate);
+    }
 }
