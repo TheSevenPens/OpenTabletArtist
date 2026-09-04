@@ -32,6 +32,39 @@ jobs:
             exit 1
           fi
 
+      # The same box, rebuilt by hand. The guard above greps for the CLASS, so a Border that reaches for
+      # GlassBgBrush directly walks straight past it — which is exactly how the tablet-config rows kept a
+      # card long after #574 removed them. Only a Border that ROOTS a DataTemplate is flagged: that is a
+      # row card, and rows are what c:Entity is for. Chips, progress tracks and the colour-picker surface
+      # use the same brush legitimately and are not DataTemplate roots, so they are untouched.
+      - name: Guard hand-rolled glass row cards
+        # Once, not per-OS: it is a static text check, and python3 is not dependable under Git Bash on
+        # the Windows image.
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          python3 - <<'PYEOF'
+          import glob, sys
+          bad = []
+          for path in glob.glob('OpenTabletArtist/**/*.axaml', recursive=True):
+              lines = open(path, encoding='utf-8-sig').read().splitlines()
+              for i, line in enumerate(lines):
+                  if '<DataTemplate' not in line:
+                      continue
+                  # The template's first element, plus the few attribute lines that follow it.
+                  rest = [l for l in lines[i + 1:i + 8] if l.strip()]
+                  if not rest or not rest[0].lstrip().startswith('<Border'):
+                      continue
+                  if any('GlassBgBrush' in l for l in rest[:4]):
+                      bad.append(path + ':' + str(i + 2))
+          for b in bad:
+              print(b)
+          if bad:
+              print('::error::A DataTemplate roots a Border painted with GlassBgBrush - that is a '
+                    'hand-rolled card (#574). Use c:Entity for a row, or c:Section / c:Alert.')
+              sys.exit(1)
+          PYEOF
+
       - name: Set up .NET (daemon targets net8.0, app targets net10.0)
         uses: actions/setup-dotnet@v5
         with:

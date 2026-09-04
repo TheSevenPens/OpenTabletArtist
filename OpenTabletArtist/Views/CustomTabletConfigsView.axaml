@@ -41,8 +41,12 @@
                               IsVisible="{Binding HasConfigurations}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{DynamicResource GlassBgBrush}"
-                                    CornerRadius="0" Padding="12,8" Margin="0,0,0,6">
+                            <!-- An installed config is a THING in a list, so it is a c:Entity like every
+                                 other such row. It used to be a hand-rolled Border wearing GlassBgBrush,
+                                 which rebuilt the very box #574 removed — and slipped past the CI guard,
+                                 because that greps for the GlassPanel CLASS and this reached for the brush
+                                 directly. -->
+                            <c:Entity>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
@@ -62,14 +66,21 @@
                                                 Command="{Binding $parent[ItemsControl].DataContext.ViewConfigurationCommand}"
                                                 CommandParameter="{Binding Path}"
                                                 Padding="10,4" Margin="0,0,6,4" />
-                                        <Button Content="Delete"
-                                                Theme="{StaticResource DeleteButton}"
-                                                Command="{Binding $parent[ItemsControl].DataContext.DeleteConfigurationCommand}"
-                                                CommandParameter="{Binding Path}"
-                                                Padding="10,4" Margin="0,0,0,4" />
+                                        <!-- .danger, not the solid DeleteButton. The style comment names
+                                             this exact case — "a destructive row action (delete a preset,
+                                             a config)" — but #642 only ever reached the preset. A solid
+                                             red block in a boxless row out-shouts even the accent primary;
+                                             DeleteButton's fill is for text actions that ARE the page's
+                                             main action. -->
+                                        <c:IconButton Classes="danger"
+                                                      Icon="{StaticResource IconTrashCanOutline}"
+                                                      Command="{Binding $parent[ItemsControl].DataContext.DeleteConfigurationCommand}"
+                                                      CommandParameter="{Binding Path}"
+                                                      ToolTip.Tip="Delete this configuration"
+                                                      AutomationProperties.Name="Delete" />
                                     </WrapPanel>
                                 </Grid>
-                            </Border>
+                            </c:Entity>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -104,8 +115,7 @@
                               IsVisible="{Binding HasAvailableConfigs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{DynamicResource GlassBgBrush}"
-                                    CornerRadius="0" Padding="12,8" Margin="0,0,0,6">
+                            <c:Entity>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
@@ -120,7 +130,7 @@
                                             CommandParameter="{Binding}"
                                             Padding="10,4" />
                                 </Grid>
-                            </Border>
+                            </c:Entity>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
