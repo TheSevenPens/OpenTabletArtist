@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
@@ -77,7 +78,12 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
                 bool active = dlls
                     .Select(Path.GetFileNameWithoutExtension)
                     .Any(baseName => enabledPaths.Any(p => PluginInventory.PathBelongsToAssembly(baseName!, p)));
-                list.Add(new PluginInfo(Path.GetFileName(folder), Version(dlls.FirstOrDefault()), active));
+                var name = Path.GetFileName(folder);
+                // The manifest first: PluginVersion is the RELEASE version the plugin's author publishes,
+                // and the number every other surface quotes — the Windows Ink section beside this list
+                // reads the same file. An assembly version is a different thing that often never moves
+                // between releases (Windows Ink 0.5.2 still stamps its DLL 0.4.2.0).
+                list.Add(new PluginInfo(name, ManifestVersion(folder) ?? Version(PluginInventory.PluginDll(name, dlls)), active));
             }
         }
         catch { /* best-effort listing */ }
@@ -105,6 +111,21 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
     {
         try { return Directory.EnumerateFiles(folder, "*.dll").ToList(); }
         catch { return Array.Empty<string>(); }
+    }
+
+    /// <summary>The PluginVersion from a plugin folder's metadata.json, or null when there is no manifest
+    /// or it cannot be read. Parsed loosely rather than through OTD's PluginMetadata so a hand-made or
+    /// partial manifest still yields a version.</summary>
+    private static string? ManifestVersion(string folder)
+    {
+        var path = Path.Combine(folder, "metadata.json");
+        if (!File.Exists(path)) return null;
+        try
+        {
+            var version = JObject.Parse(File.ReadAllText(path))["PluginVersion"]?.ToString();
+            return string.IsNullOrWhiteSpace(version) ? null : version;
+        }
+        catch { return null; }
     }
 
     private static string Version(string? dll)
