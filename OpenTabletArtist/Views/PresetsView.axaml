@@ -41,7 +41,7 @@
         <ItemsControl ItemsSource="{Binding Presets}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <c:Entity Icon="{StaticResource IconCardBulletedOutline}">
+                    <c:Entity>
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                 <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />

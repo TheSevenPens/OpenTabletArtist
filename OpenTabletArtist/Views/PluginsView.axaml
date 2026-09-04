@@ -34,7 +34,7 @@
         <ItemsControl ItemsSource="{Binding Plugins}" IsVisible="{Binding HasPlugins}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <c:Entity Icon="{StaticResource IconToyBrickOutline}">
+                    <c:Entity>
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
