@@ -1,3 +1,4 @@
+using System.IO;
 using OpenTabletArtist.Domain;
 using Xunit;
 
@@ -24,6 +25,13 @@ public class PluginInventoryTests
 
     // PluginDll (#plugin-version): the list used to read whichever DLL came first, which reported the
     // Windows Ink plugin as 13.0.0.0 — Newtonsoft.Json's version, since it sorts ahead of WindowsInk.dll.
+    //
+    // Paths are built with Path.Combine rather than written with a literal '\'. On Linux a backslash is an
+    // ordinary filename character, so @"C:\p\WindowsInk.dll" is ONE file called `C:\p\WindowsInk` and the
+    // folder-name match can never fire. The production code never sees such a path — Directory.EnumerateFiles
+    // returns native ones — but a hardcoded test path made these pass on Windows and fail everywhere else.
+
+    private static string Dir => Path.Combine("plugins", "Windows Ink");
 
     [Fact]
     public void PluginDll_PicksTheOneNamedAfterTheFolder_NotTheFirst()
@@ -31,13 +39,13 @@ public class PluginInventoryTests
         // The real Windows Ink folder, in the order the filesystem returns it.
         var dlls = new[]
         {
-            @"C:\p\Windows Ink\Newtonsoft.Json.dll",
-            @"C:\p\Windows Ink\VMulti.dll",
-            @"C:\p\Windows Ink\VoiD.dll",
-            @"C:\p\Windows Ink\WindowsInk.dll",
+            Path.Combine(Dir, "Newtonsoft.Json.dll"),
+            Path.Combine(Dir, "VMulti.dll"),
+            Path.Combine(Dir, "VoiD.dll"),
+            Path.Combine(Dir, "WindowsInk.dll"),
         };
 
-        Assert.Equal(@"C:\p\Windows Ink\WindowsInk.dll", PluginInventory.PluginDll("Windows Ink", dlls));
+        Assert.Equal(Path.Combine(Dir, "WindowsInk.dll"), PluginInventory.PluginDll("Windows Ink", dlls));
     }
 
     [Theory]
@@ -46,17 +54,19 @@ public class PluginInventoryTests
     [InlineData("OpenTabletArtist.Dynamics", "OpenTabletArtist.Dynamics")]  // punctuation on both sides
     public void PluginDll_IgnoresCaseAndPunctuationWhenMatching(string folder, string dllBaseName)
     {
-        var dlls = new[] { @"C:\p\zzz-other.dll", $@"C:\p\{dllBaseName}.dll" };
+        var wanted = Path.Combine("plugins", dllBaseName + ".dll");
+        var dlls = new[] { Path.Combine("plugins", "zzz-other.dll"), wanted };
 
-        Assert.Equal($@"C:\p\{dllBaseName}.dll", PluginInventory.PluginDll(folder, dlls));
+        Assert.Equal(wanted, PluginInventory.PluginDll(folder, dlls));
     }
 
     [Fact]
     public void PluginDll_FallsBackToTheFirst_WhenNothingMatchesTheFolder()
     {
-        var dlls = new[] { @"C:\p\Alpha.dll", @"C:\p\Beta.dll" };
+        var first = Path.Combine("plugins", "Alpha.dll");
+        var dlls = new[] { first, Path.Combine("plugins", "Beta.dll") };
 
-        Assert.Equal(@"C:\p\Alpha.dll", PluginInventory.PluginDll("Something Else", dlls));
+        Assert.Equal(first, PluginInventory.PluginDll("Something Else", dlls));
     }
 
     [Fact]
