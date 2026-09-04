@@ -73,7 +73,7 @@
                  rail until that page moved to the horizontal tab menu, so there is nothing left to line
                  up with. Kept as a token rather than inlined because the rail is a pattern, not a
                  one-off — a second one should match this width. -->
-            <sys:Double x:Key="TabRailWidth">160</sys:Double>
+            <sys:Double x:Key="SubtabRailWidth">160</sys:Double>
 
             <!-- Default (no) bottom glow band; the code-generated Sakura backdrop overrides it (#556). -->
             <SolidColorBrush x:Key="AppBackdropGlowBrush" Color="Transparent" />
