@@ -379,7 +379,7 @@ public partial class ThemeViewModel : ObservableObject
         // Defaults are per-skin, so a reset only restores the active skin's own look (#241).
         CardOpacity = DefaultCardOpacityForSkin;
         PetalsEnabled = true;
-        PetalsOpacity = 0.25; // matches AnimationSettings.PetalsOpacity's default (a soft scatter)
+        PetalsOpacity = AnimationSettings.DefaultPetalsOpacity;
         CardColor = Color.Parse(DefaultCardHexForSkin);
         AccentColor = Color.Parse(DefaultAccentHexForSkin); // per-skin highlight (#557)
         if (IsSakura) SakuraBaseColor = GradientBackground.DefaultBaseColor; // codegen backdrop base (#556)
