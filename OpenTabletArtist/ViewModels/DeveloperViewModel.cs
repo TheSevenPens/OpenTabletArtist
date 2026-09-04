@@ -67,7 +67,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
     /// <summary>Add a real, saved (but not-detected) profile for the picked tablet, so it appears in Home's
     /// tablet list without the hardware — for debugging the cards, mapping line, and navigation. Replaces any
     /// tablet previously force-added this session. It's a genuine remembered profile: it survives restart and
-    /// is removed via the card's Forget button (or Clear here).</summary>
+    /// is removed via the row's trash icon (or Clear here).</summary>
     [RelayCommand]
     private async Task AddForcedTablet()
     {
@@ -92,7 +92,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         Settings.ForcedTabletName = name;
         await _settings!.ApplyAndSaveSettingsAsync(settings);
         ForceTabletStatus = $"Added \"{name}\" to Home's tablet list as a remembered (not-detected) tablet. " +
-                            "It's a real saved profile — remove it with the card's Forget button, or Clear here.";
+                            "It's a real saved profile — remove it with the row's trash icon, or Clear here.";
     }
 
     /// <summary>Remove the tablet force-added this session from Home's list (and settings).</summary>

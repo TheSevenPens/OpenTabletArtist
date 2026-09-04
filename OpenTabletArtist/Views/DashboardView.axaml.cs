@@ -39,7 +39,7 @@ public partial class DashboardView : UserControl
     }
 
     /// <summary>Double-clicking a tablet card opens that tablet's settings — the per-card "edit" button
-    /// was removed in favour of this (#tablet-card-mapping). A double-click on the Forget button is
+    /// was removed in favour of this (#tablet-card-mapping). A double-click on the trash icon is
     /// handled by the button itself and won't reach here as a card activation.</summary>
     private void OnTabletCardDoubleTapped(object? sender, TappedEventArgs e)
     {
