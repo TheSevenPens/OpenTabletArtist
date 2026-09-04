@@ -130,7 +130,7 @@
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #TabletsSubtab.IsChecked}">
             <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Force a tablet in the list"
-                       Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the card, its mapped-display line, and navigation. It's a real profile: remove it with the card's Forget button, or Clear here. Adding a tablet replaces the one previously forced this session.">
+                       Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the row, its mapped-display line, and navigation. It's a real profile: remove it with the row's trash icon, or Clear here. Adding a tablet replaces the one previously forced this session.">
                 <StackPanel Spacing="10">
                     <AutoCompleteBox ItemsSource="{Binding SupportedTabletNames}"
                                      SelectedItem="{Binding SelectedForcedTablet, Mode=TwoWay}"
