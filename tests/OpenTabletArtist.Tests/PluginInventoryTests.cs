@@ -1,3 +1,4 @@
+using System.IO;
 using OpenTabletArtist.Domain;
 using Xunit;
 
@@ -20,5 +21,57 @@ public class PluginInventoryTests
     {
         Assert.Equal("Active", new PluginInfo("X", "1.0", true).Status);
         Assert.Equal("Installed", new PluginInfo("X", "1.0", false).Status);
+    }
+
+    // PluginDll (#plugin-version): the list used to read whichever DLL came first, which reported the
+    // Windows Ink plugin as 13.0.0.0 — Newtonsoft.Json's version, since it sorts ahead of WindowsInk.dll.
+    //
+    // Paths are built with Path.Combine rather than written with a literal '\'. On Linux a backslash is an
+    // ordinary filename character, so @"C:\p\WindowsInk.dll" is ONE file called `C:\p\WindowsInk` and the
+    // folder-name match can never fire. The production code never sees such a path — Directory.EnumerateFiles
+    // returns native ones — but a hardcoded test path made these pass on Windows and fail everywhere else.
+
+    private static string Dir => Path.Combine("plugins", "Windows Ink");
+
+    [Fact]
+    public void PluginDll_PicksTheOneNamedAfterTheFolder_NotTheFirst()
+    {
+        // The real Windows Ink folder, in the order the filesystem returns it.
+        var dlls = new[]
+        {
+            Path.Combine(Dir, "Newtonsoft.Json.dll"),
+            Path.Combine(Dir, "VMulti.dll"),
+            Path.Combine(Dir, "VoiD.dll"),
+            Path.Combine(Dir, "WindowsInk.dll"),
+        };
+
+        Assert.Equal(Path.Combine(Dir, "WindowsInk.dll"), PluginInventory.PluginDll("Windows Ink", dlls));
+    }
+
+    [Theory]
+    [InlineData("Windows Ink", "WindowsInk")]                               // folder has a space an assembly name cannot
+    [InlineData("windows ink", "WindowsInk")]                               // case differs
+    [InlineData("OpenTabletArtist.Dynamics", "OpenTabletArtist.Dynamics")]  // punctuation on both sides
+    public void PluginDll_IgnoresCaseAndPunctuationWhenMatching(string folder, string dllBaseName)
+    {
+        var wanted = Path.Combine("plugins", dllBaseName + ".dll");
+        var dlls = new[] { Path.Combine("plugins", "zzz-other.dll"), wanted };
+
+        Assert.Equal(wanted, PluginInventory.PluginDll(folder, dlls));
+    }
+
+    [Fact]
+    public void PluginDll_FallsBackToTheFirst_WhenNothingMatchesTheFolder()
+    {
+        var first = Path.Combine("plugins", "Alpha.dll");
+        var dlls = new[] { first, Path.Combine("plugins", "Beta.dll") };
+
+        Assert.Equal(first, PluginInventory.PluginDll("Something Else", dlls));
+    }
+
+    [Fact]
+    public void PluginDll_ReturnsNull_ForAnEmptyFolder()
+    {
+        Assert.Null(PluginInventory.PluginDll("Windows Ink", System.Array.Empty<string>()));
     }
 }

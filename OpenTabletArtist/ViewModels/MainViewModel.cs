@@ -184,21 +184,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
             () => OpenSettingsTab(SettingsTab.System),   // Driver Cleanup lives in the System pivot now
-            () => OpenAdvancedTab(AdvancedTab.Drivers),  // Windows Ink → Drivers pivot
+            () => OpenAdvancedTab(AdvancedTab.Plugins),  // Windows Ink → Plugins pivot (#winink-to-plugins)
             () => OpenAdvancedTab(AdvancedTab.Drivers),  // VMulti → Drivers pivot
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
         Test = new TestViewModel(_session.Daemon, _session);
         Log = new LogViewModel(_session.Daemon, _session);
-        Plugins = new PluginsViewModel(_session, _session);
+        // Windows Ink moved from the DRIVERS pivot to PLUGINS, so it is handed to that page — and only
+        // on Windows, since PLUGINS (unlike DRIVERS) is not filtered off other platforms.
+        Plugins = new PluginsViewModel(_session, _session,
+            OperatingSystem.IsWindows() ? WindowsInk : null);
         Daemon = new DaemonViewModel(_daemonStatus);
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 
         // The ADVANCED tabbed page groups the driver/daemon subpages behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
-        Advanced = new AdvancedViewModel(Daemon, WindowsInk, Configs, Diagnostics, Log, Plugins,
-            VMulti);
+        Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins, VMulti);
         // The Console tab manages its own scroll, so the outer scroll toggles as the ADVANCED tab changes
         // (not just when the top-level page changes) — re-evaluate ContentScrollBarVisibility on tab switch.
         Advanced.PropertyChanged += (_, e) =>

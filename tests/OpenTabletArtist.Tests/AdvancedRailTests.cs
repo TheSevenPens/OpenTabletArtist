@@ -12,7 +12,7 @@ namespace OpenTabletArtist.Tests;
 public class AdvancedRailTests
 {
     [Theory]
-    [InlineData(AdvancedTab.Drivers)]  // Windows Ink + VMulti, merged into one Windows-only pivot
+    [InlineData(AdvancedTab.Drivers)]  // the VMulti driver; Windows-only (Windows Ink moved to PLUGINS)
     public void WindowsOnlyTabs_HiddenOffWindows_ShownOnWindows(AdvancedTab tab)
     {
         Assert.True(AdvancedViewModel.RailTabAppliesToOs(tab, isWindows: true));

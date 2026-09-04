@@ -569,12 +569,19 @@
             <Style Selector="^:disabled">
                 <Setter Property="Opacity" Value="0.4" />
             </Style>
-            <!-- .danger — a destructive row action (delete a preset, a config). Same borderless shape as its
-                 neighbours so a row of actions reads as one set; the ERROR colour is what marks it out, and
-                 only on hover does it commit to a solid red block. A destructive secondary action should
-                 never be the loudest thing on its page: the solid-filled DeleteButton out-shouted even the
-                 accent primary once the rows around it went boxless. DeleteButton keeps the fill for its
-                 TEXT uses (Stop / Remove / Uninstall), where the button IS the page's main action. -->
+            <!-- .danger — a destructive row action shown as an ICON: delete a tablet config, remove a
+                 per-app mapping. Same borderless shape as its neighbours so a row of actions reads as one
+                 set; the ERROR colour is what marks it out, and only on hover does it commit to a solid red
+                 block. A destructive secondary action should never be the loudest thing on its page: the
+                 solid-filled DeleteButton out-shouted even the accent primary once the rows around it went
+                 boxless. DeleteButton keeps the fill for its TEXT uses (Stop / Remove / Uninstall), where
+                 the button IS the page's main action.
+
+                 The preset was the first example here and is no longer one. When that row's secondary
+                 actions moved into a "…" menu (#preset-overflow), delete went with them and became a NAMED
+                 item carrying ErrorBrush rather than a glyph. So: a row whose actions stay visible uses
+                 .danger; a row with an overflow menu puts delete inside it, where a word identifies the
+                 action better than a colour can. -->
             <Style Selector="^.danger">
                 <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
             </Style>
