@@ -16,7 +16,11 @@
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
-                <RadioButton Content="FORCE WARNINGS" IsChecked="True" x:Name="ForceWarningsTab"
+                <RadioButton Content="WARNINGS" IsChecked="True" x:Name="WarningsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
+                             Theme="{StaticResource TabRadioButton}" />
+                <RadioButton Content="TABLETS" x:Name="TabletsTab"
                              Theme="{StaticResource TabRadioButton}" />
                 <RadioButton Content="INTERFACE" x:Name="InterfaceTab"
                              Theme="{StaticResource TabRadioButton}" />
@@ -27,114 +31,115 @@
             </StackPanel>
         </Border>
 
-        <!-- FORCE WARNINGS: two columns — synthetic catalog-warning toggles on the left, and real
-             (persisted) config-error triggers on the right. Both drive Home's "Needs attention" list. -->
+        <!-- WARNINGS: force each real catalog warning with its true copy. Synthetic and non-persisted —
+             nothing on disk changes, the warning is simply asserted into Home's Needs attention list. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ForceWarningsTab.IsChecked}">
-            <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
-
-                <!-- LEFT: force each real catalog warning with its true copy (synthetic, non-persisted). -->
-                <c:Section Grid.Column="0" Title="Trigger health warnings"
-                           Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
-                    <StackPanel Spacing="4">
-                        <c:ToggleSetting Label="Windows Ink plugin not installed"
-                                         IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
-                        <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
-                                         IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
-                        <c:ToggleSetting Label="VMulti driver not installed"
-                                         IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
-                        <c:ToggleSetting Label="Conflicting tablet driver detected"
-                                         IsChecked="{Binding Settings.ForceDriverConflict}" />
-                        <c:ToggleSetting Label="Running as administrator"
-                                         IsChecked="{Binding Settings.ForceRunningElevated}" />
-                        <c:ToggleSetting Label="Tray icon can't be shown"
-                                         Description="GNOME with no StatusNotifierItem host; Linux-only in reality."
-                                         IsChecked="{Binding Settings.ForceTrayHostUnavailable}" />
-                        <c:ToggleSetting Label="Using an external daemon"
-                                         IsChecked="{Binding Settings.ForceForeignDaemon}" />
-                        <c:ToggleSetting Label="Tablet: not using Windows Ink"
-                                         Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
-                                         IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
-                        <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
-                                         IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
-                        <c:ToggleSetting Label="Tablet: custom display mapping"
-                                         IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
-                        <c:ToggleSetting Label="Tablet: using a custom config override"
-                                         Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
-                                         IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
-                        <c:ToggleSetting Label="Tablet: pen isn't set up for drawing"
-                                         Description="The artist-pen-behavior bundle for a sample tablet — all four offenders, with per-setting review links."
-                                         IsChecked="{Binding Settings.ForceArtistPenBehavior}" />
-                    </StackPanel>
-                </c:Section>
-
-                <!-- RIGHT: introduce REAL (persisted) misconfigurations for reproducing UX issues, and force
-                     a supported tablet into Home's list for debugging without the hardware. -->
-                <StackPanel Grid.Column="2" Spacing="24">
-                <c:Section Title="Introduce config errors"
-                           Description="These make a real, persisted settings change on the active tablet, so the matching warning appears for genuine bad state. Undo each from the tablet's own tabs.">
-                    <StackPanel Spacing="14">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
-                            <Button Content="Push active area off-screen"
-                                    Command="{Binding PushMappingOffScreenCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Rotate active area to a non-standard angle" FontWeight="SemiBold" />
-                            <Button Content="Set rotation to 20°"
-                                    Command="{Binding PushMappingRotationCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
-                            <Button Content="Create off calibration"
-                                    Command="{Binding CreateBadCalibrationCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="Break the pen for drawing (artist health check)" FontWeight="SemiBold" />
-                            <Button Content="Turn off Windows Ink + tip + pressure + tilt"
-                                    Command="{Binding BreakPenForDrawingCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    HorizontalAlignment="Left" Margin="0,4,0,0" />
-                        </StackPanel>
-
-                        <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
-                    </StackPanel>
-                </c:Section>
-
-                <!-- Force a supported tablet into Home's tablet list (#force-tablet): adds a real, saved
-                     (but not-detected) profile so its card can be exercised without the hardware. -->
-                <c:Section Title="Force a tablet in the list"
-                           Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the card, its mapped-display line, and navigation. It's a real profile: remove it with the card's Forget button, or Clear here. Adding a tablet replaces the one previously forced this session.">
-                    <StackPanel Spacing="10">
-                        <AutoCompleteBox ItemsSource="{Binding SupportedTabletNames}"
-                                         SelectedItem="{Binding SelectedForcedTablet, Mode=TwoWay}"
-                                         FilterMode="ContainsOrdinal"
-                                         MinWidth="300" MaxWidth="380" HorizontalAlignment="Left"
-                                         PlaceholderText="Type to find a tablet…" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Add to tablet list" Command="{Binding AddForcedTabletCommand}"
-                                    Theme="{StaticResource AccentButton}" Padding="12,6" />
-                            <Button Content="Clear" Command="{Binding ClearForcedTabletCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding ForceTabletStatus}" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   IsVisible="{Binding HasForceTabletStatus}" Margin="0,2,0,0" />
-                    </StackPanel>
-                </c:Section>
+                      IsVisible="{Binding #WarningsTab.IsChecked}">
+            <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Trigger health warnings"
+                       Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
+                <StackPanel Spacing="4">
+                    <c:ToggleSetting Label="Windows Ink plugin not installed"
+                                     IsChecked="{Binding Settings.ForceWinInkNotInstalled}" />
+                    <c:ToggleSetting Label="Windows Ink plugin may be incompatible"
+                                     IsChecked="{Binding Settings.ForceWinInkVersionMismatch}" />
+                    <c:ToggleSetting Label="VMulti driver not installed"
+                                     IsChecked="{Binding Settings.ForceVMultiNotInstalled}" />
+                    <c:ToggleSetting Label="Conflicting tablet driver detected"
+                                     IsChecked="{Binding Settings.ForceDriverConflict}" />
+                    <c:ToggleSetting Label="Running as administrator"
+                                     IsChecked="{Binding Settings.ForceRunningElevated}" />
+                    <c:ToggleSetting Label="Tray icon can't be shown"
+                                     Description="GNOME with no StatusNotifierItem host; Linux-only in reality."
+                                     IsChecked="{Binding Settings.ForceTrayHostUnavailable}" />
+                    <c:ToggleSetting Label="Using an external daemon"
+                                     IsChecked="{Binding Settings.ForceForeignDaemon}" />
+                    <c:ToggleSetting Label="Tablet: not using Windows Ink"
+                                     Description="Emitted for a sample tablet; its Fix deep-links to that (absent) tablet."
+                                     IsChecked="{Binding Settings.ForceTabletNotWinInk}" />
+                    <c:ToggleSetting Label="Tablet: mapped area partly off-screen"
+                                     IsChecked="{Binding Settings.ForceTabletMappingOffScreen}" />
+                    <c:ToggleSetting Label="Tablet: custom display mapping"
+                                     IsChecked="{Binding Settings.ForceTabletMappingCustom}" />
+                    <c:ToggleSetting Label="Tablet: using a custom config override"
+                                     Description="Emitted for a sample tablet; its Review deep-links to the CONFIGS tab."
+                                     IsChecked="{Binding Settings.ForceTabletConfigOverride}" />
+                    <c:ToggleSetting Label="Tablet: pen isn't set up for drawing"
+                                     Description="The artist-pen-behavior bundle for a sample tablet — all four offenders, with per-setting review links."
+                                     IsChecked="{Binding Settings.ForceArtistPenBehavior}" />
                 </StackPanel>
-            </Grid>
+            </c:Section>
+        </ScrollViewer>
+
+        <!-- CONFIG ERRORS: the opposite of WARNINGS — these write a REAL, persisted change to the active
+             tablet, so the matching warning appears for genuine bad state rather than being asserted.
+             Undo each from the tablet's own tabs. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ConfigErrorsTab.IsChecked}">
+            <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Introduce config errors"
+                       Description="These make a real, persisted settings change on the active tablet, so the matching warning appears for genuine bad state. Undo each from the tablet's own tabs.">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Map active area partly off-screen" FontWeight="SemiBold" />
+                        <Button Content="Push active area off-screen"
+                                Command="{Binding PushMappingOffScreenCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Rotate active area to a non-standard angle" FontWeight="SemiBold" />
+                        <Button Content="Set rotation to 20°"
+                                Command="{Binding PushMappingRotationCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Create a slightly-wrong calibration" FontWeight="SemiBold" />
+                        <Button Content="Create off calibration"
+                                Command="{Binding CreateBadCalibrationCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Break the pen for drawing (artist health check)" FontWeight="SemiBold" />
+                        <Button Content="Turn off Windows Ink + tip + pressure + tilt"
+                                Command="{Binding BreakPenForDrawingCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />
+                </StackPanel>
+            </c:Section>
+        </ScrollViewer>
+
+        <!-- TABLETS: force a supported tablet into Home's list (#force-tablet) — a real, saved but
+             not-detected profile, so its row can be exercised without the hardware. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #TabletsTab.IsChecked}">
+            <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Force a tablet in the list"
+                       Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the card, its mapped-display line, and navigation. It's a real profile: remove it with the card's Forget button, or Clear here. Adding a tablet replaces the one previously forced this session.">
+                <StackPanel Spacing="10">
+                    <AutoCompleteBox ItemsSource="{Binding SupportedTabletNames}"
+                                     SelectedItem="{Binding SelectedForcedTablet, Mode=TwoWay}"
+                                     FilterMode="ContainsOrdinal"
+                                     MinWidth="300" MaxWidth="380" HorizontalAlignment="Left"
+                                     PlaceholderText="Type to find a tablet…" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Add to tablet list" Command="{Binding AddForcedTabletCommand}"
+                                Theme="{StaticResource AccentButton}" Padding="12,6" />
+                        <Button Content="Clear" Command="{Binding ClearForcedTabletCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ForceTabletStatus}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding HasForceTabletStatus}" Margin="0,2,0,0" />
+                </StackPanel>
+            </c:Section>
         </ScrollViewer>
 
         <!-- INTERFACE: two columns — tablet-page extras (hidden tabs / controls) on the left, the
