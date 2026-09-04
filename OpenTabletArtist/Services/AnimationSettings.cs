@@ -28,14 +28,19 @@ public static class AnimationSettings
         }
     }
 
-    /// <summary>Overall opacity of the falling petals (0..1). Defaults to 0.25 — a soft, unobtrusive
-    /// scatter over the Sakura backdrop rather than fully opaque petals.</summary>
+    /// <summary>The petal opacity a fresh install starts at, and what Reset to defaults restores.
+    /// The one place the number lives — ThemeViewModel's reset reads it rather than repeating it, so the
+    /// two cannot drift apart.</summary>
+    public const double DefaultPetalsOpacity = 0.22;
+
+    /// <summary>Overall opacity of the falling petals (0..1). A soft, unobtrusive scatter over the Sakura
+    /// backdrop rather than fully opaque petals — see <see cref="DefaultPetalsOpacity"/>.</summary>
     public static double PetalsOpacity
     {
         get => double.TryParse(AppSettings.Get(PetalsOpacityKey), NumberStyles.Float,
                    CultureInfo.InvariantCulture, out var v)
             ? Math.Clamp(v, 0, 1)
-            : 0.25;
+            : DefaultPetalsOpacity;
         set
         {
             AppSettings.Set(PetalsOpacityKey, Math.Clamp(value, 0, 1).ToString(CultureInfo.InvariantCulture));
