@@ -27,8 +27,20 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
     public bool HasPlugins => Plugins.Count > 0;
     partial void OnPluginsChanged(List<PluginInfo> value) => OnPropertyChanged(nameof(HasPlugins));
 
-    public PluginsViewModel(IDeviceData deviceData, ISettingsCoordinator settings)
+    /// <summary>The Windows Ink section, shown beside the plugin list — it manages a plugin, so it belongs
+    /// with them rather than under DRIVERS with the VMulti driver (#wininK-to-plugins).
+    ///
+    /// Null off Windows. Nothing inside WindowsInkView guards the OS itself: it relied entirely on the
+    /// DRIVERS pivot being filtered out off-Windows, and PLUGINS is not. The composition root decides, so
+    /// this stays a pure container and the OS check stays in one place.</summary>
+    public WindowsInkViewModel? WindowsInk { get; }
+
+    public bool HasWindowsInk => WindowsInk != null;
+
+    public PluginsViewModel(IDeviceData deviceData, ISettingsCoordinator settings,
+                            WindowsInkViewModel? windowsInk = null)
     {
+        WindowsInk = windowsInk;
         _deviceData = deviceData;
         _settings = settings;
         _deviceData.DataLoaded += Refresh;

@@ -48,16 +48,18 @@ public partial class AdvancedViewModel : ObservableObject
     private readonly CustomTabletConfigsViewModel _configs;
 
     public AdvancedViewModel(
-        DaemonViewModel daemon, WindowsInkViewModel windowsInk, CustomTabletConfigsViewModel configs,
+        DaemonViewModel daemon, CustomTabletConfigsViewModel configs,
         DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins,
         VMultiViewModel vmulti)
     {
         _diagnostics = diagnostics;
         _configs = configs;
 
-        // Daemon status + version get their own tab; the Console log is its own tab beside it. Drivers
-        // still stacks Windows Ink + VMulti (Windows-only).
-        var drivers = new CompositeSectionViewModel(windowsInk, vmulti);
+        // Daemon status + version get their own tab; the Console log is its own tab beside it. DRIVERS is
+        // now just the VMulti driver: Windows Ink moved to PLUGINS, where it sits beside the plugin list it
+        // manages a plugin for (#winink-to-plugins). Still a composite of one, so adding a second driver
+        // section back is a one-word change.
+        var drivers = new CompositeSectionViewModel(vmulti);
         var tabs = new AdvancedTabItem[]
         {
             new("DAEMON", AdvancedTab.Daemon, daemon),
