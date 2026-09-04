@@ -25,12 +25,13 @@ OpenTabletDriver separately. You need **Windows 11 (64-bit)** and a
 
 ## Using the Interface
 
-The app is made of **pages**, and a page may be divided into **tabs**. Two menus follow from that:
+The app is made of **pages**, a page may be divided into **tabs**, and a tab may divide once more into **subtabs**:
 
 - The **page menu** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced**.
 - The **tab menu** sits just beneath it, in larger type, listing that page's tabs. Pages with nothing to divide (**Home**, **Scribble**) have no tab menu.
+- **Subtabs** run down the left-hand side, as a vertical list rather than a menu across the top. Only one tab has them: **Settings → Developer**.
 
-In both menus the current item is marked in the accent colour and a heavier weight — there's no underline.
+In both menus the current item is marked in the accent colour and a heavier weight — there's no underline. A selected subtab takes an accent bar down its left edge instead.
 
 - **Tablet** and **Pen** carry the selected tablet's settings.
 - A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the **Tablet** and **Pen** pages and picks which tablet you're editing.
