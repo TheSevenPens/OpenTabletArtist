@@ -66,8 +66,13 @@
                  later phase. -->
             <CrossFade x:Key="PageFade" Duration="0:0:0.18" />
 
-            <!-- One shared width for every tabbed page's vertical tab rail, so they line up across pages.
-                 Sized to comfortably fit the longest subpage name. -->
+            <!-- Width of the vertical SUBTAB rail — the third level of navigation, below the page menu
+                 and the tab menu, for a tab whose contents divide again. Sized to comfortably fit the
+                 longest subtab name.
+                 Settings / Developer is the only page with one: it was shared with the tablet page's
+                 rail until that page moved to the horizontal tab menu, so there is nothing left to line
+                 up with. Kept as a token rather than inlined because the rail is a pattern, not a
+                 one-off — a second one should match this width. -->
             <sys:Double x:Key="TabRailWidth">160</sys:Double>
 
             <!-- Default (no) bottom glow band; the code-generated Sakura backdrop overrides it (#556). -->

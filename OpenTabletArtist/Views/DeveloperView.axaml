@@ -9,7 +9,10 @@
          a gated SETTINGS tab (#572), so the page title is the Settings tab title — no PageTitle here. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
 
-        <!-- Tab rail — one tab per topic (matches the tablet page's rail). -->
+        <!-- Subtab rail — one subtab per topic. Developer is the only page that divides a third time
+             (page menu -> tab menu -> subtabs), so this is the app's only vertical rail; the tablet page
+             had one until it moved to the horizontal tab menu. Each subtab is a RadioButton in one
+             implicit group, with the pane below bound to its IsChecked. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
             <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
