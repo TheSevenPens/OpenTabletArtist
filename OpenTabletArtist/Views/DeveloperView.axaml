@@ -15,26 +15,26 @@
              implicit group, with the pane below bound to its IsChecked. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="{StaticResource TabRailWidth}" Spacing="2">
-                <RadioButton Content="WARNINGS" IsChecked="True" x:Name="WarningsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="TABLETS" x:Name="TabletsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="INTERFACE" x:Name="InterfaceTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="SCREENSHOTS" x:Name="ScreenshotsTab"
-                             Theme="{StaticResource TabRadioButton}" />
-                <RadioButton Content="GRADIENTS" x:Name="GradientsTab"
-                             Theme="{StaticResource TabRadioButton}" />
+            <StackPanel Width="{StaticResource SubtabRailWidth}" Spacing="2">
+                <RadioButton Content="WARNINGS" IsChecked="True" x:Name="WarningsSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="TABLETS" x:Name="TabletsSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="INTERFACE" x:Name="InterfaceSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="SCREENSHOTS" x:Name="ScreenshotsSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="GRADIENTS" x:Name="GradientsSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
             </StackPanel>
         </Border>
 
         <!-- WARNINGS: force each real catalog warning with its true copy. Synthetic and non-persisted —
              nothing on disk changes, the warning is simply asserted into Home's Needs attention list. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #WarningsTab.IsChecked}">
+                      IsVisible="{Binding #WarningsSubtab.IsChecked}">
             <c:Section MaxWidth="1040" HorizontalAlignment="Left" Title="Trigger health warnings"
                        Description="Each toggle makes the real catalog warning appear in Home's Needs attention list with its true text and Fix button. Turn it off to remove the card.">
                 <!-- Two columns, split where the catalog already splits: app- and system-level warnings on
@@ -82,7 +82,7 @@
              tablet, so the matching warning appears for genuine bad state rather than being asserted.
              Undo each from the tablet's own tabs. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ConfigErrorsTab.IsChecked}">
+                      IsVisible="{Binding #ConfigErrorsSubtab.IsChecked}">
             <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Introduce config errors"
                        Description="These make a real, persisted settings change on the active tablet, so the matching warning appears for genuine bad state. Undo each from the tablet's own tabs.">
                 <StackPanel Spacing="14">
@@ -128,7 +128,7 @@
         <!-- TABLETS: force a supported tablet into Home's list (#force-tablet) — a real, saved but
              not-detected profile, so its row can be exercised without the hardware. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #TabletsTab.IsChecked}">
+                      IsVisible="{Binding #TabletsSubtab.IsChecked}">
             <c:Section MaxWidth="640" HorizontalAlignment="Left" Title="Force a tablet in the list"
                        Description="Add a saved (remembered, not-detected) profile for any tablet OpenTabletDriver supports, so it shows in Home's tablet list without the hardware — handy for exercising the card, its mapped-display line, and navigation. It's a real profile: remove it with the card's Forget button, or Clear here. Adding a tablet replaces the one previously forced this session.">
                 <StackPanel Spacing="10">
@@ -153,7 +153,7 @@
         <!-- INTERFACE: two columns — tablet-page extras (hidden tabs / controls) on the left, the
              force-window-size presets on the right. Both tweak how the app's own UI is shown. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #InterfaceTab.IsChecked}">
+                      IsVisible="{Binding #InterfaceSubtab.IsChecked}">
             <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
 
                 <!-- LEFT: reveal the normally-hidden tablet-page tabs / controls. -->
@@ -207,7 +207,7 @@
              older Screenshot tab was retired, but it is a capture tool, not a way of showing the UI, and
              it had outgrown sharing a column with the window-size presets. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ScreenshotsTab.IsChecked}">
+                      IsVisible="{Binding #ScreenshotsSubtab.IsChecked}">
             <!-- Capture the live app UI to a PNG via RenderTargetBitmap (#437). Renders the actual
                  controls, so it's pixel-perfect and free of the window-focus / occlusion / DPI issues that
                  plague manual capture. The render happens in code-behind (it needs the visual). -->
@@ -246,7 +246,7 @@
              the copy-back target: tune here, paste the JSON to bake it into GradientBackground.Defaults(). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       DataContext="{Binding Gradients}"
-                      IsVisible="{Binding #GradientsTab.IsChecked}">
+                      IsVisible="{Binding #GradientsSubtab.IsChecked}">
             <StackPanel Spacing="12" MaxWidth="1120" HorizontalAlignment="Left">
 
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"

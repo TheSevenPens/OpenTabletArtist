@@ -608,12 +608,11 @@
             </Style>
         </ControlTheme>
 
-        <!-- Tab RadioButton (for dialog tabs) -->
-        <!-- Real-tab look: flat header with a 2px accent underline on the selected tab (sits on the
-             tab strip's baseline), instead of a pill button. -->
-        <!-- Vertical tab used by the tablet editor's left rail: a left accent bar + text,
-             with a soft fill on hover/selected. Stretches to fill the rail width. -->
-        <ControlTheme x:Key="TabRadioButton" TargetType="RadioButton">
+        <!-- One subtab in a vertical rail (Settings / Developer): a left accent bar + text, with a soft
+             fill on hover and when selected. Stretches to fill the rail width.
+             Three comments used to sit here describing a dialog tab and an underlined horizontal tab —
+             both earlier drafts of this control, neither what it has drawn for some time. -->
+        <ControlTheme x:Key="SubtabRadioButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="Template">
