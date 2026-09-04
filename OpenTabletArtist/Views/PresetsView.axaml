@@ -45,33 +45,33 @@
                                         Command="{Binding $parent[ItemsControl].DataContext.LoadPresetCommand}"
                                         CommandParameter="{Binding Name}"
                                         Margin="0,0,6,0" Padding="12,6" />
-                                <Button Content="Update" Theme="{StaticResource GhostButton}"
-                                        Command="{Binding $parent[ItemsControl].DataContext.UpdatePresetCommand}"
-                                        CommandParameter="{Binding Name}"
-                                        Margin="0,0,6,0" Padding="12,6" />
-                                <c:IconButton Icon="{StaticResource IconContentDuplicate}"
-                                              Command="{Binding $parent[ItemsControl].DataContext.DuplicatePresetCommand}"
-                                              CommandParameter="{Binding Name}"
-                                              ToolTip.Tip="Save a copy of this preset"
-                                              AutomationProperties.Name="Duplicate"
-                                              Margin="0,0,6,0" />
-                                <c:IconButton Icon="{StaticResource IconEdit}"
-                                              Command="{Binding $parent[ItemsControl].DataContext.RenamePresetCommand}"
-                                              CommandParameter="{Binding Name}"
-                                              ToolTip.Tip="Rename this preset"
-                                              AutomationProperties.Name="Rename"
-                                              Margin="0,0,6,0" />
-                                <!-- A danger IconButton, not a solid DeleteButton (#delete-weight): it sits
-                                     in a row beside Duplicate and Rename, and it should read as one of that
-                                     set — marked out by colour, not by being the only filled block on the
-                                     page. It commits to solid red on hover. -->
-                                <c:IconButton Classes="danger"
-                                              Icon="{StaticResource IconTrashCanOutline}"
-                                              Command="{Binding $parent[ItemsControl].DataContext.DeletePresetCommand}"
-                                              CommandParameter="{Binding Name}"
-                                              ToolTip.Tip="Delete this preset"
-                                              AutomationProperties.Name="Delete"
-                                              Margin="0,0,0,4" />
+                                <!-- Everything but Load, behind one control (#preset-overflow). The row
+                                     carried five: an accent block, an outlined box and three bare glyphs —
+                                     three treatments for one cluster, and by some way the densest row in
+                                     the app. Load is why the list exists and it overwrites your live
+                                     settings, so it stays a labelled target; Update, Duplicate, Rename and
+                                     Delete are all rare and deliberate, and three of the four open a dialog
+                                     anyway. Delete keeps the error colour, but as a NAMED item rather than
+                                     a red glyph you have to hover to identify.
+
+                                     Click handlers, not Command bindings: a flyout's contents live in a
+                                     popup outside this row's visual tree, so $parent[ItemsControl] does not
+                                     resolve from in here. LogView's COPY menu is the same pattern. -->
+                                <c:IconButton Icon="{StaticResource IconDotsHorizontal}"
+                                              ToolTip.Tip="More actions for this preset"
+                                              AutomationProperties.Name="More actions">
+                                    <c:IconButton.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Update from current settings"
+                                                      Click="OnUpdatePreset" />
+                                            <MenuItem Header="Duplicate" Click="OnDuplicatePreset" />
+                                            <MenuItem Header="Rename…" Click="OnRenamePreset" />
+                                            <Separator />
+                                            <MenuItem Header="Delete" Click="OnDeletePreset"
+                                                      Foreground="{DynamicResource ErrorBrush}" />
+                                        </MenuFlyout>
+                                    </c:IconButton.Flyout>
+                                </c:IconButton>
                             </WrapPanel>
                         </Grid>
                     </c:Entity>

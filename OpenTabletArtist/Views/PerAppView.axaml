@@ -63,7 +63,11 @@
             <ItemsControl ItemsSource="{Binding Mappings}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <c:Section Margin="0,0,0,10">
+                        <!-- Entity, not Section: a mapping is a THING in a list (Section is the grouping
+                             role, for a block of settings). Entity's hairline separates the rows, so the
+                             per-row bottom margin goes with it — a gap and a rule are two answers to the
+                             same question. -->
+                        <c:Entity>
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
                                     <TextBlock Classes="CardTitle" Text="{Binding ExeName}" />
@@ -85,11 +89,17 @@
                                           ItemsSource="{Binding SnapshotOptions}"
                                           SelectedItem="{Binding SelectedSnapshot}" />
 
-                                <Button Grid.Column="2" Content="Remove" Theme="{StaticResource DeleteButton}"
-                                        VerticalAlignment="Center" Padding="12,6"
-                                        Command="{Binding RemoveCommand}" />
+                                <!-- .danger icon rather than the solid DeleteButton: removing one mapping
+                                     is a row action, not this page's main action, and a filled red block
+                                     was the loudest thing in a boxless row. -->
+                                <c:IconButton Grid.Column="2" Classes="danger"
+                                              Icon="{StaticResource IconTrashCanOutline}"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="Remove this mapping"
+                                              AutomationProperties.Name="Remove this mapping"
+                                              Command="{Binding RemoveCommand}" />
                             </Grid>
-                        </c:Section>
+                        </c:Entity>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
