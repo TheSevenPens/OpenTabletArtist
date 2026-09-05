@@ -14,18 +14,22 @@
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
-                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                        <c:IconButton Icon="{StaticResource IconRefresh}"
-                                      Command="{Binding RefreshConfigurationsCommand}"
-                                      ToolTip.Tip="Reload list"
-                                      AutomationProperties.Name="Reload list"
-                                      Margin="0,0,6,4" />
-                        <c:IconButton Icon="{StaticResource IconFolderOutline}"
-                                      Command="{Binding OpenConfigurationsFolderCommand}"
-                                      ToolTip.Tip="Open the configurations folder in File Explorer"
-                                      AutomationProperties.Name="Open the configurations folder in File Explorer"
-                                      Margin="0,0,0,4" />
-                    </WrapPanel>
+                    <!-- Both actions behind one "…", as on the daemon, Windows Ink, VMulti and
+                         driver-cleanup cards. Two bare glyphs read as a small toolbar the section did not
+                         need; the menu names what each one does instead of relying on a tooltip. -->
+                    <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                                  Icon="{StaticResource IconDotsHorizontal}"
+                                  ToolTip.Tip="Configurations folder actions"
+                                  AutomationProperties.Name="Configurations folder actions">
+                        <c:IconButton.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Reload list"
+                                          Command="{Binding RefreshConfigurationsCommand}" />
+                                <MenuItem Header="Open configurations folder"
+                                          Command="{Binding OpenConfigurationsFolderCommand}" />
+                            </MenuFlyout>
+                        </c:IconButton.Flyout>
+                    </c:IconButton>
                 </Grid>
 
                 <!-- Empty state -->

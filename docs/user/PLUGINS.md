@@ -52,10 +52,10 @@ First check that the plugin is built for the driver OTA ships. A plugin compiled
 
 Then install it by hand:
 
-1. **Advanced → Plugins → Browse** — opens the driver's plugin folder (usually `%LOCALAPPDATA%\OpenTabletDriver\Plugins`).
+1. **Advanced → Plugins → ⋯ → Open plugin folder** — opens the driver's plugin folder (usually `%LOCALAPPDATA%\OpenTabletDriver\Plugins`).
 2. Create a folder named after the plugin and put its `.dll` file(s) inside, along with `metadata.json` if the download includes one.
 3. **Advanced → Daemon → Restart** — the driver only picks up plugins as it starts.
-4. Back on **Advanced → Plugins**, hit refresh. The plugin should now be listed, showing **Installed**; it becomes **Active** once something actually references it.
+4. Back on **Advanced → Plugins**, use **⋯ → Rescan plugin folder**. The plugin should now be listed, showing **Installed**; it becomes **Active** once something actually references it.
 
 To remove one, delete its folder and restart the driver again.
 
