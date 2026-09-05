@@ -92,15 +92,36 @@ public static class GradientBackground
 
     public static List<GradientGlow> Defaults() => new()
     {
-        // Bottom edge: two warm peach glows anchored left / right, a soft magenta core and a small
-        // hot-pink accent centred low. Top edge: a broad faint magenta wash and a blue corner accent.
-        // Tuned in the Developer → Gradients editor (#556).
-        new() { CenterX = 0.10, Width = 0.833, ReachPx = 99, Color = "#FFD3AE", CenterOpacity = 0.905 },
-        new() { CenterX = 0.90, Width = 0.843, ReachPx = 102, Color = "#FFD3AE", CenterOpacity = 0.90 },
-        new() { CenterX = 0.58, Width = 0.645, ReachPx = 44, Color = "#EE5FA7", CenterOpacity = 0.313 },
-        new() { CenterX = 0.581, Width = 0.246, ReachPx = 34, Color = "#FF2E70", CenterOpacity = 0.630 },
-        new() { CenterX = 0.50, Width = 1.5, ReachPx = 150, Color = "#FF00EE", CenterOpacity = 0.136, Edge = GlowEdge.Top },
-        new() { CenterX = 1.00, Width = 0.465, ReachPx = 46, Color = "#007BFF", CenterOpacity = 0.255, Edge = GlowEdge.Top },
+        // Four full-width washes, two per horizontal edge: a deep peach band along the bottom with a thin
+        // magenta line sitting in it, and a broad faint magenta wash down from the top with a hot-pink line
+        // at its lip. Tuned in the Developer → Gradients editor (#556).
+        //
+        // These replaced six radial blobs when linear glows arrived (#glow-linear) — a wash reads as an even
+        // band of light along an edge, where four overlapping blobs left visible lobes on a wide window.
+        // CenterX and Width are carried but unused (they are radial's), so a glow switched to radial in the
+        // editor starts from the placement its blob had.
+        new()
+        {
+            CenterX = 0.0, Width = 0.833, ReachPx = 143.47826086956522, Color = "#FFBC83",
+            CenterOpacity = 0.905, Style = GlowStyle.Linear, Falloff = 0.2459875776397517,
+        },
+        new()
+        {
+            CenterX = 0.58, Width = 0.9245031055900623, ReachPx = 16.77018633540373, Color = "#D71C7A",
+            CenterOpacity = 0.21180124223602498, Style = GlowStyle.Linear, Falloff = 0.15416149068322982,
+        },
+        new()
+        {
+            CenterX = 0.5, Width = 1.5, ReachPx = 211.30434782608697, Color = "#FF00EE",
+            CenterOpacity = 0.136, Style = GlowStyle.Linear, Edge = GlowEdge.Top,
+            Falloff = 0.22332919254658395,
+        },
+        new()
+        {
+            CenterX = 1.0, Width = 0.465, ReachPx = 19.75155279503114, Color = "#FF0096",
+            CenterOpacity = 0.22670807453416142, Style = GlowStyle.Linear, Edge = GlowEdge.Top,
+            Falloff = 0.08499378881987595,
+        },
     };
 
     public static List<GradientGlow> Load() => Parse(AppSettings.Get(Key));
