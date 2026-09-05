@@ -57,37 +57,38 @@
                                IsVisible="{Binding CleanupBusy}" />
                 </StackPanel>
 
-                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                    <!-- When not installed: just an Install button -->
-                    <Button Content="Install" Theme="{StaticResource AccentButton}"
-                            Command="{Binding InstallCleanupCommand}"
-                            Padding="12,6" Margin="0,0,8,4"
-                            IsEnabled="{Binding !CleanupBusy}"
-                            IsVisible="{Binding !CleanupInstalled}" />
-
-                    <!-- When installed: Browse, Run, Uninstall -->
-                    <Button Theme="{StaticResource AccentButton}"
-                            Command="{Binding OpenFolderCommand}"
-                            CommandParameter="{Binding CleanupInstallPath}"
-                            ToolTip.Tip="Open the install folder in File Explorer"
-                            AutomationProperties.Name="Open the install folder in File Explorer"
-                            Width="34" Height="30" Padding="0" Margin="0,0,8,4"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            IsVisible="{Binding CleanupInstalled}">
-                        <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
-                                  Foreground="{Binding $parent[Button].Foreground}" />
-                    </Button>
-                    <Button Content="Run" Theme="{StaticResource AccentButton}"
-                            Command="{Binding RunCleanupCommand}"
-                            Padding="12,6" Margin="0,0,8,4"
-                            IsEnabled="{Binding !CleanupBusy}"
-                            IsVisible="{Binding CleanupInstalled}" />
-                    <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
-                            Command="{Binding UninstallCleanupCommand}"
-                            Padding="12,6" Margin="0,0,0,4"
-                            IsEnabled="{Binding !CleanupBusy}"
-                            IsVisible="{Binding CleanupInstalled}" />
-                </WrapPanel>
+                <!-- Every action behind one "…", as on the VMulti, Windows Ink and daemon cards. The
+                     row held an accent Install OR an accent Browse / Run / Uninstall — three identically
+                     weighted blocks, one of which removes the tool. Install and the installed-only actions
+                     never show together, so the menu is three items at most.
+                     Uninstall takes the error colour; it was an AccentButton, indistinguishable from Run.
+                     Progress stays in the left column, which already prints CleanupStatus while busy. -->
+                <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                              Icon="{StaticResource IconDotsHorizontal}"
+                              ToolTip.Tip="Driver cleanup tool actions"
+                              AutomationProperties.Name="Driver cleanup tool actions">
+                    <c:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Install"
+                                      Command="{Binding InstallCleanupCommand}"
+                                      IsVisible="{Binding !CleanupInstalled}"
+                                      IsEnabled="{Binding !CleanupBusy}" />
+                            <MenuItem Header="Run"
+                                      Command="{Binding RunCleanupCommand}"
+                                      IsVisible="{Binding CleanupInstalled}"
+                                      IsEnabled="{Binding !CleanupBusy}" />
+                            <MenuItem Header="Open install folder"
+                                      Command="{Binding OpenFolderCommand}"
+                                      CommandParameter="{Binding CleanupInstallPath}"
+                                      IsVisible="{Binding CleanupInstalled}" />
+                            <MenuItem Header="Uninstall"
+                                      Command="{Binding UninstallCleanupCommand}"
+                                      IsVisible="{Binding CleanupInstalled}"
+                                      IsEnabled="{Binding !CleanupBusy}"
+                                      Foreground="{DynamicResource ErrorBrush}" />
+                        </MenuFlyout>
+                    </c:IconButton.Flyout>
+                </c:IconButton>
             </Grid>
         </c:Section>
     </StackPanel>
