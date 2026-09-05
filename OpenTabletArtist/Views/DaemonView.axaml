@@ -75,14 +75,21 @@
                             </Grid>
                         </StackPanel>
 
-                        <!-- REFRESH (reconnect / reload) -->
-                        <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                            <c:IconButton Icon="{StaticResource IconRefresh}"
-                                          Command="{Binding Status.RefreshCommand}"
-                                          ToolTip.Tip="Check daemon status"
-                                          AutomationProperties.Name="Check daemon status"
-                                          IsEnabled="{Binding !Status.IsDaemonBusy}" />
-                        </WrapPanel>
+                        <!-- Actions behind one "…", as on the daemon-process card below and the preset
+                             rows (#preset-overflow). One card's worth of actions should not out-weigh the
+                             facts it sits beside. -->
+                        <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                                      Icon="{StaticResource IconDotsHorizontal}"
+                                      ToolTip.Tip="Daemon connection actions"
+                                      AutomationProperties.Name="Daemon connection actions">
+                            <c:IconButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuItem Header="Check daemon status"
+                                              Command="{Binding Status.RefreshCommand}"
+                                              IsEnabled="{Binding !Status.IsDaemonBusy}" />
+                                </MenuFlyout>
+                            </c:IconButton.Flyout>
+                        </c:IconButton>
                     </Grid>
 
                     <!-- Auto-connect ran past the timeout: it's still retrying in the background, so say so
@@ -164,32 +171,38 @@
                         </StackPanel>
 
                         <!-- REFRESH / START / RESTART / STOP -->
-                        <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                            <c:IconButton Icon="{StaticResource IconRefresh}"
-                                          Command="{Binding Status.RefreshCommand}"
-                                          ToolTip.Tip="Check daemon status"
-                                          AutomationProperties.Name="Check daemon status"
-                                          IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                          Margin="0,0,6,0" />
-                            <!-- Start: shown when not connected and not mid-connect -->
-                            <Button Content="Start" Theme="{StaticResource AccentButton}"
-                                    Command="{Binding Status.StartDaemonCommand}"
-                                    IsVisible="{Binding Status.ShowStartButton}"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Padding="12,6" />
-                            <!-- Restart: shown when connected -->
-                            <Button Content="Restart" Theme="{StaticResource AccentButton}"
-                                    Command="{Binding Status.RestartDaemonCommand}"
-                                    IsVisible="{Binding Status.IsConnected}"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Padding="12,6" />
-                            <!-- Stop: shown when connected -->
-                            <Button Content="Stop" Theme="{StaticResource DeleteButton}"
-                                    Command="{Binding Status.StopDaemonCommand}"
-                                    IsVisible="{Binding Status.IsConnected}"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Padding="12,6" Margin="6,0,0,0" />
-                        </WrapPanel>
+                        <!-- Every action behind one "…". This card carried a refresh glyph, an accent
+                             Start/Restart block and a solid red Stop — three treatments, and the loudest
+                             thing on a page whose job is reporting status. Start and Restart are mutually
+                             exclusive (each shows on its own condition), so the menu is never longer than
+                             three items. Stop keeps the error colour, but as a NAMED item rather than a
+                             filled red block. -->
+                        <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                                      Icon="{StaticResource IconDotsHorizontal}"
+                                      ToolTip.Tip="Daemon process actions"
+                                      AutomationProperties.Name="Daemon process actions">
+                            <c:IconButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuItem Header="Check daemon status"
+                                              Command="{Binding Status.RefreshCommand}"
+                                              IsEnabled="{Binding !Status.IsDaemonBusy}" />
+                                    <Separator />
+                                    <MenuItem Header="Start"
+                                              Command="{Binding Status.StartDaemonCommand}"
+                                              IsVisible="{Binding Status.ShowStartButton}"
+                                              IsEnabled="{Binding !Status.IsDaemonBusy}" />
+                                    <MenuItem Header="Restart"
+                                              Command="{Binding Status.RestartDaemonCommand}"
+                                              IsVisible="{Binding Status.IsConnected}"
+                                              IsEnabled="{Binding !Status.IsDaemonBusy}" />
+                                    <MenuItem Header="Stop"
+                                              Command="{Binding Status.StopDaemonCommand}"
+                                              IsVisible="{Binding Status.IsConnected}"
+                                              IsEnabled="{Binding !Status.IsDaemonBusy}"
+                                              Foreground="{DynamicResource ErrorBrush}" />
+                                </MenuFlyout>
+                            </c:IconButton.Flyout>
+                        </c:IconButton>
                     </Grid>
 
                     <!-- Activity: indeterminate progress + phase text while a lifecycle op runs OR while the
