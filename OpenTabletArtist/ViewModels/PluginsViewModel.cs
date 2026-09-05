@@ -32,7 +32,8 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
     /// with them rather than under DRIVERS with the VMulti driver (#wininK-to-plugins).
     ///
     /// Null off Windows. Nothing inside WindowsInkView guards the OS itself: it relied entirely on the
-    /// DRIVERS pivot being filtered out off-Windows, and PLUGINS is not. The composition root decides, so
+    /// VMULTI pivot (which carried it) being filtered out off-Windows, and PLUGINS is not. The composition
+    /// root decides, so
     /// this stays a pure container and the OS check stays in one place.</summary>
     public WindowsInkViewModel? WindowsInk { get; }
 

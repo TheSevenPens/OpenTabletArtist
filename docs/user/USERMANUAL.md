@@ -47,7 +47,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*. 
 - **[Pen page](PEN.md)** — basics · inputs · pressure (the pressure curve + smoothing).
 - **[Scribble page](SCRIBBLE.md)** — the paint canvas for confirming the pen, with live readouts.
 - **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Appearance · System (Startup/Shortcut/Driver Cleanup) · Developer.
-- **[Advanced page](ADVANCED.md)** — Daemon · Console · Drivers · Configs · Diagnostics · Plugins.
+- **[Advanced page](ADVANCED.md)** — Daemon · Console · VMulti · Configs · Diagnostics · Plugins.
 - **[Plugins](PLUGINS.md)** — what ships with OTA, what the Pen Dynamics plugin does, and whether you need any others.
 - **[Getting help](HELP.md)** — where to ask when something isn't working, and what to include.
 

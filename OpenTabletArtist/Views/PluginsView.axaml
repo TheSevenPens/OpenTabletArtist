@@ -58,7 +58,7 @@
         </StackPanel>
 
         <!-- Hidden off Windows, where the VM is null: nothing inside WindowsInkView guards the OS itself —
-             it relied on the DRIVERS pivot being filtered out, and PLUGINS is not. -->
+             it relied on the VMULTI pivot (which carried it) being filtered out, and PLUGINS is not. -->
         <ContentControl Grid.Column="2" VerticalAlignment="Top"
                         Content="{Binding WindowsInk}"
                         IsVisible="{Binding HasWindowsInk}" />

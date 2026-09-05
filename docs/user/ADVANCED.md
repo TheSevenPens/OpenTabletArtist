@@ -2,7 +2,7 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-**Advanced** hosts OpenTabletDriver's own controls, divided into tabs: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Drivers** (Windows Ink Plugin + VMulti — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
+**Advanced** hosts OpenTabletDriver's own controls, divided into tabs: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **VMulti** (the virtual pen driver — Windows-only), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**.
 
 ## Daemon
 
@@ -22,20 +22,7 @@ Ownership is detected by resolving the process on the other end of the named pip
 
 The live OpenTabletDriver daemon log, streamed with per-level coloring and a **minimum-level** filter. **Copy** is a dropdown — copy the visible log as **text**, a **Markdown** table, or an **HTML** table. **Clear** empties the view.
 
-## Drivers  *(Windows-only)*
-
-The **Drivers** tab stacks two cards: the **Windows Ink Plugin** on top and the **VMulti Driver** below.
-
-### Windows Ink Plugin
-
-Manages the third-party Windows Ink output-mode plugin (from Kuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
-
-- **Install status** — the plugin version folded into the text (e.g. "v0.5.2 installed"), or "Not installed."
-- **Output mode** — whether the tablet actually uses a Windows Ink mode ("Plugin active" / "Not configured").
-- **Supported driver vs OTD** — the plugin's declared supported driver version alongside the running OTD version. A warning indicator appears if the installed plugin doesn't declare support for the current OTD version (per OTD's own compatibility rule).
-- **Buttons** — **Install** (when not installed); **Check for Update** (when installed) which queries the official OTD Plugin-Repository — if a newer plugin version is found the button becomes **Install Update (vX)**, otherwise it reports "Up to date"; **Uninstall**; and a **Refresh** icon (top-right) that re-reads the installed plugin and re-checks the repository in one step. Install/update/uninstall are driven through the daemon's plugin RPC; the card updates its status as soon as each operation completes.
-
-### VMulti Driver
+## VMulti  *(Windows-only)*
 
 VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt through. Detection runs via both Setup API and HID enumeration. Has **Install** / **Uninstall** wizards, **Refresh** to re-check, and **Browse** to open the driver folder. Both **Install** and **Uninstall** run in-app (one UAC prompt each, no flashing cmd window) and offer to **restart** Windows afterward. Install creates the VMulti device via `devcon`; Uninstall removes the driver and the active device *and* cleans up the leftover driverless `djpnewton\vmulti` nodes (Device Manager Code 28) that the stock removal left behind. Detection reflects a *working* driver, so any remaining driverless leftovers are reported as **Not installed**, not as installed.
 
@@ -59,3 +46,14 @@ A read-only list of the OpenTabletDriver plugins installed in the daemon's plugi
 Note that a plugin can be installed here and still not run: when OTA is using the bundled daemon, it keeps only its own **filters** enabled and switches off any others. See [Tablet → filters](TABLET.md#filters).
 
 For what OTA ships and installs on its own, whether you need anything else, and how to add a plugin by hand, see the **[Plugins guide](PLUGINS.md)**.
+
+### Windows Ink Plugin
+
+Manages the third-party Windows Ink output-mode plugin (from Kuuube's VoiDPlugins), which delivers pen pressure and tilt to your apps. Shows:
+
+- **Install status** — the plugin version folded into the text (e.g. "v0.5.2 installed"), or "Not installed."
+- **Output mode** — whether the tablet actually uses a Windows Ink mode ("Plugin active" / "Not configured").
+- **Supported driver vs OTD** — the plugin's declared supported driver version alongside the running OTD version. A warning indicator appears if the installed plugin doesn't declare support for the current OTD version (per OTD's own compatibility rule).
+- **Buttons** — **Install** (when not installed); **Check for Update** (when installed) which queries the official OTD Plugin-Repository — if a newer plugin version is found the button becomes **Install Update (vX)**, otherwise it reports "Up to date"; **Uninstall**; and a **Refresh** icon (top-right) that re-reads the installed plugin and re-checks the repository in one step. Install/update/uninstall are driven through the daemon's plugin RPC; the card updates its status as soon as each operation completes.
+
+*(This card used to live on the **Drivers** tab beside the VMulti driver. It manages a plugin, so it sits beside the plugin list now; that tab is **VMulti**.)*
