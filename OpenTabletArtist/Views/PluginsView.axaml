@@ -17,23 +17,26 @@
     <Grid ColumnDefinitions="*,32,*">
 
         <StackPanel Grid.Column="0">
-        <!-- Header card: title + rescan/browse actions. -->
+        <!-- Header card: title + folder actions.
+
+             Both actions sit behind one "…", as on the configs, daemon, Windows Ink, VMulti and
+             driver-cleanup cards. They were two bare glyphs stacked under the heading, which read as a
+             small toolbar and left each action to a tooltip to explain. -->
         <c:Section>
-            <Grid RowDefinitions="Auto,Auto" ColumnSpacing="12">
-                <TextBlock Grid.Row="0" Text="installed plugins" Classes="Display section"
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Grid.Column="0" Text="installed plugins" Classes="Display section"
                            VerticalAlignment="Center" />
-                <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                    <c:IconButton Icon="{StaticResource IconRefresh}"
-                                  Command="{Binding RefreshCommand}"
-                                  ToolTip.Tip="Rescan the plugin folder"
-                                  AutomationProperties.Name="Rescan the plugin folder"
-                                  Margin="0,0,6,4" />
-                    <c:IconButton Icon="{StaticResource IconFolderOutline}"
-                                  Command="{Binding BrowseCommand}"
-                                  ToolTip.Tip="Open the plugin folder in File Explorer"
-                                  AutomationProperties.Name="Open the plugin folder in File Explorer"
-                                  Margin="0,0,0,4" />
-                </WrapPanel>
+                <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                              Icon="{StaticResource IconDotsHorizontal}"
+                              ToolTip.Tip="Plugin folder actions"
+                              AutomationProperties.Name="Plugin folder actions">
+                    <c:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Rescan plugin folder" Command="{Binding RefreshCommand}" />
+                            <MenuItem Header="Open plugin folder" Command="{Binding BrowseCommand}" />
+                        </MenuFlyout>
+                    </c:IconButton.Flyout>
+                </c:IconButton>
             </Grid>
         </c:Section>
 
