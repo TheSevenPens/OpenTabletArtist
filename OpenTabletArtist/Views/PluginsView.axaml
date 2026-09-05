@@ -8,7 +8,13 @@
          Two columns: the installed-plugin list on the left, the Windows Ink section on the right. Windows
          Ink used to sit under DRIVERS beside the VMulti driver, but it installs and manages a PLUGIN — so
          it belongs next to the list of them (#winink-to-plugins). -->
-    <Grid ColumnDefinitions="*,32,*" MaxWidth="1040" HorizontalAlignment="Left">
+    <!-- Neither MaxWidth nor HorizontalAlignment, matching the tablet About tab and the Developer panes.
+         Both attributes worked against even columns here:
+           - "Left" sizes a Grid to its CONTENT, so the star columns divided only what the content needed.
+             The plugin list is narrow, so the left column shrank to it and the halves came out lopsided.
+           - MaxWidth alone then CENTRED the grid once the window was wider than the cap, which left a
+             gutter down the left and broke the page's alignment with the tab menu above it. -->
+    <Grid ColumnDefinitions="*,32,*">
 
         <StackPanel Grid.Column="0">
         <!-- Header card: title + rescan/browse actions. -->
