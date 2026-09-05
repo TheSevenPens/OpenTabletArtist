@@ -54,7 +54,7 @@
                     <Button Command="{Binding OpenUrlCommand}" CommandParameter="{Binding RepoUrl}"
                             Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                             HorizontalAlignment="Left" ToolTip.Tip="{Binding RepoUrl}">
-                        <TextBlock Text="Source code on GitHub"
+                        <TextBlock Text="Source code"
                                    Foreground="{DynamicResource AccentBrush}"
                                    TextDecorations="Underline" VerticalAlignment="Center" />
                     </Button>
