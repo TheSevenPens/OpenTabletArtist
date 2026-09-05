@@ -37,18 +37,18 @@
         <!-- BASICS — the whole pen in one view (#pen-merge). Four columns:
                1  the physical switches — tip, eraser, then barrel buttons 3-2-1
                2  the pen diagram, whose lit buttons line up with the cards beside it
-               3  the pen-input opt-outs
-               4  how the pen moves and presses, plus position smoothing
+               3  how the pen moves and presses, plus position smoothing
+               4  the pen-input opt-outs
 
              This was two tabs, "basics" and "inputs". They described one object between them, and the
              split meant you could not see which barrel button did what while changing how the pen
              presses — the two things most often set together.
 
-             The last column is the star one: the smoothing slider needs a definite width to render its
-             track, since a size-to-content Slider collapses it to nothing. -->
+             Column 3 is the star one: the smoothing slider needs a definite width to render its track,
+             since a size-to-content Slider collapses it to nothing. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #MovementTab.IsChecked}">
-            <Grid ColumnDefinitions="Auto,32,Auto,32,Auto,32,*" Margin="0,12,0,0">
+            <Grid ColumnDefinitions="Auto,32,Auto,32,*,32,Auto" Margin="0,12,0,0">
 
                 <!-- 1 — the switches. Buttons run 3-2-1 top-to-bottom so they read against the diagram
                      beside them: button 1 sits nearest the tip, at the bottom. -->
@@ -111,8 +111,8 @@
                 </Viewbox>
                 </LayoutTransformControl>
 
-                <!-- 3 — the pen-input opt-outs. -->
-                <c:Section Grid.Column="4" Width="240" HorizontalAlignment="Left">
+                <!-- 4 — the pen-input opt-outs. -->
+                <c:Section Grid.Column="6" Width="240" HorizontalAlignment="Left">
                     <StackPanel Spacing="10">
                         <TextBlock Text="pen input" Classes="Display section" />
                         <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
@@ -133,8 +133,8 @@
                     </StackPanel>
                 </c:Section>
 
-                <!-- 4 — movement, pressing, and position smoothing. -->
-                <StackPanel Grid.Column="6">
+                <!-- 3 — movement, then pressing, then position smoothing. -->
+                <StackPanel Grid.Column="4">
                     <TextBlock Text="movement" Classes="Display section" />
 
                     <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
@@ -179,19 +179,6 @@
                             HorizontalAlignment="Left"
                             IsVisible="{Binding CanFixOutputMode}" />
 
-                    <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
-                         on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
-                         too laggy to be useful. Fills the fixed-width column so the slider's star-sized track
-                         renders (a size-to-content slider collapses the track to nothing). -->
-                    <StackPanel Margin="0,28,0,0">
-                        <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,8,0,0"
-                                            Minimum="0" Maximum="{Binding PositionSmoothingMax}"
-                                            Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
-                                            Value="{Binding PositionSmoothing}"
-                                            ValueTextOverride="{Binding PositionSmoothingText}"
-                                            Monospace="True" ValueWidth="44"
-                                            ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
-                    </StackPanel>
                     <StackPanel IsVisible="{Binding CanDisableWindowsInk}">
                         <TextBlock Text="pressing" Classes="Display section" />
                         <StackPanel Margin="0,12,0,0" Spacing="10">
@@ -216,6 +203,21 @@
                             </RadioButton>
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- Position smoothing (EMA), moved here from the Pressure tab: it steadies the pen's
+                         on-screen position, so it belongs with movement. Capped at 0.25 (#487): heavier is
+                         too laggy to be useful. Sits last in the column, under pressing.
+                         One top margin, not two: this used to be a single-child StackPanel carrying
+                         Margin="0,28,0,0" around a slider carrying another "0,8,0,0", which opened a 36px
+                         gap under the radios that nothing else in the column came close to. The wrapper
+                         did nothing else — a LabeledSlider stretches to the column width on its own. -->
+                    <ctrl:LabeledSlider Label="Position smoothing" LabelWidth="130" Margin="0,20,0,0"
+                                        Minimum="0" Maximum="{Binding PositionSmoothingMax}"
+                                        Ticks="0,0.05,0.1,0.15,0.2,0.25" TickPlacement="BottomRight"
+                                        Value="{Binding PositionSmoothing}"
+                                        ValueTextOverride="{Binding PositionSmoothingText}"
+                                        Monospace="True" ValueWidth="44"
+                                        ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
                 </StackPanel>
             </Grid>
         </ScrollViewer>

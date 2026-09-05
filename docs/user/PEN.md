@@ -10,20 +10,12 @@ The whole pen in one view, in four columns:
 
 1. **The switches** — the pen tip, the eraser, and each barrel button.
 2. **The pen** — a diagram with the buttons this pen actually has lit up and numbered, so a card lines up with the button it describes.
-3. **Pen input** — the opt-outs.
-4. **Movement** and **Pressing**, plus **Position smoothing**.
+3. **Movement** and **Pressing**, plus **Position smoothing**.
+4. **Pen input** — the opt-outs.
 
 *(This used to be two tabs, basics and inputs.)*
 
 ### The switches
-
-### Pen input
-
-This section controls the different inputs on the pen, including the pen tip, the pen eraser, and any pen buttons. Currently, OpenTabletDriver only allows you to use the default behavior of the buttons, so you can't control what they do. They just perform whatever Windows Ink does by default. This is not a limitation of Open Tablet Artist, but due to OpenTabletDriver, and in the future, if OpenTabletDriver changes, more options might be supported.
-
-Each input (the pen tip, the eraser, and each button) shows a small card. When the input is set to its normal, recommended behavior, the card simply reads **Working normally** — there's nothing to do. If an input has been changed to something that won't behave normally (for example, imported settings that set it to a mouse or keyboard action), the card explains that in plain language, shows what it's currently set to, and offers a single **Fix** button to reset it to normal.
-
-You can disable the pen tip, so tapping or clicking with the pen does nothing, but you can still move the pointer around. You can also disable pressure sensitivity, so you can click and tap, but you won't get different levels of pressure. You can also completely disable tilt.
 
 ### Movement and pressing
 
@@ -33,6 +25,14 @@ You can disable the pen tip, so tapping or clicking with the pen does nothing, b
 
 - **Presses normally** — works like an artist would expect, with pressure sensitivity and tilt (using Windows Ink).
 - **Presses like a mouse** — uses OpenTabletDriver's plain output, so the pen clicks like a mouse (handy for apps where pen taps get treated as touch and act oddly), but you lose pressure and tilt.
+
+### Pen input
+
+This section controls the different inputs on the pen, including the pen tip, the pen eraser, and any pen buttons. Currently, OpenTabletDriver only allows you to use the default behavior of the buttons, so you can't control what they do. They just perform whatever Windows Ink does by default. This is not a limitation of Open Tablet Artist, but due to OpenTabletDriver, and in the future, if OpenTabletDriver changes, more options might be supported.
+
+Each input (the pen tip, the eraser, and each button) shows a small card. When the input is set to its normal, recommended behavior, the card simply reads **Working normally** — there's nothing to do. If an input has been changed to something that won't behave normally (for example, imported settings that set it to a mouse or keyboard action), the card explains that in plain language, shows what it's currently set to, and offers a single **Fix** button to reset it to normal.
+
+You can disable the pen tip, so tapping or clicking with the pen does nothing, but you can still move the pointer around. You can also disable pressure sensitivity, so you can click and tap, but you won't get different levels of pressure. You can also completely disable tilt.
 
 ## pressure
 
