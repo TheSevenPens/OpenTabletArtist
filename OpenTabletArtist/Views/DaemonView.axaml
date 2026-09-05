@@ -13,8 +13,12 @@
          value, so both were punctuation standing in for a layout that already works — and the bullet
          pushed every label off the margin the headings and body text share. Matches the tablet About
          tab's fact rows. State is carried by the value text alone — no status dots, and no colour (so it
-         reads the same under every skin, incl. Sakura). Live numbers / versions / paths use the app's
-         monospace font. -->
+         reads the same under every skin, incl. Sakura). Live numbers and versions use the app's
+         monospace font.
+
+         A daemon PATH is the exception: an absolute path wrapped over three lines and dwarfed every fact
+         around it, so the value is a folder button now and the path itself moved to its tooltip
+         (#daemon-path-button). -->
     <UserControl.Styles>
         <Style Selector="TextBlock.propLabel">
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
@@ -29,12 +33,6 @@
         </Style>
         <Style Selector="TextBlock.propValue.mono">
             <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}" />
-        </Style>
-        <!-- Paths: same monospace, a step smaller + muted, since they're long and secondary. -->
-        <Style Selector="TextBlock.propValue.path">
-            <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -231,8 +229,13 @@
                     <!-- property: value list -->
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Path" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue path"
-                                   Text="{Binding Status.DaemonSourcePath}" />
+                        <c:IconButton Grid.Row="0" Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
+                                              Width="26" Height="22" IconSize="13"
+                                              HorizontalAlignment="Left" Margin="0,2,0,0"
+                                              Command="{Binding $parent[UserControl].DataContext.OpenContainingFolderCommand}"
+                                              CommandParameter="{Binding Status.DaemonSourcePath}"
+                                              ToolTip.Tip="{Binding Status.DaemonSourcePath}"
+                                              AutomationProperties.Name="Open the folder holding this daemon" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Version"
                                    IsVisible="{Binding Status.HasDaemonVersion}" />
@@ -282,8 +285,14 @@
                                 <!-- Packaged daemon binary path -->
                                 <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Path"
                                            IsVisible="{Binding HasOtdDaemonPath}" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue path"
-                                           Text="{Binding OtdDaemonPath}" IsVisible="{Binding HasOtdDaemonPath}" />
+                                <c:IconButton Grid.Row="1" Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
+                                              Width="26" Height="22" IconSize="13"
+                                              HorizontalAlignment="Left" Margin="0,2,0,0"
+                                              Command="{Binding $parent[UserControl].DataContext.OpenContainingFolderCommand}"
+                                              CommandParameter="{Binding OtdDaemonPath}"
+                                              ToolTip.Tip="{Binding OtdDaemonPath}"
+                                              AutomationProperties.Name="Open the folder holding this daemon"
+                                              IsVisible="{Binding HasOtdDaemonPath}" />
 
                                 <!-- Service running -->
                                 <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="Service"
@@ -329,8 +338,14 @@
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Path"
                                    IsVisible="{Binding HasBundledDaemonPath}" />
-                        <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue path"
-                                   Text="{Binding BundledDaemonPath}" IsVisible="{Binding HasBundledDaemonPath}" />
+                        <c:IconButton Grid.Row="1" Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
+                                              Width="26" Height="22" IconSize="13"
+                                              HorizontalAlignment="Left" Margin="0,2,0,0"
+                                              Command="{Binding $parent[UserControl].DataContext.OpenContainingFolderCommand}"
+                                              CommandParameter="{Binding BundledDaemonPath}"
+                                              ToolTip.Tip="{Binding BundledDaemonPath}"
+                                              AutomationProperties.Name="Open the folder holding this daemon"
+                                              IsVisible="{Binding HasBundledDaemonPath}" />
                     </Grid>
                 </StackPanel>
             </c:Section>
