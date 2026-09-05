@@ -84,7 +84,7 @@
                                       AutomationProperties.Name="Daemon connection actions">
                             <c:IconButton.Flyout>
                                 <MenuFlyout>
-                                    <MenuItem Header="Check daemon status"
+                                    <MenuItem Header="Refresh status"
                                               Command="{Binding Status.RefreshCommand}"
                                               IsEnabled="{Binding !Status.IsDaemonBusy}" />
                                 </MenuFlyout>
@@ -183,7 +183,7 @@
                                       AutomationProperties.Name="Daemon process actions">
                             <c:IconButton.Flyout>
                                 <MenuFlyout>
-                                    <MenuItem Header="Check daemon status"
+                                    <MenuItem Header="Refresh status"
                                               Command="{Binding Status.RefreshCommand}"
                                               IsEnabled="{Binding !Status.IsDaemonBusy}" />
                                     <Separator />
