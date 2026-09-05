@@ -55,14 +55,15 @@ public partial class PenDetailView : UserControl
         SelectTab(tab);
     }
 
-    // The pen page carries the pen deep-links: the pen-behaviour "Fix" (output mode) → Movement, and the
-    // artist-pen-behavior health links → Inputs (tip/pressure) and Dynamics (tilt) (#artist-pen-health).
+    // The pen page carries the pen deep-links (#artist-pen-health): the pen-behaviour "Fix" (output mode)
+    // and the tip/pressure health links both land on BASICS, which since #pen-merge holds the movement
+    // radios AND the pen-input opt-outs they used to be separate tabs for. Tilt still goes to pressure.
     private void SelectTab(TabletDetailTab tab)
     {
         switch (tab)
         {
-            case TabletDetailTab.PenBehavior: MovementTab.IsChecked = true; break;
-            case TabletDetailTab.PenInputs: InputsTab.IsChecked = true; break;
+            case TabletDetailTab.PenBehavior:
+            case TabletDetailTab.PenInputs: MovementTab.IsChecked = true; break;
             case TabletDetailTab.PenDynamics: DynamicsTab.IsChecked = true; break;
         }
     }
