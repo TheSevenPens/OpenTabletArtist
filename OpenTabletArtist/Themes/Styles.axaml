@@ -824,6 +824,23 @@
         <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
     </Style>
 
+    <!-- An open ComboBox's list, same story: the current value sat on a Windows-blue bar in every dropdown
+         in the app. Matched to the ListBox above so a highlighted row reads the same in both. The Foreground
+         is restated because Fluent flips it to white for legibility on ITS blue, which would leave white
+         text on a pale pink tint here. -->
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource NavActiveBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+
     <!-- ===== Status marks ===========================================================
          A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
            success → muted (#593: no green)   warning → amber   neutral → muted   error → red
