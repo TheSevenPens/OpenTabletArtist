@@ -240,79 +240,169 @@
             </c:Section>
         </ScrollViewer>
 
-        <!-- GRADIENTS (#556): live editor for the code-generated Sakura backdrop's glows. Each row edits one
-             radial glow anchored to the bottom of the window; changes rebuild AppBackdropGlowBrush live (only
-             visible when Sakura → "CodeGen background" is selected). The read-only JSON box at the bottom is
-             the copy-back target: tune here, paste the JSON to bake it into GradientBackground.Defaults(). -->
+        <!-- GRADIENTS (#556): live editor for the code-generated Sakura backdrop's glows. A list of every
+             glow beside an inspector for the one you pick (#glow-linear) — which is what makes room for a
+             live preview of the selected glow, and keeps the page one screen tall however many glows there
+             are. Changes rebuild the edge glow brushes live (only visible when Sakura → "CodeGen
+             background" is selected). COPY SETTINGS JSON is the copy-back path: tune here, paste the JSON
+             to bake it into GradientBackground.Defaults(). -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       DataContext="{Binding Gradients}"
                       IsVisible="{Binding #GradientsSubtab.IsChecked}">
-            <StackPanel Spacing="12" MaxWidth="1120" HorizontalAlignment="Left">
+            <!-- Neither MaxWidth nor HorizontalAlignment on this panel: "Left" sizes it to its CONTENT, which
+                 collapses the inspector's star column to whatever the sliders happen to need, and MaxWidth
+                 alone then centres the pane and opens a gutter down the left. The inspector caps its own
+                 width instead. Same trap as the Plugins columns. -->
+            <StackPanel>
 
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
-                           Text="Tune the glows for the Sakura ‘CodeGen background’. Select it first (Interface → Skin → Sakura) to see changes live. Each glow is a soft radial blob anchored to the bottom (or top) edge." />
+                           Text="Glows for the Sakura ‘CodeGen background’. Select it in Interface → Skin to see changes live." />
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,18">
                     <Button Content="Add gradient" Command="{Binding AddGlowCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,6" />
                     <Button Content="Reset to defaults" Command="{Binding ResetGlowsCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,6" />
+                    <!-- Kept beside the others rather than pushed to the far right: on a maximized window
+                         that is most of a screen away from everything else on the page. -->
+                    <Button Content="Copy settings JSON" Click="OnCopyGradientSettings"
+                            Theme="{StaticResource GhostButton}" Padding="12,6" Margin="14,0,0,0" />
                 </StackPanel>
 
-                <!-- The base background colour lives in Settings → Appearance (it's a theme-level tint); the
-                     glows below are the gradient detail. -->
+                <!-- Empty state — every glow can be removed, and the page should say so rather than show
+                     an empty column beside an empty inspector. -->
+                <TextBlock Text="No glows. Add one, or reset to the defaults."
+                           FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}"
+                           IsVisible="{Binding !HasGlows}" />
 
-                <!-- Two-column flow so more glows fit without long scrolling. -->
-                <ItemsControl ItemsSource="{Binding Glows}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="2" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
-                                    CornerRadius="0" Padding="10" Margin="0,0,12,12">
-                                <StackPanel Spacing="3">
-                                    <c:LabeledSlider Label="Center X" LabelWidth="82" Minimum="0" Maximum="1"
-                                                     Value="{Binding CenterX}" ValueFormat="0.00" />
-                                    <c:LabeledSlider Label="Width" LabelWidth="82" Minimum="0.05" Maximum="1.5"
-                                                     Value="{Binding Width}" ValueFormat="0.00" />
-                                    <c:LabeledSlider Label="Height (px)" LabelWidth="82" Minimum="0" Maximum="600"
-                                                     Value="{Binding HeightPx}" ValueFormat="0" />
-                                    <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
-                                                     Value="{Binding CenterOpacity}" ValueFormat="0.00" />
-                                    <!-- Colour: the unified picker (wheel + palette + hex in a flyout), plus the
-                                         top/bottom anchor, on one compact row. -->
-                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                        <c:ColorPicker VerticalAlignment="Center"
-                                                       Color="{Binding Color, Mode=TwoWay,
-                                                               Converter={x:Static conv:HexColorConverter.Instance}}" />
-                                        <CheckBox Content="Top" VerticalAlignment="Center"
-                                                  ToolTip.Tip="Anchor this glow to the top edge (default: bottom)"
-                                                  IsChecked="{Binding Top}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                        <Button Content="Duplicate"
-                                                Command="{Binding $parent[ItemsControl].DataContext.DuplicateGlowCommand}"
-                                                CommandParameter="{Binding}"
-                                                Theme="{StaticResource GhostButton}" Padding="10,4" />
-                                        <Button Content="Remove"
-                                                Command="{Binding $parent[ItemsControl].DataContext.RemoveGlowCommand}"
-                                                CommandParameter="{Binding}"
-                                                Theme="{StaticResource GhostButton}" Padding="10,4" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <Grid ColumnDefinitions="300,32,Auto" IsVisible="{Binding HasGlows}" HorizontalAlignment="Left">
 
-                <TextBlock Text="Settings (copy this back to bake in as the default)" FontWeight="SemiBold" />
-                <TextBox Text="{Binding SettingsText, Mode=OneWay}" IsReadOnly="True"
-                         AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="160"
-                         FontFamily="{DynamicResource MonoFontFamily}"
-                         VerticalContentAlignment="Top" />
+                    <!-- The list. A glow's identity used to be the colour swatch at the BOTTOM of its card;
+                         here it leads the row, painted with the glow itself, beside what the glow is. -->
+                    <ListBox Grid.Column="0" ItemsSource="{Binding Glows}"
+                             SelectedItem="{Binding Selected, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="8,0" />
+                                <Setter Property="MinHeight" Value="0" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <!-- The hairline between rows, as on the tablet list — the ListBox itself
+                                     draws nothing, so a row needs its own. -->
+                                <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerBrush}">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10" Height="34"
+                                          Background="Transparent">
+                                        <Border Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center"
+                                                Background="{Binding ChipBrush}" BorderThickness="1"
+                                                BorderBrush="{DynamicResource DividerBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Color}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Summary}" VerticalAlignment="Center"
+                                                   FontSize="{DynamicResource TypeDetailSize}"
+                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- The inspector. Bound through `Selected.` rather than by setting DataContext, so the
+                         "…" menu below still sees the page view model that owns its commands — a flyout's
+                         contents live in a popup outside the visual tree and cannot walk up to reach it. -->
+                    <!-- A definite Width, not MaxWidth + Left: every row in here is a Grid with a star
+                         column (the slider track, the dropdown gutter), and a star column inside a
+                         content-sized parent has nothing to divide, so the whole inspector collapses to the
+                         width of its labels. -->
+                    <StackPanel Grid.Column="2" IsVisible="{Binding HasSelection}" Width="520">
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Grid.Column="0" Classes="Display section" Margin="0"
+                                       Text="{Binding Selected.Color}" VerticalAlignment="Center" />
+                            <c:IconButton Grid.Column="1" VerticalAlignment="Center"
+                                          Icon="{StaticResource IconDotsHorizontal}"
+                                          ToolTip.Tip="Gradient actions"
+                                          AutomationProperties.Name="Gradient actions">
+                                <c:IconButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Duplicate" Command="{Binding DuplicateGlowCommand}"
+                                                  CommandParameter="{Binding Selected}" />
+                                        <MenuItem Header="Remove" Command="{Binding RemoveGlowCommand}"
+                                                  CommandParameter="{Binding Selected}" />
+                                    </MenuFlyout>
+                                </c:IconButton.Flyout>
+                            </c:IconButton>
+                        </Grid>
+
+                        <!-- To scale against the 600px glow band, so a 99px reach really does fill a sixth
+                             of the strip. The list chips are not — see ChipBrush. -->
+                        <Border Height="68" Margin="0,0,0,14" Background="{Binding Selected.PreviewBrush}"
+                                BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}" />
+
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="Style" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                                      ItemsSource="{Binding Selected.StyleOptions}"
+                                      SelectedItem="{Binding Selected.Style, Mode=TwoWay}"
+                                      AutomationProperties.Name="Gradient style">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:LowerCaseConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <!-- Was a "Top" checkbox. A checkbox can name two edges; the linear washes need
+                             four, and a glow anchored left has no honest checked state. -->
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="Edge" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                                      ItemsSource="{Binding Selected.EdgeOptions}"
+                                      SelectedItem="{Binding Selected.Edge, Mode=TwoWay}"
+                                      ToolTip.Tip="The edge this glow is anchored to; its reach is measured inward from there"
+                                      AutomationProperties.Name="Anchor edge">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:LowerCaseConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,10">
+                            <TextBlock Grid.Column="0" Text="Colour" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <c:ColorPicker Grid.Column="1" HorizontalAlignment="Left"
+                                           Color="{Binding Selected.Color, Mode=TwoWay,
+                                                   Converter={x:Static conv:HexColorConverter.Instance}}" />
+                        </Grid>
+
+                        <!-- Radial places a blob somewhere along its edge; a linear wash spans the whole
+                             edge, so it trades those two for the shape of its fade. Reach is the one
+                             measurement that means the same thing in both, so it is one slider. -->
+                        <c:LabeledSlider Label="Center X" LabelWidth="82" Minimum="0" Maximum="1"
+                                         Value="{Binding Selected.CenterX, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Selected.IsRadial}" />
+                        <c:LabeledSlider Label="Width" LabelWidth="82" Minimum="0.05" Maximum="1.5"
+                                         Value="{Binding Selected.Width, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Selected.IsRadial}" />
+                        <c:LabeledSlider Label="Reach" LabelWidth="82" Minimum="0" Maximum="600"
+                                         Value="{Binding Selected.ReachPx, Mode=TwoWay}" ValueFormat="0"
+                                         ToolTip.Tip="How far the glow reaches in from its edge, in pixels" />
+                        <c:LabeledSlider Label="Falloff" LabelWidth="82" Minimum="0.02" Maximum="0.98"
+                                         Value="{Binding Selected.Falloff, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Selected.IsLinear}"
+                                         ToolTip.Tip="Where the wash reaches half opacity: low fades early, high holds the colour and drops away late" />
+                        <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
+                                         Value="{Binding Selected.CenterOpacity, Mode=TwoWay}" ValueFormat="0.00" />
+                    </StackPanel>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
 

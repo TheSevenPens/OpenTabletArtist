@@ -812,6 +812,18 @@
         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     </Style>
 
+    <!-- ListBox selection: the same trap as the Slider above and the RadioButton keys (#207). Fluent paints
+         a selected row from its own resources, which no skin re-points, so the one selectable list in the
+         app (Developer → Gradients) drew a Windows-blue bar on a pink page. Matched to the subtab rail's
+         selected treatment — the tinted NavActive ground — so "the current item" reads the same wherever it
+         appears. ColorPicker's swatch list replaces the item template outright, so this passes it by. -->
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource NavActiveBrush}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource GlassBgHoverBrush}" />
+    </Style>
+
     <!-- ===== Status marks ===========================================================
          A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
            success → muted (#593: no green)   warning → amber   neutral → muted   error → red

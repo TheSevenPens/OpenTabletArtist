@@ -4,15 +4,16 @@ using Avalonia.Data.Converters;
 
 namespace OpenTabletArtist.Converters;
 
-/// <summary>Lowercases string content — for the Zune wordmark nav, where the section labels (stored
-/// UPPERCASE) render as lowercase words (`home`, `tablet`, …). Non-string content passes through
-/// untouched.</summary>
+/// <summary>Lowercases content — for the Zune wordmark nav, where the section labels (stored UPPERCASE)
+/// render as lowercase words (`home`, `tablet`, …), and for enum values shown in a dropdown, which would
+/// otherwise arrive PascalCased (`Bottom`, `Radial`). Anything non-null goes through its own ToString
+/// first, which is what a text binding would have done with it anyway.</summary>
 public sealed class LowerCaseConverter : IValueConverter
 {
     public static readonly LowerCaseConverter Instance = new();
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is string s ? s.ToLowerInvariant() : value;
+        => value?.ToString()?.ToLowerInvariant();
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value;

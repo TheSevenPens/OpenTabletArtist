@@ -259,12 +259,11 @@ public partial class ThemeViewModel : ObservableObject
                 else
                 {
                     // Flat base fills the window; the glows (from the persisted/edited settings) fill the
-                    // fixed-height top/bottom bands. All tunable live via Developer → Gradients (#556).
+                    // fixed-thickness edge bands. All tunable live via Developer → Gradients (#556).
                     var glows = GradientBackground.Load();
                     app.Resources["AppBackdropBrush"] = new SolidColorBrush(
                         ParseColorOr(GradientBackground.LoadBaseColor(), Color.Parse(GradientBackground.DefaultBaseColor)));
-                    app.Resources["AppBackdropGlowBrush"] = GradientBackground.BuildGlowBrush(glows, top: false);
-                    app.Resources["AppBackdropGlowTopBrush"] = GradientBackground.BuildGlowBrush(glows, top: true);
+                    GradientBackground.ApplyGlowBrushes(app.Resources, glows);
                 }
             }
         }
