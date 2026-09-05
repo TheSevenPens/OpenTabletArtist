@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input.Platform;
 using OpenTabletArtist.Services;
+using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
 
@@ -90,6 +92,22 @@ public partial class DeveloperView : UserControl
         {
             SetStatus($"Capture failed: {ex.Message}");
         }
+    }
+
+    // Gradients → COPY SETTINGS JSON. Replaces the 160px read-only text box that used to sit under the glow
+    // list purely so its contents could be selected and copied. In code-behind rather than on the view model
+    // because the clipboard hangs off the TopLevel, which is what Dialogs.cs reaches for too.
+    private async void OnCopyGradientSettings(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || DataContext is not DeveloperViewModel vm) return;
+        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+
+        await clipboard.SetTextAsync(vm.Gradients.SettingsText);
+        // Confirm in the label itself; there is nowhere else on this pane for a status line to live.
+        var original = button.Content;
+        button.Content = "Copied";
+        await Task.Delay(1200);
+        button.Content = original;
     }
 
     private void SetStatus(string text)

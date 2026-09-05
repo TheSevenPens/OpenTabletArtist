@@ -25,7 +25,8 @@ public static class SkinOverrides
         "AccentButtonFillBrush", "AccentButtonFillHoverBrush",
         "AccentButtonForegroundBrush", "AccentButtonForegroundHoverBrush",
         "GlassBorderBrush", "CardShadow", "GlassBgBrush",
-        "AppBackdropBrush", "AppBackdropImageBrush", "BackdropScrimBrush", "AppBackdropGlowBrush", "AppBackdropGlowTopBrush",
+        "AppBackdropBrush", "AppBackdropImageBrush", "BackdropScrimBrush",
+        "AppBackdropGlowBrush", "AppBackdropGlowTopBrush", "AppBackdropGlowLeftBrush", "AppBackdropGlowRightBrush",
     };
 
     /// <summary>Remove every live skin override so the current theme dictionary renders unshadowed.</summary>

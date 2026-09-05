@@ -75,9 +75,12 @@
                  one-off — a second one should match this width. -->
             <sys:Double x:Key="SubtabRailWidth">160</sys:Double>
 
-            <!-- Default (no) bottom glow band; the code-generated Sakura backdrop overrides it (#556). -->
+            <!-- Default (no) glow bands, one per edge; the code-generated Sakura backdrop overrides them
+                 (#556, sides added with linear glows in #glow-linear). -->
             <SolidColorBrush x:Key="AppBackdropGlowBrush" Color="Transparent" />
             <SolidColorBrush x:Key="AppBackdropGlowTopBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="AppBackdropGlowLeftBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="AppBackdropGlowRightBrush" Color="Transparent" />
 
             <!-- Square everything (Metro/Zune). Overriding Fluent's control + overlay corner radii squares
                  the built-in controls (ComboBox, TextBox, CheckBox, Slider, flyouts/menus/popups); the
