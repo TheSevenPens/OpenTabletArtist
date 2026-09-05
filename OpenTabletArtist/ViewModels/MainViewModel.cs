@@ -185,12 +185,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
             () => OpenSettingsTab(SettingsTab.System),   // Driver Cleanup lives in the System pivot now
             () => OpenAdvancedTab(AdvancedTab.Plugins),  // Windows Ink → Plugins pivot (#winink-to-plugins)
-            () => OpenAdvancedTab(AdvancedTab.Drivers),  // VMulti → Drivers pivot
+            () => OpenAdvancedTab(AdvancedTab.VMulti),   // VMulti → its own pivot
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
         Test = new TestViewModel(_session.Daemon, _session);
         Log = new LogViewModel(_session.Daemon, _session);
-        // Windows Ink moved from the DRIVERS pivot to PLUGINS, so it is handed to that page — and only
+        // Windows Ink moved to PLUGINS from the pivot now called VMULTI, so it is handed to that page —
+        // and only
         // on Windows, since PLUGINS (unlike DRIVERS) is not filtered off other platforms.
         Plugins = new PluginsViewModel(_session, _session,
             OperatingSystem.IsWindows() ? WindowsInk : null);

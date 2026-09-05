@@ -56,39 +56,46 @@
                                Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
                                IsVisible="{Binding HasWinInkUpdateCheckStatus}" />
 
-                    <!-- Action buttons -->
-                    <WrapPanel Margin="0,12,0,0">
-                        <Button Content="Install" Theme="{StaticResource AccentButton}"
-                                Command="{Binding InstallWindowsInkCommand}"
-                                Padding="12,6" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowWinInkInstall}" />
-                        <Button Content="Check for Update" Theme="{StaticResource GhostButton}"
-                                Command="{Binding CheckForWindowsInkUpdateCommand}"
-                                Padding="12,6" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowWinInkCheckUpdate}" />
-                        <Button Content="{Binding WinInkLatestVersion, StringFormat='Install Update (v{0})'}"
-                                Theme="{StaticResource AccentButton}"
-                                Command="{Binding InstallWindowsInkUpdateCommand}"
-                                Padding="12,6" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowWinInkInstallUpdate}" />
-                        <Button Content="Uninstall" Theme="{StaticResource DeleteButton}"
-                                Command="{Binding UninstallWindowsInkCommand}"
-                                Padding="12,6" Margin="0,0,8,4"
-                                IsVisible="{Binding ShowWinInkUninstall}" />
-                        <TextBlock Text="{Binding WinInkBusyStatus}"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"
-                                   Margin="0,0,8,4"
-                                   IsVisible="{Binding WinInkBusy}" />
-                    </WrapPanel>
+                    <!-- The actions moved into the "…" menu beside the heading (#winink-overflow). What is
+                         left here is STATUS, not an action: "Installing v0.5.2…" has to stay on the card,
+                         since the menu it would otherwise live in is closed while the work runs. -->
+                    <TextBlock Text="{Binding WinInkBusyStatus}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,12,0,0" TextWrapping="Wrap"
+                               IsVisible="{Binding WinInkBusy}" />
                 </StackPanel>
 
-                <!-- Refresh plugin info -->
+                <!-- Every action behind one "…", as on the daemon cards and the preset rows. This card
+                     carried an accent Install/Install-Update, a ghost Check for Update, a solid red
+                     Uninstall and a refresh glyph — four treatments for a card whose job is reporting what
+                     is installed. The items are mutually exclusive in pairs (Install XOR Uninstall,
+                     Check-for-update XOR Install-update), so the menu is never longer than three. -->
                 <c:IconButton Grid.Column="1" VerticalAlignment="Top"
-                              Icon="{StaticResource IconRefresh}"
-                              Command="{Binding RefreshWindowsInkCommand}"
-                              IsVisible="{Binding ShowWinInkRefresh}"
-                              ToolTip.Tip="Refresh plugin info"
-                              AutomationProperties.Name="Refresh plugin info" />
+                              Icon="{StaticResource IconDotsHorizontal}"
+                              ToolTip.Tip="Windows Ink plugin actions"
+                              AutomationProperties.Name="Windows Ink plugin actions">
+                    <c:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Refresh plugin info"
+                                      Command="{Binding RefreshWindowsInkCommand}"
+                                      IsVisible="{Binding ShowWinInkRefresh}" />
+                            <Separator />
+                            <MenuItem Header="Install"
+                                      Command="{Binding InstallWindowsInkCommand}"
+                                      IsVisible="{Binding ShowWinInkInstall}" />
+                            <MenuItem Header="Check for update"
+                                      Command="{Binding CheckForWindowsInkUpdateCommand}"
+                                      IsVisible="{Binding ShowWinInkCheckUpdate}" />
+                            <MenuItem Header="{Binding WinInkLatestVersion, StringFormat='Install update (v{0})'}"
+                                      Command="{Binding InstallWindowsInkUpdateCommand}"
+                                      IsVisible="{Binding ShowWinInkInstallUpdate}" />
+                            <MenuItem Header="Uninstall"
+                                      Command="{Binding UninstallWindowsInkCommand}"
+                                      IsVisible="{Binding ShowWinInkUninstall}"
+                                      Foreground="{DynamicResource ErrorBrush}" />
+                        </MenuFlyout>
+                    </c:IconButton.Flyout>
+                </c:IconButton>
             </Grid>
         </c:Section>
     </StackPanel>

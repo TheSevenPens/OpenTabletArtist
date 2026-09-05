@@ -64,7 +64,7 @@ public partial class AdvancedViewModel : ObservableObject
         {
             new("DAEMON", AdvancedTab.Daemon, daemon),
             new("CONSOLE", AdvancedTab.Console, log),
-            new("DRIVERS", AdvancedTab.Drivers, drivers),
+            new("VMULTI", AdvancedTab.VMulti, drivers),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
@@ -74,15 +74,15 @@ public partial class AdvancedViewModel : ObservableObject
         UpdateSelection();
     }
 
-    /// <summary>Whether an ADVANCED pivot applies on the given OS. The <b>Drivers</b> pivot (Windows Ink +
-    /// VMulti) is Windows-only and hidden off-Windows (#140) — those don't exist on macOS/Linux (the daemon
-    /// uses its own native output there). Filtering it out of the rail keeps the deep-link enum intact — a
+    /// <summary>Whether an ADVANCED pivot applies on the given OS. The <b>VMulti</b> pivot is Windows-only
+    /// and hidden off-Windows (#140) — that driver doesn't exist on macOS/Linux (the daemon uses its own
+    /// native output there). Filtering it out of the rail keeps the deep-link enum intact — a
     /// stray deep-link to a hidden tab is coerced back to a visible one (see
     /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
     /// unit-testable.</summary>
     public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
         isWindows
-        || tab is not AdvancedTab.Drivers;
+        || tab is not AdvancedTab.VMulti;
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
     public IReadOnlyList<AdvancedTabItem> Tabs { get; }

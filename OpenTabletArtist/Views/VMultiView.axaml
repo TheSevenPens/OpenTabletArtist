@@ -10,20 +10,7 @@
         <c:Section>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel Grid.Column="0" MinWidth="0" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Classes="Display section" Text="vmulti driver" TextWrapping="Wrap" Margin="0,0,0,0" />
-                        <!-- Compact icon variant: this one sits inline beside the section label rather than
-                             in an action row, so the standard 34x30 icon button would tower over the label. -->
-                        <Button Command="{Binding RefreshVmultiDetectionCommand}"
-                                ToolTip.Tip="Refresh VMulti status"
-                                AutomationProperties.Name="Refresh VMulti status"
-                                Theme="{StaticResource GhostButton}" Width="26" Height="22" Padding="0"
-                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Margin="8,0,0,0" VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource IconRefresh}" Width="13" Height="13"
-                                      Foreground="{Binding $parent[Button].Foreground}" />
-                        </Button>
-                    </StackPanel>
+                    <TextBlock Classes="Display section" Text="vmulti driver" TextWrapping="Wrap" Margin="0,0,0,0" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBlock Text="{Binding VmultiMessage}"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -44,34 +31,35 @@
                                IsVisible="{Binding !VmultiInstalled}" />
                 </StackPanel>
 
-                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                    <!-- Browse button -->
-                    <Button Theme="{StaticResource AccentButton}"
-                            Command="{Binding OpenFolderCommand}"
-                            CommandParameter="C:\Program Files\VMulti"
-                            ToolTip.Tip="Open the VMulti install folder in File Explorer"
-                            AutomationProperties.Name="Open the VMulti install folder in File Explorer"
-                            Width="34" Height="30" Padding="0" Margin="0,0,8,4"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-                        <PathIcon Data="{StaticResource IconFolderOutline}" Width="16" Height="16"
-                                  Foreground="{Binding $parent[Button].Foreground}" />
-                    </Button>
-                    <!-- Install button -->
-                    <Button Content="Install" Theme="{StaticResource AccentButton}"
-                            Command="{Binding InstallVmultiCommand}"
-                            Padding="12,6" Margin="0,0,8,4"
-                            IsVisible="{Binding ShowInstallButton}" />
-                    <!-- Uninstall button -->
-                    <Button Content="Uninstall" Theme="{StaticResource AccentButton}"
-                            Command="{Binding UninstallVmultiCommand}"
-                            Padding="12,6" Margin="0,0,8,4"
-                            IsVisible="{Binding ShowUninstallButton}" />
-                    <!-- Progress indicator -->
-                    <TextBlock Text="{Binding VmultiInstallStatus}"
-                               Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
-                               Margin="0,0,0,4"
-                               IsVisible="{Binding VmultiInstalling}" />
-                </WrapPanel>
+                <!-- Every action behind one "…", as on the Windows Ink and daemon cards. This card carried
+                     a refresh glyph inline beside its heading plus an accent Browse / Install / Uninstall
+                     row — and Install and Uninstall are mutually exclusive, so the menu is never longer
+                     than three. Uninstall takes the error colour here, matching the other destructive menu
+                     items; it used to be an accent button indistinguishable from Install.
+                     The install-progress line is NOT here: the left column already showed it, so the copy
+                     that lived in this row was the same status printed twice. -->
+                <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                              Icon="{StaticResource IconDotsHorizontal}"
+                              ToolTip.Tip="VMulti driver actions"
+                              AutomationProperties.Name="VMulti driver actions">
+                    <c:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Refresh status"
+                                      Command="{Binding RefreshVmultiDetectionCommand}" />
+                            <Separator />
+                            <MenuItem Header="Install"
+                                      Command="{Binding InstallVmultiCommand}"
+                                      IsVisible="{Binding ShowInstallButton}" />
+                            <MenuItem Header="Open install folder"
+                                      Command="{Binding OpenFolderCommand}"
+                                      CommandParameter="C:\Program Files\VMulti" />
+                            <MenuItem Header="Uninstall"
+                                      Command="{Binding UninstallVmultiCommand}"
+                                      IsVisible="{Binding ShowUninstallButton}"
+                                      Foreground="{DynamicResource ErrorBrush}" />
+                        </MenuFlyout>
+                    </c:IconButton.Flyout>
+                </c:IconButton>
             </Grid>
         </c:Section>
     </StackPanel>

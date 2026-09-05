@@ -37,6 +37,22 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// <summary>The DAEMON PROCESS card: running state, which daemon + path, version-match, process uptime.</summary>
     public DaemonProcessViewModel Process { get; }
 
+    /// <summary>Reveal a daemon executable's folder in the OS file manager.
+    ///
+    /// Takes the FILE path the page shows and opens its DIRECTORY. Handing explorer.exe an .exe would run
+    /// it — which here would start a second daemon — so the directory is what gets passed, never the file.
+    /// Guarded like the other OpenFolder commands: nothing happens when the folder is gone, which is the
+    /// normal case for a daemon path recorded on a machine the build no longer exists on.</summary>
+    [RelayCommand]
+    private void OpenContainingFolder(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return;
+
+        var folder = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            PlatformShell.RevealInFileManager(folder);
+    }
+
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
 

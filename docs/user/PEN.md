@@ -2,11 +2,22 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-The **Pen** page's tabs are **basics**, **inputs**, and **pressure** — each its own section below. It shares the [Tablet page](TABLET.md)'s linked switcher + Refresh, which sit at the right of the page menu.
+The **Pen** page's tabs are **basics** and **pressure** — each its own section below. It shares the [Tablet page](TABLET.md)'s linked switcher + Refresh, which sit at the right of the page menu.
 
 ## basics
 
-Two columns — **Movement** on the left, **Pressing** on the right.
+The whole pen in one view, in four columns:
+
+1. **The switches** — the pen tip, the eraser, and each barrel button.
+2. **The pen** — a diagram with the buttons this pen actually has lit up and numbered, so a card lines up with the button it describes.
+3. **Movement** and **Pressing**, plus **Position smoothing**.
+4. **Pen input** — the opt-outs.
+
+*(This used to be two tabs, basics and inputs.)*
+
+### The switches
+
+### Movement and pressing
 
 **Movement** picks how the pen maps to the screen: **Normal (Absolute)** maps the pen 1:1 to the screen (recommended for drawing) or **Mouse-like (Relative)** moves the cursor like a mouse (often for games). Below the modes is a **Position smoothing** slider (moved here from the pressure tab, since it steadies the pen's on-screen position) — 0 = off to 1 = max, perceptually scaled; it applies while the pen is down and resets on lift.
 
@@ -15,8 +26,7 @@ Two columns — **Movement** on the left, **Pressing** on the right.
 - **Presses normally** — works like an artist would expect, with pressure sensitivity and tilt (using Windows Ink).
 - **Presses like a mouse** — uses OpenTabletDriver's plain output, so the pen clicks like a mouse (handy for apps where pen taps get treated as touch and act oddly), but you lose pressure and tilt.
 
-## inputs
-
+### Pen input
 
 This section controls the different inputs on the pen, including the pen tip, the pen eraser, and any pen buttons. Currently, OpenTabletDriver only allows you to use the default behavior of the buttons, so you can't control what they do. They just perform whatever Windows Ink does by default. This is not a limitation of Open Tablet Artist, but due to OpenTabletDriver, and in the future, if OpenTabletDriver changes, more options might be supported.
 

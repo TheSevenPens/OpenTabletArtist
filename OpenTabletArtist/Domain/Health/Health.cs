@@ -68,10 +68,10 @@ public sealed record Remediation(string ActionLabel, RemediationArea Area, strin
 /// <summary>One row of a multi-part issue (#artist-pen-health): the specific setting that's off plus a
 /// link to where it's reviewed. Used when a single Fix isn't possible because the offending settings live
 /// in different places. <see cref="Setting"/> names the problem, <see cref="Destination"/> is the location
-/// (e.g. "Pen › inputs"), and <see cref="Area"/>/<see cref="TabletName"/> drive the navigation.</summary>
+/// (e.g. "Pen › basics"), and <see cref="Area"/>/<see cref="TabletName"/> drive the navigation.</summary>
 public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName)
 {
-    /// <summary>Display text: location first, then the setting — e.g. "Pen › movement › Windows Ink is off".</summary>
+    /// <summary>Display text: location first, then the setting — e.g. "Pen › basics › Windows Ink is off".</summary>
     public string Label => $"{Destination} › {Setting}";
 }
 
@@ -407,13 +407,13 @@ public static class HealthEvaluator
 
             var links = new List<HealthLink>();
             if (i.IsWindows && t.WinInkOptedOut)
-                links.Add(new HealthLink("Windows Ink is off", "Pen › movement", RemediationArea.TabletPenBehavior, t.Name));
+                links.Add(new HealthLink("Windows Ink is off", "Pen › basics", RemediationArea.TabletPenBehavior, t.Name));
             if (t.PenTipDisabled)
-                links.Add(new HealthLink("Pen tip is disabled", "Pen › inputs", RemediationArea.TabletPenInputs, t.Name));
+                links.Add(new HealthLink("Pen tip is disabled", "Pen › basics", RemediationArea.TabletPenInputs, t.Name));
             if (t.PressureDisabled)
-                links.Add(new HealthLink("Pressure sensitivity is off", "Pen › inputs", RemediationArea.TabletPenInputs, t.Name));
+                links.Add(new HealthLink("Pressure sensitivity is off", "Pen › basics", RemediationArea.TabletPenInputs, t.Name));
             if (t.TiltDisabled)
-                links.Add(new HealthLink("Tilt is disabled", "Pen › dynamics", RemediationArea.TabletPenTilt, t.Name));
+                links.Add(new HealthLink("Tilt is disabled", "Pen › pressure", RemediationArea.TabletPenTilt, t.Name));
 
             issues.Add(new HealthIssue($"tablet.penBehavior:{t.Name}", HealthSeverity.Recommendation,
                 $"{t.Name}: pen isn't set up for drawing",

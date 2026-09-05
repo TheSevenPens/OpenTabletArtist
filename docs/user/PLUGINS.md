@@ -16,7 +16,7 @@ OTA's own plugin, and the one behind most of the pen features. It's copied into 
 
 ### Windows Ink
 
-The third-party Windows Ink output-mode plugin from Kuuube's [VoiDPlugins](https://github.com/Kuuuube/VoiDPlugins) — the de-facto standard for OpenTabletDriver on Windows. It's what actually delivers **pressure and tilt** to drawing apps. OTA installs it for you: first trying the newest compatible release from OpenTabletDriver's official Plugin-Repository, then falling back to the copy bundled inside OTA if you're offline. You can check, update, or remove it from **Advanced → [Drivers](ADVANCED.md#windows-ink-plugin)**.
+The third-party Windows Ink output-mode plugin from Kuuube's [VoiDPlugins](https://github.com/Kuuuube/VoiDPlugins) — the de-facto standard for OpenTabletDriver on Windows. It's what actually delivers **pressure and tilt** to drawing apps. OTA installs it for you: first trying the newest compatible release from OpenTabletDriver's official Plugin-Repository, then falling back to the copy bundled inside OTA if you're offline. You can check, update, or remove it from **Advanced → [Plugins](ADVANCED.md#windows-ink-plugin)**.
 
 Both are installed only when OTA started the driver itself. If you're connected to an **External (not started by OTA)** daemon, OTA leaves plugins alone.
 

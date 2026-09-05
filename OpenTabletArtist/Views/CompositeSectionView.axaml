@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Renders a CompositeSectionViewModel: its sub-VMs stacked, each resolved to its own view by the
-         typed DataTemplates (App.axaml). Used by the merged Zune pivots (System, Daemon, Drivers, …). -->
+         typed DataTemplates (App.axaml). Used by the merged Zune pivots (System, Daemon, …). -->
     <ItemsControl ItemsSource="{Binding Sections}">
         <ItemsControl.ItemTemplate>
             <DataTemplate>
