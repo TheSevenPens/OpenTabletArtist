@@ -29,7 +29,7 @@ You can assign actions to any buttons on the tablet. If you want to quickly disa
 
 ## wheels
 
-If your tablet has wheels or dials, they'll show up here. You can assign actions to the clockwise and counterclockwise rotations.
+If your tablet has wheels or dials, they'll show up here. You can assign actions to the clockwise and counterclockwise rotations, and to the wheel button. Each row's **⋯** menu holds **Edit…**, which opens the binding picker, and **Clear**, which unmaps that one row (greyed out when nothing is mapped to it). **Clear all** at the top of the tab empties every wheel binding at once, and **Wheel enabled** turns them all off while keeping them.
 
 
 

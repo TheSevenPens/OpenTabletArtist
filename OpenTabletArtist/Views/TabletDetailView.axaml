@@ -78,10 +78,21 @@
                     <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
-                <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconEdit}"
-                                 Command="{Binding EditCommand}"
-                                 IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                                 ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit" />
+                <!-- The row's actions behind one "…", as elsewhere in the app (#row-actions). Clear is new:
+                     it was reachable only by opening the editor and pressing Clear in there, and for a
+                     binding this editor can't model not even that worked. Both commands are on the row's
+                     own DataContext, which a flyout inherits, so these are Command bindings. -->
+                <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconDotsHorizontal}"
+                                 VerticalAlignment="Center"
+                                 ToolTip.Tip="More actions for this binding"
+                                 AutomationProperties.Name="More actions">
+                    <ctrl:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Edit…" Command="{Binding EditCommand}" />
+                            <MenuItem Header="Clear" Command="{Binding ClearCommand}" />
+                        </MenuFlyout>
+                    </ctrl:IconButton.Flyout>
+                </ctrl:IconButton>
             </Grid>
         </DataTemplate>
     </UserControl.Resources>

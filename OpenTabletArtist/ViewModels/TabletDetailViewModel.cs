@@ -2362,9 +2362,12 @@ public partial class ButtonBinding : ObservableObject
     public bool CanEdit { get; }
 
     /// <summary>True when this button already holds a binding this editor can't model (Windows Ink, an
-    /// adaptive binding, or a multi-key macro) — the summary shows its friendly name until it's replaced.</summary>
-    public bool IsOtherBinding { get; }
-    public string OtherLabel { get; }
+    /// adaptive binding, or a multi-key macro) — the summary shows its friendly name until it's replaced.
+    /// Settable only by <see cref="Clear"/>, which is the one thing that can remove such a binding: the
+    /// modal editor cannot, because it hands back Unbound and this row already holds Unbound, so its
+    /// "no change" check swallows it.</summary>
+    public bool IsOtherBinding { get; private set; }
+    public string OtherLabel { get; private set; }
 
     /// <summary>True while the physical button is held down — highlights the card live.</summary>
     [ObservableProperty] private bool _isPressed;
@@ -2372,7 +2375,9 @@ public partial class ButtonBinding : ObservableObject
     /// <summary>Open the modal editor and apply the result — a binding, or <see cref="AuxBinding.Unbound"/>
     /// from Clear. Cancel (null) leaves the binding untouched. Nothing is applied until the dialog
     /// returns, so there's no inline apply-on-change to loop.</summary>
-    [RelayCommand]
+    // CanExecute, not just the guard below: the action is a named menu item now rather than a button the
+    // view could disable itself, so a read-only host has to grey it out from here.
+    [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task Edit()
     {
         if (_editBinding == null || !CanEdit) return;
@@ -2381,6 +2386,24 @@ public partial class ButtonBinding : ObservableObject
         if (binding == _applied) return;        // no change
         _applied = binding;
         OnPropertyChanged(nameof(Summary));
+        ClearCommand.NotifyCanExecuteChanged();
         if (_applyBinding != null) await _applyBinding(Index, binding);
+    }
+
+    /// <summary>Something is mapped here, so there is something to clear. An unmodellable binding counts:
+    /// it is exactly the case the modal editor cannot undo.</summary>
+    private bool CanClear => CanEdit && (_applied.IsBound || IsOtherBinding);
+
+    /// <summary>Unmap this row without opening the editor (#wheel-row-actions). Applies the same Unbound
+    /// the dialog's Clear does, in one step rather than two.</summary>
+    [RelayCommand(CanExecute = nameof(CanClear))]
+    private async Task Clear()
+    {
+        _applied = AuxBinding.Unbound;
+        IsOtherBinding = false;
+        OtherLabel = "";
+        OnPropertyChanged(nameof(Summary));
+        ClearCommand.NotifyCanExecuteChanged();
+        if (_applyBinding != null) await _applyBinding(Index, _applied);
     }
 }
