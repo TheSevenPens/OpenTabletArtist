@@ -1526,15 +1526,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Remove every wheel binding (rotations + buttons). Also drops any suspended stash.</summary>
-    [RelayCommand]
-    private async Task ClearWheelBindings()
-    {
-        if (_applyAction == null) return;
-        AppSettings.Set(WheelBackupKey, "");
-        await ApplySettingsChange(ClearWheels);
-    }
-
+    // The "Clear all" button and its command are gone (#wheel-row-actions): every row clears itself now,
+    // and a wheel has three rows at most. ClearWheels stays — the enable toggle's suspend path uses it to
+    // empty the bindings after stashing them.
     private static void ClearWheels(Profile p)
     {
         foreach (var w in p.BindingSettings.WheelBindings)
