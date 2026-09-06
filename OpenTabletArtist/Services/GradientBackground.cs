@@ -85,6 +85,19 @@ public static class GradientBackground
     private const string Key = "Sakura:CodeGenGlows";
     private const string BaseColorKey = "Sakura:CodeGenBaseColor";
 
+    /// <summary>Whether the code-generated backdrop is the thing currently on screen: the Sakura skin, with
+    /// its background set to codegen rather than to a flat colour.
+    ///
+    /// Both halves matter. The live editor used to test only the background mode, so editing a glow while
+    /// Dark Sakura was selected wrote the glow brushes anyway — and Dark Sakura has no codegen mode at all
+    /// (it paints the sakura image, and the background chooser is not even shown for it), so the bands
+    /// appeared over a skin that never asked for them and stayed until the next skin refresh cleared them.
+    ///
+    /// `ThemeViewModel.RefreshSkin` gates on its own selection rather than this, deliberately: it is
+    /// deciding what to WRITE for the skin being applied, where this asks what is SHOWING.</summary>
+    public static bool IsShowing =>
+        ThemeService.SavedChoice == ThemeService.Anime && SkinColorSettings.SakuraBackground == "codegen";
+
     /// <summary>The persisted flat base colour (editable in Developer → Gradients), or the default.</summary>
     public static string LoadBaseColor() => AppSettings.Get(BaseColorKey) ?? DefaultBaseColor;
 

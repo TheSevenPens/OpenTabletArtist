@@ -256,7 +256,7 @@
             <StackPanel>
 
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
-                           Text="Glows for the Sakura ‘CodeGen background’. Select it in Interface → Skin to see changes live." />
+                           Text="Glows for the Sakura skin's ‘CodeGen background’. Changes only show while that skin and that background are both selected, in Settings → Appearance." />
 
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,18">
                     <Button Content="Add gradient" Command="{Binding AddGlowCommand}"

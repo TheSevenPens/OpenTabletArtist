@@ -107,8 +107,10 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         var list = Glows.Select(i => i.ToModel()).ToList();
         SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(), list);
         // Only touch the live backdrop when the codegen background is actually showing, so editing here
-        // never overrides the image / solid Sakura backgrounds (or other skins).
-        if (Application.Current is { } app && SkinColorSettings.SakuraBackground == "codegen")
+        // never overrides the image / solid Sakura backgrounds (or other skins). This tested the background
+        // mode alone, which is not a skin check: Dark Sakura has no codegen mode, but it left the mode
+        // setting at "codegen", so editing a glow there painted bands over its sakura image.
+        if (Application.Current is { } app && GradientBackground.IsShowing)
             GradientBackground.ApplyGlowBrushes(app.Resources, list);
 
         if (persist == PersistMode.Immediate) PersistNow();
