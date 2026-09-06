@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using OpenTabletArtist.ViewModels;
 
@@ -30,5 +31,15 @@ public partial class ThemeView : UserControl
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (!string.IsNullOrWhiteSpace(path))
             vm.BackgroundImagePath = path;
+    }
+
+    // BACKDROP → the glow list's "…" → Copy settings JSON. In code-behind rather than on the view model
+    // because the clipboard hangs off the TopLevel, which is what Dialogs.cs reaches for too. Came here
+    // with the glow editor from Developer (#appearance-merge).
+    private async void OnCopyGradientSettings(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ThemeViewModel vm) return;
+        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+        await clipboard.SetTextAsync(vm.Gradients.SettingsText);
     }
 }

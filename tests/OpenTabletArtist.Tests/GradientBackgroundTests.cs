@@ -233,6 +233,42 @@ public class GradientBackgroundTests
     }
 
     [Fact]
+    public void BuildBackdropPreview_StacksEveryGlowOverTheBase()
+    {
+        // The Appearance page's one preview (#appearance-merge): base colour plus all the glows, which is
+        // the pairing that used to be split across two tabs.
+        var glows = new List<GradientGlow>
+        {
+            new() { Color = "#FFBC83", Style = GlowStyle.Linear },
+            new() { Color = "#FF00EE", Style = GlowStyle.Linear, Edge = GlowEdge.Top },
+        };
+
+        var layers = ((DrawingGroup)GradientBackground.BuildBackdropPreview("#FCE7EE", glows).Drawing!)
+            .Children.OfType<GeometryDrawing>().ToList();
+
+        Assert.Equal(3, layers.Count); // the base, then one per glow, in order
+        Assert.Equal(Color.Parse("#FCE7EE"), Assert.IsType<SolidColorBrush>(layers[0].Brush).Color);
+        Assert.All(layers.Skip(1), l => Assert.IsType<LinearGradientBrush>(l.Brush));
+    }
+
+    [Fact]
+    public void BuildBackdropPreview_ScalesReachAgainstTheWindow_NotTheBand()
+    {
+        // A 200px reach is a quarter of its 600px band but only a quarter of 800px here — the preview
+        // stands in for a window, so it has to measure against one.
+        var glow = new GradientGlow { Style = GlowStyle.Linear, ReachPx = 200 };
+
+        var preview = Assert.IsType<LinearGradientBrush>(
+            ((DrawingGroup)GradientBackground.BuildBackdropPreview("#FCE7EE", new[] { glow }).Drawing!)
+                .Children.OfType<GeometryDrawing>().Last().Brush);
+        var band = Assert.IsType<LinearGradientBrush>(
+            SingleLayer(GradientBackground.BuildGlowBrush(new[] { glow }, GlowEdge.Bottom)).Brush);
+
+        Assert.Equal(1 - 200 / GradientBackground.PreviewWindowHeight, preview.EndPoint.Point.Y, 3);
+        Assert.Equal(1 - 200 / GradientBackground.BandHeight, band.EndPoint.Point.Y, 3);
+    }
+
+    [Fact]
     public void BuildPreviewBrush_PaintsTheGlowOverTheBaseColour()
     {
         var brush = GradientBackground.BuildPreviewBrush(
