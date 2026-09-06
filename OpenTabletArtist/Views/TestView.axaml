@@ -78,11 +78,13 @@
                  the Entity glass fill so it reads as a single panel over the themed backdrop. -->
             <c:ControlPanel Margin="0,12,0,0">
                 <StackPanel>
-                    <!-- Controls. Mode + actions group on the left; the App/Driver source toggle sits at
-                         the far right of the row. -->
+                    <!-- Controls. Brush + actions group on the left; the App/Driver source toggle sits at
+                         the far right of the row. The picker chooses a BRUSH, which is what it is bound to
+                         (BrushModes/BrushMode) and what the list reads as — "Mode" named the enum, not the
+                         thing being picked. -->
                     <Grid ColumnDefinitions="*,Auto">
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,6,0"
+                            <TextBlock Text="Brush" VerticalAlignment="Center" Margin="0,0,6,0"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                             <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
                                       MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
