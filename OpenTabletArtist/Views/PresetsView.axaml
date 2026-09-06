@@ -4,8 +4,14 @@
              xmlns:c="using:OpenTabletArtist.Controls">
 
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
-         SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here. -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+         SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here.
+
+         Two columns: the presets themselves on the left, what a preset IS on the right. Definite widths
+         rather than star columns — the page is HorizontalAlignment="Left", which sizes a Grid to its
+         content, and star columns inside that have nothing to divide. They add up to the 900 the page
+         was capped at before. -->
+    <Grid ColumnDefinitions="540,32,320" HorizontalAlignment="Left">
+    <StackPanel Grid.Column="0">
         <!-- Saving the live config (settings.json) as a preset. This was an accent-outlined bar across
              the top of the page — heading, "In use now" chip and a paragraph explaining that the live
              config saves itself and that everything below is a copy of it. It was an Alert wearing a
@@ -89,4 +95,19 @@
             </StackPanel>
         </c:Section>
     </StackPanel>
+
+        <!-- What a preset is. The page assumed you already knew: it showed a list of names and a Load
+             button, and nothing said that Load replaces the settings for every tablet at once. Prose
+             rather than a tooltip, because the thing worth knowing is what the whole page does. -->
+        <c:Section Grid.Column="2" VerticalAlignment="Top" Title="What a preset is">
+            <StackPanel Spacing="10">
+                <TextBlock TextWrapping="Wrap"
+                           Text="A preset is a named copy of OpenTabletDriver's whole configuration — every tablet you have set up, with its area, mapping, pen settings and filters, saved together in one file." />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Saving one leaves your current settings alone; it takes a copy. Loading one replaces the live settings for every tablet at once, so it switches your whole setup rather than one tablet's." />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Presets are also what Settings → Hotkeys switches between: give a preset a key combination there and it loads on that key, even when OpenTabletArtist isn't the focused window." />
+            </StackPanel>
+        </c:Section>
+    </Grid>
 </UserControl>
