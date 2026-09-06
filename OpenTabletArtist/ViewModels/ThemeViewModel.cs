@@ -28,8 +28,8 @@ public partial class ThemeViewModel : ObservableObject
         new(ThemeService.System, "System", "Follows your Windows light/dark setting.", SystemSwatch()),
         new(ThemeService.Light,  "Light",  "A clean, bright theme.", new SolidColorBrush(Color.Parse("#F0F0F6"))),
         new(ThemeService.Dark,   "Dark",   "Easy on the eyes in low light.", new SolidColorBrush(Color.Parse("#13131C"))),
-        new(ThemeService.Anime,  "Sakura", "Pink skin with a cherry-blossom backdrop and frosted-glass panels.", SakuraSwatch()),
-        new(ThemeService.DarkSakura, "Dark Sakura", "A moody dark cherry-blossom skin: pink accents and falling petals over a dimmed backdrop.", DarkSakuraSwatch()),
+        new(ThemeService.Anime,  "Sakura", "Pink skin with a soft gradient backdrop, falling cherry blossoms and frosted-glass panels.", SakuraSwatch()),
+        new(ThemeService.DarkSakura, "Dark Sakura", "A moody dark skin: pink accents and falling cherry blossoms over a dark gradient backdrop.", DarkSakuraSwatch()),
         new(ThemeService.Custom, "Custom", "A translucent skin you tune: pick the accent colour and a background image.", CustomSwatch()),
     };
 
