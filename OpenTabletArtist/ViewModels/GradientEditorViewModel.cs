@@ -12,9 +12,11 @@ using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
-/// <summary>Developer-only live editor for the code-generated Sakura backdrop's glows (#556). Editing a glow
-/// rebuilds the edge glow brushes immediately (so the background updates live while the Sakura "CodeGen"
-/// background is selected), persists the settings, and refreshes the copyable JSON in <see cref="SettingsText"/>.
+/// <summary>Developer-only live editor for the code-generated backdrop's glows (#556). Editing a glow
+/// rebuilds the edge glow brushes immediately (so the background updates live while a blossom skin's
+/// "CodeGen" background is selected), persists the settings, and refreshes the copyable JSON in
+/// <see cref="SettingsText"/>. Sakura and Dark Sakura each keep their own glows, and the editor follows
+/// whichever is selected (#glow-darksakura).
 ///
 /// The page is a list beside an inspector (#glow-linear): every glow shows in the list with its colour and
 /// what it is, and the one you pick is the only one whose controls are on screen. That is what makes room
@@ -32,6 +34,10 @@ public sealed partial class GradientEditorViewModel : ObservableObject
 
     public bool HasGlows => Glows.Count > 0;
 
+    /// <summary>"you have removed them all", as opposed to "this skin has none to edit" — two different
+    /// empty states, and showing both at once read as a contradiction.</summary>
+    public bool ShowEmptyMessage => HasSkin && !HasGlows;
+
     /// <summary>Pretty-printed JSON of the whole background (base colour + glows) — copy this and paste it
     /// to bake in as the default. The base colour is owned by the Appearance tab; the editor just reflects
     /// its current persisted value here.</summary>
@@ -42,13 +48,36 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     // edits (add/remove/duplicate/reset) persist immediately so they can't be lost to the debounce window.
     private readonly DispatcherTimer _saveTimer;
 
+    // Which skin's glows are being edited. Both blossom skins keep their own set (#glow-darksakura), so
+    // the editor follows whichever is selected; null under a skin that has no generated backdrop, where
+    // the page shows nothing to edit.
+    private string? _skin;
+
+    public bool HasSkin => _skin is not null;
+
     public GradientEditorViewModel()
     {
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _saveTimer.Tick += (_, _) => PersistNow();
-        foreach (var g in GradientBackground.Load()) Attach(new GradientGlowItem(g));
+        LoadForActiveSkin();
+        // The page outlives any one skin, so re-read when the user switches. This view model lives as long
+        // as the app, so the subscription is never removed.
+        ThemeService.SkinChanged += LoadForActiveSkin;
+    }
+
+    /// <summary>Point the editor at the current skin's stored glows, discarding the previous skin's list.
+    /// Never applies anything: the theme has already drawn whatever the new skin asked for.</summary>
+    private void LoadForActiveSkin()
+    {
+        _skin = GradientBackground.ActiveSkin;
+        Glows.Clear();
+        if (_skin is { } skin)
+            foreach (var g in GradientBackground.Load(skin)) Attach(new GradientGlowItem(g));
         Selected = Glows.FirstOrDefault();
-        RefreshText(); // don't apply on load — the theme already applied the saved background
+        OnPropertyChanged(nameof(HasSkin));
+        OnPropertyChanged(nameof(HasGlows));
+        OnPropertyChanged(nameof(ShowEmptyMessage));
+        RefreshText();
     }
 
     private void Attach(GradientGlowItem item, int? at = null)
@@ -56,6 +85,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         item.PropertyChanged += (_, _) => ApplyLive(persist: PersistMode.Debounced);
         if (at is { } i) Glows.Insert(i, item); else Glows.Add(item);
         OnPropertyChanged(nameof(HasGlows));
+        OnPropertyChanged(nameof(ShowEmptyMessage));
     }
 
     [RelayCommand]
@@ -74,6 +104,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         var next = Glows.IndexOf(item);
         Glows.Remove(item);
         OnPropertyChanged(nameof(HasGlows));
+        OnPropertyChanged(nameof(ShowEmptyMessage));
         Selected = Glows.ElementAtOrDefault(Math.Min(next, Glows.Count - 1));
         ApplyLive(PersistMode.Immediate);
     }
@@ -93,7 +124,8 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     private void ResetGlows()
     {
         Glows.Clear();
-        foreach (var g in GradientBackground.Defaults()) Attach(new GradientGlowItem(g));
+        if (_skin is { } skin)
+            foreach (var g in GradientBackground.Defaults(skin)) Attach(new GradientGlowItem(g));
         Selected = Glows.FirstOrDefault();
         ApplyLive(PersistMode.Immediate);
     }
@@ -104,11 +136,13 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     // settings-file write.
     private void ApplyLive(PersistMode persist)
     {
+        if (_skin is not { } skin) return;
         var list = Glows.Select(i => i.ToModel()).ToList();
-        SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(), list);
+        SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(skin), list);
         // Only touch the live backdrop when the codegen background is actually showing, so editing here
-        // never overrides the image / solid Sakura backgrounds (or other skins).
-        if (Application.Current is { } app && SkinColorSettings.SakuraBackground == "codegen")
+        // never overrides a solid background or another skin. This tested the background MODE alone, which
+        // is not a skin check, so a glow edited under any other skin painted bands over it.
+        if (Application.Current is { } app && GradientBackground.IsShowing)
             GradientBackground.ApplyGlowBrushes(app.Resources, list);
 
         if (persist == PersistMode.Immediate) PersistNow();
@@ -120,13 +154,16 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     private void PersistNow()
     {
         _saveTimer.Stop();
+        if (_skin is not { } skin) return;
         var list = Glows.Select(i => i.ToModel()).ToList();
         if (list.All(g => Color.TryParse(g.Color, out _)))
-            GradientBackground.Save(list);
+            GradientBackground.Save(skin, list);
     }
 
     private void RefreshText() =>
-        SettingsText = GradientBackground.Serialize(GradientBackground.LoadBaseColor(), Glows.Select(i => i.ToModel()));
+        SettingsText = _skin is { } skin
+            ? GradientBackground.Serialize(GradientBackground.LoadBaseColor(skin), Glows.Select(i => i.ToModel()))
+            : "";
 }
 
 /// <summary>Editable view of one <see cref="GradientGlow"/>; any change re-applies the backdrop.</summary>
@@ -175,13 +212,13 @@ public sealed partial class GradientGlowItem : ObservableObject
         {
             var chip = ToModel();
             chip.CenterOpacity = 1;
-            return GradientBackground.BuildPreviewBrush(chip, GradientBackground.LoadBaseColor(), 0.8);
+            return GradientBackground.BuildPreviewBrush(chip, GradientBackground.ActiveBaseColor, 0.8);
         }
     }
 
     /// <summary>The inspector's preview strip, to scale against the glow band.</summary>
     public IBrush PreviewBrush =>
-        GradientBackground.BuildPreviewBrush(ToModel(), GradientBackground.LoadBaseColor(), ReachPx / GradientBackground.BandHeight);
+        GradientBackground.BuildPreviewBrush(ToModel(), GradientBackground.ActiveBaseColor, ReachPx / GradientBackground.BandHeight);
 
     // Switching to radial off a side edge would leave a glow the editor can no longer express (and that the
     // side bands were not added for), so the anchor falls back to the bottom.

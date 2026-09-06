@@ -256,9 +256,17 @@
             <StackPanel>
 
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
-                           Text="Glows for the Sakura ‘CodeGen background’. Select it in Interface → Skin to see changes live." />
+                           Text="Glows for the current skin's ‘CodeGen background’. Sakura and Dark Sakura keep their own; pick the skin and that background in Settings → Appearance." />
 
-                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,18">
+                <!-- Only the blossom skins have a generated backdrop, and each owns its glows, so under any
+                     other skin there is no list to show rather than someone else's. -->
+                <TextBlock Text="The current skin has no generated backdrop. Switch to Sakura or Dark Sakura in Settings → Appearance to edit its glows."
+                           TextWrapping="Wrap" FontStyle="Italic" Margin="0,14,0,0"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           IsVisible="{Binding !HasSkin}" />
+
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,18"
+                            IsVisible="{Binding HasSkin}">
                     <Button Content="Add gradient" Command="{Binding AddGlowCommand}"
                             Theme="{StaticResource GhostButton}" Padding="12,6" />
                     <Button Content="Reset to defaults" Command="{Binding ResetGlowsCommand}"
@@ -273,7 +281,7 @@
                      an empty column beside an empty inspector. -->
                 <TextBlock Text="No glows. Add one, or reset to the defaults."
                            FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}"
-                           IsVisible="{Binding !HasGlows}" />
+                           IsVisible="{Binding ShowEmptyMessage}" />
 
                 <Grid ColumnDefinitions="300,32,Auto" IsVisible="{Binding HasGlows}" HorizontalAlignment="Left">
 

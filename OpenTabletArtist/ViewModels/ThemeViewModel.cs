@@ -50,20 +50,27 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
     public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
 
-    // Sakura-only: choose a code-generated gradient backdrop or a flat colour.
-    public bool ShowSakuraBackground => IsSakura;
-    public bool SakuraSolidBackground => SkinColorSettings.SakuraBackground == "solid";
-    public bool SakuraCodeGenBackground => SkinColorSettings.SakuraBackground == "codegen";
+    // Choose a code-generated gradient backdrop or a flat colour.
+    // Both blossom skins offer it since Dark Sakura swapped its fixed artwork for the same tunable
+    // backdrop (#glow-darksakura). Custom has its own backdrop controls.
+    public bool ShowSakuraBackground => IsSakura || IsDarkSakura;
+    public bool SakuraSolidBackground => IsBlossom && SkinColorSettings.Background(SkinKey) == "solid";
+    public bool SakuraCodeGenBackground => IsBlossom && SkinColorSettings.Background(SkinKey) == "codegen";
+
+    private bool IsBlossom => IsSakura || IsDarkSakura;
 
     // CodeGen-only: the flat base colour behind the glows (#556). Editing it saves + re-tints live; the
     // glows themselves are tuned in Developer → Gradients. Invalid hex (mid-typing) is kept for display but
     // not applied, so a partial value never crashes the parse in RefreshSkin.
-    [ObservableProperty] private string _sakuraBaseColor = GradientBackground.LoadBaseColor();
+    // Seeded with Sakura's; the ctor and the skin switch overwrite it with the active skin's stored value,
+    // as they do for the card tint.
+    [ObservableProperty] private string _sakuraBaseColor =
+        GradientBackground.LoadBaseColor(SkinColorSettings.SakuraSkin);
 
     partial void OnSakuraBaseColorChanged(string value)
     {
-        if (!Color.TryParse(value, out _)) return;
-        GradientBackground.SaveBaseColor(value);
+        if (!IsBlossom || !Color.TryParse(value, out _)) return;
+        GradientBackground.SaveBaseColor(SkinKey, value);
         RefreshSkin();
     }
 
@@ -129,6 +136,9 @@ public partial class ThemeViewModel : ObservableObject
         _accentColor = ParseColorOr(ActiveAccentHex(), Color.Parse(DefaultAccentHexForSkin));
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
         _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
+        // Per-skin as well, since Dark Sakura joined (#glow-darksakura): without this the picker opened on
+        // Sakura's pale pink under Dark Sakura, and touching it would have saved that as the dark base.
+        if (IsBlossom) _sakuraBaseColor = GradientBackground.LoadBaseColor(SkinKey);
         _baseColor = ParseColorOr(SkinColorSettings.CustomBaseHex, Color.Parse(SkinColorSettings.CustomBaseDefault));
         _backgroundImagePath = CustomThemeSettings.BackgroundImagePath;
         _backgroundImageOpacity = CustomThemeSettings.BackgroundImageOpacity;
@@ -201,9 +211,11 @@ public partial class ThemeViewModel : ObservableObject
         _cardColor = ParseColorOr(ActiveCardHex(), Color.Parse(DefaultCardHexForSkin));
         _cardOpacity = AcrylicSettings.MaterialOpacity(SkinKey, DefaultCardOpacityForSkin);
         _accentColor = ParseColorOr(ActiveAccentHex(), Color.Parse(DefaultAccentHexForSkin));
+        if (IsBlossom) _sakuraBaseColor = GradientBackground.LoadBaseColor(SkinKey);
         OnPropertyChanged(nameof(CardColor));
         OnPropertyChanged(nameof(CardOpacity));
         OnPropertyChanged(nameof(AccentColor));
+        OnPropertyChanged(nameof(SakuraBaseColor));
         if (value != null) ThemeService.Apply(value.Id);
         RefreshSkin(); // apply the new skin's overrides, clear the old skin's
     }
@@ -216,7 +228,7 @@ public partial class ThemeViewModel : ObservableObject
     [RelayCommand]
     private void SelectSakuraBackground(string mode)
     {
-        SkinColorSettings.SakuraBackground = mode;
+        if (IsBlossom) SkinColorSettings.SetBackground(SkinKey, mode);
         OnPropertyChanged(nameof(SakuraSolidBackground));
         OnPropertyChanged(nameof(SakuraCodeGenBackground));
         RefreshSkin();
@@ -250,19 +262,27 @@ public partial class ThemeViewModel : ObservableObject
         }
         else
         {
-            // Sakura backdrop mode (#556): a code-generated gradient (default) or a flat colour. The
+            // Blossom backdrop mode (#556): a code-generated gradient (default) or a flat colour. The
             // cherry-blossom image mode was retired; "image" migrates to "codegen" in SkinColorSettings.
-            if (IsSakura)
+            // Dark Sakura joined here when its own artwork was retired too (#glow-darksakura) — it kept a
+            // glow along the bottom edge that no setting could reach, because the glow was in the picture.
+            if (IsBlossom)
             {
-                if (SkinColorSettings.SakuraBackground == "solid")
-                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(Color.Parse(SkinColorSettings.SakuraSolidBgColor));
+                // That artwork needed a scrim to sit under; a generated backdrop does not, and the scrim
+                // would dim the glows as well since it paints over the bands.
+                app.Resources["BackdropScrimBrush"] = Brushes.Transparent;
+
+                if (SkinColorSettings.Background(SkinKey) == "solid")
+                    app.Resources["AppBackdropBrush"] =
+                        new SolidColorBrush(Color.Parse(SkinColorSettings.SolidBgColor(SkinKey)));
                 else
                 {
                     // Flat base fills the window; the glows (from the persisted/edited settings) fill the
                     // fixed-thickness edge bands. All tunable live via Developer → Gradients (#556).
-                    var glows = GradientBackground.Load();
-                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(
-                        ParseColorOr(GradientBackground.LoadBaseColor(), Color.Parse(GradientBackground.DefaultBaseColor)));
+                    var glows = GradientBackground.Load(SkinKey);
+                    app.Resources["AppBackdropBrush"] = new SolidColorBrush(ParseColorOr(
+                        GradientBackground.LoadBaseColor(SkinKey),
+                        Color.Parse(GradientBackground.DefaultBaseColor(SkinKey))));
                     GradientBackground.ApplyGlowBrushes(app.Resources, glows);
                 }
             }
@@ -381,7 +401,7 @@ public partial class ThemeViewModel : ObservableObject
         PetalsOpacity = AnimationSettings.DefaultPetalsOpacity;
         CardColor = Color.Parse(DefaultCardHexForSkin);
         AccentColor = Color.Parse(DefaultAccentHexForSkin); // per-skin highlight (#557)
-        if (IsSakura) SakuraBaseColor = GradientBackground.DefaultBaseColor; // codegen backdrop base (#556)
+        if (IsBlossom) SakuraBaseColor = GradientBackground.DefaultBaseColor(SkinKey); // codegen backdrop base (#556)
         if (IsCustom)
         {
             BaseColor = Color.Parse(SkinColorSettings.CustomBaseDefault);

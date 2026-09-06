@@ -25,9 +25,9 @@ public class GradientBackgroundTests
     public void Parse_FallsBackToDefaults_OnBadInput(string? json)
     {
         var parsed = GradientBackground.Parse(json);
-        Assert.Equal(GradientBackground.Defaults().Count, parsed.Count);
+        Assert.Equal(GradientBackground.Defaults(SkinColorSettings.SakuraSkin).Count, parsed.Count);
         // Same content as Defaults (spot-check the first glow's colour).
-        Assert.Equal(GradientBackground.Defaults()[0].Color, parsed[0].Color);
+        Assert.Equal(GradientBackground.Defaults(SkinColorSettings.SakuraSkin)[0].Color, parsed[0].Color);
     }
 
     [Fact]
@@ -120,6 +120,31 @@ public class GradientBackgroundTests
         Assert.Equal("#FCE7EE", (string)obj.BaseColor);
         Assert.Equal("#FFD3AE", (string)obj.Glows[0].Color);
         Assert.Equal(0.1, (double)obj.Glows[0].CenterX);
+    }
+
+    [Fact]
+    public void Defaults_AreSeparatePerSkin()
+    {
+        // Dark Sakura got its own set when it swapped its backdrop artwork for the generated one
+        // (#glow-darksakura): a glow set tuned for a pale pink page means nothing on a near-black one.
+        var sakura = GradientBackground.Defaults(SkinColorSettings.SakuraSkin);
+        var dark = GradientBackground.Defaults(SkinColorSettings.DarkSakuraSkin);
+
+        Assert.NotEqual(sakura.Select(g => g.Color), dark.Select(g => g.Color));
+        Assert.NotEqual(GradientBackground.DefaultBaseColor(SkinColorSettings.SakuraSkin),
+                        GradientBackground.DefaultBaseColor(SkinColorSettings.DarkSakuraSkin));
+        // Both stand in for a wash along an edge, so neither ships a radial glow.
+        Assert.All(dark, g => Assert.Equal(GlowStyle.Linear, g.Style));
+        Assert.All(dark, g => Assert.Equal(GlowEdge.Bottom, g.Edge));
+    }
+
+    [Fact]
+    public void Parse_FallsBackToTheNamedSkinsDefaults()
+    {
+        var dark = GradientBackground.Parse(null, SkinColorSettings.DarkSakuraSkin);
+
+        Assert.Equal(GradientBackground.Defaults(SkinColorSettings.DarkSakuraSkin).Count, dark.Count);
+        Assert.Equal(GradientBackground.Defaults(SkinColorSettings.DarkSakuraSkin)[0].Color, dark[0].Color);
     }
 
     [Fact]
