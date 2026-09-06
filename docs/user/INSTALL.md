@@ -36,8 +36,8 @@ Manufacturer drivers (Wacom, Huion, XP-Pen, Gaomon, Veikk, …) interfere with O
 **must** be removed.
 
 - OTA detects them automatically: a **Conflicting tablet driver** warning appears on **Home**, and the
-  details are on the **Driver Cleanup** page (under **Advanced**).
-- On the **Driver Cleanup** page, click **Install** to fetch the OTD team's *TabletDriverCleanup* tool
+  details are on the **Drivers** tab (under **Settings**).
+- On the **Drivers** tab, click **Install** to fetch the OTD team's *TabletDriverCleanup* tool
   (no admin needed to install it), then **Run** it (one UAC prompt; a terminal window shows its
   progress). It removes leftover driver bits that a normal uninstall leaves behind.
 - You can also uninstall manufacturer drivers yourself from Windows **Settings → Apps** and Device

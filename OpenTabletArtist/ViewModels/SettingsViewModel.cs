@@ -46,21 +46,27 @@ public partial class SettingsViewModel : ObservableObject
         PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
         // The "System" pivot holds each OS's own integration capabilities, kept deliberately separate so
-        // Windows and Linux each do their native thing (no shared abstraction). On Windows it's the three
-        // Windows pages in two columns (Startup + Shortcut | Driver Cleanup); on Linux it's the single
-        // application-menu-entry (.desktop) card, the counterpart to the Windows Start-menu shortcut. macOS
-        // has no equivalent yet, so the pivot is hidden there (see TabAppliesToOs).
+        // Windows and Linux each do their native thing (no shared abstraction). On Windows it's Startup +
+        // Shortcut stacked; on Linux it's the single application-menu-entry (.desktop) card, the counterpart
+        // to the Windows Start-menu shortcut. macOS has no equivalent yet, so the pivot is hidden there (see
+        // TabAppliesToOs).
+        //
+        // Driver Cleanup used to be System's right column (#drivers-tab). It is not an integration
+        // capability — it removes somebody else's driver — and it is the longest page of the three, so it
+        // took the whole right side while Startup and Shortcut are a toggle and a checkbox. Its own pivot
+        // now, which also leaves System as a single column of two small cards.
         object system = OperatingSystem.IsWindows()
-            ? new SystemSettingsViewModel(startup, shortcut, driverCleanup)
+            ? new CompositeSectionViewModel(startup, shortcut)
             : desktopEntry;
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),
             new("PER-APP PRESETS", SettingsTab.PerAppPresets, perApp, isVisible: FeatureFlags.PerAppProfiles),
             new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
-            new("APPEARANCE", SettingsTab.Theme, theme),
+            new("THEME", SettingsTab.Theme, theme),
             new("SYSTEM", SettingsTab.System, system),
-            new("DEVELOPER", SettingsTab.Developer, developer),
+            new("DRIVERS", SettingsTab.Drivers, driverCleanup),
+            new("DEV", SettingsTab.Developer, developer),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows(), OperatingSystem.IsLinux())).ToArray();
         Tabs = tabs;
         _allTabs = tabs;
@@ -72,12 +78,18 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>Whether a SETTINGS pivot applies on the given OS. The <b>System</b> pivot holds OS-specific
-    /// integration capabilities — the Windows pages (Startup Run key + Shortcut .lnk + Driver Cleanup) on
-    /// Windows, the application-menu-entry card on Linux — so it shows on both but is hidden on macOS, which
-    /// has no equivalent yet. Every other pivot is cross-platform. Pure (OS passed in, not checked inline)
-    /// so it's unit-testable — matching <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
-    public static bool TabAppliesToOs(SettingsTab tab, bool isWindows, bool isLinux) =>
-        tab != SettingsTab.System || isWindows || isLinux;
+    /// integration capabilities — the Windows pages (Startup Run key + Shortcut .lnk) on Windows, the
+    /// application-menu-entry card on Linux — so it shows on both but is hidden on macOS, which has no
+    /// equivalent yet. <b>Drivers</b> is Windows-only: the conflicting drivers it finds and the cleanup tool
+    /// it runs are both Windows things, and it inherits that from the Driver Cleanup page it holds, which was
+    /// Windows-only inside System. Every other pivot is cross-platform. Pure (OS passed in, not checked
+    /// inline) so it's unit-testable — matching <see cref="AdvancedViewModel.RailTabAppliesToOs"/>.</summary>
+    public static bool TabAppliesToOs(SettingsTab tab, bool isWindows, bool isLinux) => tab switch
+    {
+        SettingsTab.System => isWindows || isLinux,
+        SettingsTab.Drivers => isWindows,
+        _ => true,
+    };
 
     /// <summary>The settings subpages, flat (no owner grouping). Gated tabs stay in the list but hide via
     /// their <see cref="SettingsTabItem.IsVisible"/>.</summary>

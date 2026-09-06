@@ -2,7 +2,7 @@
 
 *(Part of the [User Manual](USERMANUAL.md).)*
 
-**Settings** holds OpenTabletArtist's own preferences, divided into tabs: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
+**Settings** holds OpenTabletArtist's own preferences, divided into tabs: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (Windows-only), and **Dev** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
 
 ## Presets
 
@@ -17,7 +17,7 @@ Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. As
 
 > **Per-App Presets** (automatic preset switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→preset mappings are retained and may return in a later version.
 
-## Appearance
+## Theme
 
 Everything about how the app looks is here, split into three **subtabs** down the left: **Theme**, **Backdrop** and **Colours**. The backdrop's glows used to be a page away, under Developer → Gradients, which meant tuning a backdrop took two tabs and a lot of walking.
 
@@ -47,7 +47,7 @@ What fills the window behind the panels. Light and Dark paint nothing there, so 
 
 ## System
 
-The **System** tab groups the Windows-only housekeeping controls: Startup, Shortcut, and Driver Cleanup.
+The **System** tab holds each platform’s own integration: on Windows the Startup and Shortcut controls below, on Linux a single application-menu-entry card. Driver Cleanup used to sit here as a second column; it has its own **Drivers** tab now.
 
 ### Startup
 
@@ -57,13 +57,13 @@ A single toggle — **Start OpenTabletArtist when Windows starts** — that laun
 
 A single checkbox — **Create a Start-menu shortcut for this app** — that mirrors whether a per-user Start-menu shortcut exists: check it to create the shortcut, uncheck it to remove it. A dev build run straight from its build folder isn't a registered app; the shortcut registers it under its name so desktop-automation / screenshot tooling can find it (Windows only).
 
-### Driver Cleanup
+## Drivers
 
-*(Windows-only.)* Finds and removes conflicting manufacturer tablet drivers.
+*(Windows-only.)* Finds and removes conflicting manufacturer tablet drivers. Home’s **Conflicting tablet driver detected** card links straight here.
 
 - **Conflicting drivers detected** — When the daemon flags a manufacturer driver (parsed from its detection warnings), each is shown as its own card with the driver name, its impact ("Blocks OpenTabletDriver from detecting tablets" / "Can cause flaky tablet support"), the offending processes, the full (selectable) daemon message, and an **Open OpenTabletDriver FAQ** link. (OpenTabletArtist's own process is filtered out so it isn't mistaken for a conflict.)
 - **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). Install the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.
 
-## Developer
+## Dev
 
 Testing aids not needed for normal use — force/introduce *Needs attention* warnings, reveal the hidden tablet tabs, pin the window to an exact size, and screenshot every page. **See [Developer tools](DEVELOPER.md).**
