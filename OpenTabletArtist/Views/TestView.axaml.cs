@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
@@ -17,7 +16,8 @@ public partial class TestView : UserControl
     public TestView()
     {
         InitializeComponent();
-        PaintCanvas.SampleObserved += OnCanvasSample;
+        // The pen position always comes from the daemon, never the OS pointer (#scribble-driver-only).
+        PaintCanvas.IgnorePointer = true;
         DataContextChanged += OnDataContextChanged;
     }
 
@@ -27,32 +27,20 @@ public partial class TestView : UserControl
         {
             _vm.DriverSample -= OnDriverSample;
             _vm.ClearRequested -= OnClearRequested;
-            _vm.PropertyChanged -= OnVmPropertyChanged;
         }
         _vm = DataContext as TestViewModel;
         if (_vm != null)
         {
             _vm.DriverSample += OnDriverSample;
             _vm.ClearRequested += OnClearRequested;
-            _vm.PropertyChanged += OnVmPropertyChanged;
-            PaintCanvas.IgnorePointer = _vm.UseDriverInput; // Driver mode: position comes from the daemon
         }
-    }
-
-    // App mode only: the pointer paints, and its sample (RawX/RawY = canvas DIPs) drives the readouts
-    // + Canvas X/Y. In Driver mode OnDriverSample owns the readouts/position.
-    private void OnCanvasSample(PenSample s)
-    {
-        if (_vm is null || _vm.UseDriverInput) return;
-        _vm.UpdateCanvasPosition(s.RawX, s.RawY);
-        _vm.UpdateReadout(s);
     }
 
     // Driver stream: update readouts; in an Absolute mode, map the raw tablet position to the canvas
     // and paint under the pen. In a non-mappable (Relative) mode the canvas is disabled (note shown).
     private void OnDriverSample(PenSample s)
     {
-        if (_vm is not { UseDriverInput: true }) return; // ignore late samples after toggling off
+        if (_vm is null) return;
         _vm.UpdateReadout(s);
         if (!_vm.DriverPositioned) return; // disabled state: readouts only
 
@@ -77,7 +65,6 @@ public partial class TestView : UserControl
         {
             _vm.DriverSample -= OnDriverSample;
             _vm.ClearRequested -= OnClearRequested;
-            _vm.PropertyChanged -= OnVmPropertyChanged;
         }
     }
 
@@ -90,14 +77,5 @@ public partial class TestView : UserControl
         if (PaintCanvas.Snapshot() is not { } snap) return;
         if (!ClipboardImage.CopyBgra(snap.Bgra, snap.Width, snap.Height))
             ProfileToast.Show(ClipboardImage.FailureHint, "IconAlert");
-    }
-
-    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(TestViewModel.UseDriverInput) && _vm != null)
-        {
-            PaintCanvas.IgnorePointer = _vm.UseDriverInput;
-            PaintCanvas.EndStroke(); // don't connect a stroke across an input-source switch
-        }
     }
 }
