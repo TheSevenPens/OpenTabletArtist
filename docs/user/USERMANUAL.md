@@ -35,7 +35,7 @@ In both menus the current item is marked in the accent colour and a heavier weig
 
 - **Tablet** and **Pen** carry the selected tablet's settings.
 - A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the **Tablet** and **Pen** pages and picks which tablet you're editing.
-- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (Windows-only), and **Dev** *(debugging tools)*. 
+- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (driver cleanup + VMulti, Windows-only), and **Dev** *(debugging tools)*. 
 - **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
 Every paired or connected tablet also appears on **Home** under *Your tablets*. **Double-click a row** to open that tablet's settings, and use its **trash** icon to forget a remembered tablet (or reset a connected one to defaults).
@@ -46,8 +46,8 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*. 
 - **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the developer-only filters/json tabs).
 - **[Pen page](PEN.md)** — basics (the whole pen: switches, diagram, inputs, movement) · pressure (the pressure curve + smoothing).
 - **[Scribble page](SCRIBBLE.md)** — the paint canvas for confirming the pen, with live readouts.
-- **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Theme · System (Startup/Shortcut) · Drivers · Dev.
-- **[Advanced page](ADVANCED.md)** — Daemon · Console · VMulti · Configs · Diagnostics · Plugins.
+- **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Theme · System (Startup/Shortcut) · Drivers (cleanup + VMulti) · Dev.
+- **[Advanced page](ADVANCED.md)** — Daemon · Console · Configs · Diagnostics · Plugins.
 - **[Plugins](PLUGINS.md)** — what ships with OTA, what the Pen Dynamics plugin does, and whether you need any others.
 - **[Getting help](HELP.md)** — where to ask when something isn't working, and what to include.
 

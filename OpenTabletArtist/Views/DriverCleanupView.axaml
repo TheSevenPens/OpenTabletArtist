@@ -3,13 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the DriverCleanupViewModel, supplied by the typed-nav DataTemplate (#15). -->
-    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+    <!-- DataContext is the DriverCleanupViewModel, supplied by the typed-nav DataTemplate (#15).
+
+         One column: this is the LEFT half of the DRIVERS page, and the VMulti driver is the right half —
+         the page-level split lives in TwoColumnSectionView, not here. Width comes from that column. -->
+    <StackPanel>
+        <!-- The heading shows whether or not there are conflicts, so the column is never headless. -->
+        <TextBlock Text="conflicting drivers detected" Classes="Display section" />
+
         <!-- Detected conflicting drivers — one card each, with the full daemon message (#245). -->
-        <StackPanel IsVisible="{Binding Conflicts.HasConflicts}" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-            <TextBlock Text="conflicting drivers detected" Classes="Display section"
-                       VerticalAlignment="Center" Margin="0,0,0,0" />
-        </StackPanel>
         <ItemsControl ItemsSource="{Binding Conflicts.Drivers}" IsVisible="{Binding Conflicts.HasConflicts}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -35,61 +37,68 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- TabletDriverCleanup, under its own heading so it reads as a separate thing from the conflict
-             scan above it: that list reports what is wrong on this machine, this manages a third-party tool
-             you install to fix it. Section.Title renders the label (uppercased) itself, so no hand-rolled
-             heading is needed — unlike the conflicts list above, which needs its own because it is an
-             ItemsControl rather than a Section. -->
-        <c:Section Title="Driver cleanup tool" Margin="0,4,0,12">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
-                    <TextBlock Text="Removes leftover bits from previous tablet drivers"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               Margin="0,4,0,0" TextWrapping="Wrap"
-                               IsVisible="{Binding !CleanupInstalled}" />
-                    <TextBlock Text="{Binding CleanupInstallPath}"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               Margin="0,4,0,0" TextWrapping="Wrap"
-                               IsVisible="{Binding CleanupInstalled}" />
-                    <TextBlock Text="{Binding CleanupStatus}"
-                               Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"
-                               IsVisible="{Binding CleanupBusy}" />
-                </StackPanel>
+        <!-- "Reported", not "none exist": conflicts are parsed out of the daemon's log, so with the
+             daemon down nothing has been reported rather than the machine being clean. -->
+        <TextBlock Text="No conflicting tablet drivers reported by the daemon."
+                   FontStyle="Italic" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextMutedBrush}"
+                   IsVisible="{Binding !Conflicts.HasConflicts}" />
 
-                <!-- Every action behind one "…", as on the VMulti, Windows Ink and daemon cards. The
-                     row held an accent Install OR an accent Browse / Run / Uninstall — three identically
-                     weighted blocks, one of which removes the tool. Install and the installed-only actions
-                     never show together, so the menu is three items at most.
-                     Uninstall takes the error colour; it was an AccentButton, indistinguishable from Run.
-                     Progress stays in the left column, which already prints CleanupStatus while busy. -->
-                <c:IconButton Grid.Column="1" VerticalAlignment="Top"
-                              Icon="{StaticResource IconDotsHorizontal}"
-                              ToolTip.Tip="Driver cleanup tool actions"
-                              AutomationProperties.Name="Driver cleanup tool actions">
-                    <c:IconButton.Flyout>
-                        <MenuFlyout>
-                            <MenuItem Header="Install"
-                                      Command="{Binding InstallCleanupCommand}"
-                                      IsVisible="{Binding !CleanupInstalled}"
-                                      IsEnabled="{Binding !CleanupBusy}" />
-                            <MenuItem Header="Run"
-                                      Command="{Binding RunCleanupCommand}"
-                                      IsVisible="{Binding CleanupInstalled}"
-                                      IsEnabled="{Binding !CleanupBusy}" />
-                            <MenuItem Header="Open install folder"
-                                      Command="{Binding OpenFolderCommand}"
-                                      CommandParameter="{Binding CleanupInstallPath}"
-                                      IsVisible="{Binding CleanupInstalled}" />
-                            <MenuItem Header="Uninstall"
-                                      Command="{Binding UninstallCleanupCommand}"
-                                      IsVisible="{Binding CleanupInstalled}"
-                                      IsEnabled="{Binding !CleanupBusy}"
-                                      Foreground="{DynamicResource ErrorBrush}" />
-                        </MenuFlyout>
-                    </c:IconButton.Flyout>
-                </c:IconButton>
-            </Grid>
+        <!-- TabletDriverCleanup, under its own heading so it reads as a separate thing from the conflict
+         scan above it. Section.Title renders the label itself, so no hand-rolled heading is needed —
+         unlike the conflicts list, which needs its own because it is an ItemsControl rather than a
+         Section. -->
+        <c:Section Title="Driver cleanup tool" Margin="0,8,0,0">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                <TextBlock Classes="CardTitle" Text="TabletDriverCleanup" />
+                <TextBlock Text="Removes leftover bits from previous tablet drivers"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           Margin="0,4,0,0" TextWrapping="Wrap"
+                           IsVisible="{Binding !CleanupInstalled}" />
+                <TextBlock Text="{Binding CleanupInstallPath}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           Margin="0,4,0,0" TextWrapping="Wrap"
+                           IsVisible="{Binding CleanupInstalled}" />
+                <TextBlock Text="{Binding CleanupStatus}"
+                           Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding CleanupBusy}" />
+            </StackPanel>
+
+            <!-- Every action behind one "…", as on the VMulti, Windows Ink and daemon cards. The
+                 row held an accent Install OR an accent Browse / Run / Uninstall — three identically
+                 weighted blocks, one of which removes the tool. Install and the installed-only actions
+                 never show together, so the menu is three items at most.
+                 Uninstall takes the error colour; it was an AccentButton, indistinguishable from Run.
+                 Progress stays in the left column, which already prints CleanupStatus while busy. -->
+            <c:IconButton Grid.Column="1" VerticalAlignment="Top"
+                          Icon="{StaticResource IconDotsHorizontal}"
+                          ToolTip.Tip="Driver cleanup tool actions"
+                          AutomationProperties.Name="Driver cleanup tool actions">
+                <c:IconButton.Flyout>
+                    <MenuFlyout>
+                        <MenuItem Header="Install"
+                                  Command="{Binding InstallCleanupCommand}"
+                                  IsVisible="{Binding !CleanupInstalled}"
+                                  IsEnabled="{Binding !CleanupBusy}" />
+                        <MenuItem Header="Run"
+                                  Command="{Binding RunCleanupCommand}"
+                                  IsVisible="{Binding CleanupInstalled}"
+                                  IsEnabled="{Binding !CleanupBusy}" />
+                        <MenuItem Header="Open install folder"
+                                  Command="{Binding OpenFolderCommand}"
+                                  CommandParameter="{Binding CleanupInstallPath}"
+                                  IsVisible="{Binding CleanupInstalled}" />
+                        <MenuItem Header="Uninstall"
+                                  Command="{Binding UninstallCleanupCommand}"
+                                  IsVisible="{Binding CleanupInstalled}"
+                                  IsEnabled="{Binding !CleanupBusy}"
+                                  Foreground="{DynamicResource ErrorBrush}" />
+                    </MenuFlyout>
+                </c:IconButton.Flyout>
+            </c:IconButton>
+        </Grid>
         </c:Section>
     </StackPanel>
 </UserControl>

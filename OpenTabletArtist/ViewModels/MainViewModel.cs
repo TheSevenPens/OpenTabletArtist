@@ -185,7 +185,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
             () => OpenSettingsTab(SettingsTab.Drivers),  // Driver Cleanup has its own pivot (#drivers-tab)
             () => OpenAdvancedTab(AdvancedTab.Plugins),  // Windows Ink → Plugins pivot (#winink-to-plugins)
-            () => OpenAdvancedTab(AdvancedTab.VMulti),   // VMulti → its own pivot
+            () => OpenSettingsTab(SettingsTab.Drivers),  // VMulti → SETTINGS → DRIVERS (#vmulti-to-drivers)
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
         Test = new TestViewModel(_session.Daemon, _session);
@@ -201,7 +201,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // The ADVANCED tabbed page groups the driver/daemon subpages behind one sidebar node, with its own
         // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
-        Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins, VMulti);
+        Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins);
         // The Console tab manages its own scroll, so the outer scroll toggles as the ADVANCED tab changes
         // (not just when the top-level page changes) — re-evaluate ContentScrollBarVisibility on tab switch.
         Advanced.PropertyChanged += (_, e) =>
@@ -213,7 +213,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
         // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
         Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DesktopEntry, DriverCleanup,
-            Presets, PerApp, Developer);
+            VMulti, Presets, PerApp, Developer);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).

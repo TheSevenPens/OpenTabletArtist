@@ -1,0 +1,27 @@
+<UserControl x:Class="OpenTabletArtist.Views.TwoColumnSectionView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- DataContext is the TwoColumnSectionViewModel. Each section resolves to its own view through the
+         typed DataTemplates (App.axaml), same as CompositeSectionView — this only decides where they sit.
+
+         Definite widths, not star columns: the page is HorizontalAlignment="Left", which sizes a Grid to
+         its content, and a star column inside that has nothing to divide. Both columns stay top-aligned so
+         they start on the same line however tall each grows. -->
+    <Grid ColumnDefinitions="520,32,380" HorizontalAlignment="Left">
+        <ItemsControl Grid.Column="0" ItemsSource="{Binding LeftSections}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding}" Margin="0,0,0,24" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl Grid.Column="2" ItemsSource="{Binding RightSections}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding}" Margin="0,0,0,24" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

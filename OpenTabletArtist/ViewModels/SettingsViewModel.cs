@@ -43,7 +43,7 @@ public partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
         ShortcutViewModel shortcut, DesktopEntryViewModel desktopEntry, DriverCleanupViewModel driverCleanup,
-        PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
+        VMultiViewModel vmulti, PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
         // The "System" pivot holds each OS's own integration capabilities, kept deliberately separate so
         // Windows and Linux each do their native thing (no shared abstraction). On Windows it's Startup +
@@ -58,6 +58,11 @@ public partial class SettingsViewModel : ObservableObject
         object system = OperatingSystem.IsWindows()
             ? new CompositeSectionViewModel(startup, shortcut)
             : desktopEntry;
+
+        // Both drivers the app manages, side by side: what is wrong with the machine's existing drivers on
+        // the left, the virtual pen driver OTD needs on the right. VMulti had its own ADVANCED pivot until
+        // #vmulti-to-drivers, which is where a user looking for "drivers" would never have found it.
+        var drivers = new TwoColumnSectionViewModel(new object[] { driverCleanup }, new object[] { vmulti });
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),
@@ -65,7 +70,7 @@ public partial class SettingsViewModel : ObservableObject
             new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
             new("THEME", SettingsTab.Theme, theme),
             new("SYSTEM", SettingsTab.System, system),
-            new("DRIVERS", SettingsTab.Drivers, driverCleanup),
+            new("DRIVERS", SettingsTab.Drivers, drivers),
             new("DEV", SettingsTab.Developer, developer),
         }.Where(t => TabAppliesToOs(t.Tab, OperatingSystem.IsWindows(), OperatingSystem.IsLinux())).ToArray();
         Tabs = tabs;

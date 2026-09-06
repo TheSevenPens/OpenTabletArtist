@@ -54,7 +54,7 @@ Pressure and tilt on Windows require the **VMulti** virtual driver.
 3. When it offers to **restart Windows**, do it (recommended). VMulti isn't fully active until you
    restart.
 
-After the restart, reopen OpenTabletArtist. The VMulti Driver page should show **Installed**.
+After the restart, reopen OpenTabletArtist. **Settings → Drivers** should show VMulti as **Installed**.
 
 ## Step 4 — Let OTA detect your tablet
 
@@ -122,7 +122,7 @@ OpenTabletArtist must be running for your tablet to work — including hotkeys a
 
 ## Uninstalling
 
-1. In OpenTabletArtist, open the **VMulti Driver** page and click **Uninstall** (one UAC prompt; it
+1. In OpenTabletArtist, open **Settings → Drivers** and use the VMulti card’s **Uninstall** (one UAC prompt; it
    also cleans up leftover VMulti device nodes). Restart if prompted.
 2. Quit OpenTabletArtist from the tray.
 3. Delete the OpenTabletArtist folder you extracted in Step 1.

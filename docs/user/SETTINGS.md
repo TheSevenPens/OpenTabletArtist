@@ -59,10 +59,14 @@ A single checkbox — **Create a Start-menu shortcut for this app** — that mir
 
 ## Drivers
 
-*(Windows-only.)* Finds and removes conflicting manufacturer tablet drivers. Home’s **Conflicting tablet driver detected** card links straight here.
+*(Windows-only.)* Both drivers the app has anything to say about, in two columns: on the left what is wrong with the ones already on this machine and the tool that removes them, on the right the virtual pen driver OpenTabletDriver needs. Home’s **Conflicting tablet driver detected** and **VMulti driver not installed** cards both link straight here.
 
-- **Conflicting drivers detected** — When the daemon flags a manufacturer driver (parsed from its detection warnings), each is shown as its own card with the driver name, its impact ("Blocks OpenTabletDriver from detecting tablets" / "Can cause flaky tablet support"), the offending processes, the full (selectable) daemon message, and an **Open OpenTabletDriver FAQ** link. (OpenTabletArtist's own process is filtered out so it isn't mistaken for a conflict.)
+- **Conflicting drivers detected** — When the daemon flags a manufacturer driver (parsed from its detection warnings), each is shown as its own card with the driver name, its impact ("Blocks OpenTabletDriver from detecting tablets" / "Can cause flaky tablet support"), the offending processes, the full (selectable) daemon message, and an **Open OpenTabletDriver FAQ** link. (OpenTabletArtist’s own process is filtered out so it isn’t mistaken for a conflict.) With none flagged the column says so — worded as *reported*, since these come out of the daemon’s log and a daemon that isn’t running has reported nothing either way.
 - **TabletDriverCleanup** — Manages the [TabletDriverCleanup](https://github.com/OpenTabletDriver/TabletDriverCleanup) tool by the OTD team that removes leftover bits from previous manufacturer tablet drivers (Wacom, Huion, XP-Pen, etc.). Install the tool first via **Install** (downloads the latest release to `%LocalAppData%\TabletDriverCleanup`, no admin required); then **Run** launches it with a UAC prompt and a visible terminal so the cleanup output is readable. **Browse** opens the install folder; **Uninstall** removes it.
+
+### VMulti driver
+
+VMulti is the virtual pen device the Windows Ink plugin injects pressure and tilt through. Detection runs via both Setup API and HID enumeration. Its **⋯** menu holds **Refresh status**, **Install** or **Uninstall** (only one applies at a time), and **Open install folder**. Both **Install** and **Uninstall** run in-app (one UAC prompt each, no flashing cmd window) and offer to **restart** Windows afterward. Install creates the VMulti device via `devcon`; Uninstall removes the driver and the active device *and* cleans up the leftover driverless `djpnewton\vmulti` nodes (Device Manager Code 28) that the stock removal left behind. Detection reflects a *working* driver, so any remaining driverless leftovers are reported as **Not installed**, not as installed.
 
 ## Dev
 
