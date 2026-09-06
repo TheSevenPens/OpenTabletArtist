@@ -66,20 +66,26 @@ public static class SkinColorSettings
         set => AppSettings.Set(CustomBaseKey, value);
     }
 
-    // Sakura background: a code-generated gradient (default) or a flat colour.
-    private const string SakuraBackgroundKey = "Sakura:Background";
-    /// <summary>The flat colour the Sakura skin uses for the "solid" background mode.</summary>
-    public const string SakuraSolidBgColor = "#FDE4E8";
+    // Blossom-skin backdrop: a code-generated gradient (default) or a flat colour. Per-skin since Dark
+    // Sakura joined (#glow-darksakura) — it used to paint a fixed piece of artwork with a dark scrim over
+    // it, which is why its bottom edge glowed no matter what the gradient editor said.
+    public const string SakuraSkin = "Sakura";
+    public const string DarkSakuraSkin = "DarkSakura";
 
-    /// <summary>Sakura background mode: "codegen" (default) or "solid". The retired "image" mode migrates
-    /// to "codegen" so existing users with it saved get the gradient backdrop.</summary>
-    public static string SakuraBackground
+    /// <summary>The flat colour a skin uses for the "solid" background mode.</summary>
+    public const string SakuraSolidBgColor = "#FDE4E8";
+    public const string DarkSakuraSolidBgColor = "#1E0A14";
+
+    public static string SolidBgColor(string skin) =>
+        skin == DarkSakuraSkin ? DarkSakuraSolidBgColor : SakuraSolidBgColor;
+
+    /// <summary>Backdrop mode for <paramref name="skin"/>: "codegen" (default) or "solid". The retired
+    /// "image" mode migrates to "codegen" so existing users with it saved get the gradient backdrop.</summary>
+    public static string Background(string skin)
     {
-        get
-        {
-            var v = AppSettings.Get(SakuraBackgroundKey) ?? "codegen";
-            return v == "image" ? "codegen" : v;
-        }
-        set => AppSettings.Set(SakuraBackgroundKey, value);
+        var v = AppSettings.Get($"{skin}:Background") ?? "codegen";
+        return v == "image" ? "codegen" : v;
     }
+
+    public static void SetBackground(string skin, string mode) => AppSettings.Set($"{skin}:Background", mode);
 }

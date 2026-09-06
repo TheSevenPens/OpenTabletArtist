@@ -46,12 +46,18 @@ public static class ThemeService
     /// ships as the default appearance; users can switch to Light/Dark/System from the Theme page.</summary>
     public static string SavedChoice => AppSettings.Get(Key) ?? Anime;
 
+    /// <summary>Raised after a new choice has been persisted and applied. For anything holding per-skin
+    /// state that has to be re-read when the skin changes — the gradient editor's glow list, which belongs
+    /// to whichever blossom skin is current (#glow-darksakura).</summary>
+    public static event Action? SkinChanged;
+
     /// <summary>Applies a choice to the running app and persists it.</summary>
     public static void Apply(string choice)
     {
         AppSettings.Set(Key, choice);
         if (Application.Current is { } app)
             app.RequestedThemeVariant = ToVariant(choice);
+        SkinChanged?.Invoke();
     }
 
     /// <summary>Applies the persisted choice (call once at startup, before showing the window).</summary>

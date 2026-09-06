@@ -60,8 +60,11 @@ public static class GradientBackground
     /// the Height/Width of the glow-band Borders in MainWindow.axaml.</summary>
     public const double BandHeight = 600;
 
-    /// <summary>Default flat base colour that fills the whole window behind the glows.</summary>
-    public const string DefaultBaseColor = "#FCE7EE";
+    /// <summary>Default flat base colours behind the glows, one per blossom skin. Dark Sakura's is the
+    /// field colour of the artwork this backdrop replaced, as the eye saw it — #23000D through that skin's
+    /// #C4160910 scrim — so the skin opens looking as it did.</summary>
+    public const string SakuraBaseColor = "#FCE7EE";
+    public const string DarkSakuraBaseColor = "#19070F";
 
     /// <summary>Every edge, in the order the editor lists them.</summary>
     public static readonly IReadOnlyList<GlowEdge> AllEdges =
@@ -82,28 +85,71 @@ public static class GradientBackground
         _ => "AppBackdropGlowRightBrush",
     };
 
-    private const string Key = "Sakura:CodeGenGlows";
-    private const string BaseColorKey = "Sakura:CodeGenBaseColor";
+    // Both blossom skins keep their own glows and base colour — a set tuned for a pale pink page is
+    // meaningless on a near-black one. Sakura's keys are unchanged from when it was the only one.
+    private static string Key(string skin) => $"{skin}:CodeGenGlows";
+    private static string BaseColorKey(string skin) => $"{skin}:CodeGenBaseColor";
 
-    /// <summary>Whether the code-generated backdrop is the thing currently on screen: the Sakura skin, with
+    /// <summary>The blossom skin whose backdrop is on screen, or null if the current skin has none. The
+    /// light skin persists under "Sakura" though its theme id is "Anime", for historical reasons.</summary>
+    public static string? ActiveSkin => ThemeService.SavedChoice switch
+    {
+        ThemeService.Anime => SkinColorSettings.SakuraSkin,
+        ThemeService.DarkSakura => SkinColorSettings.DarkSakuraSkin,
+        _ => null,
+    };
+
+    /// <summary>Whether the code-generated backdrop is the thing currently on screen: a blossom skin, with
     /// its background set to codegen rather than to a flat colour.
     ///
-    /// Both halves matter. The live editor used to test only the background mode, so editing a glow while
-    /// Dark Sakura was selected wrote the glow brushes anyway — and Dark Sakura has no codegen mode at all
-    /// (it paints the sakura image, and the background chooser is not even shown for it), so the bands
-    /// appeared over a skin that never asked for them and stayed until the next skin refresh cleared them.
+    /// Both halves matter. The live editor used to test only the background mode, which is not a skin
+    /// check, so editing a glow under any other skin wrote the glow brushes anyway.
     ///
     /// `ThemeViewModel.RefreshSkin` gates on its own selection rather than this, deliberately: it is
     /// deciding what to WRITE for the skin being applied, where this asks what is SHOWING.</summary>
     public static bool IsShowing =>
-        ThemeService.SavedChoice == ThemeService.Anime && SkinColorSettings.SakuraBackground == "codegen";
+        ActiveSkin is { } skin && SkinColorSettings.Background(skin) == "codegen";
 
-    /// <summary>The persisted flat base colour (editable in Developer → Gradients), or the default.</summary>
-    public static string LoadBaseColor() => AppSettings.Get(BaseColorKey) ?? DefaultBaseColor;
+    /// <summary>The flat colour that fills the window behind <paramref name="skin"/>'s glows.</summary>
+    public static string DefaultBaseColor(string skin) =>
+        skin == SkinColorSettings.DarkSakuraSkin ? DarkSakuraBaseColor : SakuraBaseColor;
 
-    public static void SaveBaseColor(string hex) => AppSettings.Set(BaseColorKey, hex);
+    /// <summary>The persisted flat base colour (editable on Appearance), or the skin's default.</summary>
+    public static string LoadBaseColor(string skin) =>
+        AppSettings.Get(BaseColorKey(skin)) ?? DefaultBaseColor(skin);
 
-    public static List<GradientGlow> Defaults() => new()
+    /// <summary>The current skin's base colour — for the editor's previews, which are drawn outside the
+    /// theme applier and have no skin of their own. Falls back to Sakura's under a skin with no
+    /// generated backdrop, where the editor has nothing to show anyway.</summary>
+    public static string ActiveBaseColor => LoadBaseColor(ActiveSkin ?? SkinColorSettings.SakuraSkin);
+
+    public static void SaveBaseColor(string skin, string hex) => AppSettings.Set(BaseColorKey(skin), hex);
+
+    /// <summary>The baked-in glows for <paramref name="skin"/>.</summary>
+    public static List<GradientGlow> Defaults(string skin) =>
+        skin == SkinColorSettings.DarkSakuraSkin ? DarkSakuraDefaults() : SakuraDefaults();
+
+    // Dark Sakura's, standing in for the backdrop artwork it replaced (#glow-darksakura): a burnt-orange
+    // wash along the bottom with a red-magenta one over its middle, which is what that image had painted
+    // into its bottom edge. Sampled from it through the skin's scrim rather than invented, so switching to
+    // the tunable backdrop is not also a redesign — but unlike the image, these can now be turned off.
+    private static List<GradientGlow> DarkSakuraDefaults() => new()
+    {
+        // The opacities are solved, not eyeballed: the artwork's brightest bottom pixel was #842D25, which
+        // through the #C4160910 scrim reached the eye as ~#301115. These two over #19070F land there.
+        new()
+        {
+            ReachPx = 150, Color = "#B5502A", CenterOpacity = 0.15,
+            Style = GlowStyle.Linear, Falloff = 0.22,
+        },
+        new()
+        {
+            ReachPx = 88, Color = "#B0245A", CenterOpacity = 0.10,
+            Style = GlowStyle.Linear, Falloff = 0.18,
+        },
+    };
+
+    private static List<GradientGlow> SakuraDefaults() => new()
     {
         // Four full-width washes, two per horizontal edge: a deep peach band along the bottom with a thin
         // magenta line sitting in it, and a broad faint magenta wash down from the top with a hot-pink line
@@ -137,19 +183,19 @@ public static class GradientBackground
         },
     };
 
-    public static List<GradientGlow> Load() => Parse(AppSettings.Get(Key));
+    public static List<GradientGlow> Load(string skin) => Parse(AppSettings.Get(Key(skin)), skin);
 
-    /// <summary>Parse persisted glow JSON, falling back to <see cref="Defaults"/> for null/blank/invalid
-    /// input. Pure (no settings access) so the fallback behaviour is unit-testable.</summary>
-    public static List<GradientGlow> Parse(string? json)
+    /// <summary>Parse persisted glow JSON, falling back to <paramref name="skin"/>'s defaults for
+    /// null/blank/invalid input. Pure (no settings access) so the fallback behaviour is unit-testable.</summary>
+    public static List<GradientGlow> Parse(string? json, string skin = SkinColorSettings.SakuraSkin)
     {
-        if (string.IsNullOrWhiteSpace(json)) return Defaults();
-        try { return JsonConvert.DeserializeObject<List<GradientGlow>>(json) ?? Defaults(); }
-        catch { return Defaults(); }
+        if (string.IsNullOrWhiteSpace(json)) return Defaults(skin);
+        try { return JsonConvert.DeserializeObject<List<GradientGlow>>(json) ?? Defaults(skin); }
+        catch { return Defaults(skin); }
     }
 
-    public static void Save(IEnumerable<GradientGlow> glows) =>
-        AppSettings.Set(Key, JsonConvert.SerializeObject(glows.ToList()));
+    public static void Save(string skin, IEnumerable<GradientGlow> glows) =>
+        AppSettings.Set(Key(skin), JsonConvert.SerializeObject(glows.ToList()));
 
     /// <summary>Human-readable JSON for the editor's copy box (and for pasting back into Defaults()).
     /// Emits the whole background — base colour + glows — as one object so it round-trips as a unit.</summary>
