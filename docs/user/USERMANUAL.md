@@ -29,7 +29,7 @@ The app is made of **pages**, a page may be divided into **tabs**, and a tab may
 
 - The **page menu** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced**.
 - The **tab menu** sits just beneath it, in larger type, listing that page's tabs. Pages with nothing to divide (**Home**, **Scribble**) have no tab menu.
-- **Subtabs** run down the left-hand side, as a vertical list rather than a menu across the top. Only one tab has them: **Settings → Developer**.
+- **Subtabs** run down the left-hand side, as a vertical list rather than a menu across the top. Two tabs have them: **Settings → Appearance** and **Settings → Developer**.
 
 In both menus the current item is marked in the accent colour and a heavier weight — there's no underline. A selected subtab takes an accent bar down its left edge instead.
 

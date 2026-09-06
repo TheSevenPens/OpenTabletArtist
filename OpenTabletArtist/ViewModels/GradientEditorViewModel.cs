@@ -12,15 +12,18 @@ using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.ViewModels;
 
-/// <summary>Developer-only live editor for the code-generated backdrop's glows (#556). Editing a glow
-/// rebuilds the edge glow brushes immediately (so the background updates live while a blossom skin's
-/// "CodeGen" background is selected), persists the settings, and refreshes the copyable JSON in
+/// <summary>Live editor for the code-generated backdrop's glows (#556). Editing a glow rebuilds the edge
+/// glow brushes immediately (so the background updates live while a blossom skin's "Generated gradient"
+/// background is selected), persists the settings, and refreshes the copyable JSON in
 /// <see cref="SettingsText"/>. Sakura and Dark Sakura each keep their own glows, and the editor follows
 /// whichever is selected (#glow-darksakura).
 ///
-/// The page is a list beside an inspector (#glow-linear): every glow shows in the list with its colour and
-/// what it is, and the one you pick is the only one whose controls are on screen. That is what makes room
-/// for a live preview of the selected glow, which the old grid of cards had nowhere to put.</summary>
+/// A list beside an inspector (#glow-linear): every glow shows in the list with its colour and what it is,
+/// and the one you pick is the only one whose controls are on screen.
+///
+/// Owned by <see cref="ThemeViewModel"/> and shown on Settings → Appearance → BACKDROP
+/// (#appearance-merge). It used to live under Developer → Gradients, a tab away from the base colour it
+/// paints over — so tuning a backdrop meant walking between two pages to see either half of it.</summary>
 public sealed partial class GradientEditorViewModel : ObservableObject
 {
     public ObservableCollection<GradientGlowItem> Glows { get; } = new();
@@ -55,6 +58,18 @@ public sealed partial class GradientEditorViewModel : ObservableObject
 
     public bool HasSkin => _skin is not null;
 
+    /// <summary>The whole backdrop — base colour and every glow — as a 1280×800 window would draw it. The
+    /// page's one preview: the base colour is picked a few inches to its left, and judging it against the
+    /// glows sitting on it is what the old split between two tabs made impossible (#appearance-merge).</summary>
+    public IBrush BackdropBrush =>
+        GradientBackground.BuildBackdropPreview(
+            GradientBackground.LoadBaseColor(_skin ?? SkinColorSettings.SakuraSkin),
+            Glows.Select(i => i.ToModel()));
+
+    /// <summary>Re-read the preview. The base colour belongs to <see cref="ThemeViewModel"/>, which calls
+    /// this after changing it — the glows raise it themselves.</summary>
+    public void RefreshPreview() => OnPropertyChanged(nameof(BackdropBrush));
+
     public GradientEditorViewModel()
     {
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
@@ -77,6 +92,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSkin));
         OnPropertyChanged(nameof(HasGlows));
         OnPropertyChanged(nameof(ShowEmptyMessage));
+        RefreshPreview();
         RefreshText();
     }
 
@@ -86,6 +102,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         if (at is { } i) Glows.Insert(i, item); else Glows.Add(item);
         OnPropertyChanged(nameof(HasGlows));
         OnPropertyChanged(nameof(ShowEmptyMessage));
+        RefreshPreview();
     }
 
     [RelayCommand]
@@ -144,6 +161,8 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         // is not a skin check, so a glow edited under any other skin painted bands over it.
         if (Application.Current is { } app && GradientBackground.IsShowing)
             GradientBackground.ApplyGlowBrushes(app.Resources, list);
+
+        RefreshPreview();
 
         if (persist == PersistMode.Immediate) PersistNow();
         else { _saveTimer.Stop(); _saveTimer.Start(); } // restart the idle window
@@ -204,8 +223,8 @@ public sealed partial class GradientGlowItem : ObservableObject
 
     /// <summary>The list chip. Neither to scale nor at the glow's real opacity: at 18px the true reach
     /// fraction is a couple of pixels, and a faint glow over a pink base is two shades of the same nothing.
-    /// It names a colour and an edge, which is all a row needs to be told apart. The inspector's strip is
-    /// the one that measures.</summary>
+    /// It names a colour and an edge, which is all a row needs to be told apart. The backdrop preview
+    /// beside the list is the one that measures.</summary>
     public IBrush ChipBrush
     {
         get
@@ -215,10 +234,6 @@ public sealed partial class GradientGlowItem : ObservableObject
             return GradientBackground.BuildPreviewBrush(chip, GradientBackground.ActiveBaseColor, 0.8);
         }
     }
-
-    /// <summary>The inspector's preview strip, to scale against the glow band.</summary>
-    public IBrush PreviewBrush =>
-        GradientBackground.BuildPreviewBrush(ToModel(), GradientBackground.ActiveBaseColor, ReachPx / GradientBackground.BandHeight);
 
     // Switching to radial off a side edge would leave a glow the editor can no longer express (and that the
     // side bands were not added for), so the anchor falls back to the bottom.
@@ -233,11 +248,10 @@ public sealed partial class GradientGlowItem : ObservableObject
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (e.PropertyName is nameof(ChipBrush) or nameof(PreviewBrush) or nameof(Summary)
+        if (e.PropertyName is nameof(ChipBrush) or nameof(Summary)
             or nameof(EdgeOptions) or nameof(IsRadial) or nameof(IsLinear)) return;
 
         OnPropertyChanged(nameof(ChipBrush));
-        OnPropertyChanged(nameof(PreviewBrush));
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(IsRadial));
         OnPropertyChanged(nameof(IsLinear));

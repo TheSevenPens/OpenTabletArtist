@@ -59,8 +59,12 @@ public partial class ThemeViewModel : ObservableObject
 
     private bool IsBlossom => IsSakura || IsDarkSakura;
 
+    /// <summary>Whether the BACKDROP subtab has anything on it. Light and Dark paint nothing behind their
+    /// content, so the pane says so rather than sitting empty.</summary>
+    public bool ShowBackdropTab => IsBlossom || IsCustom;
+
     // CodeGen-only: the flat base colour behind the glows (#556). Editing it saves + re-tints live; the
-    // glows themselves are tuned in Developer → Gradients. Invalid hex (mid-typing) is kept for display but
+    // glows themselves are tuned under BACKDROP on this page. Invalid hex (mid-typing) is kept for display but
     // not applied, so a partial value never crashes the parse in RefreshSkin.
     // Seeded with Sakura's; the ctor and the skin switch overwrite it with the active skin's stored value,
     // as they do for the card tint.
@@ -71,8 +75,13 @@ public partial class ThemeViewModel : ObservableObject
     {
         if (!IsBlossom || !Color.TryParse(value, out _)) return;
         GradientBackground.SaveBaseColor(SkinKey, value);
+        Gradients.RefreshPreview(); // the preview stacks the glows over THIS colour
         RefreshSkin();
     }
+
+    /// <summary>The backdrop glow editor, shown on this page under BACKDROP (#appearance-merge). It was a
+    /// Developer subtab until then, which put a skin's glows a tab away from the base colour they sit on.</summary>
+    public GradientEditorViewModel Gradients { get; } = new();
 
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
     // in SkinColorSettings. Their default reproduces each skin's original pink.
@@ -204,6 +213,7 @@ public partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowBackgroundImageOpacity));
         OnPropertyChanged(nameof(ShowAccentControl));
         OnPropertyChanged(nameof(ShowSakuraBackground));
+        OnPropertyChanged(nameof(ShowBackdropTab));
         OnPropertyChanged(nameof(SakuraSolidBackground));
         OnPropertyChanged(nameof(SakuraCodeGenBackground));
         // Point the frost controls at the new skin's own stored values (backing fields directly, so this
@@ -278,7 +288,7 @@ public partial class ThemeViewModel : ObservableObject
                 else
                 {
                     // Flat base fills the window; the glows (from the persisted/edited settings) fill the
-                    // fixed-thickness edge bands. All tunable live via Developer → Gradients (#556).
+                    // fixed-thickness edge bands. All tunable live under this page's BACKDROP subtab (#556).
                     var glows = GradientBackground.Load(SkinKey);
                     app.Resources["AppBackdropBrush"] = new SolidColorBrush(ParseColorOr(
                         GradientBackground.LoadBaseColor(SkinKey),

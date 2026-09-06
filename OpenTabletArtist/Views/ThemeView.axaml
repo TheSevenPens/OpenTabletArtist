@@ -4,125 +4,331 @@
              xmlns:c="using:OpenTabletArtist.Controls"
              xmlns:conv="using:OpenTabletArtist.Converters">
 
-    <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15). Two columns:
-         appearance (+ custom look) on the left, colours & translucency on the right. -->
-    <Grid ColumnDefinitions="*,24,*" MaxWidth="900" HorizontalAlignment="Left">
-        <!-- LEFT — theme &amp; backdrop + custom look. -->
-        <StackPanel Grid.Column="0">
-        <c:Section Title="Theme &amp; backdrop">
+    <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15).
+
+         Subtabs, not columns (#appearance-merge). A skin's look used to be decided in two places: this
+         page owned the theme, its colours and the backdrop's BASE colour, while the glows painted over
+         that base were a tab away under Developer → Gradients. Tuning a backdrop meant walking between
+         two pages to see either half of it. The glow editor moved here, and the page divides by topic
+         instead — theme, backdrop, colours — because all three together no longer fit a screen. -->
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
+
+        <!-- Subtab rail, the same one Developer uses. Second page in the app to divide a third time; it
+             earns it by having absorbed a whole editor. -->
+        <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource DividerBrush}">
+            <StackPanel Width="{StaticResource SubtabRailWidth}" Spacing="2">
+                <RadioButton Content="THEME" IsChecked="True" x:Name="ThemeSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="BACKDROP" x:Name="BackdropSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+                <RadioButton Content="COLOURS" x:Name="ColoursSubtab"
+                             Theme="{StaticResource SubtabRadioButton}" />
+            </StackPanel>
+        </Border>
+
+        <!-- ══ THEME ══ which skin, and the petals that come with the blossom ones. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ThemeSubtab.IsChecked}">
+            <c:Section MaxWidth="560" HorizontalAlignment="Left" Title="Theme">
+                <StackPanel>
+                    <c:LabeledField Label="Theme">
+                        <ComboBox HorizontalAlignment="Left" MinWidth="220"
+                                  ItemsSource="{Binding ThemeOptions}"
+                                  SelectedItem="{Binding SelectedTheme}"
+                                  ToolTip.Tip="Light, Dark, Sakura, Custom, or follow the system setting">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <!-- Colour swatch previewing the theme. -->
+                                        <Border Width="18" Height="18" CornerRadius="0"
+                                                Background="{Binding Swatch}"
+                                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </c:LabeledField>
+                    <TextBlock Text="{Binding SelectedDescription}"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,8,0,0" />
+                    <TextBlock Text="Your choice is remembered across restarts."
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,2,0,0" />
+
+                    <!-- Blossom skins + Custom: toggle the falling-petal animation (#207), plus its opacity. -->
+                    <c:ToggleSetting Label="Falling petals" IsChecked="{Binding PetalsEnabled}"
+                                     IsVisible="{Binding ShowPetalsToggle}" Margin="0,16,0,0"
+                                     ToolTip.Tip="Animate drifting petals over the backdrop" />
+                    <c:LabeledSlider Label="Petal opacity" LabelWidth="130"
+                                     Minimum="0.1" Maximum="1" Value="{Binding PetalsOpacity}"
+                                     ValueFormat="0%" Margin="0,8,0,0"
+                                     IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
+                                     ToolTip.Tip="How opaque the falling petals are" />
+                </StackPanel>
+            </c:Section>
+        </ScrollViewer>
+
+        <!-- ══ BACKDROP ══ what fills the window behind the panels: the mode, the base colour it starts
+             from, and the glows painted over it — with one preview of the three together, which is the
+             whole point of them sharing a pane. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #BackdropSubtab.IsChecked}">
             <StackPanel>
-                <c:LabeledField Label="Theme">
-                    <ComboBox HorizontalAlignment="Left" MinWidth="220"
-                              ItemsSource="{Binding ThemeOptions}"
-                              SelectedItem="{Binding SelectedTheme}"
-                              ToolTip.Tip="Light, Dark, Sakura, Custom, or follow the system setting">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <!-- Colour swatch previewing the theme. -->
-                                    <Border Width="18" Height="18" CornerRadius="0"
-                                            Background="{Binding Swatch}"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
-                                            VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </c:LabeledField>
-                <TextBlock Text="{Binding SelectedDescription}"
+
+                <!-- Light and Dark paint nothing behind their content, so there is nothing here to tune. -->
+                <TextBlock Text="This theme has no backdrop to tune. Sakura, Dark Sakura and Custom do."
+                           FontStyle="Italic" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextMutedBrush}"
-                           TextWrapping="Wrap" Margin="0,8,0,0" />
-                <TextBlock Text="Your choice is remembered across restarts."
+                           IsVisible="{Binding !ShowBackdropTab}" />
+
+                <!-- Three columns, in the order you work: decide the base, pick a glow, tune it. The last
+                     is a definite Width rather than a star column — every row inside it is a grid with a
+                     star column of its own, and those have nothing to divide inside a content-sized
+                     parent (the trap that collapsed this same editor's inspector on Developer). -->
+                <Grid ColumnDefinitions="260,28,300,28,Auto" HorizontalAlignment="Left"
+                      IsVisible="{Binding ShowSakuraBackground}">
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Classes="Display section" Text="backdrop" />
+                        <TextBlock Text="Sakura and Dark Sakura keep their own."
+                                   Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                   Margin="0,0,0,10" />
+                        <!-- IsChecked is OneWay (display); the choice is driven by the Command, matching
+                             the movement-mode radios. -->
+                        <RadioButton GroupName="SakuraBackground" Content="Solid colour"
+                                     IsChecked="{Binding SakuraSolidBackground, Mode=OneWay}"
+                                     Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="solid"
+                                     ToolTip.Tip="A flat colour instead of the generated gradient" />
+                        <RadioButton GroupName="SakuraBackground" Content="Generated gradient"
+                                     IsChecked="{Binding SakuraCodeGenBackground, Mode=OneWay}"
+                                     Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="codegen"
+                                     ToolTip.Tip="A flat base colour with tunable glows over it" />
+
+                        <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,12,0,0">
+                            <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,0,0,4" />
+                            <c:ColorPicker HorizontalAlignment="Left"
+                                           Color="{Binding SakuraBaseColor, Mode=TwoWay,
+                                                   Converter={x:Static conv:HexColorConverter.Instance}}" />
+
+                            <!-- 1280x800, matching GradientBackground's nominal preview window, so a
+                                 glow's reach is to scale against a real window rather than against its
+                                 own band. -->
+                            <TextBlock Text="Preview" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,18,0,4" />
+                            <Border Width="240" Height="150" HorizontalAlignment="Left"
+                                    Background="{Binding Gradients.BackdropBrush}"
+                                    BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" IsVisible="{Binding SakuraCodeGenBackground}">
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="Glows" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Add glow"
+                                    Command="{Binding Gradients.AddGlowCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="10,4" />
+                            <c:IconButton Grid.Column="2" VerticalAlignment="Center" Margin="6,0,0,0"
+                                          Icon="{StaticResource IconDotsHorizontal}"
+                                          ToolTip.Tip="Glow list actions"
+                                          AutomationProperties.Name="Glow list actions">
+                                <c:IconButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Reset to defaults"
+                                                  Command="{Binding Gradients.ResetGlowsCommand}" />
+                                        <MenuItem Header="Copy settings JSON" Click="OnCopyGradientSettings" />
+                                    </MenuFlyout>
+                                </c:IconButton.Flyout>
+                            </c:IconButton>
+                        </Grid>
+
+                        <TextBlock Text="No glows. Add one, or reset to the defaults."
+                                   FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding Gradients.ShowEmptyMessage}" />
+
+                        <!-- A glow's identity is the chip painted from the glow itself, beside what it is. -->
+                        <ListBox ItemsSource="{Binding Gradients.Glows}"
+                                 SelectedItem="{Binding Gradients.Selected, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="8,0" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerBrush}">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10" Height="34"
+                                              Background="Transparent">
+                                            <Border Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center"
+                                                    Background="{Binding ChipBrush}" BorderThickness="1"
+                                                    BorderBrush="{DynamicResource DividerBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Color}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            <TextBlock Grid.Column="3" Text="{Binding Summary}" VerticalAlignment="Center"
+                                                       FontSize="{DynamicResource TypeDetailSize}"
+                                                       Foreground="{DynamicResource TextMutedBrush}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+
+                    <!-- The inspector. Bound through `Gradients.Selected.` rather than by setting a
+                         DataContext, so the "…" menu still sees the view model that owns its commands —
+                         a flyout's contents live in a popup outside the visual tree. -->
+                    <StackPanel Grid.Column="4" Width="440"
+                                IsVisible="{Binding Gradients.HasSelection}">
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBlock Grid.Column="0" Classes="Display section" Margin="0"
+                                       Text="{Binding Gradients.Selected.Color}" VerticalAlignment="Center" />
+                            <c:IconButton Grid.Column="1" VerticalAlignment="Center"
+                                          Icon="{StaticResource IconDotsHorizontal}"
+                                          ToolTip.Tip="Glow actions"
+                                          AutomationProperties.Name="Glow actions">
+                                <c:IconButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Duplicate" Command="{Binding Gradients.DuplicateGlowCommand}"
+                                                  CommandParameter="{Binding Gradients.Selected}" />
+                                        <MenuItem Header="Remove" Command="{Binding Gradients.RemoveGlowCommand}"
+                                                  CommandParameter="{Binding Gradients.Selected}" />
+                                    </MenuFlyout>
+                                </c:IconButton.Flyout>
+                            </c:IconButton>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="Style" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                                      ItemsSource="{Binding Gradients.Selected.StyleOptions}"
+                                      SelectedItem="{Binding Gradients.Selected.Style, Mode=TwoWay}"
+                                      AutomationProperties.Name="Glow style">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:LowerCaseConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="Edge" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                                      ItemsSource="{Binding Gradients.Selected.EdgeOptions}"
+                                      SelectedItem="{Binding Gradients.Selected.Edge, Mode=TwoWay}"
+                                      ToolTip.Tip="The edge this glow is anchored to; its reach is measured inward from there"
+                                      AutomationProperties.Name="Anchor edge">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:LowerCaseConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="82,*" Margin="0,0,0,10">
+                            <TextBlock Grid.Column="0" Text="Colour" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <c:ColorPicker Grid.Column="1" HorizontalAlignment="Left"
+                                           Color="{Binding Gradients.Selected.Color, Mode=TwoWay,
+                                                   Converter={x:Static conv:HexColorConverter.Instance}}" />
+                        </Grid>
+
+                        <!-- Radial places a blob somewhere along its edge; a linear wash spans the whole
+                             edge, so it trades those two for the shape of its fade. Reach is the one
+                             measurement that means the same thing in both. -->
+                        <c:LabeledSlider Label="Center X" LabelWidth="82" Minimum="0" Maximum="1"
+                                         Value="{Binding Gradients.Selected.CenterX, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Gradients.Selected.IsRadial}" />
+                        <c:LabeledSlider Label="Width" LabelWidth="82" Minimum="0.05" Maximum="1.5"
+                                         Value="{Binding Gradients.Selected.Width, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Gradients.Selected.IsRadial}" />
+                        <c:LabeledSlider Label="Reach" LabelWidth="82" Minimum="0" Maximum="600"
+                                         Value="{Binding Gradients.Selected.ReachPx, Mode=TwoWay}" ValueFormat="0"
+                                         ToolTip.Tip="How far the glow reaches in from its edge, in pixels" />
+                        <c:LabeledSlider Label="Falloff" LabelWidth="82" Minimum="0.02" Maximum="0.98"
+                                         Value="{Binding Gradients.Selected.Falloff, Mode=TwoWay}" ValueFormat="0.00"
+                                         IsVisible="{Binding Gradients.Selected.IsLinear}"
+                                         ToolTip.Tip="Where the wash reaches half opacity: low fades early, high holds the colour and drops away late" />
+                        <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
+                                         Value="{Binding Gradients.Selected.CenterOpacity, Mode=TwoWay}" ValueFormat="0.00" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Custom's backdrop is a base colour plus an optional image rather than glows, so it
+                     gets its own block on this same subtab — it is still the answer to "what is behind
+                     the panels". -->
+                <c:Section Title="Custom backdrop" MaxWidth="560" HorizontalAlignment="Left"
+                           IsVisible="{Binding ShowCustomControls}"
+                           Description="Pick a base colour for the background behind the panels, or add a background image to fill the window instead.">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <c:ColorPicker Color="{Binding BaseColor, Mode=TwoWay}" />
+                        </StackPanel>
+                        <c:LabeledField Label="Background image">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding BackgroundImageLabel}" MaxWidth="220"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                <Button Content="Choose image…" Click="OnChooseImage" Theme="{StaticResource GhostButton}" Padding="12,6" />
+                                <Button Content="Clear" Command="{Binding ClearBackgroundImageCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
+                                        IsEnabled="{Binding HasBackgroundImage}" />
+                            </StackPanel>
+                        </c:LabeledField>
+                        <!-- Only meaningful with an image set: fades the image over the base colour. -->
+                        <c:LabeledSlider Label="Image opacity" LabelWidth="130"
+                                         Minimum="0" Maximum="1" Value="{Binding BackgroundImageOpacity}"
+                                         ValueFormat="0%" IsVisible="{Binding ShowBackgroundImageOpacity}"
+                                         ToolTip.Tip="Lower opacity lets more of the base colour show through the image" />
+                    </StackPanel>
+                </c:Section>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ══ COLOURS ══ the accent and the frosted cards, which every translucent skin shares. -->
+        <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding #ColoursSubtab.IsChecked}">
+            <StackPanel>
+                <TextBlock Text="This theme has no colours to tune. Sakura, Dark Sakura and Custom do."
+                           FontStyle="Italic" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextMutedBrush}"
-                           TextWrapping="Wrap" Margin="0,2,0,0" />
+                           IsVisible="{Binding !ShowFrostControls}" />
 
-                <!-- Sakura + Custom: toggle the falling-petal animation (#207), plus its opacity. -->
-                <c:ToggleSetting Label="Falling petals" IsChecked="{Binding PetalsEnabled}"
-                                 IsVisible="{Binding ShowPetalsToggle}" Margin="0,12,0,0"
-                                 ToolTip.Tip="Animate drifting petals over the backdrop" />
-                <c:LabeledSlider Label="Petal opacity" LabelWidth="130"
-                                 Minimum="0.1" Maximum="1" Value="{Binding PetalsOpacity}"
-                                 ValueFormat="0%" Margin="0,8,0,0"
-                                 IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
-                                 ToolTip.Tip="How opaque the falling petals are" />
-
-                <!-- Sakura-only: cherry-blossom image (default), a flat colour, or a code-generated gradient
-                     backdrop (#556). IsChecked is OneWay (display); the choice is driven by the Command,
-                     matching the movement-mode radios. -->
-                <StackPanel IsVisible="{Binding ShowSakuraBackground}" Margin="0,14,0,0">
-                    <TextBlock Text="Background" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <RadioButton GroupName="SakuraBackground" Content="Solid colour" Margin="0,4,0,0"
-                                 IsChecked="{Binding SakuraSolidBackground, Mode=OneWay}"
-                                 Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="solid"
-                                 ToolTip.Tip="A flat #FDE4E8 background instead of the gradient" />
-                    <RadioButton GroupName="SakuraBackground" Content="CodeGen background"
-                                 IsChecked="{Binding SakuraCodeGenBackground, Mode=OneWay}"
-                                 Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="codegen"
-                                 ToolTip.Tip="A code-generated gradient instead of the bitmap (working name)" />
-
-                    <!-- CodeGen only: the flat base colour behind the glows. The picker is opaque-only (the
-                         base is always opaque); the glows themselves are tuned in Developer → Gradients. -->
-                    <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,10,0,0" Spacing="4">
-                        <TextBlock Text="Background colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <c:ColorPicker Color="{Binding SakuraBaseColor, Mode=TwoWay,
-                                              Converter={x:Static conv:HexColorConverter.Instance}}" />
+                <c:Section Title="Colours" MaxWidth="560" HorizontalAlignment="Left"
+                           IsVisible="{Binding ShowFrostControls}"
+                           Description="Pick colours from the palette and set how opaque the cards are — lower opacity lets more of the backdrop show through. Applies live.">
+                    <StackPanel Spacing="14">
+                        <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
+                        <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
+                            <TextBlock Text="Highlight colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <c:ColorPicker Color="{Binding AccentColor, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Card colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <c:ColorPicker Color="{Binding CardColor, Mode=TwoWay}" />
+                        </StackPanel>
+                        <c:LabeledSlider Label="Card opacity" LabelWidth="130"
+                                         Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
+                        <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6"
+                                HorizontalAlignment="Left" Margin="0,4,0,0"
+                                ToolTip.Tip="Restore this theme's colours, opacity, backdrop and petals to their defaults" />
                     </StackPanel>
-                </StackPanel>
+                </c:Section>
             </StackPanel>
-        </c:Section>
-
-        <!-- Custom-only: the base colour behind the panels + an optional background image. (The accent/
-             highlight colour lives in Colours & translucency below, since every skin can set it now.) -->
-        <c:Section Title="Custom look" Margin="0,12,0,0" IsVisible="{Binding ShowCustomControls}"
-                       Description="Pick a base colour for the background behind the panels, or add a background image to fill the window instead.">
-            <StackPanel Spacing="12">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:ColorPicker Color="{Binding BaseColor, Mode=TwoWay}" />
-                </StackPanel>
-                <c:LabeledField Label="Background image">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{Binding BackgroundImageLabel}" MaxWidth="220"
-                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextMutedBrush}" />
-                        <Button Content="Choose image…" Click="OnChooseImage" Theme="{StaticResource GhostButton}" Padding="12,6" />
-                        <Button Content="Clear" Command="{Binding ClearBackgroundImageCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
-                                IsEnabled="{Binding HasBackgroundImage}" />
-                    </StackPanel>
-                </c:LabeledField>
-                <!-- Only meaningful with an image set: fades the image over the base colour. -->
-                <c:LabeledSlider Label="Image opacity" LabelWidth="130"
-                                 Minimum="0" Maximum="1" Value="{Binding BackgroundImageOpacity}"
-                                 ValueFormat="0%" IsVisible="{Binding ShowBackgroundImageOpacity}"
-                                 ToolTip.Tip="Lower opacity lets more of the base colour show through the image" />
-            </StackPanel>
-        </c:Section>
-        </StackPanel>
-
-        <!-- RIGHT — colours & translucency. -->
-        <StackPanel Grid.Column="2">
-        <!-- Every translucent skin: highlight/card/left-pane colours (from a fixed palette, #555/#563) +
-             opacities + a reset. Each control drives a global brush, so the whole app re-tints live. -->
-        <c:Section Title="Colors &amp; opacity" IsVisible="{Binding ShowFrostControls}"
-                       Description="Pick colours from the palette and set how opaque the cards are — lower opacity lets more of the backdrop show through. Applies live.">
-            <StackPanel Spacing="14">
-                <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
-                <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
-                    <TextBlock Text="Highlight colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:ColorPicker Color="{Binding AccentColor, Mode=TwoWay}" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                    <TextBlock Text="Card colour" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    <c:ColorPicker Color="{Binding CardColor, Mode=TwoWay}" />
-                </StackPanel>
-                <c:LabeledSlider Label="Card opacity" LabelWidth="130"
-                                 Minimum="0.15" Maximum="1" Value="{Binding CardOpacity}" />
-                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}" Theme="{StaticResource GhostButton}" Padding="12,6"
-                        HorizontalAlignment="Left" Margin="0,4,0,0"
-                        ToolTip.Tip="Restore this theme's colours, opacity, and petals to their defaults" />
-            </StackPanel>
-        </c:Section>
-        </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

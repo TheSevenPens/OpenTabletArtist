@@ -220,6 +220,33 @@ public static class GradientBackground
         return new DrawingBrush(group) { Stretch = Stretch.Fill };
     }
 
+    /// <summary>The window the backdrop preview stands in for. A glow's reach is absolute pixels, so a
+    /// preview can only be to scale against SOME window size; these are the numbers it assumes, and the
+    /// preview's own aspect ratio should match them (#appearance-merge).</summary>
+    public const double PreviewWindowWidth = 1280;
+    public const double PreviewWindowHeight = 800;
+
+    /// <summary>The whole backdrop — base colour with every glow over it — as a window this size would
+    /// draw it. This is what makes a base colour judgeable against the glows sitting on it, which is the
+    /// pairing that used to be split across two tabs.</summary>
+    public static DrawingBrush BuildBackdropPreview(string baseColor, IEnumerable<GradientGlow> glows)
+    {
+        var group = new DrawingGroup();
+        group.Children.Add(new GeometryDrawing
+        {
+            Geometry = new RectangleGeometry(new Rect(0, 0, 1, 1)),
+            Brush = new SolidColorBrush(ParseColor(baseColor)),
+        });
+        foreach (var g in glows)
+        {
+            // Against the window, not the band: a 143px reach is a sixth of the 800px-tall preview, where
+            // in its own 600px band it would be a quarter.
+            var span = g.Edge is GlowEdge.Top or GlowEdge.Bottom ? PreviewWindowHeight : PreviewWindowWidth;
+            group.Children.Add(GlowLayer(g, g.ReachPx / span));
+        }
+        return new DrawingBrush(group) { Stretch = Stretch.Fill };
+    }
+
     /// <summary>One glow painted over <paramref name="baseColor"/>, for the editor's preview strip and list
     /// chips. <paramref name="reachFraction"/> is how far the glow reaches across the preview: pass
     /// <c>ReachPx / BandHeight</c> for a to-scale strip, or a fixed value for a chip far too small to show
