@@ -34,7 +34,8 @@
                     <DataTemplate>
                         <!-- Double-click the card to open the tablet's settings (#tablet-card-mapping): the
                              per-card "edit" button was removed in favour of this, so the card is one clear
-                             target. The trash icon still handles its own click. -->
+                             target. The "…" menu offers the same thing by name, for anyone who would never
+                             think to double-click a row; it handles its own click. -->
                         <c:Entity DoubleTapped="OnTabletCardDoubleTapped"
                                   ToolTip.Tip="Double-click to open this tablet's settings">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -73,16 +74,35 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             VerticalAlignment="Center">
-                                    <!-- Forget (remove saved settings). Managing connections lives here on Home.
-                                         Offered for every tablet (#575): removes a remembered one, or resets a
-                                         connected one to defaults — the confirm dialog says which. -->
-                                    <!-- A c:IconButton rather than a hand-rolled GhostButton wrapping a
-                                         PathIcon: same thing, but it picks up the shared borderless icon
-                                         treatment (#row-actions) instead of drifting from it. -->
-                                    <c:IconButton Icon="{StaticResource IconTrashCanOutline}"
-                                                  Command="{Binding ForgetCommand}"
-                                                  ToolTip.Tip="Forget this tablet"
-                                                  AutomationProperties.Name="Forget this tablet" />
+                                    <!-- The row's actions behind one "…", as on the preset rows and the
+                                         daemon, VMulti and plugin cards (#row-actions). This was a lone
+                                         trash glyph, which made the only visible thing you could do to a
+                                         tablet the destructive one — and left opening its settings
+                                         discoverable solely by double-clicking the row, or by reading the
+                                         tooltip that says so.
+
+                                         Forget removes a remembered tablet, or resets a connected one to
+                                         defaults; the confirm dialog says which (#575). It keeps the error
+                                         colour but as a NAMED item rather than a glyph you must hover to
+                                         identify.
+
+                                         Command bindings, not Click handlers: both commands are on the
+                                         row's own DataContext, which a flyout inherits — unlike the preset
+                                         rows, whose commands live on an ancestor a popup cannot walk to. -->
+                                    <c:IconButton Icon="{StaticResource IconDotsHorizontal}"
+                                                  ToolTip.Tip="More actions for this tablet"
+                                                  AutomationProperties.Name="More actions">
+                                        <c:IconButton.Flyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="Open tablet settings"
+                                                          Command="{Binding OpenCommand}" />
+                                                <Separator />
+                                                <MenuItem Header="Forget this tablet"
+                                                          Command="{Binding ForgetCommand}"
+                                                          Foreground="{DynamicResource ErrorBrush}" />
+                                            </MenuFlyout>
+                                        </c:IconButton.Flyout>
+                                    </c:IconButton>
                                 </StackPanel>
                             </Grid>
                         </c:Entity>
