@@ -270,9 +270,10 @@
             <CornerRadius x:Key="CardCornerRadius">0</CornerRadius>
             <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
 
-            <!-- The sakura backdrop. UniformToFill so it covers the window at any size. -->
-            <ImageBrush x:Key="AppBackdropBrush" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"
-                        Source="avares://OpenTabletArtist/Assets/sakura-bg-2.png" />
+            <!-- No backdrop key here either (#glow-darksakura). This skin painted sakura-bg-2.png until
+                 #556 gave it the generated backdrop; the declaration outlived the artwork by several
+                 releases because ThemeViewModel.RefreshSkin overrides it on every apply, so nothing ever
+                 rendered it. Both pictures are deleted; the fallback is Light's transparent backdrop. -->
 
             <Color x:Key="PenDiagramFill">#F7CFD8</Color>
             <Color x:Key="PenDiagramButtonFill">#EEB6C6</Color>
@@ -359,7 +360,7 @@
             <BoxShadows x:Key="CardShadow">0 4 16 0 #40E0218A</BoxShadows>
 
             <!-- No backdrop keys here any more (#glow-darksakura). This skin used to paint its own artwork,
-                 sakuradark-bg-2.png, under a #C4160910 scrim — and that picture had a warm glow painted into
+                 sakuradark-bg-2.png (since deleted), under a #C4160910 scrim — and that picture had a warm glow painted into
                  its bottom edge, so the skin glowed there whatever the gradient editor said, and no setting
                  could reach it. It now uses the same generated backdrop as Sakura, applied by
                  ThemeViewModel.RefreshSkin, whose defaults reproduce that glow as two washes you can turn
