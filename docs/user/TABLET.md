@@ -4,7 +4,7 @@
 
 A tablet's settings live on two pages — **Tablet** and **Pen**. Both are scoped by the **switcher** at the right of the page menu (the Tablet, Pen, and Scribble switchers are linked, so they always show the same tablet), with a **Refresh** beside it that re-reads settings from the daemon (useful after changes in the OTD UX). **Forget** a tablet from its row on Home.
 
-The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **filters** and **json**, hidden unless enabled on **Settings → Developer**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below, followed by the **filters** tab.
+The **Tablet** page's tabs are **about**, **mapping**, **calibration**, **buttons**, and **wheels** (plus **filters** and **json**, hidden unless enabled on **Settings → Dev**). *(Pen dynamics — now the **pressure** tab — moved to the [**Pen** page](PEN.md).)* Each of the main tabs is described below, followed by the **filters** tab.
 
 ## about
 
@@ -35,7 +35,7 @@ If your tablet has wheels or dials, they'll show up here. You can assign actions
 
 ## filters
 
-*(Hidden unless you turn on **Show the Filters tab**, under *Tablet page extras* on **Settings → Developer**.)*
+*(Hidden unless you turn on **Show the Filters tab**, under *Tablet page extras* on **Settings → Dev**.)*
 
 A read-only list of the OpenTabletDriver **filters** on this tablet's profile — the plugin stages that sit in the pen pipeline between the tablet and your screen. Each card shows a friendly name (**Pen Dynamics**, **Hover Limit**, **Calibration**) or, for a filter OpenTabletArtist doesn't recognize, its raw type name; below that, the filter's full type path; and on the right, whether it's **Enabled** or **Disabled**.
 

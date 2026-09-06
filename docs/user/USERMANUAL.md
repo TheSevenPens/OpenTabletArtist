@@ -29,13 +29,13 @@ The app is made of **pages**, a page may be divided into **tabs**, and a tab may
 
 - The **page menu** runs across the top of the window with six pages — **Home**, **Tablet**, **Pen**, **Scribble**, **Settings**, and **Advanced**.
 - The **tab menu** sits just beneath it, in larger type, listing that page's tabs. Pages with nothing to divide (**Home**, **Scribble**) have no tab menu.
-- **Subtabs** run down the left-hand side, as a vertical list rather than a menu across the top. Two tabs have them: **Settings → Appearance** and **Settings → Developer**.
+- **Subtabs** run down the left-hand side, as a vertical list rather than a menu across the top. Two tabs have them: **Settings → Theme** and **Settings → Dev**.
 
 In both menus the current item is marked in the accent colour and a heavier weight — there's no underline. A selected subtab takes an accent bar down its left edge instead.
 
 - **Tablet** and **Pen** carry the selected tablet's settings.
 - A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the **Tablet** and **Pen** pages and picks which tablet you're editing.
-- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Appearance** (theme), **System** (Startup + Shortcut + Driver Cleanup, Windows-only), and **Developer** *(debugging tools)*. 
+- **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (Windows-only), and **Dev** *(debugging tools)*. 
 - **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
 Every paired or connected tablet also appears on **Home** under *Your tablets*. **Double-click a row** to open that tablet's settings, and use its **trash** icon to forget a remembered tablet (or reset a connected one to defaults).
@@ -46,7 +46,7 @@ Every paired or connected tablet also appears on **Home** under *Your tablets*. 
 - **[Tablet page](TABLET.md)** — about · mapping · calibration · buttons · wheels (plus the developer-only filters/json tabs).
 - **[Pen page](PEN.md)** — basics (the whole pen: switches, diagram, inputs, movement) · pressure (the pressure curve + smoothing).
 - **[Scribble page](SCRIBBLE.md)** — the paint canvas for confirming the pen, with live readouts.
-- **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Appearance · System (Startup/Shortcut/Driver Cleanup) · Developer.
+- **[Settings page](SETTINGS.md)** — Presets · Hotkeys · Theme · System (Startup/Shortcut) · Drivers · Dev.
 - **[Advanced page](ADVANCED.md)** — Daemon · Console · VMulti · Configs · Diagnostics · Plugins.
 - **[Plugins](PLUGINS.md)** — what ships with OTA, what the Pen Dynamics plugin does, and whether you need any others.
 - **[Getting help](HELP.md)** — where to ask when something isn't working, and what to include.

@@ -183,7 +183,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Shared daemon status/control surface for the Home problem card + the Daemon tab.
         _daemonStatus = new DaemonStatusViewModel(_session, () => OpenAdvancedTab(AdvancedTab.Daemon));
         Dashboard = new DashboardViewModel(_session, _daemonStatus, dialogs, NavigateToTabletByName, _health, TabletsOverview,
-            () => OpenSettingsTab(SettingsTab.System),   // Driver Cleanup lives in the System pivot now
+            () => OpenSettingsTab(SettingsTab.Drivers),  // Driver Cleanup has its own pivot (#drivers-tab)
             () => OpenAdvancedTab(AdvancedTab.Plugins),  // Windows Ink → Plugins pivot (#winink-to-plugins)
             () => OpenAdvancedTab(AdvancedTab.VMulti),   // VMulti → its own pivot
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
