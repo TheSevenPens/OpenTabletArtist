@@ -78,10 +78,21 @@
                     <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
-                <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconEdit}"
-                                 Command="{Binding EditCommand}"
-                                 IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                                 ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit" />
+                <!-- The row's actions behind one "…", as elsewhere in the app (#row-actions). Clear is new:
+                     it was reachable only by opening the editor and pressing Clear in there, and for a
+                     binding this editor can't model not even that worked. Both commands are on the row's
+                     own DataContext, which a flyout inherits, so these are Command bindings. -->
+                <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconDotsHorizontal}"
+                                 VerticalAlignment="Center"
+                                 ToolTip.Tip="More actions for this binding"
+                                 AutomationProperties.Name="More actions">
+                    <ctrl:IconButton.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Edit…" Command="{Binding EditCommand}" />
+                            <MenuItem Header="Clear" Command="{Binding ClearCommand}" />
+                        </MenuFlyout>
+                    </ctrl:IconButton.Flyout>
+                </ctrl:IconButton>
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
@@ -700,22 +711,20 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #WheelsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: label + master enable toggle + clear-all (parity with the buttons tab). -->
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                <!-- Header: label + master enable toggle. "Clear all" sat here too until every row got its
+                     own Clear (#wheel-row-actions): a wheel has three rows at most, so clearing them one at
+                     a time is no hardship, and the button was a bulk destructive action with no undo
+                     sitting a few pixels from a toggle that keeps your mappings. -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
-                        <TextBlock Text="Wheel enabled" VerticalAlignment="Center"
+                        <TextBlock Text="Enable wheels" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ToggleSwitch IsChecked="{Binding WheelEnabled}" OnContent="" OffContent=""
                                       MinWidth="0" VerticalAlignment="Center"
                                       ToolTip.Tip="Turn all wheel bindings on or off. Your mappings are kept and restored when you turn them back on." />
                     </StackPanel>
-                    <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearWheelBindingsCommand}"
-                            IsVisible="{Binding ShowWheelControls}"
-                            ToolTip.Tip="Remove every wheel binding"
-                            Theme="{StaticResource GhostButton}" Padding="12,6"
-                            VerticalAlignment="Center" />
                 </Grid>
 
                 <!-- One card per wheel: the live gauge on the left, and every mapping for that wheel

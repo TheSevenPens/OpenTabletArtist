@@ -78,32 +78,30 @@
                  the Entity glass fill so it reads as a single panel over the themed backdrop. -->
             <c:ControlPanel Margin="0,12,0,0">
                 <StackPanel>
-                    <!-- Controls. Brush + actions group on the left; the App/Driver source toggle sits at
-                         the far right of the row. The picker chooses a BRUSH, which is what it is bound to
-                         (BrushModes/BrushMode) and what the list reads as — "Mode" named the enum, not the
-                         thing being picked. -->
-                    <Grid ColumnDefinitions="*,Auto">
-                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Brush" VerticalAlignment="Center" Margin="0,0,6,0"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
-                                      MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Converter={x:Static conv:PenBrushModeNameConverter.Instance}}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <Button Content="Clear" Command="{Binding ClearCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="14,6" />
-                            <Button Content="Copy" Click="OnCopy"
-                                    Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
-                                    ToolTip.Tip="Copy the drawing to the clipboard as an image" />
-                        </WrapPanel>
-                        <ToggleSwitch Grid.Column="1" OffContent="App" OnContent="Driver"
-                                      IsChecked="{Binding UseDriverInput}"
-                                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0,0,0" />
-                    </Grid>
+                    <!-- Controls: the brush picker and the canvas actions. The picker chooses a BRUSH,
+                         which is what it is bound to (BrushModes/BrushMode) and what the list reads as —
+                         "Mode" named the enum, not the thing being picked.
+
+                         An App/Driver toggle used to sit at the far right, choosing between the OS pointer
+                         and the driver's own stream. Gone (#scribble-driver-only): the pen data is always
+                         the driver's now, as it is in every other tablet driver's UI. -->
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Brush" VerticalAlignment="Center" Margin="0,0,6,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <ComboBox ItemsSource="{Binding BrushModes}" SelectedItem="{Binding BrushMode}"
+                                  MinWidth="200" VerticalAlignment="Center" Margin="0,0,20,0">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={x:Static conv:PenBrushModeNameConverter.Instance}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="Clear" Command="{Binding ClearCommand}"
+                                Theme="{StaticResource GhostButton}" Padding="14,6" />
+                        <Button Content="Copy" Click="OnCopy"
+                                Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
+                                ToolTip.Tip="Copy the drawing to the clipboard as an image" />
+                    </WrapPanel>
 
                     <!-- Live readouts. X/Y pairs share a cell ("x, y") so the panel is 4×2 instead of a
                          taller 5-wide grid; left-aligned + content-sized columns keep it horizontally
@@ -154,8 +152,8 @@
             <Grid>
                 <c:PenTestCanvas x:Name="PaintCanvas"
                                  BrushMode="{Binding BrushMode}" />
-                <!-- Driver-input painting needs an Absolute output mode; otherwise show why the
-                     canvas is disabled (#95). -->
+                <!-- Painting needs an Absolute output mode to map the pen's position; otherwise show why
+                     the canvas is disabled (#95). -->
                 <Border IsVisible="{Binding DriverCanvasDisabled}"
                         Background="#E6F5F5F0" Padding="32">
                     <TextBlock Text="{Binding DriverDisabledNote}"

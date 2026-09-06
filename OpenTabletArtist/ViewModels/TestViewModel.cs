@@ -15,17 +15,18 @@ namespace OpenTabletArtist.ViewModels;
 /// <summary>
 /// View model for the Test page — a paint canvas for verifying pen features (pressure, tilt,
 /// twist) live. The canvas itself (rendering + pointer input) is the <c>PenTestCanvas</c> control;
-/// this VM owns the source toggle, the brush mode, the live readouts, and the driver-input source.
+/// this VM owns the brush mode, the live readouts, and the driver-input source.
 ///
-/// Input source: App (OS pointer / Windows Ink — what an app receives) or Driver (the OTD daemon's
-/// DeviceReport stream — the driver's view, works even before Windows Ink is set up). The shell
-/// activates/deactivates the page so the daemon debug stream is only on while Test is visible.
+/// The pen data always comes from the driver — the OTD daemon's DeviceReport stream, its own view of
+/// the pen before the OS sees it. A toggle used to offer the OS pointer (what an app receives) as a
+/// second source; it was removed (#scribble-driver-only) because no other tablet driver's UI offers
+/// that choice and neither of its two words means anything to someone who just wants to test a pen.
+/// The shell activates/deactivates the page so the daemon debug stream is only on while Test is visible.
 /// </summary>
 public partial class TestViewModel : ObservableObject, IDisposable
 {
     private readonly DaemonPenInputSource _driver;
     private readonly IDeviceData _deviceData;
-    private bool _active;
 
     public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData)
     {
@@ -176,11 +177,6 @@ public partial class TestViewModel : ObservableObject, IDisposable
         DynamicsNoOp = DynamicsActive && d.IsNoOp;
     }
 
-    /// <summary>false = App input (Windows Ink pointer); true = Driver input (OTD DeviceReport).
-    /// Defaults to Driver: it's the driver's own view of the pen and works even before Windows Ink is
-    /// set up, so it's the more reliable first thing to see on the Scribble page.</summary>
-    [ObservableProperty] private bool _useDriverInput = true;
-
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
 
@@ -201,8 +197,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _azimuthText = "—";
     [ObservableProperty] private string _altitudeText = "—";
     [ObservableProperty] private string _twistText = "—";
-    /// <summary>Driver-reported hover height (0–255). Blank in App input (the OS pointer doesn't carry
-    /// it); numeric only in Driver input. The readout is always shown so the grid layout is stable.</summary>
+    /// <summary>Driver-reported hover height (0–255), or "—" before the pen is in range.</summary>
     [ObservableProperty] private string _hoverText = "—";
 
     // X and Y are shown paired in one readout cell ("x, y") to keep the panel compact (#scribble-readouts).
@@ -252,16 +247,16 @@ public partial class TestViewModel : ObservableObject, IDisposable
     private (TabletDigitizerSpec Digi, MappingArea Input, MappingArea Output, bool Clip, bool Limit)? _mapping;
 
     /// <summary>Driver mode + an Absolute output mode we can map → paint at the mapped position.</summary>
-    public bool DriverPositioned => UseDriverInput && _mapping.HasValue;
+    public bool DriverPositioned => _mapping.HasValue;
 
     /// <summary>Driver mode but no usable Absolute mapping → canvas disabled, show the note.</summary>
-    public bool DriverCanvasDisabled => UseDriverInput && !_mapping.HasValue;
+    public bool DriverCanvasDisabled => !_mapping.HasValue;
 
     public string DriverDisabledNote =>
-        "Driver-input painting needs an Absolute output mode (e.g. Windows Ink Absolute) on the active " +
-        "tablet, so the raw pen position can be mapped to the screen. The current mode doesn't map " +
-        "position, so the canvas is disabled while in Driver input. Switch to App input, or set this " +
-        "tablet to Windows Ink Absolute.";
+        "Painting here needs an Absolute output mode (e.g. Windows Ink Absolute) on the active tablet, so " +
+        "the pen's position on the tablet can be mapped to the screen. The current mode doesn't map " +
+        "position, so the canvas is disabled — the readouts above still work. Set this tablet to an " +
+        "Absolute output mode to draw here.";
 
     /// <summary>Map a raw tablet point to a virtual-desktop pixel, or null if not mappable.</summary>
     public Vector2? MapRawToDesktop(double rawX, double rawY) =>
@@ -324,26 +319,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
 
     public async Task ActivateAsync()
     {
-        _active = true;
         RecomputeMapping(); // data may already be loaded before the page is shown
         RefreshTabletStatus();
-        if (UseDriverInput) await _driver.StartAsync();
+        await _driver.StartAsync();
     }
 
     public async Task DeactivateAsync()
     {
-        _active = false;
         await _driver.StopAsync();
-    }
-
-    partial void OnUseDriverInputChanged(bool value)
-    {
-        // The position-source state depends on the toggle.
-        OnPropertyChanged(nameof(DriverPositioned));
-        OnPropertyChanged(nameof(DriverCanvasDisabled));
-        HoverText = "—"; // hover is driver-only; blank it in App input and don't carry a stale value across a switch
-        if (!_active) return;
-        _ = value ? _driver.StartAsync() : _driver.StopAsync();
     }
 
     public void Dispose()

@@ -3,14 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctrl="using:OpenTabletArtist.Controls">
 
-    <!-- The pressure-dynamics content — two columns: the curve editor + smoothing on the left, the live
-         pressure bar on its own on the right. Hosted by the PEN page's "pressure" pivot (#pen-dynamics-move).
-         DataContext is a TabletDetailViewModel, inherited from the host. (Disable tilt → Pen › inputs;
-         position smoothing → Pen › movement.) -->
+    <!-- The pressure-dynamics content — three columns: the curve editor + smoothing, the paint preview,
+         and the live readouts with their gauge. Hosted by the PEN page's "pressure" pivot
+         (#pen-dynamics-move). DataContext is a TabletDetailViewModel, inherited from the host. (Disable
+         tilt → Pen › inputs; position smoothing → Pen › movement.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
         <!-- Fixed column widths (not Left-aligned/size-to-content) so the smoothing slider's star-sized
-             track renders, and so the whole block (~656px) still fits the tray's focused editor (700px). -->
-        <Grid ColumnDefinitions="360,16,280" HorizontalAlignment="Left">
+             track renders. The note here used to cap the block at ~656px to fit a 700px tray dialog;
+             nothing hosts this view but the PEN page now, so a third column is affordable. -->
+        <Grid ColumnDefinitions="360,16,260,16,170" HorizontalAlignment="Left">
 
             <!-- LEFT — everything but the live bar: the inert-pressure note, the pressure curve + presets,
                  and pressure smoothing. No card heading — the "pressure" pivot already names the tab. -->
@@ -90,37 +91,12 @@
                 </StackPanel>
             </ctrl:Section>
 
-            <!-- RIGHT — live pressure (#559): a raw dot for the incoming pressure and, when dynamics shape
-                 it, a processed dot at the value after the curve. Readouts stack (the column is narrow).
-                 Below it, a small paint canvas: drawing on it uses the OS pointer (App mode), whose Windows
-                 Ink pressure is already shaped by this curve — so you can feel the curve while you edit it. -->
+            <!-- MIDDLE — the paint preview. Same paint surface the Scribble page uses; PressureToSize shows
+                 the pressure→size response. Painted from the daemon's pen stream (see DynamicsView.axaml.cs)
+                 with the pressure shaped by the curve + smoothing, so it previews the response you're
+                 editing and works even when Windows Ink is off. -->
             <ctrl:Section Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel Spacing="8">
-                    <!-- The readouts show all the time so they don't pop in/out as you press: "—" when no
-                         pressure is being reported (pen up / out of range), a value — including 0.0000 — when
-                         it is. Fixed-height slot so the processed line toggling with dynamics doesn't shift
-                         the canvas below. -->
-                    <Panel Height="40">
-                        <StackPanel Spacing="2" VerticalAlignment="Top">
-                            <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
-                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                       Foreground="{DynamicResource AccentBrush}" />
-                            <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
-                                       FontFamily="{DynamicResource MonoFontFamily}"
-                                       Foreground="{DynamicResource SuccessBrush}"
-                                       IsVisible="{Binding ShowLiveProcessed}" />
-                        </StackPanel>
-                    </Panel>
-                    <ctrl:PressureLevelBar Height="18"
-                                           Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
-                                           ShowProcessed="{Binding ShowLiveProcessed}"
-                                           RawBrush="{DynamicResource AccentBrush}"
-                                           ProcessedBrush="{DynamicResource SuccessBrush}" />
-
-                    <!-- Same paint surface the Scribble page uses; PressureToSize shows the pressure→size
-                         response. Painted from the daemon's pen stream (see DynamicsView.axaml.cs) with the
-                         pressure shaped by the curve + smoothing, so it previews the response you're editing
-                         and works even when Windows Ink is off. -->
                     <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
                         <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" />
                     </ctrl:Canvas>
@@ -131,6 +107,38 @@
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
                                 ToolTip.Tip="Copy the drawing to the clipboard as an image" />
                     </StackPanel>
+                </StackPanel>
+            </ctrl:Section>
+
+            <!-- RIGHT — live pressure (#559): the raw value coming in, the processed value after the curve
+                 when dynamics shape it, and the gauge showing both. Its own column now, so the numbers are
+                 not squeezed above the canvas they have nothing to do with. -->
+            <ctrl:Section Grid.Column="4" VerticalAlignment="Top" Margin="0,2,0,10">
+                <StackPanel Spacing="8">
+                    <!-- The readouts show all the time so they don't pop in/out as you press: "—" when no
+                         pressure is being reported (pen up / out of range), a value — including 0.0000 — when
+                         it is. Fixed-height slot so the processed line toggling with dynamics doesn't shift
+                         the gauge below.
+
+                         Ordinary ink, not the accent and the success green they used to carry: the words
+                         "raw" and "processed" already say which is which, and colour that means something
+                         is what the app reserves for the gauge's two bars, which have no words to use. -->
+                    <Panel Height="40">
+                        <StackPanel Spacing="2" VerticalAlignment="Top">
+                            <TextBlock Text="{Binding LiveInputText, StringFormat='raw {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding LiveProcessedText, StringFormat='processed {0}'}"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       IsVisible="{Binding ShowLiveProcessed}" />
+                        </StackPanel>
+                    </Panel>
+                    <ctrl:PressureLevelBar Height="18"
+                                           Raw="{Binding LivePressure}" Processed="{Binding LiveProcessed}"
+                                           ShowProcessed="{Binding ShowLiveProcessed}"
+                                           RawBrush="{DynamicResource AccentBrush}"
+                                           ProcessedBrush="{DynamicResource SuccessBrush}" />
                 </StackPanel>
             </ctrl:Section>
         </Grid>
