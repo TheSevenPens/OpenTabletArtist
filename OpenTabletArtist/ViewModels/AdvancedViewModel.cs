@@ -49,40 +49,27 @@ public partial class AdvancedViewModel : ObservableObject
 
     public AdvancedViewModel(
         DaemonViewModel daemon, CustomTabletConfigsViewModel configs,
-        DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins,
-        VMultiViewModel vmulti)
+        DiagnosticsViewModel diagnostics, LogViewModel log, PluginsViewModel plugins)
     {
         _diagnostics = diagnostics;
         _configs = configs;
 
-        // Daemon status + version get their own tab; the Console log is its own tab beside it. DRIVERS is
-        // now just the VMulti driver: Windows Ink moved to PLUGINS, where it sits beside the plugin list it
-        // manages a plugin for (#winink-to-plugins). Still a composite of one, so adding a second driver
-        // section back is a one-word change.
-        var drivers = new CompositeSectionViewModel(vmulti);
+        // Daemon status + version get their own tab; the Console log is its own tab beside it. The VMULTI
+        // pivot is gone: it held one card, and that card moved to SETTINGS → DRIVERS beside driver cleanup
+        // (#vmulti-to-drivers). With it went the only Windows-only pivot here, so the rail no longer filters
+        // by OS at all.
         var tabs = new AdvancedTabItem[]
         {
             new("DAEMON", AdvancedTab.Daemon, daemon),
             new("CONSOLE", AdvancedTab.Console, log),
-            new("VMULTI", AdvancedTab.VMulti, drivers),
             new("CONFIGS", AdvancedTab.CustomTabletConfigs, configs),
             new("DIAGNOSTICS", AdvancedTab.Diagnostics, diagnostics),
             new("PLUGINS", AdvancedTab.Plugins, plugins),
-        }.Where(t => RailTabAppliesToOs(t.Tab, OperatingSystem.IsWindows())).ToArray();
+        };
         Tabs = tabs;
         _allTabs = tabs;
         UpdateSelection();
     }
-
-    /// <summary>Whether an ADVANCED pivot applies on the given OS. The <b>VMulti</b> pivot is Windows-only
-    /// and hidden off-Windows (#140) — that driver doesn't exist on macOS/Linux (the daemon uses its own
-    /// native output there). Filtering it out of the rail keeps the deep-link enum intact — a
-    /// stray deep-link to a hidden tab is coerced back to a visible one (see
-    /// <see cref="OnSelectedTabChanged"/>). Pure (OS passed in, not checked inline) so the filter is
-    /// unit-testable.</summary>
-    public static bool RailTabAppliesToOs(AdvancedTab tab, bool isWindows) =>
-        isWindows
-        || tab is not AdvancedTab.VMulti;
 
     /// <summary>The advanced subpages, a single flat list (no owner grouping).</summary>
     public IReadOnlyList<AdvancedTabItem> Tabs { get; }
@@ -106,15 +93,6 @@ public partial class AdvancedViewModel : ObservableObject
 
     partial void OnSelectedTabChanged(AdvancedTab oldValue, AdvancedTab newValue)
     {
-        // A deep-link to a tab hidden on this OS (e.g. a stale nav or the developer screenshot aid targeting
-        // WindowsInk off-Windows) would leave nothing selected and a blank content area — coerce to the first
-        // visible tab instead. Re-enters this handler with a valid tab, so the work below runs for it. (#140)
-        if (_allTabs.Length > 0 && _allTabs.All(t => t.Tab != newValue))
-        {
-            SelectedTab = _allTabs[0].Tab;
-            return;
-        }
-
         UpdateSelection();
         OnPropertyChanged(nameof(SelectedContent));
         OnPropertyChanged(nameof(CurrentTabTitle));

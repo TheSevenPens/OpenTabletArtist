@@ -28,7 +28,7 @@ permissions via udev, tray, overlay coverage), and (3) **package** (`.deb`/`.rpm
 |---|---|
 | **Compiles, no Windows blocker** | All P/Invoke is `IsWindows()`-guarded or seamed; `ubuntu-latest` CI builds it today. |
 | **Full test suite** | Runs on the `ubuntu-latest` lane (OS-portable test paths landed in Phase 0.5). |
-| **Windows-only surface hidden** | `AdvancedViewModel.RailTabAppliesToOs(isWindows)` + `HealthInputs.IsWindows` gate on *non-Windows*, so VMulti / Windows Ink / Driver-cleanup / Startup + their health nags are hidden on Linux exactly as on macOS. |
+| **Windows-only surface hidden** | `SettingsViewModel.TabAppliesToOs(isWindows, isLinux)` + `HealthInputs.IsWindows` gate on *non-Windows*, so VMulti / Windows Ink / Driver-cleanup / Startup + their health nags are hidden on Linux exactly as on macOS. (VMulti and driver cleanup share the Windows-only SETTINGS **Drivers** pivot; ADVANCED no longer filters by OS.) |
 | **Display enumeration** | `DisplayEnumerator` dispatches non-Windows → `AvaloniaScreensDisplayEnumerator` (Avalonia `Screens`), which is cross-platform. Needs X11/Wayland verification (below). |
 | **Daemon transport + lifecycle** | Named-pipe → Unix-domain-socket connects as-is; `DaemonExePaths` uses the extension-less exe name (non-Windows); the daemon version/source fallback (Phase 4) is process-list based, not Win32. |
 | **Seam safety** | Every seam no-ops/degrades off-Windows (Phase 5). `PlatformShell.RevealInFileManager` already maps non-macOS → **`xdg-open`**, and `OpenDisplaySettings` no-ops on Linux. |
