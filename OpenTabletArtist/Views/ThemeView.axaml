@@ -78,6 +78,18 @@
                                      ToolTip.Tip="How opaque the falling petals are" />
                 </StackPanel>
             </c:Section>
+
+            <!-- Reset lives on ALL THREE subtabs (#693), not just Colors. The command restores this
+                 skin's colors, card opacity, backdrop base AND petals — everything the three panes
+                 between them edit — so a user tuning petals here, or glows on BACKDROP, had to know to
+                 open COLORS to undo it. Same command and same wording each time: it is one reset shown
+                 where its effects are, not three different ones. Gated like the Colors pane, since Light
+                 and Dark have none of these to restore. -->
+            <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
+                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                    HorizontalAlignment="Left" Margin="0,24,0,0"
+                    IsVisible="{Binding ShowFrostControls}"
+                    ToolTip.Tip="Restore this theme's colors, opacity, backdrop and petals to their defaults" />
             </StackPanel>
         </ScrollViewer>
 
@@ -311,6 +323,14 @@
                                          ToolTip.Tip="Lower opacity lets more of the base color show through the image" />
                     </StackPanel>
                 </c:Section>
+
+                <!-- The same reset as on THEME and COLORS (#693) — one command, shown wherever its
+                     effects are. It restores the backdrop base and glows along with the colors. -->
+                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                        HorizontalAlignment="Left" Margin="0,24,0,0"
+                        IsVisible="{Binding ShowFrostControls}"
+                        ToolTip.Tip="Restore this theme's colors, opacity, backdrop and petals to their defaults" />
             </StackPanel>
         </ScrollViewer>
 
