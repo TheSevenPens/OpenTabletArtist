@@ -23,7 +23,7 @@ namespace OpenTabletArtist.Controls;
 ///
 /// It only runs while the Sakura/Custom theme is active AND the user hasn't switched petals off — in any
 /// other theme the timer is stopped, so it costs nothing. Hit-test invisible; placed behind the
-/// sidebar/content so petals read as part of the scene.
+/// chrome and content so petals read as part of the scene.
 /// </summary>
 public class SakuraPetals : Control
 {

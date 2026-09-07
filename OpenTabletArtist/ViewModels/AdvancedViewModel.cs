@@ -28,7 +28,7 @@ public partial class AdvancedTabItem : ObservableObject
 }
 
 /// <summary>
-/// The ADVANCED tabbed page: a single sidebar node whose content area has its own subpage navigation
+/// The ADVANCED page: a single page in the page menu whose content has its own tab menu
 /// (a <b>flat</b> tab rail, #477), hosting OpenTabletDriver's own subpages (Daemon, Windows Ink Plugin,
 /// Configs, Diagnostics, Console, Plugins) plus the driver-management pages (VMulti, Driver Cleanup). It
 /// doesn't own those view models; it holds the shared instances so each tab can display the existing view.

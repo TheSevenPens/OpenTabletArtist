@@ -25,7 +25,7 @@
     <Panel Margin="{Binding OffScreenMargin, RelativeSource={RelativeSource AncestorType=Window}}">
         <!-- Full-window backdrop layer. Transparent in Light/Dark; the sakura image in the Anime
              skin (#anime), or the user's chosen image in the Custom skin. Sits behind everything so
-             the translucent sidebar + glass cards show it through. -->
+             the translucent page-menu bar + glass cards show it through. -->
         <Border Background="{DynamicResource AppBackdropBrush}" />
 
         <!-- Fixed-thickness glow bands for the code-generated Sakura backdrop (#556), one per edge: a glow
@@ -54,7 +54,7 @@
         <Border Background="{DynamicResource BackdropScrimBrush}" />
 
         <!-- Falling sakura petals — only animates in the Sakura skin and when enabled in Settings
-             (#207). Hit-test invisible; sits above the backdrop, behind the sidebar/content. -->
+             (#207). Hit-test invisible; sits above the backdrop, behind the chrome and content. -->
         <controls:SakuraPetals />
 
     <Grid RowDefinitions="Auto,*">

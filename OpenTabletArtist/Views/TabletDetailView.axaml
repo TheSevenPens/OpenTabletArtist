@@ -167,11 +167,13 @@
             </Border>
         </StackPanel>
 
-        <!-- Tablet toolbar row (Zune 2c, Option C): the switcher dropdown, the horizontal pivots, and the
-             compact actions (D · R · F) all share one row over the content. The pivots are still
-             RadioButtons switched by ElementName (content gates on #XTab.IsChecked; code-behind reads the
-             x:Names for live-input, deep-links, screenshot sweep). The switcher + actions show only when
-             this view is embedded in the TABLET page (!ShowHeader) — the tray dialog uses the
+        <!-- The tablet page's TAB MENU. It began as one row shared with the switcher dropdown and the
+             compact actions (Zune 2c, Option C); the switcher moved up to the shell's page menu
+             (#switcher-in-shell), so this row is the tabs alone — see the note just below.
+
+             The tabs are RadioButtons switched by ElementName: content gates on #XTab.IsChecked, and
+             code-behind reads the x:Names for live-input, deep-links and the screenshot sweep. Shown
+             only when this view is embedded in the TABLET page (!ShowHeader) — the tray dialog uses the
              ComplexHeader above instead. -->
         <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
                 Margin="0,0,0,14" Padding="0,0,0,7">

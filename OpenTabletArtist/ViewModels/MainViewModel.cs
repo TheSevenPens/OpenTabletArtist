@@ -76,16 +76,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public DaemonViewModel Daemon { get; }
     public WindowsInkViewModel WindowsInk { get; }
     public VMultiViewModel VMulti { get; }
-    /// <summary>The ADVANCED tabbed page: OpenTabletDriver's subpages (Daemon / Windows Ink / Configs /
-    /// Diagnostics / Console / Plugins) plus the driver-management pages (VMulti / Driver Cleanup), all as
-    /// tabs behind one sidebar node.</summary>
+    /// <summary>The ADVANCED page: OpenTabletDriver's own surfaces as tabs — Daemon / Console / Configs /
+    /// Diagnostics / Plugins. Windows Ink moved onto Plugins (it is a plugin, #winink-to-plugins); VMulti
+    /// and Driver Cleanup moved to SETTINGS → Drivers (#vmulti-to-drivers, #drivers-tab).</summary>
     public AdvancedViewModel Advanced { get; }
-    /// <summary>The SETTINGS tabbed page: OTA's own preference subpages (Startup / Theme / Dev Tools),
-    /// split out of ADVANCED into their own sidebar node.</summary>
+    /// <summary>The SETTINGS page: OTA's own preferences as tabs — Presets / Hotkeys / Theme / System /
+    /// Drivers / Dev — split out of ADVANCED into their own page.</summary>
     public SettingsViewModel Settings { get; }
     public StartupViewModel Startup { get; } = new();
-    /// <summary>The DEVELOPER page: a top-level sidebar node (after ADVANCED), shown only when its
-    /// visibility toggle (SETTINGS → Dev Tools) is on. Assigned in the constructor (not a field
+    /// <summary>The DEVELOPER content, hosted as the SETTINGS → Dev tab. Assigned in the constructor (not a field
     /// initializer) so its break-config commands can reach the session's settings coordinator + device data.</summary>
     public DeveloperViewModel Developer { get; }
     public ThemeViewModel Theme { get; } = new();
@@ -97,12 +96,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// Tablets page was merged in). Populated by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletsOverviewViewModel TabletsOverview { get; }
 
-    /// <summary>The single TABLET page (#542): one sidebar node whose page hosts a switcher dropdown over
+    /// <summary>The single TABLET page (#542): one page in the page menu, hosting a switcher dropdown over
     /// the selected tablet's detail view. Replaces the old per-tablet nav children. Its tablet list +
     /// default selection are refreshed by <see cref="RebuildTablets"/> on each data load.</summary>
     public TabletPageViewModel TabletPage { get; }
 
-    /// <summary>The PEN page (#pen-split): the pen settings (movement · inputs · buttons) split out of the
+    /// <summary>The PEN page (#pen-split): the pen settings (basics · pressure) split out of the
     /// tablet page into their own top-level section. Same switcher/selection as the tablet page and shares
     /// the per-tablet detail cache, so both edit the same tablet VM. Refreshed by <see cref="RebuildTablets"/>.</summary>
     public PenPageViewModel PenPage { get; }
@@ -123,10 +122,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
             : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
 
-    /// <summary>The whole top-level navigation as one ordered, data-driven list (Zune Phase 0.2): HOME ·
-    /// TABLET · SCRIBBLE · ABOUT · SETTINGS · ADVANCED. Each node has a label, its target page, a selection
-    /// flag the sidebar highlights (synced in <see cref="OnCurrentPageChanged"/>), and a visibility flag.
-    /// Modelling every section identically — not just the middle leaves — lets the shell swap the sidebar
+    /// <summary>The whole page menu as one ordered, data-driven list (Zune Phase 0.2): HOME ·
+    /// TABLET · PEN · SCRIBBLE · SETTINGS · ADVANCED. Each entry has a label, its target page, a selection
+    /// flag the page menu highlights (synced in <see cref="OnCurrentPageChanged"/>), and a visibility flag.
+    /// Modelling every entry identically — not just the middle ones — lets the shell swap the page menu
     /// for a horizontal wordmark bar without special-casing any node.</summary>
     public ObservableCollection<NavLeafViewModel> NavSections { get; } = new();
 
@@ -199,8 +198,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 
-        // The ADVANCED tabbed page groups the driver/daemon subpages behind one sidebar node, with its own
-        // subpage navigation (tab rail, like a tablet's page). It shares the sub-view models built above.
+        // The ADVANCED page groups OpenTabletDriver's own surfaces behind one page-menu entry, with
+        // its own tab menu, like the tablet page. It shares the sub-view models built above.
         Advanced = new AdvancedViewModel(Daemon, Configs, Diagnostics, Log, Plugins);
         // The Console tab manages its own scroll, so the outer scroll toggles as the ADVANCED tab changes
         // (not just when the top-level page changes) — re-evaluate ContentScrollBarVisibility on tab switch.
@@ -209,8 +208,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (e.PropertyName == nameof(AdvancedViewModel.SelectedTab))
                 OnPropertyChanged(nameof(ContentScrollBarVisibility));
         };
-        // The SETTINGS tabbed page holds OTA's own preference subpages, sharing the same VM instances,
-        // behind its own sidebar node in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
+        // The SETTINGS page holds OTA's own preferences as tabs, sharing the same VM instances,
+        // under its own page-menu entry in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
         // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
         Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DesktopEntry, DriverCleanup,
             VMulti, Presets, PerApp, Developer);
@@ -517,7 +516,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _ = PerApp.RefreshAsync();
         }
 
-        // Refresh the sidebar highlight — every top-level section highlights via its own IsSelected.
+        // Refresh the page-menu highlight — every page highlights via its own IsSelected.
         foreach (var section in NavSections)
             section.IsSelected = ReferenceEquals(CurrentPage, section.Page);
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
@@ -561,7 +560,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 }
 
 /// <summary>A flat leaf node in the page navigation bar (#477): a label, the page it opens, a selection
-/// flag the sidebar highlights (synced by the shell on navigation), and a visibility flag (feature-gated
+/// flag the page menu highlights (synced by the shell on navigation), and a visibility flag (feature-gated
 /// entries hide themselves). Clicking it runs the shell's Navigate command with <see cref="Page"/>.</summary>
 public partial class NavLeafViewModel : ObservableObject
 {
