@@ -1,94 +1,85 @@
 # UX & navigation terminology
 
 > Status: **canonical.** This is the agreed vocabulary for the app's navigation and page structure.
-> Use these terms in code, comments, and docs. Where today's code uses a different name, see
-> [Current code → target term](#current-code--target-term) — those renames are a planned follow-up.
+> Use these terms in code, comments, and docs. The user manual's
+> [Using the Interface](../user/USERMANUAL.md#using-the-interface) says the same thing in the user's
+> words — if the two ever disagree, the manual describes what shipped and this file is the one that's
+> wrong.
 
 ## The shape
 
-The app is **two levels deep, and no deeper** — navigation on the left, content on the right, at each
-level. The second level only exists inside a *tabbed page*.
+Three levels, all horizontal-first: **page → tab → subtab**. Navigation runs across the top of the
+window rather than down a left pane, and the third level exists only where a tab had to divide again.
 
 ```
 Window
-├─ Left pane ── Page navigation bar        ← primary navigation, HIERARCHICAL (nodes)
-│    ├─ leaf node     → opens a page
-│    ├─ group node    → groups child nodes, opens nothing   (e.g. ADVANCED)
-│    └─ parent node   → has child nodes                     (e.g. Tablets → one child per tablet)
+├─ Page menu ─────────────── across the top, FLAT
+│    home · tablet · pen · scribble · settings · advanced
+│    (a tablet switcher + Refresh sit at its right, on tablet and pen)
 │
-└─ Right pane ─ Page  (always has a title)
-     │
-     ├─ Simple page   =  title + content
-     │
-     └─ Tabbed page   =  complex header
-          ├─ Left ──  Subpage navigation   ← secondary navigation, FLAT (tabs)
-          │             └─ tab → opens a subpage
-          └─ Right ─  Subpage  =  title + content   (the same component as a simple page)
+├─ Tab menu ──────────────── under the page menu, in larger type, FLAT
+│    that page's tabs; pages with nothing to divide have none
+│
+└─ Content
+     └─ Subtabs ─────────── a vertical rail down the LEFT of the content, FLAT
+          only where a tab divides again
 ```
 
 ## Glossary
 
 | Term | Meaning |
 |---|---|
-| **Left pane / right pane** | The app's two top-level regions. |
-| **Page navigation bar** | The left-pane navigator. **Hierarchical.** |
-| **Node** | An entry in the page navigation bar. |
-| &nbsp;&nbsp;• **leaf node** | Opens a page (e.g. HOME, SCRIBBLE). |
-| &nbsp;&nbsp;• **group node** | Groups child nodes and opens nothing (e.g. ADVANCED). |
-| &nbsp;&nbsp;• **parent node** | Has child nodes (e.g. Tablets → one child node per tablet). |
-| **Page** | A surface in the right pane. Always has a **title**. Either a *simple page* or a *tabbed page*. |
-| **Simple page** | `title + content`. The leaf surface. |
-| **Tabbed page** | `complex header + subpage navigation + subpage`. A page whose content is split into tabs. |
-| **Subpage navigation** | The navigator inside a tabbed page. **Flat** — no hierarchy. |
-| **Tab** | An entry in the subpage navigation; opens a subpage. |
-| **Subpage** | `title + content`. The **same component** as a simple page — "subpage" is simply its name when it is hosted inside a tabbed page. |
-| **Title** | Universal: every page and subpage has one. On a simple page / subpage it *is* the whole header. |
-| **Complex header** | The tabbed page's own header component. Always contains a title; may add custom, page-specific content; persists while you switch subpages. |
+| **Page** | A top-level destination. There are six, and the set is fixed. |
+| **Page menu** | The row of page names across the top of the window. **Flat** — no grouping, no children. |
+| **Tab** | A division of one page. |
+| **Tab menu** | The row of tab names under the page menu, set in larger type than the page menu. **Flat.** A page with nothing to divide has no tab menu at all. |
+| **Subtab** | A division of one tab — the third and last level. |
+| **Subtab rail** | The vertical list of subtabs down the left of the content area. **Flat.** Width is the `SubtabRailWidth` token. |
+| **Switcher** | The tablet dropdown at the right of the page menu, with its **Refresh**. Scopes the page to one tablet. |
+| **Section** | A titled or untitled grouping of related settings *within* a tab or subtab. Not navigation — it selects nothing. |
+| **Entity** | One THING in a list (a preset, a plugin, a config, a tablet). A row, not a card. |
+
+## What has what
+
+| Page | Tabs | Subtabs |
+|---|---|---|
+| **home** | — | — |
+| **tablet** | about · mapping · calibration · buttons · wheels *(+ filters · json when enabled)* | — |
+| **pen** | basics · pressure | — |
+| **scribble** | — | — |
+| **settings** | presets · hotkeys · theme · system · drivers · dev | **theme** → theme · backdrop · colors<br>**dev** → warnings · config errors · tablets · interface · screenshots |
+| **advanced** | daemon · console · configs · diagnostics · plugins | — |
+
+Gated entries stay in their list and hide themselves rather than being removed: **per-app presets**
+while the feature is disabled, **drivers** off Windows, **system** on macOS, **filters** / **json**
+unless turned on under settings → dev.
 
 ## Invariants
 
-These are what make the model coherent — hold them when adding or renaming UI:
+Hold these when adding or renaming UI:
 
-1. **Two levels, no recursion.** A subpage is always a leaf (`title + content`); it never contains its
-   own navigation. If something seems to need a third level, revisit the design rather than nesting.
-2. **The leaf is one component.** A **simple page** and a **subpage** are the same thing; the only
-   difference is whether the neighbour that selects it is the page navigation bar or a subpage
-   navigation.
-3. **Two distinct navigators.** The **page navigation bar** is hierarchical (nodes, with grouping and
-   children); the **subpage navigation** is flat (tabs). They share a role, not a type — even if a
-   future implementation reuses one control, they are styled and scoped differently in context.
-4. **Two distinct headers, one shared atom.** A leaf's header is *just a title*; a tabbed page has a
-   distinct **complex header**. Both always contain a **title** — the title is the shared atom.
+1. **Three levels, and the third is rare.** A subtab is always a leaf. If something seems to need a
+   fourth level, the tab is doing too much — split the tab, don't nest.
+2. **Every navigator is flat.** None of the three levels groups, nests, or has children. A "section
+   label" inside a list is a heading, not a nav level.
+3. **The type ramp encodes the level.** Page menu at `TypeNavSize`, tab menu at `TypePivotSize` (larger
+   — it names where you are within the page you already chose), section headings inside a tab at
+   `TypeSectionSize`. A heading must never out-type the menu that contains it.
+4. **Selection is colour and weight, never an underline.** Accent plus a heavier weight in both menus; a
+   selected subtab takes an accent bar down its left edge instead.
+5. **A page earns a tab menu by having something to divide.** Home and Scribble have none, and that is
+   the normal case for a page with one job — not an omission to fix.
 
-**Subpage titles on a tabbed page.** The active subpage's title may be surfaced by the *complex header*
-as a breadcrumb (`tabbed page › subpage`) instead of being repeated in the subpage body — this is how the
-**Advanced** page works (`ADVANCED › DAEMON`), which keeps one title in a consistent spot and reclaims
-the vertical space. The **tablet** page is a deliberate exception: it keeps its rich complex header, and
-its subpages use small section labels.
+## Historical
 
-**Advanced is a tabbed page.** The former collapsible **ADVANCED** *group node* (and the separate
-**OpenTabletDriver** tabbed page nested under it) were replaced by a single **Advanced** *leaf node* that
-opens one tabbed page. Its subpage navigation lists all the advanced subpages, grouped by owner with two
-non-interactive section labels — *OpenTabletDriver* (Daemon / Windows Ink / Configs / Diagnostics /
-Console / Plugins) and *OpenTabletArtist* (VMulti Driver / Driver Cleanup / Startup / Developer / Theme). The section labels organize a still-**flat** tab list; they aren't a third nav level.
+The app used to be **two levels deep, and no deeper**: a hierarchical **page navigation bar** down a
+**left pane**, with *leaf* / *group* / *parent* **nodes**, opening a **simple page** or a **tabbed page**
+with its own **complex header** and **subpage navigation**. The Zune redesign replaced that whole model —
+the left pane became the page menu across the top, the node hierarchy flattened, and the third level
+(subtabs) arrived for Theme and Dev, which the old "two levels, no recursion" invariant explicitly
+forbade.
 
-## Current code → target term
-
-The vocabulary above is the target. Today's code differs in places; these are the renames to make in
-the follow-up (tracked separately):
-
-| Concept | Today | Target |
-|---|---|---|
-| Tabbed page | **done** — "hub" removed from code; `AdvancedView`/`TabletDetailView` are the tabbed pages | **tabbed page** |
-| Page-nav entry | **done** — `NavNode` theme, `TabletNavNodeViewModel` | **node** (leaf / group / parent) |
-| Group node | historical — `NavGroupNode` theme was the ADVANCED toggle; ADVANCED is now a leaf node so it's currently unused | **group node** |
-| Subpage-nav entry | **done** — `TabRadioButton`, `AdvancedTab` | **tab** |
-| Complex header | **done** — the shared `Controls/ComplexHeader` control, used by both tabbed pages | a named, shared **complex header** |
-
-Done (phases 1–4):
-- The **Advanced** tabbed page has a **complex header**, shown as a breadcrumb (`ADVANCED › <subpage>`); its subpages no longer carry their own title.
-- The **tablet** tabbed page's header (name + Refresh + Forget) is the rich end of the *complex header* spectrum and is now built with the shared `ComplexHeader` control.
-- The page navigation bar uses the **node** vocabulary: `NavNode` (leaf/parent nodes) and `TabletNavNodeViewModel` (per-tablet child nodes). ADVANCED is now a leaf node, so the `NavGroupNode` group-node theme is currently unused.
-- "Hub" is gone from the code: the enum is `AdvancedTab`, and comments call it the Advanced **tabbed page**.
-
-The code now matches this document. (A possible future step — a data-driven **node tree** for the page navigation bar — is tracked in #414.)
+Those terms — *left pane*, *right pane*, *node*, *group node*, *parent node*, *simple page*, *tabbed
+page*, *subpage*, *subpage navigation*, *complex header* — are **historical**. They survive in some code
+identifiers and comments (`NavNode`, `ComplexHeader`, `AdvancedTab`), which is why they are recorded
+here; do not use them in new code, comments, or docs.

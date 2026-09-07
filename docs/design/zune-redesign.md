@@ -1,6 +1,17 @@
 # Zune-style UX redesign (branch: `zune`)
 
-Status: **Phases 0–4 shipped on `zune`** (not yet merged to `master`); ongoing polish. A
+> **Historical design record — not a current inventory (as of 2026-09-06).**
+>
+> This documents the redesign: why it was done, what was decided, and what each phase set out to build.
+> Its "as shipped" tables were a snapshot taken during the work and the app has moved on — pivots have
+> been renamed, split, merged and moved since, so reading them as current will send you to tabs that no
+> longer exist.
+>
+> For what the app actually has today: **[USERMANUAL.md](../user/USERMANUAL.md)** for the pages and
+> tabs, **[ux-terminology.md](ux-terminology.md)** for the vocabulary and the page/tab/subtab inventory.
+> Keep those two current; leave the tables below as the record of their moment.
+
+Status: **shipped and merged to `master`**; ongoing polish. A
 big-typography, panorama/pivot navigation model inspired by the Zune UX (the precursor to Metro). Goal: take v1's UX "to the next level" —
 more simplicity, less chrome, better use of horizontal space — **while keeping the Sakura skin
 as the default** (Zune is a *layout* language, not a palette; the pink skin stays).
