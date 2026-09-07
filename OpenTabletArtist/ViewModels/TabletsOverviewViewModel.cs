@@ -62,7 +62,7 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     private bool _mappingNeedsAttention;
 
     public bool HasMapping => !string.IsNullOrEmpty(MappingText);
-    /// <summary>A normal (non-warning) mapping line — drawn in secondary text rather than the warning colour.</summary>
+    /// <summary>A normal (non-warning) mapping line — drawn in secondary text rather than the warning color.</summary>
     public bool MappingIsNormal => HasMapping && !MappingNeedsAttention;
 
     /// <summary>Refresh the mapped-display line in place — used when the connected monitors change so the

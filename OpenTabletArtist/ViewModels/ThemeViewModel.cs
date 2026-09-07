@@ -13,8 +13,8 @@ namespace OpenTabletArtist.ViewModels;
 /// <summary>
 /// View model for the Theme page. Owns app-level appearance preferences that aren't tied to a tablet:
 /// the theme (Light / Dark / System + the Sakura/Anime skin, #139/#207) and the user-tunable Custom
-/// skin (accent colour + background image). Persisted via <see cref="ThemeService"/> /
-/// <see cref="CustomThemeSettings"/>. The picker shows a colour swatch + label per option and a
+/// skin (accent color + background image). Persisted via <see cref="ThemeService"/> /
+/// <see cref="CustomThemeSettings"/>. The picker shows a color swatch + label per option and a
 /// one-line description; skin-specific controls appear only for the skin they apply to.
 /// </summary>
 public partial class ThemeViewModel : ObservableObject
@@ -30,7 +30,7 @@ public partial class ThemeViewModel : ObservableObject
         new(ThemeService.Dark,   "Dark",   "Easy on the eyes in low light.", new SolidColorBrush(Color.Parse("#13131C"))),
         new(ThemeService.Anime,  "Sakura", "Pink skin with a soft gradient backdrop, falling cherry blossoms and frosted-glass panels.", SakuraSwatch()),
         new(ThemeService.DarkSakura, "Dark Sakura", "A moody dark skin: pink accents and falling cherry blossoms over a dark gradient backdrop.", DarkSakuraSwatch()),
-        new(ThemeService.Custom, "Custom", "A translucent skin you tune: pick the accent colour and a background image.", CustomSwatch()),
+        new(ThemeService.Custom, "Custom", "A translucent skin you tune: pick the accent color and a background image.", CustomSwatch()),
     };
 
     [ObservableProperty] private ThemeOption _selectedTheme;
@@ -45,12 +45,12 @@ public partial class ThemeViewModel : ObservableObject
     /// <summary>Falling petals apply to every blossom skin (Sakura, Dark Sakura, Custom).</summary>
     public bool ShowPetalsToggle => IsSakura || IsDarkSakura || IsCustom;
     public bool ShowFrostControls => IsSakura || IsDarkSakura || IsCustom;
-    /// <summary>The accent-colour + background-image controls are Custom-only.</summary>
+    /// <summary>The accent-color + background-image controls are Custom-only.</summary>
     public bool ShowCustomControls => IsCustom;
-    /// <summary>The highlight/accent colour is pickable on every translucent skin (#557).</summary>
+    /// <summary>The highlight/accent color is pickable on every translucent skin (#557).</summary>
     public bool ShowAccentControl => IsSakura || IsDarkSakura || IsCustom;
 
-    // Choose a code-generated gradient backdrop or a flat colour.
+    // Choose a code-generated gradient backdrop or a flat color.
     // Both blossom skins offer it since Dark Sakura swapped its fixed artwork for the same tunable
     // backdrop (#glow-darksakura). Custom has its own backdrop controls.
     public bool ShowSakuraBackground => IsSakura || IsDarkSakura;
@@ -63,7 +63,7 @@ public partial class ThemeViewModel : ObservableObject
     /// content, so the pane says so rather than sitting empty.</summary>
     public bool ShowBackdropTab => IsBlossom || IsCustom;
 
-    // CodeGen-only: the flat base colour behind the glows (#556). Editing it saves + re-tints live; the
+    // CodeGen-only: the flat base color behind the glows (#556). Editing it saves + re-tints live; the
     // glows themselves are tuned under BACKDROP on this page. Invalid hex (mid-typing) is kept for display but
     // not applied, so a partial value never crashes the parse in RefreshSkin.
     // Seeded with Sakura's; the ctor and the skin switch overwrite it with the active skin's stored value,
@@ -75,12 +75,12 @@ public partial class ThemeViewModel : ObservableObject
     {
         if (!IsBlossom || !Color.TryParse(value, out _)) return;
         GradientBackground.SaveBaseColor(SkinKey, value);
-        Gradients.RefreshPreview(); // the preview stacks the glows over THIS colour
+        Gradients.RefreshPreview(); // the preview stacks the glows over THIS color
         RefreshSkin();
     }
 
     /// <summary>The backdrop glow editor, shown on this page under BACKDROP (#appearance-merge). It was a
-    /// Developer subtab until then, which put a skin's glows a tab away from the base colour they sit on.</summary>
+    /// Developer subtab until then, which put a skin's glows a tab away from the base color they sit on.</summary>
     public GradientEditorViewModel Gradients { get; } = new();
 
     // Per-skin highlight/accent (#557). Custom stores its accent in CustomThemeSettings; the blossom skins
@@ -112,7 +112,7 @@ public partial class ThemeViewModel : ObservableObject
     // Seeded with the generic default; the ctor overwrites it with the active skin's stored value.
     [ObservableProperty] private double _cardOpacity = AcrylicSettings.DefaultMaterialOpacity;
 
-    // ── Translucent-skin colours ──
+    // ── Translucent-skin colors ──
     // CardColor is the frosted-card tint for the active skin (persisted per-skin). BaseColor + AccentColor
     // + BackgroundImagePath are the Custom skin's background, scheme, and backdrop.
     [ObservableProperty] private Color _cardColor;
@@ -120,8 +120,8 @@ public partial class ThemeViewModel : ObservableObject
     [ObservableProperty] private Color _accentColor;
     [ObservableProperty] private string? _backgroundImagePath;
 
-    /// <summary>Opacity (0..1) of the Custom background image over the base colour. Lower = more base
-    /// colour shows through. Persisted; the backdrop reacts live.</summary>
+    /// <summary>Opacity (0..1) of the Custom background image over the base color. Lower = more base
+    /// color shows through. Persisted; the backdrop reacts live.</summary>
     [ObservableProperty] private double _backgroundImageOpacity = CustomThemeSettings.DefaultBackgroundImageOpacity;
 
     /// <summary>The per-skin card tint stored for the active translucent skin.</summary>
@@ -234,7 +234,7 @@ public partial class ThemeViewModel : ObservableObject
     partial void OnPetalsOpacityChanged(double value) => AnimationSettings.PetalsOpacity = value;
 
     /// <summary>Radio choice for the Sakura backdrop: "codegen" (a code-generated gradient) or "solid"
-    /// (a flat colour).</summary>
+    /// (a flat color).</summary>
     [RelayCommand]
     private void SelectSakuraBackground(string mode)
     {
@@ -272,7 +272,7 @@ public partial class ThemeViewModel : ObservableObject
         }
         else
         {
-            // Blossom backdrop mode (#556): a code-generated gradient (default) or a flat colour. The
+            // Blossom backdrop mode (#556): a code-generated gradient (default) or a flat color. The
             // cherry-blossom image mode was retired; "image" migrates to "codegen" in SkinColorSettings.
             // Dark Sakura joined here when its own artwork was retired too (#glow-darksakura) — it kept a
             // glow along the bottom edge that no setting could reach, because the glow was in the picture.
@@ -300,7 +300,7 @@ public partial class ThemeViewModel : ObservableObject
     }
 
     /// <summary>Override the accent-derived brushes (buttons, radios, selected nav, system accent shades)
-    /// from a single accent colour. Shared by every translucent skin (#557).</summary>
+    /// from a single accent color. Shared by every translucent skin (#557).</summary>
     private void ApplyAccentScheme(Application app, Color accent)
     {
         var light1 = Lighten(accent, 0.14);
@@ -351,7 +351,7 @@ public partial class ThemeViewModel : ObservableObject
         // Accent buttons hard-coded white text, which is unreadable on a light accent (e.g. pink). Pick
         // white or near-black by contrast instead, evaluated against the LIGHTEST stop the label ever sits
         // on (the hover gradient's top, Lighten(accent, 0.22)) so it stays legible at rest and on hover.
-        // Both rest + hover use the same ink so the label colour doesn't flip mid-interaction.
+        // Both rest + hover use the same ink so the label color doesn't flip mid-interaction.
         var buttonInk = new SolidColorBrush(ContrastingInk(Lighten(accent, 0.22)));
         app.Resources["AccentButtonForegroundBrush"] = buttonInk;
         app.Resources["AccentButtonForegroundHoverBrush"] = buttonInk;
@@ -363,8 +363,8 @@ public partial class ThemeViewModel : ObservableObject
 
     }
 
-    /// <summary>Custom-only backdrop: the base colour always fills the window; a chosen image layers over it
-    /// at the user's opacity (lower = more base colour shows through). The base fill also means an
+    /// <summary>Custom-only backdrop: the base color always fills the window; a chosen image layers over it
+    /// at the user's opacity (lower = more base color shows through). The base fill also means an
     /// unset/unreadable image just falls back to the user's chosen base instead of a hard-coded black.</summary>
     private void ApplyCustomBackdrop(Application app)
     {
@@ -384,13 +384,13 @@ public partial class ThemeViewModel : ObservableObject
                     Opacity = opacity,
                 };
                 // Legibility scrim, faded out with the image so a faint image (low opacity) doesn't leave
-                // the base colour needlessly darkened.
+                // the base color needlessly darkened.
                 app.Resources["BackdropScrimBrush"] = new SolidColorBrush(Color.FromArgb((byte)(0x66 * opacity), 0, 0, 0));
                 return;
             }
             catch
             {
-                // Unreadable/missing image → just the flat base colour, no overlay/scrim.
+                // Unreadable/missing image → just the flat base color, no overlay/scrim.
             }
         }
 
@@ -399,7 +399,7 @@ public partial class ThemeViewModel : ObservableObject
     }
 
     /// <summary>Restore the active translucent skin's tunables (card tint/opacity, left-pane opacity,
-    /// petals, accent, the Sakura codegen backdrop colour, and — for Custom — base colour and background
+    /// petals, accent, the Sakura codegen backdrop color, and — for Custom — base color and background
     /// image) to their defaults.</summary>
     [RelayCommand]
     private void ResetToDefaults()
@@ -430,12 +430,12 @@ public partial class ThemeViewModel : ObservableObject
     private static Color ParseColorOr(string? hex, Color fallback) =>
         Color.TryParse(hex, out var c) ? c : fallback;
 
-    /// <summary>White or near-black — whichever stays legible as label text on the given button colour.
+    /// <summary>White or near-black — whichever stays legible as label text on the given button color.
     /// Uses WCAG relative luminance so light fills (e.g. a pink accent) get dark text instead of white.</summary>
     private static Color ContrastingInk(Color buttonColor) =>
         RelativeLuminance(buttonColor) > 0.42 ? Color.FromRgb(0x1A, 0x1A, 0x1A) : Colors.White;
 
-    /// <summary>WCAG relative luminance (0 = black, 1 = white) of an sRGB colour.</summary>
+    /// <summary>WCAG relative luminance (0 = black, 1 = white) of an sRGB color.</summary>
     private static double RelativeLuminance(Color c)
     {
         static double Lin(byte v)

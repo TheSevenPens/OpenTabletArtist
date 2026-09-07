@@ -66,7 +66,7 @@
                                      the app. Load is why the list exists and it overwrites your live
                                      settings, so it stays a labelled target; Update, Duplicate, Rename and
                                      Delete are all rare and deliberate, and three of the four open a dialog
-                                     anyway. Delete keeps the error colour, but as a NAMED item rather than
+                                     anyway. Delete keeps the error color, but as a NAMED item rather than
                                      a red glyph you have to hover to identify.
 
                                      Click handlers, not Command bindings: a flyout's contents live in a

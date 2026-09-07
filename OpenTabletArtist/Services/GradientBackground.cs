@@ -37,7 +37,7 @@ public sealed class GradientGlow
     public GlowEdge Edge { get; set; } = GlowEdge.Bottom;
 
     /// <summary>Linear only: where the wash reaches half its opacity, as a fraction of the reach. 0.5 is a
-    /// straight fade; lower drops off near the edge, higher holds the colour and falls away late.</summary>
+    /// straight fade; lower drops off near the edge, higher holds the color and falls away late.</summary>
     public double Falloff { get; set; } = 0.5;
 
     // Settings written before linear glows existed carried `Top: bool` and `HeightPx` instead of Edge and
@@ -60,8 +60,8 @@ public static class GradientBackground
     /// the Height/Width of the glow-band Borders in MainWindow.axaml.</summary>
     public const double BandHeight = 600;
 
-    /// <summary>Default flat base colours behind the glows, one per blossom skin. Dark Sakura's is the
-    /// field colour of the artwork this backdrop replaced, as the eye saw it — #23000D through that skin's
+    /// <summary>Default flat base colors behind the glows, one per blossom skin. Dark Sakura's is the
+    /// field color of the artwork this backdrop replaced, as the eye saw it — #23000D through that skin's
     /// #C4160910 scrim — so the skin opens looking as it did.</summary>
     public const string SakuraBaseColor = "#FCE7EE";
     public const string DarkSakuraBaseColor = "#19070F";
@@ -85,7 +85,7 @@ public static class GradientBackground
         _ => "AppBackdropGlowRightBrush",
     };
 
-    // Both blossom skins keep their own glows and base colour — a set tuned for a pale pink page is
+    // Both blossom skins keep their own glows and base color — a set tuned for a pale pink page is
     // meaningless on a near-black one. Sakura's keys are unchanged from when it was the only one.
     private static string Key(string skin) => $"{skin}:CodeGenGlows";
     private static string BaseColorKey(string skin) => $"{skin}:CodeGenBaseColor";
@@ -100,7 +100,7 @@ public static class GradientBackground
     };
 
     /// <summary>Whether the code-generated backdrop is the thing currently on screen: a blossom skin, with
-    /// its background set to codegen rather than to a flat colour.
+    /// its background set to codegen rather than to a flat color.
     ///
     /// Both halves matter. The live editor used to test only the background mode, which is not a skin
     /// check, so editing a glow under any other skin wrote the glow brushes anyway.
@@ -110,15 +110,15 @@ public static class GradientBackground
     public static bool IsShowing =>
         ActiveSkin is { } skin && SkinColorSettings.Background(skin) == "codegen";
 
-    /// <summary>The flat colour that fills the window behind <paramref name="skin"/>'s glows.</summary>
+    /// <summary>The flat color that fills the window behind <paramref name="skin"/>'s glows.</summary>
     public static string DefaultBaseColor(string skin) =>
         skin == SkinColorSettings.DarkSakuraSkin ? DarkSakuraBaseColor : SakuraBaseColor;
 
-    /// <summary>The persisted flat base colour (editable on Appearance), or the skin's default.</summary>
+    /// <summary>The persisted flat base color (editable on Appearance), or the skin's default.</summary>
     public static string LoadBaseColor(string skin) =>
         AppSettings.Get(BaseColorKey(skin)) ?? DefaultBaseColor(skin);
 
-    /// <summary>The current skin's base colour — for the editor's previews, which are drawn outside the
+    /// <summary>The current skin's base color — for the editor's previews, which are drawn outside the
     /// theme applier and have no skin of their own. Falls back to Sakura's under a skin with no
     /// generated backdrop, where the editor has nothing to show anyway.</summary>
     public static string ActiveBaseColor => LoadBaseColor(ActiveSkin ?? SkinColorSettings.SakuraSkin);
@@ -198,7 +198,7 @@ public static class GradientBackground
         AppSettings.Set(Key(skin), JsonConvert.SerializeObject(glows.ToList()));
 
     /// <summary>Human-readable JSON for the editor's copy box (and for pasting back into Defaults()).
-    /// Emits the whole background — base colour + glows — as one object so it round-trips as a unit.</summary>
+    /// Emits the whole background — base color + glows — as one object so it round-trips as a unit.</summary>
     public static string Serialize(string baseColor, IEnumerable<GradientGlow> glows) =>
         JsonConvert.SerializeObject(new { BaseColor = baseColor, Glows = glows.ToList() }, Formatting.Indented);
 
@@ -226,8 +226,8 @@ public static class GradientBackground
     public const double PreviewWindowWidth = 1280;
     public const double PreviewWindowHeight = 800;
 
-    /// <summary>The whole backdrop — base colour with every glow over it — as a window this size would
-    /// draw it. This is what makes a base colour judgeable against the glows sitting on it, which is the
+    /// <summary>The whole backdrop — base color with every glow over it — as a window this size would
+    /// draw it. This is what makes a base color judgeable against the glows sitting on it, which is the
     /// pairing that used to be split across two tabs.</summary>
     public static DrawingBrush BuildBackdropPreview(string baseColor, IEnumerable<GradientGlow> glows)
     {
@@ -250,7 +250,7 @@ public static class GradientBackground
     /// <summary>One glow painted over <paramref name="baseColor"/>, for the editor's preview strip and list
     /// chips. <paramref name="reachFraction"/> is how far the glow reaches across the preview: pass
     /// <c>ReachPx / BandHeight</c> for a to-scale strip, or a fixed value for a chip far too small to show
-    /// the real ratio — there it only has to say which colour is coming from which edge.</summary>
+    /// the real ratio — there it only has to say which color is coming from which edge.</summary>
     public static DrawingBrush BuildPreviewBrush(GradientGlow glow, string baseColor, double reachFraction)
     {
         var group = new DrawingGroup();
@@ -276,7 +276,7 @@ public static class GradientBackground
         };
     }
 
-    // Colour at the edge → transparent at the radius. The centre sits ON the edge, so half the blob is
+    // Color at the edge → transparent at the radius. The centre sits ON the edge, so half the blob is
     // outside the band and what shows is the inner half — which is what makes it read as a glow rather
     // than a circle.
     private static IBrush RadialLayer(GradientGlow g, Color color, double reach)

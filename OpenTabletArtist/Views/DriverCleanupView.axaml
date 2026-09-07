@@ -70,7 +70,7 @@
                  row held an accent Install OR an accent Browse / Run / Uninstall — three identically
                  weighted blocks, one of which removes the tool. Install and the installed-only actions
                  never show together, so the menu is three items at most.
-                 Uninstall takes the error colour; it was an AccentButton, indistinguishable from Run.
+                 Uninstall takes the error color; it was an AccentButton, indistinguishable from Run.
                  Progress stays in the left column, which already prints CleanupStatus while busy. -->
             <c:IconButton Grid.Column="1" VerticalAlignment="Top"
                           Icon="{StaticResource IconDotsHorizontal}"

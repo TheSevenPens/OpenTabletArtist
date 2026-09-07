@@ -35,7 +35,7 @@ jobs:
       # The same box, rebuilt by hand. The guard above greps for the CLASS, so a Border that reaches for
       # GlassBgBrush directly walks straight past it — which is exactly how the tablet-config rows kept a
       # card long after #574 removed them. Only a Border that ROOTS a DataTemplate is flagged: that is a
-      # row card, and rows are what c:Entity is for. Chips, progress tracks and the colour-picker surface
+      # row card, and rows are what c:Entity is for. Chips, progress tracks and the color-picker surface
       # use the same brush legitimately and are not DataTemplate roots, so they are untouched.
       - name: Guard hand-rolled glass row cards
         # Once, not per-OS: it is a static text check, and python3 is not dependable under Git Bash on

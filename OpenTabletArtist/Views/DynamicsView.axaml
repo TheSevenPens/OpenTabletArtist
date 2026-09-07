@@ -121,7 +121,7 @@
                          the gauge below.
 
                          Ordinary ink, not the accent and the success green they used to carry: the words
-                         "raw" and "processed" already say which is which, and colour that means something
+                         "raw" and "processed" already say which is which, and color that means something
                          is what the app reserves for the gauge's two bars, which have no words to use. -->
                     <Panel Height="40">
                         <StackPanel Spacing="2" VerticalAlignment="Top">

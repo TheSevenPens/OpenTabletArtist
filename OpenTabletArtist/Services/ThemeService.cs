@@ -38,7 +38,7 @@ public static class ThemeService
 
     /// <summary>The user-tunable "Custom" skin variant (parallel to Sakura). Inherits Dark so the base
     /// surfaces + Fluent control resources resolve dark and text stays legible over a photo backdrop.
-    /// Its accent colour and background image are overridden live from the Theme page
+    /// Its accent color and background image are overridden live from the Theme page
     /// (see <see cref="ViewModels.ThemeViewModel"/>).</summary>
     public static readonly ThemeVariant CustomVariant = new(Custom, ThemeVariant.Dark);
 

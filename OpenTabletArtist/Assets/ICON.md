@@ -4,8 +4,8 @@ The vector sources are the source of truth; the raster assets are generated from
 
 | File | Role |
 |------|------|
-| `appicon.svg` | Full-colour mark — **the app icon** source. |
-| `appicon-bw.svg` | Single-colour (B&W) silhouette mark. |
+| `appicon.svg` | Full-color mark — **the app icon** source. |
+| `appicon-bw.svg` | Single-color (B&W) silhouette mark. |
 | `appicon.png` | 256×256 raster, rendered from `appicon.svg`. Used as `MainWindow.Icon`. |
 | `appicon.ico` | Multi-size (16/24/32/48/64/128/256), rendered from `appicon.svg`. Used as the exe `ApplicationIcon` (taskbar / Explorer). |
 

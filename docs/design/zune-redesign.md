@@ -44,7 +44,7 @@ nav (`quickplay · collection · marketplace · social`) with **pivots** for sub
 fits a resizable desktop window better than an infinite pan. Proposal:
 
 - **Remove the left sidebar.** Top-level nav becomes a horizontal row of lowercase **wordmarks**;
-  the active one is marked by **accent colour + weight** (no underline). Frees the full window width.
+  the active one is marked by **accent color + weight** (no underline). Frees the full window width.
   *(An early mockup had a huge page title bleeding off the right edge — cut as redundant, since the
   active wordmark already names the section.)*
 - **Sub-navigation = pivots** — big Segoe UI Light horizontal headers replacing the vertical rail;
@@ -232,7 +232,7 @@ switcher + refresh right). **dynamics** moved here from the tablet page (#pen-dy
 |-------|--------------|-----------------------|
 | **presets** | Presets (+ Per-App*) | Current settings (Save as preset, Browse); preset cards (Load/Update/Duplicate/Rename/Delete); *Per-App mappings + snapshot pickers + foreign-daemon guard, shown only when the feature flag is on* |
 | **hotkeys** | Hotkeys | One list of shortcuts — tablet actions + one row per preset — each with a "…" (Assign/Clear); explanation column |
-| **appearance** | Theme | theme selector (System/Light/Dark/Sakura/Custom); Falling petals + opacity; Colours & translucency (highlight/card/left-pane swatch pickers, card + left-pane opacity, Reset); Custom look (base colour, background image) |
+| **appearance** | Theme | theme selector (System/Light/Dark/Sakura/Custom); Falling petals + opacity; Colors & translucency (highlight/card/left-pane swatch pickers, card + left-pane opacity, Reset); Custom look (base color, background image) |
 | **system** | Startup · Shortcut · Driver Cleanup | Start-with-Windows *(Win)*; Start-menu shortcut *(Win)*; conflicting-driver scan/remove *(Win)* |
 | **developer** | Developer | Always shown; keeps its own inner sub-nav (Warnings · Config errors · Tablet page extras · Screenshot · Window size · Calibration I/O) |
 

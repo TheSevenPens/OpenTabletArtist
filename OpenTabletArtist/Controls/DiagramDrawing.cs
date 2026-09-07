@@ -8,7 +8,7 @@ namespace OpenTabletArtist.Controls;
 
 /// <summary>Drawing helpers shared by the tablet diagrams — <see cref="ActiveAreaDiagram"/> (drag-resize)
 /// and <see cref="ScreenMappingDiagram"/> (click-to-select-display). They keep their own interaction
-/// models and layout; only the low-level look (tablet-outline colours, aspect fitting, centred text, and
+/// models and layout; only the low-level look (tablet-outline colors, aspect fitting, centred text, and
 /// the rotate-about-centre outline) lives here so it stays in sync (#620).</summary>
 internal static class DiagramDrawing
 {

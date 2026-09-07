@@ -21,12 +21,12 @@ namespace OpenTabletArtist.Controls;
 /// </summary>
 public sealed class ScreenMappingDiagram : Control
 {
-    /// <summary>Every colour the diagram draws with, mixed once per render from the theme's accent and ink.
+    /// <summary>Every color the diagram draws with, mixed once per render from the theme's accent and ink.
     ///
     /// Nothing here is a fixed value, and that is the point. The diagram used to be half themed and half
     /// hardcoded: the beams and the active-area outline read <c>AccentBrush</c>, while the selected display
     /// was nailed to #6366F1 — which is the Light theme's own accent. On any other skin the beams changed
-    /// colour and the box they pointed at did not, so pink beams arrived at an indigo screen. A hardcoded
+    /// color and the box they pointed at did not, so pink beams arrived at an indigo screen. A hardcoded
     /// #22C55E bottom beam and cool fixed greys added two more hue families on top.
     ///
     /// So the accent now marks only the mapping — the selected display's border, the active area's outline
@@ -72,7 +72,7 @@ public sealed class ScreenMappingDiagram : Control
         AvaloniaProperty.Register<ScreenMappingDiagram, DisplayMappingValidity>(nameof(MappingValidity));
     public static readonly StyledProperty<IBrush?> WarningBrushProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(WarningBrush));
-    // The theme's text colour, which every neutral in the diagram is mixed from (see Palette).
+    // The theme's text color, which every neutral in the diagram is mixed from (see Palette).
     public static readonly StyledProperty<IBrush?> InkBrushProperty =
         AvaloniaProperty.Register<ScreenMappingDiagram, IBrush?>(nameof(InkBrush));
 

@@ -18,11 +18,11 @@ namespace OpenTabletArtist.ViewModels;
 /// <see cref="SettingsText"/>. Sakura and Dark Sakura each keep their own glows, and the editor follows
 /// whichever is selected (#glow-darksakura).
 ///
-/// A list beside an inspector (#glow-linear): every glow shows in the list with its colour and what it is,
+/// A list beside an inspector (#glow-linear): every glow shows in the list with its color and what it is,
 /// and the one you pick is the only one whose controls are on screen.
 ///
 /// Owned by <see cref="ThemeViewModel"/> and shown on Settings → Appearance → BACKDROP
-/// (#appearance-merge). It used to live under Developer → Gradients, a tab away from the base colour it
+/// (#appearance-merge). It used to live under Developer → Gradients, a tab away from the base color it
 /// paints over — so tuning a backdrop meant walking between two pages to see either half of it.</summary>
 public sealed partial class GradientEditorViewModel : ObservableObject
 {
@@ -41,8 +41,8 @@ public sealed partial class GradientEditorViewModel : ObservableObject
     /// empty states, and showing both at once read as a contradiction.</summary>
     public bool ShowEmptyMessage => HasSkin && !HasGlows;
 
-    /// <summary>Pretty-printed JSON of the whole background (base colour + glows) — copy this and paste it
-    /// to bake in as the default. The base colour is owned by the Appearance tab; the editor just reflects
+    /// <summary>Pretty-printed JSON of the whole background (base color + glows) — copy this and paste it
+    /// to bake in as the default. The base color is owned by the Appearance tab; the editor just reflects
     /// its current persisted value here.</summary>
     [ObservableProperty] private string _settingsText = "";
 
@@ -58,15 +58,15 @@ public sealed partial class GradientEditorViewModel : ObservableObject
 
     public bool HasSkin => _skin is not null;
 
-    /// <summary>The whole backdrop — base colour and every glow — as a 1280×800 window would draw it. The
-    /// page's one preview: the base colour is picked a few inches to its left, and judging it against the
+    /// <summary>The whole backdrop — base color and every glow — as a 1280×800 window would draw it. The
+    /// page's one preview: the base color is picked a few inches to its left, and judging it against the
     /// glows sitting on it is what the old split between two tabs made impossible (#appearance-merge).</summary>
     public IBrush BackdropBrush =>
         GradientBackground.BuildBackdropPreview(
             GradientBackground.LoadBaseColor(_skin ?? SkinColorSettings.SakuraSkin),
             Glows.Select(i => i.ToModel()));
 
-    /// <summary>Re-read the preview. The base colour belongs to <see cref="ThemeViewModel"/>, which calls
+    /// <summary>Re-read the preview. The base color belongs to <see cref="ThemeViewModel"/>, which calls
     /// this after changing it — the glows raise it themselves.</summary>
     public void RefreshPreview() => OnPropertyChanged(nameof(BackdropBrush));
 
@@ -168,7 +168,7 @@ public sealed partial class GradientEditorViewModel : ObservableObject
         else { _saveTimer.Stop(); _saveTimer.Start(); } // restart the idle window
     }
 
-    // Persist the current glows — but only if every colour parses, so a mid-typed / invalid hex (e.g. "#12")
+    // Persist the current glows — but only if every color parses, so a mid-typed / invalid hex (e.g. "#12")
     // is never written to settings (#606). The live preview above already falls back gracefully.
     private void PersistNow()
     {
@@ -223,7 +223,7 @@ public sealed partial class GradientGlowItem : ObservableObject
 
     /// <summary>The list chip. Neither to scale nor at the glow's real opacity: at 18px the true reach
     /// fraction is a couple of pixels, and a faint glow over a pink base is two shades of the same nothing.
-    /// It names a colour and an edge, which is all a row needs to be told apart. The backdrop preview
+    /// It names a color and an edge, which is all a row needs to be told apart. The backdrop preview
     /// beside the list is the one that measures.</summary>
     public IBrush ChipBrush
     {

@@ -45,7 +45,7 @@ public partial class CalibrationOverlayWindow : Window
     private static readonly Win32Properties.CustomWndProcHookCallback WndProcHookDelegate = WndProcHook;
 
     // Overlay light/dark palette. This is calibration-only and independent of the app theme — the
-    // shapes are code-drawn, so all colours (window, panel, text, buttons, targets) are chosen here.
+    // shapes are code-drawn, so all colors (window, panel, text, buttons, targets) are chosen here.
     private bool _light;
     private static readonly IBrush DarkWinBg = new SolidColorBrush(Color.Parse("#D9101018"));
     private static readonly IBrush LightWinBg = new SolidColorBrush(Color.Parse("#E6ECECF0"));
@@ -110,13 +110,13 @@ public partial class CalibrationOverlayWindow : Window
         Panel.BorderBrush = _light ? LightPanelBorder : DarkPanelBorder;
         InstructionText.Foreground = _light ? LightText : DarkText;
         ProgressLabel.Foreground = _light ? LightText : DarkText;
-        // The natural-tilt tip (#481) reads as secondary — a muted variant of the instruction colour.
+        // The natural-tilt tip (#481) reads as secondary — a muted variant of the instruction color.
         HoldTip.Foreground = new SolidColorBrush(_light ? Color.FromArgb(0xB0, 0x20, 0x20, 0x28)
                                                         : Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
         ThemeToggle.Content = _light ? "Dark mode" : "Light mode";
 
-        // The secondary (ghost) buttons are illegible with their default muted colours on this panel,
-        // so colour them explicitly per mode.
+        // The secondary (ghost) buttons are illegible with their default muted colors on this panel,
+        // so color them explicitly per mode.
         foreach (var b in new[] { UndoBtn, RedoBtn, ClearBtn, CancelBtn, ThemeToggle })
         {
             b.Foreground = _light ? LightBtnFg : DarkBtnFg;
@@ -124,7 +124,7 @@ public partial class CalibrationOverlayWindow : Window
             b.BorderBrush = _light ? LightBtnBorder : DarkBtnBorder;
         }
 
-        UpdateVisuals(); // recolour the code-drawn targets/guides/pulse/vignette
+        UpdateVisuals(); // recolor the code-drawn targets/guides/pulse/vignette
     }
 
     protected override void OnOpened(EventArgs e)
@@ -132,7 +132,7 @@ public partial class CalibrationOverlayWindow : Window
         base.OnOpened(e);
         PlaceOnDisplay();
         BuildAndLayout();
-        ApplyOverlayTheme(); // colour the panel/buttons/shapes for the initial (dark) mode
+        ApplyOverlayTheme(); // color the panel/buttons/shapes for the initial (dark) mode
 
         // Hide the OS cursor over the targets: seeing it invites aligning the *cursor* with the target,
         // when the point of calibration is to aim the *pen nib* there. The panel keeps a normal cursor so
@@ -384,7 +384,7 @@ public partial class CalibrationOverlayWindow : Window
             double opacity = active || captured ? 1.0 : 0.4;
             el.Opacity = opacity;
 
-            // Crosshair, centred on the target and colour-matched to its ring.
+            // Crosshair, centred on the target and color-matched to its ring.
             var hLine = _crossH[i];
             hLine.StartPoint = new Point(cx - CrossArm, cy);
             hLine.EndPoint = new Point(cx + CrossArm, cy);
@@ -396,7 +396,7 @@ public partial class CalibrationOverlayWindow : Window
             vLine.Stroke = brush;
             vLine.Opacity = opacity;
 
-            // Number under the ring, colour-matched and dimmed with its target.
+            // Number under the ring, color-matched and dimmed with its target.
             var label = _labels[i];
             label.Foreground = brush;
             label.Opacity = opacity;

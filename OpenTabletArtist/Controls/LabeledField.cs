@@ -5,7 +5,7 @@ namespace OpenTabletArtist.Controls;
 
 /// <summary>
 /// A form row: a caption in a fixed-width left column and an arbitrary control on the right.
-/// Consolidates the "label + control" grid rows (e.g. the Theme page's dropdown / colour / image rows)
+/// Consolidates the "label + control" grid rows (e.g. the Theme page's dropdown / color / image rows)
 /// and standardizes the label-column width. Content goes in the element body (it's a
 /// <see cref="ContentControl"/>); the default <c>ControlTheme</c> lives in Themes/Styles.axaml.
 /// </summary>

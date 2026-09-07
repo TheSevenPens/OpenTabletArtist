@@ -42,7 +42,7 @@
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="FontWeight" Value="SemiBold" />
             </Style>
-            <!-- Active modifier: accent-tinted fill (a slightly different colour than a picked key). -->
+            <!-- Active modifier: accent-tinted fill (a slightly different color than a picked key). -->
             <Style Selector="^.modifier.selected /template/ Border#Bd">
                 <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />

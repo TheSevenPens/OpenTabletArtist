@@ -154,7 +154,7 @@ public static class Dialogs
                     // Icon + label confirmation instead of a font checkmark (#551).
                     var check = Application.Current?.TryFindResource("IconCheckCircle", out var g) == true
                         ? g as Geometry : null;
-                    // #593: the check-circle icon conveys success, not a green colour.
+                    // #593: the check-circle icon conveys success, not a green color.
                     var ok = Application.Current?.TryFindResource("TextPrimaryBrush", out var b) == true
                         && b is IBrush ib ? ib : Brushes.Gray;
                     copyBtn.Content = new StackPanel

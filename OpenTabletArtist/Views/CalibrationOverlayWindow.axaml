@@ -10,7 +10,7 @@
         <!-- Targets + active-target emphasis are drawn onto this canvas from code-behind. -->
         <Canvas x:Name="Surface" />
 
-        <!-- Instruction + actions. Colours (panel, text, buttons, targets) are set in code-behind so
+        <!-- Instruction + actions. Colors (panel, text, buttons, targets) are set in code-behind so
              the overlay can flip between light/dark independently of the app theme. -->
         <Border x:Name="Panel" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,48"
                 Background="#CC1B1B28" BorderThickness="1" CornerRadius="0" Padding="20,16" MaxWidth="640"

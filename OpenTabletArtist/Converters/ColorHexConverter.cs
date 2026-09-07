@@ -5,7 +5,7 @@ using Avalonia.Media;
 
 namespace OpenTabletArtist.Converters;
 
-/// <summary>Formats a <see cref="Color"/> as "#RRGGBB" for the colour-picker readout (#563). The
+/// <summary>Formats a <see cref="Color"/> as "#RRGGBB" for the color-picker readout (#563). The
 /// rgb(…) suffix was dropped — the hex alone is enough for the picker.</summary>
 public sealed class ColorHexConverter : IValueConverter
 {

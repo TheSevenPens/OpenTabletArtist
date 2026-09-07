@@ -7,7 +7,7 @@ namespace OpenTabletArtist.Controls;
 
 /// <summary>
 /// A tiny "screen with calibration targets" diagram for the calibration cards: a rounded rectangle
-/// (the display) with an N×N grid of dots — 4 points → 2×2 (corners), 9 → 3×3, 25 → 5×5. Dot colour is
+/// (the display) with an N×N grid of dots — 4 points → 2×2 (corners), 9 → 3×3, 25 → 5×5. Dot color is
 /// the theme accent via <see cref="DotBrush"/>.
 /// </summary>
 public sealed class CalibrationDots : Control

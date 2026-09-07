@@ -45,8 +45,8 @@
         <Border HorizontalAlignment="Right" Width="600" IsHitTestVisible="False"
                 Background="{DynamicResource AppBackdropGlowRightBrush}" />
 
-        <!-- Custom skin's background image, layered over the base-colour backdrop at the user's chosen
-             opacity so a less-opaque image lets the base colour below show through. Transparent otherwise. -->
+        <!-- Custom skin's background image, layered over the base-color backdrop at the user's chosen
+             opacity so a less-opaque image lets the base color below show through. Transparent otherwise. -->
         <Border Background="{DynamicResource AppBackdropImageBrush}" />
 
         <!-- Dimming scrim over the backdrop image (Custom skin only; transparent otherwise) so text on
@@ -60,7 +60,7 @@
     <Grid RowDefinitions="Auto,*">
         <!-- TOP WORDMARK BAR (Zune Phase 1). Replaces the left sidebar: the whole top-level nav as one
              horizontal row of lowercase wordmarks (data-driven NavSections), the active one marked by
-             accent colour + weight. The row sits below the caption/drag band (top ~40px, kept by the
+             accent color + weight. The row sits below the caption/drag band (top ~40px, kept by the
              transparent drag strip near the bottom of this file), so the words are clickable while the
              native min/max/close buttons and window-drag still own the top edge.
              (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
@@ -171,7 +171,7 @@
                    FontSize="{DynamicResource TypeCaptionSize}" TextWrapping="Wrap" MaxWidth="300" />
     </Border>
 
-    <!-- Title-bar drag strip (#titlebar): the top edge is app-coloured now, so this transparent strip
+    <!-- Title-bar drag strip (#titlebar): the top edge is app-colored now, so this transparent strip
          gives the window its move/double-click-maximize behaviour. It stops short of the top-right so
          the native caption buttons still receive their clicks. -->
     <Border VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="32" Margin="0,0,150,0"
