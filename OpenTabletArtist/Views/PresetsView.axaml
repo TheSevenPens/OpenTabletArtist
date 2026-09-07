@@ -12,26 +12,35 @@
          was capped at before. -->
     <Grid ColumnDefinitions="540,32,320" HorizontalAlignment="Left">
     <StackPanel Grid.Column="0">
-        <!-- Saving the live config (settings.json) as a preset. This was an accent-outlined bar across
-             the top of the page — heading, "In use now" chip and a paragraph explaining that the live
-             config saves itself and that everything below is a copy of it. It was an Alert wearing a
-             card's chrome, which is the one box the design still reserves for "act on this", and it
-             spent the top third of the page saying something no one was in doubt about. The action it
-             carried is the part that earned its place. -->
-        <Button Content="Save as preset" Theme="{StaticResource AccentButton}"
-                HorizontalAlignment="Left"
-                Padding="14,7" Margin="0,0,0,20" Command="{Binding SavePresetCommand}" />
+        <!-- One header for the whole column: what this list is, where it lives, and the two things you
+             can do to the list itself. It used to be two stacked bands — a lone accent button, then a
+             separate "saved presets" label with an unexplained folder glyph pushed to the far right of a
+             540px column — which read as two unrelated strips of chrome for one idea, and hid the label
+             and the folder entirely until you had saved something.
 
-        <!-- Header row: section label + Browse (opens the folder where profiles are stored). -->
-        <Grid ColumnDefinitions="*,Auto" Margin="2,0,0,8" IsVisible="{Binding HasPresets}">
-            <TextBlock Classes="Display section" Grid.Column="0" Text="saved presets"
-                       VerticalAlignment="Center" Margin="0,0,0,0" />
-            <c:IconButton Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
-                          VerticalAlignment="Center"
-                          ToolTip.Tip="Open the folder where presets are stored"
-                          AutomationProperties.Name="Open the folder where presets are stored"
-                          Command="{Binding OpenFolderCommand}"
-                          CommandParameter="{Binding PresetDirectory}" />
+             This is the same shape as the configurations-folder card: heading, the folder path beneath
+             it in muted ink, and the actions right-aligned. The path is what makes the folder button
+             legible without a tooltip. Save stays a labelled accent target rather than going into a
+             menu — it is why the page exists, the way Load is on each row — and the actions land in the
+             same column as the rows' Load/"…", so the whole page shares one rhythm. -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="2,0,0,12">
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                <TextBlock Classes="Display section" Text="saved presets" />
+                <TextBlock Text="{Binding PresetDirectory}"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+            </StackPanel>
+
+            <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                <Button Content="Save as preset" Theme="{StaticResource AccentButton}"
+                        Padding="12,6" Margin="0,0,6,0" Command="{Binding SavePresetCommand}" />
+                <c:IconButton Icon="{StaticResource IconFolderOutline}"
+                              VerticalAlignment="Center"
+                              ToolTip.Tip="Open the folder where presets are stored"
+                              AutomationProperties.Name="Open the folder where presets are stored"
+                              Command="{Binding OpenFolderCommand}"
+                              CommandParameter="{Binding PresetDirectory}" />
+            </WrapPanel>
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Presets}">
@@ -85,15 +94,12 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <c:Section Padding="24" IsVisible="{Binding !HasPresets}">
-            <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No presets yet" FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Save a named backup of your current settings to restore later."
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           HorizontalAlignment="Center" TextAlignment="Center" Margin="0,8,0,0" />
-            </StackPanel>
-        </c:Section>
+        <!-- Empty state, the same muted line the configurations folder uses. It was a centred, padded
+             Section — a grouping card standing in for a list of one thing that isn't there — restating
+             what the header above and the column to the right now both say. -->
+        <TextBlock Text="No presets yet. Save as preset takes a copy of your current settings."
+                   FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}"
+                   TextWrapping="Wrap" IsVisible="{Binding !HasPresets}" />
     </StackPanel>
 
         <!-- What a preset is. The page assumed you already knew: it showed a list of names and a Load
