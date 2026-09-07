@@ -21,7 +21,7 @@ Presets come from the **Presets** tab. Delete a preset there and its shortcut go
 
 If you press a shortcut whose preset has since been deleted or moved, a toast says **Couldn't load preset "…"** rather than the key quietly doing nothing. The shortcut itself is left alone, since the same failure covers a preset that is still there but unreadable; it's cleared when the app next rescans the list and finds the preset really gone.
 
-The list is rebuilt when you open **Settings**, so a preset you save and then bind in the same visit appears after leaving Settings and coming back.
+The list is rebuilt whenever you open this tab, so a preset saved on the **Presets** tab is there the moment you step across to bind it.
 
 > **Per-App Presets** (automatic preset switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→preset mappings are retained and may return in a later version.
 

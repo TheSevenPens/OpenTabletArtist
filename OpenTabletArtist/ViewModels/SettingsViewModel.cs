@@ -40,11 +40,16 @@ public partial class SettingsTabItem : ObservableObject
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsTabItem[] _allTabs;
+    // Kept for RefreshOnEnter — the two tabs whose contents are built from the presets folder.
+    private readonly HotkeysViewModel _hotkeys;
+    private readonly PerAppViewModel _perApp;
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
         ShortcutViewModel shortcut, DesktopEntryViewModel desktopEntry, DriverCleanupViewModel driverCleanup,
         VMultiViewModel vmulti, PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
     {
+        _hotkeys = hotkeys;
+        _perApp = perApp;
         // The "System" pivot holds each OS's own integration capabilities, kept deliberately separate so
         // Windows and Linux each do their native thing (no shared abstraction). On Windows it's Startup +
         // Shortcut stacked; on Linux it's the single application-menu-entry (.desktop) card, the counterpart
@@ -130,7 +135,28 @@ public partial class SettingsViewModel : ObservableObject
         UpdateSelection();
         OnPropertyChanged(nameof(SelectedContent));
         OnPropertyChanged(nameof(CurrentTabTitle));
+        RefreshOnEnter(newValue);
     }
+
+    /// <summary>
+    /// Rescan the tabs that read the presets folder, on the way in. Both list presets saved on the
+    /// Presets tab — one tab along — and the only rescan used to be on entering the SETTINGS page as a
+    /// whole, so saving a preset and stepping next door to bind it showed a list without it in, until you
+    /// left Settings and came back. The page-entry rescan stays: arriving with one of these already
+    /// selected changes no tab, so this never fires for it.
+    /// </summary>
+    private void RefreshOnEnter(SettingsTab tab)
+    {
+        if (!TabRescansPresets(tab)) return;
+        if (tab == SettingsTab.Hotkeys) _ = _hotkeys.RefreshAsync();
+        else _ = _perApp.RefreshAsync();
+    }
+
+    /// <summary>Which tabs are built from the presets folder, and so go stale when a preset is saved or
+    /// deleted while SETTINGS is already open. A pure predicate, like <see cref="TabAppliesToOs"/>, so the
+    /// rule is testable without constructing the whole view-model graph.</summary>
+    public static bool TabRescansPresets(SettingsTab tab) =>
+        tab is SettingsTab.Hotkeys or SettingsTab.PerAppPresets;
 
     private void UpdateSelection()
     {

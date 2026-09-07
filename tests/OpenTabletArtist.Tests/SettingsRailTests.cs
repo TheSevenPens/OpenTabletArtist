@@ -44,4 +44,24 @@ public class SettingsRailTests
         Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: false, isLinux: true));
         Assert.True(SettingsViewModel.TabAppliesToOs(tab, isWindows: false, isLinux: false));
     }
+
+    /// <summary>Hotkeys and Per-App both build their rows from the presets folder, one tab away from where
+    /// presets are saved, so selecting either has to rescan — the page-entry rescan alone left a preset
+    /// saved during the same visit missing from the list next door.</summary>
+    [Theory]
+    [InlineData(SettingsTab.Hotkeys)]
+    [InlineData(SettingsTab.PerAppPresets)]
+    public void PresetBackedTabs_RescanOnEnter(SettingsTab tab)
+        => Assert.True(SettingsViewModel.TabRescansPresets(tab));
+
+    /// <summary>Every other tab reads something else, so entering it must not touch the presets folder.
+    /// Presets itself is included: it maintains its own list as you save and delete.</summary>
+    [Theory]
+    [InlineData(SettingsTab.Presets)]
+    [InlineData(SettingsTab.Theme)]
+    [InlineData(SettingsTab.System)]
+    [InlineData(SettingsTab.Drivers)]
+    [InlineData(SettingsTab.Developer)]
+    public void OtherTabs_DoNotRescan(SettingsTab tab)
+        => Assert.False(SettingsViewModel.TabRescansPresets(tab));
 }

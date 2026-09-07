@@ -508,11 +508,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _ = Test.DeactivateAsync();
 
         // Rescan the Hotkeys + Per-App snapshot lists when SETTINGS opens — both are tabs there now
-        // (#571) — so a snapshot saved on the Presets page shows up in their pickers.
+        // (#571) — so a snapshot saved on the Presets page shows up in their pickers. Selecting either
+        // tab rescans it too (SettingsViewModel.RefreshOnEnter); this covers arriving with one already
+        // selected, which changes no tab.
         if (ReferenceEquals(newValue, Settings))
         {
-            _ = Hotkeys.LoadAsync();
-            _ = PerApp.LoadAsync();
+            _ = Hotkeys.RefreshAsync();
+            _ = PerApp.RefreshAsync();
         }
 
         // Refresh the sidebar highlight — every top-level section highlights via its own IsSelected.
