@@ -68,7 +68,13 @@ public static class DesktopEntry
         }
     }
 
-    private static string BuildEntry(string exe, string? icon)
+    /// <summary>
+    /// The entry's text — the pure half of <see cref="TryCreate"/>, separated from the filesystem write so
+    /// the format can be tested without a Linux box or a home directory to write into (#610).
+    /// </summary>
+    /// <param name="exe">Absolute path to the executable the entry launches.</param>
+    /// <param name="icon">Path to an extracted icon file, or null for an entry without one.</param>
+    public static string BuildEntry(string exe, string? icon)
     {
         // Exec is quoted so a build-output path containing spaces stays a single argument (the Desktop Entry
         // spec allows a whole argument to be double-quoted). '\n' line endings, UTF-8 (File.WriteAllText).
