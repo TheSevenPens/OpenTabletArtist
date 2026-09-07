@@ -743,28 +743,24 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ButtonsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: title + master enable toggle and clear-all (when there are buttons).
-                     Clear all stays here, unlike on Wheels (#692). A wheel has three rows at most, so a
-                     bulk clear there was a button for something two clicks of "…" already did; a tablet
-                     can carry a dozen express keys, where clearing them one at a time is real work. It
-                     is a GhostButton, so it is not the loudest thing on the tab — the same reason the
-                     preset delete stopped being a red glyph. -->
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
-                    <TextBlock Grid.Column="0" Text="TABLET BUTTONS" Classes="TabTitle" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                                VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
-                        <TextBlock Text="Enable buttons" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <ToggleSwitch IsChecked="{Binding AuxButtonsEnabled}" OnContent="" OffContent=""
-                                      MinWidth="0" VerticalAlignment="Center"
-                                      ToolTip.Tip="Turn all express keys on or off. Your mappings are kept and restored when you turn them back on." />
-                    </StackPanel>
-                    <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearAuxButtonsCommand}"
-                            IsVisible="{Binding ShowAuxControls}"
-                            ToolTip.Tip="Remove every express-key mapping"
-                            Theme="{StaticResource GhostButton}" Padding="12,6"
-                            VerticalAlignment="Center" />
-                </Grid>
+                <!-- Just the master enable toggle. There is no heading: the tab is already called
+                     "buttons" in 40 px an inch above, and "TABLET BUTTONS" only said it again in small
+                     caps — the about tab's headings name SECTIONS within a tab, which this single list
+                     does not have.
+
+                     "Clear all" used to sit here too. It wiped every express-key mapping on one click
+                     with no confirmation, and because it also dropped the suspend stash there was no way
+                     back — a few pixels from a toggle whose whole point is that it is reversible. Every
+                     row already carries Clear in its own "…", which is the same thing at a pace you can
+                     stop halfway through. -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,10"
+                            HorizontalAlignment="Left" IsVisible="{Binding ShowAuxControls}">
+                    <TextBlock Text="Enable buttons" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ToggleSwitch IsChecked="{Binding AuxButtonsEnabled}" OnContent="" OffContent=""
+                                  MinWidth="0" VerticalAlignment="Center"
+                                  ToolTip.Tip="Turn all express keys on or off. Your mappings are kept and restored when you turn them back on." />
+                </StackPanel>
 
                 <!-- Up to two columns of cards so more buttons fit while staying comfortably wide; the
                      shared card template supplies the vertical gap between rows, the wrapper the gutter. -->
@@ -795,21 +791,18 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #WheelsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: label + master enable toggle. "Clear all" sat here too until every row got its
-                     own Clear (#wheel-row-actions): a wheel has three rows at most, so clearing them one at
-                     a time is no hardship, and the button was a bulk destructive action with no undo
-                     sitting a few pixels from a toggle that keeps your mappings. -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
-                    <TextBlock Grid.Column="0" Text="TABLET WHEELS" Classes="TabTitle" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                                VerticalAlignment="Center" IsVisible="{Binding ShowWheelControls}">
-                        <TextBlock Text="Enable wheels" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <ToggleSwitch IsChecked="{Binding WheelEnabled}" OnContent="" OffContent=""
-                                      MinWidth="0" VerticalAlignment="Center"
-                                      ToolTip.Tip="Turn all wheel bindings on or off. Your mappings are kept and restored when you turn them back on." />
-                    </StackPanel>
-                </Grid>
+                <!-- Just the master enable toggle, matching Buttons. The heading here said "TABLET
+                     WHEELS" under a tab called "wheels" — the same restatement, dropped for the same
+                     reason. ("Clear all" left this header earlier, when every row got its own Clear:
+                     #wheel-row-actions.) Each wheel still labels itself, when there is more than one. -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,10"
+                            HorizontalAlignment="Left" IsVisible="{Binding ShowWheelControls}">
+                    <TextBlock Text="Enable wheels" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <ToggleSwitch IsChecked="{Binding WheelEnabled}" OnContent="" OffContent=""
+                                  MinWidth="0" VerticalAlignment="Center"
+                                  ToolTip.Tip="Turn all wheel bindings on or off. Your mappings are kept and restored when you turn them back on." />
+                </StackPanel>
 
                 <!-- One card per wheel: the live gauge on the left, and every mapping for that wheel
                      (clockwise + counter-clockwise actions with sensitivity, and the wheel button)
@@ -924,8 +917,8 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="FILTERS" Classes="TabTitle" Margin="0,0,0,8" />
-
+                <!-- No heading: "FILTERS" restated the tab's own name, the last of three that did
+                     (#aux-clear-all). It was also the last user of the TabTitle style, which goes too. -->
                 <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>

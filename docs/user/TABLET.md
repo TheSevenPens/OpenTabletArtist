@@ -37,7 +37,7 @@ This is deliberately a picture rather than a single score. Pen parallax usually 
 
 You can assign actions to any buttons on the tablet. Each button's **⋯** menu holds **Edit…**, which opens the binding picker, and **Clear**, which unmaps that one button (greyed out when nothing is mapped to it) — the same pattern the wheels use.
 
-**Enable buttons** at the top of the tab turns every express key off immediately without deleting any actions; switch it back and your mappings return. **Clear all** does delete them — every express-key mapping on this tablet at once.
+**Enable buttons** at the top of the tab turns every express key off immediately without deleting any actions; switch it back and your mappings return. To unmap a key for good, use **Clear** in its own **⋯** menu — there is no bulk clear, because one unconfirmed click shouldn't be able to take a dozen mappings with it.
 
 ## wheels
 
