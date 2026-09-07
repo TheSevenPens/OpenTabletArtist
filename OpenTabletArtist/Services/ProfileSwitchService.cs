@@ -38,13 +38,25 @@ public sealed partial class ProfileSwitchService : ObservableObject
     /// restored to default). Consumers show a transient toast.</summary>
     public event Action<string?>? Switched;
 
-    /// <summary>Apply the named snapshot as a live-only override. Returns false if the snapshot no longer
-    /// exists (e.g. a hotkey mapped to a deleted snapshot).</summary>
+    /// <summary>
+    /// Raised when a switch could not be applied, with the snapshot it was asked for. Reported here
+    /// rather than left to the caller because the callers are triggers, not UI: a hotkey press arrives
+    /// with no window in front of it, and until this existed a press whose preset had been deleted did
+    /// nothing at all — <see cref="ProfileHotkeyManager"/> discarded the <c>false</c> and the user got
+    /// silence from a key that used to work.
+    /// </summary>
+    public event Action<string>? SwitchFailed;
+
+    /// <summary>Apply the named snapshot as a live-only override. Returns false — and raises
+    /// <see cref="SwitchFailed"/> — if the snapshot can't be loaded (deleted, moved, or unreadable).</summary>
     public async Task<bool> SwitchToAsync(string snapshotName)
     {
         var path = SnapshotPath(snapshotName);
         if (path == null || !_store.TryLoad(path, out var settings) || settings == null)
+        {
+            SwitchFailed?.Invoke(snapshotName);
             return false;
+        }
 
         await _settings.ApplyLiveOnlyAsync(settings);
         ActiveSnapshot = snapshotName;

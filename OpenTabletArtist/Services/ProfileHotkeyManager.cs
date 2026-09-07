@@ -141,6 +141,9 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
 
     private void OnHotkeyPressed(int id)
     {
+        // The result is discarded on purpose: ProfileSwitchService raises Switched on success and
+        // SwitchFailed on failure, and the shell toasts both. Discarding it used to mean a press whose
+        // preset had been deleted did nothing and said nothing.
         if (_idToSnapshot.TryGetValue(id, out var snapshot))
             _ = _switch.SwitchToAsync(snapshot);
     }
