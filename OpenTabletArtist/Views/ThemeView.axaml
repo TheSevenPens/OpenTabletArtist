@@ -17,7 +17,7 @@
              earns it by having absorbed a whole editor. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="{StaticResource SubtabRailWidth}" Spacing="2">
+            <StackPanel x:Name="SubtabRail" Width="{StaticResource SubtabRailWidth}" Spacing="2">
                 <RadioButton Content="THEME" IsChecked="True" x:Name="ThemeSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
                 <RadioButton Content="BACKDROP" x:Name="BackdropSubtab"

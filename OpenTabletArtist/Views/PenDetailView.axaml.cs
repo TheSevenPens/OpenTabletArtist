@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -10,7 +12,7 @@ namespace OpenTabletArtist.Views;
 /// tablet page). Owns the pen-behaviour deep-link (the health "Fix" for output mode → Movement) and, since
 /// the Dynamics pivot moved here (#pen-dynamics-move), the live pen-pressure stream lifecycle while that
 /// pivot is visible (same treatment the tablet page used for its Dynamics tab, #102).</summary>
-public partial class PenDetailView : UserControl
+public partial class PenDetailView : UserControl, ITabbedContent
 {
     public PenDetailView()
     {
@@ -18,6 +20,10 @@ public partial class PenDetailView : UserControl
     }
 
     private TabletDetailViewModel? Vm => DataContext as TabletDetailViewModel;
+
+    /// <inheritdoc />
+    public IReadOnlyList<RadioButton> VisibleTabButtons() =>
+        TabRail.Children.OfType<RadioButton>().Where(r => r.IsVisible).ToList();
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {

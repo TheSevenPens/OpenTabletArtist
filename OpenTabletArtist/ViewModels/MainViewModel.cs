@@ -304,14 +304,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var page = leaf.Page;
             list.Add((Slugify(leaf.Label), () => CurrentPage = page));
         }
-        foreach (AdvancedTab tab in System.Enum.GetValues<AdvancedTab>())
+        // Walk the tab LISTS, not the enums, and skip what's hidden — the same IsVisible filter the leaf
+        // loop above uses. Enumerating SettingsTab included PerAppPresets even with the feature gated off,
+        // and selecting a hidden tab coerces back to the first visible one, so Presets was captured twice
+        // under two names (#690).
+        foreach (var tab in Advanced.Tabs.Where(t => t.IsVisible))
         {
-            var t = tab;
+            var t = tab.Tab;
             list.Add(($"advanced-{Slugify(t.ToString())}", () => OpenAdvancedTab(t)));
         }
-        foreach (SettingsTab tab in System.Enum.GetValues<SettingsTab>())
+        foreach (var tab in Settings.Tabs.Where(t => t.IsVisible))
         {
-            var t = tab;
+            var t = tab.Tab;
             list.Add(($"settings-{Slugify(t.ToString())}", () => OpenSettingsTab(t)));
         }
         return list;
