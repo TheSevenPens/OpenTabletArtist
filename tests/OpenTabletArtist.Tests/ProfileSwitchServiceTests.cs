@@ -116,4 +116,33 @@ public class ProfileSwitchServiceTests
 
         Assert.Equal(new string?[] { "Draw", null }, events);
     }
+
+    /// <summary>A hotkey whose preset has gone must say so. The press is discarded by the hotkey manager,
+    /// so this event is the only thing standing between a deleted preset and a key that silently does
+    /// nothing.</summary>
+    [Fact]
+    public async Task SwitchFailed_Event_FiresWhenTheSnapshotCannotBeLoaded()
+    {
+        var (svc, _, _) = Make(PresetsDir);
+        var failures = new List<string>();
+        svc.SwitchFailed += n => failures.Add(n);
+
+        var ok = await svc.SwitchToAsync("Gone");
+
+        Assert.False(ok);
+        Assert.Equal(["Gone"], failures);
+    }
+
+    [Fact]
+    public async Task SwitchFailed_Event_StaysQuietOnASuccessfulSwitch()
+    {
+        var (svc, _, store) = Make(PresetsDir);
+        store.Existing.Add(Snapshot("Draw"));
+        var failures = new List<string>();
+        svc.SwitchFailed += n => failures.Add(n);
+
+        await svc.SwitchToAsync("Draw");
+
+        Assert.Empty(failures);
+    }
 }

@@ -44,7 +44,7 @@ public partial class MainWindow : Window
         Activated += (_, _) => (DataContext as MainViewModel)?.OnWindowActivated();
         Closed += (_, _) =>
         {
-            if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
+            if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; }
             if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
             if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
             Screens.Changed -= OnScreensChanged;
@@ -58,7 +58,7 @@ public partial class MainWindow : Window
     // the drawing app.
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_switchSub != null) _switchSub.Switched -= OnProfileSwitched;
+        if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; }
         if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
         if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
 
@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         _switchSub = vm?.ProfileSwitch;
         _cycleSub = vm?.MonitorCycle;
         _perAppSub = vm?.PerAppSwitch;
-        if (_switchSub != null) _switchSub.Switched += OnProfileSwitched;
+        if (_switchSub != null) { _switchSub.Switched += OnProfileSwitched; _switchSub.SwitchFailed += OnProfileSwitchFailed; }
         if (_cycleSub != null) _cycleSub.Cycled += OnMonitorCycled;
         if (_perAppSub != null) _perAppSub.ActiveProfileChanged += OnPerAppSwitched;
     }
@@ -77,6 +77,14 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => ProfileToast.Show(
             snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”"));
     }
+
+    // A hotkey whose preset has gone (deleted or moved outside the app, or while OTA was closed) used to
+    // do nothing at all, which is indistinguishable from the hotkey being broken. Same toast channel as a
+    // successful switch — the press happened over another app, so this is the only place it can be said.
+    // The mapping is deliberately left alone: TryLoad fails for an unreadable preset as well as an absent
+    // one, and DeletePreset already takes the same care not to drop a hotkey whose file is still there.
+    private void OnProfileSwitchFailed(string snapshot) =>
+        Dispatcher.UIThread.Post(() => ProfileToast.Show($"Couldn't load preset “{snapshot}”"));
 
     private void OnMonitorCycled(string message) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(message));
