@@ -1,8 +1,8 @@
 namespace OpenTabletArtist.Services;
 
 /// <summary>
-/// Per-skin colour choices for the translucent skins (Sakura + Custom): the frosted-card tint each skin
-/// uses, and the Custom skin's base (background) colour. Persisted via <see cref="AppSettings"/>. The
+/// Per-skin color choices for the translucent skins (Sakura + Custom): the frosted-card tint each skin
+/// uses, and the Custom skin's base (background) color. Persisted via <see cref="AppSettings"/>. The
 /// defaults reproduce the skins' original hard-coded looks, so an untouched install is unchanged, and
 /// the Theme page's "Reset to defaults" restores them.
 /// </summary>
@@ -58,7 +58,7 @@ public static class SkinColorSettings
         set => AppSettings.Set(CustomCardKey, value);
     }
 
-    /// <summary>The Custom skin's base/background colour (fills the window behind the panels and drives
+    /// <summary>The Custom skin's base/background color (fills the window behind the panels and drives
     /// the left-pane gradient) when no background image is set.</summary>
     public static string CustomBaseHex
     {
@@ -66,13 +66,13 @@ public static class SkinColorSettings
         set => AppSettings.Set(CustomBaseKey, value);
     }
 
-    // Blossom-skin backdrop: a code-generated gradient (default) or a flat colour. Per-skin since Dark
+    // Blossom-skin backdrop: a code-generated gradient (default) or a flat color. Per-skin since Dark
     // Sakura joined (#glow-darksakura) — it used to paint a fixed piece of artwork with a dark scrim over
     // it, which is why its bottom edge glowed no matter what the gradient editor said.
     public const string SakuraSkin = "Sakura";
     public const string DarkSakuraSkin = "DarkSakura";
 
-    /// <summary>The flat colour a skin uses for the "solid" background mode.</summary>
+    /// <summary>The flat color a skin uses for the "solid" background mode.</summary>
     public const string SakuraSolidBgColor = "#FDE4E8";
     public const string DarkSakuraSolidBgColor = "#1E0A14";
 

@@ -4,9 +4,9 @@ using Avalonia.Media;
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
-/// A curated fixed palette for the theme colour pickers (#555) — Material Design hues at a few shades
+/// A curated fixed palette for the theme color pickers (#555) — Material Design hues at a few shades
 /// each, plus a neutral ramp, spanning light → dark so every theme need (a saturated accent, a pale card
-/// tint, a dark base) has a suitable choice. Users pick from these instead of a freeform colour wheel.
+/// tint, a dark base) has a suitable choice. Users pick from these instead of a freeform color wheel.
 /// </summary>
 public static class ColorPalette
 {

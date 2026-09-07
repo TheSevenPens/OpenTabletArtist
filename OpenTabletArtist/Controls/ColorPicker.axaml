@@ -4,8 +4,8 @@
              xmlns:c="using:OpenTabletArtist.Controls"
              x:Class="OpenTabletArtist.Controls.ColorPicker"
              x:Name="Root">
-    <!-- The single colour picker (#622): merges the old fixed-palette SwatchPicker and the freeform
-         HueTriangleWheel behind one trigger. The compact trigger shows the current colour + its hex/RGB;
+    <!-- The single color picker (#622): merges the old fixed-palette SwatchPicker and the freeform
+         HueTriangleWheel behind one trigger. The compact trigger shows the current color + its hex/RGB;
          clicking opens a flyout with two tabs — a full hue-ring + saturation/value wheel and the curated
          palette — plus a shared hex field. All three edit the same two-way Color, so they stay in sync. -->
     <!-- The trigger is a FIELD, not an action: it shows the current value and opens an editor, exactly
@@ -56,14 +56,14 @@
                         </TabControl.Styles>
 
                         <TabItem Header="Wheel">
-                            <!-- The freeform hue-ring + SV-triangle picker (any colour). -->
+                            <!-- The freeform hue-ring + SV-triangle picker (any color). -->
                             <c:HueTriangleWheel Width="200" Height="200" Margin="0,10,0,0"
                                                 Color="{Binding #Root.Color, Mode=TwoWay}" />
                         </TabItem>
 
                         <TabItem Header="Palette">
                             <!-- The curated fixed palette (quick, on-brand picks). SelectedItem is OneWay so a
-                                 non-palette colour (from the wheel/hex) simply shows no highlight without
+                                 non-palette color (from the wheel/hex) simply shows no highlight without
                                  clobbering it; the actual pick is applied in OnSwatchTapped. -->
                             <ListBox x:Name="Swatches" Margin="0,10,0,0"
                                      ItemsSource="{Binding #Root.Palette}"

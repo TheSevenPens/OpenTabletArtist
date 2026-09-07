@@ -7,10 +7,10 @@ using Avalonia.Media;
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
-/// A classic hue-ring + saturation/value-triangle colour picker (#556 follow-up). Hue is chosen on the outer
+/// A classic hue-ring + saturation/value-triangle color picker (#556 follow-up). Hue is chosen on the outer
 /// ring; saturation and value on the triangle inscribed in it (one corner the pure hue, one white, one
 /// black), which rotates so its hue corner points at the selected hue. HSV is the source of truth so the
-/// ring/triangle positions survive a fully-desaturated or black colour; <see cref="Color"/> binds two-way.
+/// ring/triangle positions survive a fully-desaturated or black color; <see cref="Color"/> binds two-way.
 /// </summary>
 public class HueTriangleWheel : Control
 {
@@ -20,7 +20,7 @@ public class HueTriangleWheel : Control
 
     public Color Color { get => GetValue(ColorProperty); set => SetValue(ColorProperty, value); }
 
-    // HSV source of truth: hue 0..360, sat/value 0..1. Kept separately so a grey/black colour doesn't lose
+    // HSV source of truth: hue 0..360, sat/value 0..1. Kept separately so a grey/black color doesn't lose
     // the ring/triangle handle positions (RGB->HSV is ambiguous there).
     private double _h, _s = 1, _v = 1;
     private bool _fromSelf; // guard: we're writing Color from our own HSV, so don't re-derive HSV back
@@ -54,7 +54,7 @@ public class HueTriangleWheel : Control
             var hsv = Color.ToHsv();
             _s = hsv.S;
             _v = hsv.V;
-            if (hsv.S > 0.0001 && hsv.V > 0.0001) _h = hsv.H; // keep hue when the colour is grey/black
+            if (hsv.S > 0.0001 && hsv.V > 0.0001) _h = hsv.H; // keep hue when the color is grey/black
             InvalidateVisual();
         }
     }
@@ -187,7 +187,7 @@ public class HueTriangleWheel : Control
         double wb = Math.Abs(det) < 1e-9 ? 0
             : ((cc.Y - a.Y) * (p.X - cc.X) + (a.X - cc.X) * (p.Y - cc.Y)) / det;
         double wc = 1 - wa - wb;
-        // Clamp into the triangle so dragging past an edge still tracks the nearest valid colour.
+        // Clamp into the triangle so dragging past an edge still tracks the nearest valid color.
         wa = Math.Max(0, wa); wb = Math.Max(0, wb); wc = Math.Max(0, wc);
         double sum = wa + wb + wc;
         if (sum <= 0) { s = _s; v = _v; return; }

@@ -4,7 +4,7 @@ namespace OpenTabletArtist.Services;
 
 /// <summary>
 /// User-controlled settings for the "Custom" theme — parallel to Sakura, but with a user-chosen accent
-/// colour that derives the whole scheme and an optional background image. Persisted via
+/// color that derives the whole scheme and an optional background image. Persisted via
 /// <see cref="AppSettings"/> so a look survives restarts. Card translucency is shared with Sakura via
 /// <see cref="AcrylicSettings.MaterialOpacity"/>; ThemeViewModel turns these into live resource overrides.
 /// </summary>
@@ -20,7 +20,7 @@ public static class CustomThemeSettings
     /// <summary>Background image is fully opaque unless the user dials it back.</summary>
     public const double DefaultBackgroundImageOpacity = 1.0;
 
-    /// <summary>The accent colour that drives the Custom scheme, as "#AARRGGBB"/"#RRGGBB".</summary>
+    /// <summary>The accent color that drives the Custom scheme, as "#AARRGGBB"/"#RRGGBB".</summary>
     public static string AccentHex
     {
         get => AppSettings.Get(AccentKey) ?? DefaultAccentHex;
@@ -42,8 +42,8 @@ public static class CustomThemeSettings
         }
     }
 
-    /// <summary>Opacity (0..1) of the background image drawn over the base colour. Lower values let more
-    /// of the base colour show through; 1 = fully opaque.</summary>
+    /// <summary>Opacity (0..1) of the background image drawn over the base color. Lower values let more
+    /// of the base color show through; 1 = fully opaque.</summary>
     public static double BackgroundImageOpacity
     {
         get => double.TryParse(AppSettings.Get(ImageOpacityKey), NumberStyles.Float,

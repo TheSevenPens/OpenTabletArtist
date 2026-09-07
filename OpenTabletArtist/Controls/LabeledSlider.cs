@@ -51,7 +51,7 @@ public class LabeledSlider : TemplatedControl
     /// — for callers whose view model already formats the value (with units, steps, etc.).</summary>
     public static readonly StyledProperty<string?> ValueTextOverrideProperty =
         AvaloniaProperty.Register<LabeledSlider, string?>(nameof(ValueTextOverride));
-    /// <summary>Renders the readout in a monospace font + primary colour (so changing digits don't shift).</summary>
+    /// <summary>Renders the readout in a monospace font + primary color (so changing digits don't shift).</summary>
     public static readonly StyledProperty<bool> MonospaceProperty =
         AvaloniaProperty.Register<LabeledSlider, bool>(nameof(Monospace));
     /// <summary>Fixed readout width; NaN (default) auto-sizes to the text.</summary>

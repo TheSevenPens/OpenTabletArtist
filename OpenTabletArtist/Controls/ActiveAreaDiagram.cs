@@ -26,7 +26,7 @@ public sealed class ActiveAreaDiagram : Control
 
     public static readonly StyledProperty<TabletAreaInfo?> AreaProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, TabletAreaInfo?>(nameof(Area));
-    // The theme's text colour: the tablet outline's neutrals are mixed from it (DiagramDrawing.Tablet)
+    // The theme's text color: the tablet outline's neutrals are mixed from it (DiagramDrawing.Tablet)
     // so the diagram tints itself to the skin instead of carrying a fixed grey.
     public static readonly StyledProperty<IBrush?> InkBrushProperty =
         AvaloniaProperty.Register<ActiveAreaDiagram, IBrush?>(nameof(InkBrush));

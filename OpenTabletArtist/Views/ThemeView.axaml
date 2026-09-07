@@ -7,10 +7,10 @@
     <!-- DataContext is the ThemeViewModel, supplied by the typed-nav DataTemplate (#15).
 
          Subtabs, not columns (#appearance-merge). A skin's look used to be decided in two places: this
-         page owned the theme, its colours and the backdrop's BASE colour, while the glows painted over
+         page owned the theme, its colors and the backdrop's BASE color, while the glows painted over
          that base were a tab away under Developer → Gradients. Tuning a backdrop meant walking between
          two pages to see either half of it. The glow editor moved here, and the page divides by topic
-         instead — theme, backdrop, colours — because all three together no longer fit a screen. -->
+         instead — theme, backdrop, colors — because all three together no longer fit a screen. -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*">
 
         <!-- Subtab rail, the same one Developer uses. Second page in the app to divide a third time; it
@@ -22,7 +22,7 @@
                              Theme="{StaticResource SubtabRadioButton}" />
                 <RadioButton Content="BACKDROP" x:Name="BackdropSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
-                <RadioButton Content="COLOURS" x:Name="ColoursSubtab"
+                <RadioButton Content="COLORS" x:Name="ColorsSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
             </StackPanel>
         </Border>
@@ -30,7 +30,8 @@
         <!-- ══ THEME ══ which skin, and the petals that come with the blossom ones. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ThemeSubtab.IsChecked}">
-            <c:Section MaxWidth="560" HorizontalAlignment="Left" Title="Theme">
+            <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+            <c:Section Title="Theme">
                 <StackPanel>
                     <c:LabeledField Label="Theme">
                         <ComboBox HorizontalAlignment="Left" MinWidth="220"
@@ -40,7 +41,7 @@
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <!-- Colour swatch previewing the theme. -->
+                                        <!-- Color swatch previewing the theme. -->
                                         <Border Width="18" Height="18" CornerRadius="0"
                                                 Background="{Binding Swatch}"
                                                 BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
@@ -58,20 +59,29 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
 
-                    <!-- Blossom skins + Custom: toggle the falling-petal animation (#207), plus its opacity. -->
+                </StackPanel>
+            </c:Section>
+
+            <!-- Blossom skins + Custom: the falling-petal animation (#207) and its opacity. Its own
+                 section rather than a tail on the theme picker — the petals are a separate thing you
+                 turn on, not another property of which skin you chose, and the whole block comes and
+                 goes with the skin, so the section carries the IsVisible its two controls each used to
+                 repeat. -->
+            <c:Section Title="Petals" Margin="0,24,0,0" IsVisible="{Binding ShowPetalsToggle}">
+                <StackPanel>
                     <c:ToggleSetting Label="Falling petals" IsChecked="{Binding PetalsEnabled}"
-                                     IsVisible="{Binding ShowPetalsToggle}" Margin="0,16,0,0"
                                      ToolTip.Tip="Animate drifting petals over the backdrop" />
                     <c:LabeledSlider Label="Petal opacity" LabelWidth="130"
                                      Minimum="0.1" Maximum="1" Value="{Binding PetalsOpacity}"
                                      ValueFormat="0%" Margin="0,8,0,0"
-                                     IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
+                                     IsEnabled="{Binding PetalsEnabled}"
                                      ToolTip.Tip="How opaque the falling petals are" />
                 </StackPanel>
             </c:Section>
+            </StackPanel>
         </ScrollViewer>
 
-        <!-- ══ BACKDROP ══ what fills the window behind the panels: the mode, the base colour it starts
+        <!-- ══ BACKDROP ══ what fills the window behind the panels: the mode, the base color it starts
              from, and the glows painted over it — with one preview of the three together, which is the
              whole point of them sharing a pane. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
@@ -98,17 +108,17 @@
                                    Margin="0,0,0,10" />
                         <!-- IsChecked is OneWay (display); the choice is driven by the Command, matching
                              the movement-mode radios. -->
-                        <RadioButton GroupName="SakuraBackground" Content="Solid colour"
+                        <RadioButton GroupName="SakuraBackground" Content="Solid color"
                                      IsChecked="{Binding SakuraSolidBackground, Mode=OneWay}"
                                      Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="solid"
-                                     ToolTip.Tip="A flat colour instead of the generated gradient" />
+                                     ToolTip.Tip="A flat color instead of the generated gradient" />
                         <RadioButton GroupName="SakuraBackground" Content="Generated gradient"
                                      IsChecked="{Binding SakuraCodeGenBackground, Mode=OneWay}"
                                      Command="{Binding SelectSakuraBackgroundCommand}" CommandParameter="codegen"
-                                     ToolTip.Tip="A flat base colour with tunable glows over it" />
+                                     ToolTip.Tip="A flat base color with tunable glows over it" />
 
                         <StackPanel IsVisible="{Binding SakuraCodeGenBackground}" Margin="0,12,0,0">
-                            <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}"
+                            <TextBlock Text="Base color" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,0,0,4" />
                             <c:ColorPicker HorizontalAlignment="Left"
                                            Color="{Binding SakuraBaseColor, Mode=TwoWay,
@@ -239,7 +249,7 @@
                         </Grid>
 
                         <Grid ColumnDefinitions="82,*" Margin="0,0,0,10">
-                            <TextBlock Grid.Column="0" Text="Colour" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="0" Text="Color" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextSecondaryBrush}" />
                             <c:ColorPicker Grid.Column="1" HorizontalAlignment="Left"
                                            Color="{Binding Gradients.Selected.Color, Mode=TwoWay,
@@ -261,21 +271,21 @@
                         <c:LabeledSlider Label="Falloff" LabelWidth="82" Minimum="0.02" Maximum="0.98"
                                          Value="{Binding Gradients.Selected.Falloff, Mode=TwoWay}" ValueFormat="0.00"
                                          IsVisible="{Binding Gradients.Selected.IsLinear}"
-                                         ToolTip.Tip="Where the wash reaches half opacity: low fades early, high holds the colour and drops away late" />
+                                         ToolTip.Tip="Where the wash reaches half opacity: low fades early, high holds the color and drops away late" />
                         <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
                                          Value="{Binding Gradients.Selected.CenterOpacity, Mode=TwoWay}" ValueFormat="0.00" />
                     </StackPanel>
                 </Grid>
 
-                <!-- Custom's backdrop is a base colour plus an optional image rather than glows, so it
+                <!-- Custom's backdrop is a base color plus an optional image rather than glows, so it
                      gets its own block on this same subtab — it is still the answer to "what is behind
                      the panels". -->
                 <c:Section Title="Custom backdrop" MaxWidth="560" HorizontalAlignment="Left"
                            IsVisible="{Binding ShowCustomControls}"
-                           Description="Pick a base colour for the background behind the panels, or add a background image to fill the window instead.">
+                           Description="Pick a base color for the background behind the panels, or add a background image to fill the window instead.">
                     <StackPanel Spacing="12">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Base colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="Base color" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <c:ColorPicker Color="{Binding BaseColor, Mode=TwoWay}" />
                         </StackPanel>
                         <c:LabeledField Label="Background image">
@@ -288,36 +298,36 @@
                                         IsEnabled="{Binding HasBackgroundImage}" />
                             </StackPanel>
                         </c:LabeledField>
-                        <!-- Only meaningful with an image set: fades the image over the base colour. -->
+                        <!-- Only meaningful with an image set: fades the image over the base color. -->
                         <c:LabeledSlider Label="Image opacity" LabelWidth="130"
                                          Minimum="0" Maximum="1" Value="{Binding BackgroundImageOpacity}"
                                          ValueFormat="0%" IsVisible="{Binding ShowBackgroundImageOpacity}"
-                                         ToolTip.Tip="Lower opacity lets more of the base colour show through the image" />
+                                         ToolTip.Tip="Lower opacity lets more of the base color show through the image" />
                     </StackPanel>
                 </c:Section>
             </StackPanel>
         </ScrollViewer>
 
-        <!-- ══ COLOURS ══ the accent and the frosted cards, which every translucent skin shares. -->
+        <!-- ══ COLORS ══ the accent and the frosted cards, which every translucent skin shares. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ColoursSubtab.IsChecked}">
+                      IsVisible="{Binding #ColorsSubtab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="This theme has no colours to tune. Sakura, Dark Sakura and Custom do."
+                <TextBlock Text="This theme has no colors to tune. Sakura, Dark Sakura and Custom do."
                            FontStyle="Italic" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding !ShowFrostControls}" />
 
-                <c:Section Title="Colours" MaxWidth="560" HorizontalAlignment="Left"
+                <c:Section Title="Colors" MaxWidth="560" HorizontalAlignment="Left"
                            IsVisible="{Binding ShowFrostControls}"
-                           Description="Pick colours from the palette and set how opaque the cards are — lower opacity lets more of the backdrop show through. Applies live.">
+                           Description="Pick colors from the palette and set how opaque the cards are — lower opacity lets more of the backdrop show through. Applies live.">
                     <StackPanel Spacing="14">
-                        <!-- Highlight/accent colour — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
+                        <!-- Highlight/accent color — all skins (#557). Derives buttons, selected nav, toggles, radios. -->
                         <StackPanel Spacing="4" IsVisible="{Binding ShowAccentControl}">
-                            <TextBlock Text="Highlight colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="Highlight color" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <c:ColorPicker Color="{Binding AccentColor, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Card colour" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="Card color" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <c:ColorPicker Color="{Binding CardColor, Mode=TwoWay}" />
                         </StackPanel>
                         <c:LabeledSlider Label="Card opacity" LabelWidth="130"
@@ -325,7 +335,7 @@
                         <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"
                                 HorizontalAlignment="Left" Margin="0,4,0,0"
-                                ToolTip.Tip="Restore this theme's colours, opacity, backdrop and petals to their defaults" />
+                                ToolTip.Tip="Restore this theme's colors, opacity, backdrop and petals to their defaults" />
                     </StackPanel>
                 </c:Section>
             </StackPanel>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Avalonia.Input;
 
 namespace OpenTabletArtist.Services;
@@ -16,10 +17,39 @@ public sealed record HotkeyChord(KeyModifiers Modifiers, Key Key)
     private const uint MOD_SHIFT = 0x0004;
     private const uint MOD_WIN = 0x0008;
 
-    /// <summary>Human-readable form, e.g. "Ctrl + Alt + D1".</summary>
-    public string Display => new KeyGesture(Key, Modifiers).ToString();
+    /// <summary>
+    /// Human-readable form, e.g. "Ctrl+Alt+9". Built here rather than taken from
+    /// <see cref="KeyGesture.ToString"/>, which spells the number row with Avalonia's enum names —
+    /// "Ctrl+Alt+D9" for the key printed 9 on the keyboard. Modifier order and key labels match the
+    /// capture dialog's chips, so the shortcut you pick is written the same way in the list.
+    /// </summary>
+    public string Display
+    {
+        get
+        {
+            var parts = new List<string>(5);
+            if (Modifiers.HasFlag(KeyModifiers.Control)) parts.Add("Ctrl");
+            if (Modifiers.HasFlag(KeyModifiers.Alt)) parts.Add("Alt");
+            if (Modifiers.HasFlag(KeyModifiers.Shift)) parts.Add("Shift");
+            if (Modifiers.HasFlag(KeyModifiers.Meta)) parts.Add("Win");
+            parts.Add(KeyLabel(Key));
+            return string.Join("+", parts);
+        }
+    }
 
-    /// <summary>Stable string for persistence (parses back via <see cref="TryParse"/>).</summary>
+    /// <summary>What a key is printed as on the keyboard. Only the two ranges whose enum names differ
+    /// from their legend need translating; the numpad keeps a "Num " prefix because the dialog tells it
+    /// apart from the number row by column, and a chord on its own has no column.</summary>
+    private static string KeyLabel(Key key) => key switch
+    {
+        >= Key.D0 and <= Key.D9 => ((char)('0' + (key - Key.D0))).ToString(),
+        >= Key.NumPad0 and <= Key.NumPad9 => "Num " + (char)('0' + (key - Key.NumPad0)),
+        _ => key.ToString(),
+    };
+
+    /// <summary>Stable string for persistence — a <see cref="KeyGesture"/> string, because
+    /// <see cref="TryParse"/> reads it back with <see cref="KeyGesture.Parse"/>. Deliberately NOT
+    /// <see cref="Display"/>: that one is for people and is free to change.</summary>
     public string Serialize() => new KeyGesture(Key, Modifiers).ToString();
 
     public static bool TryParse(string? text, out HotkeyChord? chord)

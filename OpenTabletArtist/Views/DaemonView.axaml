@@ -12,7 +12,7 @@
          to carry a leading bullet and a trailing colon; the two-column grid is what separates label from
          value, so both were punctuation standing in for a layout that already works — and the bullet
          pushed every label off the margin the headings and body text share. Matches the tablet About
-         tab's fact rows. State is carried by the value text alone — no status dots, and no colour (so it
+         tab's fact rows. State is carried by the value text alone — no status dots, and no color (so it
          reads the same under every skin, incl. Sakura). Live numbers and versions use the app's
          monospace font.
 
@@ -175,7 +175,7 @@
                              Start/Restart block and a solid red Stop — three treatments, and the loudest
                              thing on a page whose job is reporting status. Start and Restart are mutually
                              exclusive (each shows on its own condition), so the menu is never longer than
-                             three items. Stop keeps the error colour, but as a NAMED item rather than a
+                             three items. Stop keeps the error color, but as a NAMED item rather than a
                              filled red block. -->
                         <c:IconButton Grid.Column="1" VerticalAlignment="Top"
                                       Icon="{StaticResource IconDotsHorizontal}"

@@ -11,7 +11,7 @@ namespace OpenTabletArtist.Tests;
 /// <summary>
 /// The code-generated Sakura backdrop (#556). Parsing falls back to the baked defaults for any bad input and
 /// still reads settings written before linear glows existed (#glow-linear); serialization round-trips; brush
-/// composition filters by edge and colours the glows.
+/// composition filters by edge and colors the glows.
 /// </summary>
 public class GradientBackgroundTests
 {
@@ -26,7 +26,7 @@ public class GradientBackgroundTests
     {
         var parsed = GradientBackground.Parse(json);
         Assert.Equal(GradientBackground.Defaults(SkinColorSettings.SakuraSkin).Count, parsed.Count);
-        // Same content as Defaults (spot-check the first glow's colour).
+        // Same content as Defaults (spot-check the first glow's color).
         Assert.Equal(GradientBackground.Defaults(SkinColorSettings.SakuraSkin)[0].Color, parsed[0].Color);
     }
 
@@ -106,7 +106,7 @@ public class GradientBackgroundTests
     }
 
     [Fact]
-    public void Serialize_EmitsBaseColourAndGlows()
+    public void Serialize_EmitsBaseColorAndGlows()
     {
         var glows = new List<GradientGlow>
         {
@@ -115,7 +115,7 @@ public class GradientBackgroundTests
 
         var json = GradientBackground.Serialize("#FCE7EE", glows);
 
-        // Round-trips as an object with the base colour + the glow list.
+        // Round-trips as an object with the base color + the glow list.
         dynamic obj = JsonConvert.DeserializeObject<dynamic>(json)!;
         Assert.Equal("#FCE7EE", (string)obj.BaseColor);
         Assert.Equal("#FFD3AE", (string)obj.Glows[0].Color);
@@ -235,7 +235,7 @@ public class GradientBackgroundTests
     [Fact]
     public void BuildBackdropPreview_StacksEveryGlowOverTheBase()
     {
-        // The Appearance page's one preview (#appearance-merge): base colour plus all the glows, which is
+        // The Appearance page's one preview (#appearance-merge): base color plus all the glows, which is
         // the pairing that used to be split across two tabs.
         var glows = new List<GradientGlow>
         {
@@ -269,7 +269,7 @@ public class GradientBackgroundTests
     }
 
     [Fact]
-    public void BuildPreviewBrush_PaintsTheGlowOverTheBaseColour()
+    public void BuildPreviewBrush_PaintsTheGlowOverTheBaseColor()
     {
         var brush = GradientBackground.BuildPreviewBrush(
             new GradientGlow { Color = "#FF0000" }, "#FCE7EE", 0.8);
@@ -282,9 +282,9 @@ public class GradientBackgroundTests
     }
 
     [Fact]
-    public void BadColour_FallsBackToMagenta_WithoutThrowing()
+    public void BadColor_FallsBackToMagenta_WithoutThrowing()
     {
-        var glows = new List<GradientGlow> { new() { Color = "not-a-colour" } };
+        var glows = new List<GradientGlow> { new() { Color = "not-a-color" } };
 
         var brush = GradientBackground.BuildGlowBrush(glows, GlowEdge.Bottom); // must not throw
 

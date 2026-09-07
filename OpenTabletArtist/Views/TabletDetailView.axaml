@@ -7,7 +7,7 @@
              xmlns:views="using:OpenTabletArtist.Views">
 
     <UserControl.Styles>
-        <!-- Express-key row lights up while its physical button is held. Only colours change — no size, no
+        <!-- Express-key row lights up while its physical button is held. Only colors change — no size, no
              border thickness — so the highlight never nudges the layout. Since Entity went boxless
              (#debox-entity) the accent tint carries this on its own: it fills the whole row edge to edge
              instead of a card, which reads more like a key lighting up than a card gaining an outline.
@@ -21,7 +21,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
-        <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid colour by
+        <!-- Connection status chip in the header, sized to sit beside the Refresh button — solid color by
              state: neutral grey when the tablet isn't detected, green when it is. -->
         <Style Selector="Border.tabletStatusChip">
             <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
@@ -29,7 +29,7 @@
             <Setter Property="Padding" Value="10,6" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <!-- Connected keeps the neutral chip (#593: no green status colour); the text says the state. -->
+        <!-- Connected keeps the neutral chip (#593: no green status color); the text says the state. -->
         <Style Selector="Border.tabletStatusChip.connected">
             <Setter Property="Background" Value="{DynamicResource NeutralBrush}" />
         </Style>

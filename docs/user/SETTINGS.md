@@ -25,31 +25,37 @@ The list is rebuilt when you open **Settings**, so a preset you save and then bi
 
 ## Theme
 
-Everything about how the app looks is here, split into three **subtabs** down the left: **Theme**, **Backdrop** and **Colours**. The backdrop's glows used to be a page away, under Developer → Gradients, which meant tuning a backdrop took two tabs and a lot of walking.
+Everything about how the app looks is here, split into three **subtabs** down the left: **Theme**, **Backdrop** and **Colors**. The backdrop's glows used to be a page away, under Developer → Gradients, which meant tuning a backdrop took two tabs and a lot of walking.
 
 ### Theme
 
 - **Theme** — a selector with **System** (follows your Windows light/dark setting), **Light**, **Dark**, **Sakura** (a pink skin with a soft gradient backdrop and frosted-glass panels — the default), **Dark Sakura** (the same skin over a dark scheme), and **Custom** (a translucent skin you tune yourself). Applied immediately and remembered across restarts.
-- **Falling petals** *(Sakura, Dark Sakura, and Custom)* — toggles the drifting cherry-blossom animation, with an opacity slider to tune how prominent the petals are (defaults to a soft 25%).
+
+#### Petals
+
+*(Sakura, Dark Sakura, and Custom; the section is hidden on the other themes.)*
+
+- **Falling petals** — toggles the drifting cherry-blossom animation.
+- **Petal opacity** — how prominent the petals are (defaults to a soft 25%).
 
 ### Backdrop
 
 What fills the window behind the panels. Light and Dark paint nothing there, so the subtab says so and stops.
 
-- **Solid colour / Generated gradient** *(Sakura and Dark Sakura)* — a flat colour (`#FDE4E8` on Sakura, `#1E0A14` on Dark Sakura), or a base colour with soft glows over it. Applied live and remembered across restarts.
-- **Base colour** *(generated gradient only)* — a colour picker (plus hex box) for the flat tint the glows sit on. Each skin keeps its own, as it does its glows.
-- **Preview** — the whole backdrop as a 1280×800 window would draw it, so a base colour can be judged against the glows on top of it without leaving the page.
+- **Solid color / Generated gradient** *(Sakura and Dark Sakura)* — a flat color (`#FDE4E8` on Sakura, `#1E0A14` on Dark Sakura), or a base color with soft glows over it. Applied live and remembered across restarts.
+- **Base color** *(generated gradient only)* — a color picker (plus hex box) for the flat tint the glows sit on. Each skin keeps its own, as it does its glows.
+- **Preview** — the whole backdrop as a 1280×800 window would draw it, so a base color can be judged against the glows on top of it without leaving the page.
 - **Glows** — the list of glows for the current skin, each with a chip painted from the glow itself. Picking one opens its controls on the right. A glow is either **radial** (a soft blob placed along its edge, with **Center X** and **Width**) or **linear** (a wash spanning the whole edge, with a **Falloff** for the shape of its fade); **Edge** anchors it to the bottom, top, left or right of the window, and **Reach** is how far it comes in from there. Radial glows stay on the bottom and top edges. **Add glow** appends one; the list's **⋯** holds **Reset to defaults** and **Copy settings JSON**; a glow's own **⋯** duplicates or removes it.
-- **Custom backdrop** *(Custom only)* — a base colour, and optionally a background image to fill the window instead, with an opacity slider that fades it over the base.
+- **Custom backdrop** *(Custom only)* — a base color, and optionally a background image to fill the window instead, with an opacity slider that fades it over the base.
 
-### Colours
+### Colors
 
-*(Sakura, Dark Sakura, and Custom; the subtab says so for the others.)* Each control is a swatch with the current hex beside it; clicking one opens a picker with a colour wheel, a curated palette, and a hex box. Everything here applies live and is stored **per skin**, so tuning Sakura never changes how Dark Sakura or Custom look.
+*(Sakura, Dark Sakura, and Custom; the subtab says so for the others.)* Each control is a swatch with the current hex beside it; clicking one opens a picker with a color wheel, a curated palette, and a hex box. Everything here applies live and is stored **per skin**, so tuning Sakura never changes how Dark Sakura or Custom look.
 
-- **Highlight colour** — the accent used for the current page and tab, selected options, links, and primary buttons.
-- **Card colour** — the tint of the frosted panels.
+- **Highlight color** — the accent used for the current page and tab, selected options, links, and primary buttons.
+- **Card color** — the tint of the frosted panels.
 - **Card opacity** — how translucent those panels are; lower lets more of the backdrop show through.
-- **Reset to defaults** — restores this skin's colours, opacity, backdrop base and petals. It only affects the skin you're on.
+- **Reset to defaults** — restores this skin's colors, opacity, backdrop base and petals. It only affects the skin you're on.
 
 ## System
 

@@ -29,7 +29,7 @@
                     Text="{Binding AppVersionSentence}" /></TextBlock>
 
                 <!-- Source code, releases, help and the user manual as one list of links. Each opens in the
-                     default browser; the full URL is on hover. No heading: they are accent-coloured and
+                     default browser; the full URL is on hover. No heading: they are accent-colored and
                      underlined, which already marks them as a group and as links — a RESOURCES label above
                      them was naming something the reader can see. -->
                 <StackPanel Grid.Column="2" Spacing="10" VerticalAlignment="Top">

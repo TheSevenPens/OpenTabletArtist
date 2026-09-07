@@ -44,7 +44,7 @@
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         <!-- Detection status as the same link / link-off icon the tablet
                                              dropdown uses (#593: both neutral — the link vs link-off icon,
-                                             not colour, shows state); the old "Detected"/"Not detected" word
+                                             not color, shows state); the old "Detected"/"Not detected" word
                                              is now the icon's tooltip. -->
                                         <Panel Width="16" Height="16" VerticalAlignment="Center"
                                                ToolTip.Tip="{Binding StatusText}">
@@ -58,7 +58,7 @@
                                     </StackPanel>
                                     <!-- Where the active area is mapped (#tablet-card-mapping): the mapped
                                          display when it's a clean single-monitor mapping, or a "needs attention"
-                                         line when it isn't. State reads from the wording, not colour (#no-orange-text):
+                                         line when it isn't. State reads from the wording, not color (#no-orange-text):
                                          the attention line is a touch more prominent (primary vs secondary text). -->
                                     <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                IsVisible="{Binding MappingIsNormal}"
@@ -83,7 +83,7 @@
 
                                          Forget removes a remembered tablet, or resets a connected one to
                                          defaults; the confirm dialog says which (#575). It keeps the error
-                                         colour but as a NAMED item rather than a glyph you must hover to
+                                         color but as a NAMED item rather than a glyph you must hover to
                                          identify.
 
                                          Command bindings, not Click handlers: both commands are on the
@@ -144,7 +144,7 @@
                             <c:Alert Margin="0,0,0,8" Padding="14,11"
                                      Severity="{Binding Severity, Converter={x:Static conv:HealthSeverityToAlertSeverityConverter.Instance}}">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-                                    <!-- Per-tier icon, no coloured box (#health-icon): dark so it reads on the
+                                    <!-- Per-tier icon, no colored box (#health-icon): dark so it reads on the
                                          card's tint, and top-aligned to sit with the title. -->
                                     <Panel Grid.Column="0" VerticalAlignment="Top" Margin="0,1,0,0">
                                         <PathIcon Data="{StaticResource IconAlertCircle}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"

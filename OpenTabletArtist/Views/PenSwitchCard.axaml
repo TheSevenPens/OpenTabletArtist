@@ -10,7 +10,7 @@
          modes use) other binding types silently don't work (#495). Simplified to two plain-language states
          (#pen-inputs-simplify): when it's on the recommended default, one calm "Working normally" line; when
          it's drifted onto something else, a plain sentence + the current binding + a single "Fix". No plugin
-         jargon and no coloured badges (the check mark carries "good", per the app's #593 convention). -->
+         jargon and no colored badges (the check mark carries "good", per the app's #593 convention). -->
     <c:Section Padding="12,10" Width="240" HorizontalAlignment="Left">
         <StackPanel Spacing="6">
             <TextBlock Text="{Binding SectionLabel}" Classes="SectionLabel" />

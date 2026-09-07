@@ -34,7 +34,7 @@
                 <!-- Every action behind one "…", as on the Windows Ink and daemon cards. This card carried
                      a refresh glyph inline beside its heading plus an accent Browse / Install / Uninstall
                      row — and Install and Uninstall are mutually exclusive, so the menu is never longer
-                     than three. Uninstall takes the error colour here, matching the other destructive menu
+                     than three. Uninstall takes the error color here, matching the other destructive menu
                      items; it used to be an accent button indistinguishable from Install.
                      The install-progress line is NOT here: the left column already showed it, so the copy
                      that lived in this row was the same status printed twice. -->

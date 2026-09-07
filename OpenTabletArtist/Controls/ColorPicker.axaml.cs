@@ -9,9 +9,9 @@ using Avalonia.Media;
 namespace OpenTabletArtist.Controls;
 
 /// <summary>
-/// The unified colour picker (#622): one control replacing the fixed-palette <c>SwatchPicker</c> and the
+/// The unified color picker (#622): one control replacing the fixed-palette <c>SwatchPicker</c> and the
 /// freeform <see cref="HueTriangleWheel"/>. A compact trigger (swatch + hex/RGB readout) opens a flyout with
-/// a Wheel tab (hue ring + saturation/value triangle, any colour), a Palette tab (the curated
+/// a Wheel tab (hue ring + saturation/value triangle, any color), a Palette tab (the curated
 /// <see cref="ColorPalette"/> quick-picks), and a shared hex field. All three edit the same two-way
 /// <see cref="Color"/>, so they track each other. Alpha isn't editable — every consumer is opaque.
 /// </summary>

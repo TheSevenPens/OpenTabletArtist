@@ -48,4 +48,45 @@ public class HotkeyChordTests
         Assert.False(HotkeyChord.TryParse("", out _));
         Assert.False(HotkeyChord.TryParse("not a chord!!", out _));
     }
+
+    /// <summary>The number row is printed 0-9, not D0-D9 — KeyGesture's spelling used to leak to the
+    /// Hotkeys list as "Ctrl+Alt+D9".</summary>
+    [Theory]
+    [InlineData(Key.D9, "Ctrl+Alt+9")]
+    [InlineData(Key.D0, "Ctrl+Alt+0")]
+    [InlineData(Key.A, "Ctrl+Alt+A")]
+    [InlineData(Key.F5, "Ctrl+Alt+F5")]
+    [InlineData(Key.NumPad9, "Ctrl+Alt+Num 9")]
+    public void Display_UsesTheLabelPrintedOnTheKey(Key key, string expected)
+    {
+        var chord = new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt, key);
+
+        Assert.Equal(expected, chord.Display);
+    }
+
+    /// <summary>Same modifier order as the capture dialog's chips, so a chord reads the same way in
+    /// both places.</summary>
+    [Fact]
+    public void Display_OrdersModifiersCtrlAltShiftWin()
+    {
+        var chord = new HotkeyChord(
+            KeyModifiers.Meta | KeyModifiers.Shift | KeyModifiers.Alt | KeyModifiers.Control, Key.D1);
+
+        Assert.Equal("Ctrl+Alt+Shift+Win+1", chord.Display);
+    }
+
+    /// <summary>Display is for people and Serialize is for the settings file; decoupling them is the
+    /// whole point, so a friendlier Display must not have changed what is written to disk.</summary>
+    [Fact]
+    public void Serialize_IsUnaffectedByTheDisplayFormat()
+    {
+        var chord = new HotkeyChord(KeyModifiers.Control | KeyModifiers.Alt, Key.D9);
+
+        Assert.Equal("Ctrl+Alt+D9", chord.Serialize());
+        Assert.Equal("Ctrl+Alt+9", chord.Display);
+
+        // ...and what was already on disk still reads back.
+        Assert.True(HotkeyChord.TryParse("Ctrl+Alt+D9", out var parsed));
+        Assert.Equal(Key.D9, parsed!.Key);
+    }
 }

@@ -15,7 +15,7 @@
 
         <!-- ===== Card roles (#574, de-boxed by #debox) ==============================================
              Section (grouping) · Alert (severity) · Entity (object) · ControlPanel (control cluster)
-             replace the old shared Border.GlassPanel. Each shows a colour-coded role tag at its
+             replace the old shared Border.GlassPanel. Each shows a color-coded role tag at its
              bottom-right when the developer "Show card-role tags" toggle is on (roleTag / roleTagText
              styles below).
 
@@ -299,7 +299,7 @@
                     </Grid>
                 </ControlTemplate>
             </Setter>
-            <!-- Monospace readout (primary colour, fixed-width digits) for VM-formatted values. -->
+            <!-- Monospace readout (primary color, fixed-width digits) for VM-formatted values. -->
             <Style Selector="^[Monospace=True] /template/ TextBlock#PART_Value">
                 <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}" />
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
@@ -337,7 +337,7 @@
         </ControlTheme>
 
         <!-- Chip (#621): a small text-only status pill. One canonical padding + caption typography; the
-             fill/text colour comes from Kind. Default theme (keyed by type) so callers write just
+             fill/text color comes from Kind. Default theme (keyed by type) so callers write just
              <c:Chip Text="In use" Kind="AccentSolid" />. -->
         <ControlTheme x:Key="{x:Type c:Chip}" TargetType="c:Chip">
             <Setter Property="Padding" Value="8,2" />
@@ -366,7 +366,7 @@
                 <Setter Property="Foreground" Value="White" />
             </Style>
             <!-- Muted warning: warning fill + 1px warning outline, but neutral text (#no-orange-text) —
-                 the fill/outline carry the warning tone; the label stays readable in the primary colour. -->
+                 the fill/outline carry the warning tone; the label stays readable in the primary color. -->
             <Style Selector="^[Kind=Warning]">
                 <Setter Property="Background" Value="{DynamicResource WarningMutedBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
@@ -376,7 +376,7 @@
         </ControlTheme>
 
         <!-- Tablet status banner: shared detection/connection indicator (#128/#129/#130/#132).
-             Neutral outline in both states (#593: no green status colour); the text conveys detection. -->
+             Neutral outline in both states (#593: no green status color); the text conveys detection. -->
         <ControlTheme x:Key="{x:Type c:TabletStatusBanner}" TargetType="c:TabletStatusBanner">
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="Template">
@@ -403,7 +403,7 @@
         </ControlTheme>
 
         <!-- WordmarkNav: the Zune top-bar wordmark (redesign Phase 1). Plain lowercase text — no pill, no
-             underline; the active one is marked by accent colour + weight, matching the pivots (Metro
+             underline; the active one is marked by accent color + weight, matching the pivots (Metro
              signals state by brightness, not a rule). Content is already lowercased by the item template. -->
         <ControlTheme x:Key="WordmarkNav" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
@@ -529,8 +529,8 @@
             </Style>
         </ControlTheme>
 
-        <!-- IconButton (#616): the GhostButton look at a fixed compact size with a single centred, colour-
-             following PathIcon. BasedOn GhostButton so it inherits the ghost colours + hover; it swaps the
+        <!-- IconButton (#616): the GhostButton look at a fixed compact size with a single centred, color-
+             following PathIcon. BasedOn GhostButton so it inherits the ghost colors + hover; it swaps the
              template for a PathIcon bound to the control's Icon/IconSize. Default theme (keyed by type), so
              callers just write <c:IconButton Icon="{StaticResource IconX}" Command=… ToolTip.Tip=… />. -->
         <ControlTheme x:Key="{x:Type c:IconButton}" TargetType="c:IconButton" BasedOn="{StaticResource GhostButton}">
@@ -571,7 +571,7 @@
             </Style>
             <!-- .danger — a destructive row action shown as an ICON: delete a tablet config, remove a
                  per-app mapping. Same borderless shape as its neighbours so a row of actions reads as one
-                 set; the ERROR colour is what marks it out, and only on hover does it commit to a solid red
+                 set; the ERROR color is what marks it out, and only on hover does it commit to a solid red
                  block. A destructive secondary action should never be the loudest thing on its page: the
                  solid-filled DeleteButton out-shouted even the accent primary once the rows around it went
                  boxless. DeleteButton keeps the fill for its TEXT uses (Stop / Remove / Uninstall), where
@@ -581,7 +581,7 @@
                  actions moved into a "…" menu (#preset-overflow), delete went with them and became a NAMED
                  item carrying ErrorBrush rather than a glyph. So: a row whose actions stay visible uses
                  .danger; a row with an overflow menu puts delete inside it, where a word identifies the
-                 action better than a colour can. -->
+                 action better than a color can. -->
             <Style Selector="^.danger">
                 <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
             </Style>
@@ -627,7 +627,7 @@
                     <!-- Selected-item treatment: a rounded (12) highlight plus an inset, rounded 3px accent
                          indicator bar — so the current item reads the
                          same across both navigation levels. The indicator is always laid out (only its
-                         colour changes when checked) so selecting can't shift the label. -->
+                         color changes when checked) so selecting can't shift the label. -->
                     <Border x:Name="Bd" Background="Transparent" CornerRadius="0" Padding="8,3.92">
                         <Grid ColumnDefinitions="Auto,8,*">
                             <Border x:Name="Indicator" Width="3" Height="20" CornerRadius="0"
@@ -702,8 +702,8 @@
         <Setter Property="FontFamily" Value="Inter" />
     </Style>
 
-    <!-- Card-role tag (#574): a small colour-coded label pinned to a card's bottom-right, shown only when
-         the developer "Show card-role tags" toggle is on. The per-role colour + text are set at each use
+    <!-- Card-role tag (#574): a small color-coded label pinned to a card's bottom-right, shown only when
+         the developer "Show card-role tags" toggle is on. The per-role color + text are set at each use
          (SECTION #2563EB · ALERT #DC2626 · SELECT #16A34A). -->
     <Style Selector="Border.roleTag">
         <Setter Property="HorizontalAlignment" Value="Right" />
@@ -791,7 +791,7 @@
     </Style>
 
     <!-- Tab Title — the heading at the top of each tablet tab (matches the tab's rail label, #499). One
-         place to restyle every tab heading: a step larger and in the primary text colour (the same colour
+         place to restyle every tab heading: a step larger and in the primary text color (the same color
          as the tab-nav labels), so it reads as a page heading above the muted in-card SectionLabels. -->
     <Style Selector="TextBlock.TabTitle">
         <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
@@ -842,7 +842,7 @@
     </Style>
 
     <!-- ===== Status marks ===========================================================
-         A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by colour:
+         A colored dot (U+25CF) in the normal UI font — no icon font. State is conveyed by color:
            success → muted (#593: no green)   warning → amber   neutral → muted   error → red
 
          Two bool-driven base classes for the common "success vs not" indicator.
@@ -886,8 +886,8 @@
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
     </Style>
 
-    <!-- Prominent severity indicator for the "Needs attention" cards: a rounded colour bar down the
-         card's left edge (reads at a glance, unlike the old tiny dot). Colour by severity via
+    <!-- Prominent severity indicator for the "Needs attention" cards: a rounded color bar down the
+         card's left edge (reads at a glance, unlike the old tiny dot). Color by severity via
          Classes.error/.warning/.neutral. -->
     <Style Selector="Border.severityBar">
         <Setter Property="Width" Value="40" />

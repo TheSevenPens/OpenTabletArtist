@@ -72,7 +72,7 @@ public sealed class PressureLevelBar : Control
                 ctx.DrawEllipse(ProcessedBrush ?? Brushes.LimeGreen, null, new Point(px, y), dotR - 1, dotR - 1);
             }
 
-            // Raw dot with a thin white ring so it reads on any track colour.
+            // Raw dot with a thin white ring so it reads on any track color.
             ctx.DrawEllipse(rawBrush, new Pen(Brushes.White, 1.5), new Point(rx, y), dotR, dotR);
         }
     }
