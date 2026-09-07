@@ -11,6 +11,8 @@ The full daemon status and controls (this moved off Home, which now shows the da
 - **Daemon Connection** — whether OTA is **Connected**, and (when connected) the time it connected and how long it's been up. A **Refresh** checks the status.
 - **Daemon Process** — whether the daemon is **Running**, its **Source** (either "Bundled (ships with OTA)" or "External (not started by OTA)"), its **Version**, whether that version matches the build OTA ships (**Build match**), and its **Uptime**. This card carries **Start** when disconnected and **Restart** / **Stop** when running. The **Start / Stop / Restart** actions show an inline progress bar with live phase text (Stopping… → Starting… → Connecting…) while they run, and report a clear error if the daemon doesn't come online within 30 seconds.
 
+When the daemon is **External (not started by OTA)**, **Stop** and **Restart** ask first — naming the executable that's running, and what happens next. Stopping affects anything else using that daemon, and starting one again from OpenTabletArtist launches its own bundled daemon rather than the one you stopped; Restart does both in a single step. Stop always stops just the daemon OpenTabletArtist is connected to, never other OpenTabletDriver processes that happen to be running, and a systemd-managed daemon is stopped through `systemctl` rather than killed.
+
 The **Source** row tells you which daemon the app is actually connected to:
 
 - **Bundled (ships with OTA)** — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.

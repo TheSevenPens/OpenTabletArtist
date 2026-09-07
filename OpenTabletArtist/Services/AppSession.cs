@@ -1001,10 +1001,32 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             _daemonLifecycle.StopAll();
     }
 
+    /// <summary>
+    /// Asked before stopping a daemon this app didn't start (#613, option 2). Return true to go ahead.
+    /// Both the Stop and Restart paths consult it, and the tray's "Quit and stop the daemon" inherits it
+    /// by routing through <see cref="StopDaemonCommand"/>.
+    /// <para>
+    /// A settable hook rather than a constructor dependency because <c>DialogService</c> is built FROM
+    /// the session — injecting it back would be circular. Left null (tests, and the window between
+    /// construction and the shell wiring it up) means no prompt: the stop itself is already correct
+    /// without a UI attached, and a service that cannot ask must not therefore refuse.
+    /// </para>
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmForeignDaemonAction { get; set; }
+
+    /// <summary>True when the user has agreed — or there is nothing to agree to, because we own the
+    /// daemon or nothing is there to ask with.</summary>
+    private async Task<bool> ConfirmedForeignAsync(string verb)
+    {
+        if (!IsForeignDaemon || ConfirmForeignDaemonAction is not { } confirm) return true;
+        return await confirm(verb);
+    }
+
     [RelayCommand]
     private async Task StopDaemon()
     {
         if (IsDaemonBusy) return;
+        if (!await ConfirmedForeignAsync("stop")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
@@ -1029,6 +1051,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task RestartDaemon()
     {
         if (IsDaemonBusy) return;
+        // Restart asks too, and asks a bigger question: its stop phase kills the foreign daemon and its
+        // start phase launches OUR bundled build, so "restart" silently swaps which daemon you are
+        // running. #613 named Stop and Quit-and-stop, but confirming only those would leave the policy
+        // with a hole you could walk through by pressing the button next to it.
+        if (!await ConfirmedForeignAsync("restart")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
