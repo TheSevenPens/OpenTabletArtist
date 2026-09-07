@@ -25,8 +25,10 @@
 **Technology:** .NET 10 Avalonia UI with CommunityToolkit.Mvvm (MVVM pattern).
 
 **UX & navigation terminology:** the canonical vocabulary for the app's navigation and page structure —
-*page navigation bar / node*, *page*, *tabbed page / subpage navigation / tab*, *title / complex header* —
-is defined in [docs/design/ux-terminology.md](../design/ux-terminology.md). Use those terms in code and comments.
+three flat levels, *page menu → tab menu → subtabs*, plus *switcher*, *section* and *entity* — is defined
+in [docs/design/ux-terminology.md](../design/ux-terminology.md). Use those terms in code and comments;
+the older *left pane / node / subpage / complex header* vocabulary is historical and survives only in
+some identifiers.
 
 **Key directories:**
 - `Services/` — process / I/O / daemon seams: `AppSession.cs` (the shared session — see *Internal structure* below), `DaemonClient.cs` (named pipe + StreamJsonRpc), `DaemonLifecycleService.cs` (locate / launch / stop the daemon exe), `SettingsFileStore.cs` (settings (de)serialization), `DialogService.cs` (the `IDialogService` seam — all app dialogs), `ConfigurationsDirectoryProvider.cs` (locates the OTD configs folder), `DaemonPenInputSource.cs` (Test tab — daemon `DeviceReport` stream → pen samples), `VMultiDetector.cs` / `VMultiInstaller.cs` (HID + Setup API scanning and driver install), `WindowsInkPluginService.cs` (Windows Ink plugin install + version checks)
