@@ -11,43 +11,7 @@
     <Window.Resources>
         <!-- Keycap button: a light "physical key" fill so keys stand out from the card. A picked key
              gets an accent outline; an active modifier gets an accent-tinted fill (a distinct look). -->
-        <ControlTheme x:Key="KeyCapButton" TargetType="Button">
-            <Setter Property="Background" Value="#40FFFFFF" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
-                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^:pointerover /template/ Border#Bd">
-                <Setter Property="Background" Value="#70FFFFFF" />
-            </Style>
-            <!-- Picked main key: light fill + accent outline. -->
-            <Style Selector="^.selected /template/ Border#Bd">
-                <Setter Property="Background" Value="#78FFFFFF" />
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            </Style>
-            <Style Selector="^.selected">
-                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-            </Style>
-            <!-- Active modifier: accent-tinted fill (a slightly different color than a picked key). -->
-            <Style Selector="^.modifier.selected /template/ Border#Bd">
-                <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            </Style>
-        </ControlTheme>
+        <!-- The keycap theme is shared with the hotkey-capture dialog: Themes/Keycaps.axaml (#617). -->
 
         <!-- One keycap: a fixed-width footprint (so rows of equal total units align regardless of key
              count) with the visible key inset by a small margin. Spacers render as empty footprint. -->
@@ -125,29 +89,10 @@
                     <TextBlock Text="No key selected" IsVisible="{Binding ComboEmpty}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}" />
-                    <ItemsControl ItemsSource="{Binding ComboParts}" IsVisible="{Binding !ComboEmpty}"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" VerticalAlignment="Center" /></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Panel VerticalAlignment="Center" Margin="3,0">
-                                    <TextBlock Text="+" IsVisible="{Binding IsSeparator}"
-                                               VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="36" Padding="12,0"
-                                            Background="{DynamicResource GlassBgBrush}"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1.5"
-                                            CornerRadius="0">
-                                        <TextBlock Text="{Binding Text}" FontWeight="SemiBold"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    </Border>
-                                </Panel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding ComboParts}" IsVisible="{Binding !ComboEmpty}" HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  ItemsPanel="{StaticResource ComboPartsPanel}"
+                                  ItemTemplate="{StaticResource ComboPartTemplate}" />
                 </Grid>
 
                 <!-- Affirmative first/left, Windows convention (#502). -->
