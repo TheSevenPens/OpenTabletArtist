@@ -134,6 +134,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
+
+        // Stopping or restarting a daemon this app didn't start asks first (#613, option 2). Wired here
+        // rather than injected because DialogService is built FROM the session, so it cannot be a
+        // constructor argument to it. Naming the path matters more than naming the act: "an external
+        // daemon" is abstract, the exe it is running is the thing the user recognises.
+        _session.ConfirmForeignDaemonAction = verb =>
+        {
+            var path = string.IsNullOrEmpty(_session.DaemonSourcePath)
+                ? "It is running from a location OpenTabletArtist couldn't read."
+                : _session.DaemonSourcePath;
+            // Restart is the sharper one: it doesn't just stop their daemon, it starts ours instead.
+            var consequence = verb == "restart"
+                ? "Restarting stops it and starts OpenTabletArtist's own bundled daemon in its place."
+                : "Stopping it affects anything else using it. Starting one again from here launches "
+                  + "OpenTabletArtist's own bundled daemon, not this one.";
+            return dialogs.ShowConfirmAsync(
+                verb == "restart" ? "Restart with the bundled daemon?" : "Stop this daemon?",
+                $"OpenTabletArtist didn't start the OpenTabletDriver daemon that's running:\n\n{path}\n\n{consequence}");
+        };
         TabletsOverview = new TabletsOverviewViewModel();
 
         // Conflicting-driver detection (#245), shared by the Driver cleanup page and the Home alert.
