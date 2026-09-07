@@ -58,10 +58,23 @@
                         <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-                    <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconEdit}"
-                                     Command="{Binding EditCommand}"
-                                     IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
-                                     ToolTip.Tip="Change this binding" AutomationProperties.Name="Edit" />
+                    <!-- The card's actions behind one "…", the same menu the wheel rows carry
+                         (#row-actions, #692). This was a bare pencil glyph, which made Edit the only
+                         thing you could see to do to a button and left Clear reachable only by opening
+                         the editor and pressing Clear in there. Clear greys out when nothing is mapped.
+                         Command bindings, not Click handlers: both commands live on the row's own
+                         DataContext, which a flyout inherits. -->
+                    <ctrl:IconButton Grid.Column="1" Icon="{StaticResource IconDotsHorizontal}"
+                                     VerticalAlignment="Center"
+                                     ToolTip.Tip="More actions for this binding"
+                                     AutomationProperties.Name="More actions">
+                        <ctrl:IconButton.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Edit…" Command="{Binding EditCommand}" />
+                                <MenuItem Header="Clear" Command="{Binding ClearCommand}" />
+                            </MenuFlyout>
+                        </ctrl:IconButton.Flyout>
+                    </ctrl:IconButton>
                 </Grid>
             </ctrl:Entity>
         </DataTemplate>
@@ -666,12 +679,17 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ButtonsTab.IsChecked}">
             <StackPanel>
-                <!-- Header: title + master enable toggle and clear-all (when there are buttons). -->
+                <!-- Header: title + master enable toggle and clear-all (when there are buttons).
+                     Clear all stays here, unlike on Wheels (#692). A wheel has three rows at most, so a
+                     bulk clear there was a button for something two clicks of "…" already did; a tablet
+                     can carry a dozen express keys, where clearing them one at a time is real work. It
+                     is a GhostButton, so it is not the loudest thing on the tab — the same reason the
+                     preset delete stopped being a red glyph. -->
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
                     <TextBlock Grid.Column="0" Text="TABLET BUTTONS" Classes="TabTitle" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                 VerticalAlignment="Center" IsVisible="{Binding ShowAuxControls}">
-                        <TextBlock Text="Buttons enabled" VerticalAlignment="Center"
+                        <TextBlock Text="Enable buttons" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <ToggleSwitch IsChecked="{Binding AuxButtonsEnabled}" OnContent="" OffContent=""
                                       MinWidth="0" VerticalAlignment="Center"
