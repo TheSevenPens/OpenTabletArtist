@@ -1684,16 +1684,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Remove every express-key binding. Also drops any suspended stash, so a later
-    /// enable doesn't bring cleared bindings back.</summary>
-    [RelayCommand]
-    private async Task ClearAuxButtons()
-    {
-        if (_applyAction == null) return;
-        AppSettings.Set(AuxBackupKey, "");
-        await ApplySettingsChange(ClearAux);
-    }
-
+    // A "Clear all" command lived here, wiping every express-key binding and dropping the suspend stash
+    // with it. It was one unconfirmed click from losing a dozen mappings with no way back, sitting beside
+    // a toggle that keeps them — so the tab lost it (#aux-clear-all). Per-row Clear does the same job
+    // deliberately. ClearAux itself stays: suspending the buttons still writes empty bindings.
     private static void ClearAux(Profile p)
     {
         var aux = p.BindingSettings.AuxButtons;

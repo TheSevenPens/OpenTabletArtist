@@ -217,7 +217,7 @@ is now a shared `DynamicsView`, still hosted by the tray's focused Pen Dynamics 
 | **about** | About | full spec readout; Resources → View supported tablets |
 | **mapping** | Display Mapping · Active Area | one two-column card: **left** = editable active-area diagram (drag-move, drag-corner resize), **Rotation None/90/180/270**, Size slider, Maximize, mm/inches, usage + diagonal + aspect-ratio stats; **right** = click-to-select display picker (Apply, Display Settings, off-screen/custom flags, connector to the mapped display, per-display hardware list). *(A single merged diagram was tried and reverted — two read more clearly.)* |
 | **calibration** | Calibration | 4/9/25-point cards + Start; active-cal status (Correction On/Off, Clear); **View report** dialog; **Backup & restore** (export/import, #545); full-screen capture overlay (Undo last / Redo all) |
-| **controls** | Tablet Buttons · Wheels | aux-button cards, binding type (None/Keyboard/Mouse button/Mouse scroll), live-press highlight, **Buttons enabled** master, **Clear all**; wheel/dial bindings |
+| **controls** | Tablet Buttons · Wheels | aux-button cards, binding type (None/Keyboard/Mouse button/Mouse scroll), live-press highlight, **Buttons enabled** master; wheel/dial bindings |
 | *(dev)* filters · json | Filters · JSON | shown behind the pivot only when Developer is enabled |
 
 The tablet **switcher** (dropdown) + **Refresh** sit at the *right* of the pivot row (grouped,
