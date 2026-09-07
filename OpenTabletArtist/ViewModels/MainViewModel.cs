@@ -527,11 +527,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowTabletSwitcher));
     }
 
-    /// <summary>Whether the shell's top bar shows the tablet switcher (#switcher-in-shell): on the TABLET
-    /// and PEN pages, which are the two that scope everything they show to one tablet. PenPageViewModel
-    /// derives from TabletPageViewModel, so the one type test covers both. SCRIBBLE keeps its own switcher
-    /// — there it sits among that page's other controls rather than standing alone.</summary>
-    public bool ShowTabletSwitcher => CurrentPage is TabletPageViewModel;
+    /// <summary>Whether the shell's top bar shows the tablet switcher (#switcher-in-shell): on the three
+    /// pages that scope what they show to one tablet — TABLET, PEN and SCRIBBLE. PenPageViewModel derives
+    /// from TabletPageViewModel, so the one type test covers the first two.
+    /// <para>
+    /// Scribble used to carry its OWN switcher instead, in the page's control row, and only when two or
+    /// more tablets were connected — so the app taught two different answers to "is there a switcher, and
+    /// where?" (#697). One rule now: it is in the top bar, on all three, always. The binding stays on
+    /// TabletPage because every one of them writes through AppSession.SetActiveTablet, and Scribble
+    /// follows ActiveTabletName like the others.
+    /// </para></summary>
+    public bool ShowTabletSwitcher => CurrentPage is TabletPageViewModel or TestViewModel;
 
     public void Dispose()
     {
