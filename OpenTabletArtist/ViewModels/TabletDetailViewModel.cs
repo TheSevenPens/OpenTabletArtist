@@ -248,10 +248,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         CalibrationModeChoices.FirstOrDefault(c => c.Points == StoredCalibrationPoints)
         ?? CalibrationModeChoices[0];
 
-    /// <summary>Whether the density picker is expanded. Collapsed by default: the three diagrams are
-    /// worth their space once you have decided to choose, not before.</summary>
-    [ObservableProperty] private bool _showDensityPicker;
-
     /// <summary>The recorded taps that carry a pixel-equivalent, for the error map. Empty for a legacy
     /// capture, which has no measured position to draw against its target.</summary>
     [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints =
@@ -262,9 +258,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The map's caption: typical and worst, never one figure on its own.</summary>
     [ObservableProperty] private string _calibrationErrorSummary = "";
-
-    [RelayCommand]
-    private void ToggleDensityPicker() => ShowDensityPicker = !ShowDensityPicker;
 
     /// <summary>Flip the stored correction on or off. Was a two-way-bound ToggleSwitch; it is a button
     /// now so the state line can say what pressing it does ("Turn off" / "Turn on") rather than leaving

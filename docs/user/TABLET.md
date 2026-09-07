@@ -23,7 +23,7 @@ The tab opens by telling you where you stand — **Not calibrated** or **Calibra
 
 The calibration process is pretty simple. It will show you a series of circles, and you'll hold down your pen on the circle until enough data is collected. Once all the circles are complete, the calibration process is done, and you should find that your pen and the pointer are completely in sync.
 
-The main button says exactly what it will run — **Calibrate · 4 points** the first time, and **Repeat 9-point calibration** (or whichever density you used) afterwards. **Calibrate differently** opens a picker with all three: 4 point, 9 point, and 25 point. For most people the four-point calibration is not only the easiest but also the one that works most often; reach for 9 or 25 only if four leaves the pointer off in places.
+The main button says exactly what it will run — **Calibrate · 4 points** the first time, and **Repeat 9-point calibration** (or whichever density you used) afterwards. The chevron beside it opens a picker with all three densities — 4 point, 9 point and 25 point — each with a diagram of where the targets land and roughly how long it takes. For most people the four-point calibration is not only the easiest but also the one that works most often; reach for 9 or 25 only if four leaves the pointer off in places.
 
 Once you've calibrated, **Turn off** disables the correction without deleting it, so you can draw with it on and off and judge the difference. The **⋯** menu holds **View report**, **Export**, **Import** and **Clear calibration**.
 
