@@ -40,34 +40,23 @@
 
         <StackPanel DockPanel.Dock="Top">
             <!-- No page title — the "scribble" wordmark names the section (Zune). -->
-            <!-- One row: on the LEFT, the chips that spell out which dynamics are actually altering the pen
-                 (#184); on the RIGHT, the active-tablet switcher (only when more than one tablet is
-                 connected, #190 phase 3), matching where the Tablet/Pen pages place their switcher.
+            <!-- The chips that spell out which dynamics are actually altering the pen (#184). This
+                 was a two-column Grid with the active-tablet switcher on the right; that moved to the
+                 shell top bar (#697), so the chips are the whole row now.
                  (Edit the pressure curve + smoothing on the Pen page's "pressure" tab.) -->
-            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- The specific-aspect chips spell out exactly what's altering the pen; a generic
-                         "Dynamics on" pill was redundant with them, so it was removed. -->
-                    <Border Classes="DynChip" IsVisible="{Binding CurveActive}">
-                        <TextBlock Text="Pressure curve" />
-                    </Border>
-                    <Border Classes="DynChip" IsVisible="{Binding PressureSmoothingActive}">
-                        <TextBlock Text="Pressure smoothing" />
-                    </Border>
-                    <Border Classes="DynChip" IsVisible="{Binding PositionSmoothingActive}">
-                        <TextBlock Text="Position smoothing" />
-                    </Border>
-                </WrapPanel>
-
-                <!-- The same switcher dropdown the Tablet/Pen pages use (dropdown only — no refresh here),
-                     at the far right of the row. Shown only when more than one tablet is connected. -->
-                <views:TabletSwitcherBar Grid.Column="1" Margin="16,0,0,0"
-                                         HorizontalAlignment="Right" VerticalAlignment="Center"
-                                         IsVisible="{Binding ShowTabletPicker}"
-                                         ShowRefresh="False"
-                                         Tablets="{Binding Tablets}"
-                                         SelectedTablet="{Binding SelectedTablet, Mode=TwoWay}" />
-            </Grid>
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                <!-- The specific-aspect chips spell out exactly what's altering the pen; a generic
+                     "Dynamics on" pill was redundant with them, so it was removed. -->
+                <Border Classes="DynChip" IsVisible="{Binding CurveActive}">
+                    <TextBlock Text="Pressure curve" />
+                </Border>
+                <Border Classes="DynChip" IsVisible="{Binding PressureSmoothingActive}">
+                    <TextBlock Text="Pressure smoothing" />
+                </Border>
+                <Border Classes="DynChip" IsVisible="{Binding PositionSmoothingActive}">
+                    <TextBlock Text="Position smoothing" />
+                </Border>
+            </WrapPanel>
 
             <!-- Pointer-only mode paints nothing, so active dynamics are invisible — warn (#183). -->
             <TextBlock Text="Pointer-only mode doesn't draw, so you won't see the dynamics above. Pick a pressure Mode to see them."

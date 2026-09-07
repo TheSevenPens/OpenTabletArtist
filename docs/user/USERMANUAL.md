@@ -34,7 +34,7 @@ The app is made of **pages**, a page may be divided into **tabs**, and a tab may
 In both menus the current item is marked in the accent color and a heavier weight — there's no underline. A selected subtab takes an accent bar down its left edge instead.
 
 - **Tablet** and **Pen** carry the selected tablet's settings.
-- A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the **Tablet** and **Pen** pages and picks which tablet you're editing.
+- A tablet **switcher** dropdown sits at the right of the page menu, alongside a **Refresh**. It appears on the three pages scoped to one tablet — **Tablet**, **Pen** and **Scribble** — and picks which tablet you're editing. All three share the choice, so switching on one switches them all.
 - **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (driver cleanup + VMulti, Windows-only), and **Dev** *(debugging tools)*. 
 - **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
