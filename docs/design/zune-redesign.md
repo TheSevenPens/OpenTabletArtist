@@ -231,7 +231,7 @@ switcher + refresh right). **dynamics** moved here from the tablet page (#pen-dy
 | Pivot | From (today) | Controls carried over |
 |-------|--------------|-----------------------|
 | **presets** | Presets (+ Per-App*) | Current settings (Save as preset, Browse); preset cards (Load/Update/Duplicate/Rename/Delete); *Per-App mappings + snapshot pickers + foreign-daemon guard, shown only when the feature flag is on* |
-| **hotkeys** | Hotkeys | Cycle mapped monitor (assign/clear); per-preset hotkey assignment |
+| **hotkeys** | Hotkeys | One list of shortcuts — tablet actions + one row per preset — each with a "…" (Assign/Clear); explanation column |
 | **appearance** | Theme | theme selector (System/Light/Dark/Sakura/Custom); Falling petals + opacity; Colours & translucency (highlight/card/left-pane swatch pickers, card + left-pane opacity, Reset); Custom look (base colour, background image) |
 | **system** | Startup · Shortcut · Driver Cleanup | Start-with-Windows *(Win)*; Start-menu shortcut *(Win)*; conflicting-driver scan/remove *(Win)* |
 | **developer** | Developer | Always shown; keeps its own inner sub-nav (Warnings · Config errors · Tablet page extras · Screenshot · Window size · Calibration I/O) |

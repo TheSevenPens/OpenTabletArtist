@@ -24,13 +24,18 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
     private readonly IDeviceData _device;
 
     [ObservableProperty] private string _monitorHotkeyDisplay = "";
-    [ObservableProperty] private List<ProfileHotkeyRow> _snapshots = [];
+
+    // One list, two groups (#hotkeys-one-list). Both hold the SAME row type, so the tablet action and a
+    // preset render through one DataTemplate and read as two entries in one list of shortcuts rather
+    // than as two differently-shaped halves of a page.
+    [ObservableProperty] private List<HotkeyRowViewModel> _actions = [];
+    [ObservableProperty] private List<HotkeyRowViewModel> _snapshots = [];
 
     public bool HasMonitorHotkey => !string.IsNullOrEmpty(MonitorHotkeyDisplay);
     partial void OnMonitorHotkeyDisplayChanged(string value) => OnPropertyChanged(nameof(HasMonitorHotkey));
 
     public bool HasSnapshots => Snapshots.Count > 0;
-    partial void OnSnapshotsChanged(List<ProfileHotkeyRow> value) => OnPropertyChanged(nameof(HasSnapshots));
+    partial void OnSnapshotsChanged(List<HotkeyRowViewModel> value) => OnPropertyChanged(nameof(HasSnapshots));
 
     /// <summary>Directory holding the snapshot files; supplied by the session on data load.</summary>
     public string PresetDirectory { get; private set; } = "";
@@ -59,11 +64,28 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
         PresetDirectory = _device.PresetDirectory;
         MonitorHotkeyDisplay = _monitor.GetChord()?.Display ?? "";
 
-        var names = SnapshotNames();
-        var rows = new List<ProfileHotkeyRow>();
-        foreach (var name in names)
-            rows.Add(new ProfileHotkeyRow(name, _profiles.GetChord(name)?.Display ?? ""));
+        Actions =
+        [
+            new HotkeyRowViewModel(
+                "Move to next display",
+                "Moves the active tablet's area to the next monitor, wrapping around.",
+                MonitorHotkeyDisplay,
+                () => AssignMonitorHotkeyCommand.ExecuteAsync(null),
+                () => ClearMonitorHotkeyCommand.ExecuteAsync(null)),
+        ];
+
+        var snapshots = SnapshotFiles();
+        var rows = new List<HotkeyRowViewModel>();
+        foreach (var (name, saved) in snapshots)
+            rows.Add(new HotkeyRowViewModel(
+                name,
+                $"Saved {saved:yyyy-MM-dd}",
+                _profiles.GetChord(name)?.Display ?? "",
+                () => AssignProfileHotkeyCommand.ExecuteAsync(name),
+                () => ClearProfileHotkeyCommand.ExecuteAsync(name)));
         Snapshots = rows;
+
+        var names = snapshots.Select(s => s.Name).ToList();
 
         // Reconcile registrations with the current snapshot set (registers persisted chords, drops
         // mappings for snapshots that no longer exist). This is the one owner of that reconcile now.
@@ -71,15 +93,16 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
         await Task.CompletedTask;
     }
 
-    private List<string> SnapshotNames()
+    /// <summary>The presets on disk, newest first, each with the time it was saved (shown as the row's
+    /// detail line so two similarly-named presets can be told apart).</summary>
+    private List<(string Name, DateTime Saved)> SnapshotFiles()
     {
         if (string.IsNullOrEmpty(PresetDirectory) || !Directory.Exists(PresetDirectory))
             return [];
         return Directory.GetFiles(PresetDirectory, "*.json")
             .OrderByDescending(File.GetLastWriteTime)
-            .Select(Path.GetFileNameWithoutExtension)
-            .Where(n => !string.IsNullOrEmpty(n))
-            .Cast<string>()
+            .Select(f => (Name: Path.GetFileNameWithoutExtension(f), Saved: File.GetLastWriteTime(f)))
+            .Where(t => !string.IsNullOrEmpty(t.Name))
             .ToList();
     }
 
@@ -135,9 +158,44 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
     public void Dispose() => _device.DataLoaded -= OnDataLoaded;
 }
 
-/// <summary>One snapshot row on the Hotkeys page: its name and the assigned chord's display (empty when
-/// unassigned).</summary>
-public record ProfileHotkeyRow(string Name, string HotkeyDisplay)
+/// <summary>
+/// One row on the Hotkeys page — a thing you can bind a shortcut to, whether that is a tablet action or
+/// a preset. It carries its OWN commands rather than taking them from the page: a row's "…" contents
+/// live in a flyout, which is a popup outside the row's visual tree, so
+/// <c>$parent[ItemsControl].DataContext</c> does not resolve from in there. A flyout does inherit its
+/// target's DataContext, so plain <c>{Binding AssignCommand}</c> reaches these. (The wheel rows on the
+/// tablet page are bound the same way.)
+/// </summary>
+public partial class HotkeyRowViewModel : ObservableObject
 {
-    public bool HasHotkey => !string.IsNullOrEmpty(HotkeyDisplay);
+    private readonly Func<Task> _assign;
+    private readonly Func<Task> _clear;
+
+    public HotkeyRowViewModel(string title, string detail, string chordDisplay,
+        Func<Task> assign, Func<Task> clear)
+    {
+        Title = title;
+        Detail = detail;
+        ChordDisplay = chordDisplay;
+        _assign = assign;
+        _clear = clear;
+    }
+
+    /// <summary>What the shortcut does — an action's name, or a preset's.</summary>
+    public string Title { get; }
+
+    /// <summary>The quiet line under it: what the action does, or when the preset was saved.</summary>
+    public string Detail { get; }
+
+    /// <summary>The assigned chord, or empty when nothing is bound.</summary>
+    public string ChordDisplay { get; }
+
+    public bool HasHotkey => !string.IsNullOrEmpty(ChordDisplay);
+
+    [RelayCommand]
+    private Task Assign() => _assign();
+
+    /// <summary>Greyed out when there is nothing to clear, as CLEAR is on a wheel row.</summary>
+    [RelayCommand(CanExecute = nameof(HasHotkey))]
+    private Task Clear() => _clear();
 }

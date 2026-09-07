@@ -20,7 +20,13 @@ public interface IMonitorCycleHotkey
 /// </summary>
 public sealed class MonitorCycleHotkeys : IMonitorCycleHotkey, IDisposable
 {
-    private const string MapKey = "Hotkey:CycleMonitor";
+    /// <summary>
+    /// Where this hotkey is persisted. Public because it shares the <c>Hotkey:</c> prefix with the
+    /// per-preset mappings, so <see cref="ProfileHotkeyManager.OrphanedMappingKeys"/> has to know to skip
+    /// it — reconciling that prefix against the presets on disk would otherwise reap this key, which has
+    /// no preset behind it by design.
+    /// </summary>
+    public const string MapKey = "Hotkey:CycleMonitor";
     private readonly GlobalHotkeyService _hotkeys;
     private readonly MonitorCycleService _cycle;
     private int _id;
