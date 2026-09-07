@@ -87,8 +87,11 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
         else if (!shouldRun && _switcher.IsRunning) _ = _switcher.StopAsync();
     }
 
-    private void OnDataLoaded() => _ = LoadSafelyAsync();
-    private async Task LoadSafelyAsync()
+    private void OnDataLoaded() => _ = RefreshAsync();
+
+    /// <summary>The fire-and-forget entry point: <see cref="LoadAsync"/> with its failures swallowed and
+    /// logged. Used by every caller that can't await the result.</summary>
+    public async Task RefreshAsync()
     {
         try { await LoadAsync(); }
         catch (Exception ex)

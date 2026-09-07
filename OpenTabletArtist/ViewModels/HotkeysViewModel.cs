@@ -50,9 +50,12 @@ public partial class HotkeysViewModel : ObservableObject, IDisposable
         _device.DataLoaded += OnDataLoaded;
     }
 
-    private void OnDataLoaded() => _ = LoadSafelyAsync();
+    private void OnDataLoaded() => _ = RefreshAsync();
 
-    private async Task LoadSafelyAsync()
+    /// <summary>The fire-and-forget entry point: <see cref="LoadAsync"/> with its failures swallowed.
+    /// Every caller that can't await the result uses this — a background rescan must not surface, and an
+    /// unawaited <see cref="LoadAsync"/> would leave the exception unobserved instead.</summary>
+    public async Task RefreshAsync()
     {
         try { await LoadAsync(); }
         catch { /* a hotkey/snapshot refresh failure must not surface */ }
