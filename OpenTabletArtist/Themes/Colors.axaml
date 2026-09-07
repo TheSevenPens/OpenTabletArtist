@@ -171,7 +171,7 @@
              the existing translucent "glass" panels so the image shows through. Keyed by the custom
              AnimeVariant, which inherits Light — so anything not overridden here (incl. all Fluent
              control resources) resolves from the Light theme. Cards stay translucent so the sakura
-             backdrop shows through; the sidebar gets its own pink translucent gradient. -->
+             backdrop shows through; the page-menu bar gets its own pink translucent gradient. -->
         <ResourceDictionary x:Key="{x:Static svc:ThemeService.AnimeVariant}">
             <!-- Pink accent (ties to the app's magenta mark) overriding the shared indigo. -->
             <Color x:Key="Accent">#E0218A</Color>

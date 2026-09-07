@@ -6,7 +6,7 @@
     <!-- The pressure-dynamics content — three columns: the curve editor + smoothing, the paint preview,
          and the live readouts with their gauge. Hosted by the PEN page's "pressure" pivot
          (#pen-dynamics-move). DataContext is a TabletDetailViewModel, inherited from the host. (Disable
-         tilt → Pen › inputs; position smoothing → Pen › movement.) -->
+         tilt and position smoothing → Pen › basics.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
         <!-- Three definite-width blocks in a WrapPanel (#691). The widths are definite so the smoothing
              slider's star-sized track has something to divide; wrapping is what keeps 360+16+260+16+170

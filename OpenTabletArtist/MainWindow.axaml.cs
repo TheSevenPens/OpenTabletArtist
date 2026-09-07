@@ -200,7 +200,7 @@ public partial class MainWindow : Window
 
     // ── Developer screenshots (#437) ──────────────────────────────────────────────────────────────
 
-    // Capture the whole window UI (backdrop + sidebar + the current page), not just the content host —
+    // Capture the whole window UI (backdrop + page menu + the current page), not just the content host —
     // rendering the content alone drops the backdrop and leaves cards floating on transparent.
     private Control? RootVisual => Content as Control;
 

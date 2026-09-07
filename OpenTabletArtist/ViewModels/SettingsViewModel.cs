@@ -30,7 +30,7 @@ public partial class SettingsTabItem : ObservableObject
 }
 
 /// <summary>
-/// The SETTINGS tabbed page: a sidebar node whose content area has its own subpage navigation — a
+/// The SETTINGS page: a page in the page menu whose content has its own tab menu — a
 /// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages. Split out of the ADVANCED page so
 /// those OTA-owned settings live under their own node. Mirrors <see cref="AdvancedViewModel"/> (data-driven
 /// rail + shared subpage VMs, deep-linkable via <see cref="SelectedTab"/>), but flat — there are no owner

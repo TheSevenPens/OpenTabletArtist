@@ -12,10 +12,9 @@
             <TextBlock Text="about" Classes="Display" Margin="0,0,0,12" />
 
             <!-- Two columns under the heading: the blurb on the left, the links on the right. The links
-                 column is Auto so it takes exactly the width of its longest label ("Source code on
-                 GitHub") and the prose gets whatever is left — splitting 50/50 would wrap the
-                 links, which reads far worse than a narrower paragraph. Both top-aligned so they start on
-                 the same line. -->
+                 column is Auto so it takes exactly the width of its longest label ("Supported tablets")
+                 and the prose gets whatever is left — splitting 50/50 would wrap the links, which reads
+                 far worse than a narrower paragraph. Both top-aligned so they start on the same line. -->
             <Grid ColumnDefinitions="*,28,Auto">
                 <!-- The version closes the paragraph as an ordinary sentence rather than taking a row or a
                      heading suffix of its own. Split into Runs so the prose stays in the view and only the

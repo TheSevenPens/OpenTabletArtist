@@ -1,7 +1,7 @@
 namespace OpenTabletArtist.Domain;
 
 /// <summary>
-/// Formats the app's <c>AssemblyInformationalVersion</c> for display in the sidebar footer — strips
+/// Formats the app's <c>AssemblyInformationalVersion</c> for display on the About section of Home — strips
 /// any <c>+build</c> metadata and ensures a leading <c>v</c>. Kept pure so it's unit-tested.
 /// </summary>
 public static class AppVersionInfo
