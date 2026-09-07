@@ -94,14 +94,20 @@
                            Foreground="{DynamicResource TextMutedBrush}"
                            IsVisible="{Binding !ShowBackdropTab}" />
 
-                <!-- Three columns, in the order you work: decide the base, pick a glow, tune it. The last
-                     is a definite Width rather than a star column — every row inside it is a grid with a
-                     star column of its own, and those have nothing to divide inside a content-sized
-                     parent (the trap that collapsed this same editor's inspector on Developer). -->
-                <Grid ColumnDefinitions="260,28,300,28,Auto" HorizontalAlignment="Left"
-                      IsVisible="{Binding ShowSakuraBackground}">
+                <!-- Three blocks, in the order you work: decide the base, pick a glow, tune it. Each is a
+                     definite Width rather than a star column — every row inside them is a grid with a star
+                     column of its own, and those have nothing to divide inside a content-sized parent (the
+                     trap that collapsed this same editor's inspector on Developer).
 
-                    <StackPanel Grid.Column="0">
+                     A WrapPanel, so those widths (260+28+300+28+440 = 1056) re-flow instead of running off
+                     the right edge of a window whose minimum is 800 and whose scroller does not scroll
+                     sideways (#691). The inspector drops under the list first, which is the right order —
+                     it is the one you read after picking a glow. Root stays STRETCHED:
+                     HorizontalAlignment="Left" measures with infinite width and would never wrap. -->
+                <WrapPanel ItemSpacing="28" LineSpacing="18"
+                           IsVisible="{Binding ShowSakuraBackground}">
+
+                    <StackPanel Width="260">
                         <TextBlock Classes="Display section" Text="backdrop" />
                         <TextBlock Text="Sakura and Dark Sakura keep their own."
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
@@ -135,7 +141,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2" IsVisible="{Binding SakuraCodeGenBackground}">
+                    <StackPanel Width="300" IsVisible="{Binding SakuraCodeGenBackground}">
                         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
                             <TextBlock Grid.Column="0" Text="Glows" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"
@@ -196,7 +202,7 @@
                     <!-- The inspector. Bound through `Gradients.Selected.` rather than by setting a
                          DataContext, so the "…" menu still sees the view model that owns its commands —
                          a flyout's contents live in a popup outside the visual tree. -->
-                    <StackPanel Grid.Column="4" Width="440"
+                    <StackPanel Width="440"
                                 IsVisible="{Binding Gradients.HasSelection}">
 
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
@@ -275,7 +281,7 @@
                         <c:LabeledSlider Label="Opacity" LabelWidth="82" Minimum="0" Maximum="1"
                                          Value="{Binding Gradients.Selected.CenterOpacity, Mode=TwoWay}" ValueFormat="0.00" />
                     </StackPanel>
-                </Grid>
+                </WrapPanel>
 
                 <!-- Custom's backdrop is a base color plus an optional image rather than glows, so it
                      gets its own block on this same subtab — it is still the answer to "what is behind

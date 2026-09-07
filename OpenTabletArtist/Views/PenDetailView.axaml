@@ -48,11 +48,11 @@
              since a size-to-content Slider collapses it to nothing. -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #MovementTab.IsChecked}">
-            <Grid ColumnDefinitions="Auto,32,Auto,32,*,32,Auto" Margin="0,12,0,0">
+            <WrapPanel ItemSpacing="32" LineSpacing="20" Margin="0,12,0,0">
 
                 <!-- 1 — the switches. Buttons run 3-2-1 top-to-bottom so they read against the diagram
                      beside them: button 1 sits nearest the tip, at the bottom. -->
-                <StackPanel Grid.Column="0" Spacing="16" VerticalAlignment="Top">
+                <StackPanel Spacing="16" VerticalAlignment="Top">
                     <views:PenSwitchCard DataContext="{Binding PenTipRow}" />
                     <views:PenSwitchCard DataContext="{Binding PenEraserRow}" />
                     <views:PenSwitchCard DataContext="{Binding PenButton3Row}"
@@ -63,7 +63,7 @@
                                          IsVisible="{Binding $parent[StackPanel].DataContext.PenButton1Row, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 </StackPanel>
 
-                <LayoutTransformControl Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Left">
+                <LayoutTransformControl VerticalAlignment="Top" HorizontalAlignment="Left">
                     <LayoutTransformControl.LayoutTransform>
                         <RotateTransform Angle="-90" />
                     </LayoutTransformControl.LayoutTransform>
@@ -111,30 +111,9 @@
                 </Viewbox>
                 </LayoutTransformControl>
 
-                <!-- 4 — the pen-input opt-outs. -->
-                <c:Section Grid.Column="6" Width="240" HorizontalAlignment="Left">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="pen input" Classes="Display section" />
-                        <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
-                                            IsChecked="{Binding DisablePenTip}" />
-                        <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
-                             pressure entirely (the Pen Dynamics curve is then inert). Moved here from
-                             the Dynamics tab. -->
-                        <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
-                                            IsChecked="{Binding DisablePressure}" />
-                        <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
-                             the Dynamics tab so all pen-input opt-outs live together. -->
-                        <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
-                                            IsChecked="{Binding DisableTilt}" />
-                        <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
-                        <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
-                                            Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
-                                            IsChecked="{Binding DragBindingsEnabled}" />
-                    </StackPanel>
-                </c:Section>
 
                 <!-- 3 — movement, then pressing, then position smoothing. -->
-                <StackPanel Grid.Column="4">
+                <StackPanel Width="320" VerticalAlignment="Top">
                     <TextBlock Text="movement" Classes="Display section" />
 
                     <!-- IsChecked is OneWay (display only); the mode change is driven by the Command on click.
@@ -219,7 +198,29 @@
                                         Monospace="True" ValueWidth="44"
                                         ToolTip.Tip="EMA smoothing of the pen position — steadies wobbly lines, at a little lag." />
                 </StackPanel>
-            </Grid>
+
+                <!-- 4 — the pen-input opt-outs. -->
+                <c:Section Width="240" VerticalAlignment="Top">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="pen input" Classes="Display section" />
+                        <ctrl:ToggleSetting Label="Disable pen tip" InlineDescription="True"
+                                            IsChecked="{Binding DisablePenTip}" />
+                        <!-- Disable pressure sensitivity (#494): a flat on/off contact that drops
+                             pressure entirely (the Pen Dynamics curve is then inert). Moved here from
+                             the Dynamics tab. -->
+                        <ctrl:ToggleSetting Label="Disable pressure sensitivity" InlineDescription="True"
+                                            IsChecked="{Binding DisablePressure}" />
+                        <!-- Disable tilt (#494): apps receive no tilt from this tablet. Moved here from
+                             the Dynamics tab so all pen-input opt-outs live together. -->
+                        <ctrl:ToggleSetting Label="Disable tilt" InlineDescription="True"
+                                            IsChecked="{Binding DisableTilt}" />
+                        <!-- Drag bindings hidden for now (#492); the binding + apply wiring stays. -->
+                        <ctrl:ToggleSetting Label="Drag bindings" IsVisible="False"
+                                            Description="Pen button bindings only work while the pen is touching the tablet (drag-only), not while hovering."
+                                            IsChecked="{Binding DragBindingsEnabled}" />
+                    </StackPanel>
+                </c:Section>
+            </WrapPanel>
         </ScrollViewer>
 
         <!-- PRESSURE — the pressure curve + pressure smoothing (moved from the tablet page,
