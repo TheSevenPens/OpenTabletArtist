@@ -122,19 +122,31 @@
 
         </StackPanel>
 
-        <!-- RIGHT — everything wanting attention, and nothing else. Both children hide themselves
-             when nothing is wrong, so on a healthy machine this column is empty by design: the
-             blank right half IS the "all good" signal. -->
+        <!-- RIGHT — everything wanting attention, and nothing else.
+
+             The heading stays put whether or not there is anything under it (#696). The whole column
+             used to hide itself when the machine was healthy, on the reasoning that a blank right half
+             IS the "all good" signal — but blank says nothing, and on a wide window it read as a column
+             that had failed to load rather than as good news. Now the heading holds its place and one
+             quiet line says the thing the emptiness was supposed to imply, so the layout is identical in
+             both states and the all-clear is something you can actually read. -->
         <StackPanel Grid.Column="2" VerticalAlignment="Top">
-            <!-- Needs attention (#317): the health-check catalog, worst severity first. Hidden entirely
-                 when everything is healthy, so Home stays quiet when there's nothing to do. Each card's
+            <!-- Home has no tab menu, so its section headings ARE the page's display layer: 44px
+                 Inter Light, lower-case, like the page menu. Same treatment as "about" and "your
+                 tablets" — the columns were swapped (#combine) and all three headings are now that
+                 one layer, so nothing here sits on the eyebrow. -->
+            <TextBlock Text="needs attention" Classes="Display" Margin="0,0,0,18" />
+
+            <!-- The all-clear. Muted and unadorned on purpose: a green tick or a success-tinted card
+                 would make "nothing is wrong" as loud as the warnings it replaces, and this column's
+                 whole job is that something loud here means something is actually wrong. -->
+            <TextBlock Text="Nothing needs attention." TextWrapping="Wrap" Margin="0,0,0,4"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       IsVisible="{Binding !Health.HasIssues}" />
+
+            <!-- Needs attention (#317): the health-check catalog, worst severity first. Each card's
                  Fix button runs the relevant action in place or jumps to where the setting lives. -->
             <StackPanel IsVisible="{Binding Health.HasIssues}" Margin="0,0,0,4">
-                <!-- Home has no tab menu, so its section headings ARE the page's display layer: 44px
-                     Inter Light, lower-case, like the page menu. Same treatment as "about" and "your
-                     tablets" — the columns were swapped (#combine) and all three headings are now that
-                     one layer, so nothing here sits on the eyebrow. -->
-                <TextBlock Text="needs attention" Classes="Display" Margin="0,0,0,18" />
                 <ItemsControl ItemsSource="{Binding Health.Issues}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
