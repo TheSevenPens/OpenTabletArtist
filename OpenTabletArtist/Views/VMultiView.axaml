@@ -29,6 +29,15 @@
                                Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                Margin="0,2,0,0"
                                IsVisible="{Binding !VmultiInstalled}" />
+                    <!-- The other half of the same job lives on another page (#695). VMulti is the virtual
+                         pen the Windows Ink plugin injects through: install one without the other and
+                         pressure still doesn't reach your drawing app. The two moved apart for locally
+                         good reasons — VMulti is a driver, Windows Ink is a plugin — so each card now says
+                         where the other is, rather than leaving you to guess which top-level page holds
+                         the next step. -->
+                    <TextBlock Text="Pairs with the Windows Ink plugin, on Advanced → Plugins."
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,6,0,0" />
                 </StackPanel>
 
                 <!-- Every action behind one "…", as on the Windows Ink and daemon cards. This card carried

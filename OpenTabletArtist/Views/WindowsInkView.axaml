@@ -50,6 +50,11 @@
                                Foreground="{DynamicResource TextMutedBrush}" FontStyle="Italic"
                                TextWrapping="Wrap" Margin="0,4,0,0"
                                IsVisible="{Binding !WinInkInstalled}" />
+                    <!-- The reverse of the pointer on the VMulti card (#695): this plugin injects through
+                         the VMulti virtual pen, so one without the other still gets you no pressure. -->
+                    <TextBlock Text="Needs the VMulti driver, on Settings → Drivers."
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               TextWrapping="Wrap" Margin="0,6,0,0" />
 
                     <!-- Update-check result -->
                     <TextBlock Text="{Binding WinInkUpdateCheckStatus}" FontStyle="Italic"
