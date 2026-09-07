@@ -31,17 +31,47 @@ public static class DesktopTrayEnvironment
         return !StatusNotifierHostPresent();
     }
 
-    private static bool IsGnome()
+    private static bool IsGnome() =>
+        IsGnomeDesktop(
+            Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"),
+            Environment.GetEnvironmentVariable("XDG_SESSION_DESKTOP"),
+            Environment.GetEnvironmentVariable("DESKTOP_SESSION"));
+
+    /// <summary>
+    /// Whether these three desktop-identifying variables describe a GNOME session — the pure half of the
+    /// probe, taking the values rather than reading them, so it is testable without mutating the process
+    /// environment (#610).
+    /// <para>
+    /// XDG_CURRENT_DESKTOP may be colon-separated (e.g. "ubuntu:GNOME"), so this matches as a substring
+    /// rather than an equality, and falls back to the session/desktop variables for logins that leave the
+    /// primary one unset.
+    /// </para>
+    /// </summary>
+    public static bool IsGnomeDesktop(string? currentDesktop, string? sessionDesktop, string? desktopSession)
     {
-        // XDG_CURRENT_DESKTOP may be colon-separated (e.g. "ubuntu:GNOME"), so match as a substring. Fall
-        // back to the session/desktop vars for logins that leave the primary one unset.
-        foreach (var name in new[] { "XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION" })
-        {
-            var value = Environment.GetEnvironmentVariable(name);
+        foreach (var value in new[] { currentDesktop, sessionDesktop, desktopSession })
             if (!string.IsNullOrEmpty(value) && value.Contains("GNOME", StringComparison.OrdinalIgnoreCase))
                 return true;
-        }
         return false;
+    }
+
+    /// <summary>
+    /// How a finished <c>gdbus NameHasOwner</c> call is read: it prints "(true,)" when something owns the
+    /// StatusNotifierWatcher name and "(false,)" when nothing does.
+    /// <para>
+    /// Only an explicit "false" reports the host ABSENT. A non-zero exit, or output in neither form, means
+    /// we did not get an answer — and this type's contract is that an undetermined result never nags, so
+    /// those report present. This used to be <c>exitCode != 0 || output.Contains("true")</c>, which read
+    /// an unrecognised line on a successful exit as "no host" and would have hinted on the strength of
+    /// output it had failed to understand (#610).
+    /// </para>
+    /// </summary>
+    public static bool HostPresentFromProbe(int exitCode, string output)
+    {
+        if (exitCode != 0) return true;                                          // the call itself failed
+        if (output.Contains("true", StringComparison.OrdinalIgnoreCase)) return true;
+        if (output.Contains("false", StringComparison.OrdinalIgnoreCase)) return false;
+        return true;                                                             // unreadable → don't nag
     }
 
     private static bool StatusNotifierHostPresent()
@@ -64,8 +94,7 @@ public static class DesktopTrayEnvironment
             // a hung gdbus mustn't block health evaluation.
             if (!proc.WaitForExit(2000)) { try { proc.Kill(); } catch { /* best effort */ } return true; }
             var output = proc.StandardOutput.ReadToEnd();
-            // Success prints "(true,)" when a host owns the name, "(false,)" otherwise.
-            return proc.ExitCode != 0 || output.Contains("true", StringComparison.OrdinalIgnoreCase);
+            return HostPresentFromProbe(proc.ExitCode, output);
         }
         catch { return true; }
     }
