@@ -38,7 +38,7 @@ In both menus the current item is marked in the accent color and a heavier weigh
 - **Settings** holds OpenTabletArtist's own preferences: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (driver cleanup + VMulti, Windows-only), and **Dev** *(debugging tools)*. 
 - **Advanced** — advanced OTD-related pages (daemon controls, drivers, diagnostics, plugins). You'll rarely need these, though a few Home **Fix** buttons and the daemon controls live here.
 
-Every paired or connected tablet also appears on **Home** under *Your tablets*. **Double-click a row** to open that tablet's settings, and use its **trash** icon to forget a remembered tablet (or reset a connected one to defaults).
+Every paired or connected tablet also appears on **Home** under *Your tablets*. **Double-click a row** to open that tablet's settings, or use the row's **⋯** menu — **Open tablet settings**, and **Forget this tablet** to drop a remembered tablet (or reset a connected one to defaults).
 
 ### Per-page guides
 
