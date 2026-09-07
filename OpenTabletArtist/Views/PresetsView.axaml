@@ -6,12 +6,19 @@
     <!-- DataContext is the PresetsViewModel, supplied by the typed-nav DataTemplate (#15). Hosted as a
          SETTINGS tab (#571), so the page title is the Settings tab title — no PageTitle here.
 
-         Two columns: the presets themselves on the left, what a preset IS on the right. Definite widths
-         rather than star columns — the page is HorizontalAlignment="Left", which sizes a Grid to its
-         content, and star columns inside that have nothing to divide. They add up to the 900 the page
-         was capped at before. -->
-    <Grid ColumnDefinitions="540,32,320" HorizontalAlignment="Left">
-    <StackPanel Grid.Column="0">
+         Two columns: the presets themselves on the left, what a preset IS on the right.
+
+         A WrapPanel of definite-width blocks, NOT a fixed-column Grid (#691). Two constraints pull
+         against each other here. Each column needs a definite width, because star columns inside a
+         content-sized parent have nothing to divide and collapse. But 540+32+320 is 892, and the window
+         advertises an 800px minimum with the content scroller's horizontal bar disabled — so the prose
+         column was clipped off the right edge, unreachable.
+
+         Wrapping satisfies both: the blocks keep their definite widths, and the second drops below the
+         first when the window can't fit them side by side. The root must stay STRETCHED for that —
+         HorizontalAlignment="Left" measures with infinite width, so nothing would ever wrap. -->
+    <WrapPanel ItemSpacing="32" LineSpacing="28">
+    <StackPanel Width="540">
         <!-- One header for the whole column: what this list is, where it lives, and the two things you
              can do to the list itself. It used to be two stacked bands — a lone accent button, then a
              separate "saved presets" label with an unexplained folder glyph pushed to the far right of a
@@ -105,7 +112,7 @@
         <!-- What a preset is. The page assumed you already knew: it showed a list of names and a Load
              button, and nothing said that Load replaces the settings for every tablet at once. Prose
              rather than a tooltip, because the thing worth knowing is what the whole page does. -->
-        <c:Section Grid.Column="2" VerticalAlignment="Top" Title="What a preset is">
+        <c:Section Width="320" VerticalAlignment="Top" Title="What a preset is">
             <StackPanel Spacing="10">
                 <TextBlock TextWrapping="Wrap"
                            Text="A preset is a named copy of OpenTabletDriver's whole configuration — every tablet you have set up, with its area, mapping, pen settings and filters, saved together in one file." />
@@ -115,5 +122,5 @@
                            Text="Presets are also what Settings → Hotkeys switches between: give a preset a key combination there and it loads on that key, even when OpenTabletArtist isn't the focused window." />
             </StackPanel>
         </c:Section>
-    </Grid>
+    </WrapPanel>
 </UserControl>

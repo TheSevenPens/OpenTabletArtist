@@ -8,14 +8,17 @@
          (#pen-dynamics-move). DataContext is a TabletDetailViewModel, inherited from the host. (Disable
          tilt → Pen › inputs; position smoothing → Pen › movement.) -->
     <StackPanel IsEnabled="{Binding CanEditPressure}">
-        <!-- Fixed column widths (not Left-aligned/size-to-content) so the smoothing slider's star-sized
-             track renders. The note here used to cap the block at ~656px to fit a 700px tray dialog;
-             nothing hosts this view but the PEN page now, so a third column is affordable. -->
-        <Grid ColumnDefinitions="360,16,260,16,170" HorizontalAlignment="Left">
+        <!-- Three definite-width blocks in a WrapPanel (#691). The widths are definite so the smoothing
+             slider's star-sized track has something to divide; wrapping is what keeps 360+16+260+16+170
+             = 822 from overflowing the window's 800px minimum, where the readouts column was clipped off
+             the right edge. The blocks re-flow one at a time, so a slightly narrow window drops only the
+             readouts under the other two rather than restacking everything. Root stays STRETCHED —
+             HorizontalAlignment="Left" measures with infinite width and would never wrap. -->
+        <WrapPanel ItemSpacing="16" LineSpacing="8">
 
             <!-- LEFT — everything but the live bar: the inert-pressure note, the pressure curve + presets,
                  and pressure smoothing. No card heading — the "pressure" pivot already names the tab. -->
-            <ctrl:Section Grid.Column="0" VerticalAlignment="Top" Margin="0,2,0,10">
+            <ctrl:Section Width="360" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel>
                     <!-- #469: when pressure sensitivity is disabled the output stage drops pressure, so this
                          curve has no effect. Flag it here so the tab isn't silently inert. (The toggle lives
@@ -95,7 +98,7 @@
                  the pressure→size response. Painted from the daemon's pen stream (see DynamicsView.axaml.cs)
                  with the pressure shaped by the curve + smoothing, so it previews the response you're
                  editing and works even when Windows Ink is off. -->
-            <ctrl:Section Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,10">
+            <ctrl:Section Width="260" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel Spacing="8">
                     <ctrl:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" Height="300">
                         <ctrl:PenTestCanvas x:Name="PreviewCanvas" BrushMode="PressureToSize" />
@@ -113,7 +116,7 @@
             <!-- RIGHT — live pressure (#559): the raw value coming in, the processed value after the curve
                  when dynamics shape it, and the gauge showing both. Its own column now, so the numbers are
                  not squeezed above the canvas they have nothing to do with. -->
-            <ctrl:Section Grid.Column="4" VerticalAlignment="Top" Margin="0,2,0,10">
+            <ctrl:Section Width="170" VerticalAlignment="Top" Margin="0,2,0,10">
                 <StackPanel Spacing="8">
                     <!-- The readouts show all the time so they don't pop in/out as you press: "—" when no
                          pressure is being reported (pen up / out of range), a value — including 0.0000 — when
@@ -141,6 +144,6 @@
                                            ProcessedBrush="{DynamicResource SuccessBrush}" />
                 </StackPanel>
             </ctrl:Section>
-        </Grid>
+        </WrapPanel>
     </StackPanel>
 </UserControl>

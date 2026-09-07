@@ -11,12 +11,17 @@
          with every preset you save, so the balance was wrong from the first preset — and the same action
          wore two treatments (a card vs. bare rows) and two emphases (accent vs. ghost Assign).
 
-         The display toggle is now simply the first row, under a quiet eyebrow. Definite column widths
-         rather than star columns: the page is HorizontalAlignment="Left", which sizes a Grid to its
-         content, and star columns inside that have nothing to divide. Matches Presets, next door. -->
-    <Grid ColumnDefinitions="540,32,320" HorizontalAlignment="Left">
+         The display toggle is now simply the first row, under a quiet eyebrow.
 
-        <StackPanel Grid.Column="0">
+         A WrapPanel of definite-width blocks, as on Presets next door (#691). The blocks need definite
+         widths — star columns inside a content-sized parent collapse — but 540+32+320 overflows the
+         window's advertised 800px minimum, and the content scroller won't scroll sideways, so the prose
+         column was clipped off the edge. Wrapping keeps the widths and drops the second block below the
+         first when there's no room. The root stays STRETCHED: HorizontalAlignment="Left" measures with
+         infinite width, and nothing would ever wrap. -->
+    <WrapPanel ItemSpacing="32" LineSpacing="28">
+
+        <StackPanel Width="540">
             <TextBlock Classes="Display section" Text="shortcuts" Margin="2,0,0,12" />
 
             <!-- ── Tablet actions ─────────────────────────────────────────────────── -->
@@ -126,7 +131,7 @@
         <!-- What these shortcuts are. The page never said the one thing that makes them worth setting —
              that they fire while another application is focused — nor what loading a preset does to the
              settings you have saved. Prose in a second column, as on Presets. -->
-        <StackPanel Grid.Column="2" VerticalAlignment="Top">
+        <StackPanel Width="320" VerticalAlignment="Top">
             <!-- Same treatment as "shortcuts" opposite: the two columns are peers, so their headings sit
                  on one baseline at one size rather than the right one shrinking to an eyebrow. -->
             <TextBlock Classes="Display section" Text="about shortcuts" Margin="0,0,0,12" />
@@ -139,5 +144,5 @@
                            Text="Presets come from Settings → Presets. Delete a preset there and its shortcut goes with it." />
             </StackPanel>
         </StackPanel>
-    </Grid>
+    </WrapPanel>
 </UserControl>
