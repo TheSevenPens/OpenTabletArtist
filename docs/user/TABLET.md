@@ -19,9 +19,19 @@ The mapping section controls how the active area of the tablet is mapped to a di
 
 For many Pen displays, there was often a slight inaccuracy in mapping the position of the pen to the display. In these cases, performing an initial calibration might help.
 
+The tab opens by telling you where you stand — **Not calibrated** or **Calibrated · 9 points**. Not being calibrated isn't a problem; most tablets never need it. Calibrate if the pointer sits away from the pen nib.
+
 The calibration process is pretty simple. It will show you a series of circles, and you'll hold down your pen on the circle until enough data is collected. Once all the circles are complete, the calibration process is done, and you should find that your pen and the pointer are completely in sync.
 
-There are three different calibration options offered: 4 point, 9 point, and 25 point. For most people, the four-point calibration is not only the easiest but also the one that will work most often. Most people will only need to do the four-point calibration, but some have tablets that are more tricky. For those, you can try the 9 point or the 25 point calibration.
+The main button says exactly what it will run — **Calibrate · 4 points** the first time, and **Repeat 9-point calibration** (or whichever density you used) afterwards. The chevron beside it opens a picker with all three densities — 4 point, 9 point and 25 point — each with a diagram of where the targets land and roughly how long it takes. For most people the four-point calibration is not only the easiest but also the one that works most often; reach for 9 or 25 only if four leaves the pointer off in places.
+
+Once you've calibrated, **Turn off** disables the correction without deleting it, so you can draw with it on and off and judge the difference. The **⋯** menu holds **View report**, **Export**, **Import** and **Clear calibration**.
+
+### What it corrected, per point
+
+Below the buttons, a diagram shows every target you tapped: a ring where you aimed, a dot where the uncorrected pen actually landed, and a line between them. The offsets are drawn magnified (the label says by how much) — real ones are a few pixels and would otherwise be invisible.
+
+This is deliberately a picture rather than a single score. Pen parallax usually drifts more toward one corner than the middle, so an average hides the thing worth knowing: *where* it was worst. The typical and worst figures sit beside the diagram, and it's also the clearest answer to "why would I ever use 25 points?" — you can see variation that four samples would smooth away.
 
 ## buttons
 

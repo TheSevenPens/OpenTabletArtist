@@ -79,6 +79,17 @@ public partial class TabletDetailView : UserControl, ITabbedContent
             _ = CalibrationReportDialog.ShowAsync(owner, vm);
     }
 
+    /// <summary>Start the density picked in the calibrate button's flyout, and close it behind you.
+    /// A Click handler rather than a Command binding: the flyout's contents live in a popup outside this
+    /// view's visual tree, so <c>$parent[ItemsControl]</c> cannot reach the page's command from in
+    /// there — the same reason the preset rows use handlers.</summary>
+    private void OnStartCalibrationChoice(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: CalibrationModeChoice choice }) return;
+        CalibrateChevron.Flyout?.Hide(); // the flyout this button lives in belongs to the chevron
+        Vm?.StartCalibrationCommand.Execute(choice);
+    }
+
     private static readonly FilePickerFileType CalibrationFileType =
         new("Calibration") { Patterns = new[] { "*.json" } };
 
