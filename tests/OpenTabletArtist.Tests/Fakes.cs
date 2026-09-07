@@ -99,9 +99,15 @@ internal sealed class FakeDeviceData : IDeviceData
     public event Action? DataLoaded;
     public void RaiseDataLoaded() => DataLoaded?.Invoke();
 
-#pragma warning disable CS0067 // required by INotifyPropertyChanged; not exercised by these tests
     public event PropertyChangedEventHandler? PropertyChanged;
-#pragma warning restore CS0067
+
+    /// <summary>Switch the active tablet the way the shell's switcher does — set it, then notify. Pages
+    /// that follow the app-wide selection subscribe to this rather than being told directly.</summary>
+    public void RaiseActiveTabletChanged(string? name)
+    {
+        ActiveTabletName = name;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveTabletName)));
+    }
 }
 
 /// <summary>Points the Custom Tablet Configs page at a test-controlled directory.</summary>
