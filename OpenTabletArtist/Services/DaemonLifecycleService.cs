@@ -26,7 +26,18 @@ public interface IDaemonLifecycleService
     /// <summary>Launches the daemon with no window, if an exe can be found. No-op otherwise.</summary>
     void Launch();
 
-    /// <summary>Kills all running OTD daemon processes (best effort).</summary>
+    /// <summary>
+    /// Kills ONE daemon process by id (best effort) — the one we are connected to. Prefer this over
+    /// <see cref="StopAll"/> wherever the pid is known: Stop should stop the daemon this app is talking
+    /// to, not every process that happens to share its name (#601).
+    /// </summary>
+    /// <returns>True if the process is gone (killed, or already not running); false if it could not be
+    /// stopped, or if the pid turned out not to be a daemon at all.</returns>
+    bool Stop(int processId);
+
+    /// <summary>Kills all running OTD daemon processes (best effort). The fallback for when the connected
+    /// daemon's pid isn't known — off-Windows, where the pipe→pid lookup is unavailable and the daemon is
+    /// effectively a singleton anyway.</summary>
     void StopAll();
 
     /// <summary>Full executable path for a process id, or null if it can't be read (e.g. elevated).</summary>
@@ -75,6 +86,36 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             UseShellExecute = false,
             WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
         });
+    }
+
+    public bool Stop(int processId)
+    {
+        try
+        {
+            using var proc = Process.GetProcessById(processId);
+            // Process ids get recycled. Between the pipe→pid lookup and this call the daemon may have
+            // exited and something else inherited its number, so confirm what we are about to kill really
+            // is a daemon. Without this, a stale pid turns "Stop the daemon" into "kill an arbitrary
+            // process", which is worse than the kill-by-name behaviour this replaces.
+            if (!string.Equals(proc.ProcessName, ProcessName, StringComparison.OrdinalIgnoreCase))
+            {
+                AppLog.Warn($"Not stopping pid {processId}: it is \"{proc.ProcessName}\", not {ProcessName}.");
+                return false;
+            }
+            proc.Kill();
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            // No process with that id — it has already exited, which is the outcome Stop wanted.
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // A failed Kill means the Stop didn't fully take — worth a Warn, not a silent no-op (#21).
+            AppLog.Warn($"Couldn't stop daemon process (pid {processId}).", ex);
+            return false;
+        }
     }
 
     public void StopAll()

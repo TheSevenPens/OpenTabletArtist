@@ -972,10 +972,31 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // stopped via `systemctl --user stop` (killing it by name bypasses systemd — it looks like a crash in
     // journald, and a Restart= unit revives it); otherwise the process is killed by name. Off Linux,
     // IsActive() is always false, so this is exactly the previous kill-by-name behaviour.
+    /// <summary>
+    /// Stop the daemon, by the cleanest route available for how it is running (#601).
+    /// <para>
+    /// systemd-managed: <c>systemctl --user stop</c>, so the unit is actually stopped rather than having
+    /// its process killed out from under it — a Kill there reads as a crash in journald, and a unit with
+    /// <c>Restart=</c> would simply bring it back.
+    /// </para>
+    /// <para>
+    /// Otherwise: kill the ONE process we are connected to, found by the pipe→pid lookup. This used to
+    /// kill every process named OpenTabletDriver.Daemon, which stops a second OTD instance the user
+    /// started themselves — a foreign daemon this app never owned. StopAll remains the fallback for when
+    /// the pid isn't known: off-Windows the lookup is unavailable, and the daemon is effectively a
+    /// singleton there, so by-name is both the only option and a safe one.
+    /// </para>
+    /// </summary>
     private async Task StopDaemonProcessAsync()
     {
         if (OtdSystemdService.IsActive())
+        {
             await OtdSystemdService.StopAsync();
+            return;
+        }
+
+        if (_daemon.GetServerProcessId() is { } pid)
+            _daemonLifecycle.Stop(pid);
         else
             _daemonLifecycle.StopAll();
     }
