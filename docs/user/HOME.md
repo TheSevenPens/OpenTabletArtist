@@ -4,7 +4,7 @@
 
 Home is laid out in two columns. **Needs attention** is the right-hand column; **About** and **Your tablets** run down the left.
 
-The homepage will tell you if you need to do anything. **Needs attention** will provide a list of things you should be aware of, and most of the time, it will give you an option to either fix or review something that is unusual. This might be an unusual configuration of settings or something not being installed correctly. As long as that column is clear and you don't see anything there, there's nothing wrong that you need to be worried about. But if you do see something here, pay attention.
+The homepage will tell you if you need to do anything. **Needs attention** will provide a list of things you should be aware of, and most of the time, it will give you an option to either fix or review something that is unusual. This might be an unusual configuration of settings or something not being installed correctly. When there's nothing wrong, the column says **Nothing needs attention** — so an all-clear looks like an all-clear rather than like a column that failed to load. But if you do see something here, pay attention.
 
 Under **Your tablets** you'll see a list of tablets that have been connected to OpenTabletDriver, and it will tell you if those tablets are currently connected.
 
