@@ -25,7 +25,9 @@ There are three different calibration options offered: 4 point, 9 point, and 25 
 
 ## buttons
 
-You can assign actions to any buttons on the tablet. If you want to quickly disable all the actions, the "Buttons Enable" toggle at the top will disable them all immediately, but will not delete any actions. To get the behavior of the buttons back, you simply switch the toggle again.
+You can assign actions to any buttons on the tablet. Each button's **⋯** menu holds **Edit…**, which opens the binding picker, and **Clear**, which unmaps that one button (greyed out when nothing is mapped to it) — the same pattern the wheels use.
+
+**Enable buttons** at the top of the tab turns every express key off immediately without deleting any actions; switch it back and your mappings return. **Clear all** does delete them — every express-key mapping on this tablet at once.
 
 ## wheels
 
