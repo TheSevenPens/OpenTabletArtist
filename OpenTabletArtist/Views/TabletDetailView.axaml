@@ -917,8 +917,8 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #FiltersTab.IsChecked}">
             <StackPanel>
-                <TextBlock Text="FILTERS" Classes="TabTitle" Margin="0,0,0,8" />
-
+                <!-- No heading: "FILTERS" restated the tab's own name, the last of three that did
+                     (#aux-clear-all). It was also the last user of the TabTitle style, which goes too. -->
                 <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding HasFilters}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
