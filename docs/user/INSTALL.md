@@ -58,8 +58,9 @@ After the restart, reopen OpenTabletArtist. **Settings → Drivers** should show
 
 ## Step 4 — Let OTA detect your tablet
 
-Plug in your tablet. OTA detects it automatically and it appears under **Tablets** in the sidebar
-(with a status dot). Sometimes the detection happens very fast, but it can also take as long as about 7 seconds.
+Plug in your tablet. OTA detects it automatically and it appears on **Home** under *Your tablets*
+(with a status dot), and in the switcher at the top of the **tablet** page. Sometimes the detection
+happens very fast, but it can also take as long as about 7 seconds.
 
 Once  detected, moving the pen should now move the mouse pointer. Don't worry if it moves the pointer on the wrong monitor.
 We'll fix that in a moment.
@@ -71,8 +72,8 @@ The first time OTA sees a tablet on a multi-monitor setup, it **auto-maps it to 
 so the pointer doesn't span every monitor. If that's the display you want, you're done — otherwise pick
 a different one:
 
-1. Click your tablet under **Tablets**, then open the **Screen Mapping** tab. The diagram shows your
-   monitors along the top and the tablet's active area below.
+1. Open the **tablet** page and its **mapping** tab (double-clicking the tablet's row on Home goes
+   straight there). The diagram shows your monitors along the top and the tablet's active area below.
 2. **Click the monitor** you want to draw on — the tablet maps to it immediately.
 
 
@@ -92,17 +93,21 @@ settings. Instructions vary per app; Krita is a good, free app to start with.
 
 ## Optional OTA customization
 
-All of these live under the tablet's tabs or the sidebar — configure them any time:
+All of these live on the **tablet** and **pen** pages' tabs, or under **settings** — configure them any time:
 
-- **Pen Inputs / Pen Buttons** — the pen tip and eraser (Pen Inputs) and the pen's barrel buttons
-  (Pen Buttons). They ship on *Adaptive Binding* (the only supported choice); a **Use Adaptive** button restores it if a switch has drifted onto something else.
-- **Tablet Buttons** — map the tablet's hardware buttons (express keys) to keys, mouse buttons, or scroll.
-- **Pressure** *(Pen page)* — a pressure-curve editor (drag the curve's nodes to shape it) plus pressure
-  smoothing, applied to every app. Position smoothing lives on the Pen page's **basics** tab.
-- **Hotkeys** — global shortcuts to switch profiles or cycle the tablet's mapped monitor.
-- **Profiles / Per-App Profiles** — save named configurations and switch them by hotkey or
-  automatically per foreground application.
-- **Theme** — appearance (System / Light / Dark / Sakura / Custom).
+- **Pen switches** *(pen → basics)* — the pen tip, the eraser, and the pen's barrel buttons, all on one
+  tab. They ship on *Adaptive Binding* (the only supported choice); a **Use Adaptive** button restores it
+  if a switch has drifted onto something else.
+- **Tablet buttons** *(tablet → buttons)* — map the tablet's hardware buttons (express keys) to keys,
+  mouse buttons, or scroll. Dials and wheels have their own **wheels** tab.
+- **Pressure** *(pen → pressure)* — a pressure-curve editor (drag the curve's nodes to shape it) plus
+  pressure smoothing, applied to every app. Position smoothing lives on pen → **basics**.
+- **Hotkeys** *(settings → hotkeys)* — global shortcuts to load a preset or move the tablet to the next
+  display. They work even when OpenTabletArtist isn't the focused window.
+- **Presets** *(settings → presets)* — save your whole configuration, for every tablet, under a name and
+  load it back later.
+- **Theme** *(settings → theme)* — how the app looks: the skin (System / Light / Dark / Sakura / Dark
+  Sakura / Custom), the backdrop behind the panels, and the accent and card colors.
 
 ## Keeping OpenTabletArtist running
 
