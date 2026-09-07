@@ -42,7 +42,8 @@ public partial class CalibrationOverlayWindow : Window
     private double _pulsePhase;
     private Arc? _holdArc;              // fills clockwise as the pen rests on the active target (#457)
     // Same delegate instance for add + remove (a method group would create two, so remove wouldn't match).
-    private static readonly Win32Properties.CustomWndProcHookCallback WndProcHookDelegate = WndProcHook;
+    // Per-instance, not static: the hook has to know whether a hold is in progress, which lives on _vm.
+    private readonly Win32Properties.CustomWndProcHookCallback _wndProcHook;
 
     // Overlay light/dark palette. This is calibration-only and independent of the app theme — the
     // shapes are code-drawn, so all colors (window, panel, text, buttons, targets) are chosen here.
@@ -78,11 +79,13 @@ public partial class CalibrationOverlayWindow : Window
     // Parameterless ctor for the Avalonia designer/loader.
     public CalibrationOverlayWindow()
     {
+        _wndProcHook = WndProcHook;
         InitializeComponent();
     }
 
     public CalibrationOverlayWindow(CalibrationViewModel vm, DisplayInfo display)
     {
+        _wndProcHook = WndProcHook;
         InitializeComponent();
         _vm = vm;
         _display = display;
@@ -143,7 +146,7 @@ public partial class CalibrationOverlayWindow : Window
         // Opt the overlay out of Windows' press-and-hold gesture — see the doc block below.
         // Win32Properties + the WndProc hook are user32-backed, so guard off-Windows (#140).
         if (OperatingSystem.IsWindows())
-            Win32Properties.AddWndProcHookCallback(this, WndProcHookDelegate);
+            Win32Properties.AddWndProcHookCallback(this, _wndProcHook);
 
         // …and turn off the shell's pen/touch visual feedback on this window (the same app-wide helper the
         // main window uses). On its own this doesn't fully stop the cursor re-showing at the dwell — the
@@ -158,9 +161,13 @@ public partial class CalibrationOverlayWindow : Window
             UpdatePulse();
             // Keep the cursor hidden through the hold. At the ~1 s press-and-hold dwell Windows re-shows
             // the mouse cursor (mouse-emulation fallback), and because the pen is held *still* there's no
-            // mouse-move afterwards to re-apply our None cursor — so it sticks. Re-hiding each frame only
-            // while actually holding leaves the panel buttons usable when idle.
-            if (_vm is { HoldProgress: > 0.001 } && OperatingSystem.IsWindows()) SetCursor(IntPtr.Zero);
+            // mouse-move afterwards to re-apply our None cursor — so it sticks.
+            //
+            // The WM_SETCURSOR hook is what actually prevents the arrow being drawn (#479). This stays as
+            // a backstop for anything that re-asserts the cursor WITHOUT asking us first, which is the
+            // situation that made a timer the original fix. Belt and braces on a behaviour whose exact
+            // trigger is a Windows internal.
+            if (IsHolding && OperatingSystem.IsWindows()) SetCursor(IntPtr.Zero);
         };
         _pulseTimer.Start();
 
@@ -171,7 +178,7 @@ public partial class CalibrationOverlayWindow : Window
     {
         base.OnClosed(e);
         if (OperatingSystem.IsWindows())
-            Win32Properties.RemoveWndProcHookCallback(this, WndProcHookDelegate);
+            Win32Properties.RemoveWndProcHookCallback(this, _wndProcHook);
         _pulseTimer?.Stop();
         if (_vm != null)
         {
@@ -197,15 +204,44 @@ public partial class CalibrationOverlayWindow : Window
     private const uint WmTabletQuerySystemGestureStatus = 0x02CC;
     private const int TabletDisablePressAndHold = 0x00000001;
 
-    private static IntPtr WndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    // WM_SETCURSOR is Windows asking "what cursor should I draw here?". Answering it is what closes the
+    // last of the flicker (#479): the pulse timer re-hid the cursor 30 times a second, which left a
+    // sub-frame window where Windows had shown the arrow and we had not yet taken it away, so at the
+    // ~1s press-and-hold dwell it could blink in for a frame or two. Answering the question itself means
+    // there is no frame in which the arrow is the answer.
+    private const uint WmSetCursor = 0x0020;
+    private const int MessageHandled = 1; // TRUE from WM_SETCURSOR: we set it, stop further processing.
+
+    /// <summary>
+    /// What the overlay's WndProc should do with a message. Pure, so the two rules can be tested without
+    /// a window, a pen, or Windows: <paramref name="holding"/> is the only state either depends on.
+    /// </summary>
+    /// <returns>The value to return from the WndProc, or null to let Windows handle the message.</returns>
+    public static IntPtr? WndProcResponse(uint msg, bool holding)
     {
-        if (msg == WmTabletQuerySystemGestureStatus)
-        {
-            handled = true;
-            return new IntPtr(TabletDisablePressAndHold);
-        }
-        return IntPtr.Zero;
+        // Always opt out of the press-and-hold gesture, hold or no hold — the message is Windows asking
+        // once what this window wants, not a per-contact question.
+        if (msg == WmTabletQuerySystemGestureStatus) return new IntPtr(TabletDisablePressAndHold);
+
+        // Only claim the cursor DURING a hold. Outside one the panel's buttons need a normal arrow, and
+        // a window that answers every WM_SETCURSOR with "nothing" has no visible pointer anywhere on it.
+        if (msg == WmSetCursor && holding) return new IntPtr(MessageHandled);
+
+        return null;
     }
+
+    private IntPtr WndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (WndProcResponse(msg, IsHolding) is not { } response) return IntPtr.Zero;
+
+        // Claiming WM_SETCURSOR means we own what gets drawn, so draw nothing.
+        if (msg == WmSetCursor && OperatingSystem.IsWindows()) SetCursor(IntPtr.Zero);
+        handled = true;
+        return response;
+    }
+
+    /// <summary>True while the pen is resting on a target and the hold is accumulating (#457).</summary>
+    private bool IsHolding => _vm is { HoldProgress: > 0.001 };
 
     // Passing NULL hides the cursor (until the next WM_SETCURSOR, i.e. the next mouse-move). Used to
     // re-hide it during a still hold, where Windows shows it and no mouse-move follows to reset it.
