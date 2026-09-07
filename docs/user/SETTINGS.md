@@ -38,7 +38,7 @@ Everything about how the app looks is here, split into three **subtabs** down th
 *(Sakura, Dark Sakura, and Custom; the section is hidden on the other themes.)*
 
 - **Falling petals** — toggles the drifting cherry-blossom animation.
-- **Petal opacity** — how prominent the petals are (defaults to a soft 25%).
+- **Petal opacity** — how prominent the petals are (defaults to a soft 22%).
 
 ### Backdrop
 
