@@ -179,39 +179,34 @@ public class TestViewModelTests
         Assert.True(vm.PointerOnlyWithDynamics);
     }
 
-    // --- #190 phase 3: active-tablet picker + targeting ---
+    // --- Following the app-wide active tablet ---
 
+    /// <summary>
+    /// Scribble re-targets when the active tablet changes somewhere else. This used to be one of two
+    /// paths — the page also had its own switcher — and it is now the only one: the switcher moved to the
+    /// shell (#697), so this subscription is what makes picking a tablet up there change what Scribble
+    /// shows. The picker's own tests went with it.
+    /// </summary>
     [Fact]
-    public void Picker_HiddenWithOneTablet_ShownWithMore()
-    {
-        var one = new FakeDeviceData { DetectedTablets = new List<DetectedTablet> { new("A", "", "", "") } };
-        using (var vm = NewVm(one)) { one.RaiseDataLoaded(); Assert.False(vm.ShowTabletPicker); }
-
-        var two = new FakeDeviceData
-        {
-            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
-            ActiveTabletName = "A",
-        };
-        using var vm2 = NewVm(two);
-        two.RaiseDataLoaded();
-        Assert.True(vm2.ShowTabletPicker);
-        Assert.Equal(new[] { "A", "B" }, vm2.Tablets.Select(t => t.Name));
-        Assert.Equal("A", vm2.SelectedTablet?.Name);
-    }
-
-    [Fact]
-    public void SettingSelectedTablet_UpdatesActiveTablet()
+    public void ActiveTabletChangedElsewhere_RetargetsThePage()
     {
         var data = new FakeDeviceData
         {
-            DetectedTablets = new List<DetectedTablet> { new("A", "", "", ""), new("B", "", "", "") },
-            ActiveTabletName = "A",
+            Profiles = new List<ProfileItem>
+            {
+                new(new Profile { Tablet = "Wacom PTH-660" }, IsDetected: true, LastSeen: null),
+                new(new Profile { Tablet = "XP-Pen Deco L" }, IsDetected: true, LastSeen: null),
+            },
+            ActiveTabletName = "Wacom PTH-660",
         };
         using var vm = NewVm(data);
         data.RaiseDataLoaded();
+        Assert.Equal("Wacom PTH-660", vm.TabletStatusText);
 
-        vm.SelectedTablet = vm.Tablets.First(t => t.Name == "B");
+        // The shell's switcher moves the app-wide selection; the page follows without being told directly.
+        data.RaiseActiveTabletChanged("XP-Pen Deco L");
 
-        Assert.Equal("B", data.ActiveTabletName);
+        Assert.Equal("XP-Pen Deco L", vm.TabletStatusText);
+        Assert.True(vm.TabletDetected);
     }
 }
