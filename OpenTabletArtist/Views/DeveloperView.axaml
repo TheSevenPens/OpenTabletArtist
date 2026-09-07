@@ -15,7 +15,7 @@
              implicit group, with the pane below bound to its IsChecked. -->
         <Border Grid.Row="1" Grid.Column="0" Margin="0,0,16,0" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource DividerBrush}">
-            <StackPanel Width="{StaticResource SubtabRailWidth}" Spacing="2">
+            <StackPanel x:Name="SubtabRail" Width="{StaticResource SubtabRailWidth}" Spacing="2">
                 <RadioButton Content="WARNINGS" IsChecked="True" x:Name="WarningsSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
                 <RadioButton Content="CONFIG ERRORS" x:Name="ConfigErrorsSubtab"
@@ -213,7 +213,7 @@
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Screenshot all pages" FontWeight="SemiBold" />
-                        <TextBlock Text="Visit every page in turn — Home, each nav item, and every Advanced sub-tab — saving an image of each into a new timestamped folder, then return to this page."
+                        <TextBlock Text="Visit every page in turn — and every tab and subtab within them, and each connected tablet — saving an image of each into a new timestamped folder, then return to where you started."
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
                             <TextBlock Text="Format" VerticalAlignment="Center"

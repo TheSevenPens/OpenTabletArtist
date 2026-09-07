@@ -19,7 +19,7 @@ namespace OpenTabletArtist.Views;
 /// Wheels) is visible (#102), refresh the display list when monitors change (#95), and deep-link to
 /// the tab that carries a health-issue fix. Scoped to the view's attach/detach.
 /// </summary>
-public partial class TabletDetailView : UserControl
+public partial class TabletDetailView : UserControl, ITabbedContent
 {
     private Screens? _screens;
 

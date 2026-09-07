@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input.Platform;
@@ -8,8 +9,11 @@ using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Views;
 
-public partial class ThemeView : UserControl
+public partial class ThemeView : UserControl, ITabbedContent
 {
+    /// <inheritdoc />
+    public IReadOnlyList<RadioButton> VisibleTabButtons() =>
+        SubtabRail.Children.OfType<RadioButton>().Where(r => r.IsVisible).ToList();
     public ThemeView() => InitializeComponent();
 
     /// <summary>Opens the native file picker for a background image and hands the path to the view model

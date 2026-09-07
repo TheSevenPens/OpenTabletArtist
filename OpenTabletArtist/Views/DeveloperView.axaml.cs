@@ -1,6 +1,8 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -8,8 +10,11 @@ using OpenTabletArtist.Services;
 
 namespace OpenTabletArtist.Views;
 
-public partial class DeveloperView : UserControl
+public partial class DeveloperView : UserControl, ITabbedContent
 {
+    /// <inheritdoc />
+    public IReadOnlyList<RadioButton> VisibleTabButtons() =>
+        SubtabRail.Children.OfType<RadioButton>().Where(r => r.IsVisible).ToList();
     private Window? _window;
 
     public DeveloperView() => InitializeComponent();

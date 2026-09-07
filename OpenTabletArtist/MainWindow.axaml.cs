@@ -257,6 +257,8 @@ public partial class MainWindow : Window
         var dir = PageScreenshot.CreateSweepDirectory();
         var originalPage = vm.CurrentPage;
         var originalTab = vm.Advanced.SelectedTab;
+        // Settings' tab was not restored, so a sweep started from Theme ended on Dev (#690).
+        var originalSettingsTab = vm.Settings.SelectedTab;
         int saved = 0;
         try
         {
@@ -265,13 +267,15 @@ public partial class MainWindow : Window
                 navigate();
                 await Task.Delay(240); // let the page bind + lay out + a frame compose before rendering
 
-                // The TABLET page (#542): its hosted detail view has visible sub-tabs — capture each, then
-                // restore the selected one. Found via the visual tree since the page VM is the host, not the
-                // detail VM itself.
-                if (vm.CurrentPage is TabletPageViewModel
-                    && this.GetVisualDescendants().OfType<TabletDetailView>().FirstOrDefault() is { } tabletView)
+                // Whatever is on screen may divide again — the tablet and pen pages' tab menus, and the
+                // Theme and Dev subtab rails. Capture each, then put the selected one back. Found through
+                // ITabbedContent in the visual tree rather than by testing the page VM's type: the old
+                // check was "CurrentPage is TabletPageViewModel, then find a TabletDetailView", which the
+                // Pen page passed and then failed — PenPageViewModel derives from TabletPageViewModel but
+                // the view is PenDetailView — so Pen quietly got one shot of whichever tab was open (#690).
+                if (this.GetVisualDescendants().OfType<ITabbedContent>().FirstOrDefault() is { } tabbed)
                 {
-                    var tabs = tabletView.VisibleTabButtons();
+                    var tabs = tabbed.VisibleTabButtons();
                     var selected = tabs.FirstOrDefault(t => t.IsChecked == true);
                     foreach (var tab in tabs)
                     {
@@ -289,6 +293,7 @@ public partial class MainWindow : Window
         finally
         {
             vm.Advanced.SelectedTab = originalTab;
+            vm.Settings.SelectedTab = originalSettingsTab;
             vm.CurrentPage = originalPage;
         }
         return (saved, dir);
