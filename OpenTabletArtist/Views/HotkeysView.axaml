@@ -126,8 +126,10 @@
         <!-- What these shortcuts are. The page never said the one thing that makes them worth setting —
              that they fire while another application is focused — nor what loading a preset does to the
              settings you have saved. Prose in a second column, as on Presets. -->
-        <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,4,0,0">
-            <TextBlock Classes="SectionLabel" Text="ABOUT SHORTCUTS" Margin="0,0,0,8" />
+        <StackPanel Grid.Column="2" VerticalAlignment="Top">
+            <!-- Same treatment as "shortcuts" opposite: the two columns are peers, so their headings sit
+                 on one baseline at one size rather than the right one shrinking to an eyebrow. -->
+            <TextBlock Classes="Display section" Text="about shortcuts" Margin="0,0,0,12" />
             <StackPanel Spacing="10">
                 <TextBlock TextWrapping="Wrap"
                            Text="These are global shortcuts: they work whenever OpenTabletArtist is running, even when another application is focused." />

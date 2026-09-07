@@ -22,7 +22,7 @@
                              Theme="{StaticResource SubtabRadioButton}" />
                 <RadioButton Content="BACKDROP" x:Name="BackdropSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
-                <RadioButton Content="COLOURS" x:Name="ColoursSubtab"
+                <RadioButton Content="COLORS" x:Name="ColorsSubtab"
                              Theme="{StaticResource SubtabRadioButton}" />
             </StackPanel>
         </Border>
@@ -30,7 +30,8 @@
         <!-- ══ THEME ══ which skin, and the petals that come with the blossom ones. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ThemeSubtab.IsChecked}">
-            <c:Section MaxWidth="560" HorizontalAlignment="Left" Title="Theme">
+            <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+            <c:Section Title="Theme">
                 <StackPanel>
                     <c:LabeledField Label="Theme">
                         <ComboBox HorizontalAlignment="Left" MinWidth="220"
@@ -58,17 +59,26 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
 
-                    <!-- Blossom skins + Custom: toggle the falling-petal animation (#207), plus its opacity. -->
+                </StackPanel>
+            </c:Section>
+
+            <!-- Blossom skins + Custom: the falling-petal animation (#207) and its opacity. Its own
+                 section rather than a tail on the theme picker — the petals are a separate thing you
+                 turn on, not another property of which skin you chose, and the whole block comes and
+                 goes with the skin, so the section carries the IsVisible its two controls each used to
+                 repeat. -->
+            <c:Section Title="Petals" Margin="0,24,0,0" IsVisible="{Binding ShowPetalsToggle}">
+                <StackPanel>
                     <c:ToggleSetting Label="Falling petals" IsChecked="{Binding PetalsEnabled}"
-                                     IsVisible="{Binding ShowPetalsToggle}" Margin="0,16,0,0"
                                      ToolTip.Tip="Animate drifting petals over the backdrop" />
                     <c:LabeledSlider Label="Petal opacity" LabelWidth="130"
                                      Minimum="0.1" Maximum="1" Value="{Binding PetalsOpacity}"
                                      ValueFormat="0%" Margin="0,8,0,0"
-                                     IsVisible="{Binding ShowPetalsToggle}" IsEnabled="{Binding PetalsEnabled}"
+                                     IsEnabled="{Binding PetalsEnabled}"
                                      ToolTip.Tip="How opaque the falling petals are" />
                 </StackPanel>
             </c:Section>
+            </StackPanel>
         </ScrollViewer>
 
         <!-- ══ BACKDROP ══ what fills the window behind the panels: the mode, the base colour it starts
@@ -298,9 +308,9 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- ══ COLOURS ══ the accent and the frosted cards, which every translucent skin shares. -->
+        <!-- ══ COLORS ══ the accent and the frosted cards, which every translucent skin shares. -->
         <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                      IsVisible="{Binding #ColoursSubtab.IsChecked}">
+                      IsVisible="{Binding #ColorsSubtab.IsChecked}">
             <StackPanel>
                 <TextBlock Text="This theme has no colours to tune. Sakura, Dark Sakura and Custom do."
                            FontStyle="Italic" TextWrapping="Wrap"
