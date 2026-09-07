@@ -22,6 +22,14 @@ public readonly record struct CalibrationOptions(CalibrationMode Mode, int Cols,
 public sealed record CalibrationModeChoice(string Label, CalibrationMode Mode, int Cols, int Rows)
 {
     public CalibrationOptions ToOptions() => new(Mode, Cols, Rows);
+
+    /// <summary>How many targets this mode asks for — the grid's product, or the four corners. Lets the
+    /// tab match a stored calibration back to the choice that produced it, so its button can name the
+    /// density ("Repeat 9-point calibration") instead of a vague "Recalibrate" (#cal-state-first).</summary>
+    public int Points => Mode == CalibrationMode.Corners ? 4 : Cols * Rows;
+
+    /// <summary>Roughly how long it takes, for the picker. Each target is a ~3s hold plus moving to it.</summary>
+    public string Duration => Points <= 4 ? "~20 s" : Points <= 9 ? "~30 s" : "~80 s";
 }
 
 /// <summary>

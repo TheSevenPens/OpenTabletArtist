@@ -177,10 +177,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         get
         {
+            // Reads under the state line, so it says which display this calibration BELONGS to once one
+            // exists, and where the overlay will appear when one doesn't. "Calibration opens on: …" was
+            // right beneath a Start button and wrong beneath "Calibrated · 9 points" (#cal-state-first).
             var mapped = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
-            return mapped != null
-                ? $"Calibration opens on: Display {mapped.Number} ({mapped.Name})"
-                : "Calibration opens on: your tablet's mapped display.";
+            var where = mapped != null ? $"Display {mapped.Number} ({mapped.Name})" : "your tablet's mapped display";
+            return HasCalibration ? $"For {where}" : $"The calibration screen opens on {where}";
         }
     }
 
@@ -205,6 +207,72 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public bool IsCurrent9Point => CurrentCalibrationPoints == 9;
     public bool IsCurrent25Point => CurrentCalibrationPoints == 25;
 
+    // ── The calibration tab's state line and its named action (#cal-state-first) ──────────────────────
+    //
+    // The tab used to open with a choice — three equal cards, three equal START buttons — and left "am I
+    // calibrated?" to a status line beside them. It now opens with the answer, and the action names what
+    // it will do. These properties are that reading of the same underlying state.
+
+    /// <summary>Point count of the calibration STORED on this profile, whether or not its correction is
+    /// currently applied. Distinct from <see cref="CurrentCalibrationPoints"/>, which reports 0 while the
+    /// correction is off because it drives the "in use" marks — but the state line has to keep saying
+    /// "9 points" while you have them turned off to compare.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CalibrationStateHeadline))]
+    [NotifyPropertyChangedFor(nameof(CalibrationPrimaryText))]
+    [NotifyPropertyChangedFor(nameof(CalibrationPrimaryChoice))]
+    private int _storedCalibrationPoints;
+
+    /// <summary>The first thing on the tab: whether this tablet is calibrated, in plain words. "Not
+    /// calibrated" is a statement of fact, not a problem — most tablets never need it — so it is worded
+    /// and styled like every other state here rather than as a warning.</summary>
+    public string CalibrationStateHeadline =>
+        StoredCalibrationPoints <= 0 ? "Not calibrated"
+        : CalibrationEnabled ? $"Calibrated · {StoredCalibrationPoints} points"
+        : $"Correction off · {StoredCalibrationPoints} points";
+
+    /// <summary>Turn the stored correction off (or back on) without losing it — the comparison you make
+    /// to judge whether a calibration actually helped.</summary>
+    public string CalibrationToggleText => CalibrationEnabled ? "Turn off" : "Turn on";
+
+    /// <summary>What the primary button will do, spelled out. A bare "Recalibrate" leaves you guessing
+    /// which of the three it runs; this always names the density.</summary>
+    public string CalibrationPrimaryText =>
+        StoredCalibrationPoints > 0
+            ? $"REPEAT {StoredCalibrationPoints}-POINT CALIBRATION"
+            : "CALIBRATE · 4 POINTS";
+
+    /// <summary>The mode the primary button runs: the one you already have, or 4-point for a first
+    /// calibration — the density the copy has always recommended starting from.</summary>
+    public CalibrationModeChoice CalibrationPrimaryChoice =>
+        CalibrationModeChoices.FirstOrDefault(c => c.Points == StoredCalibrationPoints)
+        ?? CalibrationModeChoices[0];
+
+    /// <summary>Whether the density picker is expanded. Collapsed by default: the three diagrams are
+    /// worth their space once you have decided to choose, not before.</summary>
+    [ObservableProperty] private bool _showDensityPicker;
+
+    /// <summary>The recorded taps that carry a pixel-equivalent, for the error map. Empty for a legacy
+    /// capture, which has no measured position to draw against its target.</summary>
+    [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints =
+        System.Array.Empty<CalibrationReportPoint>();
+
+    /// <summary>There are points to draw — gates the whole map block.</summary>
+    [ObservableProperty] private bool _hasCalibrationErrorMap;
+
+    /// <summary>The map's caption: typical and worst, never one figure on its own.</summary>
+    [ObservableProperty] private string _calibrationErrorSummary = "";
+
+    [RelayCommand]
+    private void ToggleDensityPicker() => ShowDensityPicker = !ShowDensityPicker;
+
+    /// <summary>Flip the stored correction on or off. Was a two-way-bound ToggleSwitch; it is a button
+    /// now so the state line can say what pressing it does ("Turn off" / "Turn on") rather than leaving
+    /// you to read a switch position. The setter on <see cref="CalibrationEnabled"/> still does the work
+    /// of rewriting the stored calibration with the new flag.</summary>
+    [RelayCommand]
+    private void ToggleCalibrationEnabled() => CalibrationEnabled = !CalibrationEnabled;
+
     /// <summary>Start calibrating in the chosen mode — each calibration card's START button passes its
     /// <see cref="CalibrationModeChoice"/>. Reloads afterward so the status + stale hint stay coherent (#147).</summary>
     [RelayCommand]
@@ -221,12 +289,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>A calibration is <em>stored</em> on this profile (enabled or not) — gates the enable
     /// toggle, the Clear button, and the report card.</summary>
-    [ObservableProperty] private bool _hasCalibration;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CalibrationDisplayText))]
+    private bool _hasCalibration;
 
     /// <summary>Whether the stored calibration is currently applying its correction. Two-way bound to the
     /// enable toggle so it can be turned off to compare with/without the calibration, without clearing or
     /// recapturing it. Setting it from the UI rewrites the stored calibration with the new Enabled state.</summary>
-    [ObservableProperty] private bool _calibrationEnabled;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CalibrationStateHeadline))]
+    [NotifyPropertyChangedFor(nameof(CalibrationToggleText))]
+    private bool _calibrationEnabled;
 
     /// <summary>Human-readable calibration state ("Not calibrated" / "Calibrated — …" / "Calibration off — …").</summary>
     [ObservableProperty] private string _calibrationStatusText = "Not calibrated";
@@ -290,10 +363,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 : $"Calibration off — {ModeLabel(cal)}";
 
             // "In use" badges reflect the active correction, so nothing is "in use" while it's off.
-            CurrentCalibrationPoints = !CalibrationEnabled || cal == null ? 0 : cal.Model switch
+            CurrentCalibrationPoints = !CalibrationEnabled || cal == null ? 0 : PointsOf(cal);
+            // The state line and the named action describe what is STORED, which survives turning the
+            // correction off — that is the whole point of being able to turn it off.
+            StoredCalibrationPoints = cal == null ? 0 : PointsOf(cal);
+
+            static int PointsOf(CalibrationProfile.CalibrationData c) => c.Model switch
             {
                 CalibrationProfile.CalibrationModel.Homography => 4,
-                CalibrationProfile.CalibrationModel.Grid => (cal.Grid?.Cols ?? 0) * (cal.Grid?.Rows ?? 0),
+                CalibrationProfile.CalibrationModel.Grid => (c.Grid?.Cols ?? 0) * (c.Grid?.Rows ?? 0),
                 _ => 4,
             };
             // The report describes the stored capture — show it whether the correction is on or off.
@@ -312,12 +390,21 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         HasCalibrationFitWarning = false;
         CalibrationTiltText = "";
         HasCalibrationTilt = false;
+        CalibrationErrorPoints = System.Array.Empty<CalibrationReportPoint>();
+        HasCalibrationErrorMap = false;
+        CalibrationErrorSummary = "";
         if (report is null || report.Points.Count == 0)
         {
             HasCalibrationReport = false;
             CalibrationReportSummary = "";
             return;
         }
+
+        // The map draws target -> measured per point, so it needs the points that recorded a
+        // pixel-equivalent; legacy captures stored NaN there and simply have no map.
+        var mappable = report.Points.Where(p => !float.IsNaN(p.MeasuredX) && !float.IsNaN(p.MeasuredY)).ToList();
+        CalibrationErrorPoints = mappable;
+        HasCalibrationErrorMap = mappable.Count > 0;
         for (int i = 0; i < report.Points.Count; i++)
         {
             var p = report.Points[i];
@@ -342,6 +429,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (report.ComputeFit() is { } fit)
         {
             CalibrationFitText = $"Pointing error corrected: {fit.RmsErrorPx:0} px RMS · up to {fit.MaxErrorPx:0} px";
+            // The map's caption, deliberately in the plural. A single average is the thing the map exists
+            // to replace — the drift usually grows toward one corner, and "typical" alone hides that.
+            CalibrationErrorSummary = $"Typical {fit.RmsErrorPx:0} px · worst {fit.MaxErrorPx:0} px";
             HasCalibrationFit = true;
             if (fit.HasOutlier && fit.OutlierIndex < report.Points.Count)
             {
