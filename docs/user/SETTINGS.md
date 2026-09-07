@@ -12,8 +12,14 @@ Save, load, rename, and delete whole-configuration snapshots (all tablets), and 
 
 Global keyboard shortcuts that work even when OpenTabletArtist isn't focused. Assign a combination (a modifier — Ctrl / Alt / Shift / Win — plus a letter, digit, or F-key) with the on-screen picker, and it takes effect system-wide.
 
-- **Cycle mapped monitor** — moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
-- **Preset switching** — assign a hotkey to a preset to switch to it instantly. The switch is a live-only override (your saved default isn't overwritten); a "Preset override" chip shows while one is active.
+Everything you can bind is one list, in two groups. Each row shows what it does, its shortcut (or *Not set*), and a **⋯** menu with **Assign…** and **Clear** — Clear is greyed out when there's nothing bound to that row.
+
+- **Tablet actions** — **Move to next display** moves the active tablet's area to the next monitor (wrapping around). Shows a toast with the new monitor; no-ops (with a toast) if you only have one display or no tablet is active.
+- **Load a preset** — one row per saved preset. Pressing its shortcut switches to it instantly, as a live-only override (your saved default isn't overwritten); a "Preset override" chip shows while one is active.
+
+Presets come from the **Presets** tab. Delete a preset there and its shortcut goes with it — and a preset removed outside the app, or while OpenTabletArtist is closed, has its shortcut dropped the next time the app reads the list, so a new preset saved under that name never inherits an old shortcut.
+
+The list is rebuilt when you open **Settings**, so a preset you save and then bind in the same visit appears after leaving Settings and coming back.
 
 > **Per-App Presets** (automatic preset switching by foreground app) is temporarily hidden and disabled while its switching model is being reconsidered. The feature and any saved app→preset mappings are retained and may return in a later version.
 

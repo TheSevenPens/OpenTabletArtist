@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
@@ -50,6 +51,21 @@ public static class AppSettings
     {
         var obj = Load();
         if (obj.Remove(key)) Persist(obj);
+    }
+
+    /// <summary>
+    /// Every stored key beginning with <paramref name="prefix"/>, as a materialised snapshot — so the
+    /// caller can <see cref="Remove"/> as it walks the result. Added for the hotkey reconcile
+    /// (#hotkey-orphans), which has to reason about what is PERSISTED rather than about what one process
+    /// happened to register.
+    /// </summary>
+    public static IReadOnlyList<string> Keys(string prefix)
+    {
+        var keys = new List<string>();
+        foreach (var p in Load().Properties())
+            if (p.Name.StartsWith(prefix, StringComparison.Ordinal))
+                keys.Add(p.Name);
+        return keys;
     }
 
     private static void Persist(Newtonsoft.Json.Linq.JObject obj)

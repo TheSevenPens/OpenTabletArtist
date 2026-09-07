@@ -38,7 +38,37 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
         _hotkeys.HotkeyPressed += OnHotkeyPressed;
     }
 
-    private static string MapKey(string snapshot) => $"Hotkey:{snapshot}";
+    /// <summary>Prefix every hotkey mapping is persisted under — shared with the monitor-cycle hotkey,
+    /// which owns the one reserved key under it (see <see cref="OrphanedMappingKeys"/>).</summary>
+    public const string MappingKeyPrefix = "Hotkey:";
+
+    private static string MapKey(string snapshot) => MappingKeyPrefix + snapshot;
+
+    /// <summary>
+    /// Which of <paramref name="mappingKeys"/> no longer have a preset behind them. Pure, so the rule is
+    /// testable without Win32 or a settings file — <see cref="Sync"/> is the only caller.
+    /// <para>
+    /// Two things it must get right. The monitor-cycle hotkey sits under the same prefix and is not a
+    /// preset, so it is skipped by name; reaping it would silently delete the display-toggle shortcut.
+    /// And snapshot names are matched case-insensitively, as everywhere else here, because the file
+    /// system is.
+    /// </para>
+    /// </summary>
+    public static List<string> OrphanedMappingKeys(
+        IEnumerable<string> mappingKeys, IEnumerable<string> snapshotNames)
+    {
+        var names = new HashSet<string>(snapshotNames, StringComparer.OrdinalIgnoreCase);
+        var orphans = new List<string>();
+        foreach (var key in mappingKeys)
+        {
+            if (!key.StartsWith(MappingKeyPrefix, StringComparison.Ordinal)) continue;
+            if (string.Equals(key, MonitorCycleHotkeys.MapKey, StringComparison.Ordinal)) continue;
+
+            var snapshot = key[MappingKeyPrefix.Length..];
+            if (snapshot.Length > 0 && !names.Contains(snapshot)) orphans.Add(key);
+        }
+        return orphans;
+    }
 
     /// <summary>The chord assigned to a snapshot, or null.</summary>
     public HotkeyChord? GetChord(string snapshot)
@@ -71,8 +101,15 @@ public sealed class ProfileHotkeyManager : IProfileHotkeys, IDisposable
     {
         var names = new HashSet<string>(snapshotNames, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var gone in _snapshotToId.Keys.Where(n => !names.Contains(n)).ToList())
-            ClearHotkey(gone); // dangling mapping (snapshot deleted/renamed elsewhere)
+        // Reconcile what is PERSISTED against what is on disk. This used to walk _snapshotToId — the
+        // registrations this process had made — which misses a mapping in two ordinary cases: the app
+        // was closed when the preset was deleted (the table is empty on a fresh start, so the loop had
+        // nothing to reap), or the chord never registered because another application owns it. Either
+        // way the key survived in settings.json forever, and a NEW preset later saved under the same
+        // name silently inherited the deleted one's hotkey. The persisted set is a superset of the
+        // registered one, so this only ever reaps more than before, never less.
+        foreach (var key in OrphanedMappingKeys(AppSettings.Keys(MappingKeyPrefix), names))
+            ClearHotkey(key[MappingKeyPrefix.Length..]);
 
         foreach (var name in names)
         {

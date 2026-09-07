@@ -3,98 +3,139 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:OpenTabletArtist.Controls">
 
-    <!-- DataContext is the HotkeysViewModel — the SETTINGS > HOTKEYS tab (the tab rail supplies the title). -->
-    <!-- Two columns: the tablet display-toggle hotkey on the left, preset-switching hotkeys on the right. -->
-    <Grid ColumnDefinitions="*,*" ColumnSpacing="28">
-        <!-- ── LEFT: tablet mapping (display toggle) ─────────────────────────────── -->
-        <StackPanel Grid.Column="0" VerticalAlignment="Top">
-        <c:Section Margin="0,0,0,24">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                    <TextBlock Classes="Display section" Text="display toggle" TextWrapping="Wrap" />
-                    <TextBlock Text="Moves the active tablet's area to the next monitor (wraps around)."
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               TextWrapping="Wrap" Margin="0,2,0,0" />
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0"
-                                IsVisible="{Binding HasMonitorHotkey}">
-                        <PathIcon Data="{StaticResource IconKeyboard}" Width="15" Height="15"
-                                  VerticalAlignment="Center"
-                                  Foreground="{DynamicResource AccentBrush}" />
-                        <TextBlock Text="{Binding MonitorHotkeyDisplay}"
-                                   FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                                   VerticalAlignment="Center" />
-                        <Button ToolTip.Tip="Clear hotkey"
-                                AutomationProperties.Name="Clear hotkey"
-                                Command="{Binding ClearMonitorHotkeyCommand}"
-                                Theme="{StaticResource GhostButton}" Padding="6,4"
-                                VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
-                        </Button>
-                    </StackPanel>
-                    <TextBlock Text="No hotkey assigned" FontStyle="Italic"
-                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
-                               IsVisible="{Binding !HasMonitorHotkey}" />
-                </StackPanel>
+    <!-- DataContext is the HotkeysViewModel — the SETTINGS > HOTKEYS tab (the tab rail supplies the title).
 
-                <Button Grid.Column="1" Content="Assign…" Theme="{StaticResource AccentButton}"
-                        VerticalAlignment="Center" Padding="14,7"
-                        Command="{Binding AssignMonitorHotkeyCommand}" />
-            </Grid>
-        </c:Section>
-        </StackPanel>
+         ONE list of shortcuts, plus a column explaining the page (#hotkeys-one-list). It used to be split
+         down the middle by what a hotkey TARGETS: the single display-toggle hotkey in a card on the left,
+         the unbounded preset list on the right. The left column could never grow and the right one grows
+         with every preset you save, so the balance was wrong from the first preset — and the same action
+         wore two treatments (a card vs. bare rows) and two emphases (accent vs. ghost Assign).
 
-        <!-- ── RIGHT: preset switching ───────────────────────────────────────────── -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Top">
-        <TextBlock Classes="Display section" Text="preset switching" Margin="2,0,0,6" />
+         The display toggle is now simply the first row, under a quiet eyebrow. Definite column widths
+         rather than star columns: the page is HorizontalAlignment="Left", which sizes a Grid to its
+         content, and star columns inside that have nothing to divide. Matches Presets, next door. -->
+    <Grid ColumnDefinitions="540,32,320" HorizontalAlignment="Left">
 
-        <ItemsControl ItemsSource="{Binding Snapshots}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <c:Entity>
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
-                                <TextBlock Classes="CardTitle" Text="{Binding Name}" TextWrapping="Wrap" />
-                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
-                                            IsVisible="{Binding HasHotkey}">
+        <StackPanel Grid.Column="0">
+            <TextBlock Classes="Display section" Text="shortcuts" Margin="2,0,0,12" />
+
+            <!-- ── Tablet actions ─────────────────────────────────────────────────── -->
+            <TextBlock Classes="SectionLabel" Text="TABLET ACTIONS" Margin="2,0,0,2" />
+            <ItemsControl ItemsSource="{Binding Actions}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <c:Entity>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Classes="CardTitle" Text="{Binding Title}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="Detail" Text="{Binding Detail}"
+                                               TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
                                     <PathIcon Data="{StaticResource IconKeyboard}" Width="15" Height="15"
                                               VerticalAlignment="Center"
-                                              Foreground="{DynamicResource AccentBrush}" />
-                                    <TextBlock Text="{Binding HotkeyDisplay}"
+                                              Foreground="{DynamicResource AccentBrush}"
+                                              IsVisible="{Binding HasHotkey}" />
+                                    <TextBlock Text="{Binding ChordDisplay}"
                                                FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                                               VerticalAlignment="Center" />
-                                    <Button ToolTip.Tip="Clear hotkey"
-                                            AutomationProperties.Name="Clear hotkey"
-                                            Command="{Binding $parent[ItemsControl].DataContext.ClearProfileHotkeyCommand}"
-                                            CommandParameter="{Binding Name}"
-                                            Theme="{StaticResource GhostButton}" Padding="6,4"
-                                            VerticalAlignment="Center">
-                                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
-                                    </Button>
+                                               VerticalAlignment="Center" IsVisible="{Binding HasHotkey}" />
+                                    <TextBlock Text="Not set" FontStyle="Italic"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               VerticalAlignment="Center" IsVisible="{Binding !HasHotkey}" />
+
+                                    <!-- Both actions behind one "…", as on the wheel rows. This replaces an
+                                         Assign button plus a bare "×" glyph in a box — two controls, one of
+                                         them a treatment the app uses nowhere else — and it lets Clear be a
+                                         NAMED item that greys out when there is nothing to clear.
+
+                                         Plain {Binding} on the row, not $parent[ItemsControl]: a flyout's
+                                         contents live in a popup outside this row's visual tree, and only
+                                         the inherited DataContext reaches in there. -->
+                                    <c:IconButton Icon="{StaticResource IconDotsHorizontal}"
+                                                  VerticalAlignment="Center"
+                                                  ToolTip.Tip="Shortcut actions"
+                                                  AutomationProperties.Name="Shortcut actions">
+                                        <c:IconButton.Flyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="Assign…" Command="{Binding AssignCommand}" />
+                                                <MenuItem Header="Clear" Command="{Binding ClearCommand}" />
+                                            </MenuFlyout>
+                                        </c:IconButton.Flyout>
+                                    </c:IconButton>
                                 </StackPanel>
-                                <TextBlock Text="No hotkey assigned" FontStyle="Italic"
-                                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"
-                                           IsVisible="{Binding !HasHotkey}" />
-                            </StackPanel>
+                            </Grid>
+                        </c:Entity>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-                            <Button Grid.Column="1" Content="Assign…" Theme="{StaticResource GhostButton}"
-                                    VerticalAlignment="Center" Padding="12,6"
-                                    Command="{Binding $parent[ItemsControl].DataContext.AssignProfileHotkeyCommand}"
-                                    CommandParameter="{Binding Name}" />
-                        </Grid>
-                    </c:Entity>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            <!-- ── Presets ────────────────────────────────────────────────────────── -->
+            <TextBlock Classes="SectionLabel" Text="LOAD A PRESET" Margin="2,22,0,2"
+                       IsVisible="{Binding HasSnapshots}" />
+            <ItemsControl ItemsSource="{Binding Snapshots}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <c:Entity>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Classes="CardTitle" Text="{Binding Title}" TextWrapping="Wrap" />
+                                    <TextBlock Classes="Detail" Text="{Binding Detail}"
+                                               TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
 
-        <c:Section Padding="24" IsVisible="{Binding !HasSnapshots}">
-            <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="No presets to bind" FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Save a preset on the Presets page, then assign it a hotkey here."
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           HorizontalAlignment="Center" TextAlignment="Center" Margin="0,6,0,0" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <PathIcon Data="{StaticResource IconKeyboard}" Width="15" Height="15"
+                                              VerticalAlignment="Center"
+                                              Foreground="{DynamicResource AccentBrush}"
+                                              IsVisible="{Binding HasHotkey}" />
+                                    <TextBlock Text="{Binding ChordDisplay}"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                               VerticalAlignment="Center" IsVisible="{Binding HasHotkey}" />
+                                    <TextBlock Text="Not set" FontStyle="Italic"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               VerticalAlignment="Center" IsVisible="{Binding !HasHotkey}" />
+
+                                    <c:IconButton Icon="{StaticResource IconDotsHorizontal}"
+                                                  VerticalAlignment="Center"
+                                                  ToolTip.Tip="Shortcut actions"
+                                                  AutomationProperties.Name="Shortcut actions">
+                                        <c:IconButton.Flyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="Assign…" Command="{Binding AssignCommand}" />
+                                                <MenuItem Header="Clear" Command="{Binding ClearCommand}" />
+                                            </MenuFlyout>
+                                        </c:IconButton.Flyout>
+                                    </c:IconButton>
+                                </StackPanel>
+                            </Grid>
+                        </c:Entity>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Empty state, the muted line the configurations folder and Presets use. -->
+            <TextBlock Text="No presets yet. Save one on the Presets tab and it appears here."
+                       FontStyle="Italic" Foreground="{DynamicResource TextMutedBrush}"
+                       TextWrapping="Wrap" Margin="2,18,0,0"
+                       IsVisible="{Binding !HasSnapshots}" />
+        </StackPanel>
+
+        <!-- What these shortcuts are. The page never said the one thing that makes them worth setting —
+             that they fire while another application is focused — nor what loading a preset does to the
+             settings you have saved. Prose in a second column, as on Presets. -->
+        <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,4,0,0">
+            <TextBlock Classes="SectionLabel" Text="ABOUT SHORTCUTS" Margin="0,0,0,8" />
+            <StackPanel Spacing="10">
+                <TextBlock TextWrapping="Wrap"
+                           Text="These are global shortcuts: they work whenever OpenTabletArtist is running, even when another application is focused." />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Loading a preset by shortcut is a live-only switch — it changes the settings in use without overwriting what you have saved, and a &quot;Preset override&quot; chip shows while one is active." />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Presets come from Settings → Presets. Delete a preset there and its shortcut goes with it." />
             </StackPanel>
-        </c:Section>
         </StackPanel>
     </Grid>
 </UserControl>
