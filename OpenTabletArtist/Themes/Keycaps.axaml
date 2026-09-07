@@ -1,0 +1,79 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The on-screen keyboard shared by the two modal editors that capture a key combination: the
+         hotkey-capture dialog (Settings → Hotkeys) and the binding editor (tablet buttons and wheels).
+
+         Both used to paste their own copy of everything here, and the copies had already drifted (#617):
+         the keycap font was a hardcoded 12 in one and TypeCaptionSize in the other, and the footer chips
+         were 34px tall in one and 36 in the other. Nobody chose those differences — they are what two
+         copies of the same thing become. One definition now, so the next keycap change lands in both. -->
+
+    <!-- One key on the on-screen keyboard. Glassy by default; accent-outlined when picked, and
+         accent-FILLED when it is a held modifier, so a chosen Ctrl reads differently from a chosen K.
+         (Only the binding editor sets .modifier today; the style is harmless where nothing does.) -->
+    <ControlTheme x:Key="KeyCapButton" TargetType="Button">
+        <Setter Property="Background" Value="#40FFFFFF" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Cursor" Value="Hand" />
+        <!-- The ramp's caption size, not a hardcoded number. This is the value the binding editor
+             already used; the hotkey dialog's 12 was the outlier. -->
+        <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+        <Style Selector="^:pointerover /template/ Border#Bd">
+            <Setter Property="Background" Value="#70FFFFFF" />
+        </Style>
+        <!-- Picked main key: light fill + accent outline. -->
+        <Style Selector="^.selected /template/ Border#Bd">
+            <Setter Property="Background" Value="#78FFFFFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="^.selected">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <!-- Active modifier: accent-tinted fill (a slightly different colour than a picked key). -->
+        <Style Selector="^.modifier.selected /template/ Border#Bd">
+            <Setter Property="Background" Value="{DynamicResource AccentMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+    </ControlTheme>
+
+    <!-- One part of the footer's "what you have pressed so far" preview: either a "+" separator or a
+         chip. Bound to a ComboPart (ViewModels/ComboPart.cs), which both dialogs already share. -->
+    <DataTemplate x:Key="ComboPartTemplate">
+        <Panel VerticalAlignment="Center" Margin="3,0">
+            <TextBlock Text="+" IsVisible="{Binding IsSeparator}"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+            <Border IsVisible="{Binding IsChip}" MinWidth="40" Height="36" Padding="12,0"
+                    Background="{DynamicResource GlassBgBrush}"
+                    BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1.5"
+                    CornerRadius="0">
+                <TextBlock Text="{Binding Text}" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+            </Border>
+        </Panel>
+    </DataTemplate>
+
+    <!-- The preview itself: a horizontal run of ComboParts. Each dialog still positions it, since the
+         hotkey dialog left-aligns its footer row and the binding editor centres it. -->
+    <ItemsPanelTemplate x:Key="ComboPartsPanel">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" />
+    </ItemsPanelTemplate>
+
+</ResourceDictionary>

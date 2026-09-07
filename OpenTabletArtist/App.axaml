@@ -17,6 +17,10 @@
                 <ResourceInclude Source="avares://OpenTabletArtist/Themes/Colors.axaml" />
                 <!-- Dependency-free icon geometries (Path/PathIcon). See Themes/Icons.axaml. -->
                 <ResourceInclude Source="avares://OpenTabletArtist/Themes/Icons.axaml" />
+                <!-- The on-screen keyboard shared by the hotkey-capture and binding-editor dialogs
+                     (#617). Here rather than in Styles.axaml because these are keyed resources the two
+                     dialogs look up, not implicit styles. -->
+                <ResourceInclude Source="avares://OpenTabletArtist/Themes/Keycaps.axaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- ===== Content font size (#fontstd) =========================================
