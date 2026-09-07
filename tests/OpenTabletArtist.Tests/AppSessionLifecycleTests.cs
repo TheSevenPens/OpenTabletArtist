@@ -22,6 +22,8 @@ public class AppSessionLifecycleTests
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
         public void Launch() => LaunchCount++;                 // no real process — never connects
+        public int StopPidCount { get; private set; }
+        public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
         public string? GetProcessPath(int processId) => null;
         public string? GetSingleRunningDaemonPath() => null;
@@ -36,6 +38,8 @@ public class AppSessionLifecycleTests
         public string? FindExe() => null;
         public bool IsRunning() => false;
         public void Launch() => LaunchCount++;
+        public int StopPidCount { get; private set; }
+        public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
         public string? GetProcessPath(int processId) => null;
         public string? GetSingleRunningDaemonPath() => null;
