@@ -122,8 +122,14 @@ jobs:
 
       # Build descriptive release notes from the commit messages since the previous tag. Each commit's
       # subject becomes a heading and its body is included verbatim (minus the Co-Authored-By trailer and
-      # the "chore: bump version" bump commit), so well-written commit messages carry straight into the
+      # the release/bump commit itself), so well-written commit messages carry straight into the
       # changelog. Falls back to GitHub's auto-generated notes if there's no previous tag / no history.
+      #
+      # The body is capped. GitHub rejects a release body over 125,000 characters with a 422, and this
+      # project writes long commit messages on purpose: v0.74.0 carried 83 commits and blew straight
+      # through it, which failed the publish AFTER the zip had already been built. Over the cap we drop
+      # to subject lines only, which is roughly twenty times smaller and still a usable changelog; if
+      # even that will not fit, the list is truncated and the compare link carries the rest.
       - name: Generate release notes
         id: notes
         shell: pwsh
@@ -132,11 +138,13 @@ jobs:
           $notesFile = Join-Path $env:RUNNER_TEMP 'RELEASE_NOTES.md'
           $prev = (git describe --tags --abbrev=0 "$tag^" 2>$null)
           $useGenerated = $true
+          $limit = 120000   # GitHub's hard limit is 125,000 - leave room for the footer
           if ($LASTEXITCODE -eq 0 -and $prev) {
             $hashes = git log --no-merges --format='%H' "$prev..$tag"
+            $skip = '^chore: (bump version|release v)'
             $sections = foreach ($h in $hashes) {
               $subject = (git show -s --format='%s' $h).Trim()
-              if ($subject -match '^chore: bump version') { continue }
+              if ($subject -match $skip) { continue }
               $bodyRaw = git show -s --format='%b' $h
               $bodyLines = ($bodyRaw -split "`n") | Where-Object { $_ -notmatch '^\s*Co-Authored-By:' }
               $bodyText = (($bodyLines -join "`n").Trim())
@@ -144,11 +152,28 @@ jobs:
             }
             if ($sections) {
               $repo = '${{ github.repository }}'
-              $body = "## What's changed`n`n" + ($sections -join "`n`n") +
-                      "`n`n**Full Changelog**: https://github.com/$repo/compare/$prev...$tag"
+              $footer = "`n`n**Full Changelog**: https://github.com/$repo/compare/$prev...$tag"
+              $body = "## What's changed`n`n" + ($sections -join "`n`n") + $footer
+              if ($body.Length -gt $limit) {
+                $was = $body.Length
+                $subjects = foreach ($h in $hashes) {
+                  $subject = (git show -s --format='%s' $h).Trim()
+                  if ($subject -match $skip) { continue }
+                  "- $subject"
+                }
+                $body = "## What's changed`n`n" +
+                        "_$($subjects.Count) commits. Full messages omitted here - they were past " +
+                        "GitHub's release-body limit; see the commit log for the detail._`n`n" +
+                        ($subjects -join "`n") + $footer
+                Write-Host "Full notes were $was chars (limit $limit) - fell back to subjects only ($($body.Length))"
+              }
+              if ($body.Length -gt $limit) {
+                $body = $body.Substring(0, $limit - $footer.Length - 32) + "`n`n_(truncated)_" + $footer
+                Write-Host "Subjects alone still over the limit - truncated"
+              }
               Set-Content -Path $notesFile -Value $body -Encoding utf8
               $useGenerated = $false
-              Write-Host "Generated notes from $prev..$tag ($($sections.Count) commit section(s))"
+              Write-Host "Generated notes from $prev..$tag ($($sections.Count) commit section(s), $($body.Length) chars)"
             }
           }
           "file=$notesFile" >> $env:GITHUB_OUTPUT
