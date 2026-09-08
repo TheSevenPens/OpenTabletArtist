@@ -403,24 +403,22 @@
         </ControlTheme>
 
         <!-- WordmarkNav: the Zune top-bar wordmark (redesign Phase 1). Plain lowercase text — no pill, no
-             underline; the active one is marked by accent color + weight, matching the pivots (Metro
-             signals state by brightness, not a rule). Content is already lowercased by the item template. -->
+             underline; the active one is marked by accent COLOR ALONE, matching the pivots (Metro signals
+             state by brightness, not a rule). Content is already lowercased by the item template.
+
+             Colour alone, deliberately (#nav-weight). The checked cue used to bump the weight Light ->
+             Normal as well, and that is a change you can see in the word itself: every stem thickens, the
+             counters close, and the glyphs run about 2% wider. A hidden copy at the checked weight held
+             the slot open so nothing REFLOWED — but it could not stop the word re-shaping inside that
+             slot, and it left every unchecked word sitting in a box cut for a wider weight, which is what
+             made the gaps along the bar uneven. With the weight fixed at Light there is nothing to
+             reserve, so both the reserver and the uneven gaps go. -->
         <ControlTheme x:Key="WordmarkNav" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Panel>
-                        <!-- Width reserver (#nav-no-reflow): the checked cue bumps the weight Light ->
-                             Normal, and Normal is a few px wider per word. In the left-aligned WrapPanel
-                             that meant clicking an item re-measured it and shoved every item to its right.
-                             This invisible copy is always at the checked weight, so the Panel measures to
-                             the widest state and the slot width never changes. Opacity=0 still lays out
-                             (IsVisible=False would not). Keep every metric here in sync with Word below. -->
-                        <TextBlock Text="{TemplateBinding Content}"
-                                   FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="{DynamicResource TypeNavSize}" FontWeight="Normal" LetterSpacing="-0.3"
-                                   Opacity="0" IsHitTestVisible="False" />
+                    <Panel Background="{TemplateBinding Background}">
                         <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
                                    FontSize="{DynamicResource TypeNavSize}" FontWeight="Light" LetterSpacing="-0.3"
@@ -433,25 +431,20 @@
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Word">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="FontWeight" Value="Normal" />
             </Style>
         </ControlTheme>
 
         <!-- PivotTab: the Zune subpage pivot (redesign Phase 2) — big lowercase Inter Light headers
-             that replace the vertical tab rail on tabbed pages. Same active cue as the wordmarks (accent +
-             weight, no rule). Content is lowercased by the pivot item template. -->
+             that replace the vertical tab rail on tabbed pages. Same active cue as the wordmarks: accent
+             COLOR ALONE, no weight change and no rule — see WordmarkNav above for why (#nav-weight).
+             At 40 px the weight jump was the most visible of anywhere in the app. Content is lowercased
+             by the pivot item template. -->
         <ControlTheme x:Key="PivotTab" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Panel>
-                        <!-- Width reserver — see WordmarkNav above (#nav-no-reflow). Its size/tracking MUST
-                             stay identical to Word below, or the slot stops measuring the checked state. -->
-                        <TextBlock Text="{TemplateBinding Content}"
-                                   FontFamily="{DynamicResource DisplayFontFamily}"
-                                   FontSize="{DynamicResource TypePivotSize}" FontWeight="Normal" LetterSpacing="-1.3"
-                                   Opacity="0" IsHitTestVisible="False" />
+                    <Panel Background="{TemplateBinding Background}">
                         <TextBlock x:Name="Word" Text="{TemplateBinding Content}"
                                    FontFamily="{DynamicResource DisplayFontFamily}"
                                    FontSize="{DynamicResource TypePivotSize}" FontWeight="Light" LetterSpacing="-1.3" />
@@ -467,7 +460,6 @@
             </Style>
             <Style Selector="^:checked /template/ TextBlock#Word">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                <Setter Property="FontWeight" Value="Normal" />
             </Style>
         </ControlTheme>
 

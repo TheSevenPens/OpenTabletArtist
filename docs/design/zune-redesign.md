@@ -55,11 +55,12 @@ nav (`quickplay · collection · marketplace · social`) with **pivots** for sub
 fits a resizable desktop window better than an infinite pan. Proposal:
 
 - **Remove the left sidebar.** Top-level nav becomes a horizontal row of lowercase **wordmarks**;
-  the active one is marked by **accent color + weight** (no underline). Frees the full window width.
+  the active one is marked by **accent color** (no weight change, no underline — see Decision 9).
+  Frees the full window width.
   *(An early mockup had a huge page title bleeding off the right edge — cut as redundant, since the
   active wordmark already names the section.)*
 - **Sub-navigation = pivots** — big Segoe UI Light horizontal headers replacing the vertical rail;
-  the active pivot uses the same accent+weight cue as the wordmarks (consistent at both levels).
+  the active pivot uses the same accent cue as the wordmarks (consistent at both levels).
 - **Wide pages use columns.** Merged pages lay their (formerly separate) tabs out as horizontal
   panels, so the width earns its keep instead of a narrow column beside a rail.
 - **Crisp square corners, flat fields.** Metro/Zune uses 90° corners everywhere (cards, buttons,
@@ -199,6 +200,16 @@ Committed on `zune`, verified live (build + 601 tests green):
 6. **Wordmarks:** lowercase. ✔
 7. **Corners:** square (Metro); frosted glass + soft shadow kept. ✔
 8. **No giant page title:** dropped; active wordmark names the section. ✔
+9. **Active cue is colour only** — no weight change (#nav-weight). ✔
+   Phases 1–2 shipped *accent + weight*, bumping the checked word Light → Normal. A hidden copy at
+   the checked weight reserved the slot so neighbours never reflowed, but that could not stop the word
+   itself re-shaping: stems thicken, counters close, glyphs run ~2% wider. It also parked every
+   unchecked word in a box cut for a wider weight, which is what made the gaps along both bars uneven.
+   Weight is now uniform Light and the accent carries the state alone — the strictest reading of
+   *Metro signals state by brightness, not a rule* — and the reservers are gone with it.
+   Checked against Sakura, Light and Dark; the subtab rail was already colour + indicator, so it is
+   unaffected. Explored on a canvas against four louder alternatives (a square, a hairline, a tint
+   field, and the same idea settled at Normal) before picking the quietest.
 
 ## Feature → pivot inventory (completeness guard)
 
