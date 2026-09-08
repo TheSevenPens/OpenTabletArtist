@@ -39,9 +39,13 @@ You can assign actions to any buttons on the tablet. Each button's **⋯** menu 
 
 **Enable buttons** at the top of the tab turns every express key off immediately without deleting any actions; switch it back and your mappings return. To unmap a key for good, use **Clear** in its own **⋯** menu — there is no bulk clear, because one unconfirmed click shouldn't be able to take a dozen mappings with it.
 
+If you can't tell which physical key is *Button 3*, press it: its row lights up here while you hold it. (The **about buttons** column beside the list says so, along with what express keys are and what the toggle does.)
+
 ## wheels
 
 If your tablet has wheels or dials, they'll show up here. You can assign actions to the clockwise and counterclockwise rotations, and to the wheel button. Each row's **⋯** menu holds **Edit…**, which opens the binding picker, and **Clear**, which unmaps that one row (greyed out when nothing is mapped to it). **Enable wheels** at the top of the tab turns every wheel binding off while keeping your mappings, and restores them when you turn it back on.
+
+Turn the wheel and the gauge beside its bindings follows it live — a quick way to see the tablet is reporting before you bind anything to it. An **about wheels** column sits beside the list.
 
 
 
