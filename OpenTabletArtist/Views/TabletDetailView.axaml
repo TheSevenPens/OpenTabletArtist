@@ -742,7 +742,12 @@
         <!-- Buttons tab: the tablet's auxiliary (express-key) buttons. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #ButtonsTab.IsChecked}">
-            <StackPanel>
+            <!-- Definite-width blocks in a WrapPanel, the layout the rest of the app uses: the list
+                 stops stretching the full window (which put a row's "…" most of a screen from the label
+                 it acts on) and the about column gets to sit beside it, dropping underneath when the
+                 window is too narrow for both. -->
+            <WrapPanel ItemSpacing="32" LineSpacing="28">
+            <StackPanel Width="600">
                 <!-- Just the master enable toggle. There is no heading: the tab is already called
                      "buttons" in 40 px an inch above, and "TABLET BUTTONS" only said it again in small
                      caps — the about tab's headings name SECTIONS within a tab, which this single list
@@ -762,8 +767,9 @@
                                   ToolTip.Tip="Turn all express keys on or off. Your mappings are kept and restored when you turn them back on." />
                 </StackPanel>
 
-                <!-- Up to two columns of cards so more buttons fit while staying comfortably wide; the
-                     shared card template supplies the vertical gap between rows, the wrapper the gutter. -->
+                <!-- Two columns of cards so a dozen keys stay on one screen; the shared card template
+                     supplies the vertical gap between rows, the wrapper the gutter. Half of 600 keeps a
+                     row's "…" close to the label it belongs to. -->
                 <ItemsControl ItemsSource="{Binding AuxButtons}" IsVisible="{Binding !NoAuxButtons}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -784,13 +790,31 @@
                                Foreground="{DynamicResource TextMutedBrush}" />
                 </ctrl:Section>
             </StackPanel>
+
+            <!-- What express keys are, for anyone who opened this tab unsure. Hidden when the tablet has
+                 none: explaining keys you do not have is noise. -->
+            <StackPanel Width="300" VerticalAlignment="Top" IsVisible="{Binding !NoAuxButtons}">
+                <TextBlock Classes="Display section" Text="about buttons" Margin="0,0,0,8" />
+                <StackPanel Spacing="10">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="The keys on the tablet itself, not on the pen. Each one can hold a keyboard shortcut, a mouse button or a scroll, and they belong to this tablet's profile." />
+                    <!-- The live highlight is the answer to "which key is Button 3?", and nothing on the
+                         tab said it was there. Saying so is the cheapest version of that fix. -->
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Not sure which key is which? Press one on the tablet — its row lights up here while you hold it." />
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Enable buttons switches every key off without deleting anything, for when one sits where your hand rests. Turn it back on and your mappings return." />
+                </StackPanel>
+            </StackPanel>
+            </WrapPanel>
         </ScrollViewer>
 
         <!-- Wheels tab: per-wheel rotation bindings (CW/CCW) + sensitivity + wheel buttons. Reuses the
              ExpressKeys binding-editor card. The pivot is hidden when the tablet reports no wheel. -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       IsVisible="{Binding #WheelsTab.IsChecked}">
-            <StackPanel>
+            <WrapPanel ItemSpacing="32" LineSpacing="28">
+            <StackPanel Width="600">
                 <!-- Just the master enable toggle, matching Buttons. The heading here said "TABLET
                      WHEELS" under a tab called "wheels" — the same restatement, dropped for the same
                      reason. ("Clear all" left this header earlier, when every row got its own Clear:
@@ -864,6 +888,21 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+
+            <!-- What a wheel binding is. Always shown: the pivot itself is hidden when the tablet
+                 reports no wheel, so reaching this tab means there is one. -->
+            <StackPanel Width="300" VerticalAlignment="Top">
+                <TextBlock Classes="Display section" Text="about wheels" Margin="0,0,0,8" />
+                <StackPanel Spacing="10">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="A wheel, dial or touch ring on the tablet. Turning it one way and the other are bound separately, and a wheel with its own button gets a row for that too." />
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Turn the wheel and the gauge follows it live — a quick way to see the tablet is reporting before you bind anything to it." />
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Enable wheels switches every binding off without deleting anything. Turn it back on and your mappings return." />
+                </StackPanel>
+            </StackPanel>
+            </WrapPanel>
         </ScrollViewer>
 
         <!-- Hover tab content (#188) -->
