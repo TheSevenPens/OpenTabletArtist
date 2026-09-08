@@ -32,6 +32,8 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
             OnPropertyChanged(nameof(ShowDaemonProblem));
         if (e.PropertyName is nameof(IsConnected) or nameof(DaemonStatusText) or nameof(ConnectStalled))
             OnPropertyChanged(nameof(HomeProblemText));
+        if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity))
+            OnPropertyChanged(nameof(ShowDisconnectedLabel));
     }
 
     // --- Forwarded session state (see AppSession) ---
@@ -60,6 +62,12 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     /// <summary>False in a published build — the Daemon page hides the OTD UX card rather than
     /// showing a button that can't work.</summary>
     public bool CanLaunchOtdUx => _session.CanLaunchOtdUx;
+
+    /// <summary>Say "not connected" on the Daemon page's topology wire only when that is the settled
+    /// answer. While a start/stop/restart or the initial connect is in flight the wire carries its own
+    /// phase text ("Connecting…"), and labelling it "not connected" at the same time contradicts it —
+    /// the two were briefly on screen together (#daemon-topology).</summary>
+    public bool ShowDisconnectedLabel => !IsConnected && !ShowDaemonActivity;
 
     /// <summary>Home surfaces the daemon only when there's a connection problem or an op in flight — never
     /// in the normal connected state (an <em>external</em> daemon is a separate Needs-attention item).</summary>

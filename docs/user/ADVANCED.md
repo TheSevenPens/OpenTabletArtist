@@ -6,19 +6,26 @@
 
 ## Daemon
 
-The full daemon status and controls (this moved off Home, which now shows the daemon only when there's a problem). The information is laid out as consistent *property: value* lists across two cards:
+The full daemon status and controls (this moved off Home, which now shows the daemon only when there's a problem).
 
-- **Daemon Connection** — whether OTA is **Connected**, and (when connected) the time it connected and how long it's been up. A **Refresh** checks the status.
-- **Daemon Process** — whether the daemon is **Running**, its **Source** (either "Bundled (ships with OTA)" or "External (not started by OTA)"), its **Version**, whether that version matches the build OTA ships (**Build match**), and its **Uptime**. This card carries **Start** when disconnected and **Restart** / **Stop** when running. The **Start / Stop / Restart** actions show an inline progress bar with live phase text (Stopping… → Starting… → Connecting…) while they run, and report a clear error if the daemon doesn't come online within 30 seconds.
+The page leads with a **diagram of the connection**, read top to bottom: OpenTabletArtist, the pipe running down beside its own facts, then the OpenTabletDriver daemon process. That is the whole subject of this page — OTA does not contain the daemon, it attaches to a separate process — and the layout now says so before the facts do.
+
+- **This app** — OTA's own version and the OpenTabletDriver version it **bundles**.
+- **The wire** — running down between the two, labelled **connected** or **not connected**, with the time it connected (**Since**) and how long it has been up beside it. While a Start / Stop / Restart or the initial connect is in flight, the wire itself becomes a progress bar with live phase text (Stopping… → Starting… → Connecting…), and reports a clear error if the daemon doesn't come online within 30 seconds.
+- **Daemon process** — the running daemon and its **Version**, with its **Source** (either "Bundled (ships with OTA)" or "External (not started by OTA)") and **Uptime** underneath. When no daemon is running this box is drawn empty and greyed and the wire breaks, which is what "not running" looks like.
+
+Because the two versions now sit at either end of the same wire, a **Build match** line only appears when they *disagree* — agreement says itself.
+
+The daemon box carries a **⋯** menu — the actions all act on that process — holding **Refresh status**, and **Start** when it isn't running or **Restart** / **Stop** when it is. It stays there when the box is greyed out, which is exactly when you need **Start**.
 
 When the daemon is **External (not started by OTA)**, **Stop** and **Restart** ask first — naming the executable that's running, and what happens next. Stopping affects anything else using that daemon, and starting one again from OpenTabletArtist launches its own bundled daemon rather than the one you stopped; Restart does both in a single step. Stop always stops just the daemon OpenTabletArtist is connected to, never other OpenTabletDriver processes that happen to be running, and a systemd-managed daemon is stopped through `systemctl` rather than killed.
 
 The **Source** row tells you which daemon the app is actually connected to:
 
 - **Bundled (ships with OTA)** — connected to this project's build under `external/OpenTabletDriver/OpenTabletDriver.Daemon/bin/`.
-- **External (not started by OTA)** — connected to a daemon OTA didn't start, e.g. an officially-installed OpenTabletDriver you already had running. This is a **supported** setup: OTA connects to whichever daemon is running and only starts its own bundled copy when none is. It's also presented in its own **External Daemon** card (right column) showing the daemon's path + version, with a **Use bundled daemon instead** button (Restart) if you didn't intend it.
+- **External (not started by OTA)** — connected to a daemon OTA didn't start, e.g. an officially-installed OpenTabletDriver you already had running. This is a **supported** setup: OTA connects to whichever daemon is running and only starts its own bundled copy when none is. The diagram says **External** in the daemon box, and an **External Daemon** card below carries the explanation, the daemon's path, and a **Use bundled daemon instead** button (Restart) if you didn't intend it.
 
-Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. The right column also shows a **Bundled Daemon** card (embedded OTD version + path). A development build additionally shows an **OTD UX** card whose **Launch OTD UI** button opens the original OpenTabletDriver interface — for comparison, or for settings OTA doesn't surface; it's hidden in the released app, which ships the daemon but not that interface.
+Ownership is detected by resolving the process on the other end of the named pipe (`GetNamedPipeServerProcessId`) and comparing its exe path to the project's daemon build. (The embedded OTD version and its folder used to sit in a **Bundled Daemon** card of their own; they are under the *this app* end of the diagram now, where they can be read against the running daemon's version opposite.) A development build additionally shows an **OTD UX** card whose **Launch OTD UI** button opens the original OpenTabletDriver interface — for comparison, or for settings OTA doesn't surface; it's hidden in the released app, which ships the daemon but not that interface.
 
 ## Console
 

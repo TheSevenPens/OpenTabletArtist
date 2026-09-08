@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -53,15 +53,15 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             PlatformShell.RevealInFileManager(folder);
     }
 
+    /// <summary>OTA's own version, for the "this app" end of the topology (#daemon-topology). Read the
+    /// same way About reads it — from the assembly, which the release workflow stamps with the tag — so
+    /// the two can never disagree.</summary>
+    public string AppVersion { get; } = AppVersionInfo.Format(
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
-
-    /// <summary>Path to the bundled daemon exe OTA ships/builds (the published copy or the dev submodule
-    /// build), or "" if none is present. Shown on the BUNDLED DAEMON card.</summary>
-    public string BundledDaemonPath { get; } =
-        DaemonExePaths.Candidates(AppContext.BaseDirectory).FirstOrDefault(File.Exists) ?? "";
-
-    public bool HasBundledDaemonPath => !string.IsNullOrEmpty(BundledDaemonPath);
 
     /// <summary>The RPM-package check only applies on Linux; the card is hidden on every other OS.</summary>
     public bool IsLinux { get; } = OperatingSystem.IsLinux();
