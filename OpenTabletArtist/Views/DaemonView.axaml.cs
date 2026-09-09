@@ -22,9 +22,14 @@ public partial class DaemonView : UserControl
     }
 
     /// <summary>"Locate OpenTabletDriver…" — the native picker, in code-behind because it needs the
-    /// window's StorageProvider (same split as the theme/config pickers). macOS shows an .app bundle as a
-    /// file, Linux/Windows as a folder of binaries, so both pickers are offered and whichever the user
-    /// completes is handed to the view model to vet.</summary>
+    /// window's StorageProvider (same split as the theme/config pickers).
+    ///
+    /// One picker, deliberately. An earlier version fell back to a folder picker when no file came back,
+    /// which made Cancel reopen a second dialog — a cancelled picker and an empty result are the same
+    /// value, so there is no fallback that doesn't trap the user. A file picker covers both real cases:
+    /// macOS shows OpenTabletDriver.app as a selectable item, and elsewhere the daemon binary itself can
+    /// be picked out of its folder. No type filter — the daemon has no extension on macOS/Linux, and a
+    /// filter would hide the very file being looked for.</summary>
     private async void OnLocateDaemon(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not DaemonViewModel vm) return;
@@ -37,19 +42,9 @@ public partial class DaemonView : UserControl
             AllowMultiple = false,
         });
 
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            // Nothing picked as a file — offer the folder picker for a plain install directory.
-            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "Choose the folder holding OpenTabletDriver",
-                AllowMultiple = false,
-            });
-            path = folders.FirstOrDefault()?.TryGetLocalPath();
-        }
-
-        if (!string.IsNullOrWhiteSpace(path)) await vm.ChooseDaemonPathAsync(path);
+        // Cancelled — leave everything exactly as it was.
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path && !string.IsNullOrWhiteSpace(path))
+            await vm.ChooseDaemonPathAsync(path);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
