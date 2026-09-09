@@ -27,7 +27,8 @@ public enum HealthSeverity
 /// locally (the same issue appears on Home and at the top of the page that owns the fix).</summary>
 public enum RemediationArea
 {
-    /// <summary>The Home daemon card (Start/Restart/Refresh).</summary>
+    /// <summary>The Daemon page (Advanced → OpenTabletDriver → Daemon), which shows the connection and
+    /// its Start/Restart/Refresh controls. Navigates — it does not act on the daemon itself.</summary>
     Daemon,
     /// <summary>The Windows Ink Plugin page under Advanced (install / update). (#317)</summary>
     WindowsInk,

@@ -97,7 +97,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 _openDriverCleanup?.Invoke();
                 break;
             case RemediationArea.Daemon:
-                Daemon.RestartDaemonCommand.Execute(null); // external daemon → restart to this app's build
+                // Show the connection, don't act on it. This card reports which OpenTabletDriver is in
+                // use, and adopting the user's own install is supported — restarting it (the old
+                // behaviour) both undid their choice and put a confirmation dialog in front of a button
+                // labelled "Review". See docs/design/official-otd-release.md.
+                Daemon.OpenDaemonPageCommand.Execute(null);
                 break;
             case RemediationArea.TabletPenBehavior:
                 // Deep-link to the PEN page, on the Movement pivot that carries the fix (pen settings split

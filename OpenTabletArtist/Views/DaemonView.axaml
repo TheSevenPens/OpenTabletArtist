@@ -249,7 +249,7 @@
                                     <Panel Grid.Row="0" Grid.Column="1">
                                         <TextBlock Classes="propValue" Text="Bundled (ships with OTA)"
                                                    IsVisible="{Binding Status.ShowAppOwnedDaemon}" />
-                                        <TextBlock Classes="propValue" Text="External (not started by OTA)"
+                                        <TextBlock Classes="propValue" Text="Your OpenTabletDriver install"
                                                    IsVisible="{Binding Status.ShowForeignDaemonWarning}" />
                                     </Panel>
 
@@ -302,8 +302,10 @@
              the bundled daemon this area is empty and the page is just the diagram. -->
 
                 <!-- EXTERNAL DAEMON (#591): OTA connects to whatever daemon is already running — including
-                     an officially-installed / separately-started OpenTabletDriver — and only launches its
-                     own bundled copy when nothing is running. When the connected daemon isn't OTA's build,
+                     an officially-installed / separately-started OpenTabletDriver — and launches whichever
+                     one the search ladder resolves to when nothing is running (docs/design/official-otd-release.md:
+                     an installed OTD outranks the dev tree on macOS, so "we started it" no longer implies
+                     "it is our build"). When the connected daemon isn't OTA's build,
                      present that here as a supported setup (path + version), with a one-click switch back
                      to bundled. The topology already says "External" under the daemon end; this card is
                      where the explanation and the way out live. -->
@@ -312,7 +314,7 @@
                     <StackPanel>
                         <TextBlock Classes="Display section" Text="external daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
                         <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Text="OTA is connected to a daemon it didn't start — for example an officially-installed OpenTabletDriver. This is supported: OTA configures whichever daemon is running, and only starts its own bundled copy when none is." />
+                                   Text="OTA is connected to an OpenTabletDriver it didn't build — typically one you installed yourself. This is supported: OTA configures whichever OpenTabletDriver it finds, and will start that one when none is running." />
 
                         <!-- property: value list -->
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,4,0,0">
