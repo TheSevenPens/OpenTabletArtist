@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using OpenTabletArtist.Domain;
 using Xunit;
 
@@ -38,28 +39,23 @@ public class OtdReleaseTests
         Assert.EndsWith(OtdRelease.MacAssetName, url);
     }
 
-    // ~/Applications, not /Applications: no authorization needed, and the search ladder already looks
-    // there, so a successful install is found without storing a path.
     [Fact]
-    public void InstallsIntoTheUsersOwnApplicationsFolder()
+    public void InstallsIntoTheSystemApplicationsFolder()
     {
-        var home = Path.Combine("/", "Users", "someone");
-
-        Assert.Equal(Path.Combine(home, "Applications"), OtdRelease.InstallDirectory(home));
+        Assert.Equal(Path.Combine("/", "Applications"), OtdRelease.InstallDirectory);
         Assert.Equal(
-            Path.Combine(home, "Applications", "OpenTabletDriver.app"),
-            OtdRelease.InstalledBundlePath(home));
+            Path.Combine("/", "Applications", "OpenTabletDriver.app"),
+            OtdRelease.InstalledBundlePath);
     }
 
-    // The install location has to be a place the ladder searches, or an installed driver would sit there
-    // undiscovered.
+    // The install has to land where the ladder looks *first*. Anywhere lower and OTA's own install could
+    // be shadowed later by whatever turned up in a higher tier — the reason /Applications was chosen over
+    // a per-user location.
     [Fact]
-    public void TheInstalledDaemonIsOnTheSearchLadder()
+    public void TheInstalledDaemonIsTheLaddersFirstInstalledCandidate()
     {
-        var home = Path.Combine("/", "Users", "someone");
+        var installed = DaemonExePaths.InstalledMacPaths(Path.Combine("/", "Users", "someone")).ToList();
 
-        Assert.Contains(
-            OtdRelease.InstalledDaemonPath(home),
-            DaemonExePaths.InstalledMacPaths(home));
+        Assert.Equal(OtdRelease.InstalledDaemonPath, installed.First());
     }
 }

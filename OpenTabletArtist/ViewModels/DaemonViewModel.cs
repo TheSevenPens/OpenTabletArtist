@@ -129,8 +129,8 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// not after.</summary>
     public string InstallDescription =>
         $"OpenTabletArtist needs OpenTabletDriver to talk to your tablet. It can download the official "
-        + $"release (v{OtdRelease.AssetVersion}) from OpenTabletDriver's GitHub and install it to your "
-        + "Applications folder.";
+        + $"release (v{OtdRelease.AssetVersion}) from OpenTabletDriver's GitHub and install it to "
+        + $"{OtdRelease.InstallDirectory}.";
 
     [RelayCommand]
     private async Task InstallOtd()
@@ -145,8 +145,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             _installer.StatusChanged += OnInstallStatus;
             _installer.ProgressChanged += OnInstallProgress;
 
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var result = await _installer.InstallAsync(home);
+            var result = await _installer.InstallAsync();
 
             if (!result.Installed)
             {
@@ -154,8 +153,8 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            // Installed into ~/Applications, which the ladder already searches — so connecting is all
-            // that's left, and nothing has to be remembered.
+            // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
+            // and nothing has to be remembered.
             InstallGuidance = OtdInstaller.GatekeeperGuidance;
             await Status.RefreshCommand.ExecuteAsync(null);
         }

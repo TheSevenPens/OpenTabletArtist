@@ -34,19 +34,24 @@ public static class OtdRelease
     public static string MacDownloadUrl =>
         $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/{Tag}/{MacAssetName}";
 
-    /// <summary>Where an assisted install puts OpenTabletDriver: the per-user <c>~/Applications</c>.
-    /// Chosen over <c>/Applications</c> because it needs no authorization, and the search ladder already
-    /// looks there (<see cref="DaemonExePaths.InstalledMacPaths"/>), so the install is found with no
-    /// stored path to keep in step.</summary>
-    public static string InstallDirectory(string homeDir) =>
-        Path.GetFullPath(Path.Combine(homeDir, "Applications"));
+    /// <summary>Where an assisted install puts OpenTabletDriver: the system <c>/Applications</c>.
+    ///
+    /// It is where macOS users look for and remove apps, where OpenTabletDriver's own instructions put it,
+    /// and — the deciding reason — the first entry on the daemon search ladder
+    /// (<see cref="DaemonExePaths.InstalledMacPaths"/>). Installing anywhere lower would leave OTA's own
+    /// install permanently shadowable by whatever appeared here later.
+    ///
+    /// <c>/Applications</c> is <c>drwxrwxr-x root:admin</c>, so an admin account — the default on a
+    /// personal Mac — writes here with no authorization prompt. A standard account cannot; that case
+    /// fails with an explanation rather than falling back to a per-user location, and is deliberately
+    /// left for later.</summary>
+    public static string InstallDirectory => Path.Combine("/", "Applications");
 
     /// <summary>Full path of the installed bundle.</summary>
-    public static string InstalledBundlePath(string homeDir) =>
-        Path.Combine(InstallDirectory(homeDir), MacBundleName);
+    public static string InstalledBundlePath => Path.Combine(InstallDirectory, MacBundleName);
 
     /// <summary>The daemon inside an installed bundle — what the caller probes to confirm the install
     /// produced something runnable.</summary>
-    public static string InstalledDaemonPath(string homeDir) =>
-        Path.Combine(InstalledBundlePath(homeDir), "Contents", "MacOS", "OpenTabletDriver.Daemon");
+    public static string InstalledDaemonPath =>
+        Path.Combine(InstalledBundlePath, "Contents", "MacOS", "OpenTabletDriver.Daemon");
 }

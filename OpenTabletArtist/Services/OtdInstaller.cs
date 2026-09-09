@@ -14,8 +14,8 @@ namespace OpenTabletArtist.Services;
 /// me" answer of the not-found flow (docs/design/official-otd-release.md).
 ///
 /// Downloads OTD's own published artifact rather than building one, so what lands on disk is a binary
-/// upstream produced and can support. Installs to <c>~/Applications</c>, which needs no authorization and
-/// is already on the daemon search ladder, so a successful install is found with no stored path.
+/// upstream produced and can support. Installs to <c>/Applications</c> — the first entry on the daemon
+/// search ladder — so a successful install is found with no stored path to keep in step.
 ///
 /// Deliberately does NOT touch the quarantine attribute. Stripping it would be programmatically
 /// disabling a macOS security control on the user's behalf; instead <see cref="GatekeeperGuidance"/> is
@@ -46,16 +46,23 @@ public sealed class OtdInstaller
     /// present — replacing an OpenTabletDriver the user put there is not this flow's business, and a
     /// half-replaced install is worse than none.
     /// </summary>
-    public async Task<Result> InstallAsync(string homeDir, CancellationToken ct = default)
+    public async Task<Result> InstallAsync(CancellationToken ct = default)
     {
         if (!OperatingSystem.IsMacOS())
             return new Result(null, "Assisted install is only available on macOS at the moment.");
 
-        var bundlePath = OtdRelease.InstalledBundlePath(homeDir);
+        var bundlePath = OtdRelease.InstalledBundlePath;
         if (Directory.Exists(bundlePath))
             return new Result(null,
                 $"OpenTabletDriver is already installed at {bundlePath}. Remove it first, or point OTA at "
                 + "it with Locate OpenTabletDriver.");
+
+        // /Applications is writable by admin accounts without a prompt, but not by standard ones. Say so
+        // plainly rather than failing halfway through with a raw permissions error.
+        if (!CanWriteTo(OtdRelease.InstallDirectory))
+            return new Result(null,
+                $"This account can't write to {OtdRelease.InstallDirectory}. Install OpenTabletDriver "
+                + "yourself, then use Locate OpenTabletDriver to point OTA at it.");
 
         var work = Directory.CreateTempSubdirectory("ota-otd-install-");
         try
@@ -76,10 +83,9 @@ public sealed class OtdInstaller
                     + "shape — install OpenTabletDriver yourself and use Locate OpenTabletDriver.");
 
             StatusChanged?.Invoke("Installing…");
-            Directory.CreateDirectory(OtdRelease.InstallDirectory(homeDir));
             Directory.Move(extractedBundle, bundlePath);
 
-            var daemon = OtdRelease.InstalledDaemonPath(homeDir);
+            var daemon = OtdRelease.InstalledDaemonPath;
             if (!File.Exists(daemon))
                 return new Result(null, $"Installed, but no daemon at {daemon}.");
 
@@ -109,6 +115,24 @@ public sealed class OtdInstaller
         {
             try { work.Delete(recursive: true); }
             catch (Exception ex) { AppLog.Debug("Couldn't clean up the install temp directory.", ex); }
+        }
+    }
+
+    /// <summary>Probe rather than infer: group membership, ACLs and a managed Mac's restrictions all bear
+    /// on this, and the only reliable answer is to try.</summary>
+    private static bool CanWriteTo(string directory)
+    {
+        var probe = Path.Combine(directory, $".ota-install-probe-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(probe);
+            Directory.Delete(probe);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug($"{directory} isn't writable by this account.", ex);
+            return false;
         }
     }
 
