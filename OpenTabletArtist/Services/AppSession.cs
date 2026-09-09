@@ -50,6 +50,8 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>The connected daemon's path is known and worth showing.</summary>
     bool HasDaemonSourcePath { get; }
     bool ShowDaemonSourceUnknown { get; }
+    /// <summary>The daemon can see a supported tablet but hasn't detected it (macOS permissions).</summary>
+    bool DaemonCannotOpenTablet { get; }
     bool CanStartDaemon { get; }
     /// <summary>The daemon exe couldn't be found (not built / not bundled) and none is running, so a
     /// connect attempt is pointless. Checked before every connect; surfaces a clear "build the
@@ -185,6 +187,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     partial void OnDaemonVersionChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersion));
     [ObservableProperty] private string _daemonStatusText = "Not connected";
     [ObservableProperty] private bool _isDaemonExeMissing;
+
+    /// <summary>The daemon can see a supported tablet on the bus but has not detected it — on macOS the
+    /// signature of a missing Input Monitoring grant, since enumerating a HID device needs no permission
+    /// while opening it does. Only ever evaluated when no tablet was detected, so it costs nothing on a
+    /// working setup.</summary>
+    [ObservableProperty] private bool _daemonCannotOpenTablet;
 
     /// <summary>Message shown when <see cref="IsDaemonExeMissing"/> — the most common cause of a
     /// dead connection (building only the app, or only running the test suite, never produces the
@@ -385,6 +393,29 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             if (IsConnected) _ = LoadDataAsync();
         });
+    }
+
+    /// <summary>Does the daemon's own HID enumeration contain a tablet it has a configuration for?
+    /// Best-effort: any failure reads as "no", because claiming a permissions problem on a failed probe
+    /// would be worse than staying quiet.</summary>
+    private async Task<bool> DaemonSeesUnopenedTabletAsync()
+    {
+        try
+        {
+            var devices = await _daemon.GetDevicesAsync();
+            foreach (var device in devices)
+            {
+                var vendor = device["VendorID"]?.Value<int>();
+                var product = device["ProductID"]?.Value<int>();
+                if (vendor is { } v && product is { } p && SupportedTabletsCatalog.IsSupportedDevice(v, p))
+                    return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Debug("Couldn't check the daemon's device list for an unopened tablet.", ex);
+        }
+        return false;
     }
 
     private void NotifyOwnership()
@@ -616,6 +647,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 TabletPressure = "";
                 TabletButtons = "";
             }
+
+            // "No tablets" has two very different causes: nothing is plugged in, or something is and the
+            // daemon can't open it. Ask the daemon what it can SEE only in that case — the answer is only
+            // interesting when the detected list is empty.
+            DaemonCannotOpenTablet = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
 
             // Settings (typed) + profile derivation
             _settings = await _daemon.GetSettingsAsync();

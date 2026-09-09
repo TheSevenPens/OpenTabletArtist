@@ -101,6 +101,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             case RemediationArea.DriverCleanup:
                 _openDriverCleanup?.Invoke();
                 break;
+            case RemediationArea.InputMonitoring:
+                // A deep link into System Settings. There is no API to grant this on the user's behalf —
+                // the most an app may do is open the pane where they can.
+                OpenInputMonitoringSettings();
+                break;
             case RemediationArea.Daemon:
                 // Show the connection, don't act on it. This card reports which OpenTabletDriver is in
                 // use, and adopting the user's own install is supported — restarting it (the old
@@ -148,6 +153,24 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
     /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
     [RelayCommand]
+    /// <summary>Privacy &amp; Security › Input Monitoring. macOS-only; a no-op elsewhere.</summary>
+    private static void OpenInputMonitoringSettings()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Couldn't open the Input Monitoring settings pane.", ex);
+        }
+    }
+
     private void FollowLink(HealthLink? link)
     {
         if (link is null) return;

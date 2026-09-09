@@ -155,9 +155,17 @@ when at least one row is true.
 `daemon.foreign`, `daemon.sourceUnknown` and `otd.versionMismatch` existed briefly as separate ids during
 Phase A and are gone; nothing outside the app should reference them.
 
-**Still unbuilt:** `otd.permissionsMissing` — the macOS Input Monitoring / Accessibility check with a
-deep link to the right settings pane. It is the one planned health issue that survives the reasoning
-above, since no existing surface covers it.
+`otd.permissionsMissing` *(shipped)* is the second issue, and the one planned check that survived the
+reasoning above — no existing surface covers it. **Broken**, with an "Open Settings" remediation that
+deep-links to Privacy & Security › Input Monitoring; OTA cannot grant the permission, only take the user
+to where it is granted.
+
+Detecting it is indirect, because there is no API to read another process's TCC grant. The signal is that
+the daemon can *enumerate* a supported tablet (`GetDevices`) while not having *detected* it
+(`GetTablets`): on macOS listing a HID device needs no permission, opening it does, so that gap is the
+grant's absence seen from outside the daemon. Supported-ness comes from the same embedded configurations
+the tablet catalog reads, so "nothing plugged in" never reads as a permissions problem. The probe runs
+only when no tablet was detected, so a working setup never pays for it.
 
 ### Launch failures *(shipped)*
 

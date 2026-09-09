@@ -192,6 +192,23 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
         return await _rpc.InvokeAsync<JArray>("GetTablets");
     }
 
+    /// <summary>
+    /// The HID endpoints the daemon can SEE, which is not the same as the tablets it could OPEN. On macOS
+    /// enumerating device metadata needs no permission while reading input reports does, so a supported
+    /// tablet present here but absent from <c>GetTablets</c> is the signature of a missing Input
+    /// Monitoring grant. Loosely typed like GetTablets; empty on any failure.
+    /// </summary>
+    public async Task<JArray> GetDevicesAsync()
+    {
+        if (_rpc is not { IsDisposed: false }) return new JArray();
+        try { return await _rpc.InvokeAsync<JArray>("GetDevices"); }
+        catch (Exception ex)
+        {
+            AppLog.Debug("Couldn't read the daemon's device list.", ex);
+            return new JArray();
+        }
+    }
+
     private void OnDeviceReport(JObject data)
     {
         DeviceReport?.Invoke(data);

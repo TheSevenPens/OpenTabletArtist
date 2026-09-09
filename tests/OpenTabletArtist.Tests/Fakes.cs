@@ -143,6 +143,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool HasBundledDaemon => false;
     public bool CanSwitchToBundledDaemon => false;
     public bool HasDaemonSourcePath => false;
+    public bool DaemonCannotOpenTablet => false;
     public bool ShowDaemonSourceUnknown => false;
     public bool CanStartDaemon => !_isConnected;
     public bool IsDaemonExeMissing => false;
