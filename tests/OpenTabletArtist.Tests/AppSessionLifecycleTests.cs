@@ -23,7 +23,7 @@ public class AppSessionLifecycleTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
-        public void Launch() => LaunchCount++;                 // no real process — never connects
+        public string? Launch() { LaunchCount++; return null; }                 // no real process — never connects
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
@@ -41,10 +41,26 @@ public class AppSessionLifecycleTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => null;
         public bool IsRunning() => false;
-        public void Launch() => LaunchCount++;
+        public string? Launch() { LaunchCount++; return null; }
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
+        public string? GetProcessPath(int processId) => null;
+        public string? GetSingleRunningDaemonPath() => null;
+    }
+
+    // Daemon present, but it dies the moment it is started.
+    private sealed class FailingLaunchLifecycle : IDaemonLifecycleService
+    {
+        public const string Problem = "The daemon at /somewhere/OpenTabletDriver.Daemon started and exited immediately (exit code 150).";
+        public string? ExpectedExePath() => "fake-daemon.exe";
+        public bool IsOwnBuild(string? path) => false;
+        public bool HasBundledDaemon() => false;
+        public string? FindExe() => "fake-daemon.exe";
+        public bool IsRunning() => false;
+        public string? Launch() => Problem;
+        public bool Stop(int processId) => true;
+        public void StopAll() { }
         public string? GetProcessPath(int processId) => null;
         public string? GetSingleRunningDaemonPath() => null;
     }
@@ -126,6 +142,12 @@ public class AppSessionLifecycleTests
 
     // --- Daemon-exe-missing short-circuit (checked before any connect attempt) ---
 
+    private static AppSession NewSession(IDaemonLifecycleService lifecycle) =>
+        new AppSession(new DaemonClient(), lifecycle, new FakeSettingsStore())
+        {
+            DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
+        };
+
     private static AppSession NewMissingSession(out MissingLifecycle lifecycle)
     {
         lifecycle = new MissingLifecycle();
@@ -147,6 +169,23 @@ public class AppSessionLifecycleTests
         Assert.Equal(AppSession.DaemonExeMissingMessage, session.DaemonOperationError);
         Assert.Equal(0, lifecycle.LaunchCount); // no point launching a nonexistent exe
         Assert.False(session.IsConnected);
+    }
+
+    // A daemon that is present but dies on the spot (a framework-dependent build with no runtime, a
+    // broken install) used to surface only as "didn't come online within 30 seconds". Report what the
+    // launch actually said, and don't spend the timeout finding out.
+    [Fact]
+    public async Task StartDaemon_WhenTheDaemonExitsImmediately_ReportsThatInsteadOfTimingOut()
+    {
+        var lifecycle = new FailingLaunchLifecycle();
+        using var session = NewSession(lifecycle);
+
+        await session.StartDaemonCommand.ExecuteAsync(null);
+
+        Assert.Equal(FailingLaunchLifecycle.Problem, session.DaemonOperationError);
+        Assert.True(session.HasDaemonOperationError);
+        Assert.False(session.IsDaemonBusy);
+        Assert.Equal("Disconnected", session.ConnectionStatus);
     }
 
     [Fact]

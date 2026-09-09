@@ -34,8 +34,13 @@ public interface IDaemonLifecycleService
     /// where nothing is bundled.</summary>
     bool HasBundledDaemon();
 
-    /// <summary>Launches the daemon with no window, if an exe can be found. No-op otherwise.</summary>
-    void Launch();
+    /// <summary>Launches the daemon with no window, if an exe can be found. Waits briefly to catch the
+    /// case where it starts and exits immediately — a daemon that is present but can't run (a missing
+    /// .NET runtime for a framework-dependent build, a broken install) otherwise shows up only as a
+    /// silent 30-second connect timeout, which says nothing about what went wrong.</summary>
+    /// <returns>The problem to report, or null when the daemon was launched and is still alive (or when
+    /// there was nothing to launch — the caller already reports that as "exe missing").</returns>
+    string? Launch();
 
     /// <summary>
     /// Kills ONE daemon process by id (best effort) — the one we are connected to. Prefer this over
@@ -104,17 +109,53 @@ public class DaemonLifecycleService : IDaemonLifecycleService
 
     public bool HasBundledDaemon() => File.Exists(DaemonExePaths.BundledPath(AppContext.BaseDirectory));
 
-    public void Launch()
+    /// <summary>How long to watch a freshly started daemon before assuming it is alive. Long enough to
+    /// catch an apphost bailing out (that happens in tens of milliseconds), short enough not to be felt
+    /// on the Start button.</summary>
+    private static readonly TimeSpan EarlyExitWindow = TimeSpan.FromSeconds(2);
+
+    public string? Launch()
     {
         var daemonPath = FindExe();
-        if (daemonPath == null) return;
+        if (daemonPath == null) return null;   // "nothing to launch" is the caller's own message
 
-        Process.Start(new ProcessStartInfo(daemonPath)
+        Process? proc;
+        try
         {
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
-        });
+            proc = Process.Start(new ProcessStartInfo(daemonPath)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Couldn't start the daemon at {daemonPath}.", ex);
+            return $"The daemon at {daemonPath} couldn't be started: {ex.Message}";
+        }
+
+        if (proc == null) return $"The daemon at {daemonPath} couldn't be started.";
+
+        // Deliberately no stdout/stderr redirection: the pipes would outlive this call for a healthy
+        // daemon, and tearing them down when OTA quits can break a daemon that was working fine. The exit
+        // code plus the path is enough to stop the failure being invisible.
+        try
+        {
+            if (!proc.WaitForExit(EarlyExitWindow)) return null;   // still running — the normal path
+
+            AppLog.Warn($"The daemon at {daemonPath} exited immediately (exit code {proc.ExitCode}).");
+            return $"The daemon at {daemonPath} started and exited immediately (exit code {proc.ExitCode}). "
+                 + "It may be a build that needs a .NET runtime this machine doesn't have, or an "
+                 + "incomplete install — try a different OpenTabletDriver on the Daemon page.";
+        }
+        catch (Exception ex)
+        {
+            // Couldn't observe it (permissions, already reaped) — don't turn a working start into an error.
+            AppLog.Debug($"Couldn't watch the daemon at {daemonPath} for an early exit.", ex);
+            return null;
+        }
+        finally { proc.Dispose(); }
     }
 
     public bool Stop(int processId)

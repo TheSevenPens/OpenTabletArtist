@@ -481,7 +481,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // No flat delay: the pipe connect below already waits for the daemon's pipe to come up,
             // so a fixed sleep only adds latency (and risks eating the connect timeout). (#246)
             ConnectPhase = "Starting the daemon…";
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
             ConnectPhase = "Waiting for the daemon to respond…";
         }
         else
@@ -968,7 +973,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                // It died on the spot. Waiting out the 30s connect timeout would replace a precise
+                // explanation with a generic one.
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
             OnPropertyChanged(nameof(CanStartDaemon));
 
             DaemonOperationStatus = "Connecting…";
@@ -1095,7 +1107,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Start phase: relaunch and connect to the fresh instance.
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                // Worth being loud here: the old daemon is already stopped, so a silent failure leaves
+                // the user with no driver at all and no idea why.
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";

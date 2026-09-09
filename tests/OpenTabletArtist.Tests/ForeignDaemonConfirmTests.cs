@@ -21,7 +21,7 @@ public class ForeignDaemonConfirmTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
-        public void Launch() { }
+        public string? Launch() => null;
         public bool Stop(int processId) => true;
         public void StopAll() => StopAllCount++;
         public string? GetProcessPath(int processId) => null;
