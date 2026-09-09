@@ -32,6 +32,61 @@ public class HealthEvaluatorTests
 
     // Daemon reachability (not-connected / exe-missing) is no longer a health issue — it's owned by the
     // Home daemon problem card + Daemon page. Only the "external daemon" recommendation remains here.
+    // --- Version skew against an adopted install (docs/design/official-otd-release.md) ---
+    // A user's own OpenTabletDriver is whatever release they installed; OTA links OTD's types and the RPC
+    // is loosely typed, so the two versions being different is worth surfacing on Home.
+
+    [Fact]
+    public void DaemonFromADifferentRelease_IsRecommendation_AndNamesBothVersions()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+
+        Assert.Equal("otd.versionMismatch", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
+        Assert.Contains("0.6.7.0", issue.Detail);
+        Assert.Contains("0.6.6.2", issue.Detail);
+    }
+
+    // The daemon binary reports "0.6.7" where OTA's assembly version is "0.6.7.0" — same release, and
+    // nagging about the fourth component would fire on every healthy install.
+    [Fact]
+    public void SameReleaseWithADifferentFourthComponent_IsNotAnIssue()
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonVersion = "0.6.7",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+    }
+
+    [Theory]
+    [InlineData("", "0.6.7.0")]   // daemon version unreadable (cross-session / elevated process)
+    [InlineData("0.6.6.2", "")]   // our own version unknown
+    public void UnknownVersionsRaiseNothing(string daemon, string expected)
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonVersion = daemon,
+            ExpectedOtdVersion = expected,
+        }));
+    }
+
+    [Fact]
+    public void VersionMismatchIsNotReportedWhileDisconnected()
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+    }
+
     // Adoption is a supported mode, not a defect: driving the user's own OTD install states itself and
     // offers a Review, never a Fix that would undo their choice (docs/design/official-otd-release.md).
     [Fact]

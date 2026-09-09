@@ -135,6 +135,13 @@ public sealed record HealthInputs
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
+    /// <summary>Version of the daemon we're connected to, read off its binary ("" if unknown). Adoption
+    /// makes this genuinely variable: the user's own OpenTabletDriver install is whatever version they
+    /// have, not the one OTA was built from. (docs/design/official-otd-release.md)</summary>
+    public string DaemonVersion { get; init; } = "";
+    /// <summary>The OpenTabletDriver version OTA was compiled against — the pinned submodule release
+    /// ("" if unknown).</summary>
+    public string ExpectedOtdVersion { get; init; } = "";
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>
     public bool WinInkInstalled { get; init; }
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
@@ -298,6 +305,26 @@ public static class HealthEvaluator
         }
 
         // --- Recommendations ---
+        // OTA links OTD's own libraries and deserializes daemon replies into their types, so a daemon
+        // from a different release is a real risk rather than a cosmetic difference: the RPC is loosely
+        // typed (stringly-named methods, JSON payloads), which means skew fails at runtime, not at
+        // build time. It usually works — hence Recommendation, not Broken — but the user should know
+        // which two versions are in play when something behaves oddly. Splitting this into a supported
+        // range (unsupported vs merely untested) needs a declared policy; see
+        // docs/design/official-otd-release.md.
+        if (i.DaemonConnected
+            && !string.IsNullOrEmpty(i.DaemonVersion)
+            && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
+            && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
+        {
+            issues.Add(new HealthIssue("otd.versionMismatch", HealthSeverity.Recommendation,
+                "OpenTabletDriver version differs",
+                $"This app was built against OpenTabletDriver v{i.ExpectedOtdVersion}, but the driver "
+                    + $"it's connected to is v{i.DaemonVersion}. Settings still apply, but newer features "
+                    + "may be missing and some may behave differently.",
+                new Remediation("Review", RemediationArea.Daemon)));
+        }
+
         // Driving an OpenTabletDriver the user installed themselves is a supported way to run — it is the
         // whole point of adoption (docs/design/official-otd-release.md), and on macOS it is the only way
         // the Input Monitoring grant survives. So this states which driver is in use rather than asking
