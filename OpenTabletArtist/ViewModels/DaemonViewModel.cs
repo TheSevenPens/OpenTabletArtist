@@ -1,5 +1,9 @@
 using System;
 using System.IO;
+using OpenTabletArtist.Domain.Health;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,9 +25,17 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 {
-    public DaemonViewModel(DaemonStatusViewModel status)
+    private readonly HealthService? _health;
+
+    public DaemonViewModel(DaemonStatusViewModel status, HealthService? health = null)
     {
         Status = status;
+        _health = health;
+        if (_health is not null)
+        {
+            _health.Issues.CollectionChanged += (_, _) => RefreshDaemonIssues();
+            RefreshDaemonIssues();
+        }
         Connection = new DaemonConnectionViewModel(status);
         Process = new DaemonProcessViewModel(status);
         Status.PropertyChanged += (_, e) =>
@@ -38,6 +50,24 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
     public DaemonStatusViewModel Status { get; }
+
+    /// <summary>The health issues whose fix lives on this page, repeated here from Home — the same issue
+    /// showing in both places is the point of the remediation model (#317), so someone who came here
+    /// directly sees what Home would have told them. Rendered without the Review button that Home shows:
+    /// on this page it would only navigate back to where the reader already is.</summary>
+    public ObservableCollection<HealthIssue> DaemonIssues { get; } = new();
+
+    public bool HasDaemonIssues => DaemonIssues.Count > 0;
+
+    private void RefreshDaemonIssues()
+    {
+        var next = _health?.IssuesFor(RemediationArea.Daemon).ToList() ?? [];
+        if (next.SequenceEqual(DaemonIssues)) return;   // records compare by value — skip a no-op rebuild
+
+        DaemonIssues.Clear();
+        foreach (var issue in next) DaemonIssues.Add(issue);
+        OnPropertyChanged(nameof(HasDaemonIssues));
+    }
 
     /// <summary>The DAEMON CONNECTION card: whether OTA is connected and for how long.</summary>
     public DaemonConnectionViewModel Connection { get; }

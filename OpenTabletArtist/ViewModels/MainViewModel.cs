@@ -226,7 +226,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // on Windows, since PLUGINS (unlike DRIVERS) is not filtered off other platforms.
         Plugins = new PluginsViewModel(_session, _session,
             OperatingSystem.IsWindows() ? WindowsInk : null);
-        Daemon = new DaemonViewModel(_daemonStatus);
+        Daemon = new DaemonViewModel(_daemonStatus, _health);
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 

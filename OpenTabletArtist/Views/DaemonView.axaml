@@ -1,7 +1,8 @@
 <UserControl x:Class="OpenTabletArtist.Views.DaemonView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:c="using:OpenTabletArtist.Controls">
+             xmlns:c="using:OpenTabletArtist.Controls"
+             xmlns:conv="using:OpenTabletArtist.Converters">
 
     <!-- DataContext is the DaemonViewModel, supplied by the typed-nav DataTemplate (#15).
 
@@ -322,6 +323,50 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Top" Spacing="16">
+
+                <!-- The same issues Home shows for this page, repeated at the top of the column that owns
+                     them (#317). No Review button here: on Home it navigates to this page, and from this
+                     page it would lead back to where the reader already is. The rows stay clickable. -->
+                <ItemsControl ItemsSource="{Binding DaemonIssues}" IsVisible="{Binding HasDaemonIssues}"
+                              MaxWidth="440" HorizontalAlignment="Left">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <c:Alert Margin="0,0,0,8" Padding="14,11"
+                                     Severity="{Binding Severity, Converter={x:Static conv:HealthSeverityToAlertSeverityConverter.Instance}}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                    <Panel Grid.Column="0" VerticalAlignment="Top" Margin="0,1,0,0">
+                                        <PathIcon Data="{StaticResource IconAlertCircle}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Broken}" />
+                                        <PathIcon Data="{StaticResource IconAlert}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Misconfigured}" />
+                                        <PathIcon Data="{StaticResource IconLightbulbOn}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Recommendation}" />
+                                        <PathIcon Data="{StaticResource IconInformationOutline}" Width="22" Height="22" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  IsVisible="{Binding Severity, Converter={StaticResource EnumEquals}, ConverterParameter=Information}" />
+                                    </Panel>
+                                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding Title}" Classes="CardTitle" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detail}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <ItemsControl ItemsSource="{Binding Links}" Margin="0,6,0,0"
+                                                      IsVisible="{Binding Links, Converter={StaticResource NotNull}}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                                        <TextBlock Text="&#8226;" VerticalAlignment="Top"
+                                                                   Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+                            </c:Alert>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
 
             <!-- The secondary cards share the topology block's WrapPanel, so they sit beside it when
