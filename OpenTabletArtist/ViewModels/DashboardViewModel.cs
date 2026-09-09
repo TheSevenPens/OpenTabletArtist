@@ -49,6 +49,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             () => TabletsOverview.Tablets.FirstOrDefault(t => t.IsDetected)?.Name);
 
         _session.PropertyChanged += OnSessionPropertyChanged;
+
+        // The all-clear line answers for this whole column, so it has to watch everything the column can
+        // show — the health catalog AND the daemon card, which is deliberately not a health issue.
+        Health.PropertyChanged += OnAttentionSourceChanged;
+        Daemon.PropertyChanged += OnAttentionSourceChanged;
     }
 
     /// <summary>Shared daemon status/control surface. The Home problem card binds to it and shows only
@@ -169,6 +174,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
 
+    /// <summary>True when this column really has nothing to say. The daemon problem card lives outside the
+    /// health catalog by design (#317), so "no health issues" was never the same as "nothing is wrong" —
+    /// and with no driver at all, Home said "Nothing needs attention" directly above a warning card
+    /// explaining that nothing was connected.</summary>
+    public bool ShowAllClear => !Health.HasIssues && !Daemon.ShowDaemonProblem;
+
+    private void OnAttentionSourceChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(HealthService.HasIssues)
+            or nameof(DaemonStatusViewModel.ShowDaemonProblem))
+            OnPropertyChanged(nameof(ShowAllClear));
+    }
+
     private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(IDeviceData.HasTablet) or nameof(IDeviceData.TabletName))
@@ -181,5 +199,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _session.PropertyChanged -= OnSessionPropertyChanged;
+        Health.PropertyChanged -= OnAttentionSourceChanged;
+        Daemon.PropertyChanged -= OnAttentionSourceChanged;
     }
 }

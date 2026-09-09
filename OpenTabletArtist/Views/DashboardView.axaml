@@ -142,7 +142,7 @@
                  whole job is that something loud here means something is actually wrong. -->
             <TextBlock Text="Nothing needs attention." TextWrapping="Wrap" Margin="0,0,0,4"
                        Foreground="{DynamicResource TextMutedBrush}"
-                       IsVisible="{Binding !Health.HasIssues}" />
+                       IsVisible="{Binding ShowAllClear}" />
 
             <!-- Needs attention (#317): the health-check catalog, worst severity first. Each card's
                  Fix button runs the relevant action in place or jumps to where the setting lives. -->
