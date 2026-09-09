@@ -45,11 +45,14 @@ public class HealthEvaluatorTests
             ExpectedOtdVersion = "0.6.7.0",
         }));
 
-        Assert.Equal("otd.versionMismatch", issue.Id);
+        Assert.Equal("otd.driver", issue.Id);
         Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
         Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
-        Assert.Contains("0.6.7.0", issue.Detail);
-        Assert.Contains("0.6.6.2", issue.Detail);
+
+        // Both numbers still have to be on screen — that pairing is the whole content of the row.
+        var row = Assert.Single(issue.Links!);
+        Assert.Contains("0.6.6.2", row.Setting);
+        Assert.Contains("0.6.7.0", row.Setting);
     }
 
     // The daemon binary reports "0.6.7" where OTA's assembly version is "0.6.7.0" — same release, and
@@ -94,7 +97,7 @@ public class HealthEvaluatorTests
     {
         var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { DaemonSourceUnknown = true }));
 
-        Assert.Equal("daemon.sourceUnknown", issue.Id);
+        Assert.Equal("otd.driver", issue.Id);
         Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
         Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
     }
@@ -112,13 +115,58 @@ public class HealthEvaluatorTests
     // Adoption is a supported mode, not a defect: driving the user's own OTD install states itself and
     // offers a Review, never a Fix that would undo their choice (docs/design/official-otd-release.md).
     [Fact]
-    public void ExternalDaemon_IsInformationAndOffersReviewNotFix()
+    public void AdoptedInstallAlone_IsInformationAndOffersReviewNotFix()
     {
         var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { ForeignDaemon = true }));
-        Assert.Equal("daemon.foreign", issue.Id);
+
+        Assert.Equal("otd.driver", issue.Id);
         Assert.Equal(HealthSeverity.Information, issue.Severity);
-        Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
         Assert.Equal("Review", issue.Remediation!.ActionLabel);
+        Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
+        Assert.Equal("Not built by OpenTabletArtist", Assert.Single(issue.Links!).Setting);
+    }
+
+    // The point of the merge: three facts about one driver are one card with three rows, not three cards
+    // each offering the same Review.
+    [Fact]
+    public void EverythingAtOnce_IsStillOneCard()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            ForeignDaemon = true,
+            DaemonSourceUnknown = true,
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+
+        Assert.Equal("otd.driver", issue.Id);
+        Assert.Equal(3, issue.Links!.Count);
+    }
+
+    // Severity is the worst contributing row, so a quiet adopted install doesn't mute a real difference.
+    [Fact]
+    public void AVersionDifferenceLiftsTheCardAboveInformation()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            ForeignDaemon = true,
+            DaemonVersion = "0.6.6.2",
+            ExpectedOtdVersion = "0.6.7.0",
+        }));
+
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+    }
+
+    // Rows all lead to the same page, so they carry no destination — repeating "Daemon ›" three times
+    // would be noise rather than orientation.
+    [Fact]
+    public void RowsReadAsPlainStatements()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { DaemonSourceUnknown = true }));
+
+        var row = Assert.Single(issue.Links!);
+        Assert.Equal("Location couldn't be read", row.Label);
+        Assert.Equal(RemediationArea.Daemon, row.Area);
     }
 
     [Fact]
@@ -551,7 +599,7 @@ public class HealthEvaluatorTests
         var input = Healthy() with
         {
             IsWindows = false,
-            ForeignDaemon = true,   // → daemon.foreign (needs DaemonConnected, which Healthy() sets)
+            ForeignDaemon = true,   // → otd.driver (needs DaemonConnected, which Healthy() sets)
             Tablets = new List<TabletHealthInput>
             {
                 new("Tablet A", Detected: true, OutputModeIsWinInk: false,
@@ -565,7 +613,7 @@ public class HealthEvaluatorTests
         Assert.True(Has(issues, "tablet.mappingOffScreen:Tablet A"));
         Assert.True(Has(issues, "tablet.dynamicsOff:Tablet A"));
         Assert.True(Has(issues, "tablet.configOverride:Tablet A"));
-        Assert.True(Has(issues, "daemon.foreign"));
+        Assert.True(Has(issues, "otd.driver"));
         Assert.False(Has(issues, "tablet.notWinInk:Tablet A")); // still a Windows-only concept
     }
 }

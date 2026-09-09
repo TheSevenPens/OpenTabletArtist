@@ -151,6 +151,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private void FollowLink(HealthLink? link)
     {
         if (link is null) return;
+
+        // Not every multi-part card is about a tablet: the OpenTabletDriver card's rows all lead to the
+        // Daemon page, and routing those through the tablet deep-link would open a tablet named "".
+        if (link.Area == RemediationArea.Daemon) { Daemon.OpenDaemonPageCommand.Execute(null); return; }
+
         var tab = link.Area switch
         {
             RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,

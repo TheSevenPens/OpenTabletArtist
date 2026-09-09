@@ -70,10 +70,12 @@ public sealed record Remediation(string ActionLabel, RemediationArea Area, strin
 /// link to where it's reviewed. Used when a single Fix isn't possible because the offending settings live
 /// in different places. <see cref="Setting"/> names the problem, <see cref="Destination"/> is the location
 /// (e.g. "Pen › basics"), and <see cref="Area"/>/<see cref="TabletName"/> drive the navigation.</summary>
-public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName)
+public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName = "")
 {
-    /// <summary>Display text: location first, then the setting — e.g. "Pen › basics › Windows Ink is off".</summary>
-    public string Label => $"{Destination} › {Setting}";
+    /// <summary>Display text: location first, then the setting — e.g. "Pen › basics › Windows Ink is off".
+    /// A row with no destination is just the setting: when every row of a card leads to the same page,
+    /// repeating that page's name down the list is noise, not orientation.</summary>
+    public string Label => string.IsNullOrEmpty(Destination) ? Setting : $"{Destination} › {Setting}";
 }
 
 /// <summary>One detected configuration/health problem. <see cref="Id"/> is a stable key used to dedupe
@@ -308,53 +310,11 @@ public static class HealthEvaluator
                 Remediation: null));
         }
 
-        // --- Recommendations ---
-        // The one connected state that said nothing anywhere: no path on the Daemon page, no version, and
-        // no card — while Stop and Restart still act on it. Worth stating plainly rather than leaving the
-        // page silently less informative than usual.
-        if (i.DaemonConnected && i.DaemonSourceUnknown)
-        {
-            issues.Add(new HealthIssue("daemon.sourceUnknown", HealthSeverity.Recommendation,
-                "Not sure which OpenTabletDriver is running",
-                "OpenTabletArtist is connected, but couldn't read where the running driver lives, so it "
-                    + "can't show you its location or version. Settings still apply to it; stopping or "
-                    + "restarting from here will ask first.",
-                new Remediation("Review", RemediationArea.Daemon)));
-        }
-
-        // OTA links OTD's own libraries and deserializes daemon replies into their types, so a daemon
-        // from a different release is a real risk rather than a cosmetic difference: the RPC is loosely
-        // typed (stringly-named methods, JSON payloads), which means skew fails at runtime, not at
-        // build time. It usually works — hence Recommendation, not Broken — but the user should know
-        // which two versions are in play when something behaves oddly. Splitting this into a supported
-        // range (unsupported vs merely untested) needs a declared policy; see
-        // docs/design/official-otd-release.md.
-        if (i.DaemonConnected
-            && !string.IsNullOrEmpty(i.DaemonVersion)
-            && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
-            && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
-        {
-            issues.Add(new HealthIssue("otd.versionMismatch", HealthSeverity.Recommendation,
-                "OpenTabletDriver version differs",
-                $"This app was built against OpenTabletDriver v{i.ExpectedOtdVersion}, but the driver "
-                    + $"it's connected to is v{i.DaemonVersion}. Settings still apply, but newer features "
-                    + "may be missing and some may behave differently.",
-                new Remediation("Review", RemediationArea.Daemon)));
-        }
-
-        // Driving an OpenTabletDriver the user installed themselves is a supported way to run — it is the
-        // whole point of adoption (docs/design/official-otd-release.md), and on macOS it is the only way
-        // the Input Monitoring grant survives. So this states which driver is in use rather than asking
-        // for a fix; the old "restart it to use the bundled build" advice told the very users who chose
-        // OTD deliberately to abandon it. Review (not Fix) — the Daemon page shows the details.
-        if (i.DaemonConnected && i.ForeignDaemon)
-        {
-            issues.Add(new HealthIssue("daemon.foreign", HealthSeverity.Information,
-                "Using your OpenTabletDriver install",
-                "You're connected to an OpenTabletDriver this app didn't build. That's supported — "
-                    + "settings you change here apply to that install.",
-                new Remediation("Review", RemediationArea.Daemon)));
-        }
+        // --- The OpenTabletDriver you're connected to ---
+        // One card, not three. These all describe the same subject and all lead to the same page, so as
+        // separate issues they stacked up on Home saying "Review" three times over. Same shape as the
+        // artist-pen-behavior bundle (#artist-pen-health): a short line, then a row per thing that's true.
+        AddDaemonIssue(issues, i);
 
         // --- Developer-induced synthetic warnings (Advanced → Developer): one per requested severity, so
         //     the "Needs attention" cards can be reviewed at each tier. The Fix just clears the flag. ---
@@ -406,6 +366,46 @@ public static class HealthEvaluator
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The single card describing the connected OpenTabletDriver. Each row is one thing that is true of
+    /// it; the card only appears when at least one is. Severity is the worst of the contributing rows, so
+    /// an adopted install on its own stays a quiet Information while a version difference lifts it.
+    /// </summary>
+    private static void AddDaemonIssue(List<HealthIssue> issues, HealthInputs i)
+    {
+        if (!i.DaemonConnected) return;
+
+        var rows = new List<HealthLink>();
+        var severity = HealthSeverity.Information;
+
+        if (i.ForeignDaemon)
+            rows.Add(new HealthLink("Not built by OpenTabletArtist", "", RemediationArea.Daemon));
+
+        if (i.DaemonSourceUnknown)
+        {
+            rows.Add(new HealthLink("Location couldn't be read", "", RemediationArea.Daemon));
+            severity = HealthSeverity.Recommendation;
+        }
+
+        if (!string.IsNullOrEmpty(i.DaemonVersion)
+            && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
+            && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
+        {
+            rows.Add(new HealthLink(
+                $"Version {i.DaemonVersion} — this app was built against {i.ExpectedOtdVersion}",
+                "", RemediationArea.Daemon));
+            severity = HealthSeverity.Recommendation;
+        }
+
+        if (rows.Count == 0) return;
+
+        issues.Add(new HealthIssue("otd.driver", severity,
+            "Your OpenTabletDriver",
+            "Worth knowing about the driver this app is using. Nothing here stops it working.",
+            new Remediation("Review", RemediationArea.Daemon),
+            Links: rows));
     }
 
     private static void AddTabletDynamicsIssues(List<HealthIssue> issues, HealthInputs i)
