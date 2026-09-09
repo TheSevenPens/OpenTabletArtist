@@ -191,9 +191,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// standalone daemon exe).</summary>
     // static readonly (not const) so it can interpolate the platform-aware daemon exe name (#140);
     // still a single stable string usable in comparisons/assignments below.
+    // Two audiences. Where OTA ships or builds its own daemon, a missing one really does mean "you
+    // haven't built the solution". On macOS it never means that — OTA drives an OpenTabletDriver the user
+    // installs (docs/design/official-otd-release.md), so telling them to run dotnet is advice they cannot
+    // act on and that points away from the actual fix.
     public static readonly string DaemonExeMissingMessage =
-        $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole " +
-        "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
+        OperatingSystem.IsMacOS()
+            ? "OpenTabletDriver isn't installed, or it's somewhere OpenTabletArtist didn't look. Install "
+              + "it, or point OTA at an existing copy on the Daemon page."
+            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole "
+              + "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
     [ObservableProperty] private bool _isDaemonBusy;

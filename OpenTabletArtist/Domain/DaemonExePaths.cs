@@ -81,6 +81,30 @@ public static class DaemonExePaths
         }
     }
 
+    /// <summary>Outcome of vetting a path the user chose: the resolved daemon exe, or the reason it was
+    /// rejected (shown verbatim, so it has to read as an explanation rather than an error code).</summary>
+    public sealed record UserPathResult(string? Path, string? Problem)
+    {
+        public bool Accepted => Path != null;
+    }
+
+    /// <summary>
+    /// Vets a path the user picked. Pure: <paramref name="exists"/> is injected so the rules are testable
+    /// without touching disk. Accepts the same three shapes as <see cref="NormalizeUserPath"/>, and
+    /// rejects anything that doesn't actually resolve to a daemon on disk — storing a path that will
+    /// silently lose the ladder race is worse than refusing it while the picker is still open.
+    /// </summary>
+    public static UserPathResult ValidateUserPath(string? raw, Func<string, bool> exists)
+    {
+        var normalized = NormalizeUserPath(raw);
+        if (normalized == null)
+            return new UserPathResult(null, "That doesn't look like a path to OpenTabletDriver.");
+        if (!exists(normalized))
+            return new UserPathResult(null,
+                $"No OpenTabletDriver daemon there — expected to find {DaemonExeName} at {normalized}.");
+        return new UserPathResult(normalized, null);
+    }
+
     /// <summary>
     /// The search ladder, most-specific first. <paramref name="userPath"/> is the raw user setting (it is
     /// normalized here); <paramref name="installed"/> is the set of already-installed OTD locations to

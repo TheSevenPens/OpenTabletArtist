@@ -157,6 +157,54 @@ public class DaemonExePathsTests
             DaemonExePaths.Candidates(baseDir).First());
     }
 
+    // --- Vetting a path the user chose ---
+
+    [Fact]
+    public void AChosenPathIsAcceptedWhenADaemonIsActuallyThere()
+    {
+        var chosen = Path.Combine("C:", "otd", Exe);
+
+        var result = DaemonExePaths.ValidateUserPath(chosen, _ => true);
+
+        Assert.True(result.Accepted);
+        Assert.Equal(Path.GetFullPath(chosen), result.Path);
+        Assert.Null(result.Problem);
+    }
+
+    // Storing a path with no daemon at it would lose the ladder race silently, long after the picker
+    // closed — refuse it while the user is still looking at the dialog.
+    [Fact]
+    public void AChosenPathWithNoDaemonIsRefusedWithAReason()
+    {
+        var result = DaemonExePaths.ValidateUserPath(Path.Combine("C:", "nope"), _ => false);
+
+        Assert.False(result.Accepted);
+        Assert.Null(result.Path);
+        Assert.Contains(Exe, result.Problem);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ABlankChoiceIsRefused(string? raw)
+    {
+        var result = DaemonExePaths.ValidateUserPath(raw, _ => true);
+
+        Assert.False(result.Accepted);
+        Assert.NotNull(result.Problem);
+    }
+
+    [Fact]
+    public void AChosenAppBundleIsResolvedToTheDaemonInside()
+    {
+        var result = DaemonExePaths.ValidateUserPath(
+            Path.Combine("/", "Applications", "OpenTabletDriver.app"), _ => true);
+
+        Assert.True(result.Accepted);
+        Assert.EndsWith(Path.Combine("Contents", "MacOS", "OpenTabletDriver.Daemon"), result.Path);
+    }
+
     // --- Provenance: adopted installs are not "ours" ---
 
     [Fact]

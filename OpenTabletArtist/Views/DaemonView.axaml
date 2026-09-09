@@ -316,6 +316,41 @@
                      present that here as a supported setup (path + version), with a one-click switch back
                      to bundled. The topology already says "External" under the daemon end; this card is
                      where the explanation and the way out live. -->
+                <!-- "It's already on my system." Shown when OTA can't find an OpenTabletDriver at all, and
+                     whenever a location has been chosen — so the choice can be seen and undone, rather than
+                     being invisible state that quietly outranks everything else in the search ladder.
+                     (docs/design/official-otd-release.md) -->
+                <c:Section Width="440" VerticalAlignment="Top"
+                           IsVisible="{Binding ShowLocateCard}">
+                    <StackPanel>
+                        <TextBlock Classes="Display section" Text="find opentabletdriver" TextWrapping="Wrap" Margin="0,0,0,0" />
+                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Text="Already have OpenTabletDriver somewhere OTA didn't look? Point it at the app bundle or the daemon itself, and OTA will use that copy from now on." />
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,8,0,0"
+                              IsVisible="{Binding HasUserDaemonPath}">
+                            <TextBlock Grid.Column="0" Classes="propLabel" Text="Using" />
+                            <TextBlock Grid.Column="1" Classes="propValue mono" TextWrapping="Wrap"
+                                       Text="{Binding UserDaemonPath}" />
+                        </Grid>
+
+                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ErrorBrush}"
+                                   IsVisible="{Binding HasUserDaemonPathProblem}"
+                                   Text="{Binding UserDaemonPathProblem}" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                            <Button Name="LocateDaemonButton" Content="Locate OpenTabletDriver&#8230;"
+                                    Click="OnLocateDaemon"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6" />
+                            <Button Content="Clear" IsVisible="{Binding HasUserDaemonPath}"
+                                    Command="{Binding ClearDaemonPathCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="12,6"
+                                    ToolTip.Tip="Forget this location and search the usual places again" />
+                        </StackPanel>
+                    </StackPanel>
+                </c:Section>
+
                 <c:Section Width="440" VerticalAlignment="Top"
                            IsVisible="{Binding Status.ShowForeignDaemonWarning}">
                     <StackPanel>

@@ -26,6 +26,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         Status = status;
         Connection = new DaemonConnectionViewModel(status);
         Process = new DaemonProcessViewModel(status);
+        Status.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(DaemonStatusViewModel.IsDaemonExeMissing))
+                OnPropertyChanged(nameof(ShowLocateCard));
+        };
     }
 
     /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
@@ -36,6 +41,63 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     /// <summary>The DAEMON PROCESS card: running state, which daemon + path, version-match, process uptime.</summary>
     public DaemonProcessViewModel Process { get; }
+
+    // --- "It's already on my system": pointing OTA at an OpenTabletDriver it didn't find ------------
+    // The chosen path is tier 0 of the search ladder, so it takes effect on the next connect with no
+    // other state to keep in step. See docs/design/official-otd-release.md.
+
+    /// <summary>The daemon location the user chose, or "" when they haven't chosen one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUserDaemonPath))]
+    private string _userDaemonPath = AppSettings.Get(DaemonExePaths.UserPathSettingKey) ?? "";
+
+    public bool HasUserDaemonPath => !string.IsNullOrEmpty(UserDaemonPath);
+
+    /// <summary>Show the locate card when there's nothing to connect to (the case it solves), whenever a
+    /// location has been chosen (so the choice stays visible and reversible), and on any build that
+    /// doesn't ship its own daemon — there, "which OpenTabletDriver?" is a standing question rather than
+    /// an error state, and a card that only appeared once nothing worked would be undiscoverable to
+    /// someone with two installs. (docs/design/official-otd-release.md)</summary>
+    public bool ShowLocateCard =>
+        Status.IsDaemonExeMissing || HasUserDaemonPath || !Status.HasBundledDaemon;
+
+    /// <summary>Why the last chosen path was refused, or "" — shown next to the picker so a rejection
+    /// explains itself instead of appearing to do nothing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUserDaemonPathProblem))]
+    private string _userDaemonPathProblem = "";
+
+    public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
+
+    partial void OnUserDaemonPathChanged(string value) => OnPropertyChanged(nameof(ShowLocateCard));
+
+    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect
+    /// through it. Rejections are reported rather than stored.</summary>
+    public async Task ChooseDaemonPathAsync(string? rawPath)
+    {
+        var result = DaemonExePaths.ValidateUserPath(rawPath, File.Exists);
+        if (!result.Accepted)
+        {
+            UserDaemonPathProblem = result.Problem ?? "";
+            return;
+        }
+
+        UserDaemonPathProblem = "";
+        UserDaemonPath = result.Path!;
+        AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
+        await Status.RefreshCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>Forget the chosen location and fall back to the rest of the ladder (bundled copy, an
+    /// installed OpenTabletDriver, the dev tree).</summary>
+    [RelayCommand]
+    private async Task ClearDaemonPath()
+    {
+        AppSettings.Remove(DaemonExePaths.UserPathSettingKey);
+        UserDaemonPath = "";
+        UserDaemonPathProblem = "";
+        await Status.RefreshCommand.ExecuteAsync(null);
+    }
 
     /// <summary>Reveal a daemon executable's folder in the OS file manager.
     ///
