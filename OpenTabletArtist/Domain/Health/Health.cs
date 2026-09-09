@@ -30,6 +30,9 @@ public enum RemediationArea
     /// <summary>The Daemon page (Advanced → OpenTabletDriver → Daemon), which shows the connection and
     /// its Start/Restart/Refresh controls. Navigates — it does not act on the daemon itself.</summary>
     Daemon,
+    /// <summary>macOS: open System Settings at Privacy &amp; Security › Input Monitoring, where the grant
+    /// the daemon needs is given. OTA cannot grant it — only take the user to it.</summary>
+    InputMonitoring,
     /// <summary>The Windows Ink Plugin page under Advanced (install / update). (#317)</summary>
     WindowsInk,
     /// <summary>The VMulti Driver page under Advanced (install / uninstall). (#317)</summary>
@@ -148,6 +151,10 @@ public sealed record HealthInputs
     /// <summary>The OpenTabletDriver version OTA was compiled against — the pinned submodule release
     /// ("" if unknown).</summary>
     public string ExpectedOtdVersion { get; init; } = "";
+    /// <summary>macOS: the daemon can see a supported tablet on the bus but hasn't detected it. Enumerating
+    /// a HID device needs no permission; opening it does — so this is what a missing Input Monitoring grant
+    /// looks like from outside the daemon.</summary>
+    public bool DaemonCannotOpenTablet { get; init; }
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>
     public bool WinInkInstalled { get; init; }
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
@@ -308,6 +315,18 @@ public static class HealthEvaluator
                 "backup, so it started with defaults — and the unreadable settings.json may be overwritten. " +
                 "Copy settings.json out of the OpenTabletArtist folder now if you want to try to recover it.",
                 Remediation: null));
+        }
+
+        // The tablet is plugged in and the driver can see it but cannot read it. Broken, because the pen
+        // does not work at all until the grant is given, and OTA cannot give it — only say what to do.
+        // macOS-only by construction: nothing else sets the input.
+        if (i.DaemonConnected && i.DaemonCannotOpenTablet)
+        {
+            issues.Add(new HealthIssue("otd.permissionsMissing", HealthSeverity.Broken,
+                "OpenTabletDriver can't read your tablet",
+                "Your tablet is connected, but OpenTabletDriver hasn't been allowed to read it. Grant it "
+                    + "Input Monitoring, then start the driver again.",
+                new Remediation("Open Settings", RemediationArea.InputMonitoring)));
         }
 
         // --- The OpenTabletDriver you're connected to ---

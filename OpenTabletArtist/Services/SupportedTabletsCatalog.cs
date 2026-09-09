@@ -48,6 +48,32 @@ public static class SupportedTabletsCatalog
         }
     }
 
+    private static readonly Lazy<HashSet<(int Vendor, int Product)>> DeviceIds = new(() =>
+    {
+        var ids = new HashSet<(int, int)>();
+        try
+        {
+            foreach (var config in new DeviceConfigurationProvider().TabletConfigurations)
+            foreach (var id in config.DigitizerIdentifiers ?? [])
+                ids.Add((id.VendorID, id.ProductID));
+        }
+        catch (Exception ex)
+        {
+            // A catalog we can't read means "we don't know", not "no tablet exists" — every caller
+            // treats an empty set as no answer.
+            AppLog.Debug("Couldn't read tablet device ids from the embedded configurations.", ex);
+        }
+        return ids;
+    });
+
+    /// <summary>
+    /// True when this USB vendor/product pair is a tablet OpenTabletDriver has a configuration for.
+    /// Lets OTA tell "no tablet is plugged in" apart from "a tablet is plugged in and the daemon can't
+    /// open it" — on macOS the second is what a missing Input Monitoring grant looks like.
+    /// </summary>
+    public static bool IsSupportedDevice(int vendorId, int productId) =>
+        DeviceIds.Value.Contains((vendorId, productId));
+
     private static SupportedTablet Map(TabletConfiguration c, IReadOnlyDictionary<string, (string Status, string Notes)> support)
     {
         var digitizer = c.Specifications?.Digitizer;

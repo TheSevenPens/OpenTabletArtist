@@ -185,6 +185,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
+            DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,
             DaemonVersion = _connection.DaemonVersion,
             // Same source the Daemon page's "Build match" row uses: the linked OTD assembly's version,
             // i.e. the pinned submodule release OTA was compiled against.

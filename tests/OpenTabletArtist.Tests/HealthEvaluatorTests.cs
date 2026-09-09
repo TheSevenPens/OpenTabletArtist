@@ -90,6 +90,43 @@ public class HealthEvaluatorTests
         }));
     }
 
+    // --- The tablet is there, the driver can't read it (macOS Input Monitoring) ---
+
+    [Fact]
+    public void ADaemonThatCannotOpenTheTablet_IsBroken_AndPointsAtSettings()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
+        {
+            Tablets = [],                       // nothing detected...
+            DaemonCannotOpenTablet = true,      // ...but the daemon can see one
+        }));
+
+        Assert.Equal("otd.permissionsMissing", issue.Id);
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+        Assert.Equal(RemediationArea.InputMonitoring, issue.Remediation!.Area);
+    }
+
+    // The whole point of the probe: "no tablets" alone is not a permissions problem, it is usually
+    // nothing plugged in.
+    [Fact]
+    public void NoTabletsAlone_DoesNotClaimAPermissionsProblem()
+    {
+        var issues = HealthEvaluator.Evaluate(Healthy() with { Tablets = [] });
+
+        Assert.False(Has(issues, "otd.permissionsMissing"));
+    }
+
+    [Fact]
+    public void PermissionsAreNotReportedWhileDisconnected()
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            Tablets = [],
+            DaemonCannotOpenTablet = true,
+        }));
+    }
+
     // The state that previously said nothing anywhere: connected, but OTA couldn't read which binary
     // answered — a daemon whose process path it can't see.
     [Fact]
