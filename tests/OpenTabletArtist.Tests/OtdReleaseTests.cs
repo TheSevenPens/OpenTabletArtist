@@ -42,9 +42,11 @@ public class OtdReleaseTests
     [Fact]
     public void InstallsIntoTheSystemApplicationsFolder()
     {
-        Assert.Equal(Path.Combine("/", "Applications"), OtdRelease.InstallDirectory);
+        // GetFullPath on both sides: a drive-less "/Applications" is not a real path off macOS, and the
+        // literal would only match there.
+        Assert.Equal(Path.GetFullPath(Path.Combine("/", "Applications")), OtdRelease.InstallDirectory);
         Assert.Equal(
-            Path.Combine("/", "Applications", "OpenTabletDriver.app"),
+            Path.GetFullPath(Path.Combine("/", "Applications", "OpenTabletDriver.app")),
             OtdRelease.InstalledBundlePath);
     }
 

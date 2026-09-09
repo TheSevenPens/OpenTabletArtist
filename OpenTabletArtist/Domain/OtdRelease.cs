@@ -45,7 +45,12 @@ public static class OtdRelease
     /// personal Mac — writes here with no authorization prompt. A standard account cannot; that case
     /// fails with an explanation rather than falling back to a per-user location, and is deliberately
     /// left for later.</summary>
-    public static string InstallDirectory => Path.Combine("/", "Applications");
+    ///
+    /// Normalized with <see cref="Path.GetFullPath(string)"/>, the same way
+    /// <see cref="DaemonExePaths.InstalledMacPaths"/> builds it — the install target and the ladder's
+    /// first installed candidate have to be the SAME string, and a drive-less "/Applications" is not one
+    /// off macOS.</summary>
+    public static string InstallDirectory => Path.GetFullPath(Path.Combine("/", "Applications"));
 
     /// <summary>Full path of the installed bundle.</summary>
     public static string InstalledBundlePath => Path.Combine(InstallDirectory, MacBundleName);
@@ -53,5 +58,5 @@ public static class OtdRelease
     /// <summary>The daemon inside an installed bundle — what the caller probes to confirm the install
     /// produced something runnable.</summary>
     public static string InstalledDaemonPath =>
-        Path.Combine(InstalledBundlePath, "Contents", "MacOS", "OpenTabletDriver.Daemon");
+        Path.GetFullPath(Path.Combine(InstalledBundlePath, "Contents", "MacOS", "OpenTabletDriver.Daemon"));
 }
