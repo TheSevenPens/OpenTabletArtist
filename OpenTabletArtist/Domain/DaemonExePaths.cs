@@ -25,6 +25,13 @@ public static class DaemonExePaths
     /// explicitly ("it's already on my system"). Wins over every discovered location.</summary>
     public const string UserPathSettingKey = "daemon.userPath";
 
+    /// <summary>The copy shipped inside a published release: <c>&lt;app&gt;/Daemon/&lt;exe&gt;</c>. Present on
+    /// Windows releases; absent on macOS, where nothing is bundled yet (Phase C of
+    /// docs/design/official-otd-release.md) — so "switch to the bundled daemon" is not always an option
+    /// that exists.</summary>
+    public static string BundledPath(string baseDir) =>
+        Path.GetFullPath(Path.Combine(baseDir, "Daemon", DaemonExeName));
+
     /// <summary>The macOS app-bundle name OTD installs under.</summary>
     private const string MacBundleName = "OpenTabletDriver.app";
 
@@ -90,7 +97,7 @@ public static class DaemonExePaths
         if (chosen != null) yield return chosen;
 
         // 1. Bundled next to the app — published release layout: <app>/Daemon/<exe>
-        yield return Path.GetFullPath(Path.Combine(baseDir, "Daemon", DaemonExeName));
+        yield return BundledPath(baseDir);
 
         // 2. An OTD the user already installed. Ahead of the dev tree so a working, permission-granted
         //    install wins over a freshly built daemon that macOS has never granted Input Monitoring to

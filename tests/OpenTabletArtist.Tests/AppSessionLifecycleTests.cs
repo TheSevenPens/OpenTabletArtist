@@ -20,6 +20,7 @@ public class AppSessionLifecycleTests
         public int LaunchCount { get; private set; }
         public string? ExpectedExePath() => "fake-daemon.exe"; // present → reachable
         public bool IsOwnBuild(string? path) => path != null && ExpectedExePath() != null;
+        public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
         public void Launch() => LaunchCount++;                 // no real process — never connects
@@ -37,6 +38,7 @@ public class AppSessionLifecycleTests
         public int LaunchCount { get; private set; }
         public string? ExpectedExePath() => null;
         public bool IsOwnBuild(string? path) => path != null && ExpectedExePath() != null;
+        public bool HasBundledDaemon() => false;
         public string? FindExe() => null;
         public bool IsRunning() => false;
         public void Launch() => LaunchCount++;

@@ -29,6 +29,11 @@ public interface IDaemonLifecycleService
     /// <summary>True if any OTD daemon process is currently running.</summary>
     bool IsRunning();
 
+    /// <summary>True when a daemon is bundled with this build of the app (<c>&lt;app&gt;/Daemon/</c>), i.e.
+    /// when "use the bundled daemon instead" is an offer we can actually honour. False on macOS today,
+    /// where nothing is bundled.</summary>
+    bool HasBundledDaemon();
+
     /// <summary>Launches the daemon with no window, if an exe can be found. No-op otherwise.</summary>
     void Launch();
 
@@ -96,6 +101,8 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     }
 
     public bool IsRunning() => Process.GetProcessesByName(ProcessName).Length > 0;
+
+    public bool HasBundledDaemon() => File.Exists(DaemonExePaths.BundledPath(AppContext.BaseDirectory));
 
     public void Launch()
     {

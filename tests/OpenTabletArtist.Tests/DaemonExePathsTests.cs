@@ -145,6 +145,18 @@ public class DaemonExePathsTests
         Assert.Single(DaemonExePaths.InstalledMacPaths(null));
     }
 
+    // --- The bundled copy ---
+
+    [Fact]
+    public void BundledPathIsTheFirstCandidate()
+    {
+        var baseDir = Path.Combine("C:", "app");
+
+        Assert.Equal(
+            DaemonExePaths.BundledPath(baseDir),
+            DaemonExePaths.Candidates(baseDir).First());
+    }
+
     // --- Provenance: adopted installs are not "ours" ---
 
     [Fact]

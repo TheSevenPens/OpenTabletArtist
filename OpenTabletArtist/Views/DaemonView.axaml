@@ -328,8 +328,12 @@
                                           AutomationProperties.Name="Open the folder holding this daemon" />
                         </Grid>
 
-                        <!-- Didn't mean to use it? Restart stops the external daemon and launches OTA's bundled build. -->
+                        <!-- Didn't mean to use it? Restart stops the external daemon and launches OTA's bundled
+                             build. Only offered when this build actually ships a bundled daemon: on macOS
+                             nothing is bundled, so the "switch" would stop the user's OpenTabletDriver and
+                             start the same one straight back (docs/design/official-otd-release.md). -->
                         <Button Content="Use bundled daemon instead" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                IsVisible="{Binding Status.CanSwitchToBundledDaemon}"
                                 Command="{Binding Status.RestartDaemonCommand}"
                                 IsEnabled="{Binding !Status.IsDaemonBusy}"
                                 Theme="{StaticResource GhostButton}" Padding="12,6"

@@ -140,6 +140,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public string SaveStatusText => "";
     public bool ShowAppOwnedDaemon => false;
     public bool ShowForeignDaemonWarning => false;
+    public bool CanSwitchToBundledDaemon => false;
     public bool ShowDaemonSourceUnknown => false;
     public bool CanStartDaemon => !_isConnected;
     public bool IsDaemonExeMissing => false;
