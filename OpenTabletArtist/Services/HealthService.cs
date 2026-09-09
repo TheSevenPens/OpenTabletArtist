@@ -19,6 +19,12 @@ namespace OpenTabletArtist.Services;
 /// </summary>
 public sealed partial class HealthService : ObservableObject, IDisposable
 {
+    /// <summary>The OpenTabletDriver release OTA was compiled against — the version of the linked OTD
+    /// assembly, which is the pinned submodule tag. Under adoption the connected daemon can be a
+    /// different release, so this is the number a mismatch is measured against.</summary>
+    internal static string ExpectedOtdVersion { get; } =
+        typeof(OpenTabletDriver.Desktop.Settings).Assembly.GetName().Version?.ToString() ?? "";
+
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
@@ -178,6 +184,11 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             IsWindows = OperatingSystem.IsWindows(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
+            DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
+            DaemonVersion = _connection.DaemonVersion,
+            // Same source the Daemon page's "Build match" row uses: the linked OTD assembly's version,
+            // i.e. the pinned submodule release OTA was compiled against.
+            ExpectedOtdVersion = ExpectedOtdVersion,
             WinInkInstalled = installed,
             WinInkVersionMismatch = mismatch,
             VMultiInstalled = _vmultiInstalled,

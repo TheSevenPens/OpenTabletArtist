@@ -20,11 +20,27 @@ public interface IDaemonLifecycleService
     /// <summary>Daemon exe to launch: the expected build, falling back to a running instance's path. Null if none found.</summary>
     string? FindExe();
 
+    /// <summary>True when <paramref name="path"/> is a daemon this project produced (bundled release copy
+    /// or submodule dev build), as opposed to an OTD installed on the system that we merely drive. An
+    /// adopted install is a daemon the user owns, so destructive actions on it stay behind a confirmation
+    /// even though we resolved and launched it. See docs/design/official-otd-release.md.</summary>
+    bool IsOwnBuild(string? path);
+
     /// <summary>True if any OTD daemon process is currently running.</summary>
     bool IsRunning();
 
-    /// <summary>Launches the daemon with no window, if an exe can be found. No-op otherwise.</summary>
-    void Launch();
+    /// <summary>True when a daemon is bundled with this build of the app (<c>&lt;app&gt;/Daemon/</c>), i.e.
+    /// when "use the bundled daemon instead" is an offer we can actually honour. False on macOS today,
+    /// where nothing is bundled.</summary>
+    bool HasBundledDaemon();
+
+    /// <summary>Launches the daemon with no window, if an exe can be found. Waits briefly to catch the
+    /// case where it starts and exits immediately — a daemon that is present but can't run (a missing
+    /// .NET runtime for a framework-dependent build, a broken install) otherwise shows up only as a
+    /// silent 30-second connect timeout, which says nothing about what went wrong.</summary>
+    /// <returns>The problem to report, or null when the daemon was launched and is still alive (or when
+    /// there was nothing to launch — the caller already reports that as "exe missing").</returns>
+    string? Launch();
 
     /// <summary>
     /// Kills ONE daemon process by id (best effort) — the one we are connected to. Prefer this over
@@ -56,8 +72,24 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     private const string ProcessName = "OpenTabletDriver.Daemon";
 
     public string? ExpectedExePath() =>
-        // Bundled-next-to-app (release) first, then the dev build tree. See DaemonExePaths.
-        DaemonExePaths.Candidates(AppContext.BaseDirectory).FirstOrDefault(File.Exists);
+        // User-chosen → bundled → an installed OTD → the dev build tree. See DaemonExePaths.
+        DaemonExePaths.Candidates(
+                AppContext.BaseDirectory,
+                AppSettings.Get(DaemonExePaths.UserPathSettingKey),
+                InstalledOtdPaths())
+            .FirstOrDefault(File.Exists);
+
+    public bool IsOwnBuild(string? path) => DaemonExePaths.IsOwnBuild(AppContext.BaseDirectory, path);
+
+    /// <summary>Installed-OTD locations to adopt. macOS only for now: it is where adoption is forced (a
+    /// rebuilt daemon can't hold its Input Monitoring grant) and therefore where the model is being
+    /// proven. Windows keeps its bundled-then-dev-tree order until Phase D of
+    /// docs/design/official-otd-release.md.</summary>
+    private static IEnumerable<string> InstalledOtdPaths() =>
+        OperatingSystem.IsMacOS()
+            ? DaemonExePaths.InstalledMacPaths(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+            : [];
 
     public string? FindExe()
     {
@@ -75,17 +107,55 @@ public class DaemonLifecycleService : IDaemonLifecycleService
 
     public bool IsRunning() => Process.GetProcessesByName(ProcessName).Length > 0;
 
-    public void Launch()
+    public bool HasBundledDaemon() => File.Exists(DaemonExePaths.BundledPath(AppContext.BaseDirectory));
+
+    /// <summary>How long to watch a freshly started daemon before assuming it is alive. Long enough to
+    /// catch an apphost bailing out (that happens in tens of milliseconds), short enough not to be felt
+    /// on the Start button.</summary>
+    private static readonly TimeSpan EarlyExitWindow = TimeSpan.FromSeconds(2);
+
+    public string? Launch()
     {
         var daemonPath = FindExe();
-        if (daemonPath == null) return;
+        if (daemonPath == null) return null;   // "nothing to launch" is the caller's own message
 
-        Process.Start(new ProcessStartInfo(daemonPath)
+        Process? proc;
+        try
         {
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
-        });
+            proc = Process.Start(new ProcessStartInfo(daemonPath)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                WorkingDirectory = Path.GetDirectoryName(daemonPath) ?? "",
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Couldn't start the daemon at {daemonPath}.", ex);
+            return $"The daemon at {daemonPath} couldn't be started: {ex.Message}";
+        }
+
+        if (proc == null) return $"The daemon at {daemonPath} couldn't be started.";
+
+        // Deliberately no stdout/stderr redirection: the pipes would outlive this call for a healthy
+        // daemon, and tearing them down when OTA quits can break a daemon that was working fine. The exit
+        // code plus the path is enough to stop the failure being invisible.
+        try
+        {
+            if (!proc.WaitForExit(EarlyExitWindow)) return null;   // still running — the normal path
+
+            AppLog.Warn($"The daemon at {daemonPath} exited immediately (exit code {proc.ExitCode}).");
+            return $"The daemon at {daemonPath} started and exited immediately (exit code {proc.ExitCode}). "
+                 + "It may be a build that needs a .NET runtime this machine doesn't have, or an "
+                 + "incomplete install — try a different OpenTabletDriver on the Daemon page.";
+        }
+        catch (Exception ex)
+        {
+            // Couldn't observe it (permissions, already reaped) — don't turn a working start into an error.
+            AppLog.Debug($"Couldn't watch the daemon at {daemonPath} for an early exit.", ex);
+            return null;
+        }
+        finally { proc.Dispose(); }
     }
 
     public bool Stop(int processId)

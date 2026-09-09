@@ -49,6 +49,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             () => TabletsOverview.Tablets.FirstOrDefault(t => t.IsDetected)?.Name);
 
         _session.PropertyChanged += OnSessionPropertyChanged;
+
+        // The all-clear line answers for this whole column, so it has to watch everything the column can
+        // show — the health catalog AND the daemon card, which is deliberately not a health issue.
+        Health.PropertyChanged += OnAttentionSourceChanged;
+        Daemon.PropertyChanged += OnAttentionSourceChanged;
     }
 
     /// <summary>Shared daemon status/control surface. The Home problem card binds to it and shows only
@@ -97,7 +102,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 _openDriverCleanup?.Invoke();
                 break;
             case RemediationArea.Daemon:
-                Daemon.RestartDaemonCommand.Execute(null); // external daemon → restart to this app's build
+                // Show the connection, don't act on it. This card reports which OpenTabletDriver is in
+                // use, and adopting the user's own install is supported — restarting it (the old
+                // behaviour) both undid their choice and put a confirmation dialog in front of a button
+                // labelled "Review". See docs/design/official-otd-release.md.
+                Daemon.OpenDaemonPageCommand.Execute(null);
                 break;
             case RemediationArea.TabletPenBehavior:
                 // Deep-link to the PEN page, on the Movement pivot that carries the fix (pen settings split
@@ -142,6 +151,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private void FollowLink(HealthLink? link)
     {
         if (link is null) return;
+
+        // Not every multi-part card is about a tablet: the OpenTabletDriver card's rows all lead to the
+        // Daemon page, and routing those through the tablet deep-link would open a tablet named "".
+        if (link.Area == RemediationArea.Daemon) { Daemon.OpenDaemonPageCommand.Execute(null); return; }
+
         var tab = link.Area switch
         {
             RemediationArea.TabletPenInputs => TabletDetailTab.PenInputs,
@@ -165,6 +179,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _tabletStatusText = "No tablet detected";
 
+    /// <summary>True when this column really has nothing to say. The daemon problem card lives outside the
+    /// health catalog by design (#317), so "no health issues" was never the same as "nothing is wrong" —
+    /// and with no driver at all, Home said "Nothing needs attention" directly above a warning card
+    /// explaining that nothing was connected.</summary>
+    public bool ShowAllClear => !Health.HasIssues && !Daemon.ShowDaemonProblem;
+
+    private void OnAttentionSourceChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(HealthService.HasIssues)
+            or nameof(DaemonStatusViewModel.ShowDaemonProblem))
+            OnPropertyChanged(nameof(ShowAllClear));
+    }
+
     private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(IDeviceData.HasTablet) or nameof(IDeviceData.TabletName))
@@ -177,5 +204,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _session.PropertyChanged -= OnSessionPropertyChanged;
+        Health.PropertyChanged -= OnAttentionSourceChanged;
+        Daemon.PropertyChanged -= OnAttentionSourceChanged;
     }
 }

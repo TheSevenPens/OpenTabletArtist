@@ -56,6 +56,8 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
         {
             Refresh();       // connect/disconnect changes the running state
             RaiseVersion();
+            OnPropertyChanged(nameof(ProcessLine));
+            OnPropertyChanged(nameof(HasProcessLine));
         }
     }
 
@@ -66,6 +68,8 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
         _startTime = info.StartTime;
         OnPropertyChanged(nameof(ProcessUptime));
         OnPropertyChanged(nameof(ShowProcessUptime));
+        OnPropertyChanged(nameof(ProcessLine));
+        OnPropertyChanged(nameof(HasProcessLine));
     }
 
     private void RaiseVersion()
@@ -80,6 +84,27 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
 
     /// <summary>Show the uptime line only when a process is running with a readable start time.</summary>
     public bool ShowProcessUptime => IsRunning && _startTime != null;
+
+    /// <summary>The daemon's version and how long it has been up, as one line. Either half can be
+    /// unavailable — a version can't always be read, and a process start time can't either — so the line
+    /// carries whichever it has and disappears when it has neither.</summary>
+    public string ProcessLine
+    {
+        get
+        {
+            var version = _status.HasDaemonVersion ? $"v{_status.DaemonVersion}" : "";
+            var uptime = ShowProcessUptime ? $"up {ProcessUptime}" : "";
+            return (version, uptime) switch
+            {
+                ("", "") => "",
+                ("", _) => uptime,
+                (_, "") => version,
+                _ => $"{version} · {uptime}",
+            };
+        }
+    }
+
+    public bool HasProcessLine => !string.IsNullOrEmpty(ProcessLine);
 
     /// <summary>True when the connected daemon's version is the same release as the bundled build.</summary>
     public bool VersionMatches => DaemonVersion.SameRelease(BuiltAgainstVersion, _status.DaemonVersion);

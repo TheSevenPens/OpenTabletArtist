@@ -40,6 +40,15 @@ public interface IConnectionState : INotifyPropertyChanged
     bool HasDaemonVersion { get; }
     bool ShowAppOwnedDaemon { get; }
     bool ShowForeignDaemonWarning { get; }
+    /// <summary>This build ships a daemon of its own in <c>&lt;app&gt;/Daemon/</c>. False on macOS, where
+    /// nothing is bundled yet — so the app is built against an OpenTabletDriver release without carrying
+    /// a copy of it. (docs/design/official-otd-release.md)</summary>
+    bool HasBundledDaemon { get; }
+    /// <summary>Offer "use the bundled daemon instead" only when this build actually ships one. On macOS
+    /// the switch would stop the user's OpenTabletDriver and start the very same one again.</summary>
+    bool CanSwitchToBundledDaemon { get; }
+    /// <summary>The connected daemon's path is known and worth showing.</summary>
+    bool HasDaemonSourcePath { get; }
     bool ShowDaemonSourceUnknown { get; }
     bool CanStartDaemon { get; }
     /// <summary>The daemon exe couldn't be found (not built / not bundled) and none is running, so a
@@ -170,6 +179,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isAppOwnedDaemon;
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
+    partial void OnDaemonSourcePathChanged(string value) => OnPropertyChanged(nameof(HasDaemonSourcePath));
     [ObservableProperty] private string _daemonVersion = "";
     public bool HasDaemonVersion => !string.IsNullOrEmpty(DaemonVersion);
     partial void OnDaemonVersionChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersion));
@@ -181,9 +191,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// standalone daemon exe).</summary>
     // static readonly (not const) so it can interpolate the platform-aware daemon exe name (#140);
     // still a single stable string usable in comparisons/assignments below.
+    // Two audiences. Where OTA ships or builds its own daemon, a missing one really does mean "you
+    // haven't built the solution". On macOS it never means that — OTA drives an OpenTabletDriver the user
+    // installs (docs/design/official-otd-release.md), so telling them to run dotnet is advice they cannot
+    // act on and that points away from the actual fix.
     public static readonly string DaemonExeMissingMessage =
-        $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole " +
-        "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
+        OperatingSystem.IsMacOS()
+            ? "OpenTabletDriver isn't installed, or it's somewhere OpenTabletArtist didn't look. Install "
+              + "it, or point OTA at an existing copy on the Daemon page."
+            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole "
+              + "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
     [ObservableProperty] private bool _isDaemonBusy;
@@ -264,6 +281,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
     public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
+    public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
+    public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && HasBundledDaemon;
+    public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
     public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
 
     /// <summary>A connect attempt is in flight (e.g. the ~5s initial auto-connect at startup) but the
@@ -372,6 +392,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(ShowAppOwnedDaemon));
         OnPropertyChanged(nameof(ShowForeignDaemonWarning));
         OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
+        OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
     }
 
     partial void OnIsConnectedChanged(bool value)
@@ -460,7 +481,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // No flat delay: the pipe connect below already waits for the daemon's pipe to come up,
             // so a fixed sleep only adds latency (and risks eating the connect timeout). (#246)
             ConnectPhase = "Starting the daemon…";
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
             ConnectPhase = "Waiting for the daemon to respond…";
         }
         else
@@ -947,7 +973,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                // It died on the spot. Waiting out the 30s connect timeout would replace a precise
+                // explanation with a generic one.
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
             OnPropertyChanged(nameof(CanStartDaemon));
 
             DaemonOperationStatus = "Connecting…";
@@ -1016,9 +1049,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     /// <summary>True when the user has agreed — or there is nothing to agree to, because we own the
     /// daemon or nothing is there to ask with.</summary>
-    private async Task<bool> ConfirmedForeignAsync(string verb)
+    /// <summary>
+    /// Ask before stopping or restarting anything that isn't positively OTA's own build.
+    ///
+    /// The gate is "do we know it is ours", not "do we know it is theirs" — those differ in the case that
+    /// matters. When OTA can't read which binary answered (a daemon running as another user, or elevated),
+    /// the daemon is neither owned nor foreign, and gating on the foreign flag skipped the confirmation
+    /// precisely when OTA knew least about what it was about to kill.
+    /// </summary>
+    private async Task<bool> ConfirmedDaemonActionAsync(string verb)
     {
-        if (!IsForeignDaemon || ConfirmForeignDaemonAction is not { } confirm) return true;
+        if (IsAppOwnedDaemon || ConfirmForeignDaemonAction is not { } confirm) return true;
         return await confirm(verb);
     }
 
@@ -1026,7 +1067,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task StopDaemon()
     {
         if (IsDaemonBusy) return;
-        if (!await ConfirmedForeignAsync("stop")) return;
+        if (!await ConfirmedDaemonActionAsync("stop")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
@@ -1055,7 +1096,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // start phase launches OUR bundled build, so "restart" silently swaps which daemon you are
         // running. #613 named Stop and Quit-and-stop, but confirming only those would leave the policy
         // with a hole you could walk through by pressing the button next to it.
-        if (!await ConfirmedForeignAsync("restart")) return;
+        if (!await ConfirmedDaemonActionAsync("restart")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
@@ -1074,7 +1115,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Start phase: relaunch and connect to the fresh instance.
             DaemonOperationStatus = "Starting daemon…";
             _daemon.AutoReconnect = true;
-            _daemonLifecycle.Launch();
+            if (_daemonLifecycle.Launch() is { } launchProblem)
+            {
+                // Worth being loud here: the old daemon is already stopped, so a silent failure leaves
+                // the user with no driver at all and no idea why.
+                DaemonOperationError = launchProblem;
+                ConnectionStatus = "Disconnected";
+                return;
+            }
 
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
@@ -1178,7 +1226,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        var owned = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
+        // "Ours" means we built it, not merely that we resolved and launched it. An adopted OTD install
+        // is the user's, so it stays "foreign" — that is what keeps Stop/Restart behind a confirmation
+        // (ConfirmForeignDaemonAction) even though it is the daemon we start. Adoption being *supported*
+        // is expressed by the health catalog treating it as Information, not by pretending it is ours.
+        // See docs/design/official-otd-release.md.
+        var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
+        var owned = resolved && _daemonLifecycle.IsOwnBuild(actual);
         IsAppOwnedDaemon = owned;
         IsForeignDaemon = !owned;
     }

@@ -27,7 +27,8 @@ public enum HealthSeverity
 /// locally (the same issue appears on Home and at the top of the page that owns the fix).</summary>
 public enum RemediationArea
 {
-    /// <summary>The Home daemon card (Start/Restart/Refresh).</summary>
+    /// <summary>The Daemon page (Advanced → OpenTabletDriver → Daemon), which shows the connection and
+    /// its Start/Restart/Refresh controls. Navigates — it does not act on the daemon itself.</summary>
     Daemon,
     /// <summary>The Windows Ink Plugin page under Advanced (install / update). (#317)</summary>
     WindowsInk,
@@ -69,10 +70,12 @@ public sealed record Remediation(string ActionLabel, RemediationArea Area, strin
 /// link to where it's reviewed. Used when a single Fix isn't possible because the offending settings live
 /// in different places. <see cref="Setting"/> names the problem, <see cref="Destination"/> is the location
 /// (e.g. "Pen › basics"), and <see cref="Area"/>/<see cref="TabletName"/> drive the navigation.</summary>
-public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName)
+public sealed record HealthLink(string Setting, string Destination, RemediationArea Area, string TabletName = "")
 {
-    /// <summary>Display text: location first, then the setting — e.g. "Pen › basics › Windows Ink is off".</summary>
-    public string Label => $"{Destination} › {Setting}";
+    /// <summary>Display text: location first, then the setting — e.g. "Pen › basics › Windows Ink is off".
+    /// A row with no destination is just the setting: when every row of a card leads to the same page,
+    /// repeating that page's name down the list is noise, not orientation.</summary>
+    public string Label => string.IsNullOrEmpty(Destination) ? Setting : $"{Destination} › {Setting}";
 }
 
 /// <summary>One detected configuration/health problem. <see cref="Id"/> is a stable key used to dedupe
@@ -134,6 +137,17 @@ public sealed record HealthInputs
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
+    /// <summary>Connected, but OTA couldn't read which binary answered — so it is neither known to be
+    /// ours nor known to be the user's. The daemon is single-instance, so this is not "which of several":
+    /// it is a process whose path OTA can't see, e.g. one running as another user or elevated.</summary>
+    public bool DaemonSourceUnknown { get; init; }
+    /// <summary>Version of the daemon we're connected to, read off its binary ("" if unknown). Adoption
+    /// makes this genuinely variable: the user's own OpenTabletDriver install is whatever version they
+    /// have, not the one OTA was built from. (docs/design/official-otd-release.md)</summary>
+    public string DaemonVersion { get; init; } = "";
+    /// <summary>The OpenTabletDriver version OTA was compiled against — the pinned submodule release
+    /// ("" if unknown).</summary>
+    public string ExpectedOtdVersion { get; init; } = "";
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>
     public bool WinInkInstalled { get; init; }
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
@@ -296,14 +310,11 @@ public static class HealthEvaluator
                 Remediation: null));
         }
 
-        // --- Recommendations ---
-        if (i.DaemonConnected && i.ForeignDaemon)
-        {
-            issues.Add(new HealthIssue("daemon.foreign", HealthSeverity.Recommendation,
-                "Using an external daemon",
-                "You're connected to a daemon this app didn't start — restart it to use the bundled build.",
-                new Remediation("Fix", RemediationArea.Daemon)));
-        }
+        // --- The OpenTabletDriver you're connected to ---
+        // One card, not three. These all describe the same subject and all lead to the same page, so as
+        // separate issues they stacked up on Home saying "Review" three times over. Same shape as the
+        // artist-pen-behavior bundle (#artist-pen-health): a short line, then a row per thing that's true.
+        AddDaemonIssue(issues, i);
 
         // --- Developer-induced synthetic warnings (Advanced → Developer): one per requested severity, so
         //     the "Needs attention" cards can be reviewed at each tier. The Fix just clears the flag. ---
@@ -355,6 +366,46 @@ public static class HealthEvaluator
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The single card describing the connected OpenTabletDriver. Each row is one thing that is true of
+    /// it; the card only appears when at least one is. Severity is the worst of the contributing rows, so
+    /// an adopted install on its own stays a quiet Information while a version difference lifts it.
+    /// </summary>
+    private static void AddDaemonIssue(List<HealthIssue> issues, HealthInputs i)
+    {
+        if (!i.DaemonConnected) return;
+
+        var rows = new List<HealthLink>();
+        var severity = HealthSeverity.Information;
+
+        if (i.ForeignDaemon)
+            rows.Add(new HealthLink("Not built by OpenTabletArtist", "", RemediationArea.Daemon));
+
+        if (i.DaemonSourceUnknown)
+        {
+            rows.Add(new HealthLink("Location couldn't be read", "", RemediationArea.Daemon));
+            severity = HealthSeverity.Recommendation;
+        }
+
+        if (!string.IsNullOrEmpty(i.DaemonVersion)
+            && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
+            && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
+        {
+            rows.Add(new HealthLink(
+                $"Version {i.DaemonVersion} — this app was built against {i.ExpectedOtdVersion}",
+                "", RemediationArea.Daemon));
+            severity = HealthSeverity.Recommendation;
+        }
+
+        if (rows.Count == 0) return;
+
+        issues.Add(new HealthIssue("otd.driver", severity,
+            "Your OpenTabletDriver",
+            "Worth knowing about the driver this app is using. Nothing here stops it working.",
+            new Remediation("Review", RemediationArea.Daemon),
+            Links: rows));
     }
 
     private static void AddTabletDynamicsIssues(List<HealthIssue> issues, HealthInputs i)

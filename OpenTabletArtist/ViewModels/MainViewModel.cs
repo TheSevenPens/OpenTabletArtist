@@ -141,17 +141,30 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // daemon" is abstract, the exe it is running is the thing the user recognises.
         _session.ConfirmForeignDaemonAction = verb =>
         {
-            var path = string.IsNullOrEmpty(_session.DaemonSourcePath)
-                ? "It is running from a location OpenTabletArtist couldn't read."
-                : _session.DaemonSourcePath;
-            // Restart is the sharper one: it doesn't just stop their daemon, it starts ours instead.
+            var known = !string.IsNullOrEmpty(_session.DaemonSourcePath);
+
+            // Two different situations, and claiming the first when we're in the second asserts something
+            // OTA cannot know. The daemon is single-instance, so an unreadable path is not ambiguity about
+            // which one — it is a process OTA can't see into (another user, or elevated).
+            var subject = known
+                ? $"OpenTabletArtist didn't build the OpenTabletDriver that's running:\n\n{_session.DaemonSourcePath}"
+                : "OpenTabletArtist can't read where the running OpenTabletDriver lives.";
+
+            // Restart is the sharper one: it doesn't just stop that daemon, it starts another in its place.
+            // Which one is the ladder's business, not necessarily a copy we ship — on macOS we don't ship one.
             var consequence = verb == "restart"
-                ? "Restarting stops it and starts OpenTabletArtist's own bundled daemon in its place."
-                : "Stopping it affects anything else using it. Starting one again from here launches "
-                  + "OpenTabletArtist's own bundled daemon, not this one.";
+                ? "Restarting stops it, then starts whichever OpenTabletDriver OpenTabletArtist finds — "
+                  + "which may not be this one."
+                : "Stopping it affects anything else using it.";
+
+            // Off Windows there's no pipe-to-process lookup, so Stop can only stop them all.
+            var breadth = !OperatingSystem.IsWindows() && verb == "stop"
+                ? "\n\nThis stops every OpenTabletDriver daemon running, not just one."
+                : "";
+
             return dialogs.ShowConfirmAsync(
-                verb == "restart" ? "Restart with the bundled daemon?" : "Stop this daemon?",
-                $"OpenTabletArtist didn't start the OpenTabletDriver daemon that's running:\n\n{path}\n\n{consequence}");
+                verb == "restart" ? "Restart the driver?" : "Stop this daemon?",
+                $"{subject}\n\n{consequence}{breadth}");
         };
         TabletsOverview = new TabletsOverviewViewModel();
 
@@ -213,7 +226,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // on Windows, since PLUGINS (unlike DRIVERS) is not filtered off other platforms.
         Plugins = new PluginsViewModel(_session, _session,
             OperatingSystem.IsWindows() ? WindowsInk : null);
-        Daemon = new DaemonViewModel(_daemonStatus);
+        Daemon = new DaemonViewModel(_daemonStatus, _health);
         // Developer page: its "introduce a real config error" commands act on the live tablet settings.
         Developer = new DeveloperViewModel(_session, _session);
 

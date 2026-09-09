@@ -27,6 +27,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != null) OnPropertyChanged(e.PropertyName);
+        if (e.PropertyName is nameof(DaemonSourcePath)) OnPropertyChanged(nameof(DaemonSourceDisplayPath));
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity) or nameof(HasDaemonOperationError)
             or nameof(ConnectStalled) or nameof(IsDaemonExeMissing))
             OnPropertyChanged(nameof(ShowDaemonProblem));
@@ -41,8 +42,15 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public string DaemonStatusText => _session.DaemonStatusText;
     public bool ShowAppOwnedDaemon => _session.ShowAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => _session.ShowForeignDaemonWarning;
+    public bool HasBundledDaemon => _session.HasBundledDaemon;
+    public bool CanSwitchToBundledDaemon => _session.CanSwitchToBundledDaemon;
+    public bool HasDaemonSourcePath => _session.HasDaemonSourcePath;
     public bool ShowDaemonSourceUnknown => _session.ShowDaemonSourceUnknown;
     public string DaemonSourcePath => _session.DaemonSourcePath;
+
+    /// <summary>The daemon's location as a person would name it — the .app bundle, not the binary four
+    /// levels inside it. The full path stays on the tooltip.</summary>
+    public string DaemonSourceDisplayPath => Domain.ExecutablePath.BundleOrSelf(_session.DaemonSourcePath);
     public string DaemonVersion => _session.DaemonVersion;
     public bool HasDaemonVersion => _session.HasDaemonVersion;
     public bool CanStartDaemon => _session.CanStartDaemon;

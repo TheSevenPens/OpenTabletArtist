@@ -1,5 +1,9 @@
 using System;
 using System.IO;
+using OpenTabletArtist.Domain.Health;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,21 +25,201 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 {
-    public DaemonViewModel(DaemonStatusViewModel status)
+    private readonly HealthService? _health;
+
+    public DaemonViewModel(DaemonStatusViewModel status, HealthService? health = null)
     {
         Status = status;
+        _health = health;
+        if (_health is not null)
+        {
+            _health.Issues.CollectionChanged += (_, _) => RefreshDaemonIssues();
+            RefreshDaemonIssues();
+        }
         Connection = new DaemonConnectionViewModel(status);
         Process = new DaemonProcessViewModel(status);
+        Status.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(DaemonStatusViewModel.IsDaemonExeMissing))
+            {
+                OnPropertyChanged(nameof(ShowLocateCard));
+                OnPropertyChanged(nameof(ShowInstallCard));
+                OnPropertyChanged(nameof(ShowDriverCard));
+            }
+        };
     }
 
     /// <summary>Shared daemon status + controls (the same instance the Home problem card uses).</summary>
     public DaemonStatusViewModel Status { get; }
+
+    /// <summary>The health issues whose fix lives on this page, repeated here from Home — the same issue
+    /// showing in both places is the point of the remediation model (#317), so someone who came here
+    /// directly sees what Home would have told them. Rendered without the Review button that Home shows:
+    /// on this page it would only navigate back to where the reader already is.</summary>
+    public ObservableCollection<HealthIssue> DaemonIssues { get; } = new();
+
+    public bool HasDaemonIssues => DaemonIssues.Count > 0;
+
+    private void RefreshDaemonIssues()
+    {
+        var next = _health?.IssuesFor(RemediationArea.Daemon).ToList() ?? [];
+        if (next.SequenceEqual(DaemonIssues)) return;   // records compare by value — skip a no-op rebuild
+
+        DaemonIssues.Clear();
+        foreach (var issue in next) DaemonIssues.Add(issue);
+        OnPropertyChanged(nameof(HasDaemonIssues));
+    }
 
     /// <summary>The DAEMON CONNECTION card: whether OTA is connected and for how long.</summary>
     public DaemonConnectionViewModel Connection { get; }
 
     /// <summary>The DAEMON PROCESS card: running state, which daemon + path, version-match, process uptime.</summary>
     public DaemonProcessViewModel Process { get; }
+
+    // --- "It's already on my system": pointing OTA at an OpenTabletDriver it didn't find ------------
+    // The chosen path is tier 0 of the search ladder, so it takes effect on the next connect with no
+    // other state to keep in step. See docs/design/official-otd-release.md.
+
+    /// <summary>The daemon location the user chose, or "" when they haven't chosen one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUserDaemonPath))]
+    private string _userDaemonPath = AppSettings.Get(DaemonExePaths.UserPathSettingKey) ?? "";
+
+    public bool HasUserDaemonPath => !string.IsNullOrEmpty(UserDaemonPath);
+
+    /// <summary>Show the locate card when there's nothing to connect to (the case it solves), whenever a
+    /// location has been chosen (so the choice stays visible and reversible), and on any build that
+    /// doesn't ship its own daemon — there, "which OpenTabletDriver?" is a standing question rather than
+    /// an error state, and a card that only appeared once nothing worked would be undiscoverable to
+    /// someone with two installs. (docs/design/official-otd-release.md)</summary>
+    public bool ShowLocateCard =>
+        Status.IsDaemonExeMissing || HasUserDaemonPath || !Status.HasBundledDaemon;
+
+    /// <summary>The driver block covers both answers to "which OpenTabletDriver?" — install one, or point
+    /// at one you have — so it shows when either is on offer.</summary>
+    public bool ShowDriverCard => ShowLocateCard || ShowInstallCard;
+
+    /// <summary>Why the last chosen path was refused, or "" — shown next to the picker so a rejection
+    /// explains itself instead of appearing to do nothing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUserDaemonPathProblem))]
+    private string _userDaemonPathProblem = "";
+
+    public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
+
+    partial void OnUserDaemonPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(ShowLocateCard));
+        OnPropertyChanged(nameof(ShowDriverCard));
+    }
+
+    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect
+    /// through it. Rejections are reported rather than stored.</summary>
+    public async Task ChooseDaemonPathAsync(string? rawPath)
+    {
+        var result = DaemonExePaths.ValidateUserPath(rawPath, File.Exists);
+        if (!result.Accepted)
+        {
+            UserDaemonPathProblem = result.Problem ?? "";
+            return;
+        }
+
+        UserDaemonPathProblem = "";
+        UserDaemonPath = result.Path!;
+        AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
+        await Status.RefreshCommand.ExecuteAsync(null);
+    }
+
+    // --- "Install it for me": fetch the pinned official release -----------------------------------
+
+    private readonly OtdInstaller _installer = new();
+
+    /// <summary>Offer the install only where there is something to install and nothing to install it over:
+    /// macOS, with no OpenTabletDriver found. Anywhere else the answer is Locate, not Install.</summary>
+    public bool ShowInstallCard => OperatingSystem.IsMacOS() && Status.IsDaemonExeMissing;
+
+    /// <summary>Progress text while installing ("Downloading…", "Extracting…"), or "".</summary>
+    [ObservableProperty] private string _installStatus = "";
+
+    [ObservableProperty] private int _installProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasInstallProblem))]
+    private string _installProblem = "";
+
+    public bool HasInstallProblem => !string.IsNullOrEmpty(InstallProblem);
+
+    /// <summary>Shown after a successful install: macOS may need the user to approve the unsigned app
+    /// once, by hand. OTA does not strip the quarantine attribute on their behalf.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasInstallGuidance))]
+    private string _installGuidance = "";
+
+    public bool HasInstallGuidance => !string.IsNullOrEmpty(InstallGuidance);
+
+    [ObservableProperty] private bool _isInstalling;
+
+    /// <summary>The version this would install, for the card's copy — pinned, so it matches what OTA was
+    /// built against and the install raises no version-mismatch warning.</summary>
+    public string InstallVersion => OtdRelease.AssetVersion;
+
+    /// <summary>The card's copy. Names the version and says plainly where the download comes from —
+    /// this installs an unsigned third-party binary, so the user should know that before pressing it,
+    /// not after.</summary>
+    public string InstallDescription =>
+        $"Downloads the official release from OpenTabletDriver's GitHub into {OtdRelease.InstallDirectory}.";
+
+    [RelayCommand]
+    private async Task InstallOtd()
+    {
+        if (IsInstalling) return;
+        IsInstalling = true;
+        InstallProblem = "";
+        InstallGuidance = "";
+        InstallProgress = 0;
+        try
+        {
+            _installer.StatusChanged += OnInstallStatus;
+            _installer.ProgressChanged += OnInstallProgress;
+
+            var result = await _installer.InstallAsync();
+
+            if (!result.Installed)
+            {
+                InstallProblem = result.Problem ?? "The install didn't complete.";
+                return;
+            }
+
+            // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
+            // and nothing has to be remembered.
+            InstallGuidance = OtdInstaller.GatekeeperGuidance;
+            await Status.RefreshCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            _installer.StatusChanged -= OnInstallStatus;
+            _installer.ProgressChanged -= OnInstallProgress;
+            InstallStatus = "";
+            IsInstalling = false;
+        }
+    }
+
+    private void OnInstallStatus(string status) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallStatus = status);
+
+    private void OnInstallProgress(int percent) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallProgress = percent);
+
+    /// <summary>Forget the chosen location and fall back to the rest of the ladder (bundled copy, an
+    /// installed OpenTabletDriver, the dev tree).</summary>
+    [RelayCommand]
+    private async Task ClearDaemonPath()
+    {
+        AppSettings.Remove(DaemonExePaths.UserPathSettingKey);
+        UserDaemonPath = "";
+        UserDaemonPathProblem = "";
+        await Status.RefreshCommand.ExecuteAsync(null);
+    }
 
     /// <summary>Reveal a daemon executable's folder in the OS file manager.
     ///
@@ -62,6 +246,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
+
+    /// <summary>OTA's own build and the OTD release behind it, on one line — they are read together and
+    /// never separately. "Bundles" only where a daemon really ships with the app; elsewhere the number is
+    /// the release OTA was compiled against, which is a different claim.</summary>
+    public string BuildLine => Status.HasBundledDaemon
+        ? $"{AppVersion} · bundles OTD {CurrentOtdVersion}"
+        : $"{AppVersion} · built against OTD {CurrentOtdVersion}";
 
     /// <summary>The RPM-package check only applies on Linux; the card is hidden on every other OS.</summary>
     public bool IsLinux { get; } = OperatingSystem.IsLinux();
