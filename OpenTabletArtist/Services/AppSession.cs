@@ -1049,9 +1049,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     /// <summary>True when the user has agreed — or there is nothing to agree to, because we own the
     /// daemon or nothing is there to ask with.</summary>
-    private async Task<bool> ConfirmedForeignAsync(string verb)
+    /// <summary>
+    /// Ask before stopping or restarting anything that isn't positively OTA's own build.
+    ///
+    /// The gate is "do we know it is ours", not "do we know it is theirs" — those differ in the case that
+    /// matters. When OTA can't read which binary answered (a daemon running as another user, or elevated),
+    /// the daemon is neither owned nor foreign, and gating on the foreign flag skipped the confirmation
+    /// precisely when OTA knew least about what it was about to kill.
+    /// </summary>
+    private async Task<bool> ConfirmedDaemonActionAsync(string verb)
     {
-        if (!IsForeignDaemon || ConfirmForeignDaemonAction is not { } confirm) return true;
+        if (IsAppOwnedDaemon || ConfirmForeignDaemonAction is not { } confirm) return true;
         return await confirm(verb);
     }
 
@@ -1059,7 +1067,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task StopDaemon()
     {
         if (IsDaemonBusy) return;
-        if (!await ConfirmedForeignAsync("stop")) return;
+        if (!await ConfirmedDaemonActionAsync("stop")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
@@ -1088,7 +1096,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // start phase launches OUR bundled build, so "restart" silently swaps which daemon you are
         // running. #613 named Stop and Quit-and-stop, but confirming only those would leave the policy
         // with a hole you could walk through by pressing the button next to it.
-        if (!await ConfirmedForeignAsync("restart")) return;
+        if (!await ConfirmedDaemonActionAsync("restart")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try

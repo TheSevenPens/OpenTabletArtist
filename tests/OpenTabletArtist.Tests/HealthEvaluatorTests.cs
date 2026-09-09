@@ -87,6 +87,28 @@ public class HealthEvaluatorTests
         }));
     }
 
+    // The state that previously said nothing anywhere: connected, but OTA couldn't read which binary
+    // answered — a daemon whose process path it can't see.
+    [Fact]
+    public void UnreadableDaemonSource_IsReported()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with { DaemonSourceUnknown = true }));
+
+        Assert.Equal("daemon.sourceUnknown", issue.Id);
+        Assert.Equal(HealthSeverity.Recommendation, issue.Severity);
+        Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
+    }
+
+    [Fact]
+    public void UnreadableDaemonSourceIsNotReportedWhileDisconnected()
+    {
+        Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
+        {
+            DaemonConnected = false,
+            DaemonSourceUnknown = true,
+        }));
+    }
+
     // Adoption is a supported mode, not a defect: driving the user's own OTD install states itself and
     // offers a Review, never a Fix that would undo their choice (docs/design/official-otd-release.md).
     [Fact]

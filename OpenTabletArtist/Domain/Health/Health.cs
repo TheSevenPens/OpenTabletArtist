@@ -135,6 +135,10 @@ public sealed record HealthInputs
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
+    /// <summary>Connected, but OTA couldn't read which binary answered — so it is neither known to be
+    /// ours nor known to be the user's. The daemon is single-instance, so this is not "which of several":
+    /// it is a process whose path OTA can't see, e.g. one running as another user or elevated.</summary>
+    public bool DaemonSourceUnknown { get; init; }
     /// <summary>Version of the daemon we're connected to, read off its binary ("" if unknown). Adoption
     /// makes this genuinely variable: the user's own OpenTabletDriver install is whatever version they
     /// have, not the one OTA was built from. (docs/design/official-otd-release.md)</summary>
@@ -305,6 +309,19 @@ public static class HealthEvaluator
         }
 
         // --- Recommendations ---
+        // The one connected state that said nothing anywhere: no path on the Daemon page, no version, and
+        // no card — while Stop and Restart still act on it. Worth stating plainly rather than leaving the
+        // page silently less informative than usual.
+        if (i.DaemonConnected && i.DaemonSourceUnknown)
+        {
+            issues.Add(new HealthIssue("daemon.sourceUnknown", HealthSeverity.Recommendation,
+                "Not sure which OpenTabletDriver is running",
+                "OpenTabletArtist is connected, but couldn't read where the running driver lives, so it "
+                    + "can't show you its location or version. Settings still apply to it; stopping or "
+                    + "restarting from here will ask first.",
+                new Remediation("Review", RemediationArea.Daemon)));
+        }
+
         // OTA links OTD's own libraries and deserializes daemon replies into their types, so a daemon
         // from a different release is a real risk rather than a cosmetic difference: the RPC is loosely
         // typed (stringly-named methods, JSON payloads), which means skew fails at runtime, not at

@@ -36,7 +36,10 @@ public class ForeignDaemonConfirmTests
         public bool TrySave(OpenTabletDriver.Desktop.Settings settings, string path) => true;
     }
 
-    private static AppSession NewSession(out FakeLifecycle lifecycle, bool foreign)
+    /// <summary>Provenance is three-valued, not two: ours, theirs, or unread. <paramref name="owned"/> has
+    /// to be stated rather than inferred from <paramref name="foreign"/>, because "not foreign" covers both
+    /// "ours" and "we couldn't tell" — and those two want opposite behaviour.</summary>
+    private static AppSession NewSession(out FakeLifecycle lifecycle, bool foreign, bool owned = false)
     {
         lifecycle = new FakeLifecycle();
         var session = new AppSession(new DaemonClient(), lifecycle, new FakeStore())
@@ -44,6 +47,7 @@ public class ForeignDaemonConfirmTests
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
         };
         session.IsForeignDaemon = foreign;
+        session.IsAppOwnedDaemon = owned;
         return session;
     }
 
@@ -76,7 +80,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Stop_DoesNotAskAboutOurOwnDaemon()
     {
-        using var session = NewSession(out var lifecycle, foreign: false);
+        using var session = NewSession(out var lifecycle, foreign: false, owned: true);
         var asked = 0;
         session.ConfirmForeignDaemonAction = _ => { asked++; return Task.FromResult(false); };
 
@@ -84,6 +88,22 @@ public class ForeignDaemonConfirmTests
 
         Assert.Equal(0, asked);
         Assert.Equal(1, lifecycle.StopAllCount);
+    }
+
+    /// <summary>The case the old gate missed. When OTA can't read which binary answered — a daemon running
+    /// as another user, say — it is neither owned nor foreign. Gating on the foreign flag skipped the
+    /// confirmation exactly when OTA knew least about what it would kill.</summary>
+    [Fact]
+    public async Task Stop_AsksWhenItCannotTellWhoseDaemonThisIs()
+    {
+        using var session = NewSession(out var lifecycle, foreign: false, owned: false);
+        var asked = new List<string>();
+        session.ConfirmForeignDaemonAction = verb => { asked.Add(verb); return Task.FromResult(false); };
+
+        await session.StopDaemonCommand.ExecuteAsync(null);
+
+        Assert.Equal(["stop"], asked);
+        Assert.Equal(0, lifecycle.StopAllCount);
     }
 
     /// <summary>Restart's stop phase kills the foreign daemon and its start phase launches OUR build, so
