@@ -40,10 +40,15 @@ public interface IConnectionState : INotifyPropertyChanged
     bool HasDaemonVersion { get; }
     bool ShowAppOwnedDaemon { get; }
     bool ShowForeignDaemonWarning { get; }
+    /// <summary>This build ships a daemon of its own in <c>&lt;app&gt;/Daemon/</c>. False on macOS, where
+    /// nothing is bundled yet — so the app is built against an OpenTabletDriver release without carrying
+    /// a copy of it. (docs/design/official-otd-release.md)</summary>
+    bool HasBundledDaemon { get; }
     /// <summary>Offer "use the bundled daemon instead" only when this build actually ships one. On macOS
-    /// nothing is bundled, so the switch would stop the user's OpenTabletDriver and start the very same
-    /// one again. (docs/design/official-otd-release.md)</summary>
+    /// the switch would stop the user's OpenTabletDriver and start the very same one again.</summary>
     bool CanSwitchToBundledDaemon { get; }
+    /// <summary>The connected daemon's path is known and worth showing.</summary>
+    bool HasDaemonSourcePath { get; }
     bool ShowDaemonSourceUnknown { get; }
     bool CanStartDaemon { get; }
     /// <summary>The daemon exe couldn't be found (not built / not bundled) and none is running, so a
@@ -174,6 +179,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _isAppOwnedDaemon;
     [ObservableProperty] private bool _isForeignDaemon;
     [ObservableProperty] private string _daemonSourcePath = "";
+    partial void OnDaemonSourcePathChanged(string value) => OnPropertyChanged(nameof(HasDaemonSourcePath));
     [ObservableProperty] private string _daemonVersion = "";
     public bool HasDaemonVersion => !string.IsNullOrEmpty(DaemonVersion);
     partial void OnDaemonVersionChanged(string value) => OnPropertyChanged(nameof(HasDaemonVersion));
@@ -268,7 +274,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
     public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
-    public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && _daemonLifecycle.HasBundledDaemon();
+    public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
+    public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && HasBundledDaemon;
+    public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
     public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
 
     /// <summary>A connect attempt is in flight (e.g. the ~5s initial auto-connect at startup) but the

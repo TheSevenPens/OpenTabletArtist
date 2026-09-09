@@ -134,7 +134,14 @@
 
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
                                       RowDefinitions="Auto" Margin="0,4,0,0">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Bundles" />
+                                    <!-- "Bundles" only where a daemon really ships with the app. On macOS
+                                         nothing is bundled, so this number is the OTD release OTA was
+                                         compiled against — a different claim, and the one that explains a
+                                         version mismatch against the user's install. -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Bundles"
+                                               IsVisible="{Binding Status.HasBundledDaemon}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Built against"
+                                               IsVisible="{Binding !Status.HasBundledDaemon}" />
                                     <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue mono"
                                                Text="{Binding CurrentOtdVersion, StringFormat='OTD v{0}'}" />
                                 </Grid>
@@ -317,15 +324,24 @@
                                    Text="OTA is connected to an OpenTabletDriver it didn't build — typically one you installed yourself. This is supported: OTA configures whichever OpenTabletDriver it finds, and will start that one when none is running." />
 
                         <!-- property: value list -->
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,4,0,0">
+                        <!-- Which OpenTabletDriver is this? Under adoption that is the page's central
+                             question, so the path is on screen rather than in a tooltip nobody hovers.
+                             Wrapped, because an installed .app path is long and truncating it would hide
+                             the part that identifies the install. -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,4,0,0"
+                              IsVisible="{Binding Status.HasDaemonSourcePath}">
                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Path" />
-                            <c:IconButton Grid.Row="0" Grid.Column="1" Icon="{StaticResource IconFolderOutline}"
-                                          Width="26" Height="22" IconSize="13"
-                                          HorizontalAlignment="Left" Margin="0,2,0,0"
-                                          Command="{Binding OpenContainingFolderCommand}"
-                                          CommandParameter="{Binding Status.DaemonSourcePath}"
-                                          ToolTip.Tip="{Binding Status.DaemonSourcePath}"
-                                          AutomationProperties.Name="Open the folder holding this daemon" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical">
+                                <TextBlock Classes="propValue mono" TextWrapping="Wrap"
+                                           Text="{Binding Status.DaemonSourcePath}" />
+                                <c:IconButton Icon="{StaticResource IconFolderOutline}"
+                                              Width="26" Height="22" IconSize="13"
+                                              HorizontalAlignment="Left" Margin="0,4,0,0"
+                                              Command="{Binding OpenContainingFolderCommand}"
+                                              CommandParameter="{Binding Status.DaemonSourcePath}"
+                                              ToolTip.Tip="Open the folder holding this daemon"
+                                              AutomationProperties.Name="Open the folder holding this daemon" />
+                            </StackPanel>
                         </Grid>
 
                         <!-- Didn't mean to use it? Restart stops the external daemon and launches OTA's bundled
