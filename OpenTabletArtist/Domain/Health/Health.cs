@@ -297,12 +297,18 @@ public static class HealthEvaluator
         }
 
         // --- Recommendations ---
+        // Driving an OpenTabletDriver the user installed themselves is a supported way to run — it is the
+        // whole point of adoption (docs/design/official-otd-release.md), and on macOS it is the only way
+        // the Input Monitoring grant survives. So this states which driver is in use rather than asking
+        // for a fix; the old "restart it to use the bundled build" advice told the very users who chose
+        // OTD deliberately to abandon it. Review (not Fix) — the Daemon page shows the details.
         if (i.DaemonConnected && i.ForeignDaemon)
         {
-            issues.Add(new HealthIssue("daemon.foreign", HealthSeverity.Recommendation,
-                "Using an external daemon",
-                "You're connected to a daemon this app didn't start — restart it to use the bundled build.",
-                new Remediation("Fix", RemediationArea.Daemon)));
+            issues.Add(new HealthIssue("daemon.foreign", HealthSeverity.Information,
+                "Using your OpenTabletDriver install",
+                "You're connected to an OpenTabletDriver this app didn't build. That's supported — "
+                    + "settings you change here apply to that install.",
+                new Remediation("Review", RemediationArea.Daemon)));
         }
 
         // --- Developer-induced synthetic warnings (Advanced → Developer): one per requested severity, so

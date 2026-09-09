@@ -1178,7 +1178,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        var owned = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
+        // "Ours" means we built it, not merely that we resolved and launched it. An adopted OTD install
+        // is the user's, so it stays "foreign" — that is what keeps Stop/Restart behind a confirmation
+        // (ConfirmForeignDaemonAction) even though it is the daemon we start. Adoption being *supported*
+        // is expressed by the health catalog treating it as Information, not by pretending it is ours.
+        // See docs/design/official-otd-release.md.
+        var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
+        var owned = resolved && _daemonLifecycle.IsOwnBuild(actual);
         IsAppOwnedDaemon = owned;
         IsForeignDaemon = !owned;
     }

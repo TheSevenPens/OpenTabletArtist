@@ -20,6 +20,12 @@ public interface IDaemonLifecycleService
     /// <summary>Daemon exe to launch: the expected build, falling back to a running instance's path. Null if none found.</summary>
     string? FindExe();
 
+    /// <summary>True when <paramref name="path"/> is a daemon this project produced (bundled release copy
+    /// or submodule dev build), as opposed to an OTD installed on the system that we merely drive. An
+    /// adopted install is a daemon the user owns, so destructive actions on it stay behind a confirmation
+    /// even though we resolved and launched it. See docs/design/official-otd-release.md.</summary>
+    bool IsOwnBuild(string? path);
+
     /// <summary>True if any OTD daemon process is currently running.</summary>
     bool IsRunning();
 
@@ -56,8 +62,24 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     private const string ProcessName = "OpenTabletDriver.Daemon";
 
     public string? ExpectedExePath() =>
-        // Bundled-next-to-app (release) first, then the dev build tree. See DaemonExePaths.
-        DaemonExePaths.Candidates(AppContext.BaseDirectory).FirstOrDefault(File.Exists);
+        // User-chosen → bundled → an installed OTD → the dev build tree. See DaemonExePaths.
+        DaemonExePaths.Candidates(
+                AppContext.BaseDirectory,
+                AppSettings.Get(DaemonExePaths.UserPathSettingKey),
+                InstalledOtdPaths())
+            .FirstOrDefault(File.Exists);
+
+    public bool IsOwnBuild(string? path) => DaemonExePaths.IsOwnBuild(AppContext.BaseDirectory, path);
+
+    /// <summary>Installed-OTD locations to adopt. macOS only for now: it is where adoption is forced (a
+    /// rebuilt daemon can't hold its Input Monitoring grant) and therefore where the model is being
+    /// proven. Windows keeps its bundled-then-dev-tree order until Phase D of
+    /// docs/design/official-otd-release.md.</summary>
+    private static IEnumerable<string> InstalledOtdPaths() =>
+        OperatingSystem.IsMacOS()
+            ? DaemonExePaths.InstalledMacPaths(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+            : [];
 
     public string? FindExe()
     {

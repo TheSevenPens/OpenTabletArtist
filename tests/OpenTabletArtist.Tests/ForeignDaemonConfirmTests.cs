@@ -17,6 +17,7 @@ public class ForeignDaemonConfirmTests
     {
         public int StopAllCount { get; private set; }
         public string? ExpectedExePath() => "fake-daemon.exe";
+        public bool IsOwnBuild(string? path) => path != null && ExpectedExePath() != null;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
         public void Launch() { }
