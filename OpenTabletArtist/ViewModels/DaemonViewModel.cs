@@ -44,6 +44,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(ShowLocateCard));
                 OnPropertyChanged(nameof(ShowInstallCard));
+                OnPropertyChanged(nameof(ShowDriverCard));
             }
         };
     }
@@ -94,6 +95,10 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     public bool ShowLocateCard =>
         Status.IsDaemonExeMissing || HasUserDaemonPath || !Status.HasBundledDaemon;
 
+    /// <summary>The driver block covers both answers to "which OpenTabletDriver?" — install one, or point
+    /// at one you have — so it shows when either is on offer.</summary>
+    public bool ShowDriverCard => ShowLocateCard || ShowInstallCard;
+
     /// <summary>Why the last chosen path was refused, or "" — shown next to the picker so a rejection
     /// explains itself instead of appearing to do nothing.</summary>
     [ObservableProperty]
@@ -102,7 +107,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
 
-    partial void OnUserDaemonPathChanged(string value) => OnPropertyChanged(nameof(ShowLocateCard));
+    partial void OnUserDaemonPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(ShowLocateCard));
+        OnPropertyChanged(nameof(ShowDriverCard));
+    }
 
     /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect
     /// through it. Rejections are reported rather than stored.</summary>
@@ -158,9 +167,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// this installs an unsigned third-party binary, so the user should know that before pressing it,
     /// not after.</summary>
     public string InstallDescription =>
-        $"OpenTabletArtist needs OpenTabletDriver to talk to your tablet. It can download the official "
-        + $"release (v{OtdRelease.AssetVersion}) from OpenTabletDriver's GitHub and install it to "
-        + $"{OtdRelease.InstallDirectory}.";
+        $"Downloads the official release from OpenTabletDriver's GitHub into {OtdRelease.InstallDirectory}.";
 
     [RelayCommand]
     private async Task InstallOtd()
@@ -239,6 +246,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
     public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
+
+    /// <summary>OTA's own build and the OTD release behind it, on one line — they are read together and
+    /// never separately. "Bundles" only where a daemon really ships with the app; elsewhere the number is
+    /// the release OTA was compiled against, which is a different claim.</summary>
+    public string BuildLine => Status.HasBundledDaemon
+        ? $"{AppVersion} · bundles OTD {CurrentOtdVersion}"
+        : $"{AppVersion} · built against OTD {CurrentOtdVersion}";
 
     /// <summary>The RPM-package check only applies on Linux; the card is hidden on every other OS.</summary>
     public bool IsLinux { get; } = OperatingSystem.IsLinux();

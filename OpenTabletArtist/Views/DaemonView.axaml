@@ -87,6 +87,33 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+        <!-- Provenance chip: one word beside the daemon's name, where "Source: Your OpenTabletDriver
+             install" used to be a whole row. -->
+        <Style Selector="Border.chip">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.chip > TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="FontSize" Value="{DynamicResource TypeCaptionSize}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="0.6" />
+        </Style>
+        <!-- The path reads as text, not as a control; the whole line is the hit target. -->
+        <Style Selector="Button.pathLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pathLink:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.pathLink:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
         <Style Selector="TextBlock.nodeSub">
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}" />
@@ -132,32 +159,20 @@
                 <StackPanel>
 
                             <!-- THIS APP. Its facts are what OTA itself brings: its own build, and the
-                                 daemon build it ships. The bundled version sits here rather than in a card
-                                 of its own precisely so it can be read against the running daemon's version
-                                 below — that pairing is what retires the "Build match" row. -->
+                                 OTD release it was built from — on one line, because they are read together
+                                 and never separately. "Bundles" only where a daemon really ships with the
+                                 app; on macOS nothing does, so the number is what OTA was compiled against,
+                                 which is a different claim. Read against the daemon's version below, that
+                                 pairing is what retires the old "Build match" row. -->
                             <Border Classes="node">
                                 <StackPanel>
                                     <TextBlock Classes="nodeRole" Text="THIS APP" />
                                     <TextBlock Classes="nodeName" Text="OpenTabletArtist" />
-                                    <TextBlock Classes="nodeSub" Text="{Binding AppVersion}" />
-
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                          RowDefinitions="Auto" Margin="0,4,0,0">
-                                        <!-- "Bundles" only where a daemon really ships with the app. On macOS
-                                             nothing is bundled, so this number is the OTD release OTA was
-                                             compiled against — a different claim, and the one that explains a
-                                             version mismatch against the user's install. -->
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Bundles"
-                                                   IsVisible="{Binding Status.HasBundledDaemon}" />
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Built against"
-                                                   IsVisible="{Binding !Status.HasBundledDaemon}" />
-                                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue mono"
-                                                   Text="{Binding CurrentOtdVersion, StringFormat='OTD v{0}'}" />
-                                    </Grid>
+                                    <TextBlock Classes="nodeSub" TextWrapping="Wrap" Text="{Binding BuildLine}" />
                                 </StackPanel>
                             </Border>
 
-                            <!-- THE WIRE, running down the left with the connection's own facts beside it.
+                        <!-- THE WIRE, running down the left with the connection's own facts beside it.
                                  Three states: solid accent when connected, a broken pair of segments when
                                  not, and a vertical indeterminate bar over the top while a lifecycle action
                                  or the initial connect is in flight. The bar stretches to whatever height
@@ -190,16 +205,11 @@
                                     <TextBlock Classes="wireLabel down" Text="{Binding Status.DaemonActivityText}"
                                                IsVisible="{Binding Status.ShowDaemonActivity}" />
 
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                          RowDefinitions="Auto,Auto"
-                                          IsVisible="{Binding Connection.ShowConnectionTiming}">
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Since" />
-                                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="propValue mono"
-                                                   Text="{Binding Connection.ConnectedSince}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Up for" />
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue mono"
-                                                   Text="{Binding Connection.ConnectedDuration}" />
-                                    </Grid>
+                                    <!-- Two labels for two short values read as a form; the connection has
+                                         one fact with two halves, so it gets one line. -->
+                                    <TextBlock Classes="nodeSub" TextWrapping="Wrap"
+                                               IsVisible="{Binding Connection.ShowConnectionTiming}"
+                                               Text="{Binding Connection.ConnectionLine}" />
                                 </StackPanel>
                             </Grid>
 
@@ -255,47 +265,47 @@
                                             </c:IconButton.Flyout>
                                         </c:IconButton>
                                     </Grid>
-                                    <TextBlock Classes="nodeName" Text="OpenTabletDriver"
-                                               IsVisible="{Binding Process.IsRunning}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                IsVisible="{Binding Process.IsRunning}">
+                                        <TextBlock Classes="nodeName" Text="OpenTabletDriver" />
+                                        <Border Classes="chip" IsVisible="{Binding Status.ShowForeignDaemonWarning}">
+                                            <TextBlock Text="YOURS" />
+                                        </Border>
+                                        <Border Classes="chip" IsVisible="{Binding Status.ShowAppOwnedDaemon}">
+                                            <TextBlock Text="BUNDLED" />
+                                        </Border>
+                                    </StackPanel>
                                     <TextBlock Classes="nodeName" Text="not running"
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                IsVisible="{Binding !Process.IsRunning}" />
-                                    <TextBlock Classes="nodeSub"
-                                               Text="{Binding Status.DaemonVersion, StringFormat='v{0}'}"
-                                               IsVisible="{Binding Status.HasDaemonVersion}" />
+                                    <!-- Version and uptime are one line for the same reason as the wire's.
+                                         Provenance is a chip beside the name rather than a "Source" row: it
+                                         qualifies WHICH OpenTabletDriver this is, so it belongs with the
+                                         name, and one word carries it. The old "Build match" row is gone —
+                                         both versions are now on screen at once, one at each end of the
+                                         wire, and the health card pairs them when they differ. -->
+                                    <TextBlock Classes="nodeSub" TextWrapping="Wrap"
+                                               Text="{Binding Process.ProcessLine}"
+                                               IsVisible="{Binding Process.HasProcessLine}" />
 
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14"
-                                          RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
-                                        <Panel Grid.Row="0" Grid.Column="0">
-                                            <TextBlock Classes="propLabel" Text="Source"
-                                                       IsVisible="{Binding Status.ShowAppOwnedDaemon}" />
-                                            <TextBlock Classes="propLabel" Text="Source"
-                                                       IsVisible="{Binding Status.ShowForeignDaemonWarning}" />
-                                        </Panel>
-                                        <Panel Grid.Row="0" Grid.Column="1">
-                                            <TextBlock Classes="propValue" Text="Bundled (ships with OTA)"
-                                                       IsVisible="{Binding Status.ShowAppOwnedDaemon}" />
-                                            <TextBlock Classes="propValue" Text="Your OpenTabletDriver install"
-                                                       IsVisible="{Binding Status.ShowForeignDaemonWarning}" />
-                                        </Panel>
-
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="propLabel" Text="Uptime"
-                                                   IsVisible="{Binding Process.ShowProcessUptime}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Classes="propValue mono"
-                                                   Text="{Binding Process.ProcessUptime}"
-                                                   IsVisible="{Binding Process.ShowProcessUptime}" />
-
-                                        <!-- Mismatch only. A MATCH used to have a row of its own ("Matches
-                                             OTA build"); both versions are now visible at once, one at each
-                                             end of the wire, so agreement says itself. A disagreement still
-                                             earns a line, because the number it differs from is not on
-                                             screen. -->
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="propLabel" Text="Build match"
-                                                   IsVisible="{Binding Process.ShowVersionMismatch}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="1" Classes="propValue"
-                                                   Text="{Binding Process.BuiltAgainstVersion, StringFormat='Differs from OTA build (built against v{0})'}"
-                                                   IsVisible="{Binding Process.ShowVersionMismatch}" />
-                                    </Grid>
+                                    <!-- Which OpenTabletDriver this is, named the way a person would: the
+                                         .app bundle, not the binary four levels inside it. Full path on the
+                                         tooltip; the button opens the containing folder. -->
+                                    <Button Classes="pathLink" Margin="0,8,0,0" Padding="0"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding OpenContainingFolderCommand}"
+                                            CommandParameter="{Binding Status.DaemonSourcePath}"
+                                            ToolTip.Tip="{Binding Status.DaemonSourcePath}"
+                                            IsVisible="{Binding Status.HasDaemonSourcePath}"
+                                            AutomationProperties.Name="Open the folder holding this daemon">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconFolderOutline}" Width="13" Height="13"
+                                                      VerticalAlignment="Top" Margin="0,3,0,0"
+                                                      Foreground="{DynamicResource TextMutedBrush}" />
+                                            <TextBlock Classes="nodeSub" Margin="0" TextWrapping="Wrap"
+                                                       Text="{Binding Status.DaemonSourceDisplayPath}" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                             </Border>
 
@@ -382,19 +392,39 @@
                          present that here as a supported setup (path + version), with a one-click switch back
                          to bundled. The topology already says "External" under the daemon end; this card is
                          where the explanation and the way out live. -->
-                    <!-- "Install it for me." Only when nothing was found: the pinned official release, so what
-                         lands on disk is a binary upstream built and can support, and matches the version OTA
-                         was compiled against. (docs/design/official-otd-release.md) -->
-                    <c:Section MaxWidth="440" VerticalAlignment="Top" IsVisible="{Binding ShowInstallCard}">
+                    <!-- One block for both answers to "which driver?", because they are the same
+                         question: install the official release, or point OTA at one you already have.
+                         They were two sections with two headings and two paragraphs saying so. -->
+                    <c:Section MaxWidth="440" VerticalAlignment="Top" IsVisible="{Binding ShowDriverCard}">
                         <StackPanel>
-                            <TextBlock Classes="Display section" Text="install opentabletdriver" TextWrapping="Wrap" Margin="0,0,0,0" />
-                            <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="{Binding InstallDescription}" />
+                            <TextBlock Classes="Display section" Text="driver" TextWrapping="Wrap" Margin="0,0,0,0" />
 
-                            <Button Content="Install OpenTabletDriver" Margin="0,10,0,0" HorizontalAlignment="Left"
-                                    Command="{Binding InstallOtdCommand}"
-                                    IsEnabled="{Binding !IsInstalling}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                                <Button Content="{Binding InstallVersion, StringFormat='Install v{0}'}"
+                                        IsVisible="{Binding ShowInstallCard}"
+                                        Command="{Binding InstallOtdCommand}"
+                                        IsEnabled="{Binding !IsInstalling}"
+                                        Theme="{StaticResource AccentButton}" Padding="12,6" />
+                                <!-- Same picker, two framings: with nothing found the offer is "I have one
+                                     already"; with one connected it is "use a different one". -->
+                                <Button Content="I already have it&#8230;" Click="OnLocateDaemon"
+                                        IsVisible="{Binding ShowInstallCard}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                                <Button Content="Use a different one&#8230;" Click="OnLocateDaemon"
+                                        IsVisible="{Binding !ShowInstallCard}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
+                                <Button Content="Clear" IsVisible="{Binding HasUserDaemonPath}"
+                                        Command="{Binding ClearDaemonPathCommand}"
+                                        Theme="{StaticResource GhostButton}" Padding="12,6"
+                                        ToolTip.Tip="Forget this location and search the usual places again" />
+                            </StackPanel>
+
+                            <!-- Says what pressing Install actually does — where the download comes from and
+                                 where it lands. Only shown when Install is on offer. -->
+                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       IsVisible="{Binding ShowInstallCard}"
+                                       Text="{Binding InstallDescription}" />
 
                             <StackPanel Margin="0,8,0,0" IsVisible="{Binding IsInstalling}">
                                 <TextBlock Classes="propValue" Text="{Binding InstallStatus}" TextWrapping="Wrap" />
@@ -413,82 +443,11 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        IsVisible="{Binding HasInstallGuidance}"
                                        Text="{Binding InstallGuidance}" />
-                        </StackPanel>
-                    </c:Section>
-
-                    <!-- "It's already on my system." Shown when OTA can't find an OpenTabletDriver at all, and
-                         whenever a location has been chosen — so the choice can be seen and undone, rather than
-                         being invisible state that quietly outranks everything else in the search ladder.
-                         (docs/design/official-otd-release.md) -->
-                    <c:Section MaxWidth="440" VerticalAlignment="Top"
-                               IsVisible="{Binding ShowLocateCard}">
-                        <StackPanel>
-                            <TextBlock Classes="Display section" Text="find opentabletdriver" TextWrapping="Wrap" Margin="0,0,0,0" />
-                            <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="Already have OpenTabletDriver somewhere OTA didn't look? Point it at the app bundle or the daemon itself, and OTA will use that copy from now on." />
-
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,8,0,0"
-                                  IsVisible="{Binding HasUserDaemonPath}">
-                                <TextBlock Grid.Column="0" Classes="propLabel" Text="Using" />
-                                <TextBlock Grid.Column="1" Classes="propValue mono" TextWrapping="Wrap"
-                                           Text="{Binding UserDaemonPath}" />
-                            </Grid>
 
                             <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource ErrorBrush}"
                                        IsVisible="{Binding HasUserDaemonPathProblem}"
                                        Text="{Binding UserDaemonPathProblem}" />
-
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
-                                <Button Name="LocateDaemonButton" Content="Locate OpenTabletDriver&#8230;"
-                                        Click="OnLocateDaemon"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
-                                <Button Content="Clear" IsVisible="{Binding HasUserDaemonPath}"
-                                        Command="{Binding ClearDaemonPathCommand}"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6"
-                                        ToolTip.Tip="Forget this location and search the usual places again" />
-                            </StackPanel>
-                        </StackPanel>
-                    </c:Section>
-
-                    <c:Section MaxWidth="440" VerticalAlignment="Top"
-                               IsVisible="{Binding Status.ShowForeignDaemonWarning}">
-                        <StackPanel>
-                            <TextBlock Classes="Display section" Text="external daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
-                            <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="OTA is connected to an OpenTabletDriver it didn't build — typically one you installed yourself. This is supported: OTA configures whichever OpenTabletDriver it finds, and will start that one when none is running." />
-
-                            <!-- property: value list -->
-                            <!-- Which OpenTabletDriver is this? Under adoption that is the page's central
-                                 question, so the path is on screen rather than in a tooltip nobody hovers.
-                                 Wrapped, because an installed .app path is long and truncating it would hide
-                                 the part that identifies the install. -->
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" RowDefinitions="Auto" Margin="0,4,0,0"
-                                  IsVisible="{Binding Status.HasDaemonSourcePath}">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="propLabel" Text="Path" />
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical">
-                                    <TextBlock Classes="propValue mono" TextWrapping="Wrap"
-                                               Text="{Binding Status.DaemonSourcePath}" />
-                                    <c:IconButton Icon="{StaticResource IconFolderOutline}"
-                                                  Width="26" Height="22" IconSize="13"
-                                                  HorizontalAlignment="Left" Margin="0,4,0,0"
-                                                  Command="{Binding OpenContainingFolderCommand}"
-                                                  CommandParameter="{Binding Status.DaemonSourcePath}"
-                                                  ToolTip.Tip="Open the folder holding this daemon"
-                                                  AutomationProperties.Name="Open the folder holding this daemon" />
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Didn't mean to use it? Restart stops the external daemon and launches OTA's bundled
-                                 build. Only offered when this build actually ships a bundled daemon: on macOS
-                                 nothing is bundled, so the "switch" would stop the user's OpenTabletDriver and
-                                 start the same one straight back (docs/design/official-otd-release.md). -->
-                            <Button Content="Use bundled daemon instead" Margin="0,10,0,0" HorizontalAlignment="Left"
-                                    IsVisible="{Binding Status.CanSwitchToBundledDaemon}"
-                                    Command="{Binding Status.RestartDaemonCommand}"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    ToolTip.Tip="Stop the external daemon and start OTA's own bundled build" />
                         </StackPanel>
                     </c:Section>
 

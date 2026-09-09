@@ -24,7 +24,11 @@ public sealed partial class DaemonConnectionViewModel : ObservableObject, IDispo
 
         // Tick once a second so "Up for …" stays live; only runs while connected (started/stopped below).
         _uptimeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _uptimeTimer.Tick += (_, _) => OnPropertyChanged(nameof(ConnectedDuration));
+        _uptimeTimer.Tick += (_, _) =>
+        {
+            OnPropertyChanged(nameof(ConnectedDuration));
+            OnPropertyChanged(nameof(ConnectionLine));
+        };
 
         _status.PropertyChanged += OnStatusChanged;
         if (_status.IsConnected) MarkConnected();
@@ -57,6 +61,7 @@ public sealed partial class DaemonConnectionViewModel : ObservableObject, IDispo
     {
         OnPropertyChanged(nameof(ConnectedSince));
         OnPropertyChanged(nameof(ConnectedDuration));
+        OnPropertyChanged(nameof(ConnectionLine));
         OnPropertyChanged(nameof(ShowConnectionTiming));
     }
 
@@ -65,6 +70,10 @@ public sealed partial class DaemonConnectionViewModel : ObservableObject, IDispo
 
     /// <summary>Elapsed time since OTA connected ("1h 04m", "3m 12s", "8s"), or "" when disconnected.</summary>
     public string ConnectedDuration => _connectedAt is { } t ? DurationFormat.Compact(DateTime.Now - t) : "";
+
+    /// <summary>When it connected and how long ago, as one line — two labelled rows for two short values
+    /// read as a form, and the connection is one fact with two halves.</summary>
+    public string ConnectionLine => _connectedAt is null ? "" : $"since {ConnectedSince} · {ConnectedDuration}";
 
     /// <summary>Show the "connected since / up for" lines only while a connection is established.</summary>
     public bool ShowConnectionTiming => _status.IsConnected && _connectedAt != null;

@@ -29,3 +29,6 @@ Thumbs.db
 
 # Claude
 .claude/settings.local.json
+
+# Design-canvas working files (seeded artifact + its .dc.html sources)
+.design/
