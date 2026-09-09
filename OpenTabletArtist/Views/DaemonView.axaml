@@ -203,8 +203,10 @@
                                      off the block as a whole left them pointing at nothing in particular.
                                      Refresh comes along because it re-reads this box's own facts.
                                      Start and Restart are mutually exclusive (each shows on its own
-                                     condition), so the menu is never longer than three items. Stop keeps
-                                     the error color, but as a NAMED item rather than a filled red block. -->
+                                     condition), so the menu stays short. Stop keeps the error color, but as
+                                     a NAMED item rather than a filled red block. Opening OTD's own UX joins
+                                     them for the same reason: it acts on this daemon, and a whole card for
+                                     one button said otherwise. -->
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Grid.Column="0" Classes="nodeRole" Text="DAEMON PROCESS"
                                                VerticalAlignment="Center" />
@@ -232,6 +234,14 @@
                                                           IsVisible="{Binding Status.IsConnected}"
                                                           IsEnabled="{Binding !Status.IsDaemonBusy}"
                                                           Foreground="{DynamicResource ErrorBrush}" />
+                                                <!-- OTD's own interface: an action ON this daemon, so it
+                                                     belongs with the other actions on it rather than in a
+                                                     card of its own. Hidden unless the UX is launchable. -->
+                                                <Separator IsVisible="{Binding Status.CanLaunchOtdUx}" />
+                                                <MenuItem Header="Open OpenTabletDriver&apos;s interface"
+                                                          Command="{Binding Status.LaunchOtdUxCommand}"
+                                                          IsVisible="{Binding Status.CanLaunchOtdUx}"
+                                                          ToolTip.Tip="For comparison, or for settings OTA doesn&apos;t surface" />
                                             </MenuFlyout>
                                         </c:IconButton.Flyout>
                                     </c:IconButton>
@@ -385,19 +395,6 @@
                     </StackPanel>
                 </c:Section>
 
-                <!-- OTD UX: launch OpenTabletDriver's own interface (comparison / settings OTA doesn't surface).
-                     A pure action card (no properties), so it keeps its description + button. Hidden unless the
-                     UX is actually launchable — only a development tree has its sources. -->
-                <c:Section Width="440" VerticalAlignment="Top" IsVisible="{Binding Status.CanLaunchOtdUx}">
-                    <StackPanel>
-                        <TextBlock Classes="Display section" Text="otd ux" TextWrapping="Wrap" Margin="0,0,0,0" />
-                        <TextBlock Text="Open OpenTabletDriver's own interface — for comparison, or for settings OTA doesn't surface."
-                                   Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <Button Content="LAUNCH OTD UI" Theme="{StaticResource GhostButton}"
-                                Command="{Binding Status.LaunchOtdUxCommand}"
-                                HorizontalAlignment="Left" Padding="12,6" Margin="0,10,0,0" />
-                    </StackPanel>
-                </c:Section>
                 <c:Section Width="440" VerticalAlignment="Top"
                            IsVisible="{Binding Status.ShowForeignDaemonWarning}">
                     <StackPanel>
