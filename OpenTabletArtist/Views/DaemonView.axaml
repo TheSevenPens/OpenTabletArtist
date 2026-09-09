@@ -316,6 +316,40 @@
                      present that here as a supported setup (path + version), with a one-click switch back
                      to bundled. The topology already says "External" under the daemon end; this card is
                      where the explanation and the way out live. -->
+                <!-- "Install it for me." Only when nothing was found: the pinned official release, so what
+                     lands on disk is a binary upstream built and can support, and matches the version OTA
+                     was compiled against. (docs/design/official-otd-release.md) -->
+                <c:Section Width="440" VerticalAlignment="Top" IsVisible="{Binding ShowInstallCard}">
+                    <StackPanel>
+                        <TextBlock Classes="Display section" Text="install opentabletdriver" TextWrapping="Wrap" Margin="0,0,0,0" />
+                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Text="{Binding InstallDescription}" />
+
+                        <Button Content="Install OpenTabletDriver" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                Command="{Binding InstallOtdCommand}"
+                                IsEnabled="{Binding !IsInstalling}"
+                                Theme="{StaticResource GhostButton}" Padding="12,6" />
+
+                        <StackPanel Margin="0,8,0,0" IsVisible="{Binding IsInstalling}">
+                            <TextBlock Classes="propValue" Text="{Binding InstallStatus}" TextWrapping="Wrap" />
+                            <ProgressBar Margin="0,4,0,0" Height="4" Minimum="0" Maximum="100"
+                                         Value="{Binding InstallProgress}" />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ErrorBrush}"
+                                   IsVisible="{Binding HasInstallProblem}"
+                                   Text="{Binding InstallProblem}" />
+
+                        <!-- Unsigned artifact: the user approves it themselves. OTA does not remove the
+                             quarantine attribute for them. -->
+                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   IsVisible="{Binding HasInstallGuidance}"
+                                   Text="{Binding InstallGuidance}" />
+                    </StackPanel>
+                </c:Section>
+
                 <!-- "It's already on my system." Shown when OTA can't find an OpenTabletDriver at all, and
                      whenever a location has been chosen — so the choice can be seen and undone, rather than
                      being invisible state that quietly outranks everything else in the search ladder.

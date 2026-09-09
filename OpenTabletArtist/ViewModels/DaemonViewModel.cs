@@ -29,7 +29,10 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         Status.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(DaemonStatusViewModel.IsDaemonExeMissing))
+            {
                 OnPropertyChanged(nameof(ShowLocateCard));
+                OnPropertyChanged(nameof(ShowInstallCard));
+            }
         };
     }
 
@@ -87,6 +90,89 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
         await Status.RefreshCommand.ExecuteAsync(null);
     }
+
+    // --- "Install it for me": fetch the pinned official release -----------------------------------
+
+    private readonly OtdInstaller _installer = new();
+
+    /// <summary>Offer the install only where there is something to install and nothing to install it over:
+    /// macOS, with no OpenTabletDriver found. Anywhere else the answer is Locate, not Install.</summary>
+    public bool ShowInstallCard => OperatingSystem.IsMacOS() && Status.IsDaemonExeMissing;
+
+    /// <summary>Progress text while installing ("Downloading…", "Extracting…"), or "".</summary>
+    [ObservableProperty] private string _installStatus = "";
+
+    [ObservableProperty] private int _installProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasInstallProblem))]
+    private string _installProblem = "";
+
+    public bool HasInstallProblem => !string.IsNullOrEmpty(InstallProblem);
+
+    /// <summary>Shown after a successful install: macOS may need the user to approve the unsigned app
+    /// once, by hand. OTA does not strip the quarantine attribute on their behalf.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasInstallGuidance))]
+    private string _installGuidance = "";
+
+    public bool HasInstallGuidance => !string.IsNullOrEmpty(InstallGuidance);
+
+    [ObservableProperty] private bool _isInstalling;
+
+    /// <summary>The version this would install, for the card's copy — pinned, so it matches what OTA was
+    /// built against and the install raises no version-mismatch warning.</summary>
+    public string InstallVersion => OtdRelease.AssetVersion;
+
+    /// <summary>The card's copy. Names the version and says plainly where the download comes from —
+    /// this installs an unsigned third-party binary, so the user should know that before pressing it,
+    /// not after.</summary>
+    public string InstallDescription =>
+        $"OpenTabletArtist needs OpenTabletDriver to talk to your tablet. It can download the official "
+        + $"release (v{OtdRelease.AssetVersion}) from OpenTabletDriver's GitHub and install it to your "
+        + "Applications folder.";
+
+    [RelayCommand]
+    private async Task InstallOtd()
+    {
+        if (IsInstalling) return;
+        IsInstalling = true;
+        InstallProblem = "";
+        InstallGuidance = "";
+        InstallProgress = 0;
+        try
+        {
+            _installer.StatusChanged += OnInstallStatus;
+            _installer.ProgressChanged += OnInstallProgress;
+
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var result = await _installer.InstallAsync(home);
+
+            if (!result.Installed)
+            {
+                InstallProblem = result.Problem ?? "The install didn't complete.";
+                return;
+            }
+
+            // Installed into ~/Applications, which the ladder already searches — so connecting is all
+            // that's left, and nothing has to be remembered.
+            InstallGuidance = OtdInstaller.GatekeeperGuidance;
+            await Status.RefreshCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            _installer.StatusChanged -= OnInstallStatus;
+            _installer.ProgressChanged -= OnInstallProgress;
+            InstallStatus = "";
+            IsInstalling = false;
+        }
+    }
+
+    private void OnInstallStatus(string status) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallStatus = status);
+
+    private void OnInstallProgress(int percent) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallProgress = percent);
 
     /// <summary>Forget the chosen location and fall back to the rest of the ladder (bundled copy, an
     /// installed OpenTabletDriver, the dev tree).</summary>
