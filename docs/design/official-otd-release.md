@@ -1,6 +1,7 @@
 # Design — ship the official OTD release, and support the one already installed
 
-> Status: **proposed.** Supersedes the daemon-acquisition half of
+> Status: **Phases A and B shipped on `feat/official-otd-release`; C–E open.** Sections below marked
+> *(shipped)* describe what the branch does; the rest is still plan. Supersedes the daemon-acquisition half of
 > [`136-bundling-binaries.md`](136-bundling-binaries.md) and reshapes
 > [Phase 6](macos/implementation-plan.md) of the macOS port.
 
@@ -105,7 +106,7 @@ talking to, where does it live, and who started it."
 
 ## Setup experience
 
-### Detection
+### Detection *(shipped)*
 
 [`DaemonExePaths.Candidates`](../../OpenTabletArtist/Domain/DaemonExePaths.cs) grows from two cases
 (bundled, dev tree) to an ordered ladder that includes real install locations — `/Applications/
@@ -117,7 +118,7 @@ Also detect a **running** daemon whose path we don't recognise. `FindExe` alread
 process ([`DaemonLifecycleService.cs:62`](../../OpenTabletArtist/Services/DaemonLifecycleService.cs:62));
 that path becomes an adoption source rather than a curiosity.
 
-### When OTD isn't found
+### When OTD isn't found *(shipped)*
 
 This is the new first-run branch and the heart of the UX work. The user is asked one question with three
 answers:
@@ -129,21 +130,45 @@ answers:
 The question must be answerable by someone who does not know what a daemon is. Frame it in terms of the
 driver, not the process.
 
-### Health checks
+### Health checks *(shipped, and different from the plan)*
 
-The catalog gains a small set of issues, following the existing severity tiers and
-`HealthIssue`/`Remediation` shape:
+The catalog gained **one** issue, not five. Two things pushed it that way.
 
-| Id | Severity | Meaning |
+First, daemon **reachability** was already deliberately outside the health catalog: nothing found, not
+running, and connect failures are owned by the Home daemon problem card and the Daemon page
+([`317-remediation-model.md`](317-remediation-model.md)). Adding `otd.notFound` / `otd.notRunning` would
+have duplicated a surface that already exists, so the reachability work went into making that card say
+something useful instead — see *Launch failures* below.
+
+Second, everything the catalog does say about the driver shares one subject and one destination, so three
+separate cards each offering "Review" was noise. They are one card with a row per fact, following the
+artist-pen-behavior bundle's `Links` pattern (`#artist-pen-health`):
+
+| Id | Severity | Rows it can carry |
 |---|---|---|
-| `otd.notFound` | Broken | No OTD anywhere. Remediation opens the install/locate flow. |
-| `otd.notRunning` | Broken | Found but not running; remediation starts it. |
-| `otd.versionUnsupported` | Broken | Daemon version outside the supported range. |
-| `otd.versionUntested` | Recommendation | Newer than the pinned tag; probably fine, unverified. |
-| `otd.permissionsMissing` | Broken | macOS: daemon lacks Input Monitoring / Accessibility. Deep-link to the right settings pane. |
+| `otd.driver` | worst of its rows | "Not built by OpenTabletArtist" · "Location couldn't be read" · "Version *x* — this app was built against *y*" |
 
-`daemon.foreign` is **removed as a recommendation**. Connecting to someone else's OTD is no longer a
-defect to fix; it becomes *Information* at most, stating which install is in use.
+Severity is the worst contributing row: an adopted install alone stays **Information**, while an
+unreadable location or a version difference lifts the card to **Recommendation**. The card only appears
+when at least one row is true.
+
+`daemon.foreign`, `daemon.sourceUnknown` and `otd.versionMismatch` existed briefly as separate ids during
+Phase A and are gone; nothing outside the app should reference them.
+
+**Still unbuilt:** `otd.permissionsMissing` — the macOS Input Monitoring / Accessibility check with a
+deep link to the right settings pane. It is the one planned health issue that survives the reasoning
+above, since no existing surface covers it.
+
+### Launch failures *(shipped)*
+
+A daemon can be present and still unable to run — a framework-dependent build with no matching .NET
+runtime, a broken install. That used to surface only as "the daemon didn't come online within 30
+seconds", thirty seconds later. Launching now watches the process briefly and reports the path and exit
+code at once, on Start, Restart and auto-connect. Restart needed it most: its stop phase has already
+killed the working daemon, so a silent failure leaves the user with no driver and no explanation.
+
+Deliberately no stdout/stderr redirection — those pipes would outlive the call for a healthy daemon, and
+tearing them down when OTA quits can break one that was working.
 
 ### Consent when configuring someone else's OTD
 
@@ -167,13 +192,17 @@ the normal case, and a feature that silently disables itself for most users is w
 its requirement. Either make it work against an adopted install or give it an explicit,
 explained precondition — not a generic "external daemon" banner.
 
-## Version compatibility policy
+## Version compatibility policy *(partly shipped)*
 
 Required once a user's own OTD can be the target.
 
-- OTA declares a **supported daemon range**, anchored to the submodule tag it compiles against.
-- The daemon's version is already read on connect (`GetApplicationInfo`, plus
-  `DaemonVersion.Read`) — surface it, compare it, and drive the two `otd.version*` issues above.
+- **Not yet:** OTA declares a **supported daemon range**, anchored to the submodule tag it compiles
+  against. Without a declared policy the shipped check states the difference rather than judging it,
+  which is why there is one row instead of the planned unsupported/untested split.
+- **Shipped:** the daemon's version is read on connect (`DaemonVersion.Read`), compared against the
+  linked OTD assembly's version with `DaemonVersion.SameRelease`, and surfaced as a row on `otd.driver`.
+  The comparison ignores the fourth component, since the daemon binary reports `0.6.7` where the assembly
+  reports `0.6.7.0`; without that every healthy install would nag.
 - CI asserts the submodule sits on an **exact release tag** (`git -C external/OpenTabletDriver describe
   --exact-match`), so "we build against a real release" is enforced rather than remembered.
   [`otd-release-watch.yml`](../../.github/workflows/otd-release-watch.yml) already tracks tags, not
@@ -188,15 +217,21 @@ Every piece of new UX (detection ladder, not-found flow, assisted install, permi
 adoption consent) is built and validated on macOS before Windows is touched. Windows keeps its current
 self-built daemon throughout, so nothing regresses while the model is being worked out.
 
-### Phase A — macOS adoption (no bundling yet)
+### Phase A — macOS adoption (no bundling yet) — **shipped**
 Detection ladder including `/Applications`, user-specified path, daemon version surfacing and the
 `otd.*` health issues, `daemon.foreign` demotion, permissions check with a deep link. Outcome: OTA on
 macOS is a supported front-end for an installed OTD.app. This alone replaces the "start OTD.app first"
 instruction with something a user can follow.
 
-### Phase B — macOS assisted install
+### Phase B — macOS assisted install — **shipped, unexercised**
 Fetch and install the official OTD release when none is present, with the first-run question above.
 Outcome: a clean Mac goes from nothing to a working tablet inside OTA.
+
+The artifact's assumptions are verified — the URL resolves, the archive's top level is
+`OpenTabletDriver.app`, the daemon sits where the installer looks with its execute bit intact, and the
+build is self-contained so it needs no .NET runtime. The download-and-install path itself has **not** been
+run end to end, because doing so on a machine that already has OTD would install a second copy. Needs one
+real run on a Mac without OpenTabletDriver before it is trusted.
 
 ### Phase C — macOS packaging
 Decide bundled-vs-install-only for the `.app` in light of the x64/Rosetta constraint. Retire the
@@ -211,10 +246,37 @@ Port the proven model. The open question is whether Windows ships **bundled** of
 Follow-on. Distro packaging makes *adopt* the natural default and bundling largely pointless; see
 [`192-linux-feasibility.md`](192-linux-feasibility.md).
 
+## What the build turned up
+
+Things discovered while shipping Phases A and B that the plan didn't anticipate, and that shape what's
+left.
+
+- **The Phase 6 signing premise was wrong.** OTD's published macOS artifact is **unsigned** — `codesign`
+  reports "code object is not signed at all" on both the bundle and the daemon — and a `macos-signed`
+  package exists in OTD's build wrapper but is not in their publish matrix. So a stable *signing identity*
+  is not what makes the Input Monitoring grant persist on a working install; binary and path stability is
+  the likelier mechanism. Worth confirming before Phase C commits to signing as the fix.
+- **The daemon is single-instance.** A second refuses to start: *"OpenTabletDriver Daemon is already
+  running."* So an unreadable daemon path never means "which of several" — it means a process OTA can't
+  see into, such as one running as another user.
+- **Provenance is three-valued, not two.** Ours, theirs, or unread. The Stop/Restart confirmation
+  originally fired only on "theirs", so it was skipped when OTA could not identify the daemon at all — the
+  case where it knew least about what it was about to kill. It now asks unless the daemon is positively
+  ours.
+- **Stop off Windows stops every daemon.** The pipe-to-PID lookup is Win32-only, so elsewhere Stop falls
+  back to killing by name. The confirmation now says so; the behaviour is unchanged and is an open
+  decision (see below).
+- **A stale user path degrades gracefully.** The ladder takes the first candidate that exists, so a
+  `daemon.userPath` pointing at nothing is skipped rather than breaking the app.
+
 ## Open questions
 
 - **Windows bundling.** Is a .NET 8 prerequisite acceptable in exchange for an official binary, or is
   install/adopt-only the better Windows story? Deliberately deferred to Phase D.
+- **Stopping one daemon off Windows.** Is there a way to attribute the connected daemon to a PID without
+  the Win32 pipe lookup, or do we accept and clearly label "Stop stops them all"?
+- **A per-user install fallback.** `/Applications` covers admin accounts, which is most personal Macs. A
+  standard account currently gets an explanation and the Locate flow instead.
 - **arm64 macOS.** Worth asking upstream whether an `osx-arm64` artifact is on the table; it would remove
   the Rosetta cost entirely. Cheap to ask, high payoff.
 - **Signed macOS artifact.** `macos-signed` exists in OTD's build wrapper but isn't published. Also worth
