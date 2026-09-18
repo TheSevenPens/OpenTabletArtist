@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj" />
+    <Project Path="tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj" />
   </Folder>
   <Folder Name="/plugins/">
     <Project Path="plugins/OpenTabletArtist.Dynamics/OpenTabletArtist.Dynamics.csproj" />

@@ -1,0 +1,45 @@
+# Dependency update automation for OTA's own dependencies (#741).
+#
+# Deliberately separate from otd-release-watch.yml: that watches the OpenTabletDriver submodule, which
+# is a hardware-facing driver update and needs its own judgement. These are OTA's NuGet packages and
+# GitHub Actions, where the risk is the opposite one — quietly drifting years behind, or pinning an
+# action to a tag that moves under us.
+#
+# Grouped and monthly so the repository gets one reviewable PR per ecosystem rather than a stream of
+# single-package bumps nobody reads.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      avalonia:
+        # Avalonia's packages are released together and must move together — a partial bump produces a
+        # runtime type mismatch rather than a build error.
+        patterns:
+          - "Avalonia*"
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+      other:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "Avalonia*"
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - "*"

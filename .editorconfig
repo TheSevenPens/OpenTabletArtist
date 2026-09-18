@@ -1,0 +1,91 @@
+# Repository-owned formatting and style conventions (#741).
+#
+# These describe what the codebase already does, so editors and new code agree without anyone having to
+# infer the house style from surrounding files.
+#
+# Deliberate non-goal: reformatting the existing tree. `dotnet format` disagrees with thousands of
+# existing lines, almost all of it aligned continuations that are more readable than what the formatter
+# would produce. A repo-wide reformat would bury real history under whitespace and is not worth it. CI
+# holds CHANGED files to these rules instead (see the format check in build.yml), so the tree converges
+# as it is edited rather than in one unreviewable commit.
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{yml,yaml,json,md}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{axaml,xaml,csproj,props,targets,slnx}]
+indent_size = 2
+
+[*.cs]
+max_line_length = 120
+
+# --- Language conventions the code already follows ---
+
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+csharp_prefer_braces = when_multiline:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = when_on_single_line:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:silent
+
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_readonly_field = true:suggestion
+
+# --- Naming ---
+
+dotnet_naming_rule.private_fields_underscore_camel.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore_camel.style = underscore_camel
+dotnet_naming_rule.private_fields_underscore_camel.severity = suggestion
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+dotnet_naming_rule.types_pascal.symbols = types_and_members
+dotnet_naming_rule.types_pascal.style = pascal
+dotnet_naming_rule.types_pascal.severity = warning
+dotnet_naming_symbols.types_and_members.applicable_kinds = class,struct,interface,enum,property,method,event
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+# --- Analyzers ---
+
+# Whitespace/formatting as a suggestion, not a build break: see the non-goal above. The CI check applies
+# it to changed files, where it costs nothing and keeps new code consistent.
+dotnet_diagnostic.IDE0055.severity = suggestion
+
+# Unused usings and unreachable/unused private members are worth flagging: they are the residue a
+# refactor leaves behind, and the redesign will generate plenty.
+dotnet_diagnostic.IDE0005.severity = suggestion
+dotnet_diagnostic.CA1822.severity = suggestion
+
+[tests/**/*.cs]
+# Test method names are deliberately long and underscore-separated: they read as the sentence the test
+# is asserting, which matters more here than matching production naming.
+dotnet_naming_rule.types_pascal.severity = none

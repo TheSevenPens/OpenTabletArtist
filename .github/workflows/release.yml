@@ -282,6 +282,36 @@ jobs:
           }
           Write-Host "Release bundle verified: app, daemon, both bundled plugins, and a matching VMulti digest."
 
+      # Launch the packaged app and make it find its own assets (#741). The step above checks the layout
+      # from outside; this one proves the exe actually starts and that the app's OWN lookup paths reach
+      # the daemon and plugins. A release can contain every file and still greet users with a missing
+      # daemon if the app looks somewhere else — and a check that re-implements the lookup would agree
+      # with itself while the product failed.
+      #
+      # Run under an isolated user-data root so it can't read or write a real OTD install on the runner.
+      # The app is a WinExe with no console attached, so the report goes to a file.
+      - name: Smoke-test the packaged app
+        shell: pwsh
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}\smoke-userdata
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
+          $exe = Resolve-Path 'publish/OpenTabletArtist/OpenTabletArtist.exe'
+          $report = Join-Path $env:RUNNER_TEMP 'bundle-verification.txt'
+
+          $p = Start-Process -FilePath $exe -ArgumentList '--verify-bundle', $report `
+                 -Wait -PassThru -WindowStyle Hidden
+          if (-not (Test-Path $report)) {
+            throw "The packaged app produced no report (exit $($p.ExitCode)) - it may not have started at all."
+          }
+          Get-Content $report | Write-Host
+          if ($p.ExitCode -ne 0) {
+            Write-Host "::error::The packaged app could not find all of its bundled components (exit $($p.ExitCode))."
+            throw "Packaged-bundle smoke test failed."
+          }
+          Write-Host "The packaged app started and located every bundled component."
+
       - name: Package zip
         shell: pwsh
         run: Compress-Archive -Path publish/OpenTabletArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force

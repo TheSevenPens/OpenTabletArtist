@@ -250,8 +250,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The recorded taps that carry a pixel-equivalent, for the error map. Empty for a legacy
     /// capture, which has no measured position to draw against its target.</summary>
-    [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints =
-        System.Array.Empty<CalibrationReportPoint>();
+    [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints = [];
 
     /// <summary>There are points to draw — gates the whole map block.</summary>
     [ObservableProperty] private bool _hasCalibrationErrorMap;
