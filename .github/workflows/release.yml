@@ -26,7 +26,12 @@ jobs:
           fetch-depth: 0      # full history + tags, so the changelog step can diff against the previous tag
           fetch-tags: true
 
-      - name: Set up .NET (app targets net10.0, daemon targets net8.0)
+      # .NET 8 is still needed, for two reasons that are no longer "we build the daemon" (#786): the
+      # pen-dynamics plugin targets net8.0, and the packaged-daemon smoke test runs OpenTabletDriver's
+      # official binary, which is framework-dependent and needs an 8.x runtime present on the runner.
+      # That last point cuts both ways -- a runner with the SDK installed can never demonstrate the
+      # missing-runtime experience, which is why D2's install path wants a clean machine.
+      - name: Set up .NET (app targets net10.0; plugin and OTD daemon need net8.0)
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
@@ -94,21 +99,68 @@ jobs:
       - name: Publish app (self-contained win-x64, single file)
         run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
 
-      # Bundle the OTD daemon next to the app in a Daemon/ subfolder — the app's daemon-locate
-      # logic (DaemonExePaths) checks this path first, so auto-start works in the release.
+      # The daemon OTA ships is OpenTabletDriver's own released binary, downloaded here rather than
+      # built from the submodule (#786). The OTD maintainers cannot support a binary they did not
+      # produce, even when the source is their tag rebuilt -- so what lands in Daemon/ is the artifact
+      # they published, and a bug report against it is one they recognise.
       #
-      # Single-file for the same reasons as the app, and it is the larger half of the size win: 260 files
-      # and 78 MB become one file and 37 MB (#585). Tablet configurations are EmbeddedResource inside
-      # OpenTabletDriver.Configurations.dll, so they travel in the bundle rather than needing loose files.
+      # OTD_SHA256 is the digest of that asset. It is pinned for the same reason VMULTI_SHA256 is: a
+      # release asset can be replaced in place, and this one is extracted and executed. It is tied to the
+      # tag below, so bumping the submodule means re-pinning this -- the verification fails loudly rather
+      # than quietly shipping something else.
       #
-      # What this drops: the satellite resource assemblies for StreamJsonRpc, System.CommandLine and the
-      # VS Threading libraries — localized text for *their* exception messages. Those strings surface in
-      # logs, not in OTA's UI, so English is an acceptable trade for 13 folders.
-      #
-      # The smoke step below runs this exe, because "the daemon no longer starts" is the failure that
-      # would matter most and it costs a second to rule out.
-      - name: Publish daemon into the app's Daemon/ folder (single file)
-        run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish/OpenTabletArtist/Daemon
+      # Only the daemon is taken. The archive also carries OTD's Console and WPF UX (another ~18 MB);
+      # OTA drives the daemon over RPC and hides the "launch OTD UX" affordance in published builds, so
+      # shipping those would be redistributing binaries nothing here uses. The daemon is single-file and
+      # runs on its own -- verified by extracting it alone and calling --version.
+      - name: Download the official OpenTabletDriver daemon into Daemon/
+        shell: pwsh
+        env:
+          OTD_SHA256: "4EE9AE149404F0B39132624E488507639C8CE56D1EC77755C66EE7E58562110A"
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # The version comes from the submodule's release tag, the same source the Windows Ink step uses,
+          # so the daemon we ship and the libraries OTA compiles against can never name different releases.
+          $otdTag = $null
+          try { $otdTag = (git -C external/OpenTabletDriver describe --tags --exact-match 2>$null) } catch { }
+          if ($otdTag) { $otdTag = $otdTag.Trim() }
+          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+$') {
+            throw "The OpenTabletDriver submodule is not on an exact release tag (got '$otdTag')."
+          }
+          $version = $otdTag -replace '^v',''
+          $asset   = "OpenTabletDriver-${version}_win-x64.zip"
+          $url     = "https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/$otdTag/$asset"
+
+          $tmp = Join-Path $env:RUNNER_TEMP 'otd'
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          $zip = Join-Path $tmp $asset
+
+          Write-Host "Downloading $url"
+          Invoke-WebRequest $url -OutFile $zip
+
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash
+          if ($actual -ne $env:OTD_SHA256.ToUpperInvariant()) {
+            throw "OpenTabletDriver archive digest mismatch: expected $($env:OTD_SHA256), got $actual. If the submodule tag moved, re-pin OTD_SHA256."
+          }
+          Write-Host "Archive digest verified: $actual"
+
+          # Entries are nested under a version-named folder, so pick the daemon out by name rather than
+          # expanding the archive and hoping the layout is flat.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $dest = 'publish/OpenTabletArtist/Daemon'
+          New-Item -ItemType Directory -Force $dest | Out-Null
+
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            $entry = $archive.Entries | Where-Object { $_.Name -eq 'OpenTabletDriver.Daemon.exe' } | Select-Object -First 1
+            if (-not $entry) { throw "OpenTabletDriver.Daemon.exe was not in $asset." }
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile(
+              $entry, (Join-Path $dest 'OpenTabletDriver.Daemon.exe'), $true)
+          }
+          finally { $archive.Dispose() }
+
+          Write-Host "Bundled the official OpenTabletDriver $otdTag daemon."
 
       # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
       # at runtime (PressurePluginInstaller looks for BundledPlugins/<folder>/ next to the app first).
