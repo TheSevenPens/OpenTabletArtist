@@ -10,6 +10,9 @@ public class VMultiInstaller
     private const string DownloadUrl =
         "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip";
 
+    /// <summary>Name of the digest file the release workflow writes beside the bundled archive.</summary>
+    public const string PackageDigestFileName = "VMulti.Driver.zip.sha256";
+
     public event Action<string>? StatusChanged;
     public event Action<int>? ProgressChanged;
 
@@ -21,9 +24,62 @@ public class VMultiInstaller
         return File.Exists(path) ? path : null;
     }
 
+    /// <summary>
+    /// The digest recorded beside the bundled archive at packaging time, or null in a dev build that
+    /// doesn't bundle VMulti. The release workflow pins the asset, verifies what it downloaded, and
+    /// writes this file — so the digest is fixed when the release is built, not taken from whatever the
+    /// user's machine happens to fetch later (#739).
+    /// </summary>
+    private static string? BundledDigest()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Bundled", PackageDigestFileName);
+        if (!File.Exists(path)) return null;
+        try { return File.ReadAllText(path).Trim(); }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Couldn't read the bundled VMulti digest at {path}.", ex);
+            return null;
+        }
+    }
+
+    /// <summary>SHA256 of a file as an uppercase hex string.</summary>
+    public static string ComputeSha256(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+    }
+
+    /// <summary>
+    /// True when <paramref name="path"/> matches <paramref name="expected"/>, or when there is no
+    /// expected digest to check against (a dev build with no bundled archive). Comparison is
+    /// case-insensitive so either hex casing works.
+    ///
+    /// This runs before the archive is extracted and its contents executed <b>elevated</b>, which is why
+    /// "it came from the right URL" was not enough on its own: a release asset can be replaced in place,
+    /// and the bundled copy travels through a CI job and a zip before it gets here.
+    /// </summary>
+    public static bool VerifyArchive(string path, string? expected)
+    {
+        if (string.IsNullOrEmpty(expected)) return true;
+        try
+        {
+            var actual = ComputeSha256(path);
+            if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)) return true;
+            AppLog.Error($"VMulti archive digest mismatch: expected {expected}, got {actual}. " +
+                         "Refusing to install it.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Couldn't verify the VMulti archive at {path}.", ex);
+            return false;
+        }
+    }
+
     /// <summary>Produces <c>VMulti.Driver.zip</c> in <paramref name="tempDir"/>: copies the bundled copy
-    /// (offline install), or downloads it as a fallback. Throws <see cref="HttpRequestException"/> if the
-    /// download is needed but fails.</summary>
+    /// (offline install), or downloads it as a fallback. Verifies the result against the digest recorded
+    /// at packaging time before handing it back (#739). Throws <see cref="HttpRequestException"/> if the
+    /// download is needed but fails, or <see cref="InvalidDataException"/> if verification fails.</summary>
     private async Task<string> AcquirePackageAsync(string tempDir, CancellationToken ct)
     {
         string zipPath = Path.Combine(tempDir, "VMulti.Driver.zip");
@@ -32,17 +88,23 @@ public class VMultiInstaller
         {
             StatusChanged?.Invoke("Preparing bundled VMulti driver...");
             File.Copy(bundled, zipPath, overwrite: true);
-            return zipPath;
+        }
+        else
+        {
+            StatusChanged?.Invoke("Downloading VMulti driver...");
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenTabletArtist/1.0");
+            using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+            await using var fileStream = File.Create(zipPath);
+            await response.Content.CopyToAsync(fileStream, ct);
+            await fileStream.FlushAsync(ct);
         }
 
-        StatusChanged?.Invoke("Downloading VMulti driver...");
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenTabletArtist/1.0");
-        using var response = await http.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-        await using var fileStream = File.Create(zipPath);
-        await response.Content.CopyToAsync(fileStream, ct);
-        await fileStream.FlushAsync(ct);
+        if (!VerifyArchive(zipPath, BundledDigest()))
+            throw new InvalidDataException(
+                "The VMulti driver package doesn't match the copy this build was released with.");
+
         return zipPath;
     }
 
@@ -146,6 +208,12 @@ public class VMultiInstaller
             return new InstallResult(false,
                 "Couldn't download the VMulti driver. Check your internet connection and try again.");
         }
+        catch (InvalidDataException ex)
+        {
+            // Nothing was extracted or elevated — the check runs before either (#739).
+            StatusChanged?.Invoke("Installation cancelled.");
+            return new InstallResult(false, $"{ex.Message} Nothing was installed.");
+        }
         catch (Exception ex)
         {
             StatusChanged?.Invoke("Installation failed.");
@@ -246,6 +314,11 @@ public class VMultiInstaller
         {
             return new InstallResult(false,
                 "Couldn't download the VMulti package. Check your internet connection and try again.");
+        }
+        catch (InvalidDataException ex)
+        {
+            StatusChanged?.Invoke("Removal cancelled.");
+            return new InstallResult(false, $"{ex.Message} Nothing was removed.");
         }
         catch (Exception ex)
         {
