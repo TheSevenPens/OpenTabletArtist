@@ -11,6 +11,10 @@ public enum SettingsLoadStatus
     /// <summary>The file couldn't be read/parsed <em>and</em> couldn't be moved to a backup, so the original
     /// is still at its normal path and a later save may overwrite it. The more dangerous case.</summary>
     NotPreserved,
+    /// <summary>The file couldn't be read, but the last-known-good copy beside it could, so the settings
+    /// in use are the user’s own rather than defaults (#768). Worth saying — a write did fail — but
+    /// nothing was lost.</summary>
+    Recovered,
 }
 
 /// <summary>The outcome of loading the settings file: a status plus, when the unreadable file was preserved,
@@ -20,6 +24,7 @@ public sealed record SettingsLoadOutcome(SettingsLoadStatus Status, string? Back
 {
     public static readonly SettingsLoadOutcome Ok = new(SettingsLoadStatus.Ok, null);
 
-    /// <summary>True when the settings file existed but couldn't be read (either preserved or not).</summary>
+    /// <summary>True when the settings file couldn't be read and the app fell back to defaults. Excludes
+    /// <see cref="SettingsLoadStatus.Recovered"/>, where a backup supplied the real settings.</summary>
     public bool Unreadable => Status is SettingsLoadStatus.Preserved or SettingsLoadStatus.NotPreserved;
 }
