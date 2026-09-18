@@ -67,7 +67,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
     public bool HasWindowsInk => _session.HasWindowsInk;
 
     public string CurrentOtdVersion { get; } =
-        typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
+        OtdRelease.Version.ToString();
 
     [ObservableProperty] private string _windowsInkStatusText = "Not configured";
 

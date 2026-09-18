@@ -23,7 +23,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     /// assembly, which is the pinned submodule tag. Under adoption the connected daemon can be a
     /// different release, so this is the number a mismatch is measured against.</summary>
     internal static string ExpectedOtdVersion { get; } =
-        typeof(OpenTabletDriver.Desktop.Settings).Assembly.GetName().Version?.ToString() ?? "";
+        OtdRelease.Version.ToString();
 
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;

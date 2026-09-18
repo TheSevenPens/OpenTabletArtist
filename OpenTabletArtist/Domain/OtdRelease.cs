@@ -22,6 +22,19 @@ public static class OtdRelease
     /// <summary>The version as it appears in the release asset's file name.</summary>
     public const string AssetVersion = "0.6.7";
 
+    /// <summary>
+    /// The pinned release as a four-part <see cref="System.Version"/> — the shape the OTD assemblies
+    /// report (<c>0.6.7.0</c>), so comparisons against plugin manifests and daemon versions are unchanged.
+    ///
+    /// <b>Read this, never a linked OTD assembly's version.</b> Publishing the app passes
+    /// <c>-p:Version=&lt;OTA version&gt;</c>, and MSBuild applies that to every project in the graph —
+    /// including the OTD submodule projects OTA references. So in a release build
+    /// <c>typeof(AppInfo).Assembly.GetName().Version</c> reports <em>OTA's</em> version, not OTD's, and
+    /// every comparison built on it is wrong. Dev builds pass no version and keep 0.6.7.0, which is why
+    /// this never showed up locally.
+    /// </summary>
+    public static readonly System.Version Version = System.Version.Parse(AssetVersion + ".0");
+
     /// <summary>OTD publishes one macOS artifact, and it is x64 only — on Apple Silicon the daemon runs
     /// under Rosetta 2. OTA itself stays native arm64; they are separate processes over RPC, so the
     /// mixed architecture is fine.</summary>
