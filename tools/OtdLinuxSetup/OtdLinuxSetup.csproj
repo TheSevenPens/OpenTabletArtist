@@ -15,15 +15,17 @@
     The prerequisite checks it used to carry - udev rules, conflicting kernel modules, HID permissions -
     now live in the app's health system (#780), where a user whose tablet is not detected will actually
     see them. What is left here is the privileged fix implementation: pkexec writing udev rules,
-    blacklisting modules, regenerating the initramfs, and usermod -aG input. OTA deliberately does not do
-    any of that - the health copy names the commands instead - so this is kept as reference for whoever
-    revisits that call, not as shipping code.
+    blacklisting modules, regenerating the initramfs, and usermod -aG input.
 
-    So the versions below are pinned on purpose. Nothing builds this, so there is nothing for a bump to be
+    Those fixes are still wanted - #589 tracks giving that health issue a Fix button - they are simply not
+    built yet. Today the health copy names the commands and the user runs them. So this project is the
+    reference implementation for #589, not abandoned code.
+
+    The versions below are pinned on purpose. Nothing builds this, so there is nothing for a bump to be
     current for, and modernising it would imply a support commitment that does not exist. If you are here
-    from a dependency triage: leave it. If you are here to revive the fixers, note that FixUdevRules
-    cannot work outside a repo checkout as written - it locates generate-rules.sh by walking up to .git,
-    which the release does not ship.
+    from a dependency triage: leave it. If you are here to implement #589, note that FixUdevRules cannot
+    work outside a repo checkout as written - it locates generate-rules.sh by walking up to .git, which
+    the release does not ship, so where the rules come from is part of that work.
   -->
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.0" />
