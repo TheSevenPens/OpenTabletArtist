@@ -45,6 +45,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ShowLocateCard));
                 OnPropertyChanged(nameof(ShowInstallCard));
                 OnPropertyChanged(nameof(ShowDriverCard));
+                OnPropertyChanged(nameof(ShowInstallRuntime));
             }
         };
     }
@@ -137,6 +138,76 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// <summary>Offer the install only where there is something to install and nothing to install it over:
     /// macOS, with no OpenTabletDriver found. Anywhere else the answer is Locate, not Install.</summary>
     public bool ShowInstallCard => OperatingSystem.IsMacOS() && Status.IsDaemonExeMissing;
+
+    private readonly DotnetRuntimeInstaller _runtimeInstaller = new();
+
+    /// <summary>
+    /// Offer the .NET runtime when the daemon isn't connected and this machine has no runtime that could
+    /// run OpenTabletDriver's official build (#786, D2).
+    ///
+    /// Asked of the disk rather than waited for from a launch: the point is to say something *before* the
+    /// user sits through a daemon that exits instantly. The launch failure remains the authoritative
+    /// signal and produces its own message; this is the offer that goes with it.
+    ///
+    /// Windows only — macOS gets a self-contained OTD and Linux gets a packaged one, so neither has the
+    /// prerequisite.
+    /// </summary>
+    public bool ShowInstallRuntime =>
+        OperatingSystem.IsWindows()
+        && !Status.IsConnected
+        && !DotnetRuntime.Satisfies(DotnetRuntime.Installed(), DotnetRuntime.DaemonMajor);
+
+    /// <summary>What pressing it does, said before it is pressed.</summary>
+    public string InstallRuntimeDescription => DotnetRuntimeInstaller.Description;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRuntimeInstallProblem))]
+    private string _runtimeInstallProblem = "";
+
+    public bool HasRuntimeInstallProblem => !string.IsNullOrEmpty(RuntimeInstallProblem);
+
+    [ObservableProperty] private bool _isInstallingRuntime;
+
+    [RelayCommand]
+    private async Task InstallRuntime()
+    {
+        if (IsInstallingRuntime) return;
+        IsInstallingRuntime = true;
+        RuntimeInstallProblem = "";
+        InstallProgress = 0;
+        try
+        {
+            _runtimeInstaller.StatusChanged += OnInstallStatus;
+            _runtimeInstaller.ProgressChanged += OnInstallProgress;
+
+            var result = await _runtimeInstaller.InstallAsync();
+
+            // Declining the elevation prompt is an answer, not a fault (#786 review). Say nothing and
+            // leave the offer standing — retrying it automatically would be arguing with the user.
+            if (result.Cancelled) return;
+
+            if (!result.Installed)
+            {
+                RuntimeInstallProblem = result.Problem ?? "The .NET runtime didn't install.";
+                return;
+            }
+
+            if (result.RebootRequired)
+                RuntimeInstallProblem = "The .NET runtime is installed, but Windows needs a restart to "
+                                        + "finish. The tablet will work after you reboot.";
+
+            // The offer is derived from what's on disk, so re-ask now that the answer has changed.
+            OnPropertyChanged(nameof(ShowInstallRuntime));
+            await Status.RefreshCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            _runtimeInstaller.StatusChanged -= OnInstallStatus;
+            _runtimeInstaller.ProgressChanged -= OnInstallProgress;
+            InstallStatus = "";
+            IsInstallingRuntime = false;
+        }
+    }
 
     /// <summary>Progress text while installing ("Downloading…", "Extracting…"), or "".</summary>
     [ObservableProperty] private string _installStatus = "";
