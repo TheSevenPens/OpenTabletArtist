@@ -58,10 +58,32 @@ public class TrailingDebounceTests
                 return Task.CompletedTask;
             });
         }
+        // Wait for the surviving call instead of assuming a fixed sleep covers it. A loaded CI runner can
+        // take far longer than PastDelay to get round to a 40 ms timer and its continuation, and the
+        // assertion below then reads "nothing has run yet" as "the wrong thing ran". This is the only
+        // test here that asserts work DID run after a delay; the rest assert it did not, which a slow
+        // machine can only make more true.
+        await WaitUntil(() => Volatile.Read(ref runs) > 0, "the surviving call to run");
+
+        // Only now is the interesting claim testable: give any superseded call a full quiet period to
+        // fire wrongly before asserting that none did.
         await Task.Delay(PastDelay);
 
         Assert.Equal(1, Volatile.Read(ref runs));
         Assert.Equal(5, Volatile.Read(ref last));
+    }
+
+    /// <summary>Polls until <paramref name="condition"/> holds, failing with what it was waiting for
+    /// rather than with a bare value mismatch three lines later.</summary>
+    private static async Task WaitUntil(Func<bool> condition, string what)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition()) return;
+            await Task.Delay(10);
+        }
+        Assert.Fail($"Timed out after 5s waiting for {what}.");
     }
 
     /// <summary>The regression this class exists for: a disposed owner must not have its pending edit
