@@ -36,11 +36,25 @@ internal static class TestUserDataRoot
 
         // macOS: "~/Library/Application Support/OpenTabletDriver", with ~ taken from HOME.
         // Linux: the XDG roots below, each defaulting to a path under HOME.
+        //
+        // Each is CREATED, not merely named. These are real roots that other code opens rather than
+        // just joins onto: SingleInstance puts its Linux activation socket straight into
+        // XDG_RUNTIME_DIR, and pointing that at a directory which doesn't exist made its test hang
+        // until it timed out — on the Linux lane only, so it looked like the flakiness that test has a
+        // history of rather than something this redirect did.
         Environment.SetEnvironmentVariable("HOME", Path);
-        Environment.SetEnvironmentVariable("XDG_DATA_HOME", System.IO.Path.Combine(Path, "data"));
-        Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", System.IO.Path.Combine(Path, "config"));
-        Environment.SetEnvironmentVariable("XDG_CACHE_HOME", System.IO.Path.Combine(Path, "cache"));
-        Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", System.IO.Path.Combine(Path, "run"));
+        foreach (var (variable, name) in new[]
+                 {
+                     ("XDG_DATA_HOME", "data"),
+                     ("XDG_CONFIG_HOME", "config"),
+                     ("XDG_CACHE_HOME", "cache"),
+                     ("XDG_RUNTIME_DIR", "run"),
+                 })
+        {
+            var dir = System.IO.Path.Combine(Path, name);
+            Directory.CreateDirectory(dir);
+            Environment.SetEnvironmentVariable(variable, dir);
+        }
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
