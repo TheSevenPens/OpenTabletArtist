@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using OpenTabletArtist.Domain;
 
 namespace OpenTabletArtist.Services;
 
@@ -47,6 +48,14 @@ public sealed partial class ProfileSwitchService : ObservableObject
     /// </summary>
     public event Action<string>? SwitchFailed;
 
+    /// <summary>
+    /// Raised when a restore could not be completed, with the reason. The override is still active when
+    /// this fires — same rationale as <see cref="SwitchFailed"/>: the trigger is usually a hotkey with no
+    /// window in front of it, so silence would leave the artist with a tablet that isn't behaving as the
+    /// UI claims (#734).
+    /// </summary>
+    public event Action<SettingsRestoreStatus>? RestoreFailed;
+
     /// <summary>Apply the named snapshot as a live-only override. Returns false — and raises
     /// <see cref="SwitchFailed"/> — if the snapshot can't be loaded (deleted, moved, or unreadable).</summary>
     public async Task<bool> SwitchToAsync(string snapshotName)
@@ -64,13 +73,28 @@ public sealed partial class ProfileSwitchService : ObservableObject
         return true;
     }
 
-    /// <summary>Revert to the saved on-disk default, clearing any override. No-op when not overridden.</summary>
-    public async Task RestoreDefaultAsync()
+    /// <summary>
+    /// Revert to the saved on-disk default, clearing any override. No-op when not overridden.
+    /// Returns false — and raises <see cref="RestoreFailed"/> — when the default could not be reached.
+    ///
+    /// The override indicator is only cleared on a confirmed restore (#734). It used to clear
+    /// unconditionally and announce a restoration, so a missing or unreadable settings file left the
+    /// tablet running the override while the UI said it was back on the default.
+    /// </summary>
+    public async Task<bool> RestoreDefaultAsync()
     {
-        if (!HasOverride) return;
-        await _settings.RestoreDefaultAsync();
+        if (!HasOverride) return true;
+
+        var outcome = await _settings.RestoreDefaultAsync();
+        if (!outcome.IsRestored)
+        {
+            RestoreFailed?.Invoke(outcome.Status);
+            return false;
+        }
+
         ActiveSnapshot = null;
         Switched?.Invoke(null);
+        return true;
     }
 
     private string? SnapshotPath(string name)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using Xunit;
 
@@ -25,11 +26,24 @@ public class ProfileSwitchServiceTests
         public int LiveOnlyCalls;
         public int RestoreCalls;
         public int SaveCalls;
-        public Task ApplyAndSaveSettingsAsync(Settings settings) { SaveCalls++; return Task.CompletedTask; }
+        /// <summary>What <see cref="RestoreDefaultAsync"/> reports. Defaults to a real restore; set it to
+        /// a failure to exercise the "override is still active" path (#734).</summary>
+        public SettingsRestoreOutcome RestoreResult = SettingsRestoreOutcome.Restored;
+
+        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
+        {
+            SaveCalls++;
+            return Task.FromResult(SettingsApplyOutcome.Saved);
+        }
+        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
         public Task ApplyLiveOnlyAsync(Settings settings) { LiveOnlyCalls++; return Task.CompletedTask; }
         public int EphemeralCalls;
         public Task ApplyEphemeralAsync(Settings settings) { EphemeralCalls++; return Task.CompletedTask; }
-        public Task RestoreDefaultAsync() { RestoreCalls++; return Task.CompletedTask; }
+        public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
+        {
+            RestoreCalls++;
+            return Task.FromResult(RestoreResult);
+        }
     }
 
     private sealed class FakeStore : ISettingsFileStore
@@ -143,6 +157,75 @@ public class ProfileSwitchServiceTests
 
         await svc.SwitchToAsync("Draw");
 
+        Assert.Empty(failures);
+    }
+
+    // --- A restore that didn't happen must not look like one (#734) ---
+
+    /// <summary>The core regression: when the saved default can't be read, the override is still running
+    /// on the tablet. Clearing the cue here told the artist they were back on their own settings while
+    /// the preset was still active — the exact mismatch between UI and hardware this must never produce.</summary>
+    [Theory]
+    [InlineData(SettingsRestoreStatus.SourceUnavailable)]
+    [InlineData(SettingsRestoreStatus.Disconnected)]
+    [InlineData(SettingsRestoreStatus.ApplyFailed)]
+    public async Task RestoreDefault_WhenTheRestoreFails_KeepsTheOverrideIndicator(SettingsRestoreStatus status)
+    {
+        var (svc, coord, store) = Make(PresetsDir);
+        store.Existing.Add(Snapshot("Draw"));
+        await svc.SwitchToAsync("Draw");
+        coord.RestoreResult = new SettingsRestoreOutcome(status);
+
+        var ok = await svc.RestoreDefaultAsync();
+
+        Assert.False(ok);
+        Assert.Equal("Draw", svc.ActiveSnapshot);
+        Assert.True(svc.HasOverride);
+    }
+
+    [Fact]
+    public async Task RestoreDefault_WhenTheRestoreFails_DoesNotAnnounceARestoration()
+    {
+        var (svc, coord, store) = Make(PresetsDir);
+        store.Existing.Add(Snapshot("Draw"));
+        var events = new List<string?>();
+        svc.Switched += n => events.Add(n);
+        await svc.SwitchToAsync("Draw");
+        coord.RestoreResult = SettingsRestoreOutcome.SourceUnavailable;
+
+        await svc.RestoreDefaultAsync();
+
+        // "Draw" from the switch, and nothing after it — no "Restored saved settings" toast.
+        Assert.Equal(new string?[] { "Draw" }, events);
+    }
+
+    [Fact]
+    public async Task RestoreFailed_Event_FiresWithTheReason()
+    {
+        var (svc, coord, store) = Make(PresetsDir);
+        store.Existing.Add(Snapshot("Draw"));
+        var failures = new List<SettingsRestoreStatus>();
+        svc.RestoreFailed += s => failures.Add(s);
+        await svc.SwitchToAsync("Draw");
+        coord.RestoreResult = SettingsRestoreOutcome.Disconnected;
+
+        await svc.RestoreDefaultAsync();
+
+        Assert.Equal([SettingsRestoreStatus.Disconnected], failures);
+    }
+
+    [Fact]
+    public async Task RestoreFailed_Event_StaysQuietOnASuccessfulRestore()
+    {
+        var (svc, _, store) = Make(PresetsDir);
+        store.Existing.Add(Snapshot("Draw"));
+        var failures = new List<SettingsRestoreStatus>();
+        svc.RestoreFailed += s => failures.Add(s);
+        await svc.SwitchToAsync("Draw");
+
+        var ok = await svc.RestoreDefaultAsync();
+
+        Assert.True(ok);
         Assert.Empty(failures);
     }
 }

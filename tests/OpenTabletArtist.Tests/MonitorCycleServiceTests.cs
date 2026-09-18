@@ -14,10 +14,15 @@ public class MonitorCycleServiceTests
     {
         public Settings? CurrentSettings { get; set; }
         public Settings? SavedAndApplied { get; private set; }
-        public Task ApplyAndSaveSettingsAsync(Settings s) { SavedAndApplied = s; return Task.CompletedTask; }
+        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings s)
+        {
+            SavedAndApplied = s;
+            return Task.FromResult(SettingsApplyOutcome.Saved);
+        }
+        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
         public Task ApplyLiveOnlyAsync(Settings s) => Task.CompletedTask;
         public Task ApplyEphemeralAsync(Settings s) => Task.CompletedTask;
-        public Task RestoreDefaultAsync() => Task.CompletedTask;
+        public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => Task.FromResult(SettingsRestoreOutcome.Restored);
     }
 
     private static DisplayInfo Display(int number, int x, int y, int w, int h) =>
