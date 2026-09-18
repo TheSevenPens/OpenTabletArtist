@@ -16,17 +16,19 @@ public static class FeatureFlags
     /// switcher code are untouched, so setting this back to <c>true</c> brings the feature back exactly
     /// as it was.
     ///
-    /// Still <c>false</c>, but no longer for want of evidence. The #737 ordering defects are fixed and
-    /// covered — obsolete queued targets are cancelled, applies are serialized and generation-checked,
-    /// and only a confirmed apply is committed. Baseline isolation
-    /// (<see cref="ISettingsCoordinator.HasEphemeralOverride"/> stopping the background reload adopting a
-    /// transient snapshot) is now verified end to end through the real load path, across repeated polls
-    /// and a reconnect, by <c>AppSessionSettingsTests</c> — which the injectable transport from #740 made
-    /// possible.
+    /// <b>Not staged for release.</b> There is no plan to re-enable this in its current form — the
+    /// question is whether automatic switching is the right idea at all, not whether this implementation
+    /// works. It is kept because parts of it may be useful to whatever replaces it: the foreground
+    /// watcher, the app→profile store, and the switch policy are each independently reusable.
     ///
-    /// What remains before flipping it is a judgement, not a test: a pass over the manual device matrix
-    /// (docs/dev/DEVICE-MATRIX.md), since what this changes is what the tablet does while the user is in
-    /// another application, and no headless test can speak to that.
+    /// So don't read the flag as a countdown. Nothing is waiting on validation, and it does not need a
+    /// device-matrix pass unless and until someone decides to ship switching in some form.
+    ///
+    /// It is nonetheless correct as far as it goes, which is worth knowing if that day comes: #737 fixed
+    /// the ordering defects (obsolete queued targets are cancelled, applies are serialized and
+    /// generation-checked, only a confirmed apply is committed), and baseline isolation — the reload not
+    /// adopting a transient snapshot as the editor's default — is verified end to end across repeated
+    /// polls and a reconnect by <c>AppSessionSettingsTests</c>.
     /// </summary>
     public const bool PerAppProfiles = false;
 }
