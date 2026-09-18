@@ -63,6 +63,8 @@ public class TestUserDataRootTests
     /// XDG_RUNTIME_DIR under a name of roughly 78 characters. Nesting that directory under the
     /// descriptive test root pushed the full path past the limit, the bind failed silently, and the
     /// activation test sat out a 30-second timeout on the Linux lane. Keep the headroom.
+    ///
+    /// Linux-only: that is the one platform where this socket is bound.
     /// </summary>
     [Fact]
     public void TheRuntimeDirectoryIsShortEnoughForAUnixSocket()
@@ -70,8 +72,11 @@ public class TestUserDataRootTests
         Assert.NotEqual("", TestUserDataRoot.RuntimePath);
         Assert.True(Directory.Exists(TestUserDataRoot.RuntimePath));
 
-        // Windows has no sun_path limit and a long temp root of its own, so the budget is Unix-only.
-        if (OperatingSystem.IsWindows()) return;
+        // Linux only, matching where the socket is actually bound: SingleInstance takes its Unix-socket
+        // branch under OperatingSystem.IsLinux(), Windows uses a named event, and macOS takes neither.
+        // Scoped to "Unix" instead, this failed on macOS — whose temp root is ~50 characters — for a
+        // limit that platform never reaches.
+        if (!OperatingSystem.IsLinux()) return;
 
         // What SingleInstance actually binds: "OpenTabletArtist.SingleInstance.Show" + the instance key
         // + ".sock", in this directory. Measured against the real limit rather than a round number, so
