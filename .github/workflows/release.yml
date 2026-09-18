@@ -160,6 +160,14 @@ jobs:
           }
           finally { $archive.Dispose() }
 
+          # Deliberately no "userdata" folder beside the daemon. OTD reads
+          # GetExistingPathOrLast(ProgramDirectory/userdata, $LOCALAPPDATA\OpenTabletDriver), so creating
+          # one here would give the bundled daemon a private settings directory. Sharing the normal
+          # location is the decision (docs/design/official-otd-release.md): it is what already happens, and
+          # isolating it would be a migration that makes existing users' settings appear to vanish.
+          #
+          # If you are here to add one: that is the change, and it needs the migration story that section
+          # describes, not just the mkdir.
           Write-Host "Bundled the official OpenTabletDriver $otdTag daemon."
 
       # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
