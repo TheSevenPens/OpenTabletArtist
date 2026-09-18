@@ -9,6 +9,7 @@ namespace OpenTabletArtist.Tests;
 /// Covers the <see cref="DisplayEnumerator"/> platform-seam facade (#140): that <c>Use</c> overrides
 /// dispatch, that resetting returns to the OS default, and that the non-Windows fallback is null-safe.
 /// </summary>
+[Collection(DisplayEnumeratorCollection.Name)]
 public class DisplayEnumeratorSeamTests
 {
     private sealed class FakeEnumerator : IDisplayEnumerator
