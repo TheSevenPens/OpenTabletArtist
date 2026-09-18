@@ -25,6 +25,9 @@ internal static class TestUserDataRoot
     /// <summary>The throwaway root every OTD path resolves under during the test run.</summary>
     internal static string Path { get; private set; } = "";
 
+    /// <summary>The runtime directory, kept separate and short — see the socket-length note below.</summary>
+    internal static string RuntimePath { get; private set; } = "";
+
     [ModuleInitializer]
     internal static void Redirect()
     {
@@ -48,7 +51,6 @@ internal static class TestUserDataRoot
                      ("XDG_DATA_HOME", "data"),
                      ("XDG_CONFIG_HOME", "config"),
                      ("XDG_CACHE_HOME", "cache"),
-                     ("XDG_RUNTIME_DIR", "run"),
                  })
         {
             var dir = System.IO.Path.Combine(Path, name);
@@ -56,10 +58,26 @@ internal static class TestUserDataRoot
             Environment.SetEnvironmentVariable(variable, dir);
         }
 
+        // XDG_RUNTIME_DIR gets its own DELIBERATELY SHORT directory, outside the root above.
+        //
+        // A Unix domain socket path is limited to 108 bytes, and SingleInstance puts its Linux
+        // activation socket directly in this directory under a ~78-character name. Nested under the
+        // descriptive root the full path came to ~130 bytes and the bind silently failed, so the
+        // activation test waited out its 30-second timeout — on the Linux lane only. The real runtime
+        // directory is short (/run/user/1000), which is why the product has never hit this.
+        //
+        // Do not "tidy" this back under Path: the length is the point.
+        RuntimePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ota-rt-{Guid.NewGuid():N}"[..14]);
+        Directory.CreateDirectory(RuntimePath);
+        Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", RuntimePath);
+
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
-            try { Directory.Delete(Path, recursive: true); }
-            catch { /* best-effort: a leftover temp dir is harmless, a failed teardown is not */ }
+            foreach (var dir in new[] { Path, RuntimePath })
+            {
+                try { Directory.Delete(dir, recursive: true); }
+                catch { /* best-effort: a leftover temp dir is harmless, a failed teardown is not */ }
+            }
         };
     }
 }

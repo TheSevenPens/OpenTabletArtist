@@ -57,4 +57,42 @@ public class TestUserDataRootTests
         Assert.StartsWith(TestUserDataRoot.Path, AppInfo.PluginManager.PluginDirectory.FullName,
             StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// A Unix domain socket path is capped at 108 bytes, and <c>SingleInstance</c> binds one directly in
+    /// XDG_RUNTIME_DIR under a name of roughly 78 characters. Nesting that directory under the
+    /// descriptive test root pushed the full path past the limit, the bind failed silently, and the
+    /// activation test sat out a 30-second timeout on the Linux lane. Keep the headroom.
+    /// </summary>
+    [Fact]
+    public void TheRuntimeDirectoryIsShortEnoughForAUnixSocket()
+    {
+        Assert.NotEqual("", TestUserDataRoot.RuntimePath);
+        Assert.True(Directory.Exists(TestUserDataRoot.RuntimePath));
+
+        // Windows has no sun_path limit and a long temp root of its own, so the budget is Unix-only.
+        if (OperatingSystem.IsWindows()) return;
+
+        // What SingleInstance actually binds: "OpenTabletArtist.SingleInstance.Show" + the instance key
+        // + ".sock", in this directory. Measured against the real limit rather than a round number, so
+        // the failure message says how much room is left.
+        const int SunPathLimit = 108;
+        var socketName = "OpenTabletArtist.SingleInstance.Show" + "Test-" + new string('0', 32) + ".sock";
+        var fullLength = TestUserDataRoot.RuntimePath.Length + 1 + socketName.Length;
+
+        Assert.True(fullLength < SunPathLimit,
+            $"The activation socket path would be {fullLength} bytes, over the {SunPathLimit}-byte limit. "
+            + $"XDG_RUNTIME_DIR is {TestUserDataRoot.RuntimePath}");
+    }
+
+    [Fact]
+    public void TheXdgRootsExist_NotJustNamed()
+    {
+        foreach (var variable in new[] { "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR" })
+        {
+            var dir = Environment.GetEnvironmentVariable(variable);
+            Assert.False(string.IsNullOrEmpty(dir), $"{variable} is unset.");
+            Assert.True(Directory.Exists(dir!), $"{variable} points at {dir}, which does not exist.");
+        }
+    }
 }
