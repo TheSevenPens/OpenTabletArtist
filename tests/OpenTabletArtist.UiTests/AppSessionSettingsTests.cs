@@ -25,7 +25,7 @@ public class AppSessionSettingsTests
     private sealed class StubLifecycle : IDaemonLifecycleService
     {
         public string? ExpectedExePath() => null;
-        public bool IsOwnBuild(string? path) => false;
+        public bool IsAppManaged(string? path) => false;
         public bool HasBundledDaemon() => false;
         public string? FindExe() => null;
         public bool IsRunning() => false;

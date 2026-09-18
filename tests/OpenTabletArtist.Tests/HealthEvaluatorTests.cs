@@ -160,7 +160,8 @@ public class HealthEvaluatorTests
         Assert.Equal(HealthSeverity.Information, issue.Severity);
         Assert.Equal("Review", issue.Remediation!.ActionLabel);
         Assert.Equal(RemediationArea.Daemon, issue.Remediation!.Area);
-        Assert.Equal("Not built by OpenTabletArtist", Assert.Single(issue.Links!).Setting);
+        Assert.Equal("An OpenTabletDriver you installed, not the bundled copy",
+            Assert.Single(issue.Links!).Setting);
     }
 
     // The point of the merge: three facts about one driver are one card with three rows, not three cards

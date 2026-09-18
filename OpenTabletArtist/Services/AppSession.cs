@@ -1337,13 +1337,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        // "Ours" means we built it, not merely that we resolved and launched it. An adopted OTD install
-        // is the user's, so it stays "foreign" — that is what keeps Stop/Restart behind a confirmation
-        // (ConfirmForeignDaemonAction) even though it is the daemon we start. Adoption being *supported*
-        // is expressed by the health catalog treating it as Information, not by pretending it is ours.
+        // "Ours" means OTA put it there — in its own folder — not that OTA compiled it. Since #794 the
+        // bundled daemon is OpenTabletDriver's own released binary, so nothing here is built by us and
+        // "our build" would name an empty set. An adopted OTD install is still the user's, so it stays
+        // "foreign": that is what keeps Stop/Restart behind a confirmation (ConfirmForeignDaemonAction)
+        // even though it is the daemon we start. Adoption being *supported* is expressed by the health
+        // catalog treating it as Information, not by pretending it is ours.
         // See docs/design/official-otd-release.md.
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
-        var owned = resolved && _daemonLifecycle.IsOwnBuild(actual);
+        var owned = resolved && _daemonLifecycle.IsAppManaged(actual);
         Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
     }
 

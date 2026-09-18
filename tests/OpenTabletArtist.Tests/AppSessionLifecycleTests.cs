@@ -19,7 +19,7 @@ public class AppSessionLifecycleTests
         public int StopAllCount { get; private set; }
         public int LaunchCount { get; private set; }
         public string? ExpectedExePath() => "fake-daemon.exe"; // present → reachable
-        public bool IsOwnBuild(string? path) => path != null && ExpectedExePath() != null;
+        public bool IsAppManaged(string? path) => path != null && ExpectedExePath() != null;
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
@@ -37,7 +37,7 @@ public class AppSessionLifecycleTests
         public int StopAllCount { get; private set; }
         public int LaunchCount { get; private set; }
         public string? ExpectedExePath() => null;
-        public bool IsOwnBuild(string? path) => path != null && ExpectedExePath() != null;
+        public bool IsAppManaged(string? path) => path != null && ExpectedExePath() != null;
         public bool HasBundledDaemon() => false;
         public string? FindExe() => null;
         public bool IsRunning() => false;
@@ -54,7 +54,7 @@ public class AppSessionLifecycleTests
     {
         public const string Problem = "The daemon at /somewhere/OpenTabletDriver.Daemon started and exited immediately (exit code 150).";
         public string? ExpectedExePath() => "fake-daemon.exe";
-        public bool IsOwnBuild(string? path) => false;
+        public bool IsAppManaged(string? path) => false;
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;

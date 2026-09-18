@@ -139,11 +139,20 @@ public static class DaemonExePaths
     }
 
     /// <summary>
-    /// True when <paramref name="path"/> is a daemon this project produced — the bundled release copy or
-    /// the submodule dev build — as opposed to an OTD installed on the system that we merely drive.
-    /// Drives the "not our build" caution around Stop/Restart; see <c>AppSession.UpdateDaemonSource</c>.
+    /// True when <paramref name="path"/> is a daemon <b>OTA manages</b> — the copy bundled beside the app,
+    /// or the submodule dev build — as opposed to an OpenTabletDriver installed on the system that OTA
+    /// merely drives.
+    ///
+    /// <b>Managed, not built.</b> Since #794 the bundled copy is OpenTabletDriver's own released binary,
+    /// downloaded at package time, so OTA builds no daemon at all. What this answers is "did OTA put this
+    /// here, in its own folder?" — which is the question that actually matters for the decisions it feeds:
+    /// whether Stop/Restart needs a confirmation, and whether plugins may be installed without asking. A
+    /// bundled upstream binary is still OTA's to manage; a user's own install is not, whoever compiled it.
+    ///
+    /// If you are here to "fix" this because the name said "built" and the binary plainly isn't ours —
+    /// that was the stale name, not a bug. See <c>AppSession.UpdateDaemonSource</c>.
     /// </summary>
-    public static bool IsOwnBuild(string baseDir, string? path)
+    public static bool IsAppManaged(string baseDir, string? path)
     {
         if (string.IsNullOrEmpty(path)) return false;
         // Deliberately ignores the user-path and installed tiers: both are, by definition, not ours.
