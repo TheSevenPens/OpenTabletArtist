@@ -58,6 +58,20 @@ updates:
           - "Microsoft.NET.Test.Sdk"
           - "coverlet*"
 
+    ignore:
+      # The next majors of these move the whole stack to Microsoft Testing Platform, and on the .NET 10
+      # SDK that drops the VSTest bridge `dotnet test` relies on — so they cannot be taken as a version
+      # bump, only as the migration tracked in #756. Left ungated, Dependabot regenerates the same
+      # unmergeable PR every month and it becomes noise people learn to ignore.
+      #
+      # Minor and patch updates still come through. Remove this block when #756 lands.
+      - dependency-name: "xunit*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.NET.Test.Sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "coverlet*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
