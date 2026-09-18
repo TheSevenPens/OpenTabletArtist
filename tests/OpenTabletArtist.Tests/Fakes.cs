@@ -233,29 +233,36 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
         return Task.FromResult(ApplyResult);
     }
 
-    public Task ApplyLiveOnlyAsync(Settings settings)
+    /// <summary>Whether the daemon takes the change. False models no transport — the apply paths then
+    /// report failure and commit nothing (#766).</summary>
+    public bool DaemonAccepts { get; set; } = true;
+
+    public Task<bool> ApplyLiveOnlyAsync(Settings settings)
     {
         LiveOnlyCalls++;
+        if (!DaemonAccepts) return Task.FromResult(false);
         Applied = settings;
         HasEphemeralOverride = false;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
-    public Task ApplyEphemeralAsync(Settings settings)
+    public Task<bool> ApplyEphemeralAsync(Settings settings)
     {
         EphemeralCalls++;
         if (ThrowOnEphemeral != null) throw ThrowOnEphemeral;
+        if (!DaemonAccepts) return Task.FromResult(false);
         Applied = settings;
         HasEphemeralOverride = true;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
-    public Task ClearEphemeralOverrideAsync()
+    public Task<bool> ClearEphemeralOverrideAsync()
     {
         ClearCalls++;
         if (ThrowOnClear != null) throw ThrowOnClear;
+        if (!DaemonAccepts) return Task.FromResult(false);
         HasEphemeralOverride = false;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync()

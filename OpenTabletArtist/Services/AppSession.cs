@@ -113,13 +113,15 @@ public interface ISettingsCoordinator
     /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
     Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
-    /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
-    Task ApplyLiveOnlyAsync(Settings settings);
+    /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.
+    /// False means it never reached the daemon, so callers must not announce a switch (#766).</summary>
+    Task<bool> ApplyLiveOnlyAsync(Settings settings);
     /// <summary>Applies settings to the daemon ONLY — no disk save, no reload, and (unlike
     /// <see cref="ApplyLiveOnlyAsync"/>) does <b>not</b> mutate <see cref="CurrentSettings"/>. For automatic
     /// per-app switching (#167): the editor keeps showing/persisting the user's default while the daemon
-    /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).</summary>
-    Task ApplyEphemeralAsync(Settings settings);
+    /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).
+    /// False means it never reached the daemon and no override was established (#766).</summary>
+    Task<bool> ApplyEphemeralAsync(Settings settings);
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -129,8 +131,9 @@ public interface ISettingsCoordinator
     bool HasEphemeralOverride { get; }
 
     /// <summary>Put the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.
-    /// The counterpart to <see cref="ApplyEphemeralAsync"/>; nothing is written to disk either way.</summary>
-    Task ClearEphemeralOverrideAsync();
+    /// The counterpart to <see cref="ApplyEphemeralAsync"/>; nothing is written to disk either way.
+    /// False means the override is still in effect on the tablet (#766).</summary>
+    Task<bool> ClearEphemeralOverrideAsync();
     /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).
     /// The returned <see cref="SettingsRestoreOutcome"/> says whether the default was actually reached —
     /// a caller must not clear an override indicator unless it was (#734).</summary>
@@ -878,40 +881,43 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         var outcome = await _coordinator.ApplyAndSaveAsync(settings);
         // Reload only when something actually reached the daemon. A no-op, a tripped circuit breaker or a
-        // disconnected apply have nothing new to read back, and reloading after the breaker fires would
-        // re-arm the very loop it just broke.
-        if (outcome.IsLive) await LoadDataAsync();
+        // disconnected apply have nothing new to read back — and reloading on a no-op re-arms the very
+        // apply/reload loop the no-op guard exists to break, with the circuit breaker already bypassed
+        // because the guard returned before it (#763).
+        if (outcome.ChangedTheDaemon) await LoadDataAsync();
         return outcome;
     }
 
     /// <inheritdoc />
-    public async Task ApplyLiveOnlyAsync(Settings settings)
+    public async Task<bool> ApplyLiveOnlyAsync(Settings settings)
     {
         Dispatcher.UIThread.VerifyAccess();
         // Apply live, reload — but deliberately no disk write: this is a temporary override, so the saved
         // settings.json default must stay intact (#320). No save chip either; the override cue owns the
         // feedback.
-        await _coordinator.ApplyLiveOnlyAsync(settings);
+        if (!await _coordinator.ApplyLiveOnlyAsync(settings)) return false;
         await LoadDataAsync();
+        return true;
     }
 
     /// <inheritdoc />
-    public async Task ApplyEphemeralAsync(Settings settings)
+    public Task<bool> ApplyEphemeralAsync(Settings settings)
     {
         Dispatcher.UIThread.VerifyAccess();
         // Per-app switch (#167): daemon only — no disk write, no reload, and CurrentSettings stays on the
         // user's default so the editor edits the default rather than the transient snapshot. Live pen
         // streams read daemon reports, so they still update.
-        await _coordinator.ApplyEphemeralAsync(settings);
+        return _coordinator.ApplyEphemeralAsync(settings);
     }
 
     /// <inheritdoc />
-    public async Task ClearEphemeralOverrideAsync()
+    public async Task<bool> ClearEphemeralOverrideAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        await _coordinator.ClearEphemeralOverrideAsync();
+        if (!await _coordinator.ClearEphemeralOverrideAsync()) return false;
         // The daemon is back on the baseline, so a reload can safely read it again.
         await LoadDataAsync();
+        return true;
     }
 
     /// <inheritdoc />
