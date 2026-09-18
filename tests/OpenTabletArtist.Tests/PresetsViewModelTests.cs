@@ -11,23 +11,6 @@ namespace OpenTabletArtist.Tests;
 
 public class PresetsViewModelTests
 {
-    private sealed class FakeSettingsCoordinator : ISettingsCoordinator
-    {
-        public Settings? CurrentSettings { get; set; }
-        public Settings? Applied { get; private set; }
-        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
-        {
-            Applied = settings;
-            return Task.FromResult(SettingsApplyOutcome.Saved);
-        }
-        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
-        public Task ApplyLiveOnlyAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
-        public Task ApplyEphemeralAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
-        public bool HasEphemeralOverride { get; private set; }
-        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
-        public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => Task.FromResult(SettingsRestoreOutcome.Restored);
-    }
-
     private sealed class FakeProfileHotkeys : IProfileHotkeys
     {
         public HotkeyChord? GetChord(string snapshot) => null;

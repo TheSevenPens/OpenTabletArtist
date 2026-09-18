@@ -10,23 +10,6 @@ namespace OpenTabletArtist.Tests;
 
 public class MonitorCycleServiceTests
 {
-    private sealed class RecordingCoordinator : ISettingsCoordinator
-    {
-        public Settings? CurrentSettings { get; set; }
-        public Settings? SavedAndApplied { get; private set; }
-        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings s)
-        {
-            SavedAndApplied = s;
-            return Task.FromResult(SettingsApplyOutcome.Saved);
-        }
-        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
-        public Task ApplyLiveOnlyAsync(Settings s) => Task.CompletedTask;
-        public Task ApplyEphemeralAsync(Settings s) => Task.CompletedTask;
-        public bool HasEphemeralOverride { get; private set; }
-        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
-        public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => Task.FromResult(SettingsRestoreOutcome.Restored);
-    }
-
     private static DisplayInfo Display(int number, int x, int y, int w, int h) =>
         new(number, $"Monitor {number}", w, h, x, y, IsPrimary: number == 1);
 
@@ -53,14 +36,14 @@ public class MonitorCycleServiceTests
         return new Settings { Profiles = new ProfileCollection { profile } };
     }
 
-    private static MonitorCycleService NewService(RecordingCoordinator coord, FakeDeviceData device,
+    private static MonitorCycleService NewService(FakeSettingsCoordinator coord, FakeDeviceData device,
         IReadOnlyList<DisplayInfo>? displays = null)
         => new(coord, device, () => displays ?? TwoDisplays);
 
     [Fact]
     public async Task Cycle_MovesActiveTabletToNextDisplay()
     {
-        var coord = new RecordingCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
+        var coord = new FakeSettingsCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
         var device = new FakeDeviceData { ActiveTabletName = "Test Tablet" };
         var svc = NewService(coord, device);
         string? message = null; svc.Cycled += m => message = m;
@@ -76,7 +59,7 @@ public class MonitorCycleServiceTests
     [Fact]
     public async Task Cycle_WrapsFromLastToFirst()
     {
-        var coord = new RecordingCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[1]) };
+        var coord = new FakeSettingsCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[1]) };
         var device = new FakeDeviceData { ActiveTabletName = "Test Tablet" };
         var svc = NewService(coord, device);
 
@@ -89,7 +72,7 @@ public class MonitorCycleServiceTests
     [Fact]
     public async Task Cycle_NoOp_WhenSingleDisplay()
     {
-        var coord = new RecordingCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
+        var coord = new FakeSettingsCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
         var device = new FakeDeviceData { ActiveTabletName = "Test Tablet" };
         var svc = NewService(coord, device, new[] { Display(1, 0, 0, 1920, 1080) });
         string? message = null; svc.Cycled += m => message = m;
@@ -103,7 +86,7 @@ public class MonitorCycleServiceTests
     [Fact]
     public async Task Cycle_NoOp_WhenNoActiveTablet()
     {
-        var coord = new RecordingCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
+        var coord = new FakeSettingsCoordinator { CurrentSettings = SettingsMappedTo(TwoDisplays[0]) };
         var device = new FakeDeviceData { ActiveTabletName = null };  // and no detected tablets
         var svc = NewService(coord, device);
         string? message = null; svc.Cycled += m => message = m;

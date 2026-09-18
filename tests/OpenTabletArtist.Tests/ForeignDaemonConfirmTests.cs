@@ -42,7 +42,7 @@ public class ForeignDaemonConfirmTests
     private static AppSession NewSession(out FakeLifecycle lifecycle, bool foreign, bool owned = false)
     {
         lifecycle = new FakeLifecycle();
-        var session = new AppSession(new DaemonClient(), lifecycle, new FakeStore())
+        var session = new AppSession(new FakeDaemonTransport(), lifecycle, new FakeStore())
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
         };
