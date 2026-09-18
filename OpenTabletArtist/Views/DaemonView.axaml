@@ -328,6 +328,30 @@
                         <TextBlock Text="{Binding Status.DaemonOperationError}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
+
+                    <!-- Missing .NET runtime (#786, D2). OpenTabletDriver's official Windows build is
+                         framework-dependent where OTA is self-contained, so a machine with no .NET 8 gets a
+                         daemon that exits before printing anything. Offered here, beside the error that
+                         explains it, rather than as a health card: this is a prerequisite for connecting,
+                         which is what this page is about. -->
+                    <StackPanel Margin="0,14,0,0" Spacing="8" IsVisible="{Binding ShowInstallRuntime}">
+                        <TextBlock Text="OpenTabletDriver needs the .NET 8 runtime" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding InstallRuntimeDescription}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Install .NET 8"
+                                    Command="{Binding InstallRuntimeCommand}"
+                                    IsEnabled="{Binding !IsInstallingRuntime}"
+                                    Theme="{StaticResource AccentButton}" Padding="12,6" />
+                            <TextBlock Text="{Binding InstallStatus}" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsInstallingRuntime}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding RuntimeInstallProblem}" TextWrapping="Wrap"
+                                   IsVisible="{Binding HasRuntimeInstallProblem}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </StackPanel>
                 </StackPanel>
             </c:Section>
             </StackPanel>
