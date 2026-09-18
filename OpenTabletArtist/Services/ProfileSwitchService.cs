@@ -57,7 +57,8 @@ public sealed partial class ProfileSwitchService : ObservableObject
     public event Action<SettingsRestoreStatus>? RestoreFailed;
 
     /// <summary>Apply the named snapshot as a live-only override. Returns false — and raises
-    /// <see cref="SwitchFailed"/> — if the snapshot can't be loaded (deleted, moved, or unreadable).</summary>
+    /// <see cref="SwitchFailed"/> — if the snapshot can't be loaded (deleted, moved, or unreadable), or
+    /// if it couldn't be applied because there is no daemon connection (#766).</summary>
     public async Task<bool> SwitchToAsync(string snapshotName)
     {
         var path = SnapshotPath(snapshotName);
@@ -67,7 +68,15 @@ public sealed partial class ProfileSwitchService : ObservableObject
             return false;
         }
 
-        await _settings.ApplyLiveOnlyAsync(settings);
+        // Only claim the switch once the daemon has it (#766). This path is reached from a hotkey with
+        // no window in front of it, so the toast is the entire feedback — announcing a switch that never
+        // left the app leaves the artist believing the tablet changed when it did not.
+        if (!await _settings.ApplyLiveOnlyAsync(settings))
+        {
+            SwitchFailed?.Invoke(snapshotName);
+            return false;
+        }
+
         ActiveSnapshot = snapshotName;
         Switched?.Invoke(snapshotName);
         return true;

@@ -49,6 +49,16 @@ public readonly record struct SettingsApplyOutcome(SettingsApplyStatus Status, E
     public bool IsLive => Status is SettingsApplyStatus.AppliedAndSaved
         or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.NoChange;
 
+    /// <summary>
+    /// Something was actually written to the daemon, so there is new state worth reading back.
+    /// Deliberately narrower than <see cref="IsLive"/>, which includes <see cref="SettingsApplyStatus.NoChange"/>:
+    /// reloading after a no-change apply re-arms the apply → reload → binding-write-back loop the no-op
+    /// guard exists to break, and the guard returns before the circuit breaker that would otherwise catch
+    /// it (#763). Use this to decide whether to reload; use <see cref="IsLive"/> to describe state.
+    /// </summary>
+    public bool ChangedTheDaemon => Status is SettingsApplyStatus.AppliedAndSaved
+        or SettingsApplyStatus.AppliedNotSaved;
+
     /// <summary>These settings will survive a restart.</summary>
     public bool IsPersisted => Status is SettingsApplyStatus.AppliedAndSaved or SettingsApplyStatus.NoChange;
 

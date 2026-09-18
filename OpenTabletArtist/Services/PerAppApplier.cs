@@ -36,8 +36,9 @@ public sealed class PerAppApplier : IPerAppApplier
         // to the log and to the switcher, which needs to know not to record a switch that didn't happen.
         try
         {
-            await _settings.ClearEphemeralOverrideAsync();
-            return true;
+            // False means it never reached the daemon, so the override is still on the tablet (#766) —
+            // the switcher must not record a return to the default that did not happen.
+            return await _settings.ClearEphemeralOverrideAsync();
         }
         catch (Exception ex)
         {
@@ -65,8 +66,9 @@ public sealed class PerAppApplier : IPerAppApplier
         // perfectly fine. It is its own outcome, and the switcher commits nothing for it (#737).
         try
         {
-            await _settings.ApplyEphemeralAsync(settings);
-            return PerAppApplyResult.Applied;
+            return await _settings.ApplyEphemeralAsync(settings)
+                ? PerAppApplyResult.Applied
+                : PerAppApplyResult.ApplyFailed;   // no transport — nothing was sent (#766)
         }
         catch (Exception ex)
         {
