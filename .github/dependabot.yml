@@ -58,6 +58,34 @@ updates:
           - "Microsoft.NET.Test.Sdk"
           - "coverlet*"
 
+    ignore:
+      # The next majors of these move the whole stack to Microsoft Testing Platform, and on the .NET 10
+      # SDK that drops the VSTest bridge `dotnet test` relies on — so they cannot be taken as a version
+      # bump, only as the migration tracked in #756. Left ungated, Dependabot regenerates the same
+      # unmergeable PR every month and it becomes noise people learn to ignore.
+      #
+      # Minor and patch updates still come through. Remove this block when #756 lands.
+      - dependency-name: "xunit*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.NET.Test.Sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "coverlet*"
+        update-types: ["version-update:semver-major"]
+
+      # SkiaSharp tracks whatever Avalonia.Skia pulls — that is the entire reason the pin exists (see
+      # the PackageReference comment). Grouping it with Avalonia made the coupling visible but could not
+      # make Dependabot choose the sibling's version: it proposed SkiaSharp 4.x against an Avalonia that
+      # ships 3.119.x. Ignoring majors keeps it on Avalonia's line, so the grouped PR lands on the
+      # version Avalonia actually asks for. Revisit when Avalonia itself moves to SkiaSharp 4.
+      - dependency-name: "SkiaSharp*"
+        update-types: ["version-update:semver-major"]
+
+      # MessagePack is a security floor over what StreamJsonRpc pulls transitively (NU1903,
+      # GHSA-hv8m-jj95-wg3x) and deliberately held on the 2.5.x line for compatibility. A major bump
+      # breaks that constraint. Patches on 2.5.x — the ones that matter here — still come through.
+      - dependency-name: "MessagePack*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
