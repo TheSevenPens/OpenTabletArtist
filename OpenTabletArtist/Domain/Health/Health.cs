@@ -306,6 +306,17 @@ public static class HealthEvaluator
                 "was lost — restore that backup to recover your settings, or ignore this if the defaults are fine.",
                 Remediation: null));
         }
+        else if (i.SettingsLoad == SettingsLoadStatus.Recovered)
+        {
+            // Nothing was lost, so this is a notice rather than a fault — but a save did fail at some
+            // point, and knowing that is what lets someone look at a failing disk before it matters.
+            issues.Add(new HealthIssue("settings.recovered", HealthSeverity.Information,
+                "Your settings were recovered from a backup",
+                "OpenTabletArtist couldn't read its saved settings, so it loaded the last copy it saved " +
+                $"successfully (\"{i.SettingsBackupName}\"). Your preferences are intact; anything changed " +
+                "since that copy was written is not. This clears itself on the next save.",
+                Remediation: null));
+        }
         else if (i.SettingsLoad == SettingsLoadStatus.NotPreserved)
         {
             // Worse: the file couldn't be read AND couldn't be moved aside, so a later save may overwrite it.
