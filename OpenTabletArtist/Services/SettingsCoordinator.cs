@@ -42,6 +42,18 @@ public sealed class SettingsCoordinator
     // Applied by the daemon but not yet persisted — what RetryPersistAsync would write.
     private Settings? _pendingPersistSettings;
 
+    // Automatic retries spent on the current pending change (#743). Bounded: the common causes of a
+    // refused write are a momentary file lock (OTD's own UX saving the same file), which clears within a
+    // reload or two, and a permission problem, which never clears on its own. Retrying the second case
+    // forever would log a warning every poll for as long as the app is open, so it stops and leaves the
+    // failure standing. Any new edit starts the count again.
+    private int _automaticRetries;
+    // Generous on purpose. Reloads run on window focus as well as the 30-second poll, and the first
+    // attempt is spent immediately by the reload the failing apply itself triggers — a tight budget
+    // would be gone before the momentary lock this mostly exists for had cleared. The cap is only here
+    // so a permission problem stops warning in the log eventually, not to ration attempts.
+    private const int MaxAutomaticRetries = 10;
+
     private Settings? _settings;
 
     /// <param name="daemon">The daemon connection.</param>
@@ -159,6 +171,9 @@ public sealed class SettingsCoordinator
         // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
         _lastPersistedSettingsJson = saved ? SerializeForCompare(settings) : null;
         _pendingPersistSettings = saved ? null : settings;
+        // A new change gets its own budget, and may be retried immediately — a spent budget must not
+        // silently disable recovery for the rest of the session (#743).
+        _automaticRetries = 0;
 
         if (!saved)
             AppLog.Warn(string.IsNullOrEmpty(path)
@@ -167,6 +182,28 @@ public sealed class SettingsCoordinator
 
         _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
         return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
+    }
+
+    /// <summary>
+    /// A change the daemon accepted is still missing from disk — live now, gone on the next daemon
+    /// restart. <see cref="RetryPendingPersistAsync"/> is what clears it.
+    /// </summary>
+    public bool HasUnsavedChange => _pendingPersistSettings != null;
+
+    /// <summary>
+    /// Retry a pending disk write, if there is one and the retry budget isn't spent (#743). Called from
+    /// the session's reload — which runs on window focus and every 30 seconds — so a write refused
+    /// because the file was momentarily locked fixes itself with no user action and the chip goes back
+    /// to "Saved". Returns <see cref="SettingsApplyStatus.NoChange"/> when there's nothing to do, so it
+    /// is free to call on every load.
+    /// </summary>
+    public Task<SettingsApplyOutcome> RetryPendingPersistAsync()
+    {
+        if (!HasUnsavedChange || _automaticRetries >= MaxAutomaticRetries)
+            return Task.FromResult(SettingsApplyOutcome.NoChange);
+
+        _automaticRetries++;
+        return RetryPersistAsync();
     }
 
     /// <summary>

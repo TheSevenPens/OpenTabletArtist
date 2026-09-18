@@ -112,10 +112,6 @@ public interface ISettingsCoordinator
     /// <see cref="SettingsApplyOutcome"/> distinguishes applied-and-saved, applied-but-unsaved,
     /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
     Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
-    /// <summary>Retries persistence alone, for settings the daemon already accepted but that failed to
-    /// reach disk (#734). No daemon write, no reload. Returns <see cref="SettingsApplyStatus.NoChange"/>
-    /// when there is nothing outstanding to persist.</summary>
-    Task<SettingsApplyOutcome> RetryPersistAsync();
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
     Task ApplyLiveOnlyAsync(Settings settings);
@@ -805,6 +801,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
             _coordinator.RecordLoadedBaseline();
 
+            // A change the daemon took but that never reached disk gets another go here (#743). Reloads
+            // run on window focus and every 30 seconds, so a write refused because the file was briefly
+            // locked — OTD's own UX writes the same settings.json — recovers on its own, and the save
+            // chip returns to "Saved". Bounded inside the coordinator so a permission problem, which
+            // won't fix itself, stops retrying instead of warning on every poll forever.
+            await _coordinator.RetryPendingPersistAsync();
+
             DataLoaded?.Invoke();
 
             // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
@@ -879,14 +882,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // re-arm the very loop it just broke.
         if (outcome.IsLive) await LoadDataAsync();
         return outcome;
-    }
-
-    /// <inheritdoc />
-    public Task<SettingsApplyOutcome> RetryPersistAsync()
-    {
-        Dispatcher.UIThread.VerifyAccess();
-        // Disk only — the change is already live, so there is nothing to re-read.
-        return _coordinator.RetryPersistAsync();
     }
 
     /// <inheritdoc />

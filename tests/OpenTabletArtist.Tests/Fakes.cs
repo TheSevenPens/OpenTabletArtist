@@ -233,8 +233,6 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
         return Task.FromResult(ApplyResult);
     }
 
-    public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
-
     public Task ApplyLiveOnlyAsync(Settings settings)
     {
         LiveOnlyCalls++;

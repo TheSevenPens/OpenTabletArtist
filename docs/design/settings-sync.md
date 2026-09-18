@@ -80,6 +80,13 @@ Since #740 all of this lives in `Services/SettingsCoordinator.cs` rather than `A
 keeps the `ISettingsCoordinator` contract and the UI-thread guards, and orchestrates apply-then-reload, so
 the coordinator holds no reference back to it.
 
+**A disk write that fails is retried on the next reload** (#743). The daemon and the disk fail
+independently, so an apply can leave a change live but unpersisted; the reload — window focus or the 30 s
+poll — calls `RetryPendingPersistAsync`, which rewrites it and returns the save chip to "Saved". The
+common cause is the file being briefly locked while OTD's own UX writes the same `settings.json`, and
+that clears itself. Bounded (10 attempts per pending change, reset by any new edit) so a permission
+problem, which won't clear, stops retrying instead of warning on every poll for as long as the app is open.
+
 The only client-side gate is a **no-op guard**: OTA skips the write if the serialized settings are
 byte-identical to what it last loaded (`_lastLoadedSettingsJson`), plus an apply-loop circuit-breaker.
 Neither is concurrency control — they only suppress redundant *self*-writes.

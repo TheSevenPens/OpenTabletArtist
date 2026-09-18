@@ -40,12 +40,15 @@ public class AppSessionSettingsTests
     private sealed class RecordingStore : ISettingsFileStore
     {
         public List<Settings> Saved { get; } = new();
+        /// <summary>Every write attempt, successful or not — what a retry budget is counted in.</summary>
+        public int Attempts { get; set; }
         public Settings? ToLoad { get; set; }
         public bool SaveSucceeds { get; set; } = true;
 
         public void Save(Settings settings, string path) => Saved.Add(settings);
         public bool TrySave(Settings settings, string path)
         {
+            Attempts++;
             if (!SaveSucceeds) return false;
             Saved.Add(settings);
             return true;
@@ -227,9 +230,16 @@ public class AppSessionSettingsTests
         Assert.Contains("Not connected", session.SaveStatusText, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>The persistence-only retry: the daemon already has it, only the file is behind.</summary>
+    // --- Recovering a failed save (#743) ---
+
+    /// <summary>
+    /// A change the daemon took but that never reached disk used to be a dead end: the chip said it
+    /// wouldn't survive a restart and nothing ever tried again. Reloads run on window focus and every 30
+    /// seconds, so the common cause — the file briefly locked while OpenTabletDriver's own UX writes the
+    /// same settings.json — now clears itself.
+    /// </summary>
     [AvaloniaFact]
-    public async Task RetryPersist_WritesTheChangeTheDaemonAlreadyTook()
+    public async Task APendingWrite_IsRetriedOnTheNextReload()
     {
         var (session, daemon, store) = Make();
         using var _s = session;
@@ -239,12 +249,74 @@ public class AppSessionSettingsTests
         store.SaveSucceeds = false;
         await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
         Assert.Empty(store.Saved);
+        Assert.True(session.SaveFailed);
 
-        store.SaveSucceeds = true;
-        var retry = await session.RetryPersistAsync();
+        store.SaveSucceeds = true;      // the lock cleared
+        await session.ReloadAsync();
 
-        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, retry.Status);
         Assert.Contains(store.Saved, s => FirstTablet(s) == "Edited");
+        Assert.False(session.SaveFailed);   // and the artist sees it recover
+    }
+
+    [AvaloniaFact]
+    public async Task AReloadWithNothingPending_WritesNothing()
+    {
+        var (session, daemon, store) = Make();
+        using var _s = session;
+        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
+        await session.ReloadAsync();
+        await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
+        var writes = store.Saved.Count;
+
+        await session.ReloadAsync();
+        await session.ReloadAsync();
+
+        Assert.Equal(writes, store.Saved.Count);   // the retry is free to call on every load
+    }
+
+    /// <summary>
+    /// The retry is bounded. A permission problem — the other common cause — never resolves on its own,
+    /// and retrying it on every 30-second poll would warn in the log for as long as the app is open.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task APermanentlyUnwritableFile_StopsBeingRetried()
+    {
+        var (session, daemon, store) = Make();
+        using var _s = session;
+        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
+        await session.ReloadAsync();
+
+        store.SaveSucceeds = false;
+        await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
+
+        store.Attempts = 0;
+        for (var i = 0; i < 10; i++) await session.ReloadAsync();
+
+        // It keeps trying for a while, then gives up rather than warning on every poll forever.
+        Assert.InRange(store.Attempts, 1, 10);
+        Assert.True(session.SaveFailed);   // and it still says so
+    }
+
+    /// <summary>Making another edit is a fresh change, so it gets a fresh retry budget — otherwise a
+    /// spent budget would silently disable recovery for the rest of the session.</summary>
+    [AvaloniaFact]
+    public async Task ANewEdit_GetsANewRetryBudget()
+    {
+        var (session, daemon, store) = Make();
+        using var _s = session;
+        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
+        await session.ReloadAsync();
+
+        store.SaveSucceeds = false;
+        await session.ApplyAndSaveSettingsAsync(SettingsFor("First"));
+        for (var i = 0; i < 20; i++) await session.ReloadAsync();   // budget spent
+
+        await session.ApplyAndSaveSettingsAsync(SettingsFor("Second"));
+        store.SaveSucceeds = true;
+        await session.ReloadAsync();
+
+        Assert.Contains(store.Saved, s => FirstTablet(s) == "Second");
+        Assert.False(session.SaveFailed);
     }
 
     /// <summary>
