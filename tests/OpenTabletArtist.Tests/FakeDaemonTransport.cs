@@ -31,6 +31,13 @@ internal sealed class FakeDaemonTransport : IDaemonTransport
     /// <summary>When set, <see cref="SetSettingsAsync"/> throws it — a reachable daemon that refused.</summary>
     public Exception? SetSettingsThrows { get; set; }
 
+    /// <summary>
+    /// When set, decides the result of <see cref="SetSettingsAsync"/> — and, more to the point, decides
+    /// <em>when</em>. Returning an incomplete task holds the call open, which is the only way to test what
+    /// a second operation arriving mid-apply does. A sleep would make the same test timing-dependent.
+    /// </summary>
+    public Func<Settings, Task<bool>>? SetSettingsHandler { get; set; }
+
     public AppInfo? AppInfo { get; set; }
     public JArray Tablets { get; set; } = [];
     public JArray Devices { get; set; } = [];
@@ -67,12 +74,17 @@ internal sealed class FakeDaemonTransport : IDaemonTransport
         return Task.FromResult(Settings);
     }
 
-    public Task<bool> SetSettingsAsync(Settings settings)
+    public async Task<bool> SetSettingsAsync(Settings settings)
     {
         if (SetSettingsThrows != null) throw SetSettingsThrows;
         Applied.Add(settings);
-        if (SetSettingsSucceeds) Settings = settings;   // the daemon now holds it
-        return Task.FromResult(SetSettingsSucceeds);
+
+        bool ok = SetSettingsHandler is { } handler
+            ? await handler(settings)
+            : SetSettingsSucceeds;
+
+        if (ok) Settings = settings;   // the daemon now holds it
+        return ok;
     }
 
     public Task<AppInfo?> GetAppInfoAsync() => Task.FromResult(AppInfo);

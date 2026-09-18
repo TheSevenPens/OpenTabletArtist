@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Domain;
@@ -56,6 +57,31 @@ public sealed class SettingsCoordinator
 
     private Settings? _settings;
 
+    /// <summary>
+    /// One mutating operation at a time (#775). Every path here reads shared state, awaits the daemon,
+    /// and then writes that state back — so two overlapping operations interleave around the await and
+    /// the one that finishes last owns the disk, regardless of which the user asked for last. That let a
+    /// still-running apply write its edit over a restore that had already completed successfully, leaving
+    /// the daemon on the default and the file holding the discarded change.
+    ///
+    /// Serializing rather than superseding, because unlike a data reload (<c>LatestOnlyGate</c>) these
+    /// operations are not interchangeable: a queued apply still has to reach the daemon, and dropping it
+    /// would lose the user's edit. Order is the guarantee; nothing is skipped.
+    ///
+    /// Never disposed, deliberately. Nothing here touches <c>AvailableWaitHandle</c>, so there is no
+    /// resource to release — and disposing a SemaphoreSlim out from under a waiter is its own hazard
+    /// (#767).
+    /// </summary>
+    private readonly SemaphoreSlim _mutations = new(1, 1);
+
+    /// <summary>Runs <paramref name="operation"/> with no other mutating operation in flight.</summary>
+    private async Task<T> SerializedAsync<T>(Func<Task<T>> operation)
+    {
+        await _mutations.WaitAsync().ConfigureAwait(true);
+        try { return await operation().ConfigureAwait(true); }
+        finally { _mutations.Release(); }
+    }
+
     /// <param name="daemon">The daemon connection.</param>
     /// <param name="store">The settings file seam.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
@@ -109,7 +135,10 @@ public sealed class SettingsCoordinator
 
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
-    public async Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
+        SerializedAsync(() => ApplyAndSaveCoreAsync(settings));
+
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings)
     {
         // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
         // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
@@ -138,13 +167,30 @@ public sealed class SettingsCoordinator
         // A real apply puts the daemon on these settings, so any per-app override is over (#737).
         HasEphemeralOverride = false;
 
+        // The revision this operation owns, taken BEFORE the daemon call (#774). OTA mutates settings in
+        // place — the tablet editor mutates its profile and pushes the same instance — so the caller's
+        // object can change while the RPC is pending. Sending and persisting one immutable copy is what
+        // makes "what the daemon accepted" and "what went to disk" the same thing by construction.
+        // #765 snapshotted only for the retry, and only after the await, so both the immediate write and
+        // the retry could still persist an edit the daemon had never seen, including one it refused.
+        var revision = Snapshot(settings);
+        if (revision == null)
+        {
+            // Cloning failed, which means serialization failed, which means the disk write is about to
+            // fail too. Carry on with the caller's object rather than refusing the user's edit outright:
+            // send and persist still agree with each other, they are just no longer isolated.
+            AppLog.Warn("Couldn't snapshot the settings being applied; a concurrent edit could change " +
+                        "what gets persisted.");
+            revision = settings;
+        }
+
         _onSaveState(SettingsSaveState.Saving);
         bool applied;
         try
         {
             // False means there is no transport: the change was NOT sent, so it isn't live and we must
             // not say it is (#734). Previously this returned quietly and we reported success.
-            applied = await _daemon.SetSettingsAsync(settings);
+            applied = await _daemon.SetSettingsAsync(revision);
         }
         catch (Exception ex)
         {
@@ -166,14 +212,13 @@ public sealed class SettingsCoordinator
         // write means the change is live but won't survive a daemon restart, which we must not hide.
         // An empty settings path is NOT a successful save — there is nowhere to write (#734).
         var path = _settingsPath();
-        bool saved = !string.IsNullOrEmpty(path) && _store.TrySave(settings, path);
+        bool saved = !string.IsNullOrEmpty(path) && _store.TrySave(revision, path);
 
         // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
-        _lastPersistedSettingsJson = saved ? SerializeForCompare(settings) : null;
-        // A SNAPSHOT of what the daemon accepted, not the caller's object (#765). OTA mutates settings in
-        // place — the tablet editor mutates its profile and pushes the same instance — so a reference here
-        // means a later edit silently rewrites what the retry saves, including an edit the daemon refused.
-        _pendingPersistSettings = saved ? null : Snapshot(settings);
+        _lastPersistedSettingsJson = saved ? SerializeForCompare(revision) : null;
+        // The same revision the daemon accepted, so a retry writes that and not whatever the caller's
+        // object has become since (#765, #774).
+        _pendingPersistSettings = saved ? null : revision;
         // A new change gets its own budget, and may be retried immediately — a spent budget must not
         // silently disable recovery for the rest of the session (#743).
         _automaticRetries = 0;
@@ -200,20 +245,22 @@ public sealed class SettingsCoordinator
     /// to "Saved". Returns <see cref="SettingsApplyStatus.NoChange"/> when there's nothing to do, so it
     /// is free to call on every load.
     /// </summary>
-    public Task<SettingsApplyOutcome> RetryPendingPersistAsync()
+    public Task<SettingsApplyOutcome> RetryPendingPersistAsync() => SerializedAsync(() =>
     {
         if (!HasUnsavedChange || _automaticRetries >= MaxAutomaticRetries)
             return Task.FromResult(SettingsApplyOutcome.NoChange);
 
         _automaticRetries++;
-        return RetryPersistAsync();
-    }
+        return RetryPersistCoreAsync();
+    });
 
     /// <summary>
     /// Retries the disk write for settings the daemon already accepted but that failed to persist (#734).
     /// No daemon write and no reload — the change is already live; only the file is behind.
     /// </summary>
-    public Task<SettingsApplyOutcome> RetryPersistAsync()
+    public Task<SettingsApplyOutcome> RetryPersistAsync() => SerializedAsync(RetryPersistCoreAsync);
+
+    private Task<SettingsApplyOutcome> RetryPersistCoreAsync()
     {
         if (_pendingPersistSettings is not { } pending)
             return Task.FromResult(SettingsApplyOutcome.NoChange);
@@ -234,7 +281,10 @@ public sealed class SettingsCoordinator
 
     /// <summary>Applies live without persisting — a temporary override (profile switching, #320). The
     /// saved <c>settings.json</c> default is untouched. Does NOT reload; the caller does.</summary>
-    public async Task<bool> ApplyLiveOnlyAsync(Settings settings)
+    public Task<bool> ApplyLiveOnlyAsync(Settings settings) =>
+        SerializedAsync(() => ApplyLiveOnlyCoreAsync(settings));
+
+    private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
@@ -257,7 +307,10 @@ public sealed class SettingsCoordinator
     /// no change to <see cref="CurrentSettings"/>. For automatic per-app switching (#167): the editor keeps
     /// showing and persisting the user's default while the daemon runs a transient snapshot.
     /// </summary>
-    public async Task<bool> ApplyEphemeralAsync(Settings settings)
+    public Task<bool> ApplyEphemeralAsync(Settings settings) =>
+        SerializedAsync(() => ApplyEphemeralCoreAsync(settings));
+
+    private async Task<bool> ApplyEphemeralCoreAsync(Settings settings)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
@@ -279,7 +332,9 @@ public sealed class SettingsCoordinator
     }
 
     /// <summary>Puts the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.</summary>
-    public async Task<bool> ClearEphemeralOverrideAsync()
+    public Task<bool> ClearEphemeralOverrideAsync() => SerializedAsync(ClearEphemeralOverrideCoreAsync);
+
+    private async Task<bool> ClearEphemeralOverrideCoreAsync()
     {
         if (_settings is not { } baseline)
         {
@@ -309,7 +364,9 @@ public sealed class SettingsCoordinator
     /// couldn't be loaded, and the caller cleared the override indicator and announced a restoration that
     /// never happened — while the override was still running. Does NOT reload; the caller does.
     /// </summary>
-    public async Task<SettingsRestoreOutcome> RestoreDefaultAsync()
+    public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => SerializedAsync(RestoreDefaultCoreAsync);
+
+    private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync()
     {
         var path = _settingsPath();
         if (string.IsNullOrEmpty(path) || !_store.TryLoad(path, out var def) || def == null)
@@ -347,6 +404,15 @@ public sealed class SettingsCoordinator
         // and the next restart resolves it in favour of the edit the user got rid of.
         DiscardPendingPersist();
         _lastPersistedSettingsJson = SerializeForCompare(def);
+
+        // Nothing is outstanding any more, so stop saying otherwise (#776). A failed save followed by a
+        // successful restore used to leave the chip reading "Couldn't save — your change is live but
+        // won't survive a restart" about a change the user had just deliberately discarded.
+        //
+        // None rather than Saved: restoring reads the default off disk and applies it, so no save
+        // happened, and reporting one would be a smaller version of the same lie. The failed paths above
+        // all return early and leave their own state standing.
+        _onSaveState(SettingsSaveState.None);
         return SettingsRestoreOutcome.Restored;
     }
 
