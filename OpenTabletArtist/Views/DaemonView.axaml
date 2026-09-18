@@ -329,6 +329,18 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
 
+                    <!-- An edit was discarded because the daemon changed underneath it (#787). Discarding
+                         is the right call - the alternative was writing one daemon's settings into
+                         another's file - but it is still something the artist did, and the save chip
+                         going quiet explains nothing. Shown here rather than as a health issue because it
+                         is an event, not a state: it describes something that already happened. -->
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0"
+                                IsVisible="{Binding Status.HasDiscardedChangeNotice}">
+                        <TextBlock Classes="warning" />
+                        <TextBlock Text="{Binding Status.DiscardedChangeNotice}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </StackPanel>
+
                     <!-- Missing .NET runtime (#786, D2). OpenTabletDriver's official Windows build is
                          framework-dependent where OTA is self-contained, so a machine with no .NET 8 gets a
                          daemon that exits before printing anything. Offered here, beside the error that

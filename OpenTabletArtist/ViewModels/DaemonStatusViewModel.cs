@@ -60,6 +60,10 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public bool ShowStartButton => _session.ShowStartButton;
     public string DaemonOperationError => _session.DaemonOperationError;
     public bool HasDaemonOperationError => _session.HasDaemonOperationError;
+
+    /// <summary>An unsaved edit thrown away because the connected daemon changed (#787).</summary>
+    public string DiscardedChangeNotice => _session.DiscardedChangeNotice;
+    public bool HasDiscardedChangeNotice => _session.HasDiscardedChangeNotice;
     public bool IsDaemonExeMissing => _session.IsDaemonExeMissing;
     public bool ConnectStalled => _session.ConnectStalled;
 

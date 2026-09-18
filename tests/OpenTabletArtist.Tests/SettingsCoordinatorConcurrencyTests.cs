@@ -365,6 +365,34 @@ public class SettingsCoordinatorConcurrencyTests
     }
 
     /// <summary>
+    /// The reset reports whether anything the user would notice was lost, so the caller can tell them
+    /// (#787). Everything else it drops is bookkeeping they never saw; a pending write is an edit they
+    /// made, and a save chip going quiet is not an explanation for losing it.
+    /// </summary>
+    [Fact]
+    public async Task ResetForNewDaemon_SaysWhenAnEditWasThrownAway()
+    {
+        var (coordinator, _, store, _) = Make();
+        store.SaveSucceeds = false;
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+        Assert.True(coordinator.HasUnsavedChange);
+
+        Assert.True(coordinator.ResetForNewDaemon());
+    }
+
+    [Fact]
+    public async Task ResetForNewDaemon_SaysNothingWhenThereWasNothingToLose()
+    {
+        // A switch with no pending edit is routine. Announcing it would train the user to dismiss the
+        // notice that matters.
+        var (coordinator, _, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Saved fine", locked: true));
+        Assert.False(coordinator.HasUnsavedChange);
+
+        Assert.False(coordinator.ResetForNewDaemon());
+    }
+
+    /// <summary>
     /// The no-op guard compares against the last thing written to disk. Left over from A, it could skip
     /// an apply that B has never seen — the settings match what A's file held, not what B is running.
     /// </summary>

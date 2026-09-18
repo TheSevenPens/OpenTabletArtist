@@ -160,7 +160,9 @@ public sealed class SettingsCoordinator
     /// this, and clearing it would blank the editor for that moment. Clearing the override is what makes
     /// that reload adopt the new daemon's settings.
     /// </summary>
-    public void ResetForNewDaemon()
+    /// <returns>True when an unsaved change was thrown away, so the caller can say so. Everything else
+    /// this drops is bookkeeping the user never knew about; a pending write is an edit they made.</returns>
+    public bool ResetForNewDaemon()
     {
         var hadUnsaved = HasUnsavedChange;
 
@@ -172,6 +174,7 @@ public sealed class SettingsCoordinator
         // The chip was describing the old daemon's unsaved change. It is not the new one's problem, and
         // leaving it would claim a change is live on a daemon that never received it.
         if (hadUnsaved) _onSaveState(SettingsSaveState.None);
+        return hadUnsaved;
     }
 
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
