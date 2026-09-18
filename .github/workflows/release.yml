@@ -75,8 +75,24 @@ jobs:
 
       # Self-contained so end users need no .NET runtime installed. (Debug symbols are stripped from the
       # whole bundle just before zipping — see the "Strip debug symbols" step below.)
-      - name: Publish app (self-contained win-x64)
-        run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
+      #
+      # Single-file (#586), because the zip root used to hold 252 files and users could not find the
+      # executable among 251 runtime DLLs. With the natives bundled in, the root becomes exactly one exe
+      # plus the Daemon/, BundledPlugins/ and Bundled/ folders.
+      #
+      # IncludeNativeLibrariesForSelfExtract pulls in Skia/HarfBuzz/ANGLE, which would otherwise stay
+      # loose; EnableCompressionInSingleFile takes the app from ~116 MB to ~51 MB on disk. Measured
+      # together with the daemon: 259 root files and 193 MB unpacked become 2 and 87 MB, and the download
+      # goes 86 MB → 77 MB. The download moves far less than the unpacked size because the loose-DLL
+      # layout already compressed well into the zip — the real wins here are the root clutter and the
+      # installed footprint, not the download.
+      #
+      # The cost is that the natives unpack to a temp folder on first launch. The "Smoke-test the
+      # packaged app" step below runs the packaged exe and is what proves this layout still resolves its
+      # bundled components: single-file keeps AppContext.BaseDirectory pointing at the exe's own folder
+      # rather than the extraction directory, and every bundled path depends on that.
+      - name: Publish app (self-contained win-x64, single file)
+        run: dotnet publish OpenTabletArtist/OpenTabletArtist.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish/OpenTabletArtist
 
       # Bundle the OTD daemon next to the app in a Daemon/ subfolder — the app's daemon-locate
       # logic (DaemonExePaths) checks this path first, so auto-start works in the release.
@@ -248,6 +264,16 @@ jobs:
             'Bundled/VMulti.Driver.zip',
             "Bundled/VMulti.Driver.zip.sha256"
           )
+
+          # The single-file layout (#586), asserted rather than assumed: if a future change drops
+          # PublishSingleFile the root quietly fills with runtime DLLs again and the complaint that
+          # prompted it — "252 files, which one do I run?" — comes back with nothing to catch it.
+          # Runs after the .pdb strip, so debug symbols are already gone.
+          $loose = Get-ChildItem $root -File | Where-Object { $_.Name -ne 'OpenTabletArtist.exe' }
+          if ($loose) {
+            Write-Host "::error::The release root should hold only OpenTabletArtist.exe, but also has: $($loose.Name -join ', ')"
+            throw "Single-file publish did not produce a single-file root."
+          }
           foreach ($rel in $required) {
             if (-not (Test-Path (Join-Path $root $rel))) { $missing += $rel }
           }
