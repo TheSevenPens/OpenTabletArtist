@@ -6,6 +6,7 @@ using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using OpenTabletArtist.Tests;
 using Xunit;
 
@@ -128,6 +129,11 @@ public class AppSessionSettingsTests
         await session.ApplyEphemeralAsync(SettingsFor("PerAppSnapshot"));
 
         daemon.RaiseDisconnected();
+        // The session handles daemon events by posting to the dispatcher, and nothing awaits that post.
+        // Drain it here so the continuation runs inside the test that caused it rather than during some
+        // later test — the headless suite shares one dispatcher and does not tolerate stragglers.
+        Dispatcher.UIThread.RunJobs();
+
         await session.ReloadAsync();
 
         Assert.Equal("Baseline", FirstTablet(session.CurrentSettings));

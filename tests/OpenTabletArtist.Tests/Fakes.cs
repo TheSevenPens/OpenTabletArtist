@@ -132,10 +132,32 @@ internal sealed class FakeConnectionState : IConnectionState
         set { _isConnected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected))); }
     }
 
+    /// <summary>
+    /// Whose daemon this pretends to be (#742). Defaults to <see cref="DaemonOwnership.Owned"/> so tests
+    /// exercise the normal case; set it to check a guard's behaviour on someone else's daemon or on one
+    /// that couldn't be identified.
+    ///
+    /// It used to return false for both ownership booleans, which is the Unknown state — so every
+    /// <c>!IsForeignDaemon</c> path was being tested as if OTA owned the daemon, which is precisely the
+    /// conflation #742 fixed. The tests agreed with the bug.
+    /// </summary>
+    public DaemonOwnership Ownership
+    {
+        get => _ownership;
+        set
+        {
+            _ownership = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Ownership)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAppOwnedDaemon)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsForeignDaemon)));
+        }
+    }
+    private DaemonOwnership _ownership = DaemonOwnership.Owned;
+
     public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
     public bool IsDaemonRunning => _isConnected;
-    public bool IsAppOwnedDaemon => false;
-    public bool IsForeignDaemon => false;
+    public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
+    public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     public string DaemonSourcePath => "";
     public string DaemonVersion => "";
     public bool HasDaemonVersion => false;

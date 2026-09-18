@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using Xunit;
 
@@ -36,25 +37,26 @@ public class ForeignDaemonConfirmTests
         public bool TrySave(OpenTabletDriver.Desktop.Settings settings, string path) => true;
     }
 
-    /// <summary>Provenance is three-valued, not two: ours, theirs, or unread. <paramref name="owned"/> has
-    /// to be stated rather than inferred from <paramref name="foreign"/>, because "not foreign" covers both
-    /// "ours" and "we couldn't tell" — and those two want opposite behaviour.</summary>
-    private static AppSession NewSession(out FakeLifecycle lifecycle, bool foreign, bool owned = false)
+    /// <summary>
+    /// Provenance is three-valued, not two: ours, theirs, or unread — and those want different
+    /// behaviour. It used to take a pair of booleans and warn that <c>owned</c> had to be stated rather
+    /// than inferred from <c>foreign</c>; #742 made that a single value, so the illegal fourth
+    /// combination can no longer be written.
+    /// </summary>
+    private static AppSession NewSession(out FakeLifecycle lifecycle, DaemonOwnership ownership)
     {
         lifecycle = new FakeLifecycle();
-        var session = new AppSession(new FakeDaemonTransport(), lifecycle, new FakeStore())
+        return new AppSession(new FakeDaemonTransport(), lifecycle, new FakeStore())
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
+            Ownership = ownership,
         };
-        session.IsForeignDaemon = foreign;
-        session.IsAppOwnedDaemon = owned;
-        return session;
     }
 
     [Fact]
     public async Task Stop_AsksFirstWhenTheDaemonIsForeign()
     {
-        using var session = NewSession(out var lifecycle, foreign: true);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.External);
         var asked = new List<string>();
         session.ConfirmForeignDaemonAction = verb => { asked.Add(verb); return Task.FromResult(false); };
 
@@ -69,7 +71,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Stop_ProceedsOnceTheUserAgrees()
     {
-        using var session = NewSession(out var lifecycle, foreign: true);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.External);
         session.ConfirmForeignDaemonAction = _ => Task.FromResult(true);
 
         await session.StopDaemonCommand.ExecuteAsync(null);
@@ -80,7 +82,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Stop_DoesNotAskAboutOurOwnDaemon()
     {
-        using var session = NewSession(out var lifecycle, foreign: false, owned: true);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.Owned);
         var asked = 0;
         session.ConfirmForeignDaemonAction = _ => { asked++; return Task.FromResult(false); };
 
@@ -96,7 +98,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Stop_AsksWhenItCannotTellWhoseDaemonThisIs()
     {
-        using var session = NewSession(out var lifecycle, foreign: false, owned: false);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.Unknown);
         var asked = new List<string>();
         session.ConfirmForeignDaemonAction = verb => { asked.Add(verb); return Task.FromResult(false); };
 
@@ -111,7 +113,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Restart_AsksToo_AndSaysSoIsARestart()
     {
-        using var session = NewSession(out var lifecycle, foreign: true);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.External);
         var asked = new List<string>();
         session.ConfirmForeignDaemonAction = verb => { asked.Add(verb); return Task.FromResult(false); };
 
@@ -127,10 +129,35 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task NoConfirmHook_StillStops()
     {
-        using var session = NewSession(out var lifecycle, foreign: true);
+        using var session = NewSession(out var lifecycle, DaemonOwnership.External);
 
         await session.StopDaemonCommand.ExecuteAsync(null);
 
         Assert.Equal(1, lifecycle.StopAllCount);
+    }
+    // --- The tri-state itself (#742) ---
+
+    /// <summary>The two booleans are views of one value, so they can no longer disagree — or, worse,
+    /// both read false and be taken for "ours" by every write guard.</summary>
+    [Theory]
+    [InlineData(DaemonOwnership.Owned, true, false)]
+    [InlineData(DaemonOwnership.External, false, true)]
+    [InlineData(DaemonOwnership.Unknown, false, false)]
+    public void TheDerivedFlagsMatchTheOwnership(DaemonOwnership ownership, bool owned, bool foreign)
+    {
+        using var session = NewSession(out _, ownership);
+
+        Assert.Equal(owned, session.IsAppOwnedDaemon);
+        Assert.Equal(foreign, session.IsForeignDaemon);
+    }
+
+    /// <summary>The distinction the whole issue turns on, stated once as an executable claim.</summary>
+    [Fact]
+    public void NotForeignDoesNotMeanOwned()
+    {
+        using var session = NewSession(out _, DaemonOwnership.Unknown);
+
+        Assert.False(session.IsForeignDaemon);
+        Assert.False(session.IsAppOwnedDaemon);
     }
 }

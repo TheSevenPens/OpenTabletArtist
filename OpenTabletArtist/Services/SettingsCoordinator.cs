@@ -26,7 +26,7 @@ public sealed class SettingsCoordinator
     private readonly IDaemonTransport _daemon;
     private readonly ISettingsFileStore _store;
     private readonly Func<string> _settingsPath;
-    private readonly Func<bool> _isForeignDaemon;
+    private readonly Func<bool> _isOwnedDaemon;
     private readonly Action<SettingsSaveState> _onSaveState;
 
     // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
@@ -48,16 +48,18 @@ public sealed class SettingsCoordinator
     /// <param name="store">The settings file seam.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
     /// <c>AppInfo</c> and is empty until the first data load completes.</param>
-    /// <param name="isForeignDaemon">The #465 gate — never rewrite another daemon's filters. Read late
-    /// because ownership is determined on connect, after this is constructed.</param>
+    /// <param name="isOwnedDaemon">The #465 gate — only rewrite filters on a daemon OTA positively owns.
+    /// Read late because ownership is determined on connect, after this is constructed. Deliberately
+    /// phrased as "is ours" rather than "is not theirs": an unidentifiable daemon is neither, and the
+    /// negative form let OTA rewrite it (#742).</param>
     /// <param name="onSaveState">Reports save progress; the save chip stays observable state on the session.</param>
     public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
-        Func<string> settingsPath, Func<bool> isForeignDaemon, Action<SettingsSaveState> onSaveState)
+        Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState)
     {
         _daemon = daemon;
         _store = store;
         _settingsPath = settingsPath;
-        _isForeignDaemon = isForeignDaemon;
+        _isOwnedDaemon = isOwnedDaemon;
         _onSaveState = onSaveState;
     }
 
@@ -195,7 +197,7 @@ public sealed class SettingsCoordinator
     public async Task ApplyLiveOnlyAsync(Settings settings)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!_isForeignDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465
+        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
         _settings = settings;
         HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
         await _daemon.SetSettingsAsync(settings);
@@ -209,7 +211,7 @@ public sealed class SettingsCoordinator
     public async Task ApplyEphemeralAsync(Settings settings)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!_isForeignDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465
+        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
         await _daemon.SetSettingsAsync(settings);
 
         // Flag it so the reload stops overwriting the baseline with what the daemon now holds (#737).
@@ -281,7 +283,7 @@ public sealed class SettingsCoordinator
     {
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!_isForeignDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
+        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742: keep only approved filters enabled
 
         // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
         // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the

@@ -31,7 +31,8 @@ public sealed class TabletAutoMapper : IDisposable
     private async void OnDataLoaded()
     {
         // Don't rewrite a daemon this app didn't start — its settings/profiles may not match ours.
-        if (!_session.IsConnected || _session.IsForeignDaemon) return;
+        // Requires positive ownership: an unidentifiable daemon is not ours to rewrite either (#742).
+        if (!_session.IsConnected || !_session.IsAppOwnedDaemon) return;
 
         var firstTime = _session.Profiles
             .Where(p => p.IsDetected && !_seen.Contains(p.Tablet))

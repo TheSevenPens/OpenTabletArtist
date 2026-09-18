@@ -36,7 +36,18 @@ public interface IConnectionState : INotifyPropertyChanged
     bool IsConnected { get; }
     string ConnectionStatus { get; }
     bool IsDaemonRunning { get; }
+    /// <summary>
+    /// Whose daemon this is (#742). Anything that writes to, or automatically modifies, its settings
+    /// must require <see cref="DaemonOwnership.Owned"/> — <c>!IsForeignDaemon</c> also matches
+    /// <see cref="DaemonOwnership.Unknown"/>, which is exactly the case where OTA should do least.
+    /// </summary>
+    DaemonOwnership Ownership { get; }
+
+    /// <summary>Shorthand for <c>Ownership == Owned</c>. Safe to gate a write on.</summary>
     bool IsAppOwnedDaemon { get; }
+
+    /// <summary>Shorthand for <c>Ownership == External</c>. Note this is <b>not</b> the negation of
+    /// <see cref="IsAppOwnedDaemon"/> — an unidentifiable daemon is neither.</summary>
     bool IsForeignDaemon { get; }
     string DaemonSourcePath { get; }
     /// <summary>Version stamped on the connected daemon's executable (read best-effort from its file
@@ -203,8 +214,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private bool _isDaemonRunning;
-    [ObservableProperty] private bool _isAppOwnedDaemon;
-    [ObservableProperty] private bool _isForeignDaemon;
+    /// <summary>
+    /// Whose daemon this is (#742). The single source of truth; <see cref="IsAppOwnedDaemon"/> and
+    /// <see cref="IsForeignDaemon"/> are views of it, so they can no longer drift into the state where
+    /// both are false and callers read that as "ours".
+    /// </summary>
+    [ObservableProperty] private DaemonOwnership _ownership = DaemonOwnership.Unknown;
+
+    public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
+    public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     [ObservableProperty] private string _daemonSourcePath = "";
     partial void OnDaemonSourcePathChanged(string value) => OnPropertyChanged(nameof(HasDaemonSourcePath));
     [ObservableProperty] private string _daemonVersion = "";
@@ -318,7 +336,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
-    public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
+    public bool ShowDaemonSourceUnknown => IsConnected && Ownership == DaemonOwnership.Unknown;
     public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
     public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && HasBundledDaemon;
     public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
@@ -388,7 +406,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _coordinator = new SettingsCoordinator(
             daemon, settingsStore,
             settingsPath: () => SettingsFilePath,
-            isForeignDaemon: () => IsForeignDaemon,
+            isOwnedDaemon: () => IsAppOwnedDaemon,
             onSaveState: state => SaveState = state);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
@@ -411,8 +429,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectionStatus = "Disconnected";
             IsConnected = false;
             IsDaemonRunning = false;
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            Ownership = DaemonOwnership.Unknown;   // nothing to identify once the pipe is gone (#742)
             DaemonSourcePath = "";
             DaemonVersion = "";
             HasTablet = false;
@@ -458,6 +475,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     private void NotifyOwnership()
     {
+        OnPropertyChanged(nameof(IsAppOwnedDaemon));
+        OnPropertyChanged(nameof(IsForeignDaemon));
         OnPropertyChanged(nameof(ShowAppOwnedDaemon));
         OnPropertyChanged(nameof(ShowForeignDaemonWarning));
         OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
@@ -524,8 +543,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         return ticker;
     }
 
-    partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();
-    partial void OnIsForeignDaemonChanged(bool value) => NotifyOwnership();
+    partial void OnOwnershipChanged(DaemonOwnership value) => NotifyOwnership();
 
     /// <summary>
     /// Auto-starts the daemon if not running, then begins connecting. Called once at startup.
@@ -711,8 +729,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(settings);
             // #465: on the app-owned daemon, disable any non-approved (third-party / driver-built-in)
             // filter so only our Pen Dynamics / Calibration / Hover filters run and the pen stays
-            // consistent. Never touch a foreign daemon's filters. Persisted below if it changed anything.
-            bool unapprovedDisabled = !IsForeignDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
+            // consistent. Persisted below if it changed anything.
+            //
+            // Requires positive ownership, not merely "not foreign" (#742). This is the most dangerous
+            // instance of that distinction in the app: it runs on EVERY data load, and what it changes is
+            // pushed to the daemon and written to settings.json below. Against a daemon OTA can't
+            // identify — elevated, or another user's — the old guard let OTA silently disable a
+            // stranger's filters, including OpenTabletDriver's own built-ins, live and on disk.
+            bool unapprovedDisabled = IsAppOwnedDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
             if (settings != null)
             {
                 Profiles = settings.Profiles
@@ -762,7 +786,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
             // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
             // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
-            if ((staleFiltersRemoved || unapprovedDisabled) && settings != null)
+            //
+            // Only on a daemon OTA positively owns (#742). This is a write nobody asked for, to both the
+            // daemon and settings.json — and that file is the daemon's own AppInfo.SettingsFile, so on an
+            // unidentified daemon it may not even belong to this user. The in-memory cleanup still runs,
+            // so the Filters and JSON views are right either way; it just isn't written back.
+            if ((staleFiltersRemoved || unapprovedDisabled) && settings != null && IsAppOwnedDaemon)
             {
                 try
                 {
@@ -1258,8 +1287,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         if (!IsConnected)
         {
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            Ownership = DaemonOwnership.Unknown;
             DaemonSourcePath = "";
             DaemonVersion = "";
             return;
@@ -1274,8 +1302,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         if (actual == null)
         {
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            // Connected, but we can't read which binary answered — elevated, another user's, or more
+            // than one candidate. Unknown is a real answer, not a soft "no" (#742).
+            Ownership = DaemonOwnership.Unknown;
             return;
         }
 
@@ -1286,8 +1315,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // See docs/design/official-otd-release.md.
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
         var owned = resolved && _daemonLifecycle.IsOwnBuild(actual);
-        IsAppOwnedDaemon = owned;
-        IsForeignDaemon = !owned;
+        Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
     }
 
     private string? GetConnectedDaemonPath()
@@ -1309,6 +1337,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _cts.Cancel();
         _cts.Dispose();
         _loadGate.Dispose();
+
+        // Stop the dispatcher timers, or a disposed session keeps ticking. Both are started in response
+        // to ordinary state changes — the save chip's 2.5s auto-clear and the connect-activity ticker —
+        // and neither was ever stopped here, so a disposed session went on posting to the dispatcher
+        // during teardown. Same family as the debounces in #736: work outliving the object that owns it.
+        _saveClearTimer?.Stop();
+        _saveClearTimer = null;
+        _connectTicker?.Stop();
+        _connectTicker = null;
+
         _daemon.Dispose();
     }
 }
