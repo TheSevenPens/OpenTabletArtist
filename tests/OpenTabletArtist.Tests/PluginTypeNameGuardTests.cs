@@ -58,17 +58,30 @@ public class PluginTypeNameGuardTests
         Assert.Contains(type!.GetInterfaces(), i => i.Name.StartsWith("IPositionedPipelineElement"));
     }
 
-    // Walk up from the test output dir to the repo root and locate the built plugin DLL (the test
-    // project doesn't reference the plugin; the solution build produces it).
+    private const string PluginDll = "OpenTabletArtist.Dynamics.dll";
+
+    // Walk up from the test output dir and locate the built plugin DLL (the test project doesn't
+    // reference the plugin; the solution build produces it).
+    //
+    // Two layouts, because the output path is not always the repo's (#738): the default per-project
+    // bin, and a shared output root — which is how the suite is run when the app is holding a lock on
+    // the normal bin directory. Probing only the first made these tests fail for a reason that had
+    // nothing to do with what they check.
     private static string? FindPluginDll()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+        {
+            // Shared output root: the plugin's net8.0 folder sits beside the test binary's net10.0 one.
+            var sibling = Path.Combine(dir.FullName, "net8.0", PluginDll);
+            if (File.Exists(sibling)) return sibling;
+
             foreach (var cfg in new[] { "Debug", "Release" })
             {
                 var candidate = Path.Combine(dir.FullName, "plugins", "OpenTabletArtist.Dynamics",
-                    "bin", cfg, "net8.0", "OpenTabletArtist.Dynamics.dll");
+                    "bin", cfg, "net8.0", PluginDll);
                 if (File.Exists(candidate)) return candidate;
             }
+        }
         return null;
     }
 }
