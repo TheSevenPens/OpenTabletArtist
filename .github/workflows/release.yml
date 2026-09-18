@@ -418,9 +418,16 @@ jobs:
           $tag = '${{ steps.ver.outputs.tag }}'
           $notesFile = Join-Path $env:RUNNER_TEMP 'RELEASE_NOTES.md'
           $prev = (git describe --tags --abbrev=0 "$tag^" 2>$null)
+          $prevFound = ($LASTEXITCODE -eq 0 -and $prev)
+          # A tag that doesn't exist yet is the normal workflow_dispatch case - the checkout step above
+          # builds from HEAD and tags at release - and a failing `git describe` is how we find that out.
+          # Clear the exit code once it has been read: an Actions pwsh step exits with whatever
+          # $LASTEXITCODE holds at the end, so a handled failure here would fail the whole step and, with
+          # it, every dispatched release of a new tag.
+          $global:LASTEXITCODE = 0
           $useGenerated = $true
           $limit = 120000   # GitHub's hard limit is 125,000 - leave room for the footer
-          if ($LASTEXITCODE -eq 0 -and $prev) {
+          if ($prevFound) {
             $hashes = git log --no-merges --format='%H' "$prev..$tag"
             $skip = '^chore: (bump version|release v)'
             $sections = foreach ($h in $hashes) {
