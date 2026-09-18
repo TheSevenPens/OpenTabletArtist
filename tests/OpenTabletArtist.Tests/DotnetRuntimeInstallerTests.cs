@@ -133,6 +133,48 @@ public class DotnetRuntimeInstallerTests
         Assert.False(DotnetRuntimeInstaller.IsMicrosoftSigner(subject));
     }
 
+    /// <summary>
+    /// Reading a certificate is not verifying a signature, and this is the test that says so.
+    ///
+    /// Demonstrated against the real installer: flipping one byte of the payload leaves the embedded
+    /// certificate untouched, so <c>SignerName</c> still returns <c>O=Microsoft Corporation</c> for the
+    /// tampered file — byte-identical to the genuine one. The name check alone would have accepted it and
+    /// run it elevated. <c>WinVerifyTrust</c> returns valid for the real file and invalid for the
+    /// tampered one, which is the whole difference.
+    ///
+    /// That demonstration needed a signed binary off the network, so it is not a test here. What is
+    /// testable offline is the floor: something that is not signed at all must not verify.
+    /// </summary>
+    [Fact]
+    public void AnUnsignedFileDoesNotVerify()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var path = Path.Combine(Path.GetTempPath(), "ota-unverified-" + Guid.NewGuid().ToString("N") + ".exe");
+        try
+        {
+            File.WriteAllText(path, "not an executable at all");
+
+            Assert.False(DotnetRuntimeInstaller.IsAuthenticodeValid(path));
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { /* best-effort temp cleanup */ }
+        }
+    }
+
+    /// <summary>A file that does not exist cannot be verified, and "can't check" must read as "don't
+    /// run it" rather than throwing out of the install.</summary>
+    [Fact]
+    public void AMissingFileDoesNotVerify()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var absent = Path.Combine(Path.GetTempPath(), "ota-absent-" + Guid.NewGuid().ToString("N") + ".exe");
+
+        Assert.False(DotnetRuntimeInstaller.IsAuthenticodeValid(absent));
+    }
+
     /// <summary>An unsigned file reports no signer, which is what makes the installer refuse to run it.</summary>
     [Fact]
     public void AnUnsignedFileHasNoSigner()
