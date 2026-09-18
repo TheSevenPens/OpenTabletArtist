@@ -319,7 +319,7 @@ OpenTabletArtist.slnx
 
 The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.
 
-> **Build the solution, not just the app project.** A common failure mode ("Disconnected" / "No tablet detected") is building only `OpenTabletArtist/OpenTabletArtist.csproj`, which leaves the daemon exe missing. Build `OpenTabletArtist.slnx` so the daemon is produced too.
+> **The daemon is not in the solution (#786).** A common failure mode ("Disconnected" / "No tablet detected") is having no daemon exe at all: neither `dotnet build OpenTabletArtist.slnx` nor a test run produces one. Use `./scripts/build.ps1`, build `external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj` directly, or let the app adopt an installed OpenTabletDriver. See [BUILDING.md](BUILDING.md).
 
 ## Testing & CI
 

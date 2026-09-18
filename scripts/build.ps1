@@ -4,9 +4,16 @@
   stale-daemon / file-lock situations the docs warn about.
 
 .DESCRIPTION
-  Wraps `dotnet build OpenTabletArtist.slnx` — the *solution*, so the OTD daemon exe is
-  produced too. Building only the app project leaves the daemon missing, which surfaces later
-  as "Not connected" / "No tablet detected" (see docs/USERMANUAL.md, docs/ARCHITECTURE.md).
+  Wraps `dotnet build OpenTabletArtist.slnx` and then builds the OTD daemon separately.
+
+  The daemon is deliberately NOT in the solution (#786): OTA is moving to shipping
+  OpenTabletDriver's own released binary rather than one we build, and a build that quietly
+  produces a daemon makes "which daemon am I running?" harder to answer. Ordinary builds and CI
+  no longer produce one — so a plain `dotnet build OpenTabletArtist.slnx` leaves the app with no
+  daemon to launch, which surfaces as "Not connected" / "No tablet detected".
+
+  This script still builds it, because a development setup wants a runnable app. Use
+  -SkipDaemon when you are driving an installed OTD instead.
 
   Before building, it clears the common blockers so the result is repeatable:
    * Stops any running OpenTabletArtist, OpenTabletDriver.Daemon, and OpenTabletDriver.UX.Wpf
@@ -49,7 +56,10 @@ param(
     [string]$Configuration = 'Debug',
     [switch]$Test,
     [switch]$NoStop,
-    [switch]$Clean
+    [switch]$Clean,
+    # The daemon is not in the solution (#786); this builds it separately. Skip it when you are
+    # driving an OpenTabletDriver you already have installed.
+    [switch]$SkipDaemon
 )
 
 $ErrorActionPreference = 'Stop'
@@ -105,12 +115,21 @@ Write-Step "dotnet build OpenTabletArtist.slnx ($Configuration)"
 & dotnet build $solution -c $Configuration
 if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
 
-# --- 5. Confirm the daemon exe was produced ---
-if (Test-Path $daemonExe) {
-    Write-Host "Daemon exe: $daemonExe" -ForegroundColor Green
+# --- 5. Build the daemon (not part of the solution any more -- see the notes above) ---
+if ($SkipDaemon) {
+    Write-Host "Skipping the daemon build (-SkipDaemon). The app will need an OTD you already have." -ForegroundColor Yellow
 }
 else {
-    Write-Warning "Build succeeded but the daemon exe was not found at $daemonExe -- the app may sit at 'Not connected'."
+    Write-Step "dotnet build OpenTabletDriver.Daemon ($Configuration)"
+    & dotnet build $daemonProj -c $Configuration
+    if ($LASTEXITCODE -ne 0) { throw "Daemon build failed (exit $LASTEXITCODE)." }
+
+    if (Test-Path $daemonExe) {
+        Write-Host "Daemon exe: $daemonExe" -ForegroundColor Green
+    }
+    else {
+        Write-Warning "The daemon build succeeded but the exe was not found at $daemonExe -- the app may sit at 'Not connected'."
+    }
 }
 
 # --- 6. Optional tests ---

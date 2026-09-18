@@ -35,7 +35,9 @@ export DOTNET_ROOT="$HOME/.dotnet"
 ### Build
 
 ```sh
-dotnet build OpenTabletArtist.slnx   # builds the app AND the OTD daemon (0 errors)
+dotnet build OpenTabletArtist.slnx   # the app (0 errors)
+# The daemon is no longer in the solution (#786) - build it separately:
+dotnet build external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj
 dotnet test OpenTabletArtist.slnx    # 614 pass, 0 fail
 dotnet run --project OpenTabletArtist
 ```

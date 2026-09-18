@@ -32,8 +32,12 @@ Also in [`docs/`](docs/): [Overview](docs/OVERVIEW.md) · [Architecture](docs/de
 ```bash
 git clone --recursive https://github.com/TheSevenPens/OpenTabletArtist.git
 cd OpenTabletArtist
-dotnet build OpenTabletArtist.slnx   # builds the app AND the bundled OTD daemon
+./scripts/build.ps1                   # builds the app, and the OTD daemon it needs to talk to
 dotnet run --project OpenTabletArtist
 ```
+
+The daemon is **not** part of the solution, so `dotnet build OpenTabletArtist.slnx` alone leaves the app
+with nothing to connect to. See [BUILDING.md](docs/dev/BUILDING.md) if you would rather build it by hand
+or drive an OpenTabletDriver you already have.
 
 Full build prerequisites and options are in **[BUILDING.md](docs/dev/BUILDING.md)**.
