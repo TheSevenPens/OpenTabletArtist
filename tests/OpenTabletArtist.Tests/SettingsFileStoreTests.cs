@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Services;
 using Xunit;
@@ -107,12 +108,8 @@ public class SettingsFileStoreTests
         var path = temp.File("settings.json");
 
         Assert.True(store.TrySave(new Settings { LockUsableAreaDisplay = true }, path));
-        File.SetAttributes(path, FileAttributes.ReadOnly);
-        try
-        {
+        using (Unwritable(path))
             Assert.False(store.TrySave(new Settings { LockUsableAreaDisplay = false }, path));
-        }
-        finally { File.SetAttributes(path, FileAttributes.Normal); }
     }
 
     [Fact]
@@ -123,12 +120,8 @@ public class SettingsFileStoreTests
         var path = temp.File("settings.json");
 
         store.Save(new Settings(), path);
-        File.SetAttributes(path, FileAttributes.ReadOnly);
-        try
-        {
+        using (Unwritable(path))
             Assert.ThrowsAny<Exception>(() => store.Save(new Settings(), path));
-        }
-        finally { File.SetAttributes(path, FileAttributes.Normal); }
     }
 
     // --- Durability (#733) ---
@@ -146,8 +139,7 @@ public class SettingsFileStoreTests
         var path = temp.File("settings.json");
 
         Assert.True(store.TrySave(new Settings { LockUsableAreaDisplay = true }, path));
-        File.SetAttributes(path, FileAttributes.ReadOnly);
-        try
+        using (Unwritable(path))
         {
             Assert.False(store.TrySave(new Settings { LockUsableAreaDisplay = false }, path));
 
@@ -155,7 +147,6 @@ public class SettingsFileStoreTests
             Assert.True(store.TryLoad(path, out var loaded));
             Assert.True(loaded!.LockUsableAreaDisplay); // the OLD value, intact
         }
-        finally { File.SetAttributes(path, FileAttributes.Normal); }
     }
 
     [Fact]
@@ -166,13 +157,11 @@ public class SettingsFileStoreTests
         var path = temp.File("settings.json");
 
         Assert.True(store.TrySave(new Settings(), path));
-        File.SetAttributes(path, FileAttributes.ReadOnly);
-        try
+        using (Unwritable(path))
         {
             store.TrySave(new Settings(), path);
             Assert.Empty(Directory.GetFiles(temp.Path, "*.tmp-*"));
         }
-        finally { File.SetAttributes(path, FileAttributes.Normal); }
     }
 
     [Fact]
@@ -230,6 +219,47 @@ public class SettingsFileStoreTests
 
         Assert.False(store.TryLoad(path, out var loaded));
         Assert.Null(loaded);
+    }
+
+    /// <summary>
+    /// Makes <paramref name="path"/> genuinely impossible to write for the life of the scope, the way
+    /// that actually works on this OS.
+    ///
+    /// On Windows the read-only attribute is enough. On Unix it is not: permission to replace or delete a
+    /// file comes from the containing <em>directory</em>, not the file, so an atomic swap onto a
+    /// read-only file succeeds — which is why the first version of these tests passed on Windows and
+    /// failed on both other lanes. Removing write permission from the directory is what stops the write
+    /// there, and it still allows reading the file back, which the durability test needs.
+    /// </summary>
+    private static IDisposable Unwritable(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            File.SetAttributes(path, FileAttributes.ReadOnly);
+            return new Restore(() => File.SetAttributes(path, FileAttributes.Normal));
+        }
+
+        return UnwritableDirectory(path);
+    }
+
+    /// <summary>
+    /// Separate and attributed because CA1416 — which this repo treats as an error — cannot see the
+    /// <c>OperatingSystem.IsWindows()</c> guard from inside the restore lambda, only from the call site.
+    /// </summary>
+    [UnsupportedOSPlatform("windows")]
+    private static IDisposable UnwritableDirectory(string path)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        var original = File.GetUnixFileMode(dir);
+        File.SetUnixFileMode(dir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        return new Restore(() => File.SetUnixFileMode(dir, original));
+    }
+
+    private sealed class Restore : IDisposable
+    {
+        private readonly Action _undo;
+        public Restore(Action undo) => _undo = undo;
+        public void Dispose() => _undo();
     }
 
     /// <summary>A scratch directory plus the two paths these tests need: a real file inside it, and a
