@@ -32,17 +32,26 @@ public class SettingsCoordinatorConcurrencyTests
     /// A fake with a fixed load value would let "restore the saved default" restore something that is not
     /// on disk, which is precisely the agreement these tests exist to check.
     /// </summary>
+    /// <summary>
+    /// Stateful and keyed by path: <c>TryLoad</c> returns whatever was last written there, the way a real
+    /// file does. Keyed rather than single-file because two daemons have two settings files, and "A's
+    /// pending save never reached B's file" is not expressible against one (#787).
+    /// </summary>
     private sealed class FakeStore : ISettingsFileStore
     {
-        private Settings? _onDisk;
+        private readonly Dictionary<string, Settings> _files = new(StringComparer.OrdinalIgnoreCase);
 
         public bool SaveSucceeds { get; set; } = true;
         public List<string> Writes { get; } = new();
 
-        /// <summary>What a restart would load. Null when nothing has ever been written.</summary>
-        public Settings? OnDisk => _onDisk;
+        /// <summary>What a restart would load from <paramref name="path"/>, or null if nothing is there.</summary>
+        public Settings? OnDiskAt(string path) =>
+            _files.TryGetValue(path, out var s) ? Clone(s) : null;
 
-        public void Seed(Settings settings) => _onDisk = Clone(settings);
+        /// <summary>The default path these tests use when only one daemon is involved.</summary>
+        public Settings? OnDisk => OnDiskAt(DefaultPath);
+
+        public void Seed(Settings settings, string path = DefaultPath) => _files[path] = Clone(settings);
 
         public void Save(Settings settings, string path) => TrySave(settings, path);
 
@@ -51,17 +60,19 @@ public class SettingsCoordinatorConcurrencyTests
             if (!SaveSucceeds) return false;
             // Clone on write: the caller may keep mutating its object, and a real file would not change
             // underneath us when it does.
-            _onDisk = Clone(settings);
-            Writes.Add(Json(settings));
+            _files[path] = Clone(settings);
+            Writes.Add(Json(settings));   // content only; which file it went to is OnDiskAt's job
             return true;
         }
 
         public bool TryLoad(string path, out Settings? settings)
         {
-            settings = _onDisk == null ? null : Clone(_onDisk);
+            settings = OnDiskAt(path);
             return settings != null;
         }
     }
+
+    private const string DefaultPath = "A/settings.json";
 
     private static Settings Clone(Settings s) =>
         JsonConvert.DeserializeObject<Settings>(JsonConvert.SerializeObject(s))!;
@@ -76,15 +87,21 @@ public class SettingsCoordinatorConcurrencyTests
 
     private static string Tablet(Settings? s) => s?.Profiles[0].Tablet ?? "";
 
+    /// <summary>Mutable so a test can move the destination the way a reconnect to another daemon does.</summary>
+    private sealed class PathHolder { public string Value { get; set; } = DefaultPath; }
+
     private static (SettingsCoordinator coordinator, FakeDaemonTransport daemon, FakeStore store,
-        List<SettingsSaveState> states) Make()
+        List<SettingsSaveState> states) Make() => Make(new PathHolder());
+
+    private static (SettingsCoordinator coordinator, FakeDaemonTransport daemon, FakeStore store,
+        List<SettingsSaveState> states) Make(PathHolder path)
     {
         var daemon = new FakeDaemonTransport();
         var store = new FakeStore();
         var states = new List<SettingsSaveState>();
         var coordinator = new SettingsCoordinator(
             daemon, store,
-            settingsPath: () => "settings.json",
+            settingsPath: () => path.Value,
             isOwnedDaemon: () => true,
             onSaveState: states.Add);
         return (coordinator, daemon, store, states);
@@ -262,5 +279,110 @@ public class SettingsCoordinatorConcurrencyTests
         // opposite lie to the one #776 fixes.
         Assert.True(coordinator.HasUnsavedChange);
         Assert.Equal(SettingsSaveState.Failed, states[^1]);
+    }
+
+    // --- #787: a session belongs to one daemon ---------------------------------------------
+
+    private const string OtherPath = "B/settings.json";
+
+    /// <summary>
+    /// The case that matters. A save fails against daemon A, the user switches to B — which has its own
+    /// application data directory — and the retry must not redirect A's settings into B's file. The
+    /// destination is resolved at retry time, so without binding, it follows whichever daemon is
+    /// connected now.
+    /// </summary>
+    [Fact]
+    public async Task APendingSaveIsNotWrittenToADifferentDaemonsFile()
+    {
+        var path = new PathHolder();
+        var (coordinator, _, store, _) = Make(path);
+        store.Seed(SettingsFor("B's own settings", locked: false), OtherPath);
+        store.SaveSucceeds = false;
+
+        // Applied against A, but the disk refused it.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true))).Status);
+        Assert.True(coordinator.HasUnsavedChange);
+
+        // The user stops A and starts B. The disk is writable again — the earlier failure was A's.
+        path.Value = OtherPath;
+        store.SaveSucceeds = true;
+
+        await coordinator.RetryPendingPersistAsync();
+
+        Assert.Equal("B's own settings", Tablet(store.OnDiskAt(OtherPath)));
+        Assert.False(coordinator.HasUnsavedChange);   // dropped, not carried to yet another daemon
+    }
+
+    [Fact]
+    public async Task APendingSaveStillRetriesAgainstItsOwnFile()
+    {
+        // The guard must not break the thing the retry exists for: a momentarily locked file, same daemon.
+        var path = new PathHolder();
+        var (coordinator, _, store, _) = Make(path);
+        store.SaveSucceeds = false;
+
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+        Assert.True(coordinator.HasUnsavedChange);
+
+        store.SaveSucceeds = true;
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved,
+            (await coordinator.RetryPendingPersistAsync()).Status);
+        Assert.Equal("A's edit", Tablet(store.OnDisk));
+    }
+
+    /// <summary>
+    /// The second manifestation. An ephemeral override is a fact about one daemon; while it is set, the
+    /// load path deliberately does not adopt what the daemon reports. Carried across a switch, it stops
+    /// the new daemon's settings ever being read, so OTA edits and offers to persist the old one's.
+    /// </summary>
+    [Fact]
+    public async Task AnOverrideDoesNotSurviveADaemonChange()
+    {
+        var (coordinator, _, _, _) = Make();
+        Assert.True(await coordinator.ApplyEphemeralAsync(SettingsFor("A's per-app snapshot", locked: true)));
+        Assert.True(coordinator.HasEphemeralOverride);
+
+        coordinator.ResetForNewDaemon();
+
+        Assert.False(coordinator.HasEphemeralOverride);
+    }
+
+    [Fact]
+    public async Task ResetForNewDaemon_DropsEverythingBoundToTheOldOne()
+    {
+        var (coordinator, _, store, states) = Make();
+        store.SaveSucceeds = false;
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+        Assert.True(coordinator.HasUnsavedChange);
+        Assert.Equal(SettingsSaveState.Failed, states[^1]);
+
+        coordinator.ResetForNewDaemon();
+
+        Assert.False(coordinator.HasUnsavedChange);
+        // The chip was describing A's unsaved change; it is not the new daemon's problem.
+        Assert.Equal(SettingsSaveState.None, states[^1]);
+    }
+
+    /// <summary>
+    /// The no-op guard compares against the last thing written to disk. Left over from A, it could skip
+    /// an apply that B has never seen — the settings match what A's file held, not what B is running.
+    /// </summary>
+    [Fact]
+    public async Task AfterADaemonChange_AnIdenticalApplyIsNotSkipped()
+    {
+        var path = new PathHolder();
+        var (coordinator, daemon, store, _) = Make(path);
+        var edit = SettingsFor("Same", locked: true);
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await coordinator.ApplyAndSaveAsync(edit)).Status);
+
+        coordinator.ResetForNewDaemon();
+        path.Value = OtherPath;
+        daemon.Applied.Clear();
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("Same", locked: true));
+
+        Assert.NotEqual(SettingsApplyStatus.NoChange, outcome.Status);
+        Assert.Single(daemon.Applied);   // it actually reached the new daemon
     }
 }

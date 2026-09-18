@@ -220,6 +220,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </summary>
     [ObservableProperty] private DaemonOwnership _ownership = DaemonOwnership.Unknown;
 
+    /// <summary>
+    /// The daemon we were last connected to, remembered <em>across</em> a disconnect so a reconnect can
+    /// tell whether a different one answered (#787). <see cref="DaemonSourcePath"/> cannot serve: it is
+    /// observable UI state and is deliberately cleared when the pipe goes, which is exactly when this
+    /// needs to survive.
+    /// </summary>
+    private string _sessionDaemonPath = "";
+
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
     public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     [ObservableProperty] private string _daemonSourcePath = "";
@@ -1295,6 +1303,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
 
         var actual = GetConnectedDaemonPath();
+
+        // A different daemon answering is a session boundary, not just a new label: the coordinator holds
+        // state that describes the daemon it was talking to (#787). Only reset when we can positively
+        // tell the two apart — an unreadable path means "we cannot see", and resetting on that would
+        // throw away a legitimate pending save every time an elevated daemon reconnects. The data-loss
+        // case it would otherwise cover is already handled independently, by the coordinator refusing to
+        // retry a pending write whose destination file has moved.
+        if (_sessionDaemonPath.Length > 0 && actual != null
+            && !ExecutablePath.SameFile(_sessionDaemonPath, actual))
+        {
+            AppLog.Warn($"The connected daemon changed from {_sessionDaemonPath} to {actual}; " +
+                        "dropping settings state that belonged to the previous one.");
+            _coordinator.ResetForNewDaemon();
+        }
+        if (actual != null) _sessionDaemonPath = actual;
+
         DaemonSourcePath = actual ?? "";
         // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report it).
         // Falls back to the sibling managed assembly for a native apphost (macOS #140). Best-effort:
