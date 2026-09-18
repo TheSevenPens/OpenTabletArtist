@@ -29,8 +29,9 @@ public class PerAppViewModelTests
 
     private sealed class FakeApplier : IPerAppApplier
     {
-        public Task ApplyDefaultAsync() => Task.CompletedTask;
-        public Task<bool> ApplySnapshotAsync(string name) => Task.FromResult(true);
+        public Task<bool> ApplyDefaultAsync() => Task.FromResult(true);
+        public Task<PerAppApplyResult> ApplySnapshotAsync(string name) =>
+            Task.FromResult(PerAppApplyResult.Applied);
     }
 
     private static string TempDirWith(params string[] snapshotNames)

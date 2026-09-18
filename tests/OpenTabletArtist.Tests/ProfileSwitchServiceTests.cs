@@ -39,6 +39,8 @@ public class ProfileSwitchServiceTests
         public Task ApplyLiveOnlyAsync(Settings settings) { LiveOnlyCalls++; return Task.CompletedTask; }
         public int EphemeralCalls;
         public Task ApplyEphemeralAsync(Settings settings) { EphemeralCalls++; return Task.CompletedTask; }
+        public bool HasEphemeralOverride { get; private set; }
+        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
         public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
         {
             RestoreCalls++;

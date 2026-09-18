@@ -113,6 +113,17 @@ public interface ISettingsCoordinator
     /// per-app switching (#167): the editor keeps showing/persisting the user's default while the daemon
     /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).</summary>
     Task ApplyEphemeralAsync(Settings settings);
+
+    /// <summary>
+    /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
+    /// per-app snapshot. The background reload consults this so a temporary override can't become the
+    /// editor's baseline (#737).
+    /// </summary>
+    bool HasEphemeralOverride { get; }
+
+    /// <summary>Put the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.
+    /// The counterpart to <see cref="ApplyEphemeralAsync"/>; nothing is written to disk either way.</summary>
+    Task ClearEphemeralOverrideAsync();
     /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).
     /// The returned <see cref="SettingsRestoreOutcome"/> says whether the default was actually reached —
     /// a caller must not clear an override indicator unless it was (#734).</summary>
@@ -175,6 +186,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private string? _lastPersistedSettingsJson;
     // Applied by the daemon but not yet persisted — what RetryPersistAsync would write.
     private Settings? _pendingPersistSettings;
+
+    /// <inheritdoc />
+    /// <remarks>Set by <see cref="ApplyEphemeralAsync"/> and cleared by every path that puts the daemon
+    /// back on <see cref="CurrentSettings"/> — a real apply, a live-only switch, a restore, or
+    /// <see cref="ClearEphemeralOverrideAsync"/>.</remarks>
+    public bool HasEphemeralOverride { get; private set; }
 
     /// <summary>
     /// Fallback reconciliation interval. Detection is event-driven via the daemon's
@@ -683,8 +700,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // interesting when the detected list is empty.
             DaemonCannotOpenTablet = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
 
-            // Settings (typed) + profile derivation
-            _settings = await _daemon.GetSettingsAsync();
+            // Settings (typed) + profile derivation.
+            //
+            // Skipped entirely while a per-app override is live (#737): the daemon is running a transient
+            // snapshot, and reading it back here would make that snapshot the editor's baseline — the
+            // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
+            // is whatever it already was, and survives the poll and a reconnect.
+            if (!HasEphemeralOverride)
+                _settings = await _daemon.GetSettingsAsync();
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
@@ -754,7 +777,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
 
             // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
-            _lastLoadedSettingsJson = SerializeForCompare(_settings);
+            // While an override is live the daemon does NOT hold _settings, so there is no honest value
+            // for this — null disables the guard rather than letting it skip an apply on the strength of
+            // a comparison against settings the daemon isn't running (#737).
+            _lastLoadedSettingsJson = HasEphemeralOverride ? null : SerializeForCompare(_settings);
 
             DataLoaded?.Invoke();
 
@@ -857,6 +883,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             AppLog.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
                         "(would otherwise crash the OpenTabletDriver UX).");
         _settings = settings;
+        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
+        HasEphemeralOverride = false;
 
         SaveState = SettingsSaveState.Saving;
         bool applied;
@@ -943,6 +971,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
         _settings = settings;
+        HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
         // Apply live, reload — but deliberately do NOT TrySave: this is a temporary override, so the
         // saved settings.json default must stay intact (#320). No save chip either; the override cue owns
         // the feedback.
@@ -960,6 +989,28 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // or reload — CurrentSettings must stay on the user's default so the editor edits the default, not
         // the transient per-app snapshot. Live pen streams read daemon reports, so they still update.
         await _daemon.SetSettingsAsync(settings);
+
+        // Flag it so the background reload stops overwriting the baseline with what the daemon now holds
+        // (#737). Keeping _settings untouched here was never enough on its own: the 30-second poll read
+        // the daemon back into it, so a transient snapshot silently became the editor's baseline and the
+        // source a "restore default" would restore from.
+        HasEphemeralOverride = true;
+    }
+
+    /// <inheritdoc />
+    public async Task ClearEphemeralOverrideAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings is not { } baseline)
+        {
+            HasEphemeralOverride = false;
+            return;
+        }
+
+        await _daemon.SetSettingsAsync(baseline);
+        HasEphemeralOverride = false;
+        // The daemon is back on the baseline, so a reload can safely read it again.
+        await LoadDataAsync();
     }
 
     /// <inheritdoc />
@@ -1001,6 +1052,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
 
         _settings = def;
+        HasEphemeralOverride = false;   // restored to the saved default; no override remains (#737)
         await LoadDataAsync();
         return SettingsRestoreOutcome.Restored;
     }

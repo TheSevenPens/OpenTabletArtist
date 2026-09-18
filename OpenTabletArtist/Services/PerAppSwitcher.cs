@@ -14,13 +14,33 @@ public interface IDebounceScheduler
     void Cancel();
 }
 
+/// <summary>
+/// What came of applying a per-app target (#737). "Missing" and "failed" used to collapse into one
+/// boolean — and worse, a failed daemon call reported success, so the switcher recorded the target as
+/// applied and deduplicated every later attempt against it. The tablet then kept the previous app's
+/// profile with the UI naming the new one, and focusing that app again did nothing.
+/// </summary>
+public enum PerAppApplyResult
+{
+    /// <summary>The daemon took it. Only this may be committed as the active profile.</summary>
+    Applied,
+    /// <summary>The mapping points at a snapshot that no longer loads. Fall back to the default and say so.</summary>
+    SnapshotMissing,
+    /// <summary>The snapshot exists but the daemon didn't take it. Nothing is committed, so the next
+    /// focus change retries instead of deduplicating against a switch that never happened.</summary>
+    ApplyFailed,
+}
+
 /// <summary>Applies a per-app target to the daemon (#167): a named snapshot (ephemerally) or the user's
 /// default. Kept behind an interface so the switch policy is testable without daemon/disk.</summary>
 public interface IPerAppApplier
 {
-    Task ApplyDefaultAsync();
-    /// <summary>Apply the named snapshot ephemerally. Returns false if it's missing/failed to load.</summary>
-    Task<bool> ApplySnapshotAsync(string snapshotName);
+    /// <summary>Return the daemon to the user's saved default, ending any per-app override.
+    /// Returns false if the daemon didn't take it.</summary>
+    Task<bool> ApplyDefaultAsync();
+
+    /// <summary>Apply the named snapshot ephemerally.</summary>
+    Task<PerAppApplyResult> ApplySnapshotAsync(string snapshotName);
 }
 
 /// <summary>
@@ -44,7 +64,12 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
 
     private bool _running;
     private bool _hasApplied;
-    private string? _current;        // applied target: profile name, or null = user default
+    private string? _current;        // CONFIRMED applied target: profile name, or null = user default
+
+    // Serializes applies and lets a superseded one bail out rather than publish a stale label (#737).
+    private readonly SemaphoreSlim _applyLock = new(1, 1);
+    private long _generation;
+    private Task _lastApply = Task.CompletedTask;
 
     /// <summary>The active per-app profile (null = user default / none) — bound by the shell for the
     /// "App profile" cue, and mirrored by the <see cref="ActiveProfileChanged"/> event for the page.</summary>
@@ -86,10 +111,27 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
         _running = false;
         _watcher.Stop();
         _debounce.Cancel();
-        if (_hasApplied && _current != null)
-            await _applier.ApplyDefaultAsync();
-        _hasApplied = false;
-        _current = null;
+
+        // Wait for an apply that is already running rather than racing it — otherwise it could re-apply
+        // a snapshot after the restore below and leave the tablet on it. Anything merely QUEUED is
+        // already dealt with: it re-checks _running after acquiring the lock and returns.
+        //
+        // Deliberately no generation bump here. Superseding the in-flight apply would stop it recording
+        // what it just put on the tablet, and the restore below is driven by that record — so the
+        // snapshot would stay applied with nothing watching it, which is the case this method exists for.
+        await _applyLock.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            if (_hasApplied && _current != null)
+                await _applier.ApplyDefaultAsync();
+            _hasApplied = false;
+            _current = null;
+        }
+        finally
+        {
+            _applyLock.Release();
+        }
+
         ActiveProfile = null;
         ActiveProfileChanged?.Invoke(null);
     }
@@ -101,36 +143,88 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
         if (string.Equals(app.ExeName, _ownExeName, StringComparison.OrdinalIgnoreCase)) return;
 
         var target = _store.Resolve(app);
-        if (_hasApplied && TargetEquals(target, _current)) return; // dedupe by TARGET, not app
+        if (_hasApplied && TargetEquals(target, _current))
+        {
+            // Already on this target — but a DIFFERENT one may be sitting in the debounce, and letting it
+            // fire would switch away from what is now in front of the user (#737). Sequence: apply A,
+            // focus B (queues B), focus A again before the window elapses. Expected A; the queued B won.
+            _debounce.Cancel();
+            return;
+        }
+
         _debounce.Schedule(() => OnDebounced(target));
     }
 
     private void OnDebounced(string? target)
     {
         if (!_running) return;
-        _ = ApplyAsync(target);
+        // Fire-and-forget by necessity — the debounce callback is synchronous — but serialized and
+        // generation-checked inside, so overlapping applies can't interleave or publish out of order.
+        // The task is kept so callers can await settling rather than guess at it (see WaitForIdleAsync).
+        _lastApply = ApplyAsync(target, Interlocked.Increment(ref _generation));
     }
 
-    private async Task ApplyAsync(string? target)
+    /// <summary>
+    /// Completes once the most recently requested apply has settled. Applies are started from a
+    /// synchronous debounce callback, so there is otherwise no handle to await — and a test that polls
+    /// or sleeps instead would be exactly the kind of timing-dependent check this class needs to not have.
+    /// Because applies are serialized, awaiting the newest also awaits everything queued behind it.
+    /// </summary>
+    public Task WaitForIdleAsync() => _lastApply;
+
+    private async Task ApplyAsync(string? target, long generation)
     {
+        // One apply at a time. Without this, two switches in flight could finish in either order and the
+        // later-finishing older one would publish its label over the newer one's (#737).
+        await _applyLock.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            // Superseded while we queued: a newer target is already on its way, so applying this one
+            // would be a switch the user never asked for, followed immediately by the right one.
+            if (!_running || generation != Interlocked.Read(ref _generation)) return;
+
+            if (target == null)
+            {
+                if (!await _applier.ApplyDefaultAsync()) return;   // nothing committed; next change retries
+                Commit(null, generation);
+                return;
+            }
+
+            switch (await _applier.ApplySnapshotAsync(target))
+            {
+                case PerAppApplyResult.Applied:
+                    Commit(target, generation);
+                    break;
+
+                case PerAppApplyResult.SnapshotMissing:
+                    // The mapping points at a deleted/renamed profile. Fall back to the default and say
+                    // so — but only claim we're on the default if the fallback actually landed.
+                    DanglingSnapshot?.Invoke(target);
+                    if (await _applier.ApplyDefaultAsync())
+                        Commit(null, generation);
+                    break;
+
+                case PerAppApplyResult.ApplyFailed:
+                    // Deliberately commit nothing. Recording a failed switch as applied is what made the
+                    // dedupe swallow every retry, so the app stayed on the wrong profile indefinitely.
+                    AppLog.Warn($"Per-app switch to \"{target}\" didn't apply; leaving the active profile " +
+                                "unchanged so the next focus change retries.");
+                    break;
+            }
+        }
+        finally
+        {
+            _applyLock.Release();
+        }
+    }
+
+    /// <summary>Record and announce the active profile. Only ever called for an apply the daemon
+    /// confirmed, and only while this apply is still the newest one.</summary>
+    private void Commit(string? target, long generation)
+    {
+        if (generation != Interlocked.Read(ref _generation)) return;
         _hasApplied = true;
         _current = target;
-
-        if (target == null)
-        {
-            await _applier.ApplyDefaultAsync();
-        }
-        else if (!await _applier.ApplySnapshotAsync(target))
-        {
-            // Mapping references a deleted/renamed profile → fall back to default, warn (don't fail).
-            _current = null;
-            DanglingSnapshot?.Invoke(target);
-            await _applier.ApplyDefaultAsync();
-            ActiveProfile = null;
-            ActiveProfileChanged?.Invoke(null);
-            return;
-        }
-
         ActiveProfile = target;
         ActiveProfileChanged?.Invoke(target);
     }
@@ -139,7 +233,11 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _running = false;
+        _debounce.Cancel();
+        Interlocked.Increment(ref _generation);   // nothing queued may publish after disposal
         _watcher.Changed -= OnForegroundChanged;
         _watcher.Dispose();
+        _applyLock.Dispose();
     }
 }

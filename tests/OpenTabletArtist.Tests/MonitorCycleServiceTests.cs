@@ -22,6 +22,8 @@ public class MonitorCycleServiceTests
         public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
         public Task ApplyLiveOnlyAsync(Settings s) => Task.CompletedTask;
         public Task ApplyEphemeralAsync(Settings s) => Task.CompletedTask;
+        public bool HasEphemeralOverride { get; private set; }
+        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
         public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => Task.FromResult(SettingsRestoreOutcome.Restored);
     }
 
