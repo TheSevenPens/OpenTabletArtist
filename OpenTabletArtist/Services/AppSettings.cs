@@ -26,6 +26,11 @@ public static class AppSettings
     /// swallowed — and the copy it shows matches what actually happened (backup name and all).</summary>
     public static SettingsLoadOutcome LoadOutcome { get; private set; } = SettingsLoadOutcome.Ok;
 
+    /// <summary>True when the most recent preference write failed to reach disk (#735). Preference writes
+    /// are best-effort by design — they must never abort the caller — so this is how a failure becomes
+    /// visible instead of silent. Cleared by the next successful write.</summary>
+    public static bool LastWriteFailed { get; private set; }
+
     private static JObject Load()
     {
         if (_cache != null) return _cache;
@@ -44,6 +49,20 @@ public static class AppSettings
         var obj = Load();
         obj[key] = value;
         Persist(obj);
+    }
+
+    /// <summary>
+    /// Writes several keys in one load/serialize/write instead of one full file rewrite per key (#735).
+    /// Returns false if the write failed. The in-memory cache is updated either way, so the running app
+    /// stays consistent with itself even when the file is unwritable.
+    /// </summary>
+    public static bool SetMany(IReadOnlyDictionary<string, string> values)
+    {
+        if (values.Count == 0) return true;
+        var obj = Load();
+        foreach (var (key, value) in values)
+            obj[key] = value;
+        return Persist(obj);
     }
 
     /// <summary>Removes a key (no-op if absent). Used to clear a snapshot's hotkey mapping (#320).</summary>
@@ -68,10 +87,17 @@ public static class AppSettings
         return keys;
     }
 
-    private static void Persist(Newtonsoft.Json.Linq.JObject obj)
+    /// <summary>
+    /// Best-effort write of the whole preference file. Never throws (#735): these are conveniences —
+    /// a theme tint, a tray hint, a last-seen timestamp — and none of them is worth aborting the caller
+    /// for. The outcome is recorded in <see cref="LastWriteFailed"/> and logged rather than swallowed.
+    /// </summary>
+    private static bool Persist(JObject obj)
     {
-        var dir = Path.GetDirectoryName(SettingsPath)!;
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-        File.WriteAllText(SettingsPath, obj.ToString());
+        bool ok = SettingsFile.Write(SettingsPath, obj);
+        if (!ok && !LastWriteFailed)
+            AppLog.Warn($"Couldn't write app preferences to {SettingsPath}; changes will be lost on restart.");
+        LastWriteFailed = !ok;
+        return ok;
     }
 }
