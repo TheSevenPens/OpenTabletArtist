@@ -25,12 +25,24 @@ public class VMultiInstaller
     }
 
     /// <summary>
-    /// The digest recorded beside the bundled archive at packaging time, or null in a dev build that
-    /// doesn't bundle VMulti. The release workflow pins the asset, verifies what it downloaded, and
-    /// writes this file — so the digest is fixed when the release is built, not taken from whatever the
-    /// user's machine happens to fetch later (#739).
+    /// SHA256 of the VMulti release asset <see cref="DownloadUrl"/> points at: the v1.0 archive,
+    /// 1,989,586 bytes, containing devcon.exe / DIFxCmd.exe / vmulti.inf. Pinned here so there is an
+    /// authoritative value at runtime rather than only in the release workflow (#769).
+    ///
+    /// The URL is pinned to a tag, but a release asset can be replaced in place, so the tag alone
+    /// guarantees nothing about the bytes. This constant is what makes the download path verifiable — and
+    /// the download path is the one a dev build and every fallback install take. Kept in step with
+    /// release.yml's VMULTI_SHA256 by a test, because two copies of a security constant drift.
     /// </summary>
-    private static string? BundledDigest()
+    public const string PinnedSha256 = "CC34F74A6BEE7F3D1FDC3C10AAE27118A359F56A51DE2F5965B7D0D3E353D3A1";
+
+    /// <summary>
+    /// The digest recorded beside the bundled archive at packaging time, or null when there isn't one to
+    /// read. The release workflow pins the asset, verifies what it downloaded, and writes this file — so
+    /// for a release the digest is fixed when the build is made, not taken from whatever the user's
+    /// machine happens to fetch later (#739).
+    /// </summary>
+    private static string? ReadBundledDigest()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Bundled", PackageDigestFileName);
         if (!File.Exists(path)) return null;
@@ -42,6 +54,22 @@ public class VMultiInstaller
         }
     }
 
+    /// <summary>
+    /// What the archive must hash to. Prefers the digest this build was packaged with; falls back to
+    /// <see cref="PinnedSha256"/> when there is none to read.
+    ///
+    /// The fallback is the point of #769. It used to be "no digest, no check", which meant a dev build
+    /// and a release whose digest file failed to read both extracted and ran the archive <b>elevated</b>
+    /// without verifying anything — a silent pass in exactly the situation that warranted the loudest
+    /// failure. There is now always something to check against.
+    /// </summary>
+    public static string ExpectedDigest() => ResolveExpectedDigest(ReadBundledDigest());
+
+    /// <summary>The resolution rule on its own, so the fallback is testable without a packaged build.
+    /// Blank counts as absent: an empty or whitespace digest file is a broken one, not a permissive one.</summary>
+    public static string ResolveExpectedDigest(string? bundled) =>
+        string.IsNullOrWhiteSpace(bundled) ? PinnedSha256 : bundled.Trim();
+
     /// <summary>SHA256 of a file as an uppercase hex string.</summary>
     public static string ComputeSha256(string path)
     {
@@ -50,17 +78,26 @@ public class VMultiInstaller
     }
 
     /// <summary>
-    /// True when <paramref name="path"/> matches <paramref name="expected"/>, or when there is no
-    /// expected digest to check against (a dev build with no bundled archive). Comparison is
+    /// True only when <paramref name="path"/> hashes to <paramref name="expected"/>. Comparison is
     /// case-insensitive so either hex casing works.
     ///
     /// This runs before the archive is extracted and its contents executed <b>elevated</b>, which is why
     /// "it came from the right URL" was not enough on its own: a release asset can be replaced in place,
-    /// and the bundled copy travels through a CI job and a zip before it gets here.
+    /// and the bundled copy travels through a CI job and a zip before it gets here. For the same reason
+    /// an absent <paramref name="expected"/> is a refusal, not a pass (#769) — a check that cannot be
+    /// performed has not been passed, and callers should be getting one from
+    /// <see cref="ExpectedDigest"/>, which always has a value.
     /// </summary>
     public static bool VerifyArchive(string path, string? expected)
     {
-        if (string.IsNullOrEmpty(expected)) return true;
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            AppLog.Error("No expected digest for the VMulti driver package, so there is nothing to " +
+                         "verify it against. Refusing to install it.");
+            return false;
+        }
+
+
         try
         {
             var actual = ComputeSha256(path);
@@ -101,9 +138,9 @@ public class VMultiInstaller
             await fileStream.FlushAsync(ct);
         }
 
-        if (!VerifyArchive(zipPath, BundledDigest()))
+        if (!VerifyArchive(zipPath, ExpectedDigest()))
             throw new InvalidDataException(
-                "The VMulti driver package doesn't match the copy this build was released with.");
+                "The VMulti driver package doesn't match the copy this build expects.");
 
         return zipPath;
     }
