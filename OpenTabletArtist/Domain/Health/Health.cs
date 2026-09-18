@@ -496,8 +496,12 @@ public static class HealthEvaluator
         var rows = new List<HealthLink>();
         var severity = HealthSeverity.Information;
 
+        // Not "Not built by OpenTabletArtist" any more: since #794 OTA builds no daemon, so that was
+        // true of every daemon including its own bundled one, and distinguished nothing. What this row
+        // actually reports is that the daemon is the user's install rather than the copy OTA ships.
         if (i.ForeignDaemon)
-            rows.Add(new HealthLink("Not built by OpenTabletArtist", "", RemediationArea.Daemon));
+            rows.Add(new HealthLink("An OpenTabletDriver you installed, not the bundled copy",
+                "", RemediationArea.Daemon));
 
         if (i.DaemonSourceUnknown)
         {
@@ -505,12 +509,20 @@ public static class HealthEvaluator
             severity = HealthSeverity.Recommendation;
         }
 
+        // The declared support policy (#786, D3): exactly the pinned OpenTabletDriver release, in both
+        // directions. Anything else is untested rather than known-broken, so it says so and stays a
+        // Recommendation — the card's own text already promises "nothing here stops it working", and a
+        // user running a newer OTD than this app was built against has usually done nothing wrong.
+        //
+        // This nags the day OpenTabletDriver ships a release, until the submodule is bumped. That is
+        // inherent in pinning, and otd-release-watch.yml is what keeps the window short.
         if (!string.IsNullOrEmpty(i.DaemonVersion)
             && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
             && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
         {
             rows.Add(new HealthLink(
-                $"Version {i.DaemonVersion} — this app was built against {i.ExpectedOtdVersion}",
+                $"Version {i.DaemonVersion}, untested with this app — it was built against "
+                + $"{i.ExpectedOtdVersion}",
                 "", RemediationArea.Daemon));
             severity = HealthSeverity.Recommendation;
         }

@@ -24,7 +24,7 @@ public interface IDaemonLifecycleService
     /// or submodule dev build), as opposed to an OTD installed on the system that we merely drive. An
     /// adopted install is a daemon the user owns, so destructive actions on it stay behind a confirmation
     /// even though we resolved and launched it. See docs/design/official-otd-release.md.</summary>
-    bool IsOwnBuild(string? path);
+    bool IsAppManaged(string? path);
 
     /// <summary>True if any OTD daemon process is currently running.</summary>
     bool IsRunning();
@@ -79,7 +79,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
                 InstalledOtdPaths())
             .FirstOrDefault(File.Exists);
 
-    public bool IsOwnBuild(string? path) => DaemonExePaths.IsOwnBuild(AppContext.BaseDirectory, path);
+    public bool IsAppManaged(string? path) => DaemonExePaths.IsAppManaged(AppContext.BaseDirectory, path);
 
     /// <summary>Installed-OTD locations to adopt. macOS only for now: it is where adoption is forced (a
     /// rebuilt daemon can't hold its Input Monitoring grant) and therefore where the model is being

@@ -146,7 +146,7 @@ artist-pen-behavior bundle's `Links` pattern (`#artist-pen-health`):
 
 | Id | Severity | Rows it can carry |
 |---|---|---|
-| `otd.driver` | worst of its rows | "Not built by OpenTabletArtist" · "Location couldn't be read" · "Version *x* — this app was built against *y*" |
+| `otd.driver` | worst of its rows | "An OpenTabletDriver you installed, not the bundled copy" · "Location couldn't be read" · "Version *x*, untested with this app — it was built against *y*" |
 
 Severity is the worst contributing row: an adopted install alone stays **Information**, while an
 unreadable location or a version difference lifts the card to **Recommendation**. The card only appears

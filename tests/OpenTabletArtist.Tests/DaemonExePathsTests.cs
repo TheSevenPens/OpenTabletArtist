@@ -212,7 +212,7 @@ public class DaemonExePathsTests
     {
         var baseDir = Path.Combine("C:", "app");
 
-        Assert.True(DaemonExePaths.IsOwnBuild(baseDir, Path.Combine(baseDir, "Daemon", Exe)));
+        Assert.True(DaemonExePaths.IsAppManaged(baseDir, Path.Combine(baseDir, "Daemon", Exe)));
     }
 
     // An adopted install must not read as ours, or destructive actions on the user's own daemon would
@@ -222,7 +222,7 @@ public class DaemonExePathsTests
     {
         var installed = Path.Combine("/", "Applications", "OpenTabletDriver.app", "Contents", "MacOS", "OpenTabletDriver.Daemon");
 
-        Assert.False(DaemonExePaths.IsOwnBuild(Path.Combine("C:", "app"), installed));
-        Assert.False(DaemonExePaths.IsOwnBuild(Path.Combine("C:", "app"), null));
+        Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), installed));
+        Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), null));
     }
 }
