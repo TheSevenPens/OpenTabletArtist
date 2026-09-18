@@ -23,7 +23,7 @@ public class WindowsInkPluginService
     /// from the same submodule, so this equals the running daemon's version.
     /// </summary>
     public static Version OtdVersion =>
-        typeof(AppInfo).Assembly.GetName().Version ?? new Version(0, 0);
+        OtdRelease.Version;
 
     /// <summary>
     /// Reads the installed plugin's metadata.json from the daemon's plugin directory.

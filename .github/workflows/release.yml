@@ -148,13 +148,27 @@ jobs:
           Invoke-WebRequest "https://github.com/OpenTabletDriver/Plugin-Repository/archive/$ref.zip" -OutFile "$tmp/pr.zip"
           Expand-Archive "$tmp/pr.zip" "$tmp/pr" -Force
 
-          # The OTD version actually shipping in this build — the daemon is built from the submodule, so
-          # this is what the bundled plugin has to support.
-          $otdDll = Get-ChildItem 'publish/OpenTabletArtist/Daemon' -Filter 'OpenTabletDriver.dll' -Recurse |
-            Select-Object -First 1
-          if (-not $otdDll) { throw 'Could not locate the published OpenTabletDriver.dll to read its version' }
-          $otd = [version][System.Diagnostics.FileVersionInfo]::GetVersionInfo($otdDll.FullName).FileVersion
-          Write-Host "Bundled OpenTabletDriver version: $otd"
+          # The OTD version actually shipping in this build — what the bundled plugin has to support.
+          #
+          # Read from the submodule's release tag, not from a published DLL. This used to scan
+          # publish/.../Daemon for OpenTabletDriver.dll, which stopped existing when the daemon became a
+          # single-file publish (#785) — the assemblies are inside the bundle. The tag is the more honest
+          # source anyway: it is what the daemon is built from today and what it will be downloaded from
+          # once the official binary replaces our build (#786), so this survives that change.
+          #
+          # try/catch rather than $LASTEXITCODE because PowerShell 7.4 turns a failing native command into
+          # a terminating error under ErrorActionPreference='Stop' — the same trap noted on the tag
+          # checkout step above.
+          $otdTag = $null
+          try { $otdTag = (git -C external/OpenTabletDriver describe --tags --exact-match 2>$null) } catch { }
+          if ($otdTag) { $otdTag = $otdTag.Trim() }
+          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+$') {
+            throw "The OpenTabletDriver submodule is not on an exact release tag (got '$otdTag'), so the OTD version can't be determined."
+          }
+          # Four-part, matching the FileVersion this used to read (the tag says 0.6.7, the assembly says
+          # 0.6.7.0). The comparisons below are version-typed, so the shape matters.
+          $otd = [version]("$($otdTag -replace '^v','').0")
+          Write-Host "Bundled OpenTabletDriver version: $otd (submodule tag $otdTag)"
 
           # Mirrors PluginMetadata.IsSupportedBy exactly -- the same rule the app applies to the online
           # lookup and now to the offline bundle. Note it compares major and minor for EQUALITY, not
@@ -404,9 +418,16 @@ jobs:
           $tag = '${{ steps.ver.outputs.tag }}'
           $notesFile = Join-Path $env:RUNNER_TEMP 'RELEASE_NOTES.md'
           $prev = (git describe --tags --abbrev=0 "$tag^" 2>$null)
+          $prevFound = ($LASTEXITCODE -eq 0 -and $prev)
+          # A tag that doesn't exist yet is the normal workflow_dispatch case - the checkout step above
+          # builds from HEAD and tags at release - and a failing `git describe` is how we find that out.
+          # Clear the exit code once it has been read: an Actions pwsh step exits with whatever
+          # $LASTEXITCODE holds at the end, so a handled failure here would fail the whole step and, with
+          # it, every dispatched release of a new tag.
+          $global:LASTEXITCODE = 0
           $useGenerated = $true
           $limit = 120000   # GitHub's hard limit is 125,000 - leave room for the footer
-          if ($LASTEXITCODE -eq 0 -and $prev) {
+          if ($prevFound) {
             $hashes = git log --no-merges --format='%H' "$prev..$tag"
             $skip = '^chore: (bump version|release v)'
             $sections = foreach ($h in $hashes) {

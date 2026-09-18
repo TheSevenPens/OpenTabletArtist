@@ -25,7 +25,7 @@ public sealed partial class DaemonProcessViewModel : ObservableObject, IDisposab
     public DaemonProcessViewModel(DaemonStatusViewModel status)
     {
         _status = status;
-        BuiltAgainstVersion = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
+        BuiltAgainstVersion = OtdRelease.Version.ToString();
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _pollTimer.Tick += (_, _) => Refresh();

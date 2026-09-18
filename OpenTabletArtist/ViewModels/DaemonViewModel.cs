@@ -245,7 +245,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
 
     /// <summary>The version of the bundled OpenTabletDriver (read from its Desktop assembly).</summary>
-    public string CurrentOtdVersion { get; } = typeof(Settings).Assembly.GetName().Version?.ToString() ?? "Unknown";
+    public string CurrentOtdVersion { get; } = OtdRelease.Version.ToString();
 
     /// <summary>OTA's own build and the OTD release behind it, on one line — they are read together and
     /// never separately. "Bundles" only where a daemon really ships with the app; elsewhere the number is
