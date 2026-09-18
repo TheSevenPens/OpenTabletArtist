@@ -148,13 +148,27 @@ jobs:
           Invoke-WebRequest "https://github.com/OpenTabletDriver/Plugin-Repository/archive/$ref.zip" -OutFile "$tmp/pr.zip"
           Expand-Archive "$tmp/pr.zip" "$tmp/pr" -Force
 
-          # The OTD version actually shipping in this build — the daemon is built from the submodule, so
-          # this is what the bundled plugin has to support.
-          $otdDll = Get-ChildItem 'publish/OpenTabletArtist/Daemon' -Filter 'OpenTabletDriver.dll' -Recurse |
-            Select-Object -First 1
-          if (-not $otdDll) { throw 'Could not locate the published OpenTabletDriver.dll to read its version' }
-          $otd = [version][System.Diagnostics.FileVersionInfo]::GetVersionInfo($otdDll.FullName).FileVersion
-          Write-Host "Bundled OpenTabletDriver version: $otd"
+          # The OTD version actually shipping in this build — what the bundled plugin has to support.
+          #
+          # Read from the submodule's release tag, not from a published DLL. This used to scan
+          # publish/.../Daemon for OpenTabletDriver.dll, which stopped existing when the daemon became a
+          # single-file publish (#785) — the assemblies are inside the bundle. The tag is the more honest
+          # source anyway: it is what the daemon is built from today and what it will be downloaded from
+          # once the official binary replaces our build (#786), so this survives that change.
+          #
+          # try/catch rather than $LASTEXITCODE because PowerShell 7.4 turns a failing native command into
+          # a terminating error under ErrorActionPreference='Stop' — the same trap noted on the tag
+          # checkout step above.
+          $otdTag = $null
+          try { $otdTag = (git -C external/OpenTabletDriver describe --tags --exact-match 2>$null) } catch { }
+          if ($otdTag) { $otdTag = $otdTag.Trim() }
+          if ($otdTag -notmatch '^v?\d+\.\d+\.\d+$') {
+            throw "The OpenTabletDriver submodule is not on an exact release tag (got '$otdTag'), so the OTD version can't be determined."
+          }
+          # Four-part, matching the FileVersion this used to read (the tag says 0.6.7, the assembly says
+          # 0.6.7.0). The comparisons below are version-typed, so the shape matters.
+          $otd = [version]("$($otdTag -replace '^v','').0")
+          Write-Host "Bundled OpenTabletDriver version: $otd (submodule tag $otdTag)"
 
           # Mirrors PluginMetadata.IsSupportedBy exactly -- the same rule the app applies to the online
           # lookup and now to the offline bundle. Note it compares major and minor for EQUALITY, not
