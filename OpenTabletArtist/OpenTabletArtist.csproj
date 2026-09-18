@@ -40,11 +40,11 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <!-- HidSharp removed — OTD brings HidSharpCore via its project references -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="StreamJsonRpc" Version="2.22.23" />
+    <PackageReference Include="StreamJsonRpc" Version="2.25.29" />
     <!-- Pin MessagePack to a patched version. StreamJsonRpc pulls in 2.5.192
          transitively, which trips NU1903 (GHSA-hv8m-jj95-wg3x, fixed in 2.5.301).
          This direct reference stays on the 2.5.x line for compatibility. -->
-    <PackageReference Include="MessagePack" Version="2.5.302" />
+    <PackageReference Include="MessagePack" Version="3.1.9" />
     <!-- Raster paint surface for the Test tab. Pinned to the same SkiaSharp Avalonia 12 already
          pulls in (via Avalonia.Skia) to avoid a package downgrade. We own the SKBitmap and hand
          Avalonia a pixel buffer (no render-lease interop), so usage stays self-contained. -->
