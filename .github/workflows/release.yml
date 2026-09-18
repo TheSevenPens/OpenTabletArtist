@@ -179,6 +179,8 @@ jobs:
       # digest is recorded beside the bundle and VMultiInstaller.VerifyArchive re-checks it before
       # extracting, so tampering anywhere between here and the user's disk is caught before elevation.
       #
+      # Kept in step with VMultiInstaller.PinnedSha256, which the app verifies against at install
+      # time; a test fails if the two drift apart.
       # VMULTI_SHA256 is the expected digest of that archive, recorded from the pinned v1.0 asset
       # (1,989,586 bytes, containing devcon.exe / DIFxCmd.exe / vmulti.inf). With it set, an upstream
       # asset that changes under us fails the release instead of being bundled and shipped.
