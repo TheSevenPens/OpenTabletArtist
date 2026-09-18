@@ -42,6 +42,10 @@ public sealed class SettingsCoordinator
     private string? _lastPersistedSettingsJson;
     // Applied by the daemon but not yet persisted — what RetryPersistAsync would write.
     private Settings? _pendingPersistSettings;
+    // ...and the file it was meant for (#787). The destination is resolved late, from the *connected*
+    // daemon's AppInfo, so without recording where the change belongs a retry follows whichever daemon
+    // is connected when it happens to run — writing one daemon's unsaved settings into another's file.
+    private string? _pendingPersistPath;
 
     // Automatic retries spent on the current pending change (#743). Bounded: the common causes of a
     // refused write are a momentary file lock (OTD's own UX saving the same file), which clears within a
@@ -133,6 +137,43 @@ public sealed class SettingsCoordinator
         _lastLoadedSettingsJson = HasEphemeralOverride ? null : SerializeForCompare(_settings);
     }
 
+    /// <summary>
+    /// Forgets everything that belonged to the daemon we were talking to, because a different one is
+    /// answering now (#787).
+    ///
+    /// Almost all of this class's state is a fact about one daemon: the change it accepted but did not
+    /// persist, the file that change was for, what its settings file last held, and whether it is running
+    /// a transient per-app snapshot. None of that describes the new daemon, and each one misleads a
+    /// different part of the app if carried across:
+    ///
+    /// <list type="bullet">
+    /// <item>a pending write would target the wrong file (the retry also refuses this on its own, so the
+    /// two guards are independent);</item>
+    /// <item>a live override would suppress the load path's <see cref="AdoptLoadedSettings"/>, so the new
+    /// daemon's settings would never be read and the editor would keep offering to persist the old
+    /// daemon's (#737 gates on exactly that);</item>
+    /// <item>a stale persisted baseline would let the no-op guard skip an apply the new daemon has never
+    /// seen.</item>
+    /// </list>
+    ///
+    /// <see cref="CurrentSettings"/> is deliberately left alone: the caller reloads immediately after
+    /// this, and clearing it would blank the editor for that moment. Clearing the override is what makes
+    /// that reload adopt the new daemon's settings.
+    /// </summary>
+    public void ResetForNewDaemon()
+    {
+        var hadUnsaved = HasUnsavedChange;
+
+        DiscardPendingPersist();
+        _lastPersistedSettingsJson = null;
+        _lastLoadedSettingsJson = null;
+        HasEphemeralOverride = false;
+
+        // The chip was describing the old daemon's unsaved change. It is not the new one's problem, and
+        // leaving it would claim a change is live on a daemon that never received it.
+        if (hadUnsaved) _onSaveState(SettingsSaveState.None);
+    }
+
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
     public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
@@ -219,6 +260,7 @@ public sealed class SettingsCoordinator
         // The same revision the daemon accepted, so a retry writes that and not whatever the caller's
         // object has become since (#765, #774).
         _pendingPersistSettings = saved ? null : revision;
+        _pendingPersistPath = saved ? null : path;
         // A new change gets its own budget, and may be retried immediately — a spent budget must not
         // silently disable recovery for the rest of the session (#743).
         _automaticRetries = 0;
@@ -267,6 +309,20 @@ public sealed class SettingsCoordinator
         var path = _settingsPath();
         if (string.IsNullOrEmpty(path))
             return Task.FromResult(SettingsApplyOutcome.Unsaved);
+
+        // The destination moved, which means a different daemon answered since this change was made
+        // (#787). Writing here would put one daemon's settings into another's file — a file OTA was
+        // never asked to touch, belonging to an install the user may share with OTD's own UX. Drop the
+        // change instead: losing an edit the disk already refused is bad, silently overwriting someone
+        // else's configuration is worse.
+        if (_pendingPersistPath is { } origin && !ExecutablePath.SameFile(origin, path))
+        {
+            AppLog.Warn($"Discarding an unsaved settings change made for {origin}: the connected daemon " +
+                        $"now uses {path}, and the change does not belong to it.");
+            DiscardPendingPersist();
+            _onSaveState(SettingsSaveState.None);
+            return Task.FromResult(SettingsApplyOutcome.NoChange);
+        }
 
         _onSaveState(SettingsSaveState.Saving);
         bool saved = _store.TrySave(pending, path);
@@ -440,6 +496,7 @@ public sealed class SettingsCoordinator
     private void DiscardPendingPersist()
     {
         _pendingPersistSettings = null;
+        _pendingPersistPath = null;
         _automaticRetries = 0;
     }
 
