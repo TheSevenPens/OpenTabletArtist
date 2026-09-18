@@ -179,14 +179,18 @@ jobs:
       # digest is recorded beside the bundle and VMultiInstaller.VerifyArchive re-checks it before
       # extracting, so tampering anywhere between here and the user's disk is caught before elevation.
       #
-      # VMULTI_SHA256 is the expected digest. While it is empty the workflow records whatever it
-      # downloaded and prints it — fill it in from that output to turn the check into enforcement; from
-      # then on a changed asset fails the release instead of shipping.
+      # VMULTI_SHA256 is the expected digest of that archive, recorded from the pinned v1.0 asset
+      # (1,989,586 bytes, containing devcon.exe / DIFxCmd.exe / vmulti.inf). With it set, an upstream
+      # asset that changes under us fails the release instead of being bundled and shipped.
+      #
+      # If a release starts failing here, that is this check doing its job, not a glitch: the file at
+      # VMULTI_URL is no longer the one this was pinned to. Verify what changed and why before updating
+      # the digest — the contents of this archive are extracted and run elevated on users' machines.
       - name: Bundle the VMulti driver for offline install
         shell: pwsh
         env:
           VMULTI_URL: "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip"
-          VMULTI_SHA256: ""
+          VMULTI_SHA256: "CC34F74A6BEE7F3D1FDC3C10AAE27118A359F56A51DE2F5965B7D0D3E353D3A1"
         run: |
           $ErrorActionPreference = 'Stop'
           $dest = "publish/OpenTabletArtist/Bundled"
