@@ -26,22 +26,33 @@ public sealed class PerAppApplier : IPerAppApplier
         _presetDirectory = presetDirectory;
     }
 
-    public async Task ApplyDefaultAsync()
+    public async Task<bool> ApplyDefaultAsync()
     {
         var settings = _settings.CurrentSettings;
-        if (settings == null) return;
-        // Best-effort background automation (a disconnected daemon shouldn't throw here), but a silent
-        // failure means per-app switching quietly stopped working — log it (#21).
-        try { await _settings.ApplyEphemeralAsync(settings); }
-        catch (Exception ex) { AppLog.Warn("Per-app switch to the default profile failed to apply.", ex); }
+        if (settings == null) return false;
+
+        // Background automation must not throw at its caller (a disconnected daemon is not exceptional
+        // here), but a silent failure means per-app switching quietly stopped working — report it both
+        // to the log and to the switcher, which needs to know not to record a switch that didn't happen.
+        try
+        {
+            await _settings.ClearEphemeralOverrideAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Per-app switch to the default profile failed to apply.", ex);
+            return false;
+        }
     }
 
-    public async Task<bool> ApplySnapshotAsync(string snapshotName)
+    public async Task<PerAppApplyResult> ApplySnapshotAsync(string snapshotName)
     {
         var dir = _presetDirectory();
-        if (string.IsNullOrEmpty(dir)) return false;
+        if (string.IsNullOrEmpty(dir)) return PerAppApplyResult.SnapshotMissing;
         var path = Path.Combine(dir, snapshotName + ".json");
-        if (!_store.TryLoad(path, out var settings) || settings == null) return false; // dangling → caller falls back
+        if (!_store.TryLoad(path, out var settings) || settings == null)
+            return PerAppApplyResult.SnapshotMissing;   // dangling → caller falls back to the default
 
         // Keep the tablet on the monitor the user currently has it on rather than the one frozen into the
         // snapshot — moving an app between displays shouldn't yank the tablet to a stale monitor (#167).
@@ -49,11 +60,19 @@ public sealed class PerAppApplier : IPerAppApplier
         if (_settings.CurrentSettings is { } current)
             OpenTabletArtist.Domain.DisplayMappingApplier.PreserveAreaMapping(settings, current);
 
-        // The snapshot exists; treat a daemon hiccup as best-effort (don't misreport it as "missing"),
-        // but log so a silently non-applying per-app switch is diagnosable (#21).
-        try { await _settings.ApplyEphemeralAsync(settings); }
-        catch (Exception ex) { AppLog.Warn($"Per-app switch to snapshot \"{snapshotName}\" failed to apply.", ex); }
-        return true;
+        // The snapshot exists, so a daemon failure here is NOT "missing" — reporting it as such would
+        // send the switcher to the default and raise a dangling-profile warning about a profile that is
+        // perfectly fine. It is its own outcome, and the switcher commits nothing for it (#737).
+        try
+        {
+            await _settings.ApplyEphemeralAsync(settings);
+            return PerAppApplyResult.Applied;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Per-app switch to snapshot \"{snapshotName}\" failed to apply.", ex);
+            return PerAppApplyResult.ApplyFailed;
+        }
     }
 }
 

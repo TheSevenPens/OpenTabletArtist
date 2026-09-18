@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Headless UI smoke tests (#741), kept in their own project so the fast logic suite stays fast and
+    free of an Avalonia application lifetime. These render real views into a headless surface, which is
+    the only place a reflection binding or a missing resource actually fails - the app disables compiled
+    bindings globally, so those errors exist only at runtime.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>OpenTabletArtist.UiTests</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia.Headless.XUnit 12.x is built on xunit v3, so this project uses v3 while the logic
+         suite stays on v2. Mixing them yields an assembly the runner treats as v3 but that has no app
+         host to launch. -->
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.0.1" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />
+  </ItemGroup>
+
+</Project>

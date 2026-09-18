@@ -44,7 +44,7 @@ public partial class MainWindow : Window
         Activated += (_, _) => (DataContext as MainViewModel)?.OnWindowActivated();
         Closed += (_, _) =>
         {
-            if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; }
+            if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; _switchSub.RestoreFailed -= OnProfileRestoreFailed; }
             if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
             if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
             Screens.Changed -= OnScreensChanged;
@@ -58,7 +58,7 @@ public partial class MainWindow : Window
     // the drawing app.
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; }
+        if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; _switchSub.RestoreFailed -= OnProfileRestoreFailed; }
         if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
         if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
 
@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         _switchSub = vm?.ProfileSwitch;
         _cycleSub = vm?.MonitorCycle;
         _perAppSub = vm?.PerAppSwitch;
-        if (_switchSub != null) { _switchSub.Switched += OnProfileSwitched; _switchSub.SwitchFailed += OnProfileSwitchFailed; }
+        if (_switchSub != null) { _switchSub.Switched += OnProfileSwitched; _switchSub.SwitchFailed += OnProfileSwitchFailed; _switchSub.RestoreFailed += OnProfileRestoreFailed; }
         if (_cycleSub != null) _cycleSub.Cycled += OnMonitorCycled;
         if (_perAppSub != null) _perAppSub.ActiveProfileChanged += OnPerAppSwitched;
     }
@@ -85,6 +85,17 @@ public partial class MainWindow : Window
     // one, and DeletePreset already takes the same care not to drop a hotkey whose file is still there.
     private void OnProfileSwitchFailed(string snapshot) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show($"Couldn't load preset “{snapshot}”"));
+
+    // A restore that didn't happen. The override cue stays up (the override really is still active), so
+    // this says why — the dangerous case is the artist believing they're back on their default while the
+    // tablet is still running a preset (#734).
+    private void OnProfileRestoreFailed(SettingsRestoreStatus status) =>
+        Dispatcher.UIThread.Post(() => ProfileToast.Show(status switch
+        {
+            SettingsRestoreStatus.SourceUnavailable => "Couldn't restore — saved settings unreadable, preset still active",
+            SettingsRestoreStatus.Disconnected => "Couldn't restore — not connected, preset still active",
+            _ => "Couldn't restore your saved settings — preset still active",
+        }));
 
     private void OnMonitorCycled(string message) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(message));

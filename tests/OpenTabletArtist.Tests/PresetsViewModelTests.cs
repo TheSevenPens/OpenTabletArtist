@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
@@ -14,10 +15,17 @@ public class PresetsViewModelTests
     {
         public Settings? CurrentSettings { get; set; }
         public Settings? Applied { get; private set; }
-        public Task ApplyAndSaveSettingsAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
+        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
+        {
+            Applied = settings;
+            return Task.FromResult(SettingsApplyOutcome.Saved);
+        }
+        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
         public Task ApplyLiveOnlyAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
         public Task ApplyEphemeralAsync(Settings settings) { Applied = settings; return Task.CompletedTask; }
-        public Task RestoreDefaultAsync() => Task.CompletedTask;
+        public bool HasEphemeralOverride { get; private set; }
+        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
+        public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => Task.FromResult(SettingsRestoreOutcome.Restored);
     }
 
     private sealed class FakeProfileHotkeys : IProfileHotkeys

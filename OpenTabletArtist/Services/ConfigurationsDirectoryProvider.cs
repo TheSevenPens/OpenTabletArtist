@@ -25,9 +25,19 @@ public interface IConfigurationsDirectoryProvider
 public class ConfigurationsDirectoryProvider : IConfigurationsDirectoryProvider
 {
     private readonly Func<string?>? _daemonDirectory;
+    private readonly Func<string?> _localAppData;
 
-    public ConfigurationsDirectoryProvider(Func<string?>? daemonDirectory = null)
-        => _daemonDirectory = daemonDirectory;
+    /// <param name="daemonDirectory">The daemon's own configuration directory, when connected.</param>
+    /// <param name="localAppData">Root the fallback heuristic builds on. Injectable so tests exercise
+    /// the heuristic against a temp directory instead of creating folders in the developer's real OTD
+    /// install (#738); defaults to the platform's local-app-data folder.</param>
+    public ConfigurationsDirectoryProvider(Func<string?>? daemonDirectory = null,
+        Func<string?>? localAppData = null)
+    {
+        _daemonDirectory = daemonDirectory;
+        _localAppData = localAppData
+            ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
 
     public string GetOrCreate()
     {
@@ -35,7 +45,7 @@ public class ConfigurationsDirectoryProvider : IConfigurationsDirectoryProvider
         var dir = _daemonDirectory?.Invoke();
         if (string.IsNullOrEmpty(dir))
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appData = _localAppData();
             if (string.IsNullOrEmpty(appData)) return "";
             dir = Path.Combine(appData, "OpenTabletDriver", "Configurations");
         }

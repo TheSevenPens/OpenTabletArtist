@@ -45,6 +45,29 @@ jobs:
           "version=$($tag -replace '^v','')" >> $env:GITHUB_OUTPUT
           Write-Host "Releasing $tag"
 
+      # Make the source we build match the label we ship (#739). The checkout above takes the workflow's
+      # own ref, while the tag input drives the release name, the assembly version, and the asset name —
+      # so a manual run could publish "v1.2.3" built from whatever the default branch happened to be.
+      # An existing tag is now checked out explicitly; a new one stays on the checked-out commit and is
+      # created from it later by the release step, which is the intended "tag this commit" flow.
+      - name: Check out the requested tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ steps.ver.outputs.tag }}'
+          # `git tag --list` always exits 0, printing nothing when the tag is absent. `rev-parse --verify`
+          # would exit non-zero, and PowerShell 7.4 turns a failing native command into a terminating
+          # error under ErrorActionPreference='Stop' — which would break the "tag doesn't exist yet" path
+          # this branch is here to support.
+          if (git tag --list $tag) {
+            Write-Host "Tag $tag exists - building from it."
+            git checkout --force --recurse-submodules "refs/tags/$tag"
+            if ($LASTEXITCODE -ne 0) { throw "Failed to check out refs/tags/$tag" }
+          } else {
+            Write-Host "Tag $tag does not exist yet - building from HEAD and tagging it at release."
+          }
+          Write-Host "Source commit: $(git rev-parse HEAD)"
+
       # Gate the release on the test suite (build.yml tests every push/PR, but a tag could point
       # at any commit, so verify here too).
       - name: Test
@@ -70,39 +93,120 @@ jobs:
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item "plugins/OpenTabletArtist.Dynamics/bin/Release/net8.0/OpenTabletArtist.Dynamics.dll" $dest
 
-      # Bundle the Windows Ink plugin (newest compatible from the OTD Plugin-Repository) for offline
-      # install (#364). Best-effort: a repo/layout change must never fail the release — the app still
-      # installs it online. The bundle is the plugin DLLs + the manifest saved as metadata.json (what an
-      # online install writes), so the app copies it straight into the daemon's plugin dir.
+      # Bundle the Windows Ink plugin for offline install (#364). The bundle is the plugin DLLs + the
+      # manifest saved as metadata.json (what an online install writes), so the app copies it straight
+      # into the daemon's plugin dir.
+      #
+      # Reproducibility and integrity (#739): this used to fetch the plugin repository's moving `master`,
+      # pick the manifest with the highest directory version, and extract whatever it downloaded — so the
+      # same tag could produce different bundles on different days, the selected plugin need not support
+      # the OTD version actually shipping beside it, and the manifest's own SHA256 went unchecked. Now the
+      # repository revision is pinned, selection applies the same compatibility rule the app uses at
+      # runtime, and the archive is verified against the manifest before it is unpacked.
       - name: Bundle the Windows Ink plugin for offline install
         shell: pwsh
+        env:
+          # Pinned Plugin-Repository revision, so the same tag always bundles the same plugin. Was
+          # `master`, which meant the bundle depended on the day the release happened to be built.
+          # Bump deliberately when adopting a newer plugin release; the compatibility and digest checks
+          # below still gate whatever it points at. (OpenTabletDriver/Plugin-Repository, 2026-08-31.)
+          PLUGIN_REPO_REF: 8c626d2f5064d39c6d2a656ba096ea13654818e0
         run: |
           $ErrorActionPreference = 'Stop'
           $tmp = Join-Path $env:RUNNER_TEMP 'winink'
           New-Item -ItemType Directory -Force $tmp | Out-Null
-          Invoke-WebRequest 'https://github.com/OpenTabletDriver/Plugin-Repository/archive/refs/heads/master.zip' -OutFile "$tmp/pr.zip"
+
+          $ref = $env:PLUGIN_REPO_REF
+          Write-Host "Plugin-Repository ref: $ref"
+          Invoke-WebRequest "https://github.com/OpenTabletDriver/Plugin-Repository/archive/$ref.zip" -OutFile "$tmp/pr.zip"
           Expand-Archive "$tmp/pr.zip" "$tmp/pr" -Force
-          # Pick the newest WindowsInk.json by its version folder (Repository/<version>/<owner>/...).
-          $meta = Get-ChildItem "$tmp/pr" -Recurse -Filter WindowsInk.json |
-            Sort-Object { [version]($_.FullName -replace '.*Repository[\\/]([0-9.]+)[\\/].*','$1') } -Descending |
+
+          # The OTD version actually shipping in this build — the daemon is built from the submodule, so
+          # this is what the bundled plugin has to support.
+          $otdDll = Get-ChildItem 'publish/OpenTabletArtist/Daemon' -Filter 'OpenTabletDriver.dll' -Recurse |
             Select-Object -First 1
-          if (-not $meta) { throw 'No WindowsInk.json found in the plugin repository' }
-          $json = Get-Content $meta.FullName -Raw | ConvertFrom-Json
+          if (-not $otdDll) { throw 'Could not locate the published OpenTabletDriver.dll to read its version' }
+          $otd = [version][System.Diagnostics.FileVersionInfo]::GetVersionInfo($otdDll.FullName).FileVersion
+          Write-Host "Bundled OpenTabletDriver version: $otd"
+
+          # Mirrors PluginMetadata.IsSupportedBy exactly -- the same rule the app applies to the online
+          # lookup and now to the offline bundle. Note it compares major and minor for EQUALITY, not
+          # "at least": a plugin built for another driver line is unsupported in either direction. A
+          # manifest with no declared minimum can't be judged and is skipped (upstream throws on it).
+          # Newest compatible wins by PLUGIN version, rather than by the directory name the old sort used.
+          $candidates = Get-ChildItem "$tmp/pr" -Recurse -Filter WindowsInk.json | ForEach-Object {
+            $j = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            if (-not $j.SupportedDriverVersion) { return }
+            $min = [version]$j.SupportedDriverVersion
+            $max = if ($j.MaxSupportedDriverVersion) { [version]$j.MaxSupportedDriverVersion } else { $null }
+            $supported = $min.Major -eq $otd.Major -and
+                         $min.Minor -eq $otd.Minor -and
+                         $min.Build -le $otd.Build -and
+                         ($null -eq $max -or $max -ge $otd)
+            if ($supported) {
+              [pscustomobject]@{ File = $_; Json = $j; Version = [version]$j.PluginVersion }
+            }
+          }
+          $pick = $candidates | Sort-Object Version -Descending | Select-Object -First 1
+          if (-not $pick) { throw "No Windows Ink plugin release in $ref supports OpenTabletDriver $otd" }
+          $json = $pick.Json
+
+          Invoke-WebRequest $json.DownloadUrl -OutFile "$tmp/winink.zip"
+
+          # Verify the archive against the digest the manifest declares, before unpacking it into the
+          # release. The app copies these files straight into the daemon's plugin directory.
+          if ($json.SHA256) {
+            $actual = (Get-FileHash "$tmp/winink.zip" -Algorithm SHA256).Hash
+            if ($actual -ne $json.SHA256.ToUpperInvariant()) {
+              throw "Windows Ink archive digest mismatch: manifest says $($json.SHA256), got $actual"
+            }
+            Write-Host "Archive digest verified: $actual"
+          } else {
+            throw "The selected Windows Ink manifest declares no SHA256; refusing to bundle it unverified"
+          }
+
           $dest = 'publish/OpenTabletArtist/BundledPlugins/WindowsInk'
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Invoke-WebRequest $json.DownloadUrl -OutFile "$tmp/winink.zip"
           Expand-Archive "$tmp/winink.zip" $dest -Force
-          Copy-Item $meta.FullName (Join-Path $dest 'metadata.json')
-          Write-Host "Bundled Windows Ink plugin v$($json.PluginVersion) (supports OTD $($json.SupportedDriverVersion))"
+          Copy-Item $pick.File.FullName (Join-Path $dest 'metadata.json')
+          Write-Host "Bundled Windows Ink plugin v$($json.PluginVersion) (supports OTD $($json.SupportedDriverVersion) to $(if ($json.MaxSupportedDriverVersion) { $json.MaxSupportedDriverVersion } else { 'any' }))"
 
       # Bundle the VMulti driver so users can install it offline — the installer prefers this copy
       # (Bundled/VMulti.Driver.zip next to the app) and only downloads as a fallback (#364).
+      #
+      # The archive's contents are extracted and run ELEVATED on the user's machine, so its identity is
+      # pinned rather than trusted from the URL (#739): a release asset can be replaced in place. The
+      # digest is recorded beside the bundle and VMultiInstaller.VerifyArchive re-checks it before
+      # extracting, so tampering anywhere between here and the user's disk is caught before elevation.
+      #
+      # VMULTI_SHA256 is the expected digest. While it is empty the workflow records whatever it
+      # downloaded and prints it — fill it in from that output to turn the check into enforcement; from
+      # then on a changed asset fails the release instead of shipping.
       - name: Bundle the VMulti driver for offline install
         shell: pwsh
+        env:
+          VMULTI_URL: "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip"
+          VMULTI_SHA256: ""
         run: |
+          $ErrorActionPreference = 'Stop'
           $dest = "publish/OpenTabletArtist/Bundled"
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/X9VoiD/vmulti-bin/releases/download/v1.0/VMulti.Driver.zip" -OutFile "$dest/VMulti.Driver.zip"
+          $zip = "$dest/VMulti.Driver.zip"
+          Invoke-WebRequest -Uri $env:VMULTI_URL -OutFile $zip
+
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash
+          if ($env:VMULTI_SHA256) {
+            if ($actual -ne $env:VMULTI_SHA256.ToUpperInvariant()) {
+              throw "VMulti archive digest mismatch: expected $($env:VMULTI_SHA256), got $actual"
+            }
+            Write-Host "VMulti archive digest verified: $actual"
+          } else {
+            Write-Host "::warning::VMULTI_SHA256 is not set - bundling unverified. Pin this digest: $actual"
+          }
+
+          # Read back by VMultiInstaller before it extracts and elevates anything.
+          Set-Content -Path "$dest/VMulti.Driver.zip.sha256" -Value $actual -NoNewline
+          Write-Host "Recorded VMulti digest: $actual"
 
       # Strip all debug symbols (.pdb) from the bundle — end users don't need them, and they're huge:
       # the native libSkiaSharp.pdb / libHarfBuzzSharp.pdb alone are ~100 MB (they ship in the
@@ -115,6 +219,98 @@ jobs:
           $mb = [math]::Round(($pdbs | Measure-Object Length -Sum).Sum / 1MB, 1)
           $pdbs | Remove-Item -Force
           Write-Host "Removed $($pdbs.Count) .pdb file(s), $mb MB"
+
+      # Check what is actually about to ship, rather than trusting that every bundling step above did its
+      # job (#739). Each of those steps can be skipped, renamed, or silently reshaped by an upstream
+      # layout change; the failure would otherwise reach users as a release that installs nothing and
+      # says nothing about why. Names every missing component instead of failing on the first.
+      #
+      # This is the integrity half of the packaged smoke test. Actually launching the bundle and letting
+      # it locate its own daemon belongs with the release-bundle smoke test in #741.
+      - name: Verify the release bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'publish/OpenTabletArtist'
+          $missing = @()
+
+          $required = @(
+            'OpenTabletArtist.exe',
+            'Daemon/OpenTabletDriver.Daemon.exe',
+            'BundledPlugins/OpenTabletArtistDynamics/OpenTabletArtist.Dynamics.dll',
+            'BundledPlugins/WindowsInk/metadata.json',
+            'Bundled/VMulti.Driver.zip',
+            "Bundled/VMulti.Driver.zip.sha256"
+          )
+          foreach ($rel in $required) {
+            if (-not (Test-Path (Join-Path $root $rel))) { $missing += $rel }
+          }
+
+          # The recorded digest has to describe the archive sitting next to it, or the runtime check
+          # would refuse every offline install.
+          $zip = Join-Path $root 'Bundled/VMulti.Driver.zip'
+          $digestFile = Join-Path $root 'Bundled/VMulti.Driver.zip.sha256'
+          if ((Test-Path $zip) -and (Test-Path $digestFile)) {
+            $recorded = (Get-Content $digestFile -Raw).Trim()
+            $actual = (Get-FileHash $zip -Algorithm SHA256).Hash
+            if ($recorded -ne $actual) { $missing += "VMulti digest mismatch (recorded $recorded, actual $actual)" }
+          }
+
+          # The bundled Windows Ink plugin must support the OTD version shipping beside it -- the app
+          # refuses it at runtime otherwise, so shipping a mismatch means shipping a dead offline path.
+          $meta = Join-Path $root 'BundledPlugins/WindowsInk/metadata.json'
+          $otdDll = Get-ChildItem (Join-Path $root 'Daemon') -Filter 'OpenTabletDriver.dll' -Recurse | Select-Object -First 1
+          if ((Test-Path $meta) -and $otdDll) {
+            $j = Get-Content $meta -Raw | ConvertFrom-Json
+            $otd = [version][System.Diagnostics.FileVersionInfo]::GetVersionInfo($otdDll.FullName).FileVersion
+            if (-not $j.SupportedDriverVersion) {
+              $missing += 'bundled Windows Ink manifest declares no SupportedDriverVersion'
+            } else {
+              $min = [version]$j.SupportedDriverVersion
+              $max = if ($j.MaxSupportedDriverVersion) { [version]$j.MaxSupportedDriverVersion } else { $null }
+              $supported = $min.Major -eq $otd.Major -and $min.Minor -eq $otd.Minor -and
+                           $min.Build -le $otd.Build -and ($null -eq $max -or $max -ge $otd)
+              if (-not $supported) {
+                $missing += "bundled Windows Ink plugin v$($j.PluginVersion) does not support the bundled OpenTabletDriver $otd"
+              }
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            $missing | ForEach-Object { Write-Host "::error::Release bundle problem: $_" }
+            throw "The release bundle is missing or misconfigured components ($($missing.Count)). See the errors above."
+          }
+          Write-Host "Release bundle verified: app, daemon, both bundled plugins, and a matching VMulti digest."
+
+      # Launch the packaged app and make it find its own assets (#741). The step above checks the layout
+      # from outside; this one proves the exe actually starts and that the app's OWN lookup paths reach
+      # the daemon and plugins. A release can contain every file and still greet users with a missing
+      # daemon if the app looks somewhere else — and a check that re-implements the lookup would agree
+      # with itself while the product failed.
+      #
+      # Run under an isolated user-data root so it can't read or write a real OTD install on the runner.
+      # The app is a WinExe with no console attached, so the report goes to a file.
+      - name: Smoke-test the packaged app
+        shell: pwsh
+        env:
+          LOCALAPPDATA: ${{ runner.temp }}\smoke-userdata
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
+          $exe = Resolve-Path 'publish/OpenTabletArtist/OpenTabletArtist.exe'
+          $report = Join-Path $env:RUNNER_TEMP 'bundle-verification.txt'
+
+          $p = Start-Process -FilePath $exe -ArgumentList '--verify-bundle', $report `
+                 -Wait -PassThru -WindowStyle Hidden
+          if (-not (Test-Path $report)) {
+            throw "The packaged app produced no report (exit $($p.ExitCode)) - it may not have started at all."
+          }
+          Get-Content $report | Write-Host
+          if ($p.ExitCode -ne 0) {
+            Write-Host "::error::The packaged app could not find all of its bundled components (exit $($p.ExitCode))."
+            throw "Packaged-bundle smoke test failed."
+          }
+          Write-Host "The packaged app started and located every bundled component."
 
       - name: Package zip
         shell: pwsh

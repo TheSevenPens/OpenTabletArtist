@@ -15,6 +15,10 @@ public enum PluginInstallOutcome
     /// <summary>Overwrote a plugin the daemon already loaded at startup. <c>LoadPlugins</c> won't
     /// replace an already-loaded directory, so the daemon must restart to pick up the new DLL.</summary>
     Updated,
+    /// <summary>A bundle was present but declares no support for the OTD version we ship, so it was
+    /// deliberately not installed (#739). Distinct from <see cref="None"/>: there is something there,
+    /// it is just the wrong one, and installing it would break the pen rather than fix it.</summary>
+    Incompatible,
 }
 
 /// <summary>

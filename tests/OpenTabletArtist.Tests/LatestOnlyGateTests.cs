@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using OpenTabletArtist.Concurrency;
 using Xunit;
@@ -54,5 +55,77 @@ public class LatestOnlyGateTests
         Assert.True(aRan);
         Assert.False(bRan); // superseded
         Assert.True(cRan);  // latest wins
+    }
+
+    // --- Disposal while work is in flight (#736) ---
+
+    /// <summary>
+    /// The regression: Dispose used to drop the semaphore while work still held it, and that work's
+    /// finally block then called Release on a disposed semaphore — an ObjectDisposedException raised on
+    /// a background continuation, where nothing was watching for it.
+    /// </summary>
+    [Fact]
+    public async Task Dispose_WhileWorkHoldsTheGate_DoesNotThrowFromTheRunningWork()
+    {
+        var gate = new LatestOnlyGate();
+        var block = new TaskCompletionSource();
+        var entered = new TaskCompletionSource();
+
+        var running = gate.RunAsync(async () =>
+        {
+            entered.SetResult();
+            await block.Task;
+        });
+
+        await entered.Task;     // work is inside the gate
+        gate.Dispose();         // owner torn down beneath it
+        block.SetResult();
+
+        await running.WaitAsync(TimeSpan.FromSeconds(5)); // must complete, not fault
+    }
+
+    [Fact]
+    public async Task RunAsync_AfterDispose_IsIgnored()
+    {
+        var gate = new LatestOnlyGate();
+        gate.Dispose();
+        var ran = false;
+
+        await gate.RunAsync(() => { ran = true; return Task.CompletedTask; });
+
+        Assert.False(ran);
+    }
+
+    /// <summary>Work queued behind a running operation must not start once the owner is gone — it would
+    /// be acting on behalf of something already torn down.</summary>
+    [Fact]
+    public async Task Dispose_WhileWorkIsQueued_TheQueuedWorkNeverRuns()
+    {
+        var gate = new LatestOnlyGate();
+        var block = new TaskCompletionSource();
+        var entered = new TaskCompletionSource();
+        var queuedRan = false;
+
+        var running = gate.RunAsync(async () =>
+        {
+            entered.SetResult();
+            await block.Task;
+        });
+        await entered.Task;
+
+        var queued = gate.RunAsync(() => { queuedRan = true; return Task.CompletedTask; });
+        gate.Dispose();
+        block.SetResult();
+
+        await Task.WhenAll(running, queued).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(queuedRan);
+    }
+
+    [Fact]
+    public void Dispose_IsIdempotent()
+    {
+        var gate = new LatestOnlyGate();
+        gate.Dispose();
+        gate.Dispose();
     }
 }

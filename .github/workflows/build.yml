@@ -80,3 +80,35 @@ jobs:
       # rendering, so no display/xvfb is needed (they run the same way on the Windows lane).
       - name: Test
         run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug --no-build
+
+      # UI smoke tests (#741): these DO build views, on Avalonia's headless platform — still no display
+      # needed. They are the only thing standing between a refactor and a broken runtime binding, since
+      # the app disables compiled bindings globally, so a binding that no longer resolves is a warning at
+      # runtime rather than a build error.
+      - name: UI smoke tests
+        run: dotnet test tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj -c Debug --no-build
+
+      # Formatting, on CHANGED files only (#741). The existing tree disagrees with `dotnet format` in
+      # thousands of places — almost all of it aligned continuations that read better than what the
+      # formatter would produce — and reformatting it wholesale would bury real history under whitespace.
+      # Holding new and edited files to the conventions in .editorconfig converges the tree as it is
+      # worked on, at no review cost.
+      - name: Format check (changed files)
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          changed=$(git diff --name-only --diff-filter=ACM "origin/${{ github.base_ref }}"...HEAD -- '*.cs' \
+                    | grep -v '^external/' || true)
+          if [ -z "$changed" ]; then
+            echo "No C# files changed."
+            exit 0
+          fi
+          echo "Checking:"; echo "$changed" | sed 's/^/  /'
+          # shellcheck disable=SC2086
+          dotnet format OpenTabletArtist.slnx --verify-no-changes --include $changed \
+            || {
+              echo "::error::Changed C# files don't match .editorconfig. Run: dotnet format OpenTabletArtist.slnx --include <files>"
+              exit 1
+            }

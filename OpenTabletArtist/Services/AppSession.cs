@@ -24,7 +24,12 @@ namespace OpenTabletArtist.Services;
 /// </summary>
 /// <summary>State of the last settings auto-save (#321). OTA persists every change immediately; this
 /// drives a quiet indicator and, importantly, surfaces a failed disk write.</summary>
-public enum SettingsSaveState { None, Saving, Saved, Failed }
+/// <summary>
+/// What the save indicator is reporting. <see cref="Failed"/> means specifically "applied to the daemon
+/// but not written to disk"; an apply that never reached the daemon is <see cref="ApplyFailed"/> or
+/// <see cref="Disconnected"/>, which must not be described as live (#734).
+/// </summary>
+public enum SettingsSaveState { None, Saving, Saved, Failed, ApplyFailed, Disconnected }
 
 public interface IConnectionState : INotifyPropertyChanged
 {
@@ -92,8 +97,14 @@ public interface IConnectionState : INotifyPropertyChanged
 public interface ISettingsCoordinator
 {
     Settings? CurrentSettings { get; }
-    /// <summary>Applies settings to the daemon, persists to disk (best-effort), and reloads.</summary>
-    Task ApplyAndSaveSettingsAsync(Settings settings);
+    /// <summary>Applies settings to the daemon, persists to disk, and reloads. The returned
+    /// <see cref="SettingsApplyOutcome"/> distinguishes applied-and-saved, applied-but-unsaved,
+    /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
+    Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
+    /// <summary>Retries persistence alone, for settings the daemon already accepted but that failed to
+    /// reach disk (#734). No daemon write, no reload. Returns <see cref="SettingsApplyStatus.NoChange"/>
+    /// when there is nothing outstanding to persist.</summary>
+    Task<SettingsApplyOutcome> RetryPersistAsync();
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
     Task ApplyLiveOnlyAsync(Settings settings);
@@ -102,8 +113,21 @@ public interface ISettingsCoordinator
     /// per-app switching (#167): the editor keeps showing/persisting the user's default while the daemon
     /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).</summary>
     Task ApplyEphemeralAsync(Settings settings);
-    /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).</summary>
-    Task RestoreDefaultAsync();
+
+    /// <summary>
+    /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
+    /// per-app snapshot. The background reload consults this so a temporary override can't become the
+    /// editor's baseline (#737).
+    /// </summary>
+    bool HasEphemeralOverride { get; }
+
+    /// <summary>Put the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.
+    /// The counterpart to <see cref="ApplyEphemeralAsync"/>; nothing is written to disk either way.</summary>
+    Task ClearEphemeralOverrideAsync();
+    /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).
+    /// The returned <see cref="SettingsRestoreOutcome"/> says whether the default was actually reached —
+    /// a caller must not clear an override indicator unless it was (#734).</summary>
+    Task<SettingsRestoreOutcome> RestoreDefaultAsync();
 }
 
 /// <summary>Tablet/device data produced by the session's data load (#41 PR 2).</summary>
@@ -155,6 +179,19 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
     private string? _lastLoadedSettingsJson;
     private readonly ApplyLoopBreaker _applyLoopBreaker = new();
+
+    // The last settings we actually got onto DISK, tracked separately from what the daemon last handed
+    // back (#734). Conflating the two meant a failed write was recorded as the baseline on the next
+    // reload, so re-applying the same settings hit the no-op guard and the save was never retried.
+    private string? _lastPersistedSettingsJson;
+    // Applied by the daemon but not yet persisted — what RetryPersistAsync would write.
+    private Settings? _pendingPersistSettings;
+
+    /// <inheritdoc />
+    /// <remarks>Set by <see cref="ApplyEphemeralAsync"/> and cleared by every path that puts the daemon
+    /// back on <see cref="CurrentSettings"/> — a real apply, a live-only switch, a restore, or
+    /// <see cref="ClearEphemeralOverrideAsync"/>.</remarks>
+    public bool HasEphemeralOverride { get; private set; }
 
     /// <summary>
     /// Fallback reconciliation interval. Detection is event-driven via the daemon's
@@ -220,12 +257,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // --- Settings auto-save feedback (#321) ---
     [ObservableProperty] private SettingsSaveState _saveState;
     public bool ShowSaveStatus => SaveState != SettingsSaveState.None;
-    public bool SaveFailed => SaveState == SettingsSaveState.Failed;
+    public bool SaveFailed => SaveState is SettingsSaveState.Failed
+        or SettingsSaveState.ApplyFailed or SettingsSaveState.Disconnected;
     public string SaveStatusText => SaveState switch
     {
         SettingsSaveState.Saving => "Saving…",
         SettingsSaveState.Saved => "Saved",
+        // Only this one is genuinely live-but-unpersisted. The two below never reached the tablet, so
+        // saying "your change is live" would be a lie the artist can't check (#734).
         SettingsSaveState.Failed => "Couldn't save — your change is live but won't survive a restart",
+        SettingsSaveState.ApplyFailed => "Couldn't apply — your change didn't reach the tablet",
+        SettingsSaveState.Disconnected => "Not connected — your change wasn't applied or saved",
         _ => "",
     };
 
@@ -605,6 +647,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var detected = new List<DetectedTablet>(tablets.Count);
+            // Collected here and written ONCE below, after the essential daemon reads (#735). Writing
+            // per tablet inside this loop rewrote the whole preference file per tablet per reload, and a
+            // failed write threw into the outer catch — so an unwritable timestamp could stop working
+            // device and settings state from ever reaching the UI.
+            var lastSeenUpdates = new Dictionary<string, string>();
             foreach (var t in tablets)
             {
                 var props = t["Properties"] ?? t;
@@ -615,7 +662,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                     // Key normalized to lower-case so the read side (keyed by the profile's
                     // Tablet name) matches even if the daemon's reported casing drifts from the
                     // profile's — detection is case-insensitive, so persistence must be too (#138).
-                    AppSettings.Set(LastSeenKey(name), DateTime.Now.ToString("o"));
+                    lastSeenUpdates[LastSeenKey(name)] = DateTime.Now.ToString("o");
                 }
                 detected.Add(ParseDetectedTablet(t));
             }
@@ -653,8 +700,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // interesting when the detected list is empty.
             DaemonCannotOpenTablet = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
 
-            // Settings (typed) + profile derivation
-            _settings = await _daemon.GetSettingsAsync();
+            // Settings (typed) + profile derivation.
+            //
+            // Skipped entirely while a per-app override is live (#737): the daemon is running a transient
+            // snapshot, and reading it back here would make that snapshot the editor's baseline — the
+            // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
+            // is whatever it already was, and survives the poll and a reconnect.
+            if (!HasEphemeralOverride)
+                _settings = await _daemon.GetSettingsAsync();
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
@@ -704,6 +757,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 ConfigurationDirectory = appInfo.ConfigurationDirectory ?? "";   // authoritative override folder (#480/#467)
             }
 
+            // Best-effort history, deliberately AFTER every essential read (#735). SetMany never throws
+            // and never aborts the load: a tablet the user can see and configure matters more than
+            // remembering when we last saw it. AppSettings logs the failure and flags LastWriteFailed.
+            AppSettings.SetMany(lastSeenUpdates);
+
             // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
             // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
             // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
@@ -719,7 +777,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
 
             // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
-            _lastLoadedSettingsJson = SerializeForCompare(_settings);
+            // While an override is live the daemon does NOT hold _settings, so there is no honest value
+            // for this — null disables the guard rather than letting it skip an apply on the strength of
+            // a comparison against settings the daemon isn't running (#737).
+            _lastLoadedSettingsJson = HasEphemeralOverride ? null : SerializeForCompare(_settings);
 
             DataLoaded?.Invoke();
 
@@ -781,8 +842,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
     }
 
-    /// <summary>Applies settings to the daemon, persists to disk (best-effort), and reloads. UI-thread only.</summary>
-    public async Task ApplyAndSaveSettingsAsync(Settings settings)
+    /// <summary>Applies settings to the daemon, persists to disk, and reloads. UI-thread only.
+    /// Reports what actually happened rather than collapsing apply and persist into one result (#734).</summary>
+    public async Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
     {
         // Verify up front so an off-thread caller fails before any side effects (daemon write,
         // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
@@ -791,8 +853,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
         // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
         // common "same value written back repeatedly" loop without a save flicker.
-        if (SerializeForCompare(settings) is { } json && json == _lastLoadedSettingsJson)
-            return;
+        //
+        // It must ALSO be what we last persisted (#734). The baseline is the last daemon-LOADED settings,
+        // so after a save failure the reload records the unsaved change as the baseline — retrying the
+        // identical settings then returned here and persistence was never retried. Requiring both means
+        // an unsaved change always gets another chance at disk.
+        if (SerializeForCompare(settings) is { } json
+            && json == _lastLoadedSettingsJson
+            && json == _lastPersistedSettingsJson)
+            return SettingsApplyOutcome.NoChange;
 
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
@@ -800,7 +869,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             System.Diagnostics.Debug.WriteLine(
                 "AppSession: apply-loop breaker tripped — skipping ApplyAndSave to avoid a hang (a UI binding is looping).");
-            return;
+            return SettingsApplyOutcome.Skipped;
         }
 
         // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
@@ -814,24 +883,75 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             AppLog.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
                         "(would otherwise crash the OpenTabletDriver UX).");
         _settings = settings;
+        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
+        HasEphemeralOverride = false;
 
         SaveState = SettingsSaveState.Saving;
-        bool saved;
+        bool applied;
         try
         {
-            await _daemon.SetSettingsAsync(settings);
-            // Persist to disk (same as OTD's own UX Save). Surface the result (#321/#21): a failed write
-            // means the change is live but won't survive a daemon restart, which we must not hide.
-            saved = string.IsNullOrEmpty(SettingsFilePath) || _settingsStore.TrySave(settings, SettingsFilePath);
+            // False means there is no transport: the change was NOT sent, so it isn't live and we must
+            // not say it is (#734). Previously this returned quietly and we reported success.
+            applied = await _daemon.SetSettingsAsync(settings);
         }
-        catch
+        catch (Exception ex)
         {
-            SaveState = SettingsSaveState.Failed;
+            // Reachable daemon, failed call. Not live, not saved — a different state from "live but
+            // unpersisted", and the UI text must not claim otherwise.
+            SaveState = SettingsSaveState.ApplyFailed;
+            AppLog.Warn("Couldn't apply settings to the daemon.", ex);
             throw; // keep the existing error-propagation contract for callers
         }
+
+        if (!applied)
+        {
+            SaveState = SettingsSaveState.Disconnected;
+            AppLog.Warn("Couldn't apply settings: not connected to the daemon.");
+            return SettingsApplyOutcome.Disconnected;
+        }
+
+        // Persist to disk (same as OTD's own UX Save). Apply and persist are separate outcomes: a failed
+        // write means the change is live but won't survive a daemon restart, which we must not hide.
+        // An empty settings path is NOT a successful save — there is nowhere to write (#734).
+        bool saved = !string.IsNullOrEmpty(SettingsFilePath)
+            && _settingsStore.TrySave(settings, SettingsFilePath);
+
+        // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
+        _lastPersistedSettingsJson = saved ? SerializeForCompare(settings) : null;
+        _pendingPersistSettings = saved ? null : settings;
+
+        if (!saved)
+            AppLog.Warn(string.IsNullOrEmpty(SettingsFilePath)
+                ? "Settings applied but not saved: the daemon reported no settings file path."
+                : $"Settings applied but not saved: couldn't write {SettingsFilePath}.");
+
         SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
 
         await LoadDataAsync();
+        return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
+    }
+
+    /// <summary>
+    /// Retries the disk write for settings the daemon already accepted but that failed to persist (#734).
+    /// No daemon write and no reload — the change is already live; only the file is behind.
+    /// </summary>
+    public Task<SettingsApplyOutcome> RetryPersistAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_pendingPersistSettings is not { } pending)
+            return Task.FromResult(SettingsApplyOutcome.NoChange);
+        if (string.IsNullOrEmpty(SettingsFilePath))
+            return Task.FromResult(SettingsApplyOutcome.Unsaved);
+
+        SaveState = SettingsSaveState.Saving;
+        bool saved = _settingsStore.TrySave(pending, SettingsFilePath);
+        if (saved)
+        {
+            _lastPersistedSettingsJson = SerializeForCompare(pending);
+            _pendingPersistSettings = null;
+        }
+        SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
+        return Task.FromResult(saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved);
     }
 
     /// <summary>Deterministic string form of the settings for cheap equality comparison (the no-op apply
@@ -851,6 +971,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
         _settings = settings;
+        HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
         // Apply live, reload — but deliberately do NOT TrySave: this is a temporary override, so the
         // saved settings.json default must stay intact (#320). No save chip either; the override cue owns
         // the feedback.
@@ -868,20 +989,72 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // or reload — CurrentSettings must stay on the user's default so the editor edits the default, not
         // the transient per-app snapshot. Live pen streams read daemon reports, so they still update.
         await _daemon.SetSettingsAsync(settings);
+
+        // Flag it so the background reload stops overwriting the baseline with what the daemon now holds
+        // (#737). Keeping _settings untouched here was never enough on its own: the 30-second poll read
+        // the daemon back into it, so a transient snapshot silently became the editor's baseline and the
+        // source a "restore default" would restore from.
+        HasEphemeralOverride = true;
     }
 
     /// <inheritdoc />
-    public async Task RestoreDefaultAsync()
+    public async Task ClearEphemeralOverrideAsync()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_settings is not { } baseline)
+        {
+            HasEphemeralOverride = false;
+            return;
+        }
+
+        await _daemon.SetSettingsAsync(baseline);
+        HasEphemeralOverride = false;
+        // The daemon is back on the baseline, so a reload can safely read it again.
+        await LoadDataAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<SettingsRestoreOutcome> RestoreDefaultAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
         // Re-read the saved default from disk (untouched by a live-only override) and apply it.
-        if (!string.IsNullOrEmpty(SettingsFilePath)
-            && _settingsStore.TryLoad(SettingsFilePath, out var def) && def != null)
+        // Every way this can fall short now has its own outcome (#734): previously the method finished
+        // silently when the default couldn't be loaded, and the caller cleared the override indicator
+        // and announced a restoration that never happened — while the override was still running.
+        if (string.IsNullOrEmpty(SettingsFilePath)
+            || !_settingsStore.TryLoad(SettingsFilePath, out var def) || def == null)
         {
-            _settings = def;
-            await _daemon.SetSettingsAsync(def);
+            AppLog.Warn("Couldn't restore the saved default: no readable settings file. " +
+                        "Any active override is still in effect.");
+            await LoadDataAsync();
+            return SettingsRestoreOutcome.SourceUnavailable;
         }
+
+        bool applied;
+        try
+        {
+            applied = await _daemon.SetSettingsAsync(def);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Couldn't restore the saved default: the daemon rejected it. " +
+                        "Any active override is still in effect.", ex);
+            await LoadDataAsync();
+            return SettingsRestoreOutcome.Failed(ex);
+        }
+
+        if (!applied)
+        {
+            AppLog.Warn("Couldn't restore the saved default: not connected to the daemon. " +
+                        "Any active override is still in effect.");
+            await LoadDataAsync();
+            return SettingsRestoreOutcome.Disconnected;
+        }
+
+        _settings = def;
+        HasEphemeralOverride = false;   // restored to the saved default; no override remains (#737)
         await LoadDataAsync();
+        return SettingsRestoreOutcome.Restored;
     }
 
     /// <summary>Force the Pen Dynamics filter present + enabled across all profiles and persist — the Home

@@ -158,10 +158,13 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
         return await _rpc.InvokeAsync<Settings>("GetSettings");
     }
 
-    public async Task SetSettingsAsync(Settings settings)
+    /// <summary>Pushes settings to the daemon. Returns false when there is no transport — the caller must
+    /// not report an unsent change as live (#734). Throws if the daemon is reachable but the call fails.</summary>
+    public async Task<bool> SetSettingsAsync(Settings settings)
     {
-        if (_rpc == null) return;
+        if (_rpc == null) return false;
         await _rpc.InvokeAsync("SetSettings", settings);
+        return true;
     }
 
     public async Task<AppInfo?> GetAppInfoAsync()

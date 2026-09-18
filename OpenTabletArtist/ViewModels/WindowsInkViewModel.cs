@@ -236,6 +236,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
 
             // Online first: the daemon downloads the newest compatible release from the plugin repo.
             bool ok = _winInkLatest != null && await _session.Daemon.DownloadPluginAsync(_winInkLatest);
+            bool bundleIncompatible = false;
             if (ok)
             {
                 if (isUpgrade) await _session.RestartDaemonCommand.ExecuteAsync(null);
@@ -248,7 +249,10 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
             {
                 var outcome = _bundledWinInk.EnsureInstalled(_session.PluginDirectory);
                 await PluginInstallApplier.ApplyAsync(_session, outcome);
-                ok = outcome != PluginInstallOutcome.None;
+                // Only a real install counts. Incompatible means the bundle was deliberately refused
+                // (#739) — treating that as success would report a working plugin that isn't there.
+                ok = outcome is PluginInstallOutcome.Installed or PluginInstallOutcome.Updated;
+                bundleIncompatible = outcome == PluginInstallOutcome.Incompatible;
             }
 
             RefreshWindowsInkInstalledStatus();
@@ -256,8 +260,13 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
 
             if (!ok)
             {
-                await _dialogs.ShowMessageAsync("Windows Ink Plugin",
-                    "Couldn't install the Windows Ink plugin. Check your internet connection and try again.");
+                // The two failures need different advice: a bundle we refused won't be fixed by
+                // reconnecting, and the artist should know the offline copy exists but doesn't fit (#739).
+                await _dialogs.ShowMessageAsync("Windows Ink Plugin", bundleIncompatible
+                    ? "Couldn't install the Windows Ink plugin. The copy bundled with this build doesn't "
+                      + "support its version of OpenTabletDriver, so it wasn't installed. Connect to the "
+                      + "internet to fetch a matching version, or update OpenTabletArtist."
+                    : "Couldn't install the Windows Ink plugin. Check your internet connection and try again.");
             }
             else
             {

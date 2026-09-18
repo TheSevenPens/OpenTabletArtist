@@ -250,8 +250,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The recorded taps that carry a pixel-equivalent, for the error map. Empty for a legacy
     /// capture, which has no measured position to draw against its target.</summary>
-    [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints =
-        System.Array.Empty<CalibrationReportPoint>();
+    [ObservableProperty] private IReadOnlyList<CalibrationReportPoint> _calibrationErrorPoints = [];
 
     /// <summary>There are points to draw — gates the whole map block.</summary>
     [ObservableProperty] private bool _hasCalibrationErrorMap;
@@ -1529,23 +1528,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // Thresholds change rapidly while a slider is dragged — debounce into one apply (and one rebuild)
     // so the slider isn't yanked out from under the drag.
     private readonly Dictionary<(int Wheel, bool Clockwise), double> _pendingThresholds = new();
-    private CancellationTokenSource? _wheelThresholdCts;
+    private readonly TrailingDebounce _wheelThresholdDebounce = new(350, "wheel threshold");
 
     private Task ApplyWheelThresholdAsync(int wheelIndex, bool clockwise, double degrees)
     {
         _pendingThresholds[(wheelIndex, clockwise)] = degrees;
-        _wheelThresholdCts?.Cancel();
-        var cts = _wheelThresholdCts = new CancellationTokenSource();
-        _ = DebounceAsync(cts.Token);
+        _wheelThresholdDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistThresholdsAsync));
         return Task.CompletedTask;
-
-        async Task DebounceAsync(CancellationToken ct)
-        {
-            try { await Task.Delay(350, ct); }
-            catch (TaskCanceledException) { return; }
-            if (ct.IsCancellationRequested) return;
-            await Dispatcher.UIThread.InvokeAsync(PersistThresholdsAsync);
-        }
     }
 
     private async Task PersistThresholdsAsync()
@@ -1810,7 +1799,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public double PressureSmoothingMax => PenSmoothing.MaxPressureSmoothingAmount;
 
     private bool _skipCurvePersist;
-    private CancellationTokenSource? _persistCts;
+    private readonly TrailingDebounce _persistDebounce = new(400, "pen dynamics");
 
     partial void OnPressureSmoothingChanged(double value)
     {
@@ -2094,7 +2083,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _activeAreaSizePercent = 100;
     private bool _syncingSize;
     private bool _sizeEditPending;   // a user slider edit is in flight (see OnActiveAreaSizePercentChanged)
-    private System.Threading.CancellationTokenSource? _sizeCts;
+    private readonly TrailingDebounce _sizeDebounce = new(250, "active area size");
 
     partial void OnActiveAreaSizePercentChanged(double value)
     {
@@ -2104,17 +2093,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // stored value mid-debounce — that was the "click a new spot, snaps back to the previous value"
         // bug (#size-snapback).
         _sizeEditPending = true;
-        _sizeCts?.Cancel();
-        _sizeCts = new System.Threading.CancellationTokenSource();
-        var token = _sizeCts.Token;
-        _ = DebouncedResize(token);
+        _sizeDebounce.Schedule(ResizeAsync);
     }
 
-    private async Task DebouncedResize(System.Threading.CancellationToken token)
+    // Runs on the UI thread: the debounce preserves the context captured when the slider raised its
+    // change, and the body reads and writes VM state directly.
+    private async Task ResizeAsync()
     {
-        try { await Task.Delay(250, token); } catch (TaskCanceledException) { return; }
-        if (token.IsCancellationRequested) return;
-
         var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
         var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
         if (dig is not { } d || display == null) { _sizeEditPending = false; return; }
@@ -2206,17 +2191,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void SchedulePersist()
     {
         if (_skipCurvePersist || _applyAction == null || _settings == null) return;
-        _persistCts?.Cancel();
-        var cts = _persistCts = new CancellationTokenSource();
-        _ = DebounceAsync(cts.Token);
-
-        async Task DebounceAsync(CancellationToken ct)
-        {
-            try { await Task.Delay(400, ct); }
-            catch (TaskCanceledException) { return; }
-            if (ct.IsCancellationRequested) return;
-            await Dispatcher.UIThread.InvokeAsync(PersistCurveAsync);
-        }
+        _persistDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistCurveAsync));
     }
 
     private async Task PersistCurveAsync()
@@ -2249,7 +2224,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public double HoverControlsOpacity => HoverLimitEnabled ? 1.0 : 0.4;
 
     private bool _skipHoverPersist;
-    private CancellationTokenSource? _hoverPersistCts;
+    private readonly TrailingDebounce _hoverPersistDebounce = new(400, "hover");
 
     partial void OnHoverLimitEnabledChanged(bool value) => SchedulePersistHover();
     partial void OnNearProximityOnlyChanged(bool value) => SchedulePersistHover();
@@ -2263,17 +2238,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void SchedulePersistHover()
     {
         if (_skipHoverPersist || _applyAction == null || _settings == null) return;
-        _hoverPersistCts?.Cancel();
-        var cts = _hoverPersistCts = new CancellationTokenSource();
-        _ = DebounceAsync(cts.Token);
-
-        async Task DebounceAsync(CancellationToken ct)
-        {
-            try { await Task.Delay(400, ct); }
-            catch (TaskCanceledException) { return; }
-            if (ct.IsCancellationRequested) return;
-            await Dispatcher.UIThread.InvokeAsync(PersistHoverAsync);
-        }
+        _hoverPersistDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistHoverAsync));
     }
 
     private async Task PersistHoverAsync()
@@ -2284,6 +2249,19 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         await _applyAction(_settings);
     }
 
+    /// <summary>
+    /// Close policy (#736): pending edits are <b>cancelled</b>, not flushed.
+    ///
+    /// These view models are cached for the life of the app and disposed only during shutdown, a few
+    /// lines before the session itself goes away. Flushing here would mean a daemon RPC plus a disk write
+    /// racing teardown, and the flush would have to be awaited from a synchronous Dispose on the UI
+    /// thread — the callbacks marshal back to that same thread, so blocking on them would deadlock.
+    ///
+    /// The cost is that an edit made inside the 250–400 ms before quitting is dropped. That is the
+    /// deliberate trade: previously those callbacks still fired, pushing settings at a half-disposed
+    /// session. Flushing safely needs the debounce to be owned by something that can be awaited before
+    /// teardown, which belongs with the settings-coordinator extraction (#740).
+    /// </summary>
     public void Dispose()
     {
         if (_deviceData != null)
@@ -2293,6 +2271,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
         DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
         StopLiveInput();
+        _wheelThresholdDebounce.Dispose();
+        _persistDebounce.Dispose();
+        _sizeDebounce.Dispose();
+        _hoverPersistDebounce.Dispose();
         _mappingApplyGate.Dispose();
     }
 }

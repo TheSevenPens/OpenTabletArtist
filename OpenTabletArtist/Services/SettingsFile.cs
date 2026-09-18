@@ -6,13 +6,31 @@ using OpenTabletArtist.Domain;
 namespace OpenTabletArtist.Services;
 
 /// <summary>
-/// The read side of <see cref="AppSettings"/>, extracted so it takes an explicit path + timestamp and is
+/// The read and write sides of <see cref="AppSettings"/>, extracted so they take an explicit path and are
 /// unit-testable without touching the real <c>%LOCALAPPDATA%</c> file (#21). Reads and parses the JSON; on a
 /// read/parse failure it moves the unreadable file aside to a timestamped backup <em>before</em> returning
 /// defaults, and reports whether that preservation succeeded so the caller can describe recovery truthfully.
 /// </summary>
 public static class SettingsFile
 {
+    /// <summary>Write the settings JSON to <paramref name="path"/>, creating the directory if needed.
+    /// Never throws — returns false when the write failed, so a preference write can't take down whatever
+    /// the caller was actually doing (#735). The caller is responsible for reporting the failure.</summary>
+    public static bool Write(string path, JObject data)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(path)!;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(path, data.ToString());
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>Read the settings JSON at <paramref name="path"/>. Never throws: a missing or clean file
     /// yields <see cref="SettingsLoadStatus.Ok"/>; an unreadable one is moved to a backup named with
     /// <paramref name="timestamp"/> and reported as <see cref="SettingsLoadStatus.Preserved"/>, or
