@@ -145,9 +145,21 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             if (!proc.WaitForExit(EarlyExitWindow)) return null;   // still running — the normal path
 
             AppLog.Warn($"The daemon at {daemonPath} exited immediately (exit code {proc.ExitCode}).");
+
+            // The host has a specific exit code for "I found no runtime to run this", so say that
+            // outright instead of offering it as one possibility among several (#786, D2). This is the
+            // authoritative signal: it comes from the thing that actually resolves the runtime, and it
+            // is right even when a directory listing suggests otherwise.
+            if (Domain.DotnetRuntime.IsMissingRuntimeExit(proc.ExitCode))
+            {
+                return $"The daemon at {daemonPath} needs the .NET {Domain.DotnetRuntime.DaemonMajor} "
+                     + "runtime, and this machine doesn't have it. Install \".NET Runtime "
+                     + $"{Domain.DotnetRuntime.DaemonMajor}.0\" (x64) from Microsoft and try again, or "
+                     + "point OTA at a different OpenTabletDriver on the Daemon page.";
+            }
+
             return $"The daemon at {daemonPath} started and exited immediately (exit code {proc.ExitCode}). "
-                 + "It may be a build that needs a .NET runtime this machine doesn't have, or an "
-                 + "incomplete install — try a different OpenTabletDriver on the Daemon page.";
+                 + "It may be an incomplete install — try a different OpenTabletDriver on the Daemon page.";
         }
         catch (Exception ex)
         {
