@@ -96,8 +96,19 @@ jobs:
 
       # Bundle the OTD daemon next to the app in a Daemon/ subfolder — the app's daemon-locate
       # logic (DaemonExePaths) checks this path first, so auto-start works in the release.
-      - name: Publish daemon into the app's Daemon/ folder
-        run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -o publish/OpenTabletArtist/Daemon
+      #
+      # Single-file for the same reasons as the app, and it is the larger half of the size win: 260 files
+      # and 78 MB become one file and 37 MB (#585). Tablet configurations are EmbeddedResource inside
+      # OpenTabletDriver.Configurations.dll, so they travel in the bundle rather than needing loose files.
+      #
+      # What this drops: the satellite resource assemblies for StreamJsonRpc, System.CommandLine and the
+      # VS Threading libraries — localized text for *their* exception messages. Those strings surface in
+      # logs, not in OTA's UI, so English is an acceptable trade for 13 folders.
+      #
+      # The smoke step below runs this exe, because "the daemon no longer starts" is the failure that
+      # would matter most and it costs a second to rule out.
+      - name: Publish daemon into the app's Daemon/ folder (single file)
+        run: dotnet publish external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish/OpenTabletArtist/Daemon
 
       # Bundle our pressure-curve OTD plugin so the app can install it into the daemon's plugin dir
       # at runtime (PressurePluginInstaller looks for BundledPlugins/<folder>/ next to the app first).
@@ -274,6 +285,14 @@ jobs:
             Write-Host "::error::The release root should hold only OpenTabletArtist.exe, but also has: $($loose.Name -join ', ')"
             throw "Single-file publish did not produce a single-file root."
           }
+
+          # Same for the daemon folder (#585).
+          $looseDaemon = Get-ChildItem "$root/Daemon" -File |
+            Where-Object { $_.Name -ne 'OpenTabletDriver.Daemon.exe' }
+          if ($looseDaemon) {
+            Write-Host "::error::Daemon/ should hold only OpenTabletDriver.Daemon.exe, but also has: $($looseDaemon.Name -join ', ')"
+            throw "Single-file publish did not produce a single-file Daemon folder."
+          }
           foreach ($rel in $required) {
             if (-not (Test-Path (Join-Path $root $rel))) { $missing += $rel }
           }
@@ -343,6 +362,26 @@ jobs:
             throw "Packaged-bundle smoke test failed."
           }
           Write-Host "The packaged app started and located every bundled component."
+
+      # The daemon is single-file too (#585), so the assemblies it needs live inside the bundle rather
+      # than beside it. --version starts the host, loads the bundle and exits without opening the pipe or
+      # touching a tablet, which is the most that can be checked on a runner with no hardware.
+      #
+      # This does NOT cover plugin loading: OTA installs the Pen Dynamics plugin into the daemon's plugin
+      # directory and the daemon loads it by reflection through a custom AssemblyLoadContext. Whether a
+      # plugin resolves its OpenTabletDriver.Plugin reference out of the bundle needs a real tablet and a
+      # real plugin, so it is verified by hand, not here.
+      - name: Smoke-test the packaged daemon
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $daemon = Resolve-Path 'publish/OpenTabletArtist/Daemon/OpenTabletDriver.Daemon.exe'
+          $out = & $daemon --version 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::The packaged daemon did not start (exit $LASTEXITCODE): $out"
+            throw "Packaged-daemon smoke test failed."
+          }
+          Write-Host "The packaged daemon started and reported version: $out"
 
       - name: Package zip
         shell: pwsh
