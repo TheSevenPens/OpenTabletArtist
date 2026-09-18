@@ -352,6 +352,14 @@
                                    IsVisible="{Binding HasRuntimeInstallProblem}"
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
+
+                    <!-- Outside the offer above, deliberately: a successful install removes the offer, and
+                         with it anything drawn inside it — including "Windows needs a restart", which is
+                         precisely the moment the user needs to read something. -->
+                    <TextBlock Margin="0,14,0,0" TextWrapping="Wrap"
+                               Text="{Binding RuntimeInstallOutcome}"
+                               IsVisible="{Binding HasRuntimeInstallOutcome}"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
             </c:Section>
             </StackPanel>

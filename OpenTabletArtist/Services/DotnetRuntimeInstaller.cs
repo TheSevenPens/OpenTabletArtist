@@ -20,19 +20,16 @@ namespace OpenTabletArtist.Services;
 ///
 /// <para><b>Why there is no pinned digest here, unlike every other download OTA makes.</b> The VMulti
 /// archive and the OTD release are fixed artifacts, so OTA pins their hashes and refuses anything else
-/// (#769). Microsoft's runtime installer is not fixed: the same URL serves whatever patch is current
-/// (8.0.31 today), and pinning would mean shipping an installer that goes stale and eventually
-/// disappears. The protection is different in kind:</para>
-/// <list type="bullet">
-/// <item>HTTPS to a Microsoft-controlled host;</item>
-/// <item>the file is checked for an Authenticode signature naming Microsoft before OTA offers to run it,
-/// which catches a wrong or tampered file before the user is asked to elevate;</item>
-/// <item>and Windows itself validates that signature when the elevation prompt appears, showing the
-/// verified publisher. A tampered installer reaches the user as "Unknown publisher", which is a
-/// stronger signal than anything OTA could print.</item>
-/// </list>
-/// <para>That is a deliberate position rather than an omission, and it should be revisited if Microsoft
-/// ever publishes per-release hashes at a stable location.</para>
+/// (#769). Microsoft's runtime installer is not fixed: the same URL serves whatever patch is current, and
+/// pinning would mean shipping an installer that goes stale and eventually 404s.</para>
+/// <para>What replaces the pin is <b>Authenticode verification</b> — the file's signature is checked
+/// against its bytes and its certificate chain to a trusted root, and only then is the publisher
+/// examined. A changing URL does not need a pinned digest if the signature check is real.</para>
+/// <para>An earlier version of this checked only that the embedded certificate <em>named</em> Microsoft,
+/// which verified nothing: a tampered file carrying a copied certificate passes that, because reading a
+/// certificate is not validating a signature. It also leaned on Windows re-checking at the elevation
+/// prompt, which is true but is not OTA's check to delegate — by then the user has already been asked to
+/// run the thing.</para>
 /// </summary>
 public sealed class DotnetRuntimeInstaller
 {
@@ -92,6 +89,8 @@ public sealed class DotnetRuntimeInstaller
             if (downloadProblem != null) return Result.Failed(downloadProblem);
 
             StatusChanged?.Invoke("Checking the installer's signature…");
+            if (!IsAuthenticodeValid(installer))
+                return Result.Failed("The downloaded installer's signature isn't valid; refusing to run it.");
             if (SignerName(installer) is not { } signer)
                 return Result.Failed("The downloaded installer isn't signed; refusing to run it.");
             if (!IsMicrosoftSigner(signer))
@@ -99,7 +98,7 @@ public sealed class DotnetRuntimeInstaller
                                      + "refusing to run it.");
 
             StatusChanged?.Invoke("Installing (Windows will ask for administrator rights)…");
-            return RunInstaller(installer);
+            return await RunInstallerAsync(installer, ct);
         }
         catch (OperationCanceledException)
         {
@@ -187,12 +186,18 @@ public sealed class DotnetRuntimeInstaller
         }
     }
 
+    /// <summary>ERROR_CANCELLED — the user answered "no" to the elevation prompt.</summary>
+    private const int ElevationDeclined = 1223;
+
     /// <summary>
     /// Runs the installer elevated and interprets what it says. <c>runas</c> is what produces the UAC
     /// prompt — and with it the publisher Windows has verified.
+    ///
+    /// Waits asynchronously. This is awaited from a UI command whose continuations resume on the UI
+    /// thread, so a synchronous wait froze the whole app for the length of an install.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    private static Result RunInstaller(string installer)
+    private static async Task<Result> RunInstallerAsync(string installer, CancellationToken ct)
     {
         Process? proc;
         try
@@ -206,16 +211,123 @@ public sealed class DotnetRuntimeInstaller
                 Verb = "runas",
             });
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == ElevationDeclined)
         {
-            // The canonical "user said no to UAC". Not a failure to report or retry — they answered.
+            // Specifically "user said no to UAC". Not a failure to report or retry — they answered.
             return Result.Declined;
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Anything else failed to start, and reading that as consent would hide a real problem
+            // behind a shrug — the user would see nothing at all.
+            AppLog.Warn($"Couldn't start the .NET runtime installer (Win32 {ex.NativeErrorCode}).", ex);
+            return Result.Failed($"The .NET runtime installer couldn't be started: {ex.Message}");
         }
 
         if (proc == null) return Result.Failed("The .NET runtime installer didn't start.");
 
-        proc.WaitForExit();
-        return InterpretExitCode(proc.ExitCode);
+        using (proc)
+        {
+            await proc.WaitForExitAsync(ct);
+            return InterpretExitCode(proc.ExitCode);
+        }
+    }
+
+    /// <summary>
+    /// Whether Windows itself considers the file's Authenticode signature valid: the signature checked
+    /// against the bytes, and the certificate chain to a trusted root.
+    ///
+    /// This is the check; <see cref="SignerName"/> only says who claims to have signed it, which is
+    /// meaningless on its own. Revocation is not checked — it needs the network and fails awkwardly
+    /// behind captive portals or offline, and the chain validation is what matters here.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static bool IsAuthenticodeValid(string path)
+    {
+        var file = new WinTrustFileInfo
+        {
+            cbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>(),
+            pcwszFilePath = Marshal.StringToCoTaskMemUni(path),
+            hFile = IntPtr.Zero,
+            pgKnownSubject = IntPtr.Zero,
+        };
+        var pFile = Marshal.AllocCoTaskMem(Marshal.SizeOf<WinTrustFileInfo>());
+        Marshal.StructureToPtr(file, pFile, false);
+
+        var data = new WinTrustData
+        {
+            cbStruct = (uint)Marshal.SizeOf<WinTrustData>(),
+            dwUIChoice = WTD_UI_NONE,
+            fdwRevocationChecks = WTD_REVOKE_NONE,
+            dwUnionChoice = WTD_CHOICE_FILE,
+            pFile = pFile,
+            dwStateAction = WTD_STATEACTION_VERIFY,
+        };
+        var pData = Marshal.AllocCoTaskMem(Marshal.SizeOf<WinTrustData>());
+        Marshal.StructureToPtr(data, pData, false);
+
+        var action = WinTrustActionGenericVerifyV2;
+        try
+        {
+            var result = WinVerifyTrust(IntPtr.Zero, ref action, pData);
+
+            // Always run the CLOSE pass: VERIFY allocates state that leaks otherwise.
+            var closing = Marshal.PtrToStructure<WinTrustData>(pData);
+            closing.dwStateAction = WTD_STATEACTION_CLOSE;
+            Marshal.StructureToPtr(closing, pData, false);
+            WinVerifyTrust(IntPtr.Zero, ref action, pData);
+
+            return result == 0;   // anything else: unsigned, tampered, or an untrusted chain
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Couldn't verify the signature of {path}.", ex);
+            return false;   // couldn't check means don't run it
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(file.pcwszFilePath);
+            Marshal.FreeCoTaskMem(pFile);
+            Marshal.FreeCoTaskMem(pData);
+        }
+    }
+
+    private static Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+    private const uint WTD_UI_NONE = 2;
+    private const uint WTD_REVOKE_NONE = 0;
+    private const uint WTD_CHOICE_FILE = 1;
+    private const uint WTD_STATEACTION_VERIFY = 1;
+    private const uint WTD_STATEACTION_CLOSE = 2;
+
+    [DllImport("wintrust.dll", ExactSpelling = true)]
+    private static extern int WinVerifyTrust(IntPtr hwnd, ref Guid actionId, IntPtr data);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WinTrustFileInfo
+    {
+        public uint cbStruct;
+        public IntPtr pcwszFilePath;
+        public IntPtr hFile;
+        public IntPtr pgKnownSubject;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WinTrustData
+    {
+        public uint cbStruct;
+        public IntPtr pPolicyCallbackData;
+        public IntPtr pSIPClientData;
+        public uint dwUIChoice;
+        public uint fdwRevocationChecks;
+        public uint dwUnionChoice;
+        public IntPtr pFile;
+        public uint dwStateAction;
+        public IntPtr hWVTStateData;
+        public IntPtr pwszURLReference;
+        public uint dwProvFlags;
+        public uint dwUIContext;
+        public IntPtr pSignatureSettings;
     }
 
     /// <summary>Exit codes from the installer bundle. Separated out so the mapping is testable without

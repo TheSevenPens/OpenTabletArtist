@@ -40,6 +40,12 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         Process = new DaemonProcessViewModel(status);
         Status.PropertyChanged += (_, e) =>
         {
+            // ShowInstallRuntime also reads IsConnected, so connecting or dropping has to re-ask it —
+            // otherwise the offer to install a runtime lingers after the daemon comes up, or fails to
+            // appear when it goes away.
+            if (e.PropertyName is nameof(DaemonStatusViewModel.IsConnected))
+                OnPropertyChanged(nameof(ShowInstallRuntime));
+
             if (e.PropertyName is nameof(DaemonStatusViewModel.IsDaemonExeMissing))
             {
                 OnPropertyChanged(nameof(ShowLocateCard));
@@ -166,6 +172,17 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     public bool HasRuntimeInstallProblem => !string.IsNullOrEmpty(RuntimeInstallProblem);
 
+    /// <summary>
+    /// What the install did, shown <b>outside</b> the offer. A successful install makes the offer
+    /// disappear — that is the point of it — so anything rendered inside the offer vanishes with it,
+    /// including "you need to reboot", which is exactly when the user needs to read it.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRuntimeInstallOutcome))]
+    private string _runtimeInstallOutcome = "";
+
+    public bool HasRuntimeInstallOutcome => !string.IsNullOrEmpty(RuntimeInstallOutcome);
+
     [ObservableProperty] private bool _isInstallingRuntime;
 
     [RelayCommand]
@@ -174,6 +191,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         if (IsInstallingRuntime) return;
         IsInstallingRuntime = true;
         RuntimeInstallProblem = "";
+        RuntimeInstallOutcome = "";
         InstallProgress = 0;
         try
         {
@@ -192,13 +210,25 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (result.RebootRequired)
-                RuntimeInstallProblem = "The .NET runtime is installed, but Windows needs a restart to "
-                                        + "finish. The tablet will work after you reboot.";
+            RuntimeInstallOutcome = result.RebootRequired
+                ? "The .NET runtime is installed, but Windows needs a restart to finish. The tablet will "
+                  + "work after you reboot."
+                : "The .NET runtime is installed.";
 
             // The offer is derived from what's on disk, so re-ask now that the answer has changed.
             OnPropertyChanged(nameof(ShowInstallRuntime));
-            await Status.RefreshCommand.ExecuteAsync(null);
+
+            // Refresh alone only retries the pipe — it never launches anything. On this path the daemon
+            // exited the moment it was started, because there was no runtime, so there is nothing to
+            // reconnect to and refreshing would sit at "not connected" having apparently done nothing.
+            //
+            // Starting it explicitly is right *here* and nowhere else: the user asked for this recovery.
+            // Ordinary reconnects must still never auto-launch a daemon, which is what keeps OTA from
+            // fighting someone who stopped one deliberately (#787).
+            if (!Status.IsConnected && Status.StartDaemonCommand.CanExecute(null))
+                await Status.StartDaemonCommand.ExecuteAsync(null);
+            else
+                await Status.RefreshCommand.ExecuteAsync(null);
         }
         finally
         {
