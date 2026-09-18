@@ -277,6 +277,37 @@ left.
 - **A stale user path degrades gracefully.** The ladder takes the first candidate that exists, so a
   `daemon.userPath` pointing at nothing is skipped rather than breaking the app.
 
+## Settings live in the shared location, on purpose
+
+**Decided.** The bundled daemon reads and writes `%LOCALAPPDATA%\OpenTabletDriver`, the same place any
+other OpenTabletDriver install uses. It is not given a private data directory.
+
+OTD picks its data directory with
+`GetExistingPathOrLast(ProgramDirectory/userdata, $LOCALAPPDATA\OpenTabletDriver)` — a `userdata` folder
+beside the executable wins if it exists, and OTD's own `convert_to_portable.bat` creates one by copying
+the shared directory into it. **OTA creates no such folder**, which is what makes the bundled daemon share.
+Isolating it is one `mkdir` in the release workflow; that is precisely why this needs writing down.
+
+Why shared:
+
+- **It is already the behaviour**, and has been since long before the daemon became an upstream binary.
+  Switching to isolation is not a neutral choice, it is a migration: existing users' settings, plugins and
+  presets would appear to vanish, and copying them across would leave two copies that then diverge.
+- **Continuity in the direction people actually travel.** Someone who sets their tablet up in OTA and
+  later installs OpenTabletDriver's own UX finds their configuration already there. Isolation would show
+  them an unconfigured driver and no clue where their setup went.
+- **The rest of the design already assumes it.** OTA deliberately keeps `settings.json` valid for OTD's UI
+  and re-validates on a timer *because* the other UX may be editing the same file.
+
+The cost, recorded so it is not rediscovered as a surprise: a user running a newer OpenTabletDriver has a
+`settings.json` written by a newer schema, and OTA's bundled daemon will read it. The `otd.driver` health
+row warns about the *version* difference; nothing guards the *data*. That is the scenario to watch, and
+the argument that would reopen this — but it does not outweigh the continuity cost today.
+
+Update ownership follows from the same place: the **bundled** daemon is replaced when OTA releases, pinned
+by digest to the submodule tag, and an **adopted** install is OpenTabletDriver's own business — OTA
+neither suppresses nor duplicates its updater.
+
 ## Open questions
 
 - **Windows bundling.** Is a .NET 8 prerequisite acceptable in exchange for an official binary, or is
@@ -289,8 +320,6 @@ left.
   the Rosetta cost entirely. Cheap to ask, high payoff.
 - **Signed macOS artifact.** `macos-signed` exists in OTD's build wrapper but isn't published. Also worth
   raising upstream.
-- **Update ownership for bundled installs.** If OTA ships the artifact, who updates it — OTA's release
-  cadence, or OTD's own updater?
 - **Redistribution compliance.** Shipping OTD's binaries extends the redistributor obligations already
   recorded in [`136-bundling-binaries.md`](136-bundling-binaries.md); notices need review.
 
