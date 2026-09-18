@@ -181,6 +181,29 @@ public sealed record HealthInputs
     /// <see cref="SettingsLoad"/> is <see cref="SettingsLoadStatus.Preserved"/>; null otherwise. Named in the
     /// health copy so the user can find it.</summary>
     public string? SettingsBackupName { get; init; }
+
+    /// <summary>The host is Linux, so the tablet prerequisites that only exist there — OpenTabletDriver's
+    /// udev rules, the kernel modules that grab tablets first, and permission to open HID devices — are
+    /// applicable (#779). Defaults false so Windows/macOS behaviour and existing tests are unchanged.</summary>
+    public bool IsLinux { get; init; }
+    /// <summary>Linux: OpenTabletDriver's udev rules are not installed in either the local or the
+    /// distro-packaged location. Without them the tablet's HID nodes are not accessible to the daemon.</summary>
+    public bool LinuxUdevRulesMissing { get; init; }
+    /// <summary>Linux: this process cannot open any <c>/dev/hidraw*</c> node. See
+    /// <see cref="LinuxHidAccess"/> — the pending case is a granted group that isn't live yet, which is a
+    /// much less alarming thing than a refusal.</summary>
+    public LinuxHidAccess LinuxHidAccess { get; init; } = LinuxHidAccess.Ok;
+    /// <summary>Linux: a reboot rather than a re-login is needed to activate a freshly granted group,
+    /// because a per-user systemd manager is running and hands its stale group set to everything it
+    /// launches. Only consulted when <see cref="LinuxHidAccess"/> is
+    /// <see cref="LinuxHidAccess.PendingReboot"/>.</summary>
+    public bool LinuxUserManagerRunning { get; init; }
+    /// <summary>Linux: kernel modules currently bound that claim tablet devices before OpenTabletDriver
+    /// can. Empty when there are none.</summary>
+    public IReadOnlyList<string> LinuxConflictingModulesLoaded { get; init; } = new List<string>();
+    /// <summary>Linux: those modules are not blacklisted, so they will be back after a reboot.</summary>
+    public bool LinuxConflictingModulesNotBlacklisted { get; init; }
+
     public IReadOnlyList<TabletHealthInput> Tablets { get; init; } = new List<TabletHealthInput>();
     /// <summary>Synthetic warnings to emit, one per severity, induced from the Developer tab so the
     /// "Needs attention" UI can be reviewed/screenshotted. Empty in normal use.</summary>
@@ -292,6 +315,69 @@ public static class HealthEvaluator
                 "window back). Install the \"AppIndicator and KStatusNotifierItem Support\" GNOME extension to " +
                 "restore the tray icon.",
                 Remediation: null));
+        }
+
+        // --- Linux tablet prerequisites (#779), folded in from the standalone tools/OtdLinuxSetup app.
+        //
+        //     Gated on no tablet having been detected, because that is what makes them a problem. Every one
+        //     of these is a proxy: rules can live somewhere this doesn't look, a distro can grant HID access
+        //     by a route other than the input group, and a loaded wacom module only matters if it actually
+        //     claimed the device. When the daemon has a tablet, the prerequisites are met however they were
+        //     met, and saying otherwise would be nagging about a machine that works.
+        //
+        //     Detection only: the fixes write udev rules, blacklist kernel modules, regenerate the initramfs
+        //     and change group membership. Doing that from the app is a separate decision from telling the
+        //     user about it, so the copy says what to run. ---
+        bool noTabletDetected = i.Tablets.Count == 0 || i.Tablets.All(t => !t.Detected);
+        if (i.IsLinux && noTabletDetected)
+        {
+            if (i.LinuxUdevRulesMissing)
+            {
+                issues.Add(new HealthIssue("linux.udevRules", HealthSeverity.Broken,
+                    "Tablet access rules aren't installed",
+                    "Linux only lets a program read a tablet if a udev rule grants access to it, and " +
+                    "OpenTabletDriver's rules aren't installed — so no tablet will be detected no matter " +
+                    "what else is set up. Installing OpenTabletDriver from your distribution's package " +
+                    "manager puts them in place; otherwise run its generate-rules.sh and install the output " +
+                    "to /etc/udev/rules.d/, then replug the tablet.",
+                    Remediation: null));
+            }
+
+            if (i.LinuxHidAccess == LinuxHidAccess.Blocked)
+            {
+                issues.Add(new HealthIssue("linux.hidAccess", HealthSeverity.Broken,
+                    "No permission to read tablet devices",
+                    "The HID devices tablets appear as can't be opened by your user. Adding yourself to " +
+                    "the \"input\" group grants that: sudo usermod -aG input $USER, then reboot.",
+                    Remediation: null));
+            }
+            else if (i.LinuxHidAccess == LinuxHidAccess.PendingReboot)
+            {
+                // Not a fault — the grant exists, it just isn't live. Saying "permission denied" here would
+                // send someone to re-run a command that already worked.
+                issues.Add(new HealthIssue("linux.hidAccess", HealthSeverity.Information,
+                    "Tablet permissions need a restart to take effect",
+                    "You're in the \"input\" group, but this session started before that was granted, so it " +
+                    "isn't active yet. " + (i.LinuxUserManagerRunning
+                        ? "Reboot to pick it up — logging out likely won't be enough, because your systemd " +
+                          "user manager keeps running and hands its old group list to everything it starts."
+                        : "Log out and back in, or reboot, to pick it up."),
+                    Remediation: null));
+            }
+
+            if (i.LinuxConflictingModulesLoaded.Count > 0)
+            {
+                var names = string.Join(" and ", i.LinuxConflictingModulesLoaded);
+                issues.Add(new HealthIssue("linux.conflictingModules", HealthSeverity.Misconfigured,
+                    "A kernel driver may have claimed your tablet",
+                    $"The {names} kernel module is loaded. These bind tablets before OpenTabletDriver can, " +
+                    "which is a common reason a tablet is plugged in and still not detected. " +
+                    $"sudo rmmod {string.Join(" ", i.LinuxConflictingModulesLoaded)} unloads them for now; " +
+                    (i.LinuxConflictingModulesNotBlacklisted
+                        ? "blacklisting them in /etc/modprobe.d/ keeps them from returning on the next boot."
+                        : "they're already blacklisted, so they won't be back after a reboot."),
+                    Remediation: null));
+            }
         }
 
         // --- Settings file couldn't be read (#21): the app started with defaults. Two cases, with copy that

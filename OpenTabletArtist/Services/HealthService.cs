@@ -181,6 +181,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                 TiltDisabled: p.Profile.BindingSettings.DisableTilt))
             .ToList();
 
+        var linux = LinuxInputEnvironment.Current;
         var inputs = new HealthInputs
         {
             IsWindows = OperatingSystem.IsWindows(),
@@ -199,6 +200,14 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
             RunningElevated = ProcessElevation.IsElevated,
             TrayHostUnavailable = DesktopTrayEnvironment.TrayHostUnavailable,
+            // Linux tablet prerequisites (#779). The probe caches internally — health re-evaluates every
+            // 3 seconds and this reads files and opens device nodes.
+            IsLinux = OperatingSystem.IsLinux(),
+            LinuxUdevRulesMissing = !linux.UdevRulesInstalled,
+            LinuxHidAccess = linux.HidAccess,
+            LinuxUserManagerRunning = LinuxInputEnvironment.UserManagerRunning(),
+            LinuxConflictingModulesLoaded = linux.LoadedConflictingModules,
+            LinuxConflictingModulesNotBlacklisted = !linux.ConflictingModulesBlacklisted,
             // A corrupt/unreadable settings file detected on startup (#21) — surface it with the exact
             // outcome (preserved to a named backup, or not) so the Home copy is truthful.
             SettingsLoad = AppSettings.LoadOutcome.Status,
