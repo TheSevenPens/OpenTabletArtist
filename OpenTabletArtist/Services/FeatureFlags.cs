@@ -16,14 +16,17 @@ public static class FeatureFlags
     /// switcher code are untouched, so setting this back to <c>true</c> brings the feature back exactly
     /// as it was.
     ///
-    /// Still <c>false</c> after the #737 correctness work, deliberately. The ordering defects are fixed
-    /// and covered — obsolete queued targets are cancelled, applies are serialized and generation-checked,
-    /// and only a confirmed apply is committed. Baseline isolation is implemented too
-    /// (<see cref="ISettingsCoordinator.HasEphemeralOverride"/> stops the background reload adopting a
-    /// transient snapshot), but it is only verified at the applier contract; proving it end to end
-    /// through the 30-second poll and a reconnect needs the injectable daemon transport from #740.
-    /// Turning this on also wants a pass over the manual device matrix, since what it changes is what
-    /// the tablet does while the user is in another application.
+    /// Still <c>false</c>, but no longer for want of evidence. The #737 ordering defects are fixed and
+    /// covered — obsolete queued targets are cancelled, applies are serialized and generation-checked,
+    /// and only a confirmed apply is committed. Baseline isolation
+    /// (<see cref="ISettingsCoordinator.HasEphemeralOverride"/> stopping the background reload adopting a
+    /// transient snapshot) is now verified end to end through the real load path, across repeated polls
+    /// and a reconnect, by <c>AppSessionSettingsTests</c> — which the injectable transport from #740 made
+    /// possible.
+    ///
+    /// What remains before flipping it is a judgement, not a test: a pass over the manual device matrix
+    /// (docs/dev/DEVICE-MATRIX.md), since what this changes is what the tablet does while the user is in
+    /// another application, and no headless test can speak to that.
     /// </summary>
     public const bool PerAppProfiles = false;
 }

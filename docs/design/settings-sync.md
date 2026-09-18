@@ -54,7 +54,10 @@ never from `settings.json`:
    after editing in the OTD UX and it refreshes within ~1 s.
 4. **Fallback poll** — `AppSession.PollDataAsync` loops every **`FallbackPollInterval` = 30 s** and reloads
    if connected. Its own comment: "a safety net in case an event is missed, not the primary detection
-   path." No diff — it unconditionally re-pulls and rebuilds.
+   path." No diff — it re-pulls and rebuilds. One exception since #737: while a per-app override is
+   live (`ISettingsCoordinator.HasEphemeralOverride`), the reload deliberately **skips** the settings
+   read, because the daemon is holding a transient snapshot and adopting it would make that snapshot the
+   editor's baseline. Device data still refreshes.
 
 A reload flows through `LoadDataCoreAsync` → `DataLoaded`, and `MainViewModel.ReconcileOpenTabletDetails`
 updates any open tablet page so an external edit replaces stale values on screen.
@@ -70,7 +73,19 @@ An OTA edit (`AppSession.ApplyAndSaveSettingsAsync`) does two independent writes
    startup and **the same file OTD's own UX writes on Save**.
 
 Variants: `ApplyLiveOnlyAsync` = daemon + reload, no disk (temporary override); `ApplyEphemeralAsync` =
-daemon only, no disk, no reload (per-app switching).
+daemon only, no disk, no reload (per-app switching), and it sets the override flag above;
+`ClearEphemeralOverrideAsync` ends that override by putting the daemon back on `CurrentSettings`.
+
+Since #740 all of this lives in `Services/SettingsCoordinator.cs` rather than `AppSession` — the session
+keeps the `ISettingsCoordinator` contract and the UI-thread guards, and orchestrates apply-then-reload, so
+the coordinator holds no reference back to it.
+
+**A disk write that fails is retried on the next reload** (#743). The daemon and the disk fail
+independently, so an apply can leave a change live but unpersisted; the reload — window focus or the 30 s
+poll — calls `RetryPendingPersistAsync`, which rewrites it and returns the save chip to "Saved". The
+common cause is the file being briefly locked while OTD's own UX writes the same `settings.json`, and
+that clears itself. Bounded (10 attempts per pending change, reset by any new edit) so a permission
+problem, which won't clear, stops retrying instead of warning on every poll for as long as the app is open.
 
 The only client-side gate is a **no-op guard**: OTA skips the write if the serialized settings are
 byte-identical to what it last loaded (`_lastLoadedSettingsJson`), plus an apply-loop circuit-breaker.

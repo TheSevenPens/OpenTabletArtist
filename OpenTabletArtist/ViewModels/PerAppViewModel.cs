@@ -45,11 +45,30 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     public bool HasEnoughSnapshots => SnapshotNames.Count >= 1;
     public bool HasMappings => Mappings.Count > 0;
 
-    /// <summary>Per-app switching writes to whatever daemon is connected; a foreign daemon's snapshot
+    /// <summary>Per-app switching writes to whatever daemon is connected; another daemon's snapshot
     /// paths/filter stores may not match, so the feature is app-owned-daemon only (#167), same pattern as
     /// plugin install. When true, the controls are disabled and a banner explains why.</summary>
     public bool IsForeignDaemon => _connection.IsForeignDaemon;
-    public bool CanUse => !IsForeignDaemon;
+
+    /// <summary>Requires a daemon OTA positively owns (#742). The feature writes settings on every
+    /// focus change, so an unidentifiable daemon is as much a reason to stay out as a known-foreign one —
+    /// the old <c>!IsForeignDaemon</c> enabled it in exactly the case OTA knew least about.</summary>
+    public bool CanUse => _connection.IsAppOwnedDaemon;
+
+    /// <summary>Show the explanation whenever the feature is blocked on the daemon, so it is never
+    /// disabled without saying why — including the "couldn't identify it" case, which CanUse now also
+    /// excludes (#742).</summary>
+    public bool ShowDaemonBlockedNotice => _connection.IsConnected && !CanUse;
+
+    /// <summary>Why it's blocked. The two cases need different advice: a known-foreign daemon can be
+    /// stopped, while one OTA can't read is usually elevated — the fix there is to look, not to stop.</summary>
+    public string DaemonBlockedText => IsForeignDaemon
+        ? "Per-app switching is unavailable while a daemon that OpenTabletArtist didn't start is running "
+          + "— its settings and preset files may not match yours. Stop that daemon (or let "
+          + "OpenTabletArtist manage it) to use this feature."
+        : "Per-app switching is unavailable because OpenTabletArtist can't tell which OpenTabletDriver "
+          + "is running — it may be elevated or running as another user. This feature changes settings "
+          + "automatically, so it stays off rather than write to a daemon that might not be yours.";
 
     public PerAppViewModel(PerAppSwitcher switcher, PerAppProfileStore store, IDeviceData device,
         IDialogService dialogs, IConnectionState connection)
@@ -67,11 +86,15 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
 
     private void OnConnectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(IConnectionState.IsForeignDaemon) or nameof(IConnectionState.IsConnected)))
+        // Ownership is the one property that matters here now — listening for the derived IsForeignDaemon
+        // would miss nothing today but would break quietly if the derivation changed (#742).
+        if (e.PropertyName is not (nameof(IConnectionState.Ownership) or nameof(IConnectionState.IsConnected)))
             return;
         OnPropertyChanged(nameof(IsForeignDaemon));
         OnPropertyChanged(nameof(CanUse));
-        // A foreign daemon suspends switching (its files may not match); it resumes when ours returns.
+        OnPropertyChanged(nameof(ShowDaemonBlockedNotice));
+        OnPropertyChanged(nameof(DaemonBlockedText));
+        // Anything but our own daemon suspends switching; it resumes when ours returns.
         UpdateSwitcher();
     }
 
@@ -82,7 +105,7 @@ public partial class PerAppViewModel : ObservableObject, IDisposable
     {
         // Gated by the feature flag: while per-app switching is disabled the switcher never starts (and
         // stops if it were running), so the feature is fully inert regardless of saved mappings (#167).
-        bool shouldRun = FeatureFlags.PerAppProfiles && !IsForeignDaemon && _store.HasActiveMappings;
+        bool shouldRun = FeatureFlags.PerAppProfiles && CanUse && _store.HasActiveMappings;
         if (shouldRun && !_switcher.IsRunning) _switcher.Start();
         else if (!shouldRun && _switcher.IsRunning) _ = _switcher.StopAsync();
     }

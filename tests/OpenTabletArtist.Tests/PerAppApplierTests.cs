@@ -29,42 +29,7 @@ public class PerAppApplierTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { /* best-effort temp cleanup */ }
     }
 
-    private sealed class FakeCoordinator : ISettingsCoordinator
-    {
-        public Settings? CurrentSettings { get; set; } = new();
-        public int EphemeralCalls;
-        public int ClearCalls;
-        /// <summary>When set, the daemon call throws — a reachable daemon that refused the change.</summary>
-        public Exception? ThrowOnEphemeral;
-        public Exception? ThrowOnClear;
-
-        public bool HasEphemeralOverride { get; private set; }
-
-        public Task ApplyEphemeralAsync(Settings settings)
-        {
-            EphemeralCalls++;
-            if (ThrowOnEphemeral != null) throw ThrowOnEphemeral;
-            HasEphemeralOverride = true;
-            return Task.CompletedTask;
-        }
-
-        public Task ClearEphemeralOverrideAsync()
-        {
-            ClearCalls++;
-            if (ThrowOnClear != null) throw ThrowOnClear;
-            HasEphemeralOverride = false;
-            return Task.CompletedTask;
-        }
-
-        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings s) =>
-            Task.FromResult(SettingsApplyOutcome.Saved);
-        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
-        public Task ApplyLiveOnlyAsync(Settings s) => Task.CompletedTask;
-        public Task<SettingsRestoreOutcome> RestoreDefaultAsync() =>
-            Task.FromResult(SettingsRestoreOutcome.Restored);
-    }
-
-    private PerAppApplier Make(FakeCoordinator coord) =>
+    private PerAppApplier Make(FakeSettingsCoordinator coord) =>
         new(coord, new SettingsFileStore(), () => _dir);
 
     private void WriteSnapshot(string name) =>
@@ -73,7 +38,7 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task AnExistingSnapshot_IsAppliedEphemerally()
     {
-        var coord = new FakeCoordinator();
+        var coord = new FakeSettingsCoordinator { CurrentSettings = new Settings() };
         WriteSnapshot("Painting");
 
         var result = await Make(coord).ApplySnapshotAsync("Painting");
@@ -86,7 +51,7 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task AMissingSnapshot_IsReportedAsMissing_AndTouchesTheDaemonNotAtAll()
     {
-        var coord = new FakeCoordinator();
+        var coord = new FakeSettingsCoordinator();
 
         var result = await Make(coord).ApplySnapshotAsync("Gone");
 
@@ -97,7 +62,7 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task NoPresetDirectory_IsReportedAsMissing()
     {
-        var coord = new FakeCoordinator();
+        var coord = new FakeSettingsCoordinator();
         var applier = new PerAppApplier(coord, new SettingsFileStore(), () => null);
 
         Assert.Equal(PerAppApplyResult.SnapshotMissing, await applier.ApplySnapshotAsync("Painting"));
@@ -111,7 +76,11 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task ASnapshotTheDaemonRefuses_IsApplyFailed_NotMissing()
     {
-        var coord = new FakeCoordinator { ThrowOnEphemeral = new InvalidOperationException("rpc down") };
+        var coord = new FakeSettingsCoordinator
+        {
+            CurrentSettings = new Settings(),
+            ThrowOnEphemeral = new InvalidOperationException("rpc down"),
+        };
         WriteSnapshot("Painting");
 
         var result = await Make(coord).ApplySnapshotAsync("Painting");
@@ -129,7 +98,7 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task ApplyingTheDefault_EndsTheOverride()
     {
-        var coord = new FakeCoordinator();
+        var coord = new FakeSettingsCoordinator { CurrentSettings = new Settings() };
         WriteSnapshot("Painting");
         await Make(coord).ApplySnapshotAsync("Painting");
         Assert.True(coord.HasEphemeralOverride);
@@ -144,7 +113,11 @@ public class PerAppApplierTests : IDisposable
     [Fact]
     public async Task ApplyingTheDefault_ReportsFailure_WhenTheDaemonRefuses()
     {
-        var coord = new FakeCoordinator { ThrowOnClear = new InvalidOperationException("rpc down") };
+        var coord = new FakeSettingsCoordinator
+        {
+            CurrentSettings = new Settings(),
+            ThrowOnClear = new InvalidOperationException("rpc down"),
+        };
 
         Assert.False(await Make(coord).ApplyDefaultAsync());
     }
@@ -154,7 +127,7 @@ public class PerAppApplierTests : IDisposable
     {
         // Nothing loaded yet — there is no baseline to return to, so claiming success would tell the
         // switcher it is on the user's default when nothing was applied at all.
-        var coord = new FakeCoordinator { CurrentSettings = null };
+        var coord = new FakeSettingsCoordinator { CurrentSettings = null };
 
         Assert.False(await Make(coord).ApplyDefaultAsync());
         Assert.Equal(0, coord.ClearCalls);

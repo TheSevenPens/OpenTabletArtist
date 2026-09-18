@@ -143,7 +143,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         // to suppress the check), same as the other app-owned-daemon features. A profile with no filter at
         // all is fine (dynamics are simply inert) — only a filter that's present but *disabled* is flagged,
         // i.e. the always-on invariant regressed (someone turned it off, so configured dynamics won't apply).
-        bool foreign = _connection.IsForeignDaemon;
+        // Only judge a daemon OTA owns. On someone else's — or one it can't identify — a disabled
+        // dynamics filter is not a regression OTA is entitled to report (#742).
+        bool notOurs = !_connection.IsAppOwnedDaemon;
         static bool DynamicsOk(ProfileItem p) =>
             PressureCurveProfile.ReadProfile(p.Profile) is null or { Enabled: true };
         // A non-cardinal active-area rotation (not a multiple of 90°): the app only offers 0/90/180/270,
@@ -168,7 +170,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
                     ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
                     : DisplayMappingValidity.None,
                 NonCardinalRotation: p.IsDetected && IsNonCardinalRotation(p),
-                DynamicsFilterActive: foreign || DynamicsOk(p),
+                DynamicsFilterActive: notOurs || DynamicsOk(p),
                 ConfigIsOverride: overriddenConfigs.Contains(p.Tablet),
                 // A non-WinInk mode is intentional (mouse-compatibility) when the tablet is opted out (#549).
                 WinInkOptedOut: WinInkAutoOptOut.IsOptedOut(p.Tablet),

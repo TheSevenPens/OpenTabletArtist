@@ -4,6 +4,7 @@ using OpenTabletArtist;
 
 [assembly: AvaloniaTestApplication(typeof(OpenTabletArtist.UiTests.TestAppBuilder))]
 
+
 namespace OpenTabletArtist.UiTests;
 
 /// <summary>

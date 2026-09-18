@@ -4,14 +4,13 @@ using Microsoft.Win32.SafeHandles;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
-using OpenTabletDriver.Desktop.Updater;
 using OpenTabletDriver.Plugin.Logging;
 using OpenTabletArtist.Concurrency;
 using StreamJsonRpc;
 
 namespace OpenTabletArtist.Services;
 
-public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
+public class DaemonClient : IDaemonTransport
 {
     private const string PipeName = "OpenTabletDriver.Daemon";
 
@@ -41,7 +40,9 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
     /// <summary>The daemon forwarded a log message (its <c>Message</c> event). Fires off the RPC
     /// thread — subscribers marshal to the UI thread. (#console)</summary>
     public event Action<LogMessage>? LogReceived;
-    public bool IsConnected => _rpc != null && !_rpc.IsDisposed;
+    /// <summary>Private: the app reads connection state from <see cref="AppSession"/>, which owns it as
+    /// observable UI state. This is the client's own view, used to short-circuit a redundant connect.</summary>
+    private bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     /// <summary>
     /// When true (the default), an unexpected transport drop schedules an automatic reconnect.
@@ -171,20 +172,6 @@ public class DaemonClient : IDisposable, IDaemonDebugSession, IDaemonLogSource
     {
         if (_rpc == null) return null;
         return await _rpc.InvokeAsync<AppInfo>("GetApplicationInfo");
-    }
-
-    public async Task<SerializedUpdateInfo?> CheckForUpdatesAsync()
-    {
-        if (_rpc == null) return null;
-        try
-        {
-            return await _rpc.InvokeAsync<SerializedUpdateInfo?>("CheckForUpdates");
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Daemon update check failed.", ex);
-            return null;
-        }
     }
 
     // Tablets are returned as JToken because the daemon returns TabletReference[]

@@ -42,7 +42,10 @@ public sealed class WindowsInkAutoSetup : System.IDisposable
     {
         // Skip while a previous pass is still applying (each apply reloads → re-fires DataLoaded), and
         // never touch a daemon this app didn't start. Only bother once a tablet is actually present.
-        if (_busy || !_session.IsConnected || _session.IsForeignDaemon || !_session.HasTablet) return;
+        //
+        // Positive ownership, not "not foreign" (#742): this installs a plugin and changes the output
+        // mode, so on a daemon OTA can't identify it would be reconfiguring someone else's driver.
+        if (_busy || !_session.IsConnected || !_session.IsAppOwnedDaemon || !_session.HasTablet) return;
         _busy = true;
         try
         {

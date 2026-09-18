@@ -31,6 +31,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Shared with the logic suite rather than copied: one fake daemon, so a change to
+         IDaemonTransport can't leave two drifting stand-ins behind. -->
+    <Compile Include="..\OpenTabletArtist.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />
   </ItemGroup>
 

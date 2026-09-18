@@ -36,7 +36,18 @@ public interface IConnectionState : INotifyPropertyChanged
     bool IsConnected { get; }
     string ConnectionStatus { get; }
     bool IsDaemonRunning { get; }
+    /// <summary>
+    /// Whose daemon this is (#742). Anything that writes to, or automatically modifies, its settings
+    /// must require <see cref="DaemonOwnership.Owned"/> — <c>!IsForeignDaemon</c> also matches
+    /// <see cref="DaemonOwnership.Unknown"/>, which is exactly the case where OTA should do least.
+    /// </summary>
+    DaemonOwnership Ownership { get; }
+
+    /// <summary>Shorthand for <c>Ownership == Owned</c>. Safe to gate a write on.</summary>
     bool IsAppOwnedDaemon { get; }
+
+    /// <summary>Shorthand for <c>Ownership == External</c>. Note this is <b>not</b> the negation of
+    /// <see cref="IsAppOwnedDaemon"/> — an unidentifiable daemon is neither.</summary>
     bool IsForeignDaemon { get; }
     string DaemonSourcePath { get; }
     /// <summary>Version stamped on the connected daemon's executable (read best-effort from its file
@@ -101,10 +112,6 @@ public interface ISettingsCoordinator
     /// <see cref="SettingsApplyOutcome"/> distinguishes applied-and-saved, applied-but-unsaved,
     /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
     Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
-    /// <summary>Retries persistence alone, for settings the daemon already accepted but that failed to
-    /// reach disk (#734). No daemon write, no reload. Returns <see cref="SettingsApplyStatus.NoChange"/>
-    /// when there is nothing outstanding to persist.</summary>
-    Task<SettingsApplyOutcome> RetryPersistAsync();
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.</summary>
     Task ApplyLiveOnlyAsync(Settings settings);
@@ -166,7 +173,7 @@ public interface IDeviceData : INotifyPropertyChanged
 
 public partial class AppSession : ObservableObject, IConnectionState, ISettingsCoordinator, IDeviceData, IDisposable
 {
-    private readonly DaemonClient _daemon;
+    private readonly IDaemonTransport _daemon;
     private readonly IDaemonLifecycleService _daemonLifecycle;
     private readonly ISettingsFileStore _settingsStore;
     private readonly CancellationTokenSource _cts = new();
@@ -174,24 +181,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // fallback poll, Refresh). #19.
     private readonly LatestOnlyGate _loadGate = new();
 
-    // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
-    // daemon (the no-op guard: applying byte-identical settings is skipped), and a circuit-breaker that
-    // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
-    private string? _lastLoadedSettingsJson;
-    private readonly ApplyLoopBreaker _applyLoopBreaker = new();
-
-    // The last settings we actually got onto DISK, tracked separately from what the daemon last handed
-    // back (#734). Conflating the two meant a failed write was recorded as the baseline on the next
-    // reload, so re-applying the same settings hit the no-op guard and the save was never retried.
-    private string? _lastPersistedSettingsJson;
-    // Applied by the daemon but not yet persisted — what RetryPersistAsync would write.
-    private Settings? _pendingPersistSettings;
+    // Everything about the settings OTA believes in — the current object, the load/persist revision
+    // baselines, the pending unsaved change, the override flag and the apply-loop breaker — lives in the
+    // coordinator (#740). This class keeps the ISettingsCoordinator contract and the UI-thread guards.
+    private readonly SettingsCoordinator _coordinator;
 
     /// <inheritdoc />
-    /// <remarks>Set by <see cref="ApplyEphemeralAsync"/> and cleared by every path that puts the daemon
-    /// back on <see cref="CurrentSettings"/> — a real apply, a live-only switch, a restore, or
-    /// <see cref="ClearEphemeralOverrideAsync"/>.</remarks>
-    public bool HasEphemeralOverride { get; private set; }
+    public bool HasEphemeralOverride => _coordinator.HasEphemeralOverride;
 
     /// <summary>
     /// Fallback reconciliation interval. Detection is event-driven via the daemon's
@@ -199,13 +195,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// not the primary detection path — hence much longer than the original 3s magic literal.
     /// </summary>
     private static readonly TimeSpan FallbackPollInterval = TimeSpan.FromSeconds(30);
-    private Settings? _settings;
 
     /// <summary>
     /// The underlying daemon client. Temporary seam: data-load (settings/tablets/app-info)
     /// still lives in the shell and uses this until it moves into the session (#41 PR 2).
     /// </summary>
-    public DaemonClient Daemon => _daemon;
+    public IDaemonTransport Daemon => _daemon;
 
     /// <summary>Raised on the UI thread once the daemon connection is established.</summary>
     public event Action? Connected;
@@ -215,8 +210,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private string _connectionStatus = "Disconnected";
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private bool _isDaemonRunning;
-    [ObservableProperty] private bool _isAppOwnedDaemon;
-    [ObservableProperty] private bool _isForeignDaemon;
+    /// <summary>
+    /// Whose daemon this is (#742). The single source of truth; <see cref="IsAppOwnedDaemon"/> and
+    /// <see cref="IsForeignDaemon"/> are views of it, so they can no longer drift into the state where
+    /// both are false and callers read that as "ours".
+    /// </summary>
+    [ObservableProperty] private DaemonOwnership _ownership = DaemonOwnership.Unknown;
+
+    public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
+    public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     [ObservableProperty] private string _daemonSourcePath = "";
     partial void OnDaemonSourcePathChanged(string value) => OnPropertyChanged(nameof(HasDaemonSourcePath));
     [ObservableProperty] private string _daemonVersion = "";
@@ -330,7 +332,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public bool ShowAppOwnedDaemon => IsConnected && IsAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
-    public bool ShowDaemonSourceUnknown => IsConnected && !IsAppOwnedDaemon && !IsForeignDaemon;
+    public bool ShowDaemonSourceUnknown => IsConnected && Ownership == DaemonOwnership.Unknown;
     public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
     public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && HasBundledDaemon;
     public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
@@ -386,14 +388,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (name != null && DetectedTablets.Any(t => t.Name == name))
             ActiveTabletName = name;
     }
-    public Settings? CurrentSettings => _settings;
+    public Settings? CurrentSettings => _coordinator.CurrentSettings;
     public event Action? DataLoaded;
 
-    public AppSession(DaemonClient daemon, IDaemonLifecycleService daemonLifecycle, ISettingsFileStore settingsStore)
+    public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle, ISettingsFileStore settingsStore)
     {
         _daemon = daemon;
         _daemonLifecycle = daemonLifecycle;
         _settingsStore = settingsStore;
+
+        // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
+        // data load, identity on connect), so neither has a value yet at construction.
+        _coordinator = new SettingsCoordinator(
+            daemon, settingsStore,
+            settingsPath: () => SettingsFilePath,
+            isOwnedDaemon: () => IsAppOwnedDaemon,
+            onSaveState: state => SaveState = state);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -415,8 +425,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectionStatus = "Disconnected";
             IsConnected = false;
             IsDaemonRunning = false;
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            Ownership = DaemonOwnership.Unknown;   // nothing to identify once the pipe is gone (#742)
             DaemonSourcePath = "";
             DaemonVersion = "";
             HasTablet = false;
@@ -462,6 +471,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     private void NotifyOwnership()
     {
+        OnPropertyChanged(nameof(IsAppOwnedDaemon));
+        OnPropertyChanged(nameof(IsForeignDaemon));
         OnPropertyChanged(nameof(ShowAppOwnedDaemon));
         OnPropertyChanged(nameof(ShowForeignDaemonWarning));
         OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
@@ -528,8 +539,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         return ticker;
     }
 
-    partial void OnIsAppOwnedDaemonChanged(bool value) => NotifyOwnership();
-    partial void OnIsForeignDaemonChanged(bool value) => NotifyOwnership();
+    partial void OnOwnershipChanged(DaemonOwnership value) => NotifyOwnership();
 
     /// <summary>
     /// Auto-starts the daemon if not running, then begins connecting. Called once at startup.
@@ -707,18 +717,25 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
             // is whatever it already was, and survives the poll and a reconnect.
             if (!HasEphemeralOverride)
-                _settings = await _daemon.GetSettingsAsync();
+                _coordinator.AdoptLoadedSettings(await _daemon.GetSettingsAsync());
+            var settings = _coordinator.CurrentSettings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
-            bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(_settings);
+            bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(settings);
             // #465: on the app-owned daemon, disable any non-approved (third-party / driver-built-in)
             // filter so only our Pen Dynamics / Calibration / Hover filters run and the pen stays
-            // consistent. Never touch a foreign daemon's filters. Persisted below if it changed anything.
-            bool unapprovedDisabled = !IsForeignDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(_settings);
-            if (_settings != null)
+            // consistent. Persisted below if it changed anything.
+            //
+            // Requires positive ownership, not merely "not foreign" (#742). This is the most dangerous
+            // instance of that distinction in the app: it runs on EVERY data load, and what it changes is
+            // pushed to the daemon and written to settings.json below. Against a daemon OTA can't
+            // identify — elevated, or another user's — the old guard let OTA silently disable a
+            // stranger's filters, including OpenTabletDriver's own built-ins, live and on disk.
+            bool unapprovedDisabled = IsAppOwnedDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
+            if (settings != null)
             {
-                Profiles = _settings.Profiles
+                Profiles = settings.Profiles
                     .Select(p =>
                     {
                         bool detected = detectedNames.Contains(p.Tablet);
@@ -765,22 +782,31 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
             // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
             // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
-            if ((staleFiltersRemoved || unapprovedDisabled) && _settings != null)
+            //
+            // Only on a daemon OTA positively owns (#742). This is a write nobody asked for, to both the
+            // daemon and settings.json — and that file is the daemon's own AppInfo.SettingsFile, so on an
+            // unidentified daemon it may not even belong to this user. The in-memory cleanup still runs,
+            // so the Filters and JSON views are right either way; it just isn't written back.
+            if ((staleFiltersRemoved || unapprovedDisabled) && settings != null && IsAppOwnedDaemon)
             {
                 try
                 {
-                    await _daemon.SetSettingsAsync(_settings);
+                    await _daemon.SetSettingsAsync(settings);
                     if (!string.IsNullOrEmpty(SettingsFilePath))
-                        _settingsStore.TrySave(_settings, SettingsFilePath);
+                        _settingsStore.TrySave(settings, SettingsFilePath);
                 }
                 catch { /* leave it; next save will retry the cleanup via the forward guard */ }
             }
 
             // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
-            // While an override is live the daemon does NOT hold _settings, so there is no honest value
-            // for this — null disables the guard rather than letting it skip an apply on the strength of
-            // a comparison against settings the daemon isn't running (#737).
-            _lastLoadedSettingsJson = HasEphemeralOverride ? null : SerializeForCompare(_settings);
+            _coordinator.RecordLoadedBaseline();
+
+            // A change the daemon took but that never reached disk gets another go here (#743). Reloads
+            // run on window focus and every 30 seconds, so a write refused because the file was briefly
+            // locked — OTD's own UX writes the same settings.json — recovers on its own, and the save
+            // chip returns to "Saved". Bounded inside the coordinator so a permission problem, which
+            // won't fix itself, stops retrying instead of warning on every poll forever.
+            await _coordinator.RetryPendingPersistAsync();
 
             DataLoaded?.Invoke();
 
@@ -850,132 +876,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
         Dispatcher.UIThread.VerifyAccess();
 
-        // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
-        // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
-        // common "same value written back repeatedly" loop without a save flicker.
-        //
-        // It must ALSO be what we last persisted (#734). The baseline is the last daemon-LOADED settings,
-        // so after a save failure the reload records the unsaved change as the baseline — retrying the
-        // identical settings then returned here and persistence was never retried. Requiring both means
-        // an unsaved change always gets another chance at disk.
-        if (SerializeForCompare(settings) is { } json
-            && json == _lastLoadedSettingsJson
-            && json == _lastPersistedSettingsJson)
-            return SettingsApplyOutcome.NoChange;
-
-        // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
-        // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
-        if (!_applyLoopBreaker.Allow(Environment.TickCount64))
-        {
-            System.Diagnostics.Debug.WriteLine(
-                "AppSession: apply-loop breaker tripped — skipping ApplyAndSave to avoid a hang (a UI binding is looping).");
-            return SettingsApplyOutcome.Skipped;
-        }
-
-        // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
-        // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
-        // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the
-        // shared settings.json stays valid for OTD's own UI too (#otd-null-areas).
-        int repairedProfiles = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
-        if (repairedProfiles > 0)
-            AppLog.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
-                        "(would otherwise crash the OpenTabletDriver UX).");
-        _settings = settings;
-        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
-        HasEphemeralOverride = false;
-
-        SaveState = SettingsSaveState.Saving;
-        bool applied;
-        try
-        {
-            // False means there is no transport: the change was NOT sent, so it isn't live and we must
-            // not say it is (#734). Previously this returned quietly and we reported success.
-            applied = await _daemon.SetSettingsAsync(settings);
-        }
-        catch (Exception ex)
-        {
-            // Reachable daemon, failed call. Not live, not saved — a different state from "live but
-            // unpersisted", and the UI text must not claim otherwise.
-            SaveState = SettingsSaveState.ApplyFailed;
-            AppLog.Warn("Couldn't apply settings to the daemon.", ex);
-            throw; // keep the existing error-propagation contract for callers
-        }
-
-        if (!applied)
-        {
-            SaveState = SettingsSaveState.Disconnected;
-            AppLog.Warn("Couldn't apply settings: not connected to the daemon.");
-            return SettingsApplyOutcome.Disconnected;
-        }
-
-        // Persist to disk (same as OTD's own UX Save). Apply and persist are separate outcomes: a failed
-        // write means the change is live but won't survive a daemon restart, which we must not hide.
-        // An empty settings path is NOT a successful save — there is nowhere to write (#734).
-        bool saved = !string.IsNullOrEmpty(SettingsFilePath)
-            && _settingsStore.TrySave(settings, SettingsFilePath);
-
-        // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
-        _lastPersistedSettingsJson = saved ? SerializeForCompare(settings) : null;
-        _pendingPersistSettings = saved ? null : settings;
-
-        if (!saved)
-            AppLog.Warn(string.IsNullOrEmpty(SettingsFilePath)
-                ? "Settings applied but not saved: the daemon reported no settings file path."
-                : $"Settings applied but not saved: couldn't write {SettingsFilePath}.");
-
-        SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
-
-        await LoadDataAsync();
-        return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
-    }
-
-    /// <summary>
-    /// Retries the disk write for settings the daemon already accepted but that failed to persist (#734).
-    /// No daemon write and no reload — the change is already live; only the file is behind.
-    /// </summary>
-    public Task<SettingsApplyOutcome> RetryPersistAsync()
-    {
-        Dispatcher.UIThread.VerifyAccess();
-        if (_pendingPersistSettings is not { } pending)
-            return Task.FromResult(SettingsApplyOutcome.NoChange);
-        if (string.IsNullOrEmpty(SettingsFilePath))
-            return Task.FromResult(SettingsApplyOutcome.Unsaved);
-
-        SaveState = SettingsSaveState.Saving;
-        bool saved = _settingsStore.TrySave(pending, SettingsFilePath);
-        if (saved)
-        {
-            _lastPersistedSettingsJson = SerializeForCompare(pending);
-            _pendingPersistSettings = null;
-        }
-        SaveState = saved ? SettingsSaveState.Saved : SettingsSaveState.Failed;
-        return Task.FromResult(saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved);
-    }
-
-    /// <summary>Deterministic string form of the settings for cheap equality comparison (the no-op apply
-    /// guard). Best-effort — returns null on any serialization failure, which just disables the guard for
-    /// that call (the circuit-breaker still backs it up).</summary>
-    private static string? SerializeForCompare(Settings? settings)
-    {
-        if (settings == null) return null;
-        try { return Newtonsoft.Json.JsonConvert.SerializeObject(settings); }
-        catch { return null; }
+        var outcome = await _coordinator.ApplyAndSaveAsync(settings);
+        // Reload only when something actually reached the daemon. A no-op, a tripped circuit breaker or a
+        // disconnected apply have nothing new to read back, and reloading after the breaker fires would
+        // re-arm the very loop it just broke.
+        if (outcome.IsLive) await LoadDataAsync();
+        return outcome;
     }
 
     /// <inheritdoc />
     public async Task ApplyLiveOnlyAsync(Settings settings)
     {
         Dispatcher.UIThread.VerifyAccess();
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
-        _settings = settings;
-        HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
-        // Apply live, reload — but deliberately do NOT TrySave: this is a temporary override, so the
-        // saved settings.json default must stay intact (#320). No save chip either; the override cue owns
-        // the feedback.
-        await _daemon.SetSettingsAsync(settings);
+        // Apply live, reload — but deliberately no disk write: this is a temporary override, so the saved
+        // settings.json default must stay intact (#320). No save chip either; the override cue owns the
+        // feedback.
+        await _coordinator.ApplyLiveOnlyAsync(settings);
         await LoadDataAsync();
     }
 
@@ -983,32 +899,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task ApplyEphemeralAsync(Settings settings)
     {
         Dispatcher.UIThread.VerifyAccess();
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (!IsForeignDaemon) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465: keep only approved filters enabled
-        // Per-app switch (#167): apply to the daemon ONLY. Deliberately does NOT touch _settings, TrySave,
-        // or reload — CurrentSettings must stay on the user's default so the editor edits the default, not
-        // the transient per-app snapshot. Live pen streams read daemon reports, so they still update.
-        await _daemon.SetSettingsAsync(settings);
-
-        // Flag it so the background reload stops overwriting the baseline with what the daemon now holds
-        // (#737). Keeping _settings untouched here was never enough on its own: the 30-second poll read
-        // the daemon back into it, so a transient snapshot silently became the editor's baseline and the
-        // source a "restore default" would restore from.
-        HasEphemeralOverride = true;
+        // Per-app switch (#167): daemon only — no disk write, no reload, and CurrentSettings stays on the
+        // user's default so the editor edits the default rather than the transient snapshot. Live pen
+        // streams read daemon reports, so they still update.
+        await _coordinator.ApplyEphemeralAsync(settings);
     }
 
     /// <inheritdoc />
     public async Task ClearEphemeralOverrideAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (_settings is not { } baseline)
-        {
-            HasEphemeralOverride = false;
-            return;
-        }
-
-        await _daemon.SetSettingsAsync(baseline);
-        HasEphemeralOverride = false;
+        await _coordinator.ClearEphemeralOverrideAsync();
         // The daemon is back on the baseline, so a reload can safely read it again.
         await LoadDataAsync();
     }
@@ -1017,44 +918,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task<SettingsRestoreOutcome> RestoreDefaultAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        // Re-read the saved default from disk (untouched by a live-only override) and apply it.
-        // Every way this can fall short now has its own outcome (#734): previously the method finished
-        // silently when the default couldn't be loaded, and the caller cleared the override indicator
-        // and announced a restoration that never happened — while the override was still running.
-        if (string.IsNullOrEmpty(SettingsFilePath)
-            || !_settingsStore.TryLoad(SettingsFilePath, out var def) || def == null)
-        {
-            AppLog.Warn("Couldn't restore the saved default: no readable settings file. " +
-                        "Any active override is still in effect.");
-            await LoadDataAsync();
-            return SettingsRestoreOutcome.SourceUnavailable;
-        }
-
-        bool applied;
-        try
-        {
-            applied = await _daemon.SetSettingsAsync(def);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Couldn't restore the saved default: the daemon rejected it. " +
-                        "Any active override is still in effect.", ex);
-            await LoadDataAsync();
-            return SettingsRestoreOutcome.Failed(ex);
-        }
-
-        if (!applied)
-        {
-            AppLog.Warn("Couldn't restore the saved default: not connected to the daemon. " +
-                        "Any active override is still in effect.");
-            await LoadDataAsync();
-            return SettingsRestoreOutcome.Disconnected;
-        }
-
-        _settings = def;
-        HasEphemeralOverride = false;   // restored to the saved default; no override remains (#737)
+        var outcome = await _coordinator.RestoreDefaultAsync();
+        // Reload either way: on success to pick up the restored default, and on failure because the
+        // display may still be showing the override we failed to undo.
         await LoadDataAsync();
-        return SettingsRestoreOutcome.Restored;
+        return outcome;
     }
 
     /// <summary>Force the Pen Dynamics filter present + enabled across all profiles and persist — the Home
@@ -1062,8 +930,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task EnsureDynamicsAndSaveAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (_settings != null && PressureCurveProfile.EnsureEnabled(_settings))
-            await ApplyAndSaveSettingsAsync(_settings);
+        if (CurrentSettings is { } s && PressureCurveProfile.EnsureEnabled(s))
+            await ApplyAndSaveSettingsAsync(s);
     }
 
     /// <summary>The one-click "Restore recommended pen settings" fix for the artist-pen-behavior health
@@ -1072,8 +940,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task RestoreRecommendedPenBehaviorAsync(string? tabletName)
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
-        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (CurrentSettings is not { } settings || string.IsNullOrEmpty(tabletName)) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile == null) return;
 
         var changed = Domain.PenBehaviorRestore.ToRecommended(profile, OperatingSystem.IsWindows());
@@ -1087,7 +955,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             changed = true;
         }
 
-        if (changed) await ApplyAndSaveSettingsAsync(_settings);
+        if (changed) await ApplyAndSaveSettingsAsync(settings);
     }
 
     /// <summary>The Home health-check "Fix" for an off-screen mapping (#629): re-map the tablet's active
@@ -1096,8 +964,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task MapTabletToPrimaryDisplayAsync(string? tabletName)
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
-        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (CurrentSettings is not { } settings || string.IsNullOrEmpty(tabletName)) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile == null) return;
 
         var displays = DisplayEnumerator.Enumerate();
@@ -1107,7 +975,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!Domain.DisplayMappingApplier.ApplyToProfile(profile, GetTabletDigitizer(tabletName), primary, displays))
             return;
 
-        await ApplyAndSaveSettingsAsync(_settings);
+        await ApplyAndSaveSettingsAsync(settings);
     }
 
     /// <summary>The Home health-check "Fix" for a non-cardinal active-area rotation (#629): snap the tablet's
@@ -1116,8 +984,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task ResetTabletRotationToCardinalAsync(string? tabletName)
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (_settings == null || string.IsNullOrEmpty(tabletName)) return;
-        var profile = _settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (CurrentSettings is not { } settings || string.IsNullOrEmpty(tabletName)) return;
+        var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
         if (profile?.AbsoluteModeSettings?.Tablet == null) return;
 
         double current = profile.AbsoluteModeSettings.Tablet.Rotation;
@@ -1127,7 +995,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!Domain.DisplayMappingApplier.ApplyRotation(profile, GetTabletDigitizer(tabletName), cardinal, displays))
             return;
 
-        await ApplyAndSaveSettingsAsync(_settings);
+        await ApplyAndSaveSettingsAsync(settings);
     }
 
     public (float Width, float Height)? GetTabletDigitizer(string tabletName)
@@ -1414,8 +1282,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         if (!IsConnected)
         {
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            Ownership = DaemonOwnership.Unknown;
             DaemonSourcePath = "";
             DaemonVersion = "";
             return;
@@ -1430,8 +1297,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
         if (actual == null)
         {
-            IsAppOwnedDaemon = false;
-            IsForeignDaemon = false;
+            // Connected, but we can't read which binary answered — elevated, another user's, or more
+            // than one candidate. Unknown is a real answer, not a soft "no" (#742).
+            Ownership = DaemonOwnership.Unknown;
             return;
         }
 
@@ -1442,8 +1310,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // See docs/design/official-otd-release.md.
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
         var owned = resolved && _daemonLifecycle.IsOwnBuild(actual);
-        IsAppOwnedDaemon = owned;
-        IsForeignDaemon = !owned;
+        Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
     }
 
     private string? GetConnectedDaemonPath()
@@ -1465,6 +1332,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _cts.Cancel();
         _cts.Dispose();
         _loadGate.Dispose();
+
+        // Stop the dispatcher timers, or a disposed session keeps ticking. Both are started in response
+        // to ordinary state changes — the save chip's 2.5s auto-clear and the connect-activity ticker —
+        // and neither was ever stopped here, so a disposed session went on posting to the dispatcher
+        // during teardown. Same family as the debounces in #736: work outliving the object that owns it.
+        _saveClearTimer?.Stop();
+        _saveClearTimer = null;
+        _connectTicker?.Stop();
+        _connectTicker = null;
+
         _daemon.Dispose();
     }
 }

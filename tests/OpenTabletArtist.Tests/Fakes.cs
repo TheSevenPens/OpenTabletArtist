@@ -4,7 +4,11 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
+using System.Threading;
+using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OpenTabletDriver.Plugin.Logging;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 
@@ -128,10 +132,32 @@ internal sealed class FakeConnectionState : IConnectionState
         set { _isConnected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected))); }
     }
 
+    /// <summary>
+    /// Whose daemon this pretends to be (#742). Defaults to <see cref="DaemonOwnership.Owned"/> so tests
+    /// exercise the normal case; set it to check a guard's behaviour on someone else's daemon or on one
+    /// that couldn't be identified.
+    ///
+    /// It used to return false for both ownership booleans, which is the Unknown state — so every
+    /// <c>!IsForeignDaemon</c> path was being tested as if OTA owned the daemon, which is precisely the
+    /// conflation #742 fixed. The tests agreed with the bug.
+    /// </summary>
+    public DaemonOwnership Ownership
+    {
+        get => _ownership;
+        set
+        {
+            _ownership = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Ownership)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAppOwnedDaemon)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsForeignDaemon)));
+        }
+    }
+    private DaemonOwnership _ownership = DaemonOwnership.Owned;
+
     public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
     public bool IsDaemonRunning => _isConnected;
-    public bool IsAppOwnedDaemon => false;
-    public bool IsForeignDaemon => false;
+    public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
+    public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     public string DaemonSourcePath => "";
     public string DaemonVersion => "";
     public bool HasDaemonVersion => false;
@@ -160,4 +186,81 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool CanLaunchOtdUx => false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+/// <summary>
+/// The shared <see cref="ISettingsCoordinator"/> stand-in. Four near-identical copies of this used to
+/// live in four test files, so every change to the interface meant editing all of them — which is what
+/// #734, #737 and #740 each had to do in turn. Records what was applied and how, and lets a test script
+/// a failure.
+/// </summary>
+internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
+{
+    public Settings? CurrentSettings { get; set; }
+
+    /// <summary>The last settings handed to ANY apply path.</summary>
+    public Settings? Applied { get; private set; }
+
+    /// <summary>The last settings handed to <see cref="ApplyAndSaveSettingsAsync"/> specifically — the
+    /// only path that persists, so tests that care about persistence use this rather than
+    /// <see cref="Applied"/>.</summary>
+    public Settings? SavedAndApplied { get; private set; }
+
+    public int SaveCalls { get; private set; }
+    public int LiveOnlyCalls { get; private set; }
+    public int EphemeralCalls { get; private set; }
+    public int ClearCalls { get; private set; }
+    public int RestoreCalls { get; private set; }
+
+    /// <summary>What <see cref="ApplyAndSaveSettingsAsync"/> reports.</summary>
+    public SettingsApplyOutcome ApplyResult { get; set; } = SettingsApplyOutcome.Saved;
+
+    /// <summary>What <see cref="RestoreDefaultAsync"/> reports. Set a failure to exercise the
+    /// "override is still active" path (#734).</summary>
+    public SettingsRestoreOutcome RestoreResult { get; set; } = SettingsRestoreOutcome.Restored;
+
+    /// <summary>When set, the matching call throws — a reachable daemon that refused the change.</summary>
+    public Exception? ThrowOnEphemeral { get; set; }
+    public Exception? ThrowOnClear { get; set; }
+
+    public bool HasEphemeralOverride { get; private set; }
+
+    public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
+    {
+        SaveCalls++;
+        Applied = SavedAndApplied = settings;
+        HasEphemeralOverride = false;
+        return Task.FromResult(ApplyResult);
+    }
+
+    public Task ApplyLiveOnlyAsync(Settings settings)
+    {
+        LiveOnlyCalls++;
+        Applied = settings;
+        HasEphemeralOverride = false;
+        return Task.CompletedTask;
+    }
+
+    public Task ApplyEphemeralAsync(Settings settings)
+    {
+        EphemeralCalls++;
+        if (ThrowOnEphemeral != null) throw ThrowOnEphemeral;
+        Applied = settings;
+        HasEphemeralOverride = true;
+        return Task.CompletedTask;
+    }
+
+    public Task ClearEphemeralOverrideAsync()
+    {
+        ClearCalls++;
+        if (ThrowOnClear != null) throw ThrowOnClear;
+        HasEphemeralOverride = false;
+        return Task.CompletedTask;
+    }
+
+    public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
+    {
+        RestoreCalls++;
+        return Task.FromResult(RestoreResult);
+    }
 }

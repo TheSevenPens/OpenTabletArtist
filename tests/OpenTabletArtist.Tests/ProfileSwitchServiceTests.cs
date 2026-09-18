@@ -20,34 +20,7 @@ public class ProfileSwitchServiceTests
 
     private static string Snapshot(string name) => Path.Combine(PresetsDir, name + ".json");
 
-    private sealed class FakeCoordinator : ISettingsCoordinator
-    {
-        public Settings? CurrentSettings { get; set; }
-        public int LiveOnlyCalls;
-        public int RestoreCalls;
-        public int SaveCalls;
-        /// <summary>What <see cref="RestoreDefaultAsync"/> reports. Defaults to a real restore; set it to
-        /// a failure to exercise the "override is still active" path (#734).</summary>
-        public SettingsRestoreOutcome RestoreResult = SettingsRestoreOutcome.Restored;
-
-        public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
-        {
-            SaveCalls++;
-            return Task.FromResult(SettingsApplyOutcome.Saved);
-        }
-        public Task<SettingsApplyOutcome> RetryPersistAsync() => Task.FromResult(SettingsApplyOutcome.NoChange);
-        public Task ApplyLiveOnlyAsync(Settings settings) { LiveOnlyCalls++; return Task.CompletedTask; }
-        public int EphemeralCalls;
-        public Task ApplyEphemeralAsync(Settings settings) { EphemeralCalls++; return Task.CompletedTask; }
-        public bool HasEphemeralOverride { get; private set; }
-        public Task ClearEphemeralOverrideAsync() { HasEphemeralOverride = false; return Task.CompletedTask; }
-        public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
-        {
-            RestoreCalls++;
-            return Task.FromResult(RestoreResult);
-        }
-    }
-
+    /// <summary>A snapshot store where the test decides which preset files exist.</summary>
     private sealed class FakeStore : ISettingsFileStore
     {
         public readonly HashSet<string> Existing = new();
@@ -61,9 +34,9 @@ public class ProfileSwitchServiceTests
         }
     }
 
-    private static (ProfileSwitchService svc, FakeCoordinator coord, FakeStore store) Make(string dir)
+    private static (ProfileSwitchService svc, FakeSettingsCoordinator coord, FakeStore store) Make(string dir)
     {
-        var coord = new FakeCoordinator();
+        var coord = new FakeSettingsCoordinator();
         var store = new FakeStore();
         return (new ProfileSwitchService(coord, store, () => dir), coord, store);
     }

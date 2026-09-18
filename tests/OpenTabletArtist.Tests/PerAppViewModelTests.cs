@@ -42,11 +42,86 @@ public class PerAppViewModelTests
         return d;
     }
 
-    private static PerAppViewModel NewVm(PerAppProfileStore store, FakeDeviceData device)
+    private static PerAppViewModel NewVm(PerAppProfileStore store, FakeDeviceData device,
+        FakeConnectionState? connection = null)
     {
         var switcher = new PerAppSwitcher(new FakeWatcher(), store, new FakeApplier(),
             new FakeDebounce(), ownExeName: "OpenTabletArtist.exe");
-        return new PerAppViewModel(switcher, store, device, new FakeDialogService(), new FakeConnectionState());
+        return new PerAppViewModel(switcher, store, device, new FakeDialogService(),
+            connection ?? new FakeConnectionState());
+    }
+
+    // --- Whose daemon it is decides whether this feature may run at all (#742) ---
+
+    private static PerAppViewModel VmFor(DaemonOwnership ownership)
+    {
+        string? backing = null;
+        var connection = new FakeConnectionState { IsConnected = true, Ownership = ownership };
+        return NewVm(new PerAppProfileStore(() => backing, v => backing = v), new FakeDeviceData(), connection);
+    }
+
+    [Fact]
+    public void OnOurOwnDaemon_TheFeatureIsAvailable()
+    {
+        var vm = VmFor(DaemonOwnership.Owned);
+
+        Assert.True(vm.CanUse);
+        Assert.False(vm.ShowDaemonBlockedNotice);
+    }
+
+    /// <summary>
+    /// The regression: <c>CanUse</c> was <c>!IsForeignDaemon</c>, which is also true when OTA cannot tell
+    /// whose daemon it is. This feature rewrites settings on every focus change, so it enabled itself in
+    /// exactly the case OTA knew least about.
+    /// </summary>
+    [Theory]
+    [InlineData(DaemonOwnership.External)]
+    [InlineData(DaemonOwnership.Unknown)]
+    public void OnAnyOtherDaemon_TheFeatureIsUnavailable_AndSaysWhy(DaemonOwnership ownership)
+    {
+        var vm = VmFor(ownership);
+
+        Assert.False(vm.CanUse);
+        Assert.True(vm.ShowDaemonBlockedNotice);
+        Assert.NotEmpty(vm.DaemonBlockedText);
+    }
+
+    /// <summary>The two blocked cases need different advice — one daemon can be stopped, the other is
+    /// probably elevated and wants looking at, not stopping.</summary>
+    [Fact]
+    public void TheBlockedExplanationDistinguishesTheirDaemonFromAnUnreadableOne()
+    {
+        var theirs = VmFor(DaemonOwnership.External).DaemonBlockedText;
+        var unreadable = VmFor(DaemonOwnership.Unknown).DaemonBlockedText;
+
+        Assert.NotEqual(theirs, unreadable);
+        Assert.Contains("didn't start", theirs, StringComparison.Ordinal);
+        Assert.Contains("can't tell", unreadable, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WhenDisconnected_TheBlockedNoticeIsNotShown()
+    {
+        // Nothing to explain about a daemon that isn't there; the page has its own disconnected state.
+        string? backing = null;
+        var connection = new FakeConnectionState { IsConnected = false, Ownership = DaemonOwnership.Unknown };
+        var vm = NewVm(new PerAppProfileStore(() => backing, v => backing = v), new FakeDeviceData(), connection);
+
+        Assert.False(vm.ShowDaemonBlockedNotice);
+    }
+
+    [Fact]
+    public void OwnershipChanging_UpdatesAvailability()
+    {
+        string? backing = null;
+        var connection = new FakeConnectionState { IsConnected = true, Ownership = DaemonOwnership.External };
+        var vm = NewVm(new PerAppProfileStore(() => backing, v => backing = v), new FakeDeviceData(), connection);
+        Assert.False(vm.CanUse);
+
+        connection.Ownership = DaemonOwnership.Owned;
+
+        Assert.True(vm.CanUse);
+        Assert.False(vm.ShowDaemonBlockedNotice);
     }
 
     [Fact]
