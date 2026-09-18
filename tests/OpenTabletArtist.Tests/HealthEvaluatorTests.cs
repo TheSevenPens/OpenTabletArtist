@@ -653,4 +653,151 @@ public class HealthEvaluatorTests
         Assert.True(Has(issues, "otd.driver"));
         Assert.False(Has(issues, "tablet.notWinInk:Tablet A")); // still a Windows-only concept
     }
+
+    // --- Linux tablet prerequisites (#779) ------------------------------------------------
+
+    /// <summary>Linux, connected, and the daemon has found nothing — the state these checks explain.</summary>
+    private static HealthInputs LinuxNoTablet() => new()
+    {
+        IsWindows = false,
+        IsLinux = true,
+        DaemonConnected = true,
+        VMultiInstalled = true,
+        Tablets = new List<TabletHealthInput>(),
+    };
+
+    [Fact]
+    public void Linux_MissingUdevRules_IsBroken()
+    {
+        var issues = HealthEvaluator.Evaluate(LinuxNoTablet() with { LinuxUdevRulesMissing = true });
+
+        var issue = Assert.Single(issues, x => x.Id == "linux.udevRules");
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+    }
+
+    /// <summary>
+    /// The gate that keeps these from nagging. Every one of them is a proxy — rules can live somewhere the
+    /// probe doesn't look, and a distro can grant HID access by another route — so a working tablet is
+    /// proof the prerequisites were met, however they were met.
+    /// </summary>
+    [Fact]
+    public void Linux_PrerequisitesAreSilent_WhenATabletIsDetected()
+    {
+        var issues = HealthEvaluator.Evaluate(LinuxNoTablet() with
+        {
+            LinuxUdevRulesMissing = true,
+            LinuxHidAccess = LinuxHidAccess.Blocked,
+            LinuxConflictingModulesLoaded = new List<string> { "wacom" },
+            LinuxConflictingModulesNotBlacklisted = true,
+            Tablets = new List<TabletHealthInput> { new("Tablet A", Detected: true, OutputModeIsWinInk: false) },
+        });
+
+        Assert.False(Has(issues, "linux.udevRules"));
+        Assert.False(Has(issues, "linux.hidAccess"));
+        Assert.False(Has(issues, "linux.conflictingModules"));
+    }
+
+    [Fact]
+    public void Linux_ChecksDoNotRunOnOtherPlatforms()
+    {
+        var issues = HealthEvaluator.Evaluate(LinuxNoTablet() with
+        {
+            IsLinux = false,
+            LinuxUdevRulesMissing = true,
+            LinuxHidAccess = LinuxHidAccess.Blocked,
+        });
+
+        Assert.False(Has(issues, "linux.udevRules"));
+        Assert.False(Has(issues, "linux.hidAccess"));
+    }
+
+    [Fact]
+    public void Linux_BlockedHidAccess_IsBroken()
+    {
+        var issue = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with { LinuxHidAccess = LinuxHidAccess.Blocked }),
+            x => x.Id == "linux.hidAccess");
+
+        Assert.Equal(HealthSeverity.Broken, issue.Severity);
+        Assert.Contains("usermod", issue.Detail);
+    }
+
+    /// <summary>
+    /// A granted-but-not-live group is not a refusal. Reporting it as one sends the user to re-run a
+    /// command that already worked, which is how the old tool's users lost an afternoon.
+    /// </summary>
+    [Fact]
+    public void Linux_PendingHidAccess_IsInformationalAndDoesNotAskForTheCommandAgain()
+    {
+        var issue = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with { LinuxHidAccess = LinuxHidAccess.PendingReboot }),
+            x => x.Id == "linux.hidAccess");
+
+        Assert.Equal(HealthSeverity.Information, issue.Severity);
+        Assert.DoesNotContain("usermod", issue.Detail);
+    }
+
+    [Fact]
+    public void Linux_PendingHidAccess_SaysRebootWhenTheUserManagerWouldSurviveALogout()
+    {
+        var withManager = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with
+            {
+                LinuxHidAccess = LinuxHidAccess.PendingReboot,
+                LinuxUserManagerRunning = true,
+            }), x => x.Id == "linux.hidAccess");
+
+        var without = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with
+            {
+                LinuxHidAccess = LinuxHidAccess.PendingReboot,
+                LinuxUserManagerRunning = false,
+            }), x => x.Id == "linux.hidAccess");
+
+        Assert.Contains("systemd", withManager.Detail);
+        Assert.DoesNotContain("Log out", withManager.Detail);
+        Assert.Contains("Log out", without.Detail);
+    }
+
+    [Fact]
+    public void Linux_LoadedConflictingModules_AreNamedInTheAdvice()
+    {
+        var issue = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with
+            {
+                LinuxConflictingModulesLoaded = new List<string> { "wacom", "hid_uclogic" },
+                LinuxConflictingModulesNotBlacklisted = true,
+            }), x => x.Id == "linux.conflictingModules");
+
+        Assert.Equal(HealthSeverity.Misconfigured, issue.Severity);
+        Assert.Contains("rmmod wacom hid_uclogic", issue.Detail);
+        Assert.Contains("blacklist", issue.Detail);
+    }
+
+    [Fact]
+    public void Linux_AlreadyBlacklistedModules_DoNotAskForBlacklisting()
+    {
+        var issue = Assert.Single(
+            HealthEvaluator.Evaluate(LinuxNoTablet() with
+            {
+                LinuxConflictingModulesLoaded = new List<string> { "wacom" },
+                LinuxConflictingModulesNotBlacklisted = false,
+            }), x => x.Id == "linux.conflictingModules");
+
+        Assert.Contains("already blacklisted", issue.Detail);
+    }
+
+    /// <summary>Blacklisting only matters as a way to stop a conflict recurring, so with nothing loaded
+    /// there is nothing to say — otherwise every Linux machine without a tablet plugged in gets a warning
+    /// about kernel modules it has never had trouble with.</summary>
+    [Fact]
+    public void Linux_UnblacklistedModulesAlone_RaiseNothing()
+    {
+        var issues = HealthEvaluator.Evaluate(LinuxNoTablet() with
+        {
+            LinuxConflictingModulesNotBlacklisted = true,
+        });
+
+        Assert.False(Has(issues, "linux.conflictingModules"));
+    }
 }
