@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletArtist.Concurrency;
 using Xunit;
@@ -127,5 +129,72 @@ public class LatestOnlyGateTests
         var gate = new LatestOnlyGate();
         gate.Dispose();
         gate.Dispose();
+    }
+    /// <summary>
+    /// #767. #736 fixed the operation that <em>holds</em> the gate; callers queued behind it were still
+    /// stranded. <c>_active</c> counts only those that acquired the semaphore, and disposing a
+    /// <c>SemaphoreSlim</c> does not complete outstanding <c>WaitAsync</c> calls — so their tasks never
+    /// settle. A task that never completes is worse than one that faults: nothing observes it and nothing
+    /// reports it, and <c>AppSession</c> disposes its load gate during shutdown with reloads potentially
+    /// queued.
+    /// </summary>
+    [Fact]
+    public async Task Dispose_WithSeveralQueued_SettlesEveryTask()
+    {
+        var gate = new LatestOnlyGate();
+        // Asynchronous continuations: with the default, SetResult runs the awaiting continuation inline
+        // on the completing thread, so the test body would resume *inside* the gate's own call stack.
+        var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queuedRan = 0;
+
+        var running = gate.RunAsync(async () =>
+        {
+            entered.SetResult();
+            await block.Task;
+        });
+        await entered.Task;
+
+        // Three more pile up behind the one holding the gate.
+        var queued = new[]
+        {
+            gate.RunAsync(() => { Interlocked.Increment(ref queuedRan); return Task.CompletedTask; }),
+            gate.RunAsync(() => { Interlocked.Increment(ref queuedRan); return Task.CompletedTask; }),
+            gate.RunAsync(() => { Interlocked.Increment(ref queuedRan); return Task.CompletedTask; }),
+        };
+
+        gate.Dispose();
+        block.SetResult();
+
+        var all = queued.Append(running).ToArray();
+        try { await Task.WhenAll(all).WaitAsync(TimeSpan.FromSeconds(10)); }
+        catch (TimeoutException)
+        {
+            Assert.Fail($"Disposal stranded {all.Count(t => !t.IsCompleted)} of {all.Length} callers: "
+                        + "a queued caller is still waiting on a gate nobody will ever release.");
+        }
+        Assert.Equal(0, Volatile.Read(ref queuedRan));   // and none of them ran
+    }
+
+    [Fact]
+    public async Task Dispose_WithSeveralQueued_NoneFault()
+    {
+        var gate = new LatestOnlyGate();
+        var block = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var running = gate.RunAsync(async () => { entered.SetResult(); await block.Task; });
+        await entered.Task;
+        var queued = Enumerable.Range(0, 5)
+            .Select(_ => gate.RunAsync(() => Task.CompletedTask))
+            .ToArray();
+
+        gate.Dispose();
+        block.SetResult();
+
+        // Settling is not enough — a cancelled or faulted task is still a surprise to a caller that was
+        // only ever asked to reload.
+        await Task.WhenAll(queued.Append(running)).WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.All(queued, t => Assert.Equal(TaskStatus.RanToCompletion, t.Status));
     }
 }
