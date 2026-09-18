@@ -288,6 +288,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _ => "",
     };
 
+    /// <summary>
+    /// Set when switching daemons threw away an edit that had never reached disk (#787).
+    ///
+    /// Discarding is the right call — the alternative was writing one daemon's settings into another's
+    /// file — but it is still the loss of something the artist did, and until now it was only written to
+    /// a log nobody reads. The save chip going quiet is not an explanation.
+    ///
+    /// Only raised when a pending write actually existed. The rest of what a daemon switch resets is
+    /// bookkeeping the user never saw.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiscardedChangeNotice))]
+    private string _discardedChangeNotice = "";
+
+    public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(DiscardedChangeNotice);
+
     private DispatcherTimer? _saveClearTimer;
 
     partial void OnSaveStateChanged(SettingsSaveState value)
@@ -295,6 +311,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(ShowSaveStatus));
         OnPropertyChanged(nameof(SaveFailed));
         OnPropertyChanged(nameof(SaveStatusText));
+
+        // A new save attempt supersedes the notice: the user is editing again, and telling them about an
+        // edit lost two daemons ago is clutter by then.
+        if (value == SettingsSaveState.Saving) DiscardedChangeNotice = "";
 
         // "Saved" fades to nothing after a moment; "Saving"/"Failed" stay until the next save transition.
         _saveClearTimer?.Stop();
@@ -1319,7 +1339,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             AppLog.Warn($"The connected daemon changed from {_sessionDaemonPath} to {actual}; " +
                         "dropping settings state that belonged to the previous one.");
-            _coordinator.ResetForNewDaemon();
+            if (_coordinator.ResetForNewDaemon())
+            {
+                // Name the file, because "a change was discarded" invites the question this answers:
+                // which settings, belonging to what. The daemon is gone; its settings file may not be.
+                DiscardedChangeNotice =
+                    "A change that hadn't been saved yet was discarded, because the OpenTabletDriver "
+                    + "you're connected to changed. It belonged to the previous one, and writing it here "
+                    + "would have overwritten this daemon's settings.";
+            }
         }
         if (actual != null) _sessionDaemonPath = actual;
 
