@@ -257,8 +257,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OperatingSystem.IsMacOS()
             ? "OpenTabletDriver isn't installed, or it's somewhere OpenTabletArtist didn't look. Install "
               + "it, or point OTA at an existing copy on the Daemon page."
-            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Build the whole "
-              + "solution (dotnet build OpenTabletArtist.slnx) so the daemon is produced, then try again.";
+            // Not "build the solution": the daemon left it in #786/#790, so that advice now cannot work.
+            // Offer the two routes that do, cheapest first.
+            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Install "
+              + "OpenTabletDriver and point OTA at it on the Daemon page, or build the daemon from the "
+              + "submodule (scripts/build.ps1, or dotnet build "
+              + "external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj).";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---
     [ObservableProperty] private bool _isDaemonBusy;
