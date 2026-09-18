@@ -11,6 +11,9 @@ using Xunit;
 
 namespace OpenTabletArtist.Tests;
 
+// Constructs TabletDetailViewModel, whose constructor calls DisplayEnumerator.Enumerate() — so it
+// shares the global seam with DisplayEnumeratorSeamTests and must not run alongside it (#729).
+[Collection(DisplayEnumeratorCollection.Name)]
 public class TabletDetailViewModelTests
 {
     private const string WinInkAbsolute = "VoiDPlugins.OutputMode.WinInkAbsoluteMode";
