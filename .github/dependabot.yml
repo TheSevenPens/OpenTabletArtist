@@ -15,11 +15,30 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     groups:
+      # Group by what has to move TOGETHER, not by what shares a name. A package whose pinned version is
+      # dictated by another package belongs with it: split across two PRs, neither can merge.
       avalonia:
-        # Avalonia's packages are released together and must move together — a partial bump produces a
-        # runtime type mismatch rather than a build error.
+        # Avalonia's own packages are released together and must move together — a partial bump produces
+        # a runtime type mismatch rather than a build error.
+        #
+        # SkiaSharp is here because its pin exists to match what Avalonia.Skia pulls (see the comment on
+        # the PackageReference). Grouped as "other" it produced exactly the deadlock this is meant to
+        # prevent: the Avalonia bump wanted SkiaSharp >= 3.119.4 and failed NU1605 against our pin, while
+        # the separate SkiaSharp PR proposed 4.152.1, a major version Avalonia does not ask for.
+        # HarfBuzzSharp would belong here too if it ever becomes a direct reference — Avalonia.Skia
+        # carries it transitively today.
         patterns:
           - "Avalonia*"
+          - "SkiaSharp*"
+          - "HarfBuzzSharp*"
+      rpc:
+        # MessagePack is pinned as a security floor over what StreamJsonRpc pulls transitively (NU1903),
+        # and deliberately held on the 2.5.x line. Proposing it on its own invites a major bump that
+        # breaks that constraint with nothing nearby to explain why.
+        patterns:
+          - "StreamJsonRpc"
+          - "MessagePack*"
+          - "Newtonsoft.Json"
       test-tooling:
         patterns:
           - "xunit*"
@@ -30,6 +49,11 @@ updates:
           - "*"
         exclude-patterns:
           - "Avalonia*"
+          - "SkiaSharp*"
+          - "HarfBuzzSharp*"
+          - "StreamJsonRpc"
+          - "MessagePack*"
+          - "Newtonsoft.Json"
           - "xunit*"
           - "Microsoft.NET.Test.Sdk"
           - "coverlet*"
