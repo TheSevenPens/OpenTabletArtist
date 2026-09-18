@@ -53,7 +53,7 @@ public static class PageScreenshot
         int saved = 0;
         if (format is ScreenshotFormat.PNG or ScreenshotFormat.Both)
         {
-            rtb.Save(Path.Combine(dir, baseName + ".png"));
+            rtb.Save(Path.Combine(dir, baseName + ".png"), PngBitmapEncoderOptions.Default);
             saved++;
         }
         if (format is ScreenshotFormat.JPG or ScreenshotFormat.Both)
@@ -70,12 +70,17 @@ public static class PageScreenshot
     public static int Render(Control visual, double scale, string suffix, ScreenshotFormat format) =>
         RenderTo(visual, scale, $"OTA-{suffix}-{DateTime.Now:yyyyMMdd-HHmmss}", Directory(), format);
 
-    // Avalonia's Bitmap.Save only writes PNG, so re-encode through SkiaSharp (already referenced for the
-    // Test-tab paint surface) for JPEG. The PNG round-trip is fine for a developer aid.
+    // Re-encodes through SkiaSharp (already referenced for the Test-tab paint surface) for JPEG. The PNG
+    // round-trip is fine for a developer aid.
+    //
+    // Avalonia 12.1 added JpegBitmapEncoderOptions, so Save could write the JPEG directly and this whole
+    // method could go. Left alone here because that swaps the encoder producing the file, which is a
+    // change to the output rather than to a deprecated call — worth doing on its own, not inside a
+    // warning fix.
     private static void SaveJpeg(RenderTargetBitmap rtb, string path)
     {
         using var png = new MemoryStream();
-        rtb.Save(png);
+        rtb.Save(png, PngBitmapEncoderOptions.Default);
         png.Position = 0;
         using var bitmap = SKBitmap.Decode(png);
         using var image = SKImage.FromBitmap(bitmap);
