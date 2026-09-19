@@ -15,8 +15,12 @@ pipe-to-process-id lookup, the process path resolution, OTA's settings policy, a
 
 ## Running it
 
-Not in `OpenTabletArtist.slnx`, like `tools/OtdLinuxSetup` — it needs two OpenTabletDriver installs and a
-machine it may start and kill daemons on, so it can never run in CI. Build and run it by path:
+In `OpenTabletArtist.slnx`, so CI compiles it — but CI never runs it. Everything needing a real daemon is
+behind command-line arguments, so a build is a compile check and nothing more.
+
+That is a correction, not the original plan. This started outside the solution like `tools/OtdLinuxSetup`,
+and within a day a change to `OtdSession`'s API broke it with nothing to say so. A tool that verifies
+behaviour nothing else can verify is worth a compile check.
 
 ```bash
 dotnet run --project tools/OtdDaemonSwitchCheck -- "C:\path\to\A\OpenTabletDriver.Daemon.exe" "C:\path\to\B\OpenTabletDriver.Daemon.exe"
