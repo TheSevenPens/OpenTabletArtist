@@ -94,6 +94,8 @@
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
+    <!-- And AppLog.RedirectTo, so neither suite writes into the user's diagnostics file (#834). -->
+    <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
   </ItemGroup>
 
 </Project>
