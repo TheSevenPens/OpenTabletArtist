@@ -72,6 +72,25 @@ public class TabletEditorReconcileTests
 
     private static Task Settle() => Pump(TimeSpan.FromMilliseconds(900));
 
+    /// <summary>
+    /// Pumps until <paramref name="until"/> holds, or fails.
+    ///
+    /// Waiting a fixed interval is a guess about scheduling; waiting for the thing you are actually
+    /// waiting for is not. A test that guesses wrong reports a defect that is not there, or hides one
+    /// that is.
+    /// </summary>
+    private static async Task PumpUntil(Func<bool> until, string what)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!until())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"Timed out waiting for {what}.");
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+        Dispatcher.UIThread.RunJobs();
+    }
+
     private static async Task Pump(TimeSpan window)
     {
         var until = DateTime.UtcNow + window;
@@ -366,4 +385,143 @@ public class TabletEditorReconcileTests
 
     private static bool Pressure(Settings s) =>
         s.Profiles.First(p => p.Tablet == "T").BindingSettings.DisablePressure;
+
+    // --- Reads that are overtaken (#814) ------------------------------------------------------
+    //
+    // Both of these come from the review of this change. The ordering they share is the part I kept
+    // getting wrong on my own: C's payload has to be inspected AT SUBMISSION, while the correcting
+    // reload is still held. Awaiting everything first lets that reload repair the editor, and the defect
+    // disappears before any assertion can see it.
+
+    private sealed record ReadHarness(
+        FakeDaemonTransport Daemon,
+        AppSession Session,
+        TabletDetailViewModel Editor);
+
+    /// <summary>A real session and a real editor, wired as the shell wires them.</summary>
+    private static async Task<ReadHarness> RealEditor()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = SettingsWithForeignFilter(),
+            AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
+        };
+        var session = new AppSession(daemon, new StubLifecycle(), new NoopStore())
+        {
+            Ownership = DaemonOwnership.Owned,
+        };
+        await session.ReloadAsync();
+
+        var vm = new DialogService(session).CreateTabletDetail("T", () => Task.CompletedTask);
+        Assert.NotNull(vm);
+        session.DataLoaded += () =>
+        {
+            var current = session.CurrentSettings;
+            vm!.ReconcileExternalChange(current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"));
+        };
+        return new ReadHarness(daemon, session, vm!);
+    }
+
+    /// <summary>
+    /// A response that was captured before a later change and delivered after it must not be adopted.
+    ///
+    /// The daemon services a read at some moment of its choosing; a response can describe a state that
+    /// has since been superseded. Adopting it is not a display glitch — the editor's next edit is built
+    /// on that baseline and sends the superseded value back, so the app undoes the user's own change.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AnOlderReadDeliveredAfterANewerChange_IsNotAdopted()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        var first = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = 0;
+        daemon.GetSettingsHandler = () => ++reads == 1 ? first.Task : second.Task;
+
+        try
+        {
+            vm.DisablePressure = true;
+            var older = Clone(daemon.Settings!);      // captured while pressure is disabled
+            vm.DisablePressure = false;
+            Assert.False(Pressure(daemon.Settings!)); // the daemon has moved on
+
+            first.SetResult(older);                   // the stale response finally arrives
+            await PumpUntil(() => reads >= 2, "the correcting reload to start");
+
+            // Inspected here, with the correcting reload still held. Letting it land first would repair
+            // the editor and hide the defect entirely.
+            vm.DisableTilt = true;
+            var submitted = Pressure(daemon.Applied[^1]);
+
+            Assert.False(submitted);
+        }
+        finally
+        {
+            daemon.GetSettingsHandler = null;
+            second.TrySetResult(daemon.Settings is { } s ? Clone(s) : null);
+            first.TrySetResult(null);
+            await Settle();
+            vm.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// A read that STARTS after the session published a change but before the daemon accepted it.
+    ///
+    /// Publishing happens before the call, so such a read carries a version that looks current while
+    /// returning state from before the change. Versioning the local baseline is not enough: only the
+    /// daemon's acceptance changes what a read of the daemon can observe.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AReadStartedWhileAnApplyWasInFlight_IsNotAdopted()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        var accept = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ => accept.Task;
+
+        var first = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = 0;
+
+        try
+        {
+            vm.DisablePressure = true;                // published; not yet accepted
+            var older = Clone(daemon.Settings!);      // still shows pressure enabled
+
+            daemon.GetSettingsHandler = () => ++reads == 1 ? first.Task : second.Task;
+            var reload = session.ReloadAsync();       // this read begins AFTER the publish
+            await PumpUntil(() => reads >= 1, "the reload's read to start");
+
+            accept.SetResult(true);                   // now the daemon takes the change
+            await PumpUntil(() => Pressure(daemon.Settings!), "the daemon to hold the applied value");
+
+            first.SetResult(older);                   // the read that began too early answers
+            await PumpUntil(() => reads >= 2, "the correcting reload to start");
+
+            daemon.SetSettingsHandler = null;
+            vm.DisableTilt = true;
+            var submitted = Pressure(daemon.Applied[^1]);
+
+            // The successful edit stands: the next submission still carries it.
+            Assert.True(submitted);
+
+            daemon.GetSettingsHandler = null;
+            second.TrySetResult(Clone(daemon.Settings!));
+            await reload;
+        }
+        finally
+        {
+            daemon.GetSettingsHandler = null;
+            daemon.SetSettingsHandler = null;
+            accept.TrySetResult(true);
+            first.TrySetResult(null);
+            second.TrySetResult(daemon.Settings is { } s ? Clone(s) : null);
+            await Settle();
+            vm.Dispose();
+        }
+    }
 }

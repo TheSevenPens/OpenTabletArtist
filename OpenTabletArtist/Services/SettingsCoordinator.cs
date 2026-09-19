@@ -115,6 +115,11 @@ public sealed class SettingsCoordinator
     ///
     /// A caller observes this before starting a read and hands it back when adopting, so a response that
     /// was overtaken can be recognised and dropped rather than believed.
+    ///
+    /// It tracks two different things, and needs both: the settings this session publishes, and the
+    /// moments the daemon accepts a change. Publishing happens before the call that changes the daemon,
+    /// so a read starting in between would otherwise carry a version that looks current while returning
+    /// state from before the change.
     /// </summary>
     private int _stateVersion;
 
@@ -128,6 +133,20 @@ public sealed class SettingsCoordinator
         _settings = settings;
         Interlocked.Increment(ref _stateVersion);
     }
+
+    /// <summary>
+    /// The daemon has just accepted something, so what a read of it can observe has changed.
+    ///
+    /// Distinct from <see cref="Publish"/>, and the distinction is the whole point. Publishing happens
+    /// BEFORE the call, so a read starting between the two sees the new version and the old daemon
+    /// state — a combination that looks current and is not. Versioning the local baseline does not
+    /// version what a remote read returns; only the acceptance does.
+    ///
+    /// Called on every path that succeeds in changing the daemon, not only the persisting one. Live-only
+    /// and per-app applies, ending an override, and restoring the saved default all change what a read
+    /// can observe, whether or not they change the baseline this session publishes.
+    /// </summary>
+    private void NoteDaemonAccepted() => Interlocked.Increment(ref _stateVersion);
 
     /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
@@ -403,6 +422,8 @@ public sealed class SettingsCoordinator
             throw;
         }
 
+        if (applied) NoteDaemonAccepted();
+
         if (!applied)
         {
             _onSaveState(SettingsSaveState.Disconnected);
@@ -540,6 +561,7 @@ public sealed class SettingsCoordinator
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
             return false;
         }
+        NoteDaemonAccepted();
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -587,6 +609,7 @@ public sealed class SettingsCoordinator
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
             return false;
         }
+        NoteDaemonAccepted();
 
         // Flag it so the reload stops overwriting the baseline with what the daemon now holds (#737).
         // Leaving _settings untouched here was never enough on its own: the 30-second poll read the
@@ -627,6 +650,7 @@ public sealed class SettingsCoordinator
                         "The override is still in effect.");
             return false;
         }
+        NoteDaemonAccepted();
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -670,6 +694,8 @@ public sealed class SettingsCoordinator
                         "Any active override is still in effect.", ex);
             return SettingsRestoreOutcome.Failed(ex);
         }
+
+        if (applied) NoteDaemonAccepted();
 
         if (!applied)
         {
