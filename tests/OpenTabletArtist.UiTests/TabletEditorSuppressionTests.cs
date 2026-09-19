@@ -9,6 +9,7 @@ using OpenTabletArtist.ViewModels;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.UiTests;
 
@@ -70,7 +71,7 @@ public class TabletEditorSuppressionTests
         var applies = new List<Settings>();
         var vm = new TabletDetailViewModel(
             settings.Profiles[0], settings,
-            applyAction: s => { applies.Add(s); return Task.CompletedTask; },
+            applyAction: s => { applies.Add(s); return Task.FromResult(SettingsApplyOutcome.Saved); },
             refreshAction: refreshAction);
         return (vm, applies);
     }

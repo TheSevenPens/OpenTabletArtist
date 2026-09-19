@@ -8,6 +8,7 @@ using OpenTabletDriver.Desktop.Reflection;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 
@@ -55,7 +56,7 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
-            applyAction: s => { pushed = s; return Task.CompletedTask; },
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
             refreshAction: () => Task.FromResult<(Settings?, Profile?)>((reloaded, reloaded.Profiles.First())));
 
         await vm.RefreshCommand.ExecuteAsync(null);
@@ -77,7 +78,7 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
-            applyAction: s => { pushed = s; return Task.CompletedTask; },
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
             refreshAction: () => Task.FromResult<(Settings?, Profile?)>((null, null)));
 
         await vm.RefreshCommand.ExecuteAsync(null);
@@ -102,7 +103,7 @@ public class TabletDetailViewModelTests
         Settings? pushed = null;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: s => { pushed = s; return Task.CompletedTask; });
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); });
 
         // A known monitor to pick (7 avoids any real display number the ctor may have pre-selected).
         vm.Displays = new List<DisplayInfo> { new(7, "Main", 1920, 1080, 0, 0, true) };
@@ -149,6 +150,7 @@ public class TabletDetailViewModelTests
         {
             appliedTo.Add(DisplayMappingApplier.CurrentlyMapped(profile, displays)?.Number);
             if (Interlocked.Increment(ref calls) == 1) await hold.Task; // keep the first apply in flight
+            return SettingsApplyOutcome.Saved;
         });
         vm.Displays = displays;
 
@@ -171,7 +173,7 @@ public class TabletDetailViewModelTests
         var settings = AbsoluteSettingsWith("T");
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.CompletedTask,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
             isDetected: () => false,
             onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
@@ -189,7 +191,7 @@ public class TabletDetailViewModelTests
         var settings = AbsoluteSettingsWith("T");
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.CompletedTask,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
             isDetected: () => detected,
             onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
@@ -249,7 +251,7 @@ public class TabletDetailViewModelTests
 
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: s => { pushed = s; return Task.CompletedTask; });
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); });
 
         vm.ReconcileExternalChange(reloaded, reloaded.Profiles.First());
 
@@ -271,7 +273,7 @@ public class TabletDetailViewModelTests
 
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: _ => Task.CompletedTask);
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved));
 
         vm.ReconcileExternalChange(sameValues, sameValues.Profiles.First());
 
@@ -286,7 +288,7 @@ public class TabletDetailViewModelTests
         var settings = SettingsWith("T"); // no Absolute output mode set
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.CompletedTask,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
             isDetected: () => true);
 
         Assert.True(vm.IsTabletDetected);
@@ -305,7 +307,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: _ => { applies++; return Task.CompletedTask; });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
 
         // An identical reload (no real change) — reconciled, no apply.
         var same = MappedSettings("T", 50);
@@ -328,7 +330,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => { applies++; return Task.CompletedTask; });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
 
         Assert.True(vm.IsAbsoluteMode);                    // loaded as Windows Ink Absolute
 
@@ -389,7 +391,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => { applies++; return Task.CompletedTask; });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
 
         vm.SelectMovementCommand.Execute("absolute");   // already absolute (native) → no-op
 
@@ -409,7 +411,7 @@ public class TabletDetailViewModelTests
         var settings = SettingsWithMode("T", NativeAbsolute);
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.CompletedTask);
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved));
 
         Assert.True(vm.CanFixOutputMode);   // native (non-WinInk) on Windows → fixable
 

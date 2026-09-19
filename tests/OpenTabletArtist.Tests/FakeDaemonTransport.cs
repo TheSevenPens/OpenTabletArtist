@@ -68,10 +68,17 @@ internal sealed class FakeDaemonTransport : IDaemonTransport
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// When set, replaces <see cref="GetSettingsAsync"/> entirely — so a test can hold a read open and
+    /// let something else complete while it is outstanding. Reads are not instantaneous against a real
+    /// daemon, and an immediately-answering fake cannot express that.
+    /// </summary>
+    public Func<Task<Settings?>>? GetSettingsHandler { get; set; }
+
     public Task<Settings?> GetSettingsAsync()
     {
         GetSettingsCalls++;
-        return Task.FromResult(Settings);
+        return GetSettingsHandler?.Invoke() ?? Task.FromResult(Settings);
     }
 
     public async Task<bool> SetSettingsAsync(Settings settings)

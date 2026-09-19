@@ -40,8 +40,19 @@ internal sealed class FakeDialogService : IDialogService
         return Task.CompletedTask;
     }
 
-    public OpenTabletArtist.ViewModels.TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null)
-        => new(profile, null);
+    /// <summary>Settings and profile from one object, as the real factory now guarantees.</summary>
+    public OpenTabletArtist.ViewModels.TabletDetailViewModel? CreateTabletDetail(
+        string tabletName, Func<Task> onForget, Action? openConfigsPage = null)
+    {
+        var settings = new Settings
+        {
+            Profiles = new OpenTabletDriver.Desktop.Profiles.ProfileCollection
+            {
+                new Profile { Tablet = tabletName },
+            },
+        };
+        return new(settings.Profiles[0], settings);
+    }
 
     public Task ShowMessageAsync(string title, string message)
     {

@@ -17,7 +17,16 @@ public interface IDialogService
     /// <summary>Builds a <see cref="TabletDetailViewModel"/> for the in-app Tablets page, wired to the
     /// session (apply/save, reload, detection, live pen input, calibration owned by the main window).
     /// <paramref name="onForget"/> removes the tablet's profile and is invoked by the page's Forget.</summary>
-    TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null);
+    /// <summary>
+    /// The editor for one tablet, or null if the session has no profile for it.
+    ///
+    /// Takes a NAME, not a profile. The editor needs a profile that is a live reference inside the
+    /// settings it will submit, and since the session hands out a detached copy on every read, a caller
+    /// that resolved the profile from its own read would pair it with settings from a different copy —
+    /// the editor would then edit one object and submit another, and the user's change would never leave
+    /// the app. Resolving both here, from a single read, makes that unrepresentable.
+    /// </summary>
+    TabletDetailViewModel? CreateTabletDetail(string tabletName, Func<Task> onForget, Action? openConfigsPage = null);
 
     /// <summary>Shows an informational message with an OK button.</summary>
     Task ShowMessageAsync(string title, string message);
@@ -52,12 +61,17 @@ public class DialogService : IDialogService
     public DialogService(AppSession session) => _session = session;
 
     /// <inheritdoc />
-    public TabletDetailViewModel CreateTabletDetail(Profile profile, Func<Task> onForget, Action? openConfigsPage = null)
+    public TabletDetailViewModel? CreateTabletDetail(string tabletName, Func<Task> onForget, Action? openConfigsPage = null)
     {
-        var tabletName = profile.Tablet;
+        // One read. CurrentSettings is a fresh copy each time, so two reads give two unrelated object
+        // graphs and the profile from one is not inside the other.
+        var settings = _session.CurrentSettings;
+        var profile = settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName);
+        if (settings == null || profile == null) return null;
+
         return new TabletDetailViewModel(
             profile,
-            _session.CurrentSettings,
+            settings,
             applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
             refreshAction: async () =>
             {
