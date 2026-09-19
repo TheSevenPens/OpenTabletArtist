@@ -46,7 +46,8 @@ public sealed class OtdSession : IDisposable
     private string _daemonPath = "";
 
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
-        ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
+        ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
+        IOtdExecutionContext context)
     {
         Connection = connection;
         Capabilities = new DaemonCapabilities(connection);
@@ -55,7 +56,40 @@ public sealed class OtdSession : IDisposable
         _log = log;
         _policy = policy;
         _locator = locator;
+        _context = context;
+
+        // Subscribed here rather than left to the host. The transport raises on its own thread the moment
+        // its channel is usable; everything this session then has to do -- identify the daemon, drop what
+        // belonged to the one that has gone -- touches state a host may be reading, so it is posted to the
+        // host's context rather than done where the notification arrived.
+        connection.Connected += OnTransportConnected;
+        connection.Disconnected += OnTransportDisconnected;
     }
+
+    private readonly IOtdExecutionContext _context;
+
+    /// <summary>
+    /// The transport has a channel. Identify the daemon, invalidate if it is a different one, and only
+    /// then tell the host.
+    /// </summary>
+    /// <remarks>
+    /// Posted rather than run here: this arrives on the transport's thread, and what it does touches the
+    /// same fields the host reads. Nothing is awaited by the transport, so a slow host context delays
+    /// this session's notification and not the connection.
+    ///
+    /// <b>Identification happening promptly is not what makes this safe.</b> Even a fast context can be
+    /// delayed arbitrarily, and the window between the channel becoming usable and this running is real
+    /// either way. What makes work in that window safe is that operations bind to the channel they were
+    /// admitted on (#830), and -- still to come -- that this session refuses to persist against a
+    /// connection it has not finished preparing.
+    /// </remarks>
+    private void OnTransportConnected() => _ = _context.PostAsync(() =>
+    {
+        var change = NoteConnectedDaemon();
+        Connected?.Invoke(change);
+    });
+
+    private void OnTransportDisconnected() => _ = _context.PostAsync(() => Disconnected?.Invoke());
 
     /// <summary>
     /// Opens a session against the OpenTabletDriver daemon. Nothing is connected until
@@ -68,11 +102,16 @@ public sealed class OtdSession : IDisposable
     /// How to find out which executable is answering. The session needs it because a different one is a
     /// session boundary, and reading a process's path is the host's to do.
     /// </param>
+    /// <param name="context">
+    /// Where this session runs work it starts itself — chiefly identifying the daemon after a reconnect.
+    /// Required; see <see cref="IOtdExecutionContext"/> for why there is no default.
+    /// </param>
     /// <returns>The session. The host owns disposing it.</returns>
-    public static OtdSession Create(IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
+    public static OtdSession Create(IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
+        IOtdExecutionContext context)
     {
         var client = new DaemonClient(log);
-        return new OtdSession(client, client, store: null, log, policy, locator);
+        return new OtdSession(client, client, store: null, log, policy, locator, context);
     }
 
     /// <summary>
@@ -96,11 +135,13 @@ public sealed class OtdSession : IDisposable
     /// <param name="log">Where the session records partial failures.</param>
     /// <param name="policy">The host's rules.</param>
     /// <param name="locator">How to find out which executable is answering.</param>
+    /// <param name="context">Where posted work runs; inline when omitted, for tests not about ordering.</param>
     /// <returns>A session over <paramref name="connection"/>.</returns>
     internal static OtdSession ForTesting<T>(T connection, ISettingsFileStore? store,
-        IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
+        IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
+        IOtdExecutionContext? context = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        new(connection, connection, store, log, policy, locator);
+        new(connection, connection, store, log, policy, locator, context ?? new InlineContext());
 
     /// <summary>
     /// What a host may do with this connection: read, watch, and manage plugins.
@@ -124,19 +165,26 @@ public sealed class OtdSession : IDisposable
     /// <summary>The connection itself. Internal: owning one and using one are different things.</summary>
     private IDaemonTransport Connection { get; }
 
-    /// <summary>A connection was established. Raised off the host's execution context.</summary>
-    public event Action? Connected
-    {
-        add => Connection.Connected += value;
-        remove => Connection.Connected -= value;
-    }
+    /// <summary>
+    /// A connection was established <b>and this session has finished with it</b>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not the transport's event forwarded. The transport raises as soon as its channel is usable, which
+    /// is before anything has looked at which daemon answered — so a host acting on that would be acting
+    /// while this session still described the previous one. This fires after identification and any
+    /// invalidation have run, on the host's own execution context.
+    /// </para>
+    /// <para>
+    /// That ordering is the point of #828. The host used to have to call
+    /// <see cref="NoteConnectedDaemon"/> itself at the right moment, and calling it late or not at all
+    /// was possible and silent.
+    /// </para>
+    /// </remarks>
+    public event Action<DaemonChange>? Connected;
 
-    /// <summary>The connection dropped. Raised off the host's execution context.</summary>
-    public event Action? Disconnected
-    {
-        add => Connection.Disconnected += value;
-        remove => Connection.Disconnected -= value;
-    }
+    /// <summary>The connection dropped. Raised on the host's execution context.</summary>
+    public event Action? Disconnected;
 
     /// <summary>
     /// When true, an unexpected drop schedules an automatic reconnect.
@@ -304,6 +352,12 @@ public sealed class OtdSession : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
+        // Before disposing the connection, so a drop raised during teardown does not post work onto a
+        // context for a session that has gone.
+        Connection.Connected -= OnTransportConnected;
+        Connection.Disconnected -= OnTransportDisconnected;
+
         Connection.Dispose();
     }
 }

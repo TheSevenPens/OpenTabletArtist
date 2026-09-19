@@ -83,15 +83,11 @@ internal static class Program
         KillDaemons();
         using var h = await Open(a);
 
-        var first = h.Session.NoteConnectedDaemon();
-        Check("identified the first daemon", PathEquality.Same(first.ExecutablePath, a), first.ExecutablePath);
-        Check("the first look is not a change", !first.Changed, first.Changed);
-
+        // Nothing to ask: the session identified the daemon as it connected, and Open printed which one.
         h.BlockWrites(true);
         Check("applied but not saved", await h.EditStatus() == SettingsApplyStatus.AppliedNotSaved, "-");
 
-        await h.SwitchTo(b);
-        var change = h.Session.NoteConnectedDaemon();
+        var change = await h.SwitchTo(b);
 
         Check("switch detected", change.Changed, change.Changed);
         Check("identified the second daemon", PathEquality.Same(change.ExecutablePath, b), change.ExecutablePath);
@@ -110,12 +106,9 @@ internal static class Program
         Head("2. switch to a different daemon with nothing pending");
         KillDaemons();
         using var h = await Open(a);
-        h.Session.NoteConnectedDaemon();
-
         Check("applied and saved", await h.EditStatus() == SettingsApplyStatus.AppliedAndSaved, "-");
 
-        await h.SwitchTo(b);
-        var change = h.Session.NoteConnectedDaemon();
+        var change = await h.SwitchTo(b);
 
         Check("switch detected", change.Changed, change.Changed);
         Check("nothing was discarded", !change.DiscardedUnsavedChange, change.DiscardedUnsavedChange);
@@ -130,13 +123,10 @@ internal static class Program
         Head("3. restart the SAME daemon with an unsaved edit pending");
         KillDaemons();
         using var h = await Open(a);
-        h.Session.NoteConnectedDaemon();
-
         h.BlockWrites(true);
         Check("applied but not saved", await h.EditStatus() == SettingsApplyStatus.AppliedNotSaved, "-");
 
-        await h.SwitchTo(a);                            // same binary, new process
-        var change = h.Session.NoteConnectedDaemon();
+        var change = await h.SwitchTo(a);               // same binary, new process
 
         Check("NOT reported as a change", !change.Changed, change.Changed);
         Check("nothing was discarded", !change.DiscardedUnsavedChange, change.DiscardedUnsavedChange);
@@ -207,8 +197,8 @@ internal static class Program
     // --- harness ---------------------------------------------------------------------------------
 
     /// <summary>A live session over a started daemon, plus the settings file it reported.</summary>
-    private sealed class Live(OtdSession session, IOtdSettingsSession settings, string settingsFile)
-        : IDisposable
+    private sealed class Live(OtdSession session, IOtdSettingsSession settings, string settingsFile,
+        PumpContext context) : IDisposable
     {
         public OtdSession Session { get; } = session;
         public IOtdSettingsSession Settings { get; } = settings;
@@ -237,42 +227,61 @@ internal static class Program
             return (await Settings.ApplyAndSaveAsync(s)).Status;
         }
 
-        /// <summary>Stops whatever is running and brings up <paramref name="exe"/>, waiting for reconnect.</summary>
-        public async Task SwitchTo(string exe)
+        /// <summary>
+        /// Stops whatever is running, brings up <paramref name="exe"/>, and reports what the session made
+        /// of the daemon that answered.
+        /// </summary>
+        /// <remarks>
+        /// The answer comes from the session's own notification rather than from asking it afterwards.
+        /// Since #828 the session identifies the daemon itself the moment the transport reconnects, so a
+        /// host that asked later would be told nothing had changed -- the change having already been
+        /// noticed and acted on. That is the behaviour this tool exists to exercise, so it observes it the
+        /// way a host now has to.
+        /// </remarks>
+        public async Task<DaemonChange> SwitchTo(string exe)
         {
-            var reconnected = new TaskCompletionSource();
-            Session.Connected += () => reconnected.TrySetResult();
-            KillDaemons();
-            await Task.Delay(1500);
-            StartDaemon(exe);
-            await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(30));
-            await Task.Delay(500);
+            var reconnected = new TaskCompletionSource<DaemonChange>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            void Once(DaemonChange c) => reconnected.TrySetResult(c);
+            Session.Connected += Once;
+            try
+            {
+                KillDaemons();
+                await Task.Delay(1500);
+                StartDaemon(exe);
+                return await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            finally { Session.Connected -= Once; }
         }
 
         public void Dispose()
         {
             BlockWrites(false);
             Session.Dispose();
+            context.Dispose();
         }
     }
 
     private static async Task<Live> Open(string exe, IDaemonProcessLocator? locator = null)
     {
         StartDaemon(exe);
+        var context = new PumpContext();
         var session = OtdSession.Create(AppLogBridge.Instance, OtaSettingsPolicy.Instance,
-            locator ?? new DaemonLifecycleService());
+            locator ?? new DaemonLifecycleService(), context);
 
-        var connected = new TaskCompletionSource();
-        session.Connected += () => connected.TrySetResult();
+        var connected = new TaskCompletionSource<DaemonChange>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        session.Connected += c => connected.TrySetResult(c);
         await session.ConnectAsync(CancellationToken.None);
-        await connected.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var first = await connected.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        Console.WriteLine($"   connected to: {first.ExecutablePath ?? "<unidentifiable>"}");
 
         var file = (await session.Capabilities.GetAppInfoAsync())?.SettingsFile ?? "";
         Console.WriteLine($"   settings file: {file}");
 
         var settings = session.OpenSettings(() => file, () => true, _ => { });
         await settings.ReloadFromDaemonAsync();
-        return new Live(session, settings, file);
+        return new Live(session, settings, file, context);
     }
 
     private static void StartDaemon(string exe)
