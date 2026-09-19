@@ -1,4 +1,4 @@
-using OpenTabletArtist.Domain;
+using OtdInterop;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;

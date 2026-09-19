@@ -1,4 +1,4 @@
-namespace OpenTabletArtist.Concurrency;
+namespace OtdInterop;
 
 /// <summary>
 /// Runs an async operation single-flight: only one runs at a time. If <see cref="Trigger"/>
@@ -6,13 +6,13 @@ namespace OpenTabletArtist.Concurrency;
 /// current one finishes (any number of concurrent requests during a run coalesce into a
 /// single rerun).
 ///
-/// This is the reconnect coordinator for <c>DaemonClient</c> (#33): it closes the
+/// This is the reconnect coordinator for <see cref="DaemonClient"/> (#33): it closes the
 /// immediate-disconnect-during-connect window where a reconnect request could otherwise be
 /// dropped because the previous connect attempt hadn't released its single-flight slot yet.
 /// The decision to rerun vs stop is made under a lock together with consuming the pending
 /// flag, so a request can never be lost in the release window.
 /// </summary>
-public sealed class CoalescingSingleFlight
+internal sealed class CoalescingSingleFlight
 {
     private readonly object _lock = new();
     private bool _running;

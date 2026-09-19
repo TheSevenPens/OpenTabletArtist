@@ -27,4 +27,7 @@ public sealed class AppLogBridge : IOtdLog
 
     /// <inheritdoc />
     public void Info(string message) => AppLog.Info(message);
+
+    /// <inheritdoc />
+    public void Debug(string message, Exception? error = null) => AppLog.Debug(message, error);
 }

@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using OpenTabletArtist.Concurrency;
+using OtdInterop;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;

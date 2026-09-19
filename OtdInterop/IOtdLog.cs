@@ -7,8 +7,9 @@ namespace OtdInterop;
 /// <remarks>
 /// <para>
 /// Narrow on purpose. This library has no opinion about log files, levels, sinks or formatting — those
-/// belong to whatever application hosts it, which already has a logging story. Two methods cover
-/// everything written here today.
+/// belong to whatever application hosts it, which already has a logging story. Three levels cover
+/// everything written here: something went wrong, something happened, something a developer would want
+/// while diagnosing.
 /// </para>
 /// <para>
 /// It matters that these are called at all. Most of what this library reports is a partial failure — a
@@ -36,4 +37,13 @@ public interface IOtdLog
     /// </summary>
     /// <param name="message">What happened.</param>
     void Info(string message);
+
+    /// <summary>
+    /// Detail that matters only when something is being diagnosed, and that a user should not be shown
+    /// as a problem. A connect attempt timing out while the daemon is still starting is the ordinary
+    /// case, not a fault — but a connection that never comes up is diagnosed from exactly these lines.
+    /// </summary>
+    /// <param name="message">What happened.</param>
+    /// <param name="error">The underlying failure, when there was one.</param>
+    void Debug(string message, Exception? error = null);
 }
