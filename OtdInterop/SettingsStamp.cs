@@ -1,8 +1,8 @@
 namespace OtdInterop;
 
 /// <summary>
-/// Identifies which daemon connection a piece of work belongs to, and where it sits in the order of
-/// operations against that connection.
+/// Identifies a particular state of a particular daemon connection: which connection, and which revision
+/// of the settings that connection's session was publishing.
 /// </summary>
 ///
 /// <remarks>
@@ -13,18 +13,15 @@ namespace OtdInterop;
 /// choosing, and switch between them while this application is open.
 /// </para>
 /// <para>
-/// Without a stamp, two things go wrong, and both have happened. An operation admitted for daemon A is
-/// delivered to daemon B when it finally reaches the front of the queue. And an operation that was
-/// already in flight when the switch happened comes back afterwards and writes A's settings into B's
-/// settings file. Serializing the operations does not prevent either one, because invalidation must not
-/// itself queue — if it waited behind work belonging to a daemon that has gone, that work would run
-/// first, which is the failure being prevented.
+/// Keeping a result without knowing which state it came from is how settings get reverted. A response
+/// that was overtaken looks exactly like a current one, and adopting it is not merely a stale display:
+/// the next edit is built on those values and sends them back to the daemon.
 /// </para>
 /// <para>
-/// So the stamp is captured when an operation is <b>admitted</b> — before it waits — and checked again
-/// before anything leaves the process and before any result is published. <see cref="Version"/> orders
-/// operations within one session, so a result that arrives late cannot overwrite the state of a newer
-/// one that has already completed.
+/// So a result is stamped with the state it describes, and a caller holding one can ask later whether
+/// that state is still current. This is a stamp on a <em>result</em>. It is not the mechanism that stops
+/// queued work reaching the wrong daemon — that is the session's own invalidation, which takes effect
+/// immediately and never queues, and which reports <see cref="SettingsApplyStatus.Superseded"/>.
 /// </para>
 /// </remarks>
 ///
@@ -33,12 +30,13 @@ namespace OtdInterop;
 /// the same daemon reached through a new connection. Values are never reused within a process.
 /// </param>
 /// <param name="Version">
-/// Which state of that session this describes. It counts the moments the session's settings change —
-/// each accepted mutation and each adopted read — so a caller can tell whether the ground has moved
-/// since it last looked. Comparable only against stamps carrying the same <paramref name="Session"/>.
+/// Which revision of that session's published settings this describes. It counts published revisions and
+/// nothing else, so two stamps carrying the same session and the same value describe the same settings.
 ///
-/// Deliberately not a count of operations. What a caller wants to know is whether the state it is
-/// holding is still the current one, and operations that change nothing do not make it stale.
+/// Deliberately not a count of operations, and deliberately not a count of everything the daemon has
+/// accepted. An operation that changes the daemon without changing what the session publishes — a
+/// transient per-app override — produces no revision, which is why no result is handed back for one.
+/// Comparable only against stamps carrying the same <paramref name="Session"/>.
 /// </param>
 public readonly record struct SettingsStamp(long Session, long Version)
 {
@@ -49,12 +47,21 @@ public readonly record struct SettingsStamp(long Session, long Version)
     public bool IsNone => Session == 0;
 
     /// <summary>
-    /// True when <paramref name="other"/> belongs to the same session and was admitted no earlier than
-    /// this one. The test a caller applies before letting a completed operation overwrite what it is
-    /// currently showing: a result that fails it describes either a daemon that has gone or an older
-    /// operation whose answer arrived out of order.
+    /// True when what this stamp describes is no longer current, given <paramref name="other"/> as the
+    /// state now. The test a caller applies before letting something it has been holding overwrite what
+    /// it is showing.
     /// </summary>
-    /// <param name="other">The stamp to compare against, usually the caller's current one.</param>
+    /// <remarks>
+    /// A different session counts as superseded, and that is the case worth being careful about. The
+    /// daemon this stamp belonged to has gone, so what it describes is not merely old — it describes a
+    /// machine the user has moved on from, and there is no ordering between the two to appeal to.
+    /// Treating a cross-session comparison as "not superseded" would be exactly backwards: it would let
+    /// the stalest possible result through.
+    ///
+    /// Equality is not supersession. A result stamped with the revision that is still current describes
+    /// the current state, which is the ordinary case for an operation that has just succeeded.
+    /// </remarks>
+    /// <param name="other">The state now — usually a stamp just taken from the session.</param>
     public bool SupersededBy(SettingsStamp other) =>
-        other.Session == Session && other.Version >= Version;
+        other.Session != Session || other.Version > Version;
 }

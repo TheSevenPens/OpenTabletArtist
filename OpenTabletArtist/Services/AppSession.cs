@@ -756,7 +756,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 // response would then describe a moment that has passed. Adopting it does not merely
                 // show stale values: the next edit is built on that baseline, so the reverted value goes
                 // back to the daemon.
-                var observed = _coordinator.StateVersion;
+                var observed = _coordinator.ObservationEpoch;
                 var loaded = await _daemon.GetSettingsAsync();
                 _coordinator.AdoptLoadedSettings(loaded, observed);
             }

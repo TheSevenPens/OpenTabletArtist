@@ -33,8 +33,10 @@ namespace OtdInterop;
 /// <para><b>Sessions.</b> Users run more than one OpenTabletDriver build and switch between them while
 /// the host is open, so a connection can be replaced at any point in an operation's life.</para>
 /// <list type="bullet">
-/// <item>Every operation takes a <see cref="SettingsStamp"/> when it is <b>admitted</b> — before it waits
-/// for anything, because waiting is exactly when the daemon can change underneath it.</item>
+/// <item>Every operation notes which connection it belongs to when it is <b>admitted</b> — before it
+/// waits for anything, because waiting is exactly when the daemon can change underneath it. That note is
+/// internal; the <see cref="SettingsStamp"/> a caller sees is on the result, and says which state the
+/// result describes.</item>
 /// <item>Invalidation takes effect immediately. It never queues behind operations belonging to a
 /// connection that has gone; if it did, that work would run first, which is the thing being prevented.
 /// </item>
@@ -43,24 +45,37 @@ namespace OtdInterop;
 /// state, and not reported as success. It comes back as
 /// <see cref="SettingsApplyStatus.Superseded"/>.</item>
 /// <item>What cannot be undone is not pretended away: a request already sent may well have been acted
-/// on. Supersession describes what this session did with the result, not a promise that the old daemon
-/// never saw it.</item>
+/// on, and an old daemon that accepted one is still running it. Supersession describes what this session
+/// did with the result — not written, not published, not called success — and rejecting a completion
+/// cannot retract the request that produced it.</item>
 /// </list>
 ///
-/// <para><b>Execution — what is actually guaranteed today.</b> Mutating operations are serialized
-/// against each other, and work belonging to a daemon that has gone is rejected rather than run. That is
-/// the extent of it.</para>
+/// <para><b>Callbacks.</b> An implementation may call back into the host while an operation is running —
+/// to report progress on saving, for instance. Those calls happen on the same execution context as the
+/// operation, so a host that re-enters this session from one is re-entering an operation in progress and
+/// will deadlock on the serialization. A callback that throws propagates out of the operation that made
+/// it; nothing here catches on the host's behalf.</para>
 ///
-/// <para>What is <em>not</em> guaranteed: this is not safe to call concurrently from arbitrary threads.
-/// Several members read and write session state outside that serialization, and the implementation
-/// continues on whatever context its awaits resume on. In the only host that exists it is called from a
-/// single UI thread, and that confinement — not any internal locking — is what makes it safe there.
-/// Being headless does not establish otherwise; a library merely free of UI types is not thereby
-/// thread-safe.</para>
+/// <para><b>Execution — what is actually guaranteed today, and what the host must supply.</b></para>
 ///
-/// <para>Completions arrive on whatever thread finished the work, so a host with thread affinity
-/// marshals them itself. That part is deliberate: this library cannot know what the host's affinity is,
-/// and guessing wrongly is worse than leaving it to the caller.</para>
+/// <para>Guaranteed: mutating operations are serialized against each other, so no two of them are
+/// part-way through at once. That is the extent of it. It does not serialize reading this session's
+/// state, and it does not serialize the callbacks an implementation makes.</para>
+///
+/// <para>Required of the host, because the implementation does not provide it: <b>one serialized
+/// execution context</b> for every call into this session, every adoption of a result, every reset, every
+/// read of its state, and every callback out of it — <em>including the continuations of the host's own
+/// awaits</em>. "One thread starts the calls" is not sufficient; a thread whose awaits resume on
+/// arbitrary pool threads has not supplied a context. The only host that exists today supplies the UI
+/// thread, and that confinement — not any internal locking — is what makes it safe there. A headless host
+/// can supply an equivalent context without any UI framework, and must.</para>
+///
+/// <para>Being headless does not establish thread safety on its own; a library merely free of UI types is
+/// not thereby safe to call from anywhere.</para>
+///
+/// <para>This is an honest description of what works today, not the finished contract. Proper internal
+/// synchronization and an orderly shutdown are still owed, and until they exist a host that cannot supply
+/// the context above should not use this.</para>
 ///
 /// <para><b>Cancellation is not offered.</b> An earlier draft of this contract took a token on every
 /// operation. Nothing implemented it and no caller passed one, and a token that is accepted and ignored
@@ -123,13 +138,28 @@ public interface IOtdSettingsSession
     /// <returns>
     /// What happened. An override that never reached the daemon is not an override, and is not recorded
     /// as one.
+    ///
+    /// Never carries a prepared result, even on success. This publishes no revision, so there is nothing
+    /// a caller could adopt without adopting a transient override as the settings to save.
     /// </returns>
     Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings requested);
 
-    /// <summary>Puts the daemon back on <see cref="GetCurrent"/>, ending any temporary override.</summary>
+    /// <summary>
+    /// Puts the daemon back on <see cref="GetCurrent"/>, ending any temporary override.
+    ///
+    /// Unconditional, and deliberately so: it sends the current settings whether or not this session
+    /// believes an override is running. <see cref="HasEphemeralOverride"/> records what this session was
+    /// told, and a host that has just taken over, or reconnected, knows less about the daemon than it
+    /// would like. Putting the daemon somewhere known is cheap; leaving a tablet on an override nobody
+    /// recorded is not.
+    /// </summary>
     /// <returns>
     /// What happened. The override is over only once the daemon has taken the settings back; until then
     /// the tablet is still running it, and callers must not clear an indicator saying so.
+    ///
+    /// <see cref="SettingsApplyStatus.NoChange"/> means there was nothing to put the daemon back on —
+    /// nothing has been loaded — and nothing was sent. Every other case sends, so a success here is
+    /// <see cref="SettingsApplyStatus.AppliedLive"/> even when no override was recorded.
     /// </returns>
     Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync();
 

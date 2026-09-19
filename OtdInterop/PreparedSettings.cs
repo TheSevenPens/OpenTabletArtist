@@ -36,5 +36,9 @@ namespace OtdInterop;
 /// A detached copy. Nothing else references it, so the caller may keep or mutate it freely — doing so
 /// cannot affect what was sent, what was written, or the library's own state.
 /// </param>
-/// <param name="Stamp">Which session this belonged to, and where it sat in that session's order.</param>
+/// <param name="Stamp">
+/// Which session this belonged to, and which revision of that session's published settings it is. A
+/// result that has just succeeded carries the revision that is current, so comparing it against a stamp
+/// taken from the session afterwards should find it equal, not behind.
+/// </param>
 public sealed record PreparedSettings(Settings Settings, SettingsStamp Stamp);

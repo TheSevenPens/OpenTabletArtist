@@ -97,7 +97,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     private int _sessionGeneration;
 
     /// <summary>
-    /// Changes every time the settings this session publishes change.
+    /// Changes every time anything a read of the daemon could observe changes.
     ///
     /// Reading from the daemon is not instantaneous, and a mutation can complete while a read is still
     /// outstanding. The response then describes a moment that has passed, and adopting it silently puts
@@ -107,23 +107,42 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// A caller observes this before starting a read and hands it back when adopting, so a response that
     /// was overtaken can be recognised and dropped rather than believed.
     ///
-    /// It tracks two different things, and needs both: the settings this session publishes, and the
-    /// moments the daemon accepts a change. Publishing happens before the call that changes the daemon,
-    /// so a read starting in between would otherwise carry a version that looks current while returning
-    /// state from before the change.
+    /// Two separate events move it, and it needs both. The daemon accepting a change moves what a read
+    /// returns. Publishing moves what this session would compare that read against — and publishing
+    /// happens BEFORE the call that changes the daemon, so a read starting in between would otherwise
+    /// carry an epoch that looks current while returning state from before the change.
+    ///
+    /// Deliberately not the same counter as <see cref="_revision"/>. This one answers "could a read I
+    /// started still be trusted"; that one answers "which published settings is this". An override moves
+    /// this and not that, and an apply moves this twice while publishing once.
     /// </summary>
-    private int _stateVersion;
+    private int _observationEpoch;
 
-    /// <summary>What <see cref="CurrentSettings"/> is derived from right now; pass it to
+    /// <summary>What a read of the daemon could have observed at this moment; pass it to
     /// <see cref="AdoptLoadedSettings"/> after a read to prove the read was not overtaken.</summary>
-    public int StateVersion => Volatile.Read(ref _stateVersion);
+    public int ObservationEpoch => Volatile.Read(ref _observationEpoch);
+
+    /// <summary>
+    /// Which revision of the settings this session publishes is current.
+    ///
+    /// Counts published revisions only, so two results carrying the same value describe the same
+    /// settings. That is what makes it usable as a stamp: an operation that changes the daemon without
+    /// changing what this session publishes — a per-app override — produces no revision of its own and
+    /// must not borrow this one.
+    /// </summary>
+    private int _revision;
+
+    /// <summary>The revision <see cref="CurrentSettings"/> is at right now.</summary>
+    private int Revision => Volatile.Read(ref _revision);
 
     /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
-    /// <returns>The version the state is now at, for stamping whatever produced it.</returns>
+    /// <returns>The revision the published state is now at, for stamping whatever produced it.</returns>
     private int Publish(Settings? settings)
     {
         _settings = settings;
-        return Interlocked.Increment(ref _stateVersion);
+        // A new baseline is also something a read in flight can no longer be trusted against.
+        Interlocked.Increment(ref _observationEpoch);
+        return Interlocked.Increment(ref _revision);
     }
 
     /// <summary>
@@ -137,27 +156,31 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         Snapshot(revision) is { } copy ? new PreparedSettings(copy, stamp) : null;
 
     /// <summary>
-    /// The stamp for a state version.
+    /// The stamp for a published revision.
     ///
     /// The session is offset by one so a stamp from a freshly-created session is never equal to
     /// <see cref="SettingsStamp.None"/>, which means no session at all.
     /// </summary>
-    private SettingsStamp StampFor(int version) =>
-        new(Volatile.Read(ref _sessionGeneration) + 1, version);
+    private SettingsStamp StampFor(int revision) =>
+        new(Volatile.Read(ref _sessionGeneration) + 1, revision);
 
     /// <summary>
     /// The daemon has just accepted something, so what a read of it can observe has changed.
     ///
-    /// Distinct from <see cref="Publish"/>, and the distinction is the whole point. Publishing happens
-    /// BEFORE the call, so a read starting between the two sees the new version and the old daemon
-    /// state — a combination that looks current and is not. Versioning the local baseline does not
-    /// version what a remote read returns; only the acceptance does.
+    /// Moves the observation epoch and not the revision, and the distinction is the whole point.
+    /// Publishing happens BEFORE the call, so a read starting between the two sees the new epoch and the
+    /// old daemon state — a combination that looks current and is not. Versioning the local baseline
+    /// does not version what a remote read returns; only the acceptance does.
+    ///
+    /// It must not move the revision either. An apply publishes once and is accepted once; on one shared
+    /// counter the result's stamp would be a revision behind the state it had just created, so a caller
+    /// checking freshness would reject its own result for having finished.
     ///
     /// Called on every path that succeeds in changing the daemon, not only the persisting one. Live-only
     /// and per-app applies, ending an override, and restoring the saved default all change what a read
     /// can observe, whether or not they change the baseline this session publishes.
     /// </summary>
-    private void NoteDaemonAccepted() => Interlocked.Increment(ref _stateVersion);
+    private void NoteDaemonAccepted() => Interlocked.Increment(ref _observationEpoch);
 
     /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
@@ -238,13 +261,16 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// <summary>
     /// The settings this session is editing, detached and stamped.
     ///
-    /// The stamp says which state the copy came from, so a caller holding it can tell later whether the
-    /// ground has moved. Reading the settings and the version is not one atomic step: a change landing
-    /// between them yields a stamp one version newer than the copy, which errs towards "this is stale"
-    /// — the safe direction, and the reason it is not worth locking for.
+    /// The stamp says which published revision the copy came from, so a caller holding it can tell later
+    /// whether the ground has moved. Reading the settings and the revision is not one atomic step: a
+    /// change landing between them yields a stamp one revision newer than the copy, which errs towards
+    /// "this is stale" — the safe direction, and the reason it is not worth locking for.
+    ///
+    /// These are the settings this session publishes, which while <see cref="HasEphemeralOverride"/> is
+    /// set is deliberately not what the daemon is running.
     /// </summary>
     public PreparedSettings? GetCurrent() =>
-        _settings is { } current ? Detach(current, StampFor(StateVersion)) : null;
+        _settings is { } current ? Detach(current, StampFor(Revision)) : null;
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -260,14 +286,14 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     /// <param name="settings">What the daemon returned.</param>
     /// <param name="observedVersion">
-    /// <see cref="StateVersion"/> as it was before the read started. If it has moved since, something was
-    /// applied while the read was in flight and the response is older than what this session already
+    /// <see cref="ObservationEpoch"/> as it was before the read started. If it has moved since, something
+    /// was applied while the read was in flight and the response is older than what this session already
     /// holds.
     /// </param>
     /// <returns>False when the read was overtaken and nothing was adopted.</returns>
     public bool AdoptLoadedSettings(Settings? settings, int observedVersion)
     {
-        if (observedVersion != StateVersion)
+        if (observedVersion != ObservationEpoch)
         {
             _log.Info("Discarded a settings read that was overtaken by a change made while it was in " +
                       "flight; the newer settings stand.");
@@ -322,7 +348,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         Interlocked.Increment(ref _sessionGeneration);
         // An outstanding read belongs to the daemon that has gone; bumping this makes its response
         // unadoptable rather than merely wrong.
-        Interlocked.Increment(ref _stateVersion);
+        Interlocked.Increment(ref _observationEpoch);
 
         DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
@@ -655,13 +681,25 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         }
 
         HasEphemeralOverride = true;
-        // Deliberately does not publish: the point of a per-app snapshot is that what the user edits and
-        // what gets saved stay theirs. So the state version does not move, and the stamp describes the
-        // state this override sits on top of.
-        return SettingsApplyOutcome.Live with { Prepared = Detach(revision, StampFor(StateVersion)) };
+        // No Prepared, deliberately. The point of a per-app snapshot is that what the user edits and what
+        // gets saved stay theirs, so this publishes nothing — and with nothing published there is no
+        // revision this snapshot can honestly claim to be. Stamping it with the current one would say it
+        // IS the published settings, and a caller comparing stamps would adopt a transient override as
+        // the thing to save. Withholding the result is what makes that impossible, rather than a comment
+        // asking callers not to.
+        return SettingsApplyOutcome.Live;
     }
 
-    /// <summary>Puts the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.</summary>
+    /// <summary>
+    /// Puts the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.
+    ///
+    /// Sends unconditionally — it does not check <see cref="HasEphemeralOverride"/> first. That flag
+    /// records what this session was told, and a session that has just reconnected knows less about the
+    /// daemon than the flag implies. So the only case that sends nothing is having nothing to send:
+    /// no settings loaded, reported as <see cref="SettingsApplyStatus.NoChange"/>. Otherwise the baseline
+    /// goes out and a success is <see cref="SettingsApplyStatus.AppliedLive"/>, whether or not an
+    /// override was recorded.
+    /// </summary>
     public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync() =>
         SerializedAsync(ClearEphemeralOverrideCoreAsync, () => SettingsApplyOutcome.Superseded);
 
@@ -695,7 +733,10 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         }
 
         HasEphemeralOverride = false;
-        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, StampFor(StateVersion)) };
+        // The baseline was already published; putting the daemon back on it creates no new revision, so
+        // the stamp is the one it already had. Unlike the per-app apply above, the result IS the
+        // published settings, so handing it back says something true.
+        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, StampFor(Revision)) };
     }
 
     /// <summary>
