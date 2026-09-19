@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using Newtonsoft.Json;
 using OpenTabletDriver.Desktop;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 
@@ -30,14 +30,13 @@ public interface ISettingsFileStore
 /// <inheritdoc />
 public class SettingsFileStore : ISettingsFileStore
 {
-    /// <summary>
-    /// Matches OpenTabletDriver's own serializer exactly (<c>Formatting.Indented</c>, otherwise stock) so
-    /// the file we write stays byte-compatible with what OTD's UX reads and writes. OTA serializes itself
-    /// rather than calling <c>Settings.Serialize</c> because that method swallows
-    /// <see cref="UnauthorizedAccessException"/> internally and only logs it — leaving OTA unable to tell
-    /// a completed save from a refused one (#732).
-    /// </summary>
-    private static readonly JsonSerializer Serializer = new() { Formatting = Formatting.Indented };
+    // Serialization itself lives in OtdInterop's SettingsCodec now (#807), so this and the preset writer
+    // cannot drift into producing different JSON for the same type. What stays here is the authority:
+    // which path, whether a failure throws or is reported, and the last-known-good fallback.
+    //
+    // Still not upstream's Settings.Serialize, for the original reason (#732): that method swallows
+    // UnauthorizedAccessException and only logs it, so a caller cannot tell a completed save from a
+    // refused one. It also deletes the file before writing the replacement.
 
     /// <summary>Suffix of the last-known-good copy kept beside the settings file (#733).</summary>
     public const string BackupSuffix = AtomicFile.BackupSuffix;
@@ -69,15 +68,7 @@ public class SettingsFileStore : ISettingsFileStore
     /// Throws on failure; <see cref="TrySave"/> is the catching flavour.
     /// </summary>
     private static void WriteAtomic(Settings settings, string path) =>
-        AtomicFile.Write(path, stream =>
-        {
-            // leaveOpen, because AtomicFile owns the stream and still has to flush it to disk.
-            using var writer = new StreamWriter(stream, leaveOpen: true);
-            using var json = new JsonTextWriter(writer);
-            Serializer.Serialize(json, settings);
-            json.Flush();
-            writer.Flush();
-        });
+        AtomicFile.Write(path, stream => SettingsCodec.Encode(settings, stream));
 
     public bool TryLoad(string path, out Settings? settings)
     {
@@ -101,16 +92,11 @@ public class SettingsFileStore : ISettingsFileStore
         settings = null;
         try
         {
-            var file = new FileInfo(path);
-            // Settings.TryDeserialize only guards JsonException — a missing file would throw,
-            // so check existence first and wrap the rest defensively.
-            if (!file.Exists) return false;
-            if (Settings.TryDeserialize(file, out var loaded) && loaded != null)
-            {
-                settings = loaded;
-                return true;
-            }
-            return false;
+            // The codec takes a stream and so cannot tell "not there" from "not readable"; that is this
+            // method's job, and it matters because only the second case is worth falling back for.
+            if (!File.Exists(path)) return false;
+            using var stream = File.OpenRead(path);
+            return SettingsCodec.TryDecode(stream, out settings);
         }
         catch
         {
