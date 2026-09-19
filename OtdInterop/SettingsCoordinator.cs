@@ -390,7 +390,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     /// <returns>True when an unsaved change was thrown away, so the caller can say so. Everything else
     /// this drops is bookkeeping the user never knew about; a pending write is an edit they made.</returns>
-    public bool ResetForNewDaemon()
+    internal bool ResetForNewDaemon()
     {
         var hadUnsaved = HasUnsavedChange;
 
@@ -614,7 +614,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // never asked to touch, belonging to an install the user may share with OTD's own UX. Drop the
         // change instead: losing an edit the disk already refused is bad, silently overwriting someone
         // else's configuration is worse.
-        if (_pendingPersistPath is { } origin && !SettingsPath.Same(origin, path))
+        if (_pendingPersistPath is { } origin && !PathEquality.Same(origin, path))
         {
             _log.Warn($"Discarding an unsaved settings change made for {origin}: the connected daemon " +
                         $"now uses {path}, and the change does not belong to it.");

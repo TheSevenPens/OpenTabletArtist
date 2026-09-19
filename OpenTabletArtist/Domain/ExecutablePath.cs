@@ -26,5 +26,5 @@ public static class ExecutablePath
     }
 
     public static bool SameFile(string? actual, string? expected) =>
-        OtdInterop.SettingsPath.Same(actual, expected);
+        OtdInterop.PathEquality.Same(actual, expected);
 }

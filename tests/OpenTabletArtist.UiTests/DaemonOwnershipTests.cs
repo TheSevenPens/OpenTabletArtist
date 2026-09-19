@@ -43,8 +43,8 @@ public class DaemonOwnershipTests
         public string? Launch() => null;
         public bool Stop(int processId) => true;
         public void StopAll() { }
-        public string? GetProcessPath(int processId) => null;
-        public string? GetSingleRunningDaemonPath() => null;
+        public string? PathOf(int processId) => null;
+        public string? SingleRunningDaemonPath() => null;
     }
 
     private sealed class RecordingStore : ISettingsFileStore

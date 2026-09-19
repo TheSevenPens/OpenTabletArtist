@@ -219,14 +219,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </summary>
     [ObservableProperty] private DaemonOwnership _ownership = DaemonOwnership.Unknown;
 
-    /// <summary>
-    /// The daemon we were last connected to, remembered <em>across</em> a disconnect so a reconnect can
-    /// tell whether a different one answered (#787). <see cref="DaemonSourcePath"/> cannot serve: it is
-    /// observable UI state and is deliberately cleared when the pipe goes, which is exactly when this
-    /// needs to survive.
-    /// </summary>
-    private string _sessionDaemonPath = "";
-
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
     public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
     [ObservableProperty] private string _daemonSourcePath = "";
@@ -1347,30 +1339,23 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        var actual = GetConnectedDaemonPath();
+        // Which daemon is answering, and the session boundary if it is a different one. The decision is
+        // the library's, because the state dropped at that boundary is its own (#807). The *trigger* is
+        // still ours: nothing subscribes to the connection on that side, so this call being in the right
+        // place is a thing this class has to get right, and making it automatic is still outstanding.
+        // What is ours by design is below — what to show, and whether this daemon is one we may act on
+        // without asking.
+        var (actual, _, discardedUnsaved) = _session.NoteConnectedDaemon();
 
-        // A different daemon answering is a session boundary, not just a new label: the coordinator holds
-        // state that describes the daemon it was talking to (#787). Only reset when we can positively
-        // tell the two apart — an unreadable path means "we cannot see", and resetting on that would
-        // throw away a legitimate pending save every time an elevated daemon reconnects. The data-loss
-        // case it would otherwise cover is already handled independently, by the coordinator refusing to
-        // retry a pending write whose destination file has moved.
-        if (_sessionDaemonPath.Length > 0 && actual != null
-            && !ExecutablePath.SameFile(_sessionDaemonPath, actual))
+        if (discardedUnsaved)
         {
-            AppLog.Warn($"The connected daemon changed from {_sessionDaemonPath} to {actual}; " +
-                        "dropping settings state that belonged to the previous one.");
-            if (_coordinator.ResetForNewDaemon())
-            {
-                // Name the file, because "a change was discarded" invites the question this answers:
-                // which settings, belonging to what. The daemon is gone; its settings file may not be.
-                DiscardedChangeNotice =
-                    "A change that hadn't been saved yet was discarded, because the OpenTabletDriver "
-                    + "you're connected to changed. It belonged to the previous one, and writing it here "
-                    + "would have overwritten this daemon's settings.";
-            }
+            // Name what was lost, because "a change was discarded" invites the question this answers:
+            // which settings, belonging to what. The daemon is gone; its settings file may not be.
+            DiscardedChangeNotice =
+                "A change that hadn't been saved yet was discarded, because the OpenTabletDriver "
+                + "you're connected to changed. It belonged to the previous one, and writing it here "
+                + "would have overwritten this daemon's settings.";
         }
-        if (actual != null) _sessionDaemonPath = actual;
 
         DaemonSourcePath = actual ?? "";
         // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report it).
@@ -1396,17 +1381,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
         var owned = resolved && _daemonLifecycle.IsAppManaged(actual);
         Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
-    }
-
-    private string? GetConnectedDaemonPath()
-    {
-        var pid = _daemon.GetServerProcessId();
-        if (pid != null) return _daemonLifecycle.GetProcessPath(pid.Value);
-        // The pipe→PID lookup is Win32-only (returns null off-Windows). There the daemon is effectively a
-        // singleton, so fall back to the single running daemon's path. Left off the Windows path so its
-        // exact pipe-PID attribution — which distinguishes our daemon from another OTD instance — is
-        // unchanged. (#140)
-        return OperatingSystem.IsWindows() ? null : _daemonLifecycle.GetSingleRunningDaemonPath();
     }
 
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on

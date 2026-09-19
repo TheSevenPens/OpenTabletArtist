@@ -32,17 +32,28 @@ public sealed class OtdSession : IDisposable
     private readonly ISettingsFileStore? _store;
     private readonly IOtdLog _log;
     private readonly IOtdSettingsPolicy _policy;
-    private IOtdSettingsSession? _settings;
+    private readonly IDaemonProcessLocator _locator;
+    private SettingsCoordinator? _settings;
     private bool _disposed;
 
+    /// <summary>
+    /// The executable this session believes it is talking to, or empty before it has been able to look.
+    ///
+    /// Only ever set to a path that was actually read. An unreadable one leaves this alone, so a daemon
+    /// that hides itself for one reconnect does not erase what we knew a moment ago and turn the next
+    /// successful read into a false "it changed".
+    /// </summary>
+    private string _daemonPath = "";
+
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
-        ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy)
+        ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
     {
         Connection = connection;
         _channel = channel;
         _store = store;
         _log = log;
         _policy = policy;
+        _locator = locator;
     }
 
     /// <summary>
@@ -52,11 +63,15 @@ public sealed class OtdSession : IDisposable
     /// <param name="log">Where the session records what it could not do — mostly partial failure, which
     /// is exactly what is invisible from outside.</param>
     /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
+    /// <param name="locator">
+    /// How to find out which executable is answering. The session needs it because a different one is a
+    /// session boundary, and reading a process's path is the host's to do.
+    /// </param>
     /// <returns>The session. The host owns disposing it.</returns>
-    public static OtdSession Create(IOtdLog log, IOtdSettingsPolicy policy)
+    public static OtdSession Create(IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
     {
         var client = new DaemonClient(log);
-        return new OtdSession(client, client, store: null, log, policy);
+        return new OtdSession(client, client, store: null, log, policy, locator);
     }
 
     /// <summary>
@@ -79,11 +94,12 @@ public sealed class OtdSession : IDisposable
     /// <param name="store">The writer to use instead of the library's own, or null for the library's.</param>
     /// <param name="log">Where the session records partial failures.</param>
     /// <param name="policy">The host's rules.</param>
+    /// <param name="locator">How to find out which executable is answering.</param>
     /// <returns>A session over <paramref name="connection"/>.</returns>
     internal static OtdSession ForTesting<T>(T connection, ISettingsFileStore? store,
-        IOtdLog log, IOtdSettingsPolicy policy)
+        IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        new(connection, connection, store, log, policy);
+        new(connection, connection, store, log, policy, locator);
 
     /// <summary>
     /// The daemon connection: lifecycle, device queries, the log stream, the debug stream and the plugin
@@ -145,6 +161,78 @@ public sealed class OtdSession : IDisposable
         return _settings = _store is { } store
             ? new SettingsCoordinator(_channel, store, settingsPath, isOwnedDaemon, onSaveState, _log, _policy)
             : new SettingsCoordinator(_channel, settingsPath, isOwnedDaemon, onSaveState, _log, _policy);
+    }
+
+    /// <summary>
+    /// Looks at which daemon is answering and, if it is a different one, drops the state that belonged to
+    /// the daemon that has gone.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// <para>
+    /// Called by the host whenever a connection is established. The judgement is here rather than in the
+    /// host because the state being dropped is this library's — the change a daemon accepted but never
+    /// wrote, the file that change was for, what its settings file last held, whether it is running a
+    /// transient override. None of that describes the new daemon, and each one misleads a different part
+    /// of the host if carried across.
+    /// </para>
+    /// <para>
+    /// <b>The trigger is still the host's.</b> Nothing here subscribes to the connection, so this is not
+    /// automatic invalidation — calling it at the right moment is something a host can still get wrong.
+    /// Making it self-driving is outstanding work under #807.
+    /// </para>
+    /// <para>
+    /// <b>Identity means the executable, not the process.</b> A daemon stopped and started again from the
+    /// same path is the same daemon by this test, and does not report a change. That is deliberate and
+    /// long-standing: what the state being protected describes is a settings file and an installation,
+    /// both of which survive a restart. It does mean this is not a detector for every replacement
+    /// process.
+    /// </para>
+    /// <para>
+    /// A daemon whose executable cannot be read is <b>not</b> treated as a change. That is the whole
+    /// reason this compares paths instead of connections: users run more than one OpenTabletDriver build
+    /// and switch between them, but they also just reconnect, and an elevated daemon is unreadable every
+    /// time. Discarding on "cannot see" would throw away a legitimate unsaved edit on an ordinary
+    /// reconnect. The pending-write case that leaves open is covered independently, by the settings
+    /// session refusing to retry a write whose destination file has moved — which is that one hazard, not
+    /// a claim that an unidentifiable replacement daemon is safe in general.
+    /// </para>
+    /// <para>
+    /// Runs under the host's serialized execution context, like everything else here.
+    /// </para>
+    /// </remarks>
+    /// <returns>What is answering, whether it changed, and whether that cost an unsaved edit.</returns>
+    public DaemonChange NoteConnectedDaemon()
+    {
+        var actual = ConnectedDaemonPath();
+
+        // Both conditions matter. No remembered path means this is the first look, and everything this
+        // session holds already belongs to whatever is answering now. An unreadable path means we cannot
+        // tell, which is not the same as knowing it is different.
+        var changed = _daemonPath.Length > 0 && actual != null && !PathEquality.Same(_daemonPath, actual);
+
+        var discarded = false;
+        if (changed)
+        {
+            _log.Warn($"The connected daemon changed from {_daemonPath} to {actual}; "
+                      + "dropping settings state that belonged to the previous one.");
+            discarded = _settings?.ResetForNewDaemon() ?? false;
+        }
+
+        if (actual != null) _daemonPath = actual;
+        return new DaemonChange(actual, changed, discarded);
+    }
+
+    /// <summary>The executable behind the process answering the connection, or null when it can't be read.</summary>
+    private string? ConnectedDaemonPath()
+    {
+        if (Connection.GetServerProcessId() is { } pid) return _locator.PathOf(pid);
+
+        // The pipe-to-process-id lookup is Windows-only. Elsewhere the daemon is effectively a singleton,
+        // so the single running one is a sound answer; kept off the Windows path so its exact pipe
+        // attribution -- which is what distinguishes our daemon from a second OTD instance -- is
+        // unchanged (#140).
+        return OperatingSystem.IsWindows() ? null : _locator.SingleRunningDaemonPath();
     }
 
     /// <summary>

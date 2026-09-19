@@ -1,7 +1,12 @@
 namespace OtdInterop;
 
-/// <summary>Comparing filesystem paths for identity.</summary>
-public static class SettingsPath
+/// <summary>
+/// Comparing filesystem paths for identity.
+///
+/// Used for two things that are the same question: whether a pending write is still aimed at the file it
+/// was made for, and whether the daemon answering now is the binary that was answering before.
+/// </summary>
+public static class PathEquality
 {
     /// <summary>
     /// True when both paths name the same file.

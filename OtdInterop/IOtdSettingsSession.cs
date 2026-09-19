@@ -194,20 +194,6 @@ public interface IOtdSettingsSession
     /// </summary>
     void RecordLoadedBaseline();
 
-    /// <summary>
-    /// Forgets everything belonging to the daemon that has gone, because a different one is answering.
-    ///
-    /// Almost all of this session's state is a fact about one daemon: the change it accepted but did not
-    /// persist, the file that change was for, what its settings file last held, whether it is running a
-    /// transient override. None of that describes the new daemon, and each one misleads a different part
-    /// of the host if carried across.
-    /// </summary>
-    /// <returns>
-    /// True when an unsaved change was thrown away, so the host can say so. Everything else this drops is
-    /// bookkeeping the user never knew about; a pending write is an edit they made.
-    /// </returns>
-    bool ResetForNewDaemon();
-
     /// <summary>Re-reads the saved default from disk and applies it, discarding any override.</summary>
     /// <returns>
     /// What happened. Every way this can fall short has its own status, because a restore that did not

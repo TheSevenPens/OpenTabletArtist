@@ -35,9 +35,52 @@ internal static class FakeSession
     /// </summary>
     /// <param name="daemon">The stand-in connection.</param>
     /// <param name="store">A writer whose failures a test controls, or null for the library's own.</param>
-    public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null)
+    /// <param name="locator">
+    /// What the session is told is running. Defaults to one that can see nothing, which is the ordinary
+    /// case for a fake -- and the case where the session must leave its state alone rather than treat
+    /// "cannot see" as "it changed".
+    /// </param>
+    public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null,
+        IDaemonProcessLocator? locator = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, OtaSettingsPolicy.Instance);
+        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, OtaSettingsPolicy.Instance,
+            locator ?? new FakeProcessLocator());
+}
+
+/// <summary>
+/// What is running, as a test decides. Both answers are settable, and both default to null -- which is
+/// what an elevated or another user's daemon looks like, and what the session must not read as a change.
+/// </summary>
+internal sealed class FakeProcessLocator : IDaemonProcessLocator
+{
+    /// <summary>The executable a process id resolves to. Null means "cannot see".</summary>
+    public string? Path { get; set; }
+
+    /// <summary>The executable for the off-Windows single-daemon fallback.</summary>
+    public string? OnlyDaemon { get; set; }
+
+    /// <summary>
+    /// How many times each lookup was asked.
+    ///
+    /// Counted because "the fallback was skipped" and "the fallback ran and returned null" produce the
+    /// same answer, and only one of them is the behaviour being asserted.
+    /// </summary>
+    public int PathOfCalls { get; private set; }
+
+    /// <inheritdoc cref="PathOfCalls"/>
+    public int FallbackCalls { get; private set; }
+
+    public string? PathOf(int processId)
+    {
+        PathOfCalls++;
+        return Path;
+    }
+
+    public string? SingleRunningDaemonPath()
+    {
+        FallbackCalls++;
+        return OnlyDaemon;
+    }
 }
 
 internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsChannel
