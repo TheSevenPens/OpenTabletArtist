@@ -716,6 +716,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsApplyOutcome.Failed(null);
         }
 
+        GuardFormat(revision);
+
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
         // caller must not announce a switch that didn't happen. State moves only on success.
         if (!await origin.Channel.SetSettingsAsync(revision))
@@ -764,6 +766,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't isolate the per-app snapshot after applying policy; nothing was sent.");
             return SettingsApplyOutcome.Failed(null);
         }
+
+        GuardFormat(revision);
 
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
         // would suppress the reload's settings read on the strength of one that does not exist.
@@ -864,6 +868,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsRestoreOutcome.SourceUnavailable;
         }
 
+        // Guarded like anything else we send. Restore reads the saved default off disk, so it can carry
+        // content the daemon never had -- from a file written by an older build, or edited by hand.
+        //
+        // The repair lands on `def`, which is the store's own freshly-deserialized object and not shared
+        // with the caller. It is deliberately NOT written back: repairing the file is a different act
+        // from not sending it something that crashes, and this operation was asked to do the second.
+        GuardFormat(def);
+
         bool applied;
         try
         {
@@ -950,12 +962,30 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// live-only really can reach the crash by that route. Widening the guard is a behaviour change owed
     /// its own review, not something to slip in here.
     /// </summary>
+    /// <summary>
+    /// Repairs the one settings shape known to crash a reader of the shared file, on the revision about
+    /// to leave this library.
+    /// </summary>
+    /// <remarks>
+    /// Runs on <b>every</b> path that sends, not only the one that writes (#836). It used to guard the
+    /// persisting path alone, reasoning that a null area only matters to whoever reads the file. That is
+    /// not the only route: OpenTabletDriver's UX pulls settings from the daemon on every resync
+    /// (<c>MainForm.SyncSettings</c>) and then null-dereferences the area in its own Save. A live-only
+    /// apply never touches our file and can still crash it.
+    ///
+    /// Idempotent and cheap, so the rule is one sentence rather than a table of which operations repair:
+    /// nothing leaves here carrying a null Absolute-mode area.
+    ///
+    /// Ending an override is the one send that does not call this, and does not need to: it returns the
+    /// daemon to settings the daemon itself gave us, so it can introduce nothing the daemon did not
+    /// already have.
+    /// </remarks>
     private void GuardFormat(Settings settings)
     {
         int repaired = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
         if (repaired > 0)
-            _log.Warn($"Repaired {repaired} profile(s) with missing Absolute-mode areas before saving " +
-                      "(would otherwise crash the OpenTabletDriver UX).");
+            _log.Warn($"Repaired {repaired} profile(s) with missing Absolute-mode areas before sending " +
+                      "them to the daemon (would otherwise crash the OpenTabletDriver UX).");
     }
 
     /// <summary>Forget the pending save and its retry budget — nothing is outstanding.</summary>
