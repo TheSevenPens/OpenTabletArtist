@@ -83,13 +83,40 @@ public sealed class OtdSession : IDisposable
     /// admitted on (#830), and -- still to come -- that this session refuses to persist against a
     /// connection it has not finished preparing.
     /// </remarks>
-    private void OnTransportConnected() => _ = _context.PostAsync(() =>
+    private void OnTransportConnected() => Post("identify the connected daemon", () =>
     {
         var change = NoteConnectedDaemon();
         Connected?.Invoke(change);
     });
 
-    private void OnTransportDisconnected() => _ = _context.PostAsync(() => Disconnected?.Invoke());
+    private void OnTransportDisconnected() => Post("report a disconnect", () => Disconnected?.Invoke());
+
+    /// <summary>
+    /// Runs work on the host's context, and says so when it fails.
+    /// </summary>
+    /// <remarks>
+    /// The task is not discarded, and that is the whole reason <see cref="IOtdExecutionContext.PostAsync"/>
+    /// returns one. Work posted here has no caller to throw to: a subscriber that throws, or a host
+    /// context that refuses the work, would otherwise be a failure to do something this session was asked
+    /// to do with nothing anywhere to show for it.
+    ///
+    /// Reported rather than rethrown. There is nobody to rethrow to — this is reached from the
+    /// transport's own notification — and the session's state is already correct by the time a subscriber
+    /// runs, so a bad subscriber loses its notification and nothing else.
+    /// </remarks>
+    private void Post(string what, Action work) => _ = Report(what, work);
+
+    private async Task Report(string what, Action work)
+    {
+        try
+        {
+            await _context.PostAsync(work).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _log.Warn($"Couldn't {what} on the host's execution context.", ex);
+        }
+    }
 
     /// <summary>
     /// Opens a session against the OpenTabletDriver daemon. Nothing is connected until

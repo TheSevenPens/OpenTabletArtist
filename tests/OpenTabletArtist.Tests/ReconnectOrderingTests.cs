@@ -120,6 +120,27 @@ public class ReconnectOrderingTests
     }
 
     /// <summary>
+    /// A subscriber that throws is reported, not swallowed.
+    ///
+    /// Posted work has no caller to throw to — this is reached from the transport's own notification —
+    /// so without this the failure would vanish entirely. That is the whole reason
+    /// <see cref="IOtdExecutionContext.PostAsync"/> returns a task, and discarding it at the one call
+    /// site would have made the return value decorative.
+    /// </summary>
+    [Fact]
+    public void ASubscriberThatThrows_IsReported()
+    {
+        var log = new RecordingLog();
+        var h = Make(log);
+        h.Session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");
+        h.Context.Drain();
+
+        Assert.Contains(log.Warnings, w => w.Contains("a bad subscriber"));
+    }
+
+    /// <summary>
     /// A subscriber that throws does not undo what the session already did.
     ///
     /// The identification and any invalidation happen before the host is told, so a bad subscriber can
@@ -163,12 +184,12 @@ public class ReconnectOrderingTests
         }
     }
 
-    private static Harness Make()
+    private static Harness Make(IOtdLog? log = null)
     {
         var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
         var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
         var context = new ControllableContext();
-        var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), log ?? NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
         session.NoteConnectedDaemon();              // establish A as the daemon this session knows
