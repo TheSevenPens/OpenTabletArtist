@@ -37,6 +37,11 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
     private readonly IOtdLog _log;
 
+    private int _incarnation;
+
+    /// <inheritdoc />
+    int IDaemonSettingsChannel.Incarnation => Volatile.Read(ref _incarnation);
+
 
     /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
     internal DaemonClient(IOtdLog log) => _log = log;
@@ -127,6 +132,11 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
                 // too-short timeout drops us into the 3s backoff below for no reason (#246).
                 await _pipe.ConnectAsync(15000, ct);
                 var rpc = new JsonRpc(_pipe);
+                // Before the assignment, deliberately. From the moment `_rpc` points at the new channel a
+                // send goes to the new daemon -- earlier than StartListening, earlier than Connected, and
+                // far earlier than any host handler. An operation that read the incarnation before this
+                // and sends after it must be recognisable as obsolete, and it only is if this moves first.
+                Interlocked.Increment(ref _incarnation);
                 _rpc = rpc;
                 rpc.Disconnected += (_, _) =>
                 {

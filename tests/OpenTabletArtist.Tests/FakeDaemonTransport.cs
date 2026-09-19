@@ -140,6 +140,29 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public Func<Task<Settings?>>? GetSettingsHandler { get; set; }
 
+    /// <summary>
+    /// Which channel this is. <see cref="Reconnect"/> moves it; re-raising <see cref="RaiseConnected"/>
+    /// alone does not, so a test can model the two separately — a fresh channel, and a notification about
+    /// one.
+    /// </summary>
+    public int Incarnation { get; private set; }
+
+    /// <summary>
+    /// A new channel, as the real client establishes one: the incarnation moves FIRST, then the event.
+    ///
+    /// That order is the whole of what is being modelled. The real client assigns its RPC channel, and
+    /// only afterwards raises Connected — so there is a window in which sends already reach the new daemon
+    /// and nobody has been told. A fake that bumped the two together could not express it.
+    /// </summary>
+    public void Reconnect()
+    {
+        Incarnation++;
+        RaiseConnected();
+    }
+
+    /// <summary>The channel is replaced, and nothing announces it. The window, on its own.</summary>
+    public void ReconnectSilently() => Incarnation++;
+
     public Task<Settings?> GetSettingsAsync()
     {
         GetSettingsCalls++;

@@ -23,6 +23,29 @@ namespace OtdInterop;
 /// </remarks>
 internal interface IDaemonSettingsChannel
 {
+    /// <summary>
+    /// Which channel this is. Increases every time a new one is established, and never repeats.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What an operation binds itself to, so work authored against one connection cannot be carried out
+    /// against its replacement. It has to be readable <b>without asking anyone</b>, and it is: it moves
+    /// the instant the channel does, which is before the connection raises anything and long before a
+    /// host handler could run.
+    /// </para>
+    /// <para>
+    /// Deliberately not "which daemon". A new channel to the same executable is still a new channel, and
+    /// work spanning the gap is obsolete either way. Whether the <em>settings</em> survive is a different
+    /// question with a different answer — <see cref="OtdSession.NoteConnectedDaemon"/> compares
+    /// executables, and deliberately keeps state across a reconnect it cannot identify.
+    /// </para>
+    /// <para>
+    /// It lives here rather than on the connection at large because the settings session is what binds to
+    /// it, and nothing else has any use for it.
+    /// </para>
+    /// </remarks>
+    int Incarnation { get; }
+
     /// <summary>The daemon's current in-memory settings. Null when not connected.</summary>
     Task<Settings?> GetSettingsAsync();
 

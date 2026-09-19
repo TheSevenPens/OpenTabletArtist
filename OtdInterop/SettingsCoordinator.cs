@@ -199,20 +199,38 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The generation is captured <b>before</b> waiting for the semaphore, which is the point: time spent
     /// queued is exactly when the daemon can change underneath a caller.
     /// </summary>
-    private async Task<T> SerializedAsync<T>(Func<int, Task<T>> operation, Func<T> superseded)
+    private async Task<T> SerializedAsync<T>(Func<Origin, Task<T>> operation, Func<T> superseded)
     {
-        var session = Volatile.Read(ref _sessionGeneration);
+        var admitted = Here();
         await _mutations.WaitAsync().ConfigureAwait(true);
         try
         {
-            if (session != Volatile.Read(ref _sessionGeneration)) return superseded();
-            return await operation(session).ConfigureAwait(true);
+            if (!StillCurrent(admitted)) return superseded();
+            return await operation(admitted).ConfigureAwait(true);
         }
         finally { _mutations.Release(); }
     }
 
-    /// <summary>True while <paramref name="session"/> is still the daemon we are talking to.</summary>
-    private bool StillCurrent(int session) => session == Volatile.Read(ref _sessionGeneration);
+    /// <summary>
+    /// What an operation belongs to: a host-declared session, and the connection channel itself.
+    /// </summary>
+    /// <param name="Session">
+    /// Moves when the host tells us the daemon changed — the deliberate reset, after an executable was
+    /// compared and found different.
+    /// </param>
+    /// <param name="Incarnation">
+    /// Moves when the channel is replaced, whoever answers it. This covers what the session alone cannot:
+    /// the host has not been told yet, or will never be told because the daemon dropped and came back
+    /// before anything looked. Nobody has to call anything for it to be correct, which is the point — it
+    /// is already right when the first operation after a reconnect is admitted.
+    /// </param>
+    private readonly record struct Origin(int Session, int Incarnation);
+
+    /// <summary>What an operation admitted at this instant would belong to.</summary>
+    private Origin Here() => new(Volatile.Read(ref _sessionGeneration), _daemon.Incarnation);
+
+    /// <summary>True while an operation from <paramref name="origin"/> is still entitled to act.</summary>
+    private bool StillCurrent(Origin origin) => origin == Here();
 
     /// <param name="daemon">The daemon connection.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
@@ -440,11 +458,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _onSaveState(SettingsSaveState.ApplyFailed);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyAndSaveCoreAsync(working, session),
+        return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin),
             () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, int session)
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, Origin origin)
     {
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
@@ -540,7 +558,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // The daemon changed while this was in flight, so what just succeeded landed on a daemon that is
         // no longer ours to speak for (#803). Write nothing and touch no state: the reset already cleared
         // this session, and "applied" describes a machine the user has moved on from.
-        if (!StillCurrent(session))
+        if (!StillCurrent(origin))
         {
             _log.Warn("A settings apply completed after the daemon changed; discarding its result "
                         + "rather than writing it to the new daemon's file.");
@@ -646,11 +664,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't take a private copy of the live-only settings; nothing was sent.", error);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyLiveOnlyCoreAsync(working, session),
+        return SerializedAsync(origin => ApplyLiveOnlyCoreAsync(working, origin),
             () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyLiveOnlyCoreAsync(Settings settings, int session)
+    private async Task<SettingsApplyOutcome> ApplyLiveOnlyCoreAsync(Settings settings, Origin origin)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
@@ -672,7 +690,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
-        if (!StillCurrent(session))
+        if (!StillCurrent(origin))
         {
             _log.Warn("A live-only apply completed after the daemon changed; not adopting it as the baseline.");
             return SettingsApplyOutcome.Superseded;
@@ -695,11 +713,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't take a private copy of the per-app snapshot; nothing was sent.", error);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyEphemeralCoreAsync(working, session),
+        return SerializedAsync(origin => ApplyEphemeralCoreAsync(working, origin),
             () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyEphemeralCoreAsync(Settings settings, int session)
+    private async Task<SettingsApplyOutcome> ApplyEphemeralCoreAsync(Settings settings, Origin origin)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
@@ -725,7 +743,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // source a "restore default" would restore from.
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
-        if (!StillCurrent(session))
+        if (!StillCurrent(origin))
         {
             _log.Warn("A per-app snapshot completed after the daemon changed; not recording it as an override.");
             return SettingsApplyOutcome.Superseded;
@@ -754,7 +772,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync() =>
         SerializedAsync(ClearEphemeralOverrideCoreAsync, () => SettingsApplyOutcome.Superseded);
 
-    private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(int session)
+    private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(Origin origin)
     {
         if (_settings is not { } baseline)
         {
@@ -777,7 +795,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
-        if (!StillCurrent(session))
+        if (!StillCurrent(origin))
         {
             _log.Warn("The per-app override ended after the daemon changed; the new daemon never had one.");
             return SettingsApplyOutcome.Superseded;
@@ -799,7 +817,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync() =>
         SerializedAsync(RestoreDefaultCoreAsync, () => SettingsRestoreOutcome.Superseded);
 
-    private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync(int session)
+    private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync(Origin origin)
     {
         var path = _settingsPath();
         if (string.IsNullOrEmpty(path) || !_store.TryLoad(path, out var def) || def == null)
@@ -833,7 +851,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // The default we just applied came from the old daemon's file, and the reset has already cleared
         // this session's state for the new one (#803). Adopting it here would make one daemon's saved
         // default the other's baseline.
-        if (!StillCurrent(session))
+        if (!StillCurrent(origin))
         {
             _log.Warn("A restore completed after the daemon changed; discarding its result.");
             return SettingsRestoreOutcome.Superseded;
