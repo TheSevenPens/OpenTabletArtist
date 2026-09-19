@@ -6,7 +6,15 @@ using OtdInterop;
 namespace OtdInterop;
 
 /// <summary>
-/// Reads and writes OpenTabletDriver <see cref="Settings"/> to disk. Centralizes the
+/// Reads and writes the daemon's active <see cref="Settings"/> file.
+///
+/// The implementation is internal, deliberately: this is the one object that writes the file the daemon
+/// is running from, and handing it out would make every protection around it optional — a caller could
+/// simply write. The interface stays public so a host can supply its own (a test needs a write to fail
+/// on demand), which is not the same as being given ours.
+///
+/// Preset files are a different authority and belong to the host application, which has its own store
+/// over the shared codec. Centralizes the
 /// serialize/deserialize calls that were duplicated across <c>MainViewModel</c>
 /// (settings write-back and snapshot save/load) behind a filesystem seam.
 ///
@@ -28,7 +36,7 @@ public interface ISettingsFileStore
 }
 
 /// <inheritdoc />
-public class SettingsFileStore : ISettingsFileStore
+internal class SettingsFileStore : ISettingsFileStore
 {
     private readonly IOtdLog _log;
 

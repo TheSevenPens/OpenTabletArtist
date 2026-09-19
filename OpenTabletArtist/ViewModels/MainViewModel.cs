@@ -19,7 +19,9 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly ISettingsFileStore _settingsStore = new SettingsFileStore(AppLogBridge.Instance);
+    // Presets only. The daemon's own settings file is written by OtdInterop, which does not hand its
+    // writer out -- so nothing here can reach it (#807).
+    private readonly IPresetStore _presetStore = new PresetStore(AppLogBridge.Instance);
     private readonly AppSession _session;
     private readonly DaemonStatusViewModel _daemonStatus;
     private readonly TabletAutoMapper _autoMapper;
@@ -132,7 +134,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
-        _session = new AppSession(new DaemonClient(), new DaemonLifecycleService(), _settingsStore);
+        _session = new AppSession(new DaemonClient(), new DaemonLifecycleService());
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
 
@@ -187,7 +189,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Global hotkeys (#320, #89): one shared hotkey window; the profile-switch manager and the
         // monitor-cycle manager each register their own chords on it and filter presses by their ids.
         _globalHotkeys = new GlobalHotkeyService();
-        _profileSwitch = new ProfileSwitchService(_session, _settingsStore, () => _session.PresetDirectory);
+        _profileSwitch = new ProfileSwitchService(_session, _presetStore, () => _session.PresetDirectory);
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
@@ -197,7 +199,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _perAppSwitcher = new PerAppSwitcher(
             new Win32ForegroundAppWatcher(),
             _perAppStore,
-            new PerAppApplier(_session, _settingsStore, () => _session.PresetDirectory),
+            new PerAppApplier(_session, _presetStore, () => _session.PresetDirectory),
             new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),
             ownExeName: System.Diagnostics.Process.GetCurrentProcess().ProcessName + ".exe");
 
@@ -206,7 +208,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
         Configs = new CustomTabletConfigsViewModel(dialogs,
             new ConfigurationsDirectoryProvider(() => _session.ConfigurationDirectory));
-        Presets = new PresetsViewModel(_settingsStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
+        Presets = new PresetsViewModel(_presetStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
         PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs, _session);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);

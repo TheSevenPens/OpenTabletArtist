@@ -22,7 +22,7 @@ public class ProfileSwitchServiceTests
     private static string Snapshot(string name) => Path.Combine(PresetsDir, name + ".json");
 
     /// <summary>A snapshot store where the test decides which preset files exist.</summary>
-    private sealed class FakeStore : ISettingsFileStore
+    private sealed class FakeStore : IPresetStore
     {
         public readonly HashSet<string> Existing = new();
         public void Save(Settings settings, string path) { }

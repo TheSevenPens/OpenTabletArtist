@@ -169,7 +169,6 @@ public sealed class SettingsCoordinator
     private bool StillCurrent(int session) => session == Volatile.Read(ref _sessionGeneration);
 
     /// <param name="daemon">The daemon connection.</param>
-    /// <param name="store">The settings file seam.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
     /// <c>AppInfo</c> and is empty until the first data load completes.</param>
     /// <param name="isOwnedDaemon">The #465 gate — only rewrite filters on a daemon OTA positively owns.
@@ -180,6 +179,21 @@ public sealed class SettingsCoordinator
     /// <param name="log">Where this type reports what it did and could not do — mostly partial failure,
     /// which is exactly what is invisible from outside.</param>
     /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
+    public SettingsCoordinator(IDaemonTransport daemon,
+        Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
+        IOtdLog log, IOtdSettingsPolicy policy)
+        : this(daemon, new SettingsFileStore(log), settingsPath, isOwnedDaemon, onSaveState, log, policy)
+    {
+    }
+
+    /// <summary>
+    /// Takes the file store, for a host that must supply its own — a test needing a write to fail on
+    /// demand, chiefly. Failing writes are central behaviour here: applied-but-not-saved, the bounded
+    /// retry, the destination a pending write is bound to.
+    ///
+    /// The other constructor uses the library's own writer, which is internal and not obtainable from
+    /// outside. Supplying an alternative is not the same as being handed ours.
+    /// </summary>
     public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)

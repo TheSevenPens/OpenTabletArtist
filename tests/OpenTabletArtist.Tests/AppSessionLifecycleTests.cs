@@ -66,7 +66,7 @@ public class AppSessionLifecycleTests
         public string? GetSingleRunningDaemonPath() => null;
     }
 
-    private sealed class FakeSettingsStore : ISettingsFileStore
+    private sealed class FakeSettingsStore : IPresetStore
     {
         public void Save(Settings settings, string path) { }
         public bool TrySave(Settings settings, string path) => true;
@@ -76,7 +76,7 @@ public class AppSessionLifecycleTests
     private static AppSession NewSession(out FakeLifecycle lifecycle)
     {
         lifecycle = new FakeLifecycle();
-        return new AppSession(new FakeDaemonTransport(), lifecycle, new FakeSettingsStore())
+        return new AppSession(new FakeDaemonTransport(), lifecycle)
         {
             // No real daemon in tests, so Start/Restart never connect — keep the timeout tiny
             // so the "didn't come online" path is exercised in milliseconds, not 30s.
@@ -144,7 +144,7 @@ public class AppSessionLifecycleTests
     // --- Daemon-exe-missing short-circuit (checked before any connect attempt) ---
 
     private static AppSession NewSession(IDaemonLifecycleService lifecycle) =>
-        new AppSession(new FakeDaemonTransport(), lifecycle, new FakeSettingsStore())
+        new AppSession(new FakeDaemonTransport(), lifecycle)
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
         };
@@ -152,7 +152,7 @@ public class AppSessionLifecycleTests
     private static AppSession NewMissingSession(out MissingLifecycle lifecycle)
     {
         lifecycle = new MissingLifecycle();
-        return new AppSession(new FakeDaemonTransport(), lifecycle, new FakeSettingsStore())
+        return new AppSession(new FakeDaemonTransport(), lifecycle)
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
         };

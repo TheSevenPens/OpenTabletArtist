@@ -419,15 +419,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Settings? CurrentSettings => _coordinator.CurrentSettings;
     public event Action? DataLoaded;
 
-    public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle, ISettingsFileStore settingsStore)
+    public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle,
+        ISettingsFileStore? settingsStore = null)
     {
         _daemon = daemon;
         _daemonLifecycle = daemonLifecycle;
 
         // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
         // data load, identity on connect), so neither has a value yet at construction.
-        _coordinator = new SettingsCoordinator(
-            daemon, settingsStore,
+        // No store given means the library uses its own, which the app cannot construct (#807).
+        _coordinator = settingsStore is { } store
+            ? new SettingsCoordinator(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
+                state => SaveState = state, AppLogBridge.Instance, OtaSettingsPolicy.Instance)
+            : new SettingsCoordinator(
+            daemon,
             settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
             onSaveState: state => SaveState = state,

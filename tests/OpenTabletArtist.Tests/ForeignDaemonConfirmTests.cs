@@ -30,7 +30,7 @@ public class ForeignDaemonConfirmTests
         public string? GetSingleRunningDaemonPath() => null;
     }
 
-    private sealed class FakeStore : ISettingsFileStore
+    private sealed class FakeStore : IPresetStore
     {
         public bool TryLoad(string path, out OpenTabletDriver.Desktop.Settings? settings)
         { settings = null; return false; }
@@ -47,7 +47,7 @@ public class ForeignDaemonConfirmTests
     private static AppSession NewSession(out FakeLifecycle lifecycle, DaemonOwnership ownership)
     {
         lifecycle = new FakeLifecycle();
-        return new AppSession(new FakeDaemonTransport(), lifecycle, new FakeStore())
+        return new AppSession(new FakeDaemonTransport(), lifecycle)
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
             Ownership = ownership,

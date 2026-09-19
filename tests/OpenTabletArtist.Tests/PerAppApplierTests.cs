@@ -31,10 +31,10 @@ public class PerAppApplierTests : IDisposable
     }
 
     private PerAppApplier Make(FakeSettingsCoordinator coord) =>
-        new(coord, new SettingsFileStore(NullOtdLog.Instance), () => _dir);
+        new(coord, new PresetStore(NullOtdLog.Instance), () => _dir);
 
     private void WriteSnapshot(string name) =>
-        new SettingsFileStore(NullOtdLog.Instance).Save(new Settings(), Path.Combine(_dir, name + ".json"));
+        new PresetStore(NullOtdLog.Instance).Save(new Settings(), Path.Combine(_dir, name + ".json"));
 
     [Fact]
     public async Task AnExistingSnapshot_IsAppliedEphemerally()
@@ -64,7 +64,7 @@ public class PerAppApplierTests : IDisposable
     public async Task NoPresetDirectory_IsReportedAsMissing()
     {
         var coord = new FakeSettingsCoordinator();
-        var applier = new PerAppApplier(coord, new SettingsFileStore(NullOtdLog.Instance), () => null);
+        var applier = new PerAppApplier(coord, new PresetStore(NullOtdLog.Instance), () => null);
 
         Assert.Equal(PerAppApplyResult.SnapshotMissing, await applier.ApplySnapshotAsync("Painting"));
     }

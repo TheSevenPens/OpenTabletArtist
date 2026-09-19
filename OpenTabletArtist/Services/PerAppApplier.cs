@@ -17,10 +17,10 @@ namespace OpenTabletArtist.Services;
 public sealed class PerAppApplier : IPerAppApplier
 {
     private readonly ISettingsCoordinator _settings;
-    private readonly ISettingsFileStore _store;
+    private readonly IPresetStore _store;
     private readonly Func<string?> _presetDirectory;
 
-    public PerAppApplier(ISettingsCoordinator settings, ISettingsFileStore store, Func<string?> presetDirectory)
+    public PerAppApplier(ISettingsCoordinator settings, IPresetStore store, Func<string?> presetDirectory)
     {
         _settings = settings;
         _store = store;
