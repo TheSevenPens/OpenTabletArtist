@@ -19,8 +19,9 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    // Presets only. The daemon's own settings file is written by OtdInterop, which does not hand its
-    // writer out -- so nothing here can reach it (#807).
+    // Used for preset files. The library's own writer, which the coordinator uses for the daemon's
+    // active settings file, is internal and not handed out -- but this store takes a path and would
+    // write any path given to it, so that is caller discipline rather than a rule (#807).
     private readonly IPresetStore _presetStore = new PresetStore(AppLogBridge.Instance);
     private readonly AppSession _session;
     private readonly DaemonStatusViewModel _daemonStatus;

@@ -27,9 +27,17 @@ public interface IPresetStore
 /// argument — so any caller holding it could write either.
 /// </para>
 /// <para>
-/// The active-settings writer now belongs to OtdInterop and is not handed out. This is the other half:
-/// presets are the app's own concern, kept here, and no part of the app can reach the daemon's settings
-/// file through it.
+/// What this does and does not guarantee, stated precisely because the distinction is easy to overclaim.
+/// It <b>does</b> mean the library's own writer — the one the coordinator uses for the daemon's active
+/// settings file — is not handed out, so no app code can obtain it. It does <b>not</b> restrict where
+/// this store writes: <see cref="Save"/> takes a path and will write whatever path it is given,
+/// including the active settings file.
+/// </para>
+/// <para>
+/// So the separation is one of API surface and caller discipline, not enforcement. Production consumers
+/// use this for preset files only. Making the preset directory a property of the store rather than an
+/// argument would turn that discipline into a rule, and is worth doing on its own terms; an assembly
+/// boundary cannot prevent code in the same process from opening a file.
 /// </para>
 /// <para>
 /// It still uses the library's <see cref="SettingsCodec"/> rather than serializing for itself. One

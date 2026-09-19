@@ -8,6 +8,17 @@ namespace OtdInterop;
 /// </summary>
 ///
 /// <remarks>
+/// <b>Nothing implements this yet.</b> It is the contract the settings authority is being moved towards,
+/// not a description of what is in place: <c>SettingsCoordinator</c> carries out these operations today
+/// and differs from it in shape — outcomes where this returns <c>bool</c>, and cancellation this accepts
+/// that it does not act on.
+///
+/// Read what follows as the target, and do not take the guarantees below as established. In particular
+/// the execution and cancellation rules describe what an implementation must provide; being headless
+/// does not by itself establish them.
+/// </remarks>
+///
+/// <remarks>
 /// <para>
 /// Every settings change goes through here. That is the point of the type: applying settings is not one
 /// action but several that fail independently — sending to the daemon, writing to disk, and doing both

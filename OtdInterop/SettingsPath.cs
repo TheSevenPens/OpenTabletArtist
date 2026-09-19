@@ -7,9 +7,17 @@ public static class SettingsPath
     /// True when both paths name the same file.
     ///
     /// Compared after full-path resolution, so a relative path and an absolute one to the same file
-    /// match, and case-insensitively, which is right for Windows and wrong for a case-sensitive
-    /// filesystem — accepted deliberately, because the failure it guards is a settings write landing in
-    /// the wrong daemon's file, and a false "same" there is far worse than a false "different".
+    /// match. The comparison is case-insensitive, which is correct on Windows — the supported platform,
+    /// and the behaviour this preserves.
+    ///
+    /// <b>That is an assumption, not a safety margin.</b> On a case-sensitive filesystem two paths
+    /// differing only in case name different files, and this would call them the same. Its caller treats
+    /// "same" as permission to write, so a false "same" is the dangerous direction: it would allow a
+    /// write to a file that was not the intended one. Recorded as a limitation to revisit if another
+    /// platform becomes supported, rather than defended as a trade-off.
+    ///
+    /// It compares paths, not files. Two paths that reach one file by different routes — a symlink, a
+    /// junction, a mapped drive — are not recognised as the same.
     ///
     /// Null or empty is never the same as anything, including another null: nowhere is not a place.
     /// </summary>
