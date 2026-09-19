@@ -73,10 +73,21 @@ public class AppSessionLifecycleTests
         public bool TryLoad(string path, out Settings? settings) { settings = null; return false; }
     }
 
-    private static AppSession NewSession(out FakeLifecycle lifecycle)
+    private static AppSession NewSession(out FakeLifecycle lifecycle) =>
+        NewSession(out lifecycle, out _);
+
+    /// <summary>
+    /// Also hands back the transport, for the tests that watch the reconnect gate.
+    ///
+    /// That flag belongs to the connection, and the connection is no longer something the app can reach:
+    /// it drives connect and reconnect through the session now, and gets a forwarding capability object
+    /// for everything else. So a test that wants to see the flag watches the thing that holds it.
+    /// </summary>
+    private static AppSession NewSession(out FakeLifecycle lifecycle, out FakeDaemonTransport daemon)
     {
         lifecycle = new FakeLifecycle();
-        return new AppSession(FakeSession.Over(new FakeDaemonTransport()), lifecycle)
+        daemon = new FakeDaemonTransport();
+        return new AppSession(FakeSession.Over(daemon), lifecycle)
         {
             // No real daemon in tests, so Start/Restart never connect — keep the timeout tiny
             // so the "didn't come online" path is exercised in milliseconds, not 30s.
@@ -87,13 +98,13 @@ public class AppSessionLifecycleTests
     [Fact]
     public async Task StopDaemon_SuppressesAutoReconnect_AndStopsTheProcess()
     {
-        using var session = NewSession(out var lifecycle);
-        Assert.True(session.Daemon.AutoReconnect); // default
+        using var session = NewSession(out var lifecycle, out var daemon);
+        Assert.True(daemon.AutoReconnect); // default
 
         // Already disconnected, so the "wait for drop" completes immediately (success, no error).
         await session.StopDaemonCommand.ExecuteAsync(null);
 
-        Assert.False(session.Daemon.AutoReconnect);
+        Assert.False(daemon.AutoReconnect);
         Assert.Equal(1, lifecycle.StopAllCount);
         Assert.False(session.IsDaemonBusy);
         Assert.False(session.HasDaemonOperationError);
@@ -102,14 +113,14 @@ public class AppSessionLifecycleTests
     [Fact]
     public async Task StartDaemon_ReenablesAutoReconnect_AndReportsTimeout()
     {
-        using var session = NewSession(out _);
-        session.Daemon.AutoReconnect = false; // as if a prior Stop left it off
+        using var session = NewSession(out _, out var daemon);
+        daemon.AutoReconnect = false; // as if a prior Stop left it off
 
         // FindExe() returns null so Launch is a no-op and IsConnected stays false; the command
         // flips the gate back on, then times out waiting for a connection that never comes.
         await session.StartDaemonCommand.ExecuteAsync(null);
 
-        Assert.True(session.Daemon.AutoReconnect);
+        Assert.True(daemon.AutoReconnect);
         Assert.False(session.IsDaemonBusy);            // cleared in finally
         Assert.True(session.HasDaemonOperationError);  // timed out (no daemon)
     }
@@ -117,12 +128,12 @@ public class AppSessionLifecycleTests
     [Fact]
     public async Task RestartDaemon_ReenablesAutoReconnect_AndReportsTimeout()
     {
-        using var session = NewSession(out var lifecycle);
-        session.Daemon.AutoReconnect = false;
+        using var session = NewSession(out var lifecycle, out var daemon);
+        daemon.AutoReconnect = false;
 
         await session.RestartDaemonCommand.ExecuteAsync(null);
 
-        Assert.True(session.Daemon.AutoReconnect);
+        Assert.True(daemon.AutoReconnect);
         Assert.Equal(1, lifecycle.StopAllCount);
         Assert.False(session.IsDaemonBusy);
         Assert.True(session.HasDaemonOperationError);

@@ -40,8 +40,12 @@ public interface IDaemonPluginService
 /// and the log stream, so every class that legitimately wanted one of those also held a settings writer
 /// that bypassed every protection in <see cref="IOtdSettingsSession"/>. They live on the internal
 /// <see cref="IDaemonSettingsChannel"/> now, which only the settings session receives.
+///
+/// Internal, because owning a connection and using one are different things. A host gets
+/// <see cref="IDaemonCapabilities"/> — reading, watching, plugins — from <see cref="OtdSession"/>, and the
+/// operations that decide this connection's life stay on the session that owns it.
 /// </summary>
-public interface IDaemonTransport : IDaemonDebugSession, IDaemonLogSource, IDaemonPluginService, IDisposable
+internal interface IDaemonTransport : IDaemonDebugSession, IDaemonLogSource, IDaemonPluginService, IDisposable
 {
     /// <summary>A connection was established. Raised off the UI thread.</summary>
     event Action? Connected;

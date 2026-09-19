@@ -159,17 +159,88 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
         return ok;
     }
 
-    public Task<AppInfo?> GetAppInfoAsync() => Task.FromResult(AppInfo);
-    public Task<JArray> GetTabletsAsync() => Task.FromResult(Tablets);
-    public Task<JArray> GetDevicesAsync() => Task.FromResult(Devices);
+    public Task<AppInfo?> GetAppInfoAsync()
+    {
+        Calls.Add(nameof(GetAppInfoAsync));
+        return Task.FromResult(AppInfo);
+    }
+
+    public Task<JArray> GetTabletsAsync()
+    {
+        Calls.Add(nameof(GetTabletsAsync));
+        return Task.FromResult(Tablets);
+    }
+
+    public Task<JArray> GetDevicesAsync()
+    {
+        Calls.Add(nameof(GetDevicesAsync));
+        return Task.FromResult(Devices);
+    }
     public int? GetServerProcessId() => ServerProcessId;
 
-    public Task SetTabletDebugAsync(bool enabled) => Task.CompletedTask;
-    public Task<List<LogMessage>> GetCurrentLogAsync() => Task.FromResult(new List<LogMessage>());
+    /// <summary>How many times the debug stream was toggled -- proof a forwarder reached this object.</summary>
+    public int DebugCalls { get; private set; }
 
-    public Task<bool> DownloadPluginAsync(PluginMetadata metadata) => Task.FromResult(true);
-    public Task<bool> UninstallPluginAsync(string directory) => Task.FromResult(true);
-    public Task LoadPluginsAsync() => Task.CompletedTask;
+    /// <summary>
+    /// Every member reached on this object, in order.
+    ///
+    /// For proving that a forwarding object forwards each member to the member of the same name. Nine
+    /// one-line forwards all compile whether or not they are wired correctly, and a result scripted the
+    /// same for two of them makes a swap invisible.
+    /// </summary>
+    public List<string> Calls { get; } = new();
+
+    /// <summary>The last value passed to each member that takes one — a forward can reach the right
+    /// member and still hand it the wrong thing.</summary>
+    public bool? LastDebugEnabled { get; private set; }
+
+    /// <inheritdoc cref="LastDebugEnabled"/>
+    public PluginMetadata? LastDownloaded { get; private set; }
+
+    /// <inheritdoc cref="LastDebugEnabled"/>
+    public string? LastUninstalled { get; private set; }
+
+    public Task SetTabletDebugAsync(bool enabled)
+    {
+        DebugCalls++;
+        LastDebugEnabled = enabled;
+        Calls.Add(nameof(SetTabletDebugAsync));
+        return Task.CompletedTask;
+    }
+    /// <summary>What <see cref="GetCurrentLogAsync"/> returns, so a forward's result can be checked.</summary>
+    public List<LogMessage> BufferedLog { get; } = new();
+
+    public Task<List<LogMessage>> GetCurrentLogAsync()
+    {
+        Calls.Add(nameof(GetCurrentLogAsync));
+        return Task.FromResult(BufferedLog);
+    }
+
+    /// <summary>What the two plugin verbs report, separately, so a swap between them is visible.</summary>
+    public bool DownloadSucceeds { get; set; } = true;
+
+    /// <inheritdoc cref="DownloadSucceeds"/>
+    public bool UninstallSucceeds { get; set; } = true;
+
+    public Task<bool> DownloadPluginAsync(PluginMetadata metadata)
+    {
+        LastDownloaded = metadata;
+        Calls.Add(nameof(DownloadPluginAsync));
+        return Task.FromResult(DownloadSucceeds);
+    }
+
+    public Task<bool> UninstallPluginAsync(string directory)
+    {
+        LastUninstalled = directory;
+        Calls.Add(nameof(UninstallPluginAsync));
+        return Task.FromResult(UninstallSucceeds);
+    }
+
+    public Task LoadPluginsAsync()
+    {
+        Calls.Add(nameof(LoadPluginsAsync));
+        return Task.CompletedTask;
+    }
 
     public void Dispose() => IsDisposed = true;
 

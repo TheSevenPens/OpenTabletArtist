@@ -168,7 +168,6 @@ public interface IDeviceData : INotifyPropertyChanged
 /// </summary>
 public partial class AppSession : ObservableObject, IConnectionState, ISettingsCoordinator, IDeviceData, IDisposable
 {
-    private readonly IDaemonTransport _daemon;
     private readonly IDaemonLifecycleService _daemonLifecycle;
     // No _settingsStore field: the store is handed to the coordinator and nothing else here touches it.
     // AppSession writing settings directly is what #803 found on the load path.
@@ -202,7 +201,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// The underlying daemon client. Temporary seam: data-load (settings/tablets/app-info)
     /// still lives in the shell and uses this until it moves into the session (#41 PR 2).
     /// </summary>
-    public IDaemonTransport Daemon => _daemon;
+    public IDaemonCapabilities Daemon => _session.Capabilities;
 
     /// <summary>Raised on the UI thread once the daemon connection is established.</summary>
     public event Action? Connected;
@@ -428,7 +427,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public AppSession(OtdSession session, IDaemonLifecycleService daemonLifecycle)
     {
         _session = session;
-        _daemon = session.Connection;
         _daemonLifecycle = daemonLifecycle;
 
         // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
@@ -438,7 +436,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             isOwnedDaemon: () => IsAppOwnedDaemon,
             onSaveState: state => SaveState = state);
 
-        _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
+        _session.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             ConnectionStatus = "Connected";
             IsConnected = true;
@@ -453,7 +451,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             Connected?.Invoke();
             _ = LoadDataAsync();
         });
-        _daemon.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
+        _session.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             ConnectionStatus = "Disconnected";
             IsConnected = false;
@@ -473,7 +471,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // sleep/wake), so reload immediately for near-instant detection and an accurate "last seen",
         // rather than waiting up to a full FallbackPollInterval. Marshalled to the UI thread (the
         // event fires off the RPC thread); the load gate coalesces a burst of events into one load.
-        _daemon.TabletsChanged += () => Dispatcher.UIThread.InvokeAsync(() =>
+        _session.Capabilities.TabletsChanged += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
             if (IsConnected) _ = LoadDataAsync();
         });
@@ -486,7 +484,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         try
         {
-            var devices = await _daemon.GetDevicesAsync();
+            var devices = await _session.Capabilities.GetDevicesAsync();
             foreach (var device in devices)
             {
                 var vendor = device["VendorID"]?.Value<int>();
@@ -611,7 +609,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         }
 
         ConnectionStatus = "Connecting...";
-        await _daemon.ConnectAsync(_cts.Token);
+        await _session.ConnectAsync(_cts.Token);
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
     }
 
@@ -639,7 +637,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ConnectStalled = false;
         ConnectPhase = "Connecting to the daemon…";
         ConnectionStatus = "Connecting...";
-        var connect = _daemon.ConnectAsync(_cts.Token);
+        var connect = _session.ConnectAsync(_cts.Token);
         _ = MonitorConnectAttemptAsync(++_connectAttempt);
         return connect;
     }
@@ -685,7 +683,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         try
         {
             // Tablets (JToken — complex runtime type)
-            var tablets = await _daemon.GetTabletsAsync();
+            var tablets = await _session.Capabilities.GetTabletsAsync();
             Tablets = tablets;
 
             var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -797,7 +795,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
 
             // App info paths
-            var appInfo = await _daemon.GetAppInfoAsync();
+            var appInfo = await _session.Capabilities.GetAppInfoAsync();
             if (appInfo != null)
             {
                 PresetDirectory = appInfo.PresetDirectory ?? "";
@@ -1100,7 +1098,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsDaemonExeMissing = false;
 
             DaemonOperationStatus = "Starting daemon…";
-            _daemon.AutoReconnect = true;
+            _session.AutoReconnect = true;
             if (_daemonLifecycle.Launch() is { } launchProblem)
             {
                 // It died on the spot. Waiting out the 30s connect timeout would replace a precise
@@ -1114,7 +1112,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
             _connectAttempt++; // invalidate any pending startup/Refresh monitor
-            await _daemon.ConnectAsync(_cts.Token);
+            await _session.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
             {
@@ -1156,7 +1154,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        if (_daemon.GetServerProcessId() is { } pid)
+        if (_session.ConnectedProcessId() is { } pid)
             _daemonLifecycle.Stop(pid);
         else
             _daemonLifecycle.StopAll();
@@ -1203,7 +1201,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonOperationStatus = "Stopping daemon…";
             // User-initiated stop: suppress auto-reconnect so the client doesn't immediately spin
             // trying to reconnect to the daemon we're about to kill (which races a later Start).
-            _daemon.AutoReconnect = false;
+            _session.AutoReconnect = false;
             await StopDaemonProcessAsync();
 
             if (!await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout))
@@ -1236,13 +1234,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
             DaemonOperationStatus = "Stopping daemon…";
-            _daemon.AutoReconnect = false;
+            _session.AutoReconnect = false;
             await StopDaemonProcessAsync();
             await WaitForConnectionStateAsync(connected: false, DaemonOperationTimeout);
 
             // Start phase: relaunch and connect to the fresh instance.
             DaemonOperationStatus = "Starting daemon…";
-            _daemon.AutoReconnect = true;
+            _session.AutoReconnect = true;
             if (_daemonLifecycle.Launch() is { } launchProblem)
             {
                 // Worth being loud here: the old daemon is already stopped, so a silent failure leaves
@@ -1255,7 +1253,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
             _connectAttempt++; // invalidate any pending startup/Refresh monitor
-            await _daemon.ConnectAsync(_cts.Token);
+            await _session.ConnectAsync(_cts.Token);
 
             if (!await WaitForConnectionStateAsync(connected: true, DaemonOperationTimeout))
             {

@@ -2,8 +2,11 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OpenTabletDriver.Plugin.Logging;
 using OtdInterop;
 using Xunit;
 
@@ -49,24 +52,160 @@ public class OtdInteropBoundaryTests
     }
 
     /// <summary>
-    /// The connection a host holds carries the device list, the log, the plugin verbs and the lifecycle —
-    /// and no way to read or write settings. Asserted on the composed interface, including what it
-    /// inherits, because inheriting the verbs back would be the easy way to reintroduce them.
+    /// What a host can reach carries the device list, the log and the plugin verbs — and no way to read
+    /// or write settings, and no way to end the connection. Asserted through what it inherits too,
+    /// because inheriting something back is the easy way to reintroduce it.
     /// </summary>
     [Fact]
-    public void TheHostFacingConnection_HasNoSettingsVerbs()
+    public void TheHostFacingCapabilities_CarryNoSettingsOrOwnership()
     {
-        var names = typeof(IDaemonTransport).GetMethods()
-            .Concat(typeof(IDaemonTransport).GetInterfaces().SelectMany(i => i.GetMethods()))
+        var t = typeof(IDaemonCapabilities);
+        var names = t.GetMethods()
+            .Concat(t.GetInterfaces().SelectMany(i => i.GetMethods()))
             .Select(m => m.Name)
             .ToList();
 
         Assert.DoesNotContain("SetSettingsAsync", names);
         Assert.DoesNotContain("GetSettingsAsync", names);
-        // Still the whole of what the host legitimately needs, so this is a narrowing and not a removal.
+        // Ownership: closing, reconnecting, or deciding whether to keep reconnecting.
+        Assert.DoesNotContain("Dispose", names);
+        Assert.DoesNotContain("ConnectAsync", names);
+        Assert.DoesNotContain("get_AutoReconnect", names);
+        Assert.DoesNotContain(t.GetInterfaces(), i => i == typeof(IDisposable));
+
+        // Still the whole of what a page legitimately needs, so this is a narrowing and not a removal.
         Assert.Contains("GetTabletsAsync", names);
         Assert.Contains("GetCurrentLogAsync", names);
         Assert.Contains("DownloadPluginAsync", names);
+        Assert.Contains("SetTabletDebugAsync", names);
+    }
+
+    /// <summary>
+    /// The capabilities object is not the connection wearing a smaller interface.
+    ///
+    /// Narrowing by returning the same instance as a narrower type narrows nothing: anything holding it
+    /// casts back to the full transport, to <see cref="IDisposable"/>, and closes the connection out from
+    /// under the session. This is the assertion that the forwarding object is real.
+    /// </summary>
+    [Fact]
+    public void TheCapabilitiesObject_CannotBeCastBackToTheConnection()
+    {
+        var daemon = new FakeDaemonTransport();
+        var capabilities = FakeSession.Over(daemon).Capabilities;
+
+        Assert.NotSame(daemon, capabilities);
+        Assert.IsNotAssignableFrom<IDaemonTransport>(capabilities);
+        Assert.IsNotAssignableFrom<IDisposable>(capabilities);
+
+        // And it really is wired to that connection, not to nothing.
+        capabilities.SetTabletDebugAsync(true);
+        Assert.Equal(1, daemon.DebugCalls);
+    }
+
+    /// <summary>
+    /// Every forward reaches the member of the same name.
+    ///
+    /// Nine one-line forwards compile whether or not they are wired correctly, and the mistakes they
+    /// invite are invisible: a swap between the two `JArray` queries, a plugin verb pointed at its
+    /// neighbour. Asserting one member and trusting the pattern is how that ships.
+    /// </summary>
+    [Fact]
+    public async Task EveryCapability_ForwardsToTheMemberOfTheSameName()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Tablets = new JArray("a tablet"),
+            Devices = new JArray("a device", "another"),
+            AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
+        };
+        var c = FakeSession.Over(daemon).Capabilities;
+
+        // Scripted differently where two members share a shape, so a swap cannot pass.
+        Assert.Equal("a tablet", (await c.GetTabletsAsync())[0]);
+        Assert.Equal(2, (await c.GetDevicesAsync()).Count);
+        Assert.Equal("settings.json", (await c.GetAppInfoAsync())!.SettingsFile);
+
+        // Results too, scripted apart where two members agree in shape: reaching the right member and
+        // returning the neighbour's answer is a forward that passes a call log.
+        daemon.BufferedLog.Add(new LogMessage());
+        daemon.DownloadSucceeds = true;
+        daemon.UninstallSucceeds = false;
+        var plugin = new PluginMetadata();
+
+        Assert.Single(await c.GetCurrentLogAsync());
+        await c.SetTabletDebugAsync(true);
+        Assert.True(await c.DownloadPluginAsync(plugin));
+        Assert.False(await c.UninstallPluginAsync("some/plugin"));
+        await c.LoadPluginsAsync();
+
+        // And the arguments arrived: a forward can reach the right member and hand it the wrong thing.
+        Assert.True(daemon.LastDebugEnabled);
+        Assert.Same(plugin, daemon.LastDownloaded);
+        Assert.Equal("some/plugin", daemon.LastUninstalled);
+
+        Assert.Equal(
+            [
+                nameof(IDaemonCapabilities.GetTabletsAsync),
+                nameof(IDaemonCapabilities.GetDevicesAsync),
+                nameof(IDaemonCapabilities.GetAppInfoAsync),
+                nameof(IDaemonCapabilities.GetCurrentLogAsync),
+                nameof(IDaemonCapabilities.SetTabletDebugAsync),
+                nameof(IDaemonCapabilities.DownloadPluginAsync),
+                nameof(IDaemonCapabilities.UninstallPluginAsync),
+                nameof(IDaemonCapabilities.LoadPluginsAsync),
+            ],
+            daemon.Calls);
+    }
+
+    /// <summary>
+    /// The two event forwards reach real subscriptions on the connection, rather than an intermediate
+    /// list that could quietly drop them.
+    /// </summary>
+    [Fact]
+    public void TheEventForwards_AttachToTheConnection()
+    {
+        var daemon = new FakeDaemonTransport();
+        var c = FakeSession.Over(daemon).Capabilities;
+
+        var reports = 0;
+        var tabletChanges = 0;
+        var logs = 0;
+        void OnReport(JObject _) => reports++;
+        void OnTabletsChanged() => tabletChanges++;
+        void OnLog(LogMessage _) => logs++;
+        c.DeviceReport += OnReport;
+        c.TabletsChanged += OnTabletsChanged;
+        c.LogReceived += OnLog;
+
+        daemon.RaiseDeviceReport(new JObject());
+        daemon.RaiseTabletsChanged();
+        daemon.RaiseLog(new LogMessage());
+
+        Assert.Equal(1, reports);
+        Assert.Equal(1, tabletChanges);
+        Assert.Equal(1, logs);
+
+        // And unsubscribing reaches the connection, for ALL THREE -- a page closed mid-stream that keeps
+        // being called is the failure, and add/remove forwarding has no return value to notice a missing
+        // remove. One of the three passing says nothing about the other two.
+        c.DeviceReport -= OnReport;
+        c.TabletsChanged -= OnTabletsChanged;
+        c.LogReceived -= OnLog;
+
+        daemon.RaiseDeviceReport(new JObject());
+        daemon.RaiseTabletsChanged();
+        daemon.RaiseLog(new LogMessage());
+
+        Assert.Equal(1, reports);
+        Assert.Equal(1, tabletChanges);
+        Assert.Equal(1, logs);
+    }
+
+    /// <summary>The connection itself is not something a host can name at all.</summary>
+    [Fact]
+    public void TheConnectionType_IsNotPublic()
+    {
+        Assert.DoesNotContain(Library.GetExportedTypes(), t => t.Name == nameof(IDaemonTransport));
     }
 
     /// <summary>

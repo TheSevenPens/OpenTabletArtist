@@ -1,11 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Deliberately NOT in OpenTabletArtist.slnx, like tools/OtdLinuxSetup.
+    In OpenTabletArtist.slnx, unlike tools/OtdLinuxSetup, and for a reason that was demonstrated rather
+    than argued: within a day of this being added, a change to OtdSession's API broke it and nothing said
+    so, because nothing built it.
 
-    It needs two real OpenTabletDriver installs and a machine it may start and kill daemons on, so it can
-    never run in CI and should not be built by an ordinary solution build. Build and run it by path when
-    the daemon-switch behaviour needs checking against something other than a fake.
+    CI builds it and never runs it. Everything that needs a real daemon is behind command-line arguments,
+    so a build is a compile check and nothing more - which is exactly the coverage that was missing. It
+    still cannot run in CI: it needs two real OpenTabletDriver installs and a machine it may start and
+    kill daemons on.
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
