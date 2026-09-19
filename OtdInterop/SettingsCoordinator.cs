@@ -118,9 +118,15 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     private int _observationEpoch;
 
-    /// <summary>What a read of the daemon could have observed at this moment; pass it to
-    /// <see cref="AdoptLoadedSettings"/> after a read to prove the read was not overtaken.</summary>
-    public int ObservationEpoch => Volatile.Read(ref _observationEpoch);
+    /// <summary>
+    /// What a read of the daemon could have observed at this moment.
+    ///
+    /// Internal because it is only meaningful paired with a read this session made itself. It was public
+    /// once, and the host had to observe it, read the daemon, and hand it back — three steps in the right
+    /// order, with the failure silent if it got them wrong. <see cref="ReloadFromDaemonAsync"/> does all
+    /// three, which is why this no longer needs to leave the library.
+    /// </summary>
+    internal int ObservationEpoch => Volatile.Read(ref _observationEpoch);
 
     /// <summary>
     /// Which revision of the settings this session publishes is current.
@@ -243,8 +249,6 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         _onSaveState = onSaveState;
     }
 
-    /// <summary>The settings OTA is editing and would persist — the user's default, never a transient
-    /// per-app snapshot.</summary>
     /// <summary>
     /// The settings this session is editing — the user's own, never a transient per-app snapshot.
     ///
@@ -280,9 +284,44 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     public bool HasEphemeralOverride { get; private set; }
 
     /// <summary>
-    /// Takes what the data load just read from the daemon as the new baseline. The caller is responsible
-    /// for not calling this while <see cref="HasEphemeralOverride"/> is set — the daemon is then holding
-    /// a snapshot, not the baseline.
+    /// Re-reads the daemon's settings and adopts them as this session's baseline.
+    ///
+    /// The whole sequence, because the order in it is what makes it safe and none of it is the host's
+    /// business. The epoch is observed BEFORE the read, since an apply can complete while the read is in
+    /// flight and its answer would then describe a moment that has passed; adopting that does not merely
+    /// show stale values, it makes the next edit build on them and send the reverted value back.
+    ///
+    /// Skips the read entirely while an override is live (#737). The daemon is holding a transient
+    /// snapshot then, and reading it back would make that snapshot the editor's baseline — the thing it
+    /// is asked to persist as the user's default and to restore to.
+    ///
+    /// Deliberately NOT serialized against mutating operations. A read that queued behind an apply would
+    /// be a read of the state that apply produced, which is not what a poll is for; the epoch check is
+    /// what makes an overtaken answer safe, and it does not need the gate.
+    /// </summary>
+    /// <returns>What happened. Every outcome is ordinary; none needs the host to act.</returns>
+    public async Task<SettingsReloadOutcome> ReloadFromDaemonAsync()
+    {
+        if (HasEphemeralOverride) return SettingsReloadOutcome.SkippedOverride;
+
+        var observed = ObservationEpoch;
+        var loaded = await _daemon.GetSettingsAsync();
+        if (!AdoptLoadedSettings(loaded, observed)) return SettingsReloadOutcome.Overtaken;
+
+        // Null is adopted, not rejected: a daemon that answered with nothing is a daemon this session has
+        // no settings for, and leaving the previous daemon's settings in place would be worse than an
+        // empty editor. Reported separately so "the baseline is empty" is never mistaken for a read that
+        // returned the user's settings.
+        return loaded == null
+            ? SettingsReloadOutcome.Disconnected
+            : new SettingsReloadOutcome(SettingsReloadStatus.Adopted, GetCurrent());
+    }
+
+    /// <summary>
+    /// Adopts what a read returned, if that read has not been overtaken.
+    ///
+    /// Private: pairing a read with the epoch observed before it is the entire protection, and a caller
+    /// that could do one without the other would have the defect this exists to prevent.
     /// </summary>
     /// <param name="settings">What the daemon returned.</param>
     /// <param name="observedVersion">
@@ -291,7 +330,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// holds.
     /// </param>
     /// <returns>False when the read was overtaken and nothing was adopted.</returns>
-    public bool AdoptLoadedSettings(Settings? settings, int observedVersion)
+    private bool AdoptLoadedSettings(Settings? settings, int observedVersion)
     {
         if (observedVersion != ObservationEpoch)
         {

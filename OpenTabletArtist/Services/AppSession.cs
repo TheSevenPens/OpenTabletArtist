@@ -746,20 +746,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // Settings (typed) + profile derivation.
             //
-            // Skipped entirely while a per-app override is live (#737): the daemon is running a transient
-            // snapshot, and reading it back here would make that snapshot the editor's baseline — the
-            // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
-            // is whatever it already was, and survives the poll and a reconnect.
-            if (!HasEphemeralOverride)
-            {
-                // Observed BEFORE the read. An apply can complete while this is in flight, and the
-                // response would then describe a moment that has passed. Adopting it does not merely
-                // show stale values: the next edit is built on that baseline, so the reverted value goes
-                // back to the daemon.
-                var observed = _coordinator.ObservationEpoch;
-                var loaded = await _daemon.GetSettingsAsync();
-                _coordinator.AdoptLoadedSettings(loaded, observed);
-            }
+            // One call, because the ordering inside it is the protection and it is not this class's to
+            // get right: the session observes its own state before the read, discards an answer overtaken
+            // while in flight, and does not read at all while a per-app override is running (#737). This
+            // was three steps here, and every one of them failed silently.
+            await _coordinator.ReloadFromDaemonAsync();
             var settings = _coordinator.CurrentSettings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current

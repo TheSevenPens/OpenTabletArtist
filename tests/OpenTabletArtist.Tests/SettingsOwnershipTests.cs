@@ -480,6 +480,96 @@ public class SettingsOwnershipTests
         Assert.NotSame(first.Settings, second.Settings);
     }
 
+    // --- Re-reading the daemon (#807 Phase 4) ----------------------------------------------------
+    //
+    // This used to be three steps in the host: observe the session's state, read the daemon, hand the
+    // observation back when adopting. Every one of them failed silently if done in the wrong order, and
+    // the session could not check that they had been. It is one call now, so these test the ordering
+    // where it lives rather than through a view model.
+
+    /// <summary>
+    /// While an override is running the daemon is NOT holding the baseline, so it is not asked at all.
+    /// Reading it here is the defect #737 fixed: the transient snapshot becomes the editor's baseline,
+    /// what a save writes as the user's default, and what a restore restores to.
+    /// </summary>
+    [Fact]
+    public async Task ReloadingWhileAnOverrideIsRunning_DoesNotReadTheDaemon()
+    {
+        var (coordinator, daemon, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+        await coordinator.ApplyEphemeralAsync(SettingsFor("Per-app"));
+        var baseline = Json(coordinator.CurrentSettings!);
+        var readsBefore = daemon.GetSettingsCalls;
+
+        var outcome = await coordinator.ReloadFromDaemonAsync();
+
+        Assert.Equal(SettingsReloadStatus.SkippedOverride, outcome.Status);
+        Assert.Equal(readsBefore, daemon.GetSettingsCalls);      // not asked, not merely ignored
+        Assert.Equal(baseline, Json(coordinator.CurrentSettings!));
+    }
+
+    /// <summary>The ordinary case: what the daemon returned becomes the baseline, stamped.</summary>
+    [Fact]
+    public async Task Reloading_AdoptsWhatTheDaemonReturned()
+    {
+        var (coordinator, daemon, _) = Make();
+        daemon.Settings = SettingsFor("From the daemon");
+
+        var outcome = await coordinator.ReloadFromDaemonAsync();
+
+        Assert.Equal(SettingsReloadStatus.Adopted, outcome.Status);
+        Assert.True(outcome.ChangedTheBaseline);
+        Assert.Equal("From the daemon", coordinator.CurrentSettings!.Profiles[0].Tablet);
+        var adopted = Assert.IsType<PreparedSettings>(outcome.Adopted);
+        Assert.Equal(coordinator.GetCurrent()!.Stamp, adopted.Stamp);
+    }
+
+    /// <summary>
+    /// A daemon that answers with nothing leaves an empty baseline, deliberately -- keeping the previous
+    /// daemon's settings would be worse than an empty editor. Reported as its own outcome so "the
+    /// baseline is empty" is never mistaken for a read that returned the user's settings.
+    /// </summary>
+    [Fact]
+    public async Task ReloadingWithNothingConnected_EmptiesTheBaseline()
+    {
+        var (coordinator, daemon, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+        Assert.NotNull(coordinator.CurrentSettings);
+        daemon.Settings = null;
+
+        var outcome = await coordinator.ReloadFromDaemonAsync();
+
+        Assert.Equal(SettingsReloadStatus.Disconnected, outcome.Status);
+        Assert.Null(coordinator.CurrentSettings);
+        Assert.Null(outcome.Adopted);
+    }
+
+    /// <summary>
+    /// A read held open while an apply completes describes a moment that has passed, and is discarded.
+    ///
+    /// The epoch has to be observed BEFORE the read, which is the whole reason this is one call: a host
+    /// that observed it after starting the read would see the value the apply had already moved, and
+    /// adopt the stale answer. Not a display glitch -- the next edit builds on that baseline, so the
+    /// reverted value goes back to the daemon.
+    /// </summary>
+    [Fact]
+    public async Task AReadOvertakenByAnApply_IsDiscarded()
+    {
+        var (coordinator, daemon, _) = Make();
+        var held = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetSettingsHandler = () => held.Task;
+
+        var reload = coordinator.ReloadFromDaemonAsync();          // in flight, answer withheld
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Newer"));  // completes while it waits
+        held.SetResult(SettingsFor("Older"));                       // the stale answer arrives
+
+        var outcome = await reload;
+
+        Assert.Equal(SettingsReloadStatus.Overtaken, outcome.Status);
+        Assert.False(outcome.ChangedTheBaseline);
+        Assert.Equal("Newer", coordinator.CurrentSettings!.Profiles[0].Tablet);
+    }
+
     private static Settings SettingsFor(string tablet) =>
         new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
 }
