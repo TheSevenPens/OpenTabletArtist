@@ -44,8 +44,18 @@
                  App text uses Inter across all platforms (#mono-font-followup): it's embedded via
                  .WithInterFont() (Program.cs), so it renders identically on Windows/macOS/Linux
                  rather than falling back to each OS's default UI font.
-                 See docs/design/zune-redesign.md. -->
-            <FontFamily x:Key="DisplayFontFamily">Inter</FontFamily>
+                 See docs/design/zune-redesign.md.
+
+                 The collection reference, not the bare family name (#718). A bare "Inter" goes to the
+                 SYSTEM font manager, which never sees the embedded collection .WithInterFont() registers
+                 as fonts:Inter -> avares://Avalonia.Fonts.Inter/Assets. On a machine without Inter
+                 installed system-wide (which is most of them) it silently resolved to the OS default
+                 and the app had never once rendered in Inter. It failed invisibly because a fallback
+                 font looks fine; only comparing it against a family that cannot exist showed it.
+
+                 Every other FontFamily in the app points at THIS key rather than repeating the URI, so
+                 there is one place to be wrong. -->
+            <FontFamily x:Key="DisplayFontFamily">fonts:Inter#Inter</FontFamily>
             <sys:Double x:Key="TypeDisplaySize">44</sys:Double>   <!-- section headings (TextBlock.Display) -->
             <!-- The pivot row — the "tab menu" in the user manual — sits a step under the display size.
                  It shared TypeDisplaySize until the two were asked to differ: the pivots run across the
