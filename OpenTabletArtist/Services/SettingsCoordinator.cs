@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Domain;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 

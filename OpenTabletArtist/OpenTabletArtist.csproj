@@ -51,6 +51,12 @@
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
+  <!-- The headless OTD interaction boundary (#807). The dependency runs one way only:
+       OtdInterop never references this project. -->
+  <ItemGroup>
+    <ProjectReference Include="..\OtdInterop\OtdInterop.csproj" />
+  </ItemGroup>
+
   <!-- OTD library references (via git submodule at external/OpenTabletDriver) -->
   <ItemGroup>
     <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />

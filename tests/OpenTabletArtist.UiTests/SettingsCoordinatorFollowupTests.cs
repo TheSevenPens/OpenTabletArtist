@@ -9,6 +9,7 @@ using OpenTabletArtist.Tests;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.UiTests;
 

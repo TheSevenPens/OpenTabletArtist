@@ -9,27 +9,9 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Concurrency;
 using OpenTabletArtist.Domain;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
-
-/// <summary>
-/// The daemon connection slice of the shared application session (Option C, #41).
-/// Owns the daemon client + its lifecycle, the connection/ownership state, and the
-/// connect/start/stop/restart commands. Consumers depend on the narrow
-/// <see cref="IConnectionState"/> role and bind its observable properties.
-///
-/// Thread-affinity rule: this type mutates its observable state only on the UI thread
-/// (the daemon's Connected/Disconnected callbacks marshal via the dispatcher), so binders
-/// and subscribers never have to marshal. Later steps (#41) move settings + data-load here.
-/// </summary>
-/// <summary>State of the last settings auto-save (#321). OTA persists every change immediately; this
-/// drives a quiet indicator and, importantly, surfaces a failed disk write.</summary>
-/// <summary>
-/// What the save indicator is reporting. <see cref="Failed"/> means specifically "applied to the daemon
-/// but not written to disk"; an apply that never reached the daemon is <see cref="ApplyFailed"/> or
-/// <see cref="Disconnected"/>, which must not be described as live (#734).
-/// </summary>
-public enum SettingsSaveState { None, Saving, Saved, Failed, ApplyFailed, Disconnected }
 
 public interface IConnectionState : INotifyPropertyChanged
 {
@@ -174,6 +156,16 @@ public interface IDeviceData : INotifyPropertyChanged
     event Action? DataLoaded;
 }
 
+/// <summary>
+/// The daemon connection slice of the shared application session (Option C, #41).
+/// Owns the daemon client + its lifecycle, the connection/ownership state, and the
+/// connect/start/stop/restart commands. Consumers depend on the narrow
+/// <see cref="IConnectionState"/> role and bind its observable properties.
+///
+/// Thread-affinity rule: this type mutates its observable state only on the UI thread
+/// (the daemon's Connected/Disconnected callbacks marshal via the dispatcher), so binders
+/// and subscribers never have to marshal.
+/// </summary>
 public partial class AppSession : ObservableObject, IConnectionState, ISettingsCoordinator, IDeviceData, IDisposable
 {
     private readonly IDaemonTransport _daemon;

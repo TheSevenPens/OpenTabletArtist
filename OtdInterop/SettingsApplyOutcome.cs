@@ -1,9 +1,9 @@
 using System;
 
-namespace OpenTabletArtist.Domain;
+namespace OtdInterop;
 
 /// <summary>
-/// What actually happened when settings were applied (#734). Applying to the daemon and persisting to
+/// What actually happened when settings were applied. Applying to the daemon and persisting to
 /// disk are two operations that fail independently, and "restore" is a third — previously all three
 /// collapsed into a single <c>Task</c>, so the UI could report a change as live when it was never sent,
 /// or as saved when the write was refused.
@@ -47,12 +47,20 @@ public enum SettingsApplyStatus
 /// <param name="Error">The exception behind <see cref="SettingsApplyStatus.ApplyFailed"/>, if any.</param>
 public readonly record struct SettingsApplyOutcome(SettingsApplyStatus Status, Exception? Error = null)
 {
+    /// <summary>Live on the daemon and written to disk.</summary>
     public static readonly SettingsApplyOutcome Saved = new(SettingsApplyStatus.AppliedAndSaved);
+    /// <summary>Already live and already persisted; nothing was sent.</summary>
     public static readonly SettingsApplyOutcome NoChange = new(SettingsApplyStatus.NoChange);
+    /// <summary>Live on the daemon, but the write failed — it will not survive a daemon restart.</summary>
     public static readonly SettingsApplyOutcome Unsaved = new(SettingsApplyStatus.AppliedNotSaved);
+    /// <summary>No transport, so nothing was sent and nothing was written.</summary>
     public static readonly SettingsApplyOutcome Disconnected = new(SettingsApplyStatus.Disconnected);
+    /// <summary>The apply-loop circuit breaker tripped; deliberately not sent.</summary>
     public static readonly SettingsApplyOutcome Skipped = new(SettingsApplyStatus.Skipped);
+    /// <summary>The daemon changed while this was queued or in flight; it belongs to a session that has ended.</summary>
     public static readonly SettingsApplyOutcome Superseded = new(SettingsApplyStatus.Superseded);
+    /// <summary>The daemon was reachable but the change failed. Not live, not saved.</summary>
+    /// <param name="ex">The failure, when one was thrown.</param>
     public static SettingsApplyOutcome Failed(Exception? ex) => new(SettingsApplyStatus.ApplyFailed, ex);
 
     /// <summary>The daemon is running these settings now. <see cref="SettingsApplyStatus.NoChange"/>
@@ -102,10 +110,16 @@ public enum SettingsRestoreStatus
 /// <summary>The result of a restore, with the failure attached when there was one.</summary>
 public readonly record struct SettingsRestoreOutcome(SettingsRestoreStatus Status, Exception? Error = null)
 {
+    /// <summary>The saved default was read and applied; any override is genuinely over.</summary>
     public static readonly SettingsRestoreOutcome Restored = new(SettingsRestoreStatus.Restored);
+    /// <summary>The saved default could not be read, so nothing was applied and an override is still active.</summary>
     public static readonly SettingsRestoreOutcome SourceUnavailable = new(SettingsRestoreStatus.SourceUnavailable);
+    /// <summary>No transport. Nothing was applied.</summary>
     public static readonly SettingsRestoreOutcome Disconnected = new(SettingsRestoreStatus.Disconnected);
+    /// <summary>The daemon changed while this was queued or in flight.</summary>
     public static readonly SettingsRestoreOutcome Superseded = new(SettingsRestoreStatus.Superseded);
+    /// <summary>The default was read but the daemon would not take it. The override is still active.</summary>
+    /// <param name="ex">The failure, when one was thrown.</param>
     public static SettingsRestoreOutcome Failed(Exception? ex) => new(SettingsRestoreStatus.ApplyFailed, ex);
 
     /// <summary>The daemon is on the saved default now. Only then may an override indicator clear.</summary>
