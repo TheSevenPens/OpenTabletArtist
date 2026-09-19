@@ -737,6 +737,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     {
         _profile = profile;
         _settings = settings;
+        // The profile has to be a live reference inside the settings this editor will submit; edits go to
+        // the first and are sent via the second. AdoptProfile has asserted this since #124 — the
+        // constructor did not, which is how a caller pairing a profile with a different copy of the
+        // settings went unnoticed until it was reviewed.
+        Debug.Assert(settings == null || settings.Profiles.Contains(profile),
+            "The profile must be a reference inside the settings the editor will submit.");
         _applyAction = applyAction;
         _editBinding = editBinding;
         _refreshAction = refreshAction;
@@ -1014,6 +1020,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public void ReconcileExternalChange(Settings? freshSettings, Profile? freshProfile)
     {
         if (freshSettings == null || freshProfile == null) return; // tablet gone — detection banner owns that
+
+        // Something the user changed is still waiting in a debounce, so it is in nothing that has been
+        // submitted and is in nothing that can come back. Adopting now refreshes it away, and this runs
+        // on the ordinary apply path — the session reloads before returning its outcome, which raises the
+        // load that lands here, all before the apply's own result gets a chance to refuse.
+        //
+        // Nor is a banner right. The reload that arrives here is usually OUR apply coming back with
+        // policy applied to it, so "these settings were changed outside OpenTabletArtist" would be
+        // untrue as well as destructive. Leaving it alone costs nothing: the pending edit applies
+        // moments later and the load after it reconciles against a revision that contains it.
+        if (_unsubmitted != DraftGroup.None) return;
         var freshFp = ProfileFingerprint.Compute(freshProfile);
         var ownFp = ProfileFingerprint.Compute(_profile);
         if (freshFp.Length == 0 || ownFp.Length == 0) return; // can't compare → don't risk a false positive

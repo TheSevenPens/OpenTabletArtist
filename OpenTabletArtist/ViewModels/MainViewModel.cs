@@ -361,10 +361,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (!_tabletDetails.TryGetValue(name, out var vm))
         {
-            var profile = _session.CurrentSettings?.Profiles.FirstOrDefault(p => p.Tablet == name);
-            if (profile == null) return null;
-            vm = _dialogs.CreateTabletDetail(profile, () => ForgetTabletByNameAsync(name),
+            vm = _dialogs.CreateTabletDetail(name, () => ForgetTabletByNameAsync(name),
                 () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs));
+            if (vm == null) return null;
             _tabletDetails[name] = vm;
         }
         vm.ShowHeader = false;

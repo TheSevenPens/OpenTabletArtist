@@ -4,6 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using OpenTabletArtist.Domain;
+using OpenTabletArtist.Services;
+using OpenTabletArtist.Tests;
 using OpenTabletArtist.ViewModels;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Binding;
@@ -260,4 +263,98 @@ public class TabletEditorReconcileTests
         vm.Dispose();
     }
 
+
+    /// <summary>
+    /// The editor must edit a profile that lives inside the settings it submits — checked through the
+    /// real factory, because that is where the pairing is decided.
+    ///
+    /// The session hands out a detached copy on every read. A caller that resolved the profile from its
+    /// own read and paired it with settings from a different read would give the editor two unrelated
+    /// object graphs: edits go into one, the other is sent, and the change never leaves the app — with
+    /// every layer reporting success.
+    ///
+    /// Constructing the view model directly from a single settings object cannot catch this. The two
+    /// arguments have to come from wherever the app really gets them.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AnEditMadeThroughTheFactory_ReachesTheDaemon()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = SettingsWithForeignFilter(),
+            AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
+        };
+        using var session = new AppSession(daemon, new StubLifecycle(), new NoopStore())
+        {
+            Ownership = DaemonOwnership.Owned,
+        };
+        await session.ReloadAsync();
+
+        var vm = new DialogService(session).CreateTabletDetail("T", () => Task.CompletedTask);
+        Assert.NotNull(vm);
+
+        daemon.Applied.Clear();
+        vm!.DisablePressure = true;
+        await Settle();
+
+        Assert.NotEmpty(daemon.Applied);
+        Assert.True(daemon.Applied[^1].Profiles.First(p => p.Tablet == "T").BindingSettings.DisablePressure);
+
+        vm.Dispose();
+    }
+
+    private sealed class StubLifecycle : IDaemonLifecycleService
+    {
+        public string? ExpectedExePath() => null;
+        public bool IsAppManaged(string? path) => false;
+        public bool HasBundledDaemon() => false;
+        public string? FindExe() => null;
+        public bool IsRunning() => false;
+        public string? Launch() => null;
+        public bool Stop(int processId) => true;
+        public void StopAll() { }
+        public string? GetProcessPath(int processId) => null;
+        public string? GetSingleRunningDaemonPath() => null;
+    }
+
+    private sealed class NoopStore : ISettingsFileStore
+    {
+        public void Save(Settings settings, string path) { }
+        public bool TrySave(Settings settings, string path) => true;
+        public bool TryLoad(string path, out Settings? settings) { settings = null; return false; }
+    }
+
+    /// <summary>
+    /// The reload that follows our own apply must not run over an edit that is still pending.
+    ///
+    /// The session reloads before returning its outcome, so the load — and the reconciliation it drives
+    /// — happens while the apply is still in flight, before the result can be refused. If policy changed
+    /// the submitted profile, its fingerprint differs from the editor's, so reconciliation treated it as
+    /// an external edit and adopted it, refreshing the pending slider away.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AReloadDuringOurOwnApply_DoesNotDiscardAPendingEdit()
+    {
+        var settings = SettingsWithForeignFilter();
+        var sent = new List<Settings>();
+        TabletDetailViewModel? vm = null;
+
+        vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: SessionThatDisablesTheFilter(sent, whileInFlight: () =>
+            {
+                // What AppSession does: reload, raise DataLoaded, reconcile the open editors — all before
+                // the apply's own outcome comes back.
+                var fresh = Clone(sent[^1]);
+                vm!.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+                return Task.CompletedTask;
+            }));
+
+        vm.PressureSmoothing = 0.42;   // pending in its debounce, in nothing submitted
+        vm.DisablePressure = true;     // applies immediately, and reloads while in flight
+        await Settle();
+
+        Assert.Equal(0.42, vm.PressureSmoothing, 3);
+
+        vm.Dispose();
+    }
 }
