@@ -33,6 +33,7 @@ public sealed class OtdSession : IDisposable
     private readonly IOtdLog _log;
     private readonly IOtdSettingsPolicy _policy;
     private IOtdSettingsSession? _settings;
+    private bool _disposed;
 
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
         ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy)
@@ -68,19 +69,38 @@ public sealed class OtdSession : IDisposable
     /// write could be made to fail on demand, which is a property of this library's behaviour and no
     /// business of the application's.
     /// </remarks>
-    /// <param name="connection">The stand-in connection. Must also carry the settings channel.</param>
+    /// <typeparam name="T">
+    /// A stand-in that is both a connection and a settings channel. The constraint rather than a cast:
+    /// casting here would have been the same reasoning that put one in the supported factory, and would
+    /// fail at construction instead of at compile time. It also states the thing that matters — both
+    /// capabilities on <em>one</em> instance — which two parameters would leave to the caller.
+    /// </typeparam>
+    /// <param name="connection">The stand-in connection.</param>
     /// <param name="store">The writer to use instead of the library's own, or null for the library's.</param>
     /// <param name="log">Where the session records partial failures.</param>
     /// <param name="policy">The host's rules.</param>
     /// <returns>A session over <paramref name="connection"/>.</returns>
-    internal static OtdSession ForTesting(IDaemonTransport connection, ISettingsFileStore? store,
-        IOtdLog log, IOtdSettingsPolicy policy) =>
-        new(connection, (IDaemonSettingsChannel)connection, store, log, policy);
+    internal static OtdSession ForTesting<T>(T connection, ISettingsFileStore? store,
+        IOtdLog log, IOtdSettingsPolicy policy)
+        where T : IDaemonTransport, IDaemonSettingsChannel =>
+        new(connection, connection, store, log, policy);
 
     /// <summary>
     /// The daemon connection: lifecycle, device queries, the log stream, the debug stream and the plugin
     /// verbs. Deliberately no way to read or write settings — that is <see cref="OpenSettings"/>.
     /// </summary>
+    /// <remarks>
+    /// <b>Borrowed, not given.</b> This session owns it and disposes it. The type is
+    /// <see cref="IDisposable"/> because the underlying connection is, not because a caller should use
+    /// that — doing so leaves this session holding a connection that is gone, with a settings authority
+    /// still reporting over it. Dispose the session.
+    ///
+    /// Connecting and clearing <see cref="IDaemonTransport.AutoReconnect"/> around a user-initiated stop
+    /// are the host's to drive, and stay here for now. Separating the capabilities a host legitimately
+    /// needs from the ownership operations it does not is part of the lifecycle work #807 still owes; a
+    /// narrower interface over this same object would not be enough on its own, since it could be cast
+    /// back, so that will want a forwarding object rather than a cast-away.
+    /// </remarks>
     public IDaemonTransport Connection { get; }
 
     /// <summary>
@@ -95,16 +115,32 @@ public sealed class OtdSession : IDisposable
     /// to be someone else's" — the host's policy runs against a daemon only when this is true (#742).
     /// </param>
     /// <param name="onSaveState">Reports save progress, which the host shows.</param>
+    /// <remarks>
+    /// These are construction arguments, not a service lookup: a second call would carry a different
+    /// path, ownership test and save callback, and silently discarding the second caller's would be
+    /// worse than refusing. Configure once where the application is composed and share what comes back.
+    ///
+    /// Called under the same serialized execution context that <see cref="IOtdSettingsSession"/>
+    /// requires. The check-then-assign below is not a thread-safe one-time initialization on its own,
+    /// and is not trying to be.
+    /// </remarks>
     /// <returns>The one settings authority for this connection.</returns>
-    /// <exception cref="InvalidOperationException">Settings have already been opened on this session.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Settings have already been opened on this session, or the session has been disposed.
+    /// </exception>
     public IOtdSettingsSession OpenSettings(Func<string> settingsPath, Func<bool> isOwnedDaemon,
         Action<SettingsSaveState> onSaveState)
     {
+        if (_disposed)
+            throw new InvalidOperationException(
+                "This session has been disposed; its connection is gone, so there is nothing for a "
+                + "settings authority to be an authority over.");
+
         if (_settings != null)
             throw new InvalidOperationException(
                 "This session's settings are already open. One connection has one settings authority: a "
                 + "second would have its own ordering, retry state and baseline, and neither would see "
-                + "what the other was doing. Open another session instead.");
+                + "what the other was doing. Reuse the authority this returned.");
 
         return _settings = _store is { } store
             ? new SettingsCoordinator(_channel, store, settingsPath, isOwnedDaemon, onSaveState, _log, _policy)
@@ -112,13 +148,23 @@ public sealed class OtdSession : IDisposable
     }
 
     /// <summary>
-    /// Closes the connection.
+    /// Closes the connection. Safe to call more than once.
     /// </summary>
     /// <remarks>
-    /// The settings authority is deliberately not torn down here, because it has nothing to release and
-    /// something to answer: a host asking after disposal whether a change went unsaved should get the
-    /// truth rather than an exception. Settling work still in flight is not yet handled — see #807, which
-    /// still owes a shutdown contract.
+    /// <b>Not a shutdown.</b> It closes the connection and stops this session issuing new work — nothing
+    /// more. Operations already in flight are not awaited, cancelled or settled, and a callback from one
+    /// can still arrive afterwards. #807 still owes that contract, and calling this complete ownership of
+    /// teardown would be the kind of claim that stops anyone finishing it.
+    ///
+    /// The settings authority is deliberately not torn down, because it has nothing to release and
+    /// something to answer: a host asking afterwards whether a change went unsaved should get the truth
+    /// rather than an exception. Reading what already happened is allowed; starting something new is what
+    /// <see cref="OpenSettings"/> refuses.
     /// </remarks>
-    public void Dispose() => Connection.Dispose();
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Connection.Dispose();
+    }
 }

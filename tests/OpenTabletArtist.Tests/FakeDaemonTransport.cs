@@ -35,7 +35,8 @@ internal static class FakeSession
     /// </summary>
     /// <param name="daemon">The stand-in connection.</param>
     /// <param name="store">A writer whose failures a test controls, or null for the library's own.</param>
-    public static OtdSession Over(IDaemonTransport daemon, ISettingsFileStore? store = null) =>
+    public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null)
+        where T : IDaemonTransport, IDaemonSettingsChannel =>
         OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, OtaSettingsPolicy.Instance);
 }
 

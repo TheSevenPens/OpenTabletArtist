@@ -145,6 +145,55 @@ public class OtdInteropBoundaryTests
         Assert.Empty(offenders);
     }
 
+    /// <summary>
+    /// A disposed session starts nothing new, and says so.
+    ///
+    /// Its connection is gone, so there is nothing for an authority to be an authority over. Returning
+    /// one anyway would hand back something whose every operation fails for a reason the caller cannot
+    /// see from the object it was given.
+    /// </summary>
+    [Fact]
+    public void ADisposedSession_RefusesToOpenSettings()
+    {
+        var session = FakeSession.Over(new FakeDaemonTransport());
+        session.Dispose();
+
+        var refused = Assert.Throws<InvalidOperationException>(() => Open(session));
+        Assert.Contains("disposed", refused.Message);
+    }
+
+    /// <summary>
+    /// What already happened stays readable after disposal. A host asking whether a change went unsaved
+    /// is asking about the past, and the honest answer is available -- refusing it would replace a fact
+    /// with an exception at exactly the moment the fact matters.
+    /// </summary>
+    [Fact]
+    public async Task ADisposedSession_StillAnswersForWhatAlreadyHappened()
+    {
+        var daemon = new FakeDaemonTransport();
+        var session = FakeSession.Over(daemon);
+        var settings = Open(session);
+        await settings.ApplyAndSaveAsync(Tablet("T"));
+
+        session.Dispose();
+
+        Assert.Equal("T", settings.GetCurrent()!.Settings.Profiles[0].Tablet);
+    }
+
+    /// <summary>Disposing twice is not an error; a host tearing down in an unexpected order should not
+    /// have to know who got there first.</summary>
+    [Fact]
+    public void DisposingASessionTwice_IsHarmless()
+    {
+        var daemon = new FakeDaemonTransport();
+        var session = FakeSession.Over(daemon);
+
+        session.Dispose();
+        session.Dispose();
+
+        Assert.True(daemon.IsDisposed);
+    }
+
     private static IOtdSettingsSession Open(OtdSession session) =>
         session.OpenSettings(() => "A/settings.json", () => true, _ => { });
 
