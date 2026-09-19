@@ -20,6 +20,10 @@ describe:
 
 If a direction sounds good, we're happy to help shape the API and contribute the implementation.
 
+**This file is API gaps only.** Defects we have found in OpenTabletDriver — a crash and a silent loss of
+the user's settings file — are in [`OTD-DEFECTS.md`](OTD-DEFECTS.md), kept separate because "none of
+these are blockers" above is true of this list and not of that one.
+
 ---
 
 ## 1. Knowing which plugins are actually loaded
