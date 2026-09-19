@@ -343,7 +343,7 @@ public class SettingsCoordinatorConcurrencyTests
     public async Task AnOverrideDoesNotSurviveADaemonChange()
     {
         var (coordinator, _, _, _) = Make();
-        Assert.True(await coordinator.ApplyEphemeralAsync(SettingsFor("A's per-app snapshot", locked: true)));
+        Assert.True((await coordinator.ApplyEphemeralAsync(SettingsFor("A's per-app snapshot", locked: true))).IsLive);
         Assert.True(coordinator.HasEphemeralOverride);
 
         coordinator.ResetForNewDaemon();
@@ -502,7 +502,8 @@ public class SettingsCoordinatorConcurrencyTests
         coordinator.ResetForNewDaemon();
         hold.SetResult(true);
 
-        Assert.False(await ephemeral);              // it did not happen for this session
+        // Superseded, not merely "false": the session it was for had ended.
+        Assert.Equal(SettingsApplyStatus.Superseded, (await ephemeral).Status);
         Assert.False(coordinator.HasEphemeralOverride);
     }
 

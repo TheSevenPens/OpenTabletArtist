@@ -91,7 +91,8 @@ public class SettingsOwnershipTests
 
     public static TheoryData<string> EveryMutatingPath => new() { "save", "live", "ephemeral" };
 
-    private static Task Apply(SettingsCoordinator c, string path, Settings s) => path switch
+    /// <summary>All three report an outcome now, so the helper can hand one back.</summary>
+    private static Task<SettingsApplyOutcome> Apply(SettingsCoordinator c, string path, Settings s) => path switch
     {
         "save" => c.ApplyAndSaveAsync(s),
         "live" => c.ApplyLiveOnlyAsync(s),
@@ -321,4 +322,164 @@ public class SettingsOwnershipTests
         Assert.Single(daemon.Applied);
         Assert.Equal("T", daemon.Applied[0].Profiles[0].Tablet);
     }
+
+    // --- Each refusal says which refusal it was -------------------------------------------------
+
+    /// <summary>
+    /// The live-only and per-app paths used to return a bare <c>bool</c>. Three different things made it
+    /// false — the copy failed, there was no transport, the session had ended — and the caller could not
+    /// tell them apart, so a per-app switch that silently did nothing was hard to attribute.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryMutatingPath))]
+    public async Task WithNoTransport_EveryPathSaysDisconnected(string path)
+    {
+        var (coordinator, daemon, _) = Make();
+        daemon.SetSettingsSucceeds = false;
+
+        var outcome = await Apply(coordinator, path, WithPolicyBait());
+
+        Assert.Equal(SettingsApplyStatus.Disconnected, outcome.Status);
+        Assert.False(outcome.IsLive);
+    }
+
+    /// <summary>
+    /// Applied, and not saving was the intent — distinct from a save that was wanted and failed.
+    /// Conflating them would make a deliberate override look like something to retry.
+    /// </summary>
+    [Fact]
+    public async Task ALiveOnlyApply_IsLiveButNotPersisted()
+    {
+        var (coordinator, _, _) = Make();
+
+        var outcome = await coordinator.ApplyLiveOnlyAsync(WithPolicyBait());
+
+        Assert.Equal(SettingsApplyStatus.AppliedLive, outcome.Status);
+        Assert.True(outcome.IsLive);
+        Assert.False(outcome.IsPersisted);
+        Assert.False(outcome.NeedsPersistRetry);   // nothing to retry: nothing was meant to be written
+    }
+
+    /// <summary>
+    /// With nothing loaded there is nowhere to put the daemon back to, so nothing is sent. This is the
+    /// ONLY case that sends nothing -- see the test below, which covers the one people assume.
+    /// </summary>
+    [Fact]
+    public async Task ClearingAnOverrideWithNothingLoaded_SendsNothing()
+    {
+        var (coordinator, daemon, _) = Make();
+
+        var outcome = await coordinator.ClearEphemeralOverrideAsync();
+
+        Assert.Equal(SettingsApplyStatus.NoChange, outcome.Status);
+        Assert.Empty(daemon.Applied);
+    }
+
+    /// <summary>
+    /// Clearing when no override was recorded still sends the baseline. The flag records what this
+    /// session was TOLD, and a session that has just reconnected knows less about the daemon than the
+    /// flag implies -- so "put it somewhere known" beats "trust the flag and skip".
+    ///
+    /// Pinned because it was previously described the other way round, as a short circuit that returns
+    /// NoChange and skips the reload. It does not, and a caller written to that description would stop
+    /// reloading after a switch that did reach the daemon.
+    /// </summary>
+    [Fact]
+    public async Task ClearingAnOverrideThatWasNeverSet_StillSendsTheBaseline()
+    {
+        var (coordinator, daemon, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+        Assert.False(coordinator.HasEphemeralOverride);
+        daemon.Applied.Clear();
+
+        var outcome = await coordinator.ClearEphemeralOverrideAsync();
+
+        Assert.Equal(SettingsApplyStatus.AppliedLive, outcome.Status);
+        Assert.True(outcome.ChangedTheDaemon);          // so the caller reloads
+        Assert.Single(daemon.Applied);
+    }
+
+    /// <summary>
+    /// A result that has just succeeded describes the state that now exists, so the session's own stamp
+    /// must agree with it. It did not: the stamp was taken when the revision was published, and the
+    /// daemon's acceptance then moved the same counter -- so every apply handed back a result the
+    /// freshness test would reject, for no reason but having finished.
+    /// </summary>
+    [Fact]
+    public async Task AnAppliedResult_IsNotStaleTheMomentItReturns()
+    {
+        var (coordinator, _, _) = Make();
+
+        var outcome = await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
+        var prepared = Assert.IsType<PreparedSettings>(outcome.Prepared);
+        Assert.Equal(coordinator.GetCurrent()!.Stamp, prepared.Stamp);
+        Assert.False(prepared.Stamp.SupersededBy(coordinator.GetCurrent()!.Stamp));
+    }
+
+    /// <summary>
+    /// A per-app override changes the daemon and publishes nothing, so there is no revision it could be
+    /// stamped as. Handing one back anyway would stamp a transient snapshot with the baseline's revision
+    /// -- indistinguishable, to a caller comparing stamps, from the settings it is supposed to save.
+    /// Withholding it is what makes that impossible rather than merely discouraged.
+    /// </summary>
+    [Fact]
+    public async Task APerAppOverride_HandsBackNothingToAdopt()
+    {
+        var (coordinator, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+        var baseline = coordinator.GetCurrent()!;
+
+        var outcome = await coordinator.ApplyEphemeralAsync(SettingsFor("Per-app"));
+
+        Assert.Equal(SettingsApplyStatus.AppliedLive, outcome.Status);
+        Assert.Null(outcome.Prepared);
+        // The published settings did not move, so neither did their revision.
+        Assert.Equal(baseline.Stamp, coordinator.GetCurrent()!.Stamp);
+        Assert.Equal(Json(baseline.Settings), Json(coordinator.GetCurrent()!.Settings));
+    }
+
+    /// <summary>
+    /// A stamp from a session that has ended is worthless, not merely old. Reading "different session"
+    /// as "not superseded" would let the stalest possible result through -- one belonging to a daemon
+    /// the user has already switched away from.
+    /// </summary>
+    [Fact]
+    public void AStampFromADaemonThatHasGone_IsSuperseded()
+    {
+        // Deliberately a HIGHER revision in the old session than in the new one: revisions from
+        // different sessions are not comparable, and the only honest answer is "no longer current".
+        Assert.True(new SettingsStamp(1, 9).SupersededBy(new SettingsStamp(2, 1)));
+
+        // And equality within a session is not supersession -- a result stamped with the revision that
+        // is still current describes the state that exists.
+        Assert.False(new SettingsStamp(1, 9).SupersededBy(new SettingsStamp(1, 9)));
+        Assert.True(new SettingsStamp(1, 9).SupersededBy(new SettingsStamp(1, 10)));
+    }
+
+    /// <summary>
+    /// The current settings come back stamped, so a caller holding them can tell later whether the
+    /// ground has moved. A stamp that never changed would be decoration.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrent_IsStampedAndMovesWhenTheStateDoes()
+    {
+        var (coordinator, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+
+        var first = coordinator.GetCurrent();
+        Assert.NotNull(first);
+        Assert.False(first!.Stamp.IsNone);
+
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Changed"));
+        var second = coordinator.GetCurrent();
+
+        Assert.NotNull(second);
+        Assert.True(first.Stamp.SupersededBy(second!.Stamp));
+        Assert.NotSame(first.Settings, second.Settings);
+    }
+
+    private static Settings SettingsFor(string tablet) =>
+        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
 }

@@ -249,32 +249,32 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
     /// report failure and commit nothing (#766).</summary>
     public bool DaemonAccepts { get; set; } = true;
 
-    public Task<bool> ApplyLiveOnlyAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings settings)
     {
         LiveOnlyCalls++;
-        if (!DaemonAccepts) return Task.FromResult(false);
+        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
         Applied = settings;
         HasEphemeralOverride = false;
-        return Task.FromResult(true);
+        return Task.FromResult(SettingsApplyOutcome.Live);
     }
 
-    public Task<bool> ApplyEphemeralAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings settings)
     {
         EphemeralCalls++;
         if (ThrowOnEphemeral != null) throw ThrowOnEphemeral;
-        if (!DaemonAccepts) return Task.FromResult(false);
+        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
         Applied = settings;
         HasEphemeralOverride = true;
-        return Task.FromResult(true);
+        return Task.FromResult(SettingsApplyOutcome.Live);
     }
 
-    public Task<bool> ClearEphemeralOverrideAsync()
+    public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync()
     {
         ClearCalls++;
         if (ThrowOnClear != null) throw ThrowOnClear;
-        if (!DaemonAccepts) return Task.FromResult(false);
+        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
         HasEphemeralOverride = false;
-        return Task.FromResult(true);
+        return Task.FromResult(SettingsApplyOutcome.Live);
     }
 
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync()

@@ -17,6 +17,17 @@ public enum SettingsApplyStatus
     /// lost on the next daemon restart. Worth retrying the save alone.</summary>
     AppliedNotSaved,
 
+    /// <summary>
+    /// The daemon accepted the change and nothing was written, because nothing was meant to be.
+    ///
+    /// Live-only and per-app applies deliberately leave the saved default alone: the point is a
+    /// temporary override the user's own settings survive. Distinct from
+    /// <see cref="AppliedNotSaved"/>, which describes a write that was wanted and failed — conflating
+    /// them would make a deliberate override look like something to retry, and make a failed save look
+    /// like a choice.
+    /// </summary>
+    AppliedLive,
+
     /// <summary>No daemon transport, so nothing was applied and nothing was saved. Distinct from a
     /// failure: there is nothing wrong except that we aren't connected.</summary>
     Disconnected,
@@ -24,7 +35,15 @@ public enum SettingsApplyStatus
     /// <summary>The daemon was reachable but rejected or failed the change. Not live, not saved.</summary>
     ApplyFailed,
 
-    /// <summary>The settings were already live AND already persisted, so there was nothing to do.</summary>
+    /// <summary>
+    /// The request needed nothing done. Ordinarily that means the settings were already live and already
+    /// persisted, which is what the no-op guard detects.
+    ///
+    /// One caller uses it for a weaker thing: ending an override when no settings have ever been loaded.
+    /// There is nothing to put the daemon back on and nothing to say about disk, so read
+    /// <see cref="SettingsApplyOutcome.IsPersisted"/> only on results from an operation that was asked to
+    /// persist something.
+    /// </summary>
     NoChange,
 
     /// <summary>The apply-loop circuit breaker tripped — a UI binding is looping. Deliberately skipped
@@ -47,12 +66,14 @@ public enum SettingsApplyStatus
 /// <param name="Status">What happened.</param>
 /// <param name="Error">The exception behind <see cref="SettingsApplyStatus.ApplyFailed"/>, if any.</param>
 /// <param name="Prepared">
-/// The request after policy and repairs, detached — see <see cref="PreparedSettings"/>. Present whenever
-/// preparation got far enough to produce one, including on failure: knowing what <em>would</em> have been
-/// sent is exactly what a caller needs in order to explain a failure or retry it.
+/// The revision this operation published, after policy and repairs, detached — see
+/// <see cref="PreparedSettings"/>. This is what the caller may adopt as the settings it is now editing.
 ///
-/// Null when the operation ended before preparing anything, which is the case for a no-op, a superseded
-/// request, and a preparation failure.
+/// Null when the operation published no revision. That covers the obvious cases — a no-op, a superseded
+/// request, a preparation failure — and one deliberate one: a transient per-app override changes the
+/// daemon without changing what the session publishes, so there is no revision it could honestly be
+/// stamped as, and nothing is handed back. A caller cannot mistake an override for the settings to save
+/// because it is never given the chance to.
 ///
 /// A non-null value is not evidence that anything was applied. <see cref="Status"/> is the only member
 /// entitled to say that.
@@ -70,6 +91,8 @@ public readonly record struct SettingsApplyOutcome(
     public static readonly SettingsApplyOutcome Unsaved = new(SettingsApplyStatus.AppliedNotSaved);
     /// <summary>No transport, so nothing was sent and nothing was written.</summary>
     public static readonly SettingsApplyOutcome Disconnected = new(SettingsApplyStatus.Disconnected);
+    /// <summary>Live on the daemon; nothing was written, and nothing was meant to be.</summary>
+    public static readonly SettingsApplyOutcome Live = new(SettingsApplyStatus.AppliedLive);
     /// <summary>The apply-loop circuit breaker tripped; deliberately not sent.</summary>
     public static readonly SettingsApplyOutcome Skipped = new(SettingsApplyStatus.Skipped);
     /// <summary>The daemon changed while this was queued or in flight; it belongs to a session that has ended.</summary>
@@ -81,7 +104,8 @@ public readonly record struct SettingsApplyOutcome(
     /// <summary>The daemon is running these settings now. <see cref="SettingsApplyStatus.NoChange"/>
     /// counts — it already was.</summary>
     public bool IsLive => Status is SettingsApplyStatus.AppliedAndSaved
-        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.NoChange;
+        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.AppliedLive
+        or SettingsApplyStatus.NoChange;
 
     /// <summary>
     /// Something was actually written to the daemon, so there is new state worth reading back.
@@ -91,9 +115,13 @@ public readonly record struct SettingsApplyOutcome(
     /// it (#763). Use this to decide whether to reload; use <see cref="IsLive"/> to describe state.
     /// </summary>
     public bool ChangedTheDaemon => Status is SettingsApplyStatus.AppliedAndSaved
-        or SettingsApplyStatus.AppliedNotSaved;
+        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.AppliedLive;
 
-    /// <summary>These settings will survive a restart.</summary>
+    /// <summary>
+    /// These settings will survive a restart. Meaningful only on a result from an operation that was
+    /// asked to persist — <see cref="SettingsApplyStatus.NoChange"/> also comes back from operations that
+    /// never write, and says nothing about disk there.
+    /// </summary>
     public bool IsPersisted => Status is SettingsApplyStatus.AppliedAndSaved or SettingsApplyStatus.NoChange;
 
     /// <summary>Applied but not persisted — the one state where retrying the save alone is worthwhile.</summary>

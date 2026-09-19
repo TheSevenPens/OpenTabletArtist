@@ -7,16 +7,6 @@ namespace OtdInterop;
 /// change; this decides how to carry it out safely and reports what actually happened.
 /// </summary>
 ///
-/// <remarks>
-/// <b>Nothing implements this yet.</b> It is the contract the settings authority is being moved towards,
-/// not a description of what is in place: <c>SettingsCoordinator</c> carries out these operations today
-/// and differs from it in shape — outcomes where this returns <c>bool</c>, and cancellation this accepts
-/// that it does not act on.
-///
-/// Read what follows as the target, and do not take the guarantees below as established. In particular
-/// the execution and cancellation rules describe what an implementation must provide; being headless
-/// does not by itself establish them.
-/// </remarks>
 ///
 /// <remarks>
 /// <para>
@@ -43,8 +33,10 @@ namespace OtdInterop;
 /// <para><b>Sessions.</b> Users run more than one OpenTabletDriver build and switch between them while
 /// the host is open, so a connection can be replaced at any point in an operation's life.</para>
 /// <list type="bullet">
-/// <item>Every operation takes a <see cref="SettingsStamp"/> when it is <b>admitted</b> — before it waits
-/// for anything, because waiting is exactly when the daemon can change underneath it.</item>
+/// <item>Every operation notes which connection it belongs to when it is <b>admitted</b> — before it
+/// waits for anything, because waiting is exactly when the daemon can change underneath it. That note is
+/// internal; the <see cref="SettingsStamp"/> a caller sees is on the result, and says which state the
+/// result describes.</item>
 /// <item>Invalidation takes effect immediately. It never queues behind operations belonging to a
 /// connection that has gone; if it did, that work would run first, which is the thing being prevented.
 /// </item>
@@ -53,22 +45,47 @@ namespace OtdInterop;
 /// state, and not reported as success. It comes back as
 /// <see cref="SettingsApplyStatus.Superseded"/>.</item>
 /// <item>What cannot be undone is not pretended away: a request already sent may well have been acted
-/// on. Supersession describes what this session did with the result, not a promise that the old daemon
-/// never saw it.</item>
+/// on, and an old daemon that accepted one is still running it. Supersession describes what this session
+/// did with the result — not written, not published, not called success — and rejecting a completion
+/// cannot retract the request that produced it.</item>
 /// </list>
 ///
-/// <para><b>Execution.</b> Implementations are safe to call from any thread and do not require a
-/// synchronization context. Do not read that as a licence to call concurrently and hope: operations are
-/// ordered, but a host that issues contradictory changes at once gets whichever order they were
-/// admitted in. Completions arrive on whatever thread finished the work, so a host with thread affinity
-/// — a UI, for instance — marshals them itself. That is deliberate: this library has no way to know what
-/// the host's affinity is, and guessing wrongly is worse than leaving it to the caller.</para>
+/// <para><b>Callbacks.</b> An implementation may call back into the host while an operation is running —
+/// to report progress on saving, for instance. Those calls happen on the same execution context as the
+/// operation, so a host that re-enters this session from one is re-entering an operation in progress and
+/// will deadlock on the serialization. A callback that throws propagates out of the operation that made
+/// it; nothing here catches on the host's behalf.</para>
 ///
-/// <para><b>Cancellation.</b> A token stops work that has not left the process. Once a request has been
-/// sent, cancelling stops this session waiting for the answer; it does not retract the request, and the
-/// daemon may apply it regardless. An operation cancelled after sending therefore reports an uncertain
-/// result rather than claiming nothing happened. Cancellation during a disk write does not interrupt the
-/// write: a half-written settings file is worse than a slow one.</para>
+/// <para><b>Execution — what is actually guaranteed today, and what the host must supply.</b></para>
+///
+/// <para>Guaranteed: mutating operations are serialized against each other, so no two of them are
+/// part-way through at once. That is the extent of it. It does not serialize reading this session's
+/// state, and it does not serialize the callbacks an implementation makes.</para>
+///
+/// <para>Required of the host, because the implementation does not provide it: <b>one serialized
+/// execution context</b> for every call into this session, every adoption of a result, every reset, every
+/// read of its state, and every callback out of it — <em>including the continuations of the host's own
+/// awaits</em>. "One thread starts the calls" is not sufficient; a thread whose awaits resume on
+/// arbitrary pool threads has not supplied a context. The only host that exists today supplies the UI
+/// thread, and that confinement — not any internal locking — is what makes it safe there. A headless host
+/// can supply an equivalent context without any UI framework, and must.</para>
+///
+/// <para>Being headless does not establish thread safety on its own; a library merely free of UI types is
+/// not thereby safe to call from anywhere.</para>
+///
+/// <para>This is an honest description of what works today, not the finished contract. Proper internal
+/// synchronization and an orderly shutdown are still owed, and until they exist a host that cannot supply
+/// the context above should not use this.</para>
+///
+/// <para><b>Cancellation is not offered.</b> An earlier draft of this contract took a token on every
+/// operation. Nothing implemented it and no caller passed one, and a token that is accepted and ignored
+/// is worse than none: it reads as a guarantee. It was removed rather than faked.
+///
+/// The reason it is not trivial to add, for whoever does: once a request has been sent, cancelling can
+/// only stop this session waiting for the answer. It cannot retract the request, and the daemon may
+/// apply it regardless — so such an operation would have to report an uncertain result rather than claim
+/// nothing happened, and no status says that today. Cancelling a disk write is worse still, since a
+/// half-written settings file is the thing atomic writes exist to prevent.</para>
 ///
 /// <para><b>Failure is reported, not implied.</b> A completed task means the operation finished, not that
 /// it worked. Read the outcome. Applying and persisting fail independently, and a change that is live but
@@ -93,55 +110,64 @@ public interface IOtdSettingsSession
 
     /// <summary>Applies to the daemon and writes to disk.</summary>
     /// <param name="requested">The caller's settings. Copied on admission; not modified or retained.</param>
-    /// <param name="ct">Stops work that has not been sent yet. See the cancellation note on the interface.</param>
     /// <returns>What happened, distinguishing applied-and-saved from applied-but-unsaved.</returns>
-    Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings requested, CancellationToken ct = default);
+    Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings requested);
 
     /// <summary>
     /// Writes an earlier change that the daemon accepted but the disk refused, to the file it was
     /// originally meant for.
     /// </summary>
-    /// <param name="ct">Stops the retry before it begins.</param>
     /// <returns>
     /// The result of the write, or <see cref="SettingsApplyStatus.NoChange"/> when nothing is pending.
     /// </returns>
-    Task<SettingsApplyOutcome> RetryPersistAsync(CancellationToken ct = default);
+    Task<SettingsApplyOutcome> RetryPersistAsync();
 
     /// <summary>
     /// Applies to the daemon without writing to disk, and treats the result as what the user is now
     /// editing. The saved default is untouched, so a restart returns to it.
     /// </summary>
     /// <param name="requested">The caller's settings. Copied on admission; not modified or retained.</param>
-    /// <param name="ct">Stops work that has not been sent yet.</param>
     /// <returns>What happened. Only a successful apply moves this session's state.</returns>
-    Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings requested, CancellationToken ct = default);
+    Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings requested);
 
     /// <summary>
     /// Applies to the daemon only: no write, and no change to what the user is editing. For a transient
     /// override the host manages, where the editor must go on showing and saving the user's own settings.
     /// </summary>
     /// <param name="requested">The caller's settings. Copied on admission; not modified or retained.</param>
-    /// <param name="ct">Stops work that has not been sent yet.</param>
     /// <returns>
     /// What happened. An override that never reached the daemon is not an override, and is not recorded
     /// as one.
+    ///
+    /// Never carries a prepared result, even on success. This publishes no revision, so there is nothing
+    /// a caller could adopt without adopting a transient override as the settings to save.
     /// </returns>
-    Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings requested, CancellationToken ct = default);
+    Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings requested);
 
-    /// <summary>Puts the daemon back on <see cref="GetCurrent"/>, ending any temporary override.</summary>
-    /// <param name="ct">Stops work that has not been sent yet.</param>
+    /// <summary>
+    /// Puts the daemon back on <see cref="GetCurrent"/>, ending any temporary override.
+    ///
+    /// Unconditional, and deliberately so: it sends the current settings whether or not this session
+    /// believes an override is running. <see cref="HasEphemeralOverride"/> records what this session was
+    /// told, and a host that has just taken over, or reconnected, knows less about the daemon than it
+    /// would like. Putting the daemon somewhere known is cheap; leaving a tablet on an override nobody
+    /// recorded is not.
+    /// </summary>
     /// <returns>
     /// What happened. The override is over only once the daemon has taken the settings back; until then
     /// the tablet is still running it, and callers must not clear an indicator saying so.
+    ///
+    /// <see cref="SettingsApplyStatus.NoChange"/> means there was nothing to put the daemon back on —
+    /// nothing has been loaded — and nothing was sent. Every other case sends, so a success here is
+    /// <see cref="SettingsApplyStatus.AppliedLive"/> even when no override was recorded.
     /// </returns>
-    Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync(CancellationToken ct = default);
+    Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync();
 
     /// <summary>Re-reads the saved default from disk and applies it, discarding any override.</summary>
-    /// <param name="ct">Stops work that has not been sent yet.</param>
     /// <returns>
     /// What happened. Every way this can fall short has its own status, because a restore that did not
     /// happen leaves the override running — and telling the user their tablet is back to normal when it
     /// is not is the failure this distinguishes.
     /// </returns>
-    Task<SettingsRestoreOutcome> RestoreDefaultAsync(CancellationToken ct = default);
+    Task<SettingsRestoreOutcome> RestoreDefaultAsync();
 }
