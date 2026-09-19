@@ -104,10 +104,17 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
         _watcher.Start();
     }
 
-    /// <summary>Stop watching and restore the user's default (so no per-app profile lingers).</summary>
-    public async Task StopAsync()
+    /// <summary>
+    /// Stop watching and restore the user's default (so no per-app profile lingers).
+    /// </summary>
+    /// <returns>
+    /// False when a per-app profile was live and the daemon would not take the default back, so the
+    /// tablet is <b>still on that profile</b> with nothing watching it any more. Watching has stopped
+    /// either way -- this says only whether the override ended with it.
+    /// </returns>
+    public async Task<bool> StopAsync()
     {
-        if (!_running) return;
+        if (!_running) return true;
         _running = false;
         _watcher.Stop();
         _debounce.Cancel();
@@ -119,21 +126,42 @@ public sealed partial class PerAppSwitcher : ObservableObject, IDisposable
         // Deliberately no generation bump here. Superseding the in-flight apply would stop it recording
         // what it just put on the tablet, and the restore below is driven by that record — so the
         // snapshot would stay applied with nothing watching it, which is the case this method exists for.
+        bool restored = true;
         await _applyLock.WaitAsync().ConfigureAwait(true);
         try
         {
+            // The result is load-bearing (#803). ApplyDefaultAsync returns false when the daemon did not
+            // take the default -- and this used to clear _hasApplied, _current and ActiveProfile anyway,
+            // which told the rest of the app no per-app profile was live while the tablet was still
+            // running one. The two other ApplyDefaultAsync call sites already respect the bool; this one
+            // was the exception, and it is the one that runs on shutdown, when a daemon going away first
+            // is exactly how the false arises.
             if (_hasApplied && _current != null)
-                await _applier.ApplyDefaultAsync();
-            _hasApplied = false;
-            _current = null;
+                restored = await _applier.ApplyDefaultAsync();
+
+            // Only forget the override once it is genuinely over. Keeping the record is what a later
+            // restore would need, and it stops the UI claiming a clean state that isn't.
+            if (restored)
+            {
+                _hasApplied = false;
+                _current = null;
+            }
         }
         finally
         {
             _applyLock.Release();
         }
 
+        if (!restored)
+        {
+            AppLog.Warn($"Stopped per-app switching, but couldn't restore your default: the tablet is " +
+                        $"still on “{_current}”.");
+            return false;
+        }
+
         ActiveProfile = null;
         ActiveProfileChanged?.Invoke(null);
+        return true;
     }
 
     private void OnForegroundChanged(AppIdentity app)

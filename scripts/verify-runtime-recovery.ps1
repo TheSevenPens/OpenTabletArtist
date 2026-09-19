@@ -62,6 +62,19 @@ foreach ($p in @($appExe, $daemonExe)) {
     if (-not (Test-Path $p)) { throw "Not found: $p. Point -BundlePath at an unpacked release." }
 }
 
+# What was actually verified. A report that doesn't identify the bundle is evidence about nothing --
+# the next person cannot tell whether it covers the build they are about to ship (#803).
+$bundleFacts = foreach ($p in @($appExe, $daemonExe)) {
+    $item = Get-Item $p
+    [pscustomobject]@{
+        File    = (Resolve-Path $p).Path.Substring($BundlePath.TrimEnd('').Length + 1)
+        Version = $item.VersionInfo.FileVersion
+        Size    = $item.Length
+        Sha256  = (Get-FileHash $p -Algorithm SHA256).Hash
+    }
+}
+foreach ($f in $bundleFacts) { Write-Host "    $($f.File)  v$($f.Version)  $($f.Sha256.Substring(0,16))..." -ForegroundColor DarkGray }
+
 $sharedRoots = @(
     (Join-Path $env:ProgramFiles 'dotnet\shared\Microsoft.NETCore.App'),
     $(if ($env:DOTNET_ROOT) { Join-Path $env:DOTNET_ROOT 'shared\Microsoft.NETCore.App' })
@@ -166,7 +179,13 @@ if (Test-Path $log) {
     Copy-Item $log (Join-Path $OutputPath 'appdata') -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$failed = ($results | Where-Object Verdict -eq 'FAIL').Count
+# Skips are not passes (#803). Every manual check can be skipped, so counting only FAIL meant a run
+# where the operator skipped everything printed "All checks passed" and exited 0 -- the script certifying
+# that nothing had been verified. This whole path exists because unrunnable checks hid real defects;
+# a check that was not run must not read as one that succeeded.
+$failed  = ($results | Where-Object Verdict -eq 'FAIL').Count
+$skipped = ($results | Where-Object Verdict -eq 'SKIP').Count
+$passed  = ($results | Where-Object Verdict -eq 'PASS').Count
 $report = Join-Path $OutputPath 'report.md'
 
 $lines = @()
@@ -176,16 +195,30 @@ $lines += "- Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 $lines += "- Windows: $((Get-CimInstance Win32_OperatingSystem).Caption) ($([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture))"
 $lines += "- Bundle: $BundlePath"
 $lines += "- Runtimes present at start: $(if ($installed) { $installed -join ', ' } else { 'none' })"
+$lines += ''
+$lines += '| File | Version | Size | SHA256 |'
+$lines += '|---|---|---|---|'
+foreach ($f in $bundleFacts) { $lines += "| ``$($f.File)`` | $($f.Version) | $($f.Size) | ``$($f.Sha256)`` |" }
 $lines += "- Daemon exit code without a runtime: $code ($hex)"
 $lines += ''
 $lines += '| Check | Verdict | Detail |'
 $lines += '|---|---|---|'
 foreach ($r in $results) { $lines += "| $($r.Check) | $($r.Verdict) | $($r.Detail) |" }
 $lines += ''
-$lines += $(if ($failed -eq 0) { '**All checks passed.**' } else { "**$failed check(s) failed.**" })
+$lines += $(if ($failed -gt 0) {
+    "**$failed check(s) failed**, $passed passed, $skipped skipped. The recovery path is broken."
+} elseif ($skipped -gt 0) {
+    "**Incomplete: $skipped check(s) were not run**, $passed passed. This run does NOT verify the " +
+    'recovery path -- the skipped checks are the ones no machine can perform automatically, which is ' +
+    'the entire reason this script is manual.'
+} else {
+    "**All $passed checks passed.**"
+})
 $lines | Set-Content -Path $report -Encoding utf8
 
 Write-Host "`nReport: $report" -ForegroundColor Cyan
 Write-Host "Evidence: $OutputPath" -ForegroundColor Cyan
-if ($failed -gt 0) { Write-Bad "$failed check(s) failed."; exit 1 }
-Write-Good 'All checks passed.'
+if ($failed -gt 0) { Write-Bad "$failed check(s) failed, $skipped skipped."; exit 1 }
+# A distinct code so a caller can tell "it is broken" from "you did not check".
+if ($skipped -gt 0) { Write-Bad "Incomplete: $skipped check(s) not run. This verifies nothing."; exit 2 }
+Write-Good "All $passed checks passed."

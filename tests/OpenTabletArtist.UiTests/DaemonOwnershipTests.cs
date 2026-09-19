@@ -102,6 +102,30 @@ public class DaemonOwnershipTests
         Assert.True(store.Writes > 0);
     }
 
+    /// <summary>
+    /// A cleanup that was never sent must not be written to disk (#803).
+    ///
+    /// This path called the daemon and the store directly, around the coordinator, and threw away what
+    /// <c>SetSettingsAsync</c> returned. False means there is no transport -- the change never left the
+    /// process -- and the next line persisted it anyway. Disk then held a repair the running daemon had
+    /// never seen, which is the disagreement #734 exists to prevent, arrived at from the other side.
+    ///
+    /// The in-memory repair is unaffected either way, and that is the reason this was easy to miss:
+    /// everything the user could see was correct.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ACleanupTheDaemonNeverReceived_IsNotWrittenToDisk()
+    {
+        var (session, daemon, store) = Make(DaemonOwnership.Owned);
+        using var _s = session;
+        daemon.SetSettingsSucceeds = false;   // no transport: nothing is actually sent
+
+        await session.ReloadAsync();
+
+        Assert.Equal(0, store.Writes);
+        Assert.False(ForeignFilterEnabled(session.CurrentSettings));   // the display is still repaired
+    }
+
     [AvaloniaFact]
     public async Task OnSomeoneElsesDaemon_TheirFiltersAreLeftAlone()
     {

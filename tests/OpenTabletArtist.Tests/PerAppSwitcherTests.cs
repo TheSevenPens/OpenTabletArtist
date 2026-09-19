@@ -162,9 +162,62 @@ public class PerAppSwitcherTests
         h.Watcher.Raise("krita.exe"); h.Debounce.Fire();
         h.Applier.Calls.Clear();
 
-        await h.Switcher.StopAsync();
+        Assert.True(await h.Switcher.StopAsync());
 
         Assert.Equal(new[] { "default" }, h.Applier.Calls);
+        Assert.Null(h.Switcher.ActiveProfile);
+    }
+
+    /// <summary>
+    /// Stopping is not the same as having stopped (#803).
+    ///
+    /// Every other <c>ApplyDefaultAsync</c> call site already respects the bool it returns; this one
+    /// discarded it and cleared <c>ActiveProfile</c> regardless. So when the daemon would not take the
+    /// default back -- which is precisely what happens on the shutdown path this method exists for, if
+    /// the daemon goes first -- the app reported no per-app profile active while the tablet was still
+    /// running one, and nothing was left watching it.
+    ///
+    /// The cue staying up is the point: it is the only thing that tells the artist their tablet is not
+    /// on the settings they think it is.
+    /// </summary>
+    [Fact]
+    public async Task Stop_WhoseRestoreIsRefused_DoesNotClaimTheProfileEnded()
+    {
+        var h = new Harness();
+        h.Store.Upsert(new PerAppMapping("", "krita.exe", "Painting"));
+        h.Watcher.Raise("krita.exe"); h.Debounce.Fire();
+        Assert.Equal("Painting", h.Switcher.ActiveProfile);
+
+        h.Applier.DefaultSucceeds = false;
+        var announced = 0;
+        h.Switcher.ActiveProfileChanged += _ => announced++;
+
+        Assert.False(await h.Switcher.StopAsync());
+
+        Assert.Equal("Painting", h.Switcher.ActiveProfile);   // still live, and still said to be
+        Assert.Equal(0, announced);
+        Assert.False(h.Switcher.IsRunning);                   // watching did stop, as asked
+    }
+
+    /// <summary>The control: a refused restore must not make Stop permanently unable to succeed.</summary>
+    [Fact]
+    public async Task AndStoppingAgainOnceTheDaemonAnswers_Succeeds()
+    {
+        var h = new Harness();
+        h.Store.Upsert(new PerAppMapping("", "krita.exe", "Painting"));
+        h.Watcher.Raise("krita.exe"); h.Debounce.Fire();
+
+        h.Applier.DefaultSucceeds = false;
+        Assert.False(await h.Switcher.StopAsync());
+
+        // Start/Stop is how the feature toggle drives this, so the retry is a real user action.
+        h.Switcher.Start();
+        h.Applier.DefaultSucceeds = true;
+        h.Applier.Calls.Clear();
+
+        Assert.True(await h.Switcher.StopAsync());
+        Assert.Equal(new[] { "default" }, h.Applier.Calls);
+        Assert.Null(h.Switcher.ActiveProfile);
     }
 
     // --- Ordering and confirmed success (#737) ---
