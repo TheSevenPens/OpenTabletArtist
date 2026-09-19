@@ -461,16 +461,17 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish/OpenTabletArtist/* -DestinationPath ${{ steps.ver.outputs.zip }} -Force
 
-      # Build descriptive release notes from the commit messages since the previous tag. Each commit's
-      # subject becomes a heading and its body is included verbatim (minus the Co-Authored-By trailer and
-      # the release/bump commit itself), so well-written commit messages carry straight into the
-      # changelog. Falls back to GitHub's auto-generated notes if there's no previous tag / no history.
+      # Release notes are for the people downloading the build, not for the people who wrote it.
       #
-      # The body is capped. GitHub rejects a release body over 125,000 characters with a 422, and this
-      # project writes long commit messages on purpose: v0.74.0 carried 83 commits and blew straight
-      # through it, which failed the publish AFTER the zip had already been built. Over the cap we drop
-      # to subject lines only, which is roughly twenty times smaller and still a usable changelog; if
-      # even that will not fit, the list is truncated and the compare link carries the rest.
+      # This used to paste every commit subject AND its full body into the release page. This project
+      # writes long commit messages deliberately, so v0.76.0's notes came to 87,000 characters of
+      # internal detail -- correct, unreadable, and mostly about things no artist can see (test fixes,
+      # dependency pins, release plumbing).
+      #
+      # Now: a hand-written summary leads, and the commit list follows inside a collapsed <details>.
+      # The summary is docs/release-notes/<tag>.md, written before tagging. Without one the release
+      # still publishes -- just the commit list, subjects only -- because a missing summary must never
+      # be what fails a release after the zip has been built.
       - name: Generate release notes
         id: notes
         shell: pwsh
@@ -487,42 +488,44 @@ jobs:
           $global:LASTEXITCODE = 0
           $useGenerated = $true
           $limit = 120000   # GitHub's hard limit is 125,000 - leave room for the footer
+
+          $summaryPath = Join-Path $env:GITHUB_WORKSPACE "docs/release-notes/$tag.md"
+          $summary = if (Test-Path $summaryPath) { (Get-Content $summaryPath -Raw).Trim() } else { $null }
+          if ($summary) { Write-Host "Using hand-written summary: docs/release-notes/$tag.md" }
+          else { Write-Host "No docs/release-notes/$tag.md - publishing the commit list alone" }
+
           if ($prevFound) {
-            $hashes = git log --no-merges --format='%H' "$prev..$tag"
             $skip = '^chore: (bump version|release v)'
-            $sections = foreach ($h in $hashes) {
+            $subjects = foreach ($h in (git log --no-merges --format='%H' "$prev..$tag")) {
               $subject = (git show -s --format='%s' $h).Trim()
               if ($subject -match $skip) { continue }
-              $bodyRaw = git show -s --format='%b' $h
-              $bodyLines = ($bodyRaw -split "`n") | Where-Object { $_ -notmatch '^\s*Co-Authored-By:' }
-              $bodyText = (($bodyLines -join "`n").Trim())
-              if ($bodyText) { "### $subject`n`n$bodyText" } else { "### $subject" }
+              "- $subject"
             }
-            if ($sections) {
+            if ($subjects) {
               $repo = '${{ github.repository }}'
               $footer = "`n`n**Full Changelog**: https://github.com/$repo/compare/$prev...$tag"
-              $body = "## What's changed`n`n" + ($sections -join "`n`n") + $footer
+              # Subjects only, and folded away. Anyone who wants the reasoning has the commit log, which
+              # is where it belongs and where it stays readable.
+              $detail = "<details>`n<summary>All changes ($($subjects.Count) commits)</summary>`n`n" +
+                        ($subjects -join "`n") + "`n`n</details>"
+              $body = if ($summary) { "$summary`n`n$detail$footer" }
+                      else { "## What's changed`n`n$detail$footer" }
+              # Subjects are ~80 characters each, so this needs about 1,500 commits to trip. Kept
+              # because the thing it guards against - a 422 after the zip is built - already happened.
               if ($body.Length -gt $limit) {
-                $was = $body.Length
-                $subjects = foreach ($h in $hashes) {
-                  $subject = (git show -s --format='%s' $h).Trim()
-                  if ($subject -match $skip) { continue }
-                  "- $subject"
-                }
-                $body = "## What's changed`n`n" +
-                        "_$($subjects.Count) commits. Full messages omitted here - they were past " +
-                        "GitHub's release-body limit; see the commit log for the detail._`n`n" +
-                        ($subjects -join "`n") + $footer
-                Write-Host "Full notes were $was chars (limit $limit) - fell back to subjects only ($($body.Length))"
-              }
-              if ($body.Length -gt $limit) {
-                $body = $body.Substring(0, $limit - $footer.Length - 32) + "`n`n_(truncated)_" + $footer
-                Write-Host "Subjects alone still over the limit - truncated"
+                $head = if ($summary) { "$summary`n`n" } else { "" }
+                $body = $head + "_$($subjects.Count) commits - too many to list here._" + $footer
+                Write-Host "Commit list over the limit - replaced with a count"
               }
               Set-Content -Path $notesFile -Value $body -Encoding utf8
               $useGenerated = $false
-              Write-Host "Generated notes from $prev..$tag ($($sections.Count) commit section(s), $($body.Length) chars)"
+              Write-Host "Generated notes from $prev..$tag ($($subjects.Count) commits, $($body.Length) chars)"
             }
+          } elseif ($summary) {
+            # No previous tag, but a summary was written: publish it rather than falling back to
+            # GitHub's generated notes, which would discard it.
+            Set-Content -Path $notesFile -Value $summary -Encoding utf8
+            $useGenerated = $false
           }
           "file=$notesFile" >> $env:GITHUB_OUTPUT
           "useGenerated=$useGenerated" >> $env:GITHUB_OUTPUT
