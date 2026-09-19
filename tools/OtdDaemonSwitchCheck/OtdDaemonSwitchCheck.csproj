@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Deliberately NOT in OpenTabletArtist.slnx, like tools/OtdLinuxSetup.
+
+    It needs two real OpenTabletDriver installs and a machine it may start and kill daemons on, so it can
+    never run in CI and should not be built by an ordinary solution build. Build and run it by path when
+    the daemon-switch behaviour needs checking against something other than a fake.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OtdDaemonSwitchCheck</AssemblyName>
+    <RootNamespace>OtdDaemonSwitchCheck</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Both, and the app reference is the point rather than an accident: this exercises the real
+    DaemonLifecycleService process lookup and the real OTA settings policy, which are exactly the pieces
+    the unit tests substitute.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\OtdInterop\OtdInterop.csproj" />
+    <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />
+  </ItemGroup>
+
+</Project>
