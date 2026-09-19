@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.ViewModels;
 

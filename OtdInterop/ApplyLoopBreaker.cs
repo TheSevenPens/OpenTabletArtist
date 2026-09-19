@@ -1,4 +1,4 @@
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
 /// <summary>
 /// A circuit-breaker that detects a runaway settings apply/save loop — e.g. a UI binding write-back that

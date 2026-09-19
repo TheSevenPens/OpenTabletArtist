@@ -5,6 +5,7 @@ using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 
@@ -30,10 +31,10 @@ public class PerAppApplierTests : IDisposable
     }
 
     private PerAppApplier Make(FakeSettingsCoordinator coord) =>
-        new(coord, new SettingsFileStore(), () => _dir);
+        new(coord, new SettingsFileStore(NullOtdLog.Instance), () => _dir);
 
     private void WriteSnapshot(string name) =>
-        new SettingsFileStore().Save(new Settings(), Path.Combine(_dir, name + ".json"));
+        new SettingsFileStore(NullOtdLog.Instance).Save(new Settings(), Path.Combine(_dir, name + ".json"));
 
     [Fact]
     public async Task AnExistingSnapshot_IsAppliedEphemerally()
@@ -63,7 +64,7 @@ public class PerAppApplierTests : IDisposable
     public async Task NoPresetDirectory_IsReportedAsMissing()
     {
         var coord = new FakeSettingsCoordinator();
-        var applier = new PerAppApplier(coord, new SettingsFileStore(), () => null);
+        var applier = new PerAppApplier(coord, new SettingsFileStore(NullOtdLog.Instance), () => null);
 
         Assert.Equal(PerAppApplyResult.SnapshotMissing, await applier.ApplySnapshotAsync("Painting"));
     }

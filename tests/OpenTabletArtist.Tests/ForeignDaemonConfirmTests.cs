@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 

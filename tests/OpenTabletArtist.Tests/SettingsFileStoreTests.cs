@@ -3,6 +3,7 @@ using System.IO;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Services;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 
@@ -14,7 +15,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void SaveThenLoad_RoundTripsValues()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         var path = TempPath();
         try
         {
@@ -37,7 +38,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TryLoad_MissingFile_ReturnsFalse()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         Assert.False(store.TryLoad(TempPath(), out var loaded));
         Assert.Null(loaded);
     }
@@ -45,7 +46,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TryLoad_GarbageFile_ReturnsFalse()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         var path = TempPath();
         try
         {
@@ -64,7 +65,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TrySave_MissingDirectory_CreatesItAndSaves()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         var dir = Path.Combine(Path.GetTempPath(), $"otd_missing_{Guid.NewGuid():N}");
         var path = Path.Combine(dir, "settings.json");
         try
@@ -79,7 +80,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TrySave_UnwritablePath_ReturnsFalse()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         Assert.False(store.TrySave(new Settings(), temp.BlockedPath));
     }
@@ -87,7 +88,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void Save_UnwritablePath_Throws()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         Assert.ThrowsAny<Exception>(() => store.Save(new Settings(), temp.BlockedPath));
     }
@@ -102,7 +103,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TrySave_ReadOnlyTarget_ReturnsFalse()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -114,7 +115,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void Save_ReadOnlyTarget_Throws()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -133,7 +134,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void FailedWrite_LeavesThePreviousSettingsLoadable()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -151,7 +152,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void FailedWrite_LeavesNoTemporaryFilesBehind()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -166,7 +167,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void SuccessfulOverwrite_KeepsThePreviousVersionAsABackup()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -182,7 +183,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void FirstWrite_CreatesNoBackup()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -194,7 +195,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TryLoad_CorruptFile_RecoversFromTheBackup()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
 
@@ -211,7 +212,7 @@ public class SettingsFileStoreTests
     [Fact]
     public void TryLoad_CorruptFile_WithNoBackup_StillReturnsFalse()
     {
-        var store = new SettingsFileStore();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
         using var temp = new TempDir();
         var path = temp.File("settings.json");
         File.WriteAllText(path, "{ truncated");

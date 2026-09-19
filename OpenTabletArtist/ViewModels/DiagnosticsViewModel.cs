@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.ViewModels;
 

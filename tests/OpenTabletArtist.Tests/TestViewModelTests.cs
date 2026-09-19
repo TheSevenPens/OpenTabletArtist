@@ -11,6 +11,7 @@ using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 

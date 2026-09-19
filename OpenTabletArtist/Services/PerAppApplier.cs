@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using OpenTabletDriver.Desktop;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 

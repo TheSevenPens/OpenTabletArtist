@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -18,7 +19,7 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly ISettingsFileStore _settingsStore = new SettingsFileStore();
+    private readonly ISettingsFileStore _settingsStore = new SettingsFileStore(AppLogBridge.Instance);
     private readonly AppSession _session;
     private readonly DaemonStatusViewModel _daemonStatus;
     private readonly TabletAutoMapper _autoMapper;

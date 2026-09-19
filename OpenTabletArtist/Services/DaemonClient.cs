@@ -7,6 +7,7 @@ using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Plugin.Logging;
 using OpenTabletArtist.Concurrency;
 using StreamJsonRpc;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 
