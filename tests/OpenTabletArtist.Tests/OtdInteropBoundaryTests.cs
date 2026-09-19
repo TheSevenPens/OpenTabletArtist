@@ -2,8 +2,11 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OpenTabletDriver.Desktop.Reflection.Metadata;
+using OpenTabletDriver.Plugin.Logging;
 using OtdInterop;
 using Xunit;
 
@@ -97,6 +100,81 @@ public class OtdInteropBoundaryTests
         // And it really is wired to that connection, not to nothing.
         capabilities.SetTabletDebugAsync(true);
         Assert.Equal(1, daemon.DebugCalls);
+    }
+
+    /// <summary>
+    /// Every forward reaches the member of the same name.
+    ///
+    /// Nine one-line forwards compile whether or not they are wired correctly, and the mistakes they
+    /// invite are invisible: a swap between the two `JArray` queries, a plugin verb pointed at its
+    /// neighbour. Asserting one member and trusting the pattern is how that ships.
+    /// </summary>
+    [Fact]
+    public async Task EveryCapability_ForwardsToTheMemberOfTheSameName()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Tablets = new JArray("a tablet"),
+            Devices = new JArray("a device", "another"),
+            AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
+        };
+        var c = FakeSession.Over(daemon).Capabilities;
+
+        // Scripted differently where two members share a shape, so a swap cannot pass.
+        Assert.Equal("a tablet", (await c.GetTabletsAsync())[0]);
+        Assert.Equal(2, (await c.GetDevicesAsync()).Count);
+        Assert.Equal("settings.json", (await c.GetAppInfoAsync())!.SettingsFile);
+
+        await c.GetCurrentLogAsync();
+        await c.SetTabletDebugAsync(true);
+        await c.DownloadPluginAsync(new PluginMetadata());
+        await c.UninstallPluginAsync("some/plugin");
+        await c.LoadPluginsAsync();
+
+        Assert.Equal(
+            [
+                nameof(IDaemonCapabilities.GetTabletsAsync),
+                nameof(IDaemonCapabilities.GetDevicesAsync),
+                nameof(IDaemonCapabilities.GetAppInfoAsync),
+                nameof(IDaemonCapabilities.GetCurrentLogAsync),
+                nameof(IDaemonCapabilities.SetTabletDebugAsync),
+                nameof(IDaemonCapabilities.DownloadPluginAsync),
+                nameof(IDaemonCapabilities.UninstallPluginAsync),
+                nameof(IDaemonCapabilities.LoadPluginsAsync),
+            ],
+            daemon.Calls);
+    }
+
+    /// <summary>
+    /// The two event forwards reach real subscriptions on the connection, rather than an intermediate
+    /// list that could quietly drop them.
+    /// </summary>
+    [Fact]
+    public void TheEventForwards_AttachToTheConnection()
+    {
+        var daemon = new FakeDaemonTransport();
+        var c = FakeSession.Over(daemon).Capabilities;
+
+        var reports = 0;
+        var tabletChanges = 0;
+        var logs = 0;
+        void OnReport(JObject _) => reports++;
+        c.DeviceReport += OnReport;
+        c.TabletsChanged += () => tabletChanges++;
+        c.LogReceived += _ => logs++;
+
+        daemon.RaiseDeviceReport(new JObject());
+        daemon.RaiseTabletsChanged();
+        daemon.RaiseLog(new LogMessage());
+
+        Assert.Equal(1, reports);
+        Assert.Equal(1, tabletChanges);
+        Assert.Equal(1, logs);
+
+        // And unsubscribing reaches the connection too, or a page closed mid-stream keeps being called.
+        c.DeviceReport -= OnReport;
+        daemon.RaiseDeviceReport(new JObject());
+        Assert.Equal(1, reports);
     }
 
     /// <summary>The connection itself is not something a host can name at all.</summary>
