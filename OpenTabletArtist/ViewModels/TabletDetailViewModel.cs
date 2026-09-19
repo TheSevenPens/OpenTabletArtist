@@ -113,7 +113,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         return NoteDraftEdit();
     }
 
-    /// <summary><paramref name="group"/>'s pending edit is about to be written into the settings.</summary>
+    /// <summary>
+    /// <paramref name="group"/> is no longer waiting to be written.
+    ///
+    /// Called at the top of each persist, BEFORE its own guards. The bit means "an edit is waiting", and
+    /// once the persist has run it is not waiting any more — whether or not the persist then decided
+    /// there was anything to write. Clearing it after an early return leaves it set for the life of the
+    /// editor, and a set bit silently stops all reconciliation: the app goes on working and simply stops
+    /// taking up what it sent. Nothing would fail, which is what makes it worth being careful about.
+    /// </summary>
     private void DraftSubmitted(DraftGroup group) => _unsubmitted &= ~group;
     // Opens the modal binding editor for a card's current binding + label; returns the chosen binding
     // (or Unbound on Clear), or null on Cancel. Provided by the host that has the owner window.
@@ -1616,10 +1624,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private async Task PersistThresholdsAsync()
     {
+        DraftSubmitted(DraftGroup.WheelThreshold);
         if (_pendingThresholds.Count == 0 || !WheelEnabled) return;
         var pending = new Dictionary<(int Wheel, bool Clockwise), double>(_pendingThresholds);
         _pendingThresholds.Clear();
-        DraftSubmitted(DraftGroup.WheelThreshold);
         await ApplySettingsChange(p =>
         {
             var wheels = p.BindingSettings.WheelBindings;
@@ -2277,8 +2285,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private async Task PersistCurveAsync()
     {
-        if (_applyAction == null || _settings == null) return;
         DraftSubmitted(DraftGroup.Curve);
+        if (_applyAction == null || _settings == null) return;
         var draft = _draftGeneration;
         var dynamics = new PenDynamicsSettings(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
         // The filter is always enabled internally; users neutralize it with linear/zero settings, not a toggle.
@@ -2327,8 +2335,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     private async Task PersistHoverAsync()
     {
-        if (_applyAction == null || _settings == null) return;
         DraftSubmitted(DraftGroup.Hover);
+        if (_applyAction == null || _settings == null) return;
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();

@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using OpenTabletArtist.ViewModels;
 using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Binding;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdInterop;
@@ -39,6 +40,7 @@ public class TabletEditorReconcileTests
     private static Settings SettingsWithForeignFilter(string tablet = "T")
     {
         var profile = new Profile { Tablet = tablet };
+        profile.BindingSettings.WheelBindings.Add(new WheelBindingSettings());
         profile.Filters.Add(new PluginSettingStore(ThirdPartyFilter) { Path = ThirdPartyFilter, Enable = true });
         return new Settings { Profiles = new ProfileCollection { profile } };
     }
@@ -257,4 +259,5 @@ public class TabletEditorReconcileTests
 
         vm.Dispose();
     }
+
 }
