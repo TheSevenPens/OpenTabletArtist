@@ -55,8 +55,10 @@ public class AppFontTests
     [AvaloniaFact]
     public void ABareFamilyName_SilentlyFallsBack()
     {
-        FontManager.Current.TryGetGlyphTypeface(new Typeface("Inter"), out var bare);
-        FontManager.Current.TryGetGlyphTypeface(new Typeface("ZZNoSuchFontExists"), out var nonsense);
+        // Both of these return true -- that is the trap -- so the results are the subject, not the bools.
+        Assert.True(FontManager.Current.TryGetGlyphTypeface(new Typeface("Inter"), out var bare));
+        Assert.True(FontManager.Current.TryGetGlyphTypeface(
+            new Typeface("ZZNoSuchFontExists"), out var nonsense));
 
         Assert.NotEqual("Inter", bare.FamilyName);
         Assert.Equal(nonsense.FamilyName, bare.FamilyName);

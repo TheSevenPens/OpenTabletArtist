@@ -37,6 +37,23 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
     private readonly IOtdLog _log;
 
+    /// <summary>
+    /// The current channel and its number, as <b>one</b> value.
+    ///
+    /// Two fields would not do, and the reason is not theoretical. A reader taking them separately can
+    /// catch a reconnect between the two reads and come away with the old channel carrying the new
+    /// number — which sends correctly and then decides, wrongly, that it is still current, so an obsolete
+    /// result gets published. Or the reverse: the new channel with the old number, refused although it
+    /// was fine. One reference read has neither failure.
+    /// </summary>
+    private volatile Channel? _channel;
+
+    /// <inheritdoc />
+    int IDaemonSettingsChannel.Incarnation => _channel?.Incarnation ?? 0;
+
+    /// <summary>One JSON-RPC channel and the number identifying it, established and replaced together.</summary>
+    private sealed record Channel(JsonRpc Rpc, int Incarnation);
+
 
     /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
     internal DaemonClient(IOtdLog log) => _log = log;
@@ -127,6 +144,14 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
                 // too-short timeout drops us into the 3s backoff below for no reason (#246).
                 await _pipe.ConnectAsync(15000, ct);
                 var rpc = new JsonRpc(_pipe);
+                // Before the assignment, deliberately. From the moment `_rpc` points at the new channel a
+                // send goes to the new daemon -- earlier than StartListening, earlier than Connected, and
+                // far earlier than any host handler. An operation that read the incarnation before this
+                // and sends after it must be recognisable as obsolete, and it only is if this moves first.
+                // One assignment, so nothing can observe a half-established channel. The number comes
+                // from the previous channel rather than a separate counter for the same reason: it is
+                // part of the value, not a field kept alongside it.
+                _channel = new Channel(rpc, (_channel?.Incarnation ?? 0) + 1);
                 _rpc = rpc;
                 rpc.Disconnected += (_, _) =>
                 {
@@ -134,6 +159,10 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
                     // IsDisposed flips asynchronously). Guard against a late drop from a
                     // superseded connection clobbering a newer one.
                     if (ReferenceEquals(_rpc, rpc)) _rpc = null;
+                    // The channel value goes with it. A hold taken on this one keeps working against the
+                    // disposed RPC and fails, which is correct -- what must not happen is a later hold
+                    // silently picking up a successor under the same number.
+                    if (ReferenceEquals(_channel?.Rpc, rpc)) _channel = null;
                     // The daemon forgets the debug flag on disconnect; clear the count so it isn't
                     // left stale (which would suppress a later enable).
                     lock (_debugLock) _debugRefs.Reset();
@@ -179,6 +208,45 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     }
 
     // --- Typed API using OTD types ---
+
+    /// <inheritdoc />
+    IDaemonSettingsBinding IDaemonSettingsChannel.Bind()
+    {
+        // One read of one reference. Everything the hold needs travels together, so there is no interval
+        // in which a reconnect could pair one channel with another's number.
+        var channel = _channel;
+        return new Binding(channel?.Rpc, channel?.Incarnation ?? 0);
+    }
+
+    /// <summary>
+    /// A hold on one JSON-RPC channel, captured by reference.
+    ///
+    /// The reference is the whole mechanism. Reading <c>_rpc</c> at send time asks "which channel is
+    /// current", and the answer can be the replacement — so an operation admitted for one daemon sends to
+    /// another, which for settings means one install's configuration arriving at a different one. Holding
+    /// the instance asks nothing: the send goes where it was always going, or to a disposed channel that
+    /// refuses it.
+    ///
+    /// A disposed channel is reported as "no transport", the same as never having had one, because to a
+    /// caller they are the same fact: the change was not sent.
+    /// </summary>
+    private sealed class Binding(JsonRpc? rpc, int incarnation) : IDaemonSettingsBinding
+    {
+        public int Incarnation => incarnation;
+
+        public async Task<Settings?> GetSettingsAsync()
+        {
+            if (rpc is not { IsDisposed: false }) return null;
+            return await rpc.InvokeAsync<Settings>("GetSettings");
+        }
+
+        public async Task<bool> SetSettingsAsync(Settings settings)
+        {
+            if (rpc is not { IsDisposed: false }) return false;
+            await rpc.InvokeAsync("SetSettings", settings);
+            return true;
+        }
+    }
 
     public async Task<Settings?> GetSettingsAsync()
     {
