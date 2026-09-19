@@ -135,7 +135,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
-        _session = new AppSession(new DaemonClient(), new DaemonLifecycleService());
+        _session = new AppSession(DaemonTransport.Create(AppLogBridge.Instance), new DaemonLifecycleService());
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
 

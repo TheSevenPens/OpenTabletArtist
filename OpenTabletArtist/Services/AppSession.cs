@@ -180,7 +180,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // Everything about the settings OTA believes in — the current object, the load/persist revision
     // baselines, the pending unsaved change, the override flag and the apply-loop breaker — lives in the
     // coordinator (#740). This class keeps the ISettingsCoordinator contract and the UI-thread guards.
-    private readonly SettingsCoordinator _coordinator;
+    //
+    // The interface, not the class: the implementation is internal to the library now, so this holds what
+    // the library is willing to offer rather than everything the implementation happens to have (#807).
+    private readonly IOtdSettingsSession _coordinator;
 
     /// <inheritdoc />
     public bool HasEphemeralOverride => _coordinator.HasEphemeralOverride;
@@ -416,7 +419,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (name != null && DetectedTablets.Any(t => t.Name == name))
             ActiveTabletName = name;
     }
-    public Settings? CurrentSettings => _coordinator.CurrentSettings;
+    public Settings? CurrentSettings => _coordinator.GetCurrent()?.Settings;
     public event Action? DataLoaded;
 
     public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle,
@@ -429,9 +432,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // data load, identity on connect), so neither has a value yet at construction.
         // No store given means the library uses its own, which the app cannot construct (#807).
         _coordinator = settingsStore is { } store
-            ? new SettingsCoordinator(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
+            ? OtdSettingsSession.Create(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
                 state => SaveState = state, AppLogBridge.Instance, OtaSettingsPolicy.Instance)
-            : new SettingsCoordinator(
+            : OtdSettingsSession.Create(
             daemon,
             settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
@@ -746,21 +749,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // Settings (typed) + profile derivation.
             //
-            // Skipped entirely while a per-app override is live (#737): the daemon is running a transient
-            // snapshot, and reading it back here would make that snapshot the editor's baseline — the
-            // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
-            // is whatever it already was, and survives the poll and a reconnect.
-            if (!HasEphemeralOverride)
-            {
-                // Observed BEFORE the read. An apply can complete while this is in flight, and the
-                // response would then describe a moment that has passed. Adopting it does not merely
-                // show stale values: the next edit is built on that baseline, so the reverted value goes
-                // back to the daemon.
-                var observed = _coordinator.ObservationEpoch;
-                var loaded = await _daemon.GetSettingsAsync();
-                _coordinator.AdoptLoadedSettings(loaded, observed);
-            }
-            var settings = _coordinator.CurrentSettings;
+            // One call, because the ordering inside it is the protection and it is not this class's to
+            // get right: the session observes its own state before the read, discards an answer overtaken
+            // while in flight, and does not read at all while a per-app override is running (#737). This
+            // was three steps here, and every one of them failed silently.
+            await _coordinator.ReloadFromDaemonAsync();
+            var settings = _coordinator.GetCurrent()?.Settings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)

@@ -14,16 +14,20 @@ namespace OtdInterop;
 /// control: the current settings, the two separate revision baselines from #734, the pending unsaved
 /// change, the per-app override flag from #737, and the apply-loop circuit breaker.
 ///
-/// Headless and thread-agnostic on purpose. <c>AppSession</c> keeps the
-/// <c>Dispatcher.UIThread.VerifyAccess()</c> guards on its entry points because it owns observable state;
-/// this class owns none, which is what makes it testable without a dispatcher.
+/// Headless on purpose, which is not the same as thread-safe. Mutating operations are serialized
+/// against each other; several members read and write session state outside that, so this relies on the
+/// host supplying one serialized execution context, exactly as <see cref="IOtdSettingsSession"/>
+/// describes. <c>AppSession</c> supplies Avalonia's UI thread and keeps the
+/// <c>Dispatcher.UIThread.VerifyAccess()</c> guards on its own entry points; a test supplies a single
+/// thread. What being headless buys is testability without a dispatcher, not freedom from the
+/// requirement.
 ///
 /// It also holds no reference back to the session. Apply-then-reload is orchestrated by the caller, so
 /// the dependency runs one way.
 /// </summary>
-public sealed class SettingsCoordinator : IOtdSettingsSession
+internal sealed class SettingsCoordinator : IOtdSettingsSession
 {
-    private readonly IDaemonTransport _daemon;
+    private readonly IDaemonSettingsChannel _daemon;
     // Injected rather than a static call to the app's logger: what this type reports is mostly partial
     // failure -- live but unsaved, discarded because the daemon changed -- and those are exactly the
     // events nobody can see from outside. Where the lines go is the host's decision, not this type's.
@@ -118,9 +122,15 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     private int _observationEpoch;
 
-    /// <summary>What a read of the daemon could have observed at this moment; pass it to
-    /// <see cref="AdoptLoadedSettings"/> after a read to prove the read was not overtaken.</summary>
-    public int ObservationEpoch => Volatile.Read(ref _observationEpoch);
+    /// <summary>
+    /// What a read of the daemon could have observed at this moment.
+    ///
+    /// Internal because it is only meaningful paired with a read this session made itself. It was public
+    /// once, and the host had to observe it, read the daemon, and hand it back — three steps in the right
+    /// order, with the failure silent if it got them wrong. <see cref="ReloadFromDaemonAsync"/> does all
+    /// three, which is why this no longer needs to leave the library.
+    /// </summary>
+    internal int ObservationEpoch => Volatile.Read(ref _observationEpoch);
 
     /// <summary>
     /// Which revision of the settings this session publishes is current.
@@ -215,7 +225,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// <param name="log">Where this type reports what it did and could not do — mostly partial failure,
     /// which is exactly what is invisible from outside.</param>
     /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
-    public SettingsCoordinator(IDaemonTransport daemon,
+    internal SettingsCoordinator(IDaemonSettingsChannel daemon,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)
         : this(daemon, new SettingsFileStore(log), settingsPath, isOwnedDaemon, onSaveState, log, policy)
@@ -230,7 +240,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// The other constructor uses the library's own writer, which is internal and not obtainable from
     /// outside. Supplying an alternative is not the same as being handed ours.
     /// </summary>
-    public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
+    internal SettingsCoordinator(IDaemonSettingsChannel daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)
     {
@@ -243,8 +253,6 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
         _onSaveState = onSaveState;
     }
 
-    /// <summary>The settings OTA is editing and would persist — the user's default, never a transient
-    /// per-app snapshot.</summary>
     /// <summary>
     /// The settings this session is editing — the user's own, never a transient per-app snapshot.
     ///
@@ -280,9 +288,52 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     public bool HasEphemeralOverride { get; private set; }
 
     /// <summary>
-    /// Takes what the data load just read from the daemon as the new baseline. The caller is responsible
-    /// for not calling this while <see cref="HasEphemeralOverride"/> is set — the daemon is then holding
-    /// a snapshot, not the baseline.
+    /// Re-reads the daemon's settings and adopts them as this session's baseline.
+    ///
+    /// The whole sequence, because the order in it is what makes it safe and none of it is the host's
+    /// business. The epoch is observed BEFORE the read, since an apply can complete while the read is in
+    /// flight and its answer would then describe a moment that has passed; adopting that does not merely
+    /// show stale values, it makes the next edit build on them and send the reverted value back.
+    ///
+    /// Skips the read entirely while an override is live (#737). The daemon is holding a transient
+    /// snapshot then, and reading it back would make that snapshot the editor's baseline — the thing it
+    /// is asked to persist as the user's default and to restore to.
+    ///
+    /// Deliberately NOT serialized against mutating operations, so a refresh is never blocked behind a
+    /// long apply. That is an implementation choice which permits overlap, not a claim that overlap is
+    /// desirable: a poll that did read the state an apply had just produced would be perfectly correct.
+    /// What makes the overlap safe is the epoch check below plus the host's confinement contract — the
+    /// epoch invalidates a stale answer, and single-context execution is what keeps the compare and the
+    /// adopt from being interleaved. The epoch is not a substitute for that contract, and if the
+    /// execution model ever changes this sequence needs real synchronization.
+    /// </summary>
+    /// <returns>What happened. Every outcome is ordinary; none needs the host to act.</returns>
+    public async Task<SettingsReloadOutcome> ReloadFromDaemonAsync()
+    {
+        if (HasEphemeralOverride) return SettingsReloadOutcome.SkippedOverride;
+
+        var observed = ObservationEpoch;
+        var loaded = await _daemon.GetSettingsAsync();
+        if (!AdoptLoadedSettings(loaded, observed)) return SettingsReloadOutcome.Overtaken;
+
+        // Null is adopted, not rejected: a daemon that answered with nothing is a daemon this session has
+        // no settings for, and leaving the previous daemon's settings in place would be worse than an
+        // empty editor. Reported separately so "the baseline is empty" is never mistaken for a read that
+        // returned the user's settings.
+        //
+        // GetCurrent can itself come back null when the copy cannot be made. The baseline is adopted
+        // either way -- the status says so -- but the payload is then absent, which is why it is
+        // documented as a copy of the new baseline when one could be made rather than as a guarantee.
+        return loaded == null
+            ? SettingsReloadOutcome.Disconnected
+            : new SettingsReloadOutcome(SettingsReloadStatus.Adopted, GetCurrent());
+    }
+
+    /// <summary>
+    /// Adopts what a read returned, if that read has not been overtaken.
+    ///
+    /// Private: pairing a read with the epoch observed before it is the entire protection, and a caller
+    /// that could do one without the other would have the defect this exists to prevent.
     /// </summary>
     /// <param name="settings">What the daemon returned.</param>
     /// <param name="observedVersion">
@@ -291,7 +342,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// holds.
     /// </param>
     /// <returns>False when the read was overtaken and nothing was adopted.</returns>
-    public bool AdoptLoadedSettings(Settings? settings, int observedVersion)
+    private bool AdoptLoadedSettings(Settings? settings, int observedVersion)
     {
         if (observedVersion != ObservationEpoch)
         {

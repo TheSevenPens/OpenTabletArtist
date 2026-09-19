@@ -60,18 +60,23 @@
   </ItemGroup>
 
   <!--
-    Test-only visibility for the internal settings writer.
+    Test-only visibility for the internal writer and the internal connection.
 
-    SettingsFileStore is internal because it is the one object that writes the file the daemon is running
-    from, and nothing outside should be able to construct it. It still needs tests of its own: atomic
-    replacement, the last-known-good fallback, what happens when the destination is unwritable. Those are
-    properties of the implementation, not of the interface, so they cannot be written from outside.
+    Both are internal because both can reach past the protected settings path: SettingsFileStore writes
+    the file the daemon is running from, and DaemonClient writes settings to the daemon itself. Nothing
+    outside should be able to construct either. They still need tests of their own - atomic replacement,
+    the last-known-good fallback, an unwritable destination, the reconnect coalescing, the debug-stream
+    reference count - and those are properties of the implementations rather than of the interfaces, so
+    they cannot be written from outside.
 
     The production app is deliberately not granted access. Transitional: #807 Phase 6 gives the library
     its own test project and this moves with those tests.
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
+    <!-- The UI suite compiles the same FakeDaemonTransport source, which implements the internal
+         settings channel; without this it sees a type the app is not meant to see, and cannot build. -->
+    <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
   </ItemGroup>
 
 </Project>

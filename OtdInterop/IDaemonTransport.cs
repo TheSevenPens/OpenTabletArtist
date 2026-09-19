@@ -35,6 +35,11 @@ public interface IDaemonPluginService
 /// testable; splitting it into three roles with one consumer apiece would be ceremony. It composes the
 /// narrow ones so <c>AppSession.Daemon</c> can still hand the whole client to the pages that want
 /// a debug stream, the log, or the plugin operations.
+///
+/// Reading and writing settings is deliberately NOT here. Those two verbs sat alongside the device list
+/// and the log stream, so every class that legitimately wanted one of those also held a settings writer
+/// that bypassed every protection in <see cref="IOtdSettingsSession"/>. They live on the internal
+/// <see cref="IDaemonSettingsChannel"/> now, which only the settings session receives.
 /// </summary>
 public interface IDaemonTransport : IDaemonDebugSession, IDaemonLogSource, IDaemonPluginService, IDisposable
 {
@@ -53,13 +58,6 @@ public interface IDaemonTransport : IDaemonDebugSession, IDaemonLogSource, IDaem
 
     /// <summary>Requests a connection. Fire-and-forget; <see cref="Connected"/> reports success.</summary>
     Task ConnectAsync(CancellationToken ct);
-
-    /// <summary>The daemon's current in-memory settings. Null when not connected.</summary>
-    Task<Settings?> GetSettingsAsync();
-
-    /// <summary>Pushes settings to the daemon. False when there is no transport — the caller must not
-    /// report an unsent change as live (#734).</summary>
-    Task<bool> SetSettingsAsync(Settings settings);
 
     /// <summary>The daemon's paths and version. Null when not connected.</summary>
     Task<AppInfo?> GetAppInfoAsync();

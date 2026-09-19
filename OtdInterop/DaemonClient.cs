@@ -5,15 +5,48 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Plugin.Logging;
-using OpenTabletArtist.Concurrency;
 using StreamJsonRpc;
-using OtdInterop;
 
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
-public class DaemonClient : IDaemonTransport
+/// <summary>
+/// The daemon connection itself: one named pipe, one JSON-RPC channel, and the reconnect loop that
+/// keeps them up.
+/// </summary>
+///
+/// <remarks>
+/// <para>
+/// Internal, and that is the point of it being here (#807 Phase 4). This type can write settings
+/// straight to the daemon, with none of the ordering, ownership or session checks that
+/// <see cref="IOtdSettingsSession"/> exists to apply. While it was a public class in the app, every
+/// caller that could reach a connection could also reach that write, and the protection was a
+/// convention. Hosts get it through <see cref="DaemonTransport.Create"/>, as
+/// <see cref="IDaemonTransport"/> — which does not carry those two verbs. They are on
+/// <see cref="IDaemonSettingsChannel"/>, which is internal, so the settings session can reach them and
+/// the host cannot.
+/// </para>
+/// <para>
+/// Not thread-safe beyond what is marked. The reconnect loop and the debug reference count have their
+/// own coordination; everything else assumes the host's single execution context, the same requirement
+/// <see cref="IOtdSettingsSession"/> documents.
+/// </para>
+/// </remarks>
+internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
 {
     private const string PipeName = "OpenTabletDriver.Daemon";
+
+    /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
+    private readonly IOtdLog _log;
+
+    /// <summary>0 until a settings session takes this connection's channel; 1 afterwards, forever.</summary>
+    private int _settingsAuthorityClaimed;
+
+    /// <inheritdoc />
+    bool IDaemonSettingsChannel.TryClaimExclusiveUse() =>
+        Interlocked.CompareExchange(ref _settingsAuthorityClaimed, 1, 0) == 0;
+
+    /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
+    internal DaemonClient(IOtdLog log) => _log = log;
 
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
@@ -23,7 +56,7 @@ public class DaemonClient : IDaemonTransport
     // one consumer turning it off doesn't starve another. (#102 follow-up)
     private readonly object _debugLock = new();
     // The 0↔1 transition decision lives in a pure, tested helper (#121); this lock guards its use.
-    private readonly Domain.DebugRefCounter _debugRefs = new();
+    private readonly DebugRefCounter _debugRefs = new();
     // Single-flight reconnect coordinator: only one connect loop runs at a time, and a
     // reconnect requested while one is running (e.g. an immediate disconnect during connect)
     // is honored once the current loop exits — closing the dropped-reconnect race (#33).
@@ -41,8 +74,8 @@ public class DaemonClient : IDaemonTransport
     /// <summary>The daemon forwarded a log message (its <c>Message</c> event). Fires off the RPC
     /// thread — subscribers marshal to the UI thread. (#console)</summary>
     public event Action<LogMessage>? LogReceived;
-    /// <summary>Private: the app reads connection state from <see cref="AppSession"/>, which owns it as
-    /// observable UI state. This is the client's own view, used to short-circuit a redundant connect.</summary>
+    /// <summary>Private: the host owns connection state as the thing it shows the user. This is the
+    /// client's own view, used only to short-circuit a redundant connect.</summary>
     private bool IsConnected => _rpc != null && !_rpc.IsDisposed;
 
     /// <summary>
@@ -137,7 +170,7 @@ public class DaemonClient : IDaemonTransport
                 // Expected while the daemon isn't up yet — Debug, and throttled so a long wait doesn't
                 // flood the log (#21).
                 if (ShouldLog(ref _lastTimeoutLogTick))
-                    AppLog.Debug("Daemon connect timed out; retrying (repeats throttled to 5 min).");
+                    _log.Debug("Daemon connect timed out; retrying (repeats throttled to 5 min).");
                 await Task.Delay(3000, ct);
             }
             catch (OperationCanceledException) { return; }
@@ -146,7 +179,7 @@ public class DaemonClient : IDaemonTransport
                 // Unexpected connect failure — Warn with the reason (was silently swallowed), throttled the
                 // same way for a persistent failure (#21).
                 if (ShouldLog(ref _lastConnectErrorLogTick))
-                    AppLog.Warn("Daemon connect failed; retrying (repeats throttled to 5 min).", ex);
+                    _log.Warn("Daemon connect failed; retrying (repeats throttled to 5 min).", ex);
                 await Task.Delay(3000, ct);
             }
         }
@@ -195,7 +228,7 @@ public class DaemonClient : IDaemonTransport
         try { return await _rpc.InvokeAsync<JArray>("GetDevices"); }
         catch (Exception ex)
         {
-            AppLog.Debug("Couldn't read the daemon's device list.", ex);
+            _log.Debug("Couldn't read the daemon's device list.", ex);
             return new JArray();
         }
     }
@@ -228,7 +261,7 @@ public class DaemonClient : IDaemonTransport
         }
         catch (Exception ex)
         {
-            AppLog.Warn("Couldn't fetch the daemon's current log buffer.", ex);
+            _log.Warn("Couldn't fetch the daemon's current log buffer.", ex);
             return [];
         }
     }
@@ -250,7 +283,7 @@ public class DaemonClient : IDaemonTransport
         catch (Exception ex)
         {
             // Best-effort ownership probe (can fail for an elevated daemon) — Debug, not a real problem (#21).
-            AppLog.Debug($"Couldn't read the daemon's server process id: {ex.Message}");
+            _log.Debug("Couldn't read the daemon's server process id.", ex);
         }
         return null;
     }

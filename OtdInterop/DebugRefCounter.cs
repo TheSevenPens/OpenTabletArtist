@@ -1,14 +1,14 @@
-namespace OpenTabletArtist.Domain;
+namespace OtdInterop;
 
 /// <summary>
 /// The reference-count / transition decision behind the daemon's single global tablet-debug flag
 /// (#119, #121). Several consumers share one stream (Diagnostics, the Test tab's Driver mode, the
 /// Dynamics live-pressure dot), so the enable/disable RPC should fire only on a 0↔1 transition — the
 /// first consumer turns the stream on, the last turns it off; intermediate acquires/releases just move
-/// the count. This is the pure decision core; <c>DaemonClient</c> owns the lock and the RPC, so this is
+/// the count. This is the pure decision core; <see cref="DaemonClient"/> owns the lock and the RPC, so this is
 /// not itself thread-safe (always call it under that lock). Unit-tested in isolation (#121).
 /// </summary>
-public sealed class DebugRefCounter
+internal sealed class DebugRefCounter
 {
     private int _count;
 

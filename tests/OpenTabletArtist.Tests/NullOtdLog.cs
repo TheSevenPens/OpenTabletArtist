@@ -18,4 +18,6 @@ internal sealed class NullOtdLog : IOtdLog
     public void Warn(string message, Exception? error = null) { }
 
     public void Info(string message) { }
+
+    public void Debug(string message, Exception? error = null) { }
 }
