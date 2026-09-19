@@ -355,6 +355,15 @@ public class TabletEditorReconcileTests
 
         Assert.Equal(0.42, vm.PressureSmoothing, 3);
 
+        // Surviving on screen is only half of it: the value has to reach a submission too, or it is
+        // displayed and then lost at the next reload.
+        var dynamics = OpenTabletArtist.Services.PressureCurveProfile.Read(sent[^1], "T");
+        Assert.NotNull(dynamics);
+        Assert.Equal(0.42, dynamics!.Value.Dynamics.PressureSmoothing, 3);
+
         vm.Dispose();
     }
+
+    private static bool Pressure(Settings s) =>
+        s.Profiles.First(p => p.Tablet == "T").BindingSettings.DisablePressure;
 }

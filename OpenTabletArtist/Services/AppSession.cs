@@ -746,7 +746,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // thing it is then asked to persist as the user's default, and to "restore" to. The baseline
             // is whatever it already was, and survives the poll and a reconnect.
             if (!HasEphemeralOverride)
-                _coordinator.AdoptLoadedSettings(await _daemon.GetSettingsAsync());
+            {
+                // Observed BEFORE the read. An apply can complete while this is in flight, and the
+                // response would then describe a moment that has passed. Adopting it does not merely
+                // show stale values: the next edit is built on that baseline, so the reverted value goes
+                // back to the daemon.
+                var observed = _coordinator.StateVersion;
+                var loaded = await _daemon.GetSettingsAsync();
+                _coordinator.AdoptLoadedSettings(loaded, observed);
+            }
             var settings = _coordinator.CurrentSettings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current

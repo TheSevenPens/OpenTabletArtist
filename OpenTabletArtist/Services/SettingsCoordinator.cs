@@ -106,6 +106,30 @@ public sealed class SettingsCoordinator
     private long _operationSequence;
 
     /// <summary>
+    /// Changes every time the settings this session publishes change.
+    ///
+    /// Reading from the daemon is not instantaneous, and a mutation can complete while a read is still
+    /// outstanding. The response then describes a moment that has passed, and adopting it silently puts
+    /// the older values back — which is not merely a stale display: the next edit is built on that
+    /// baseline and sends the reverted value to the daemon.
+    ///
+    /// A caller observes this before starting a read and hands it back when adopting, so a response that
+    /// was overtaken can be recognised and dropped rather than believed.
+    /// </summary>
+    private int _stateVersion;
+
+    /// <summary>What <see cref="CurrentSettings"/> is derived from right now; pass it to
+    /// <see cref="AdoptLoadedSettings"/> after a read to prove the read was not overtaken.</summary>
+    public int StateVersion => Volatile.Read(ref _stateVersion);
+
+    /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
+    private void Publish(Settings? settings)
+    {
+        _settings = settings;
+        Interlocked.Increment(ref _stateVersion);
+    }
+
+    /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
     /// still belongs to the daemon it was asked for.
     ///
@@ -176,9 +200,23 @@ public sealed class SettingsCoordinator
     /// for not calling this while <see cref="HasEphemeralOverride"/> is set — the daemon is then holding
     /// a snapshot, not the baseline.
     /// </summary>
-    public void AdoptLoadedSettings(Settings? settings)
+    /// <param name="settings">What the daemon returned.</param>
+    /// <param name="observedVersion">
+    /// <see cref="StateVersion"/> as it was before the read started. If it has moved since, something was
+    /// applied while the read was in flight and the response is older than what this session already
+    /// holds.
+    /// </param>
+    /// <returns>False when the read was overtaken and nothing was adopted.</returns>
+    public bool AdoptLoadedSettings(Settings? settings, int observedVersion)
     {
-        _settings = settings;
+        if (observedVersion != StateVersion)
+        {
+            _log.Info("Discarded a settings read that was overtaken by a change made while it was in " +
+                      "flight; the newer settings stand.");
+            return false;
+        }
+        Publish(settings);
+        return true;
     }
 
     /// <summary>
@@ -224,6 +262,9 @@ public sealed class SettingsCoordinator
         // Everything queued or in flight belongs to the daemon that has gone. Bumping first means a
         // caller already past the semaphore check still fails StillCurrent before it writes.
         Interlocked.Increment(ref _sessionGeneration);
+        // An outstanding read belongs to the daemon that has gone; bumping this makes its response
+        // unadoptable rather than merely wrong.
+        Interlocked.Increment(ref _stateVersion);
 
         DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
@@ -324,7 +365,7 @@ public sealed class SettingsCoordinator
             && json == _lastPersistedSettingsJson)
             return SettingsApplyOutcome.NoChange;
 
-        _settings = revision;
+        Publish(revision);
         // A real apply puts the daemon on these settings, so any per-app override is over (#737).
         HasEphemeralOverride = false;
         // A copy of its own, not the revision. `revision` is simultaneously this session's state, the
@@ -508,7 +549,7 @@ public sealed class SettingsCoordinator
             return false;
         }
 
-        _settings = revision;
+        Publish(revision);
         HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
         return true;
     }
@@ -646,7 +687,7 @@ public sealed class SettingsCoordinator
             return SettingsRestoreOutcome.Superseded;
         }
 
-        _settings = def;
+        Publish(def);
         HasEphemeralOverride = false;   // restored to the saved default; no override remains (#737)
 
         // Drop any pending save (#764). A pending save is an edit the daemon took but the disk refused,
