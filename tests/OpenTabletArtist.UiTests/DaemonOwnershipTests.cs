@@ -86,7 +86,7 @@ public class DaemonOwnershipTests
             },
         };
         var store = new RecordingStore();
-        var session = new AppSession(daemon, new StubLifecycle(), store) { Ownership = ownership };
+        var session = new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()) { Ownership = ownership };
         return (session, daemon, store);
     }
 

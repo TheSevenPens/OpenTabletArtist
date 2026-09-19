@@ -20,10 +20,9 @@ namespace OtdInterop;
 /// straight to the daemon, with none of the ordering, ownership or session checks that
 /// <see cref="IOtdSettingsSession"/> exists to apply. While it was a public class in the app, every
 /// caller that could reach a connection could also reach that write, and the protection was a
-/// convention. Hosts get it through <see cref="DaemonTransport.Create"/>, as
-/// <see cref="IDaemonTransport"/> — which does not carry those two verbs. They are on
-/// <see cref="IDaemonSettingsChannel"/>, which is internal, so the settings session can reach them and
-/// the host cannot.
+/// convention. Hosts get it from <see cref="OtdSession"/>, as <see cref="IDaemonTransport"/> — which
+/// does not carry those two verbs. They are on <see cref="IDaemonSettingsChannel"/>, which is internal,
+/// so the settings session can reach them and the host cannot.
 /// </para>
 /// <para>
 /// Not thread-safe beyond what is marked. The reconnect loop and the debug reference count have their
@@ -38,12 +37,6 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
     private readonly IOtdLog _log;
 
-    /// <summary>0 until a settings session takes this connection's channel; 1 afterwards, forever.</summary>
-    private int _settingsAuthorityClaimed;
-
-    /// <inheritdoc />
-    bool IDaemonSettingsChannel.TryClaimExclusiveUse() =>
-        Interlocked.CompareExchange(ref _settingsAuthorityClaimed, 1, 0) == 0;
 
     /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
     internal DaemonClient(IOtdLog log) => _log = log;

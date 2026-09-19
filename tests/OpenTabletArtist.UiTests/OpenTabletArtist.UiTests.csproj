@@ -39,6 +39,7 @@
     <!-- Shared with the logic suite rather than copied: one fake daemon, so a change to
          IDaemonTransport can't leave two drifting stand-ins behind. -->
     <Compile Include="..\OpenTabletArtist.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
+    <Compile Include="..\OpenTabletArtist.Tests\NullOtdLog.cs" Link="NullOtdLog.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -303,7 +303,7 @@ public class TabletEditorReconcileTests
             Settings = SettingsWithForeignFilter(),
             AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
         };
-        using var session = new AppSession(daemon, new StubLifecycle(), new NoopStore())
+        using var session = new AppSession(FakeSession.Over(daemon, new NoopStore()), new StubLifecycle())
         {
             Ownership = DaemonOwnership.Owned,
         };
@@ -406,7 +406,7 @@ public class TabletEditorReconcileTests
             Settings = SettingsWithForeignFilter(),
             AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
         };
-        var session = new AppSession(daemon, new StubLifecycle(), new NoopStore())
+        var session = new AppSession(FakeSession.Over(daemon, new NoopStore()), new StubLifecycle())
         {
             Ownership = DaemonOwnership.Owned,
         };

@@ -47,7 +47,7 @@ public class ForeignDaemonConfirmTests
     private static AppSession NewSession(out FakeLifecycle lifecycle, DaemonOwnership ownership)
     {
         lifecycle = new FakeLifecycle();
-        return new AppSession(new FakeDaemonTransport(), lifecycle)
+        return new AppSession(FakeSession.Over(new FakeDaemonTransport()), lifecycle)
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
             Ownership = ownership,

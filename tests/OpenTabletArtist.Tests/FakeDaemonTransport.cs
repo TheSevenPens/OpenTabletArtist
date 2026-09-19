@@ -24,6 +24,21 @@ namespace OpenTabletArtist.Tests;
 /// granted internal access for the same reason it can construct the file store: the behaviour under test
 /// is the implementation's, not the interface's.
 /// </summary>
+internal static class FakeSession
+{
+    /// <summary>
+    /// A library session over a daemon that is not there.
+    ///
+    /// The library's own test support, reached through its internal seam. It used to be a parameter on
+    /// the supported host API -- <c>AppSession</c> took an optional file store purely so a write could be
+    /// made to fail on demand -- which shaped the application's constructor around this project's needs.
+    /// </summary>
+    /// <param name="daemon">The stand-in connection.</param>
+    /// <param name="store">A writer whose failures a test controls, or null for the library's own.</param>
+    public static OtdSession Over(IDaemonTransport daemon, ISettingsFileStore? store = null) =>
+        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, OtaSettingsPolicy.Instance);
+}
+
 internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsChannel
 {
     // --- Scripted responses ---
@@ -80,16 +95,6 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// daemon, and an immediately-answering fake cannot express that.
     /// </summary>
     public Func<Task<Settings?>>? GetSettingsHandler { get; set; }
-
-    /// <summary>Whether a settings session has claimed this connection. Set by the library's factory.</summary>
-    public bool SettingsAuthorityClaimed { get; private set; }
-
-    bool IDaemonSettingsChannel.TryClaimExclusiveUse()
-    {
-        if (SettingsAuthorityClaimed) return false;
-        SettingsAuthorityClaimed = true;
-        return true;
-    }
 
     public Task<Settings?> GetSettingsAsync()
     {
