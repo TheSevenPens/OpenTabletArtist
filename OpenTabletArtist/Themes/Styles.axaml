@@ -470,7 +470,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Inter" />
+            <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -499,7 +499,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Inter" />
+            <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -655,7 +655,7 @@
             <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontFamily" Value="Inter" />
+            <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <ControlTemplate>
@@ -691,7 +691,7 @@
          ComboBox/ToggleSwitch text, dropdown items) no longer uses the Fluent theme's default family.
          Any explicit FontFamily on a style or control still wins. -->
     <Style Selector=":is(TopLevel)">
-        <Setter Property="FontFamily" Value="Inter" />
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
     </Style>
 
     <!-- Card-role tag (#574): a small color-coded label pinned to a card's bottom-right, shown only when
