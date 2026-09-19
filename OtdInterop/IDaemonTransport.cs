@@ -2,11 +2,11 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
 /// <summary>
-/// Installing and unloading daemon plugins. Reached today through <see cref="AppSession.Daemon"/> by the
-/// Windows Ink install flows and the shared <see cref="PluginInstallApplier"/>.
+/// Installing and unloading daemon plugins. Reached today through <c>AppSession.Daemon</c> by the
+/// Windows Ink install flows and the shared <c>PluginInstallApplier</c>.
 /// </summary>
 public interface IDaemonPluginService
 {
@@ -21,10 +21,10 @@ public interface IDaemonPluginService
 }
 
 /// <summary>
-/// Everything <see cref="AppSession"/> needs from the daemon connection, behind an interface so the
+/// Everything the host session needs from the daemon connection, behind an interface so the
 /// session can be tested without a live pipe (#740).
 ///
-/// Until this existed, <c>AppSession</c> took a concrete <see cref="DaemonClient"/>, so nothing that talks
+/// Until this existed, <c>AppSession</c> took a concrete <c>DaemonClient</c>, so nothing that talks
 /// to the daemon could be exercised in a test: the data load, the apply path, and the per-app baseline
 /// isolation from #737 were all unreachable, and the lifecycle tests had to construct a real client and
 /// poke it.
@@ -33,7 +33,7 @@ public interface IDaemonPluginService
 /// <see cref="IDaemonLogSource"/>, <see cref="IDaemonPluginService"/>), which are narrow because they have
 /// several independent consumers each. This one has exactly one consumer and exists to make that class
 /// testable; splitting it into three roles with one consumer apiece would be ceremony. It composes the
-/// narrow ones so <see cref="AppSession.Daemon"/> can still hand the whole client to the pages that want
+/// narrow ones so <c>AppSession.Daemon</c> can still hand the whole client to the pages that want
 /// a debug stream, the log, or the plugin operations.
 /// </summary>
 public interface IDaemonTransport : IDaemonDebugSession, IDaemonLogSource, IDaemonPluginService, IDisposable

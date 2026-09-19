@@ -2,15 +2,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
-using OpenTabletArtist.Domain;
-using OtdInterop;
 
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
 /// <summary>
 /// Owns the settings OTA believes in, and every way they reach the daemon or the disk (#740).
 ///
-/// Extracted from <see cref="AppSession"/>, which still implements <see cref="ISettingsCoordinator"/> and
+/// Extracted from the host session, which still implements the host-facing settings contract and
 /// delegates here — so no consumer changed. What moved is the state that makes the apply path hard to
 /// reason about when it is interleaved with connection lifecycle, data loading and daemon process
 /// control: the current settings, the two separate revision baselines from #734, the pending unsaved
@@ -171,7 +169,6 @@ public sealed class SettingsCoordinator
     private bool StillCurrent(int session) => session == Volatile.Read(ref _sessionGeneration);
 
     /// <param name="daemon">The daemon connection.</param>
-    /// <param name="store">The settings file seam.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
     /// <c>AppInfo</c> and is empty until the first data load completes.</param>
     /// <param name="isOwnedDaemon">The #465 gate — only rewrite filters on a daemon OTA positively owns.
@@ -179,6 +176,24 @@ public sealed class SettingsCoordinator
     /// phrased as "is ours" rather than "is not theirs": an unidentifiable daemon is neither, and the
     /// negative form let OTA rewrite it (#742).</param>
     /// <param name="onSaveState">Reports save progress; the save chip stays observable state on the session.</param>
+    /// <param name="log">Where this type reports what it did and could not do — mostly partial failure,
+    /// which is exactly what is invisible from outside.</param>
+    /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
+    public SettingsCoordinator(IDaemonTransport daemon,
+        Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
+        IOtdLog log, IOtdSettingsPolicy policy)
+        : this(daemon, new SettingsFileStore(log), settingsPath, isOwnedDaemon, onSaveState, log, policy)
+    {
+    }
+
+    /// <summary>
+    /// Takes the file store, for a host that must supply its own — a test needing a write to fail on
+    /// demand, chiefly. Failing writes are central behaviour here: applied-but-not-saved, the bounded
+    /// retry, the destination a pending write is bound to.
+    ///
+    /// The other constructor uses the library's own writer, which is internal and not obtainable from
+    /// outside. Supplying an alternative is not the same as being handed ours.
+    /// </summary>
     public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)
@@ -508,7 +523,7 @@ public sealed class SettingsCoordinator
         // never asked to touch, belonging to an install the user may share with OTD's own UX. Drop the
         // change instead: losing an edit the disk already refused is bad, silently overwriting someone
         // else's configuration is worse.
-        if (_pendingPersistPath is { } origin && !ExecutablePath.SameFile(origin, path))
+        if (_pendingPersistPath is { } origin && !SettingsPath.Same(origin, path))
         {
             _log.Warn($"Discarding an unsaved settings change made for {origin}: the connected daemon " +
                         $"now uses {path}, and the change does not belong to it.");

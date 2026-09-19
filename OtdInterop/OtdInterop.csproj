@@ -59,4 +59,19 @@
     <PackageReference Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
 
+  <!--
+    Test-only visibility for the internal settings writer.
+
+    SettingsFileStore is internal because it is the one object that writes the file the daemon is running
+    from, and nothing outside should be able to construct it. It still needs tests of its own: atomic
+    replacement, the last-known-good fallback, what happens when the destination is unwritable. Those are
+    properties of the implementation, not of the interface, so they cannot be written from outside.
+
+    The production app is deliberately not granted access. Transitional: #807 Phase 6 gives the library
+    its own test project and this moves with those tests.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
+  </ItemGroup>
+
 </Project>

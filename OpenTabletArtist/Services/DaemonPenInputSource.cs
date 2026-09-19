@@ -2,6 +2,7 @@ using System;
 using Avalonia.Threading;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 

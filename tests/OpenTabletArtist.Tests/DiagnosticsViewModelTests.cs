@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 

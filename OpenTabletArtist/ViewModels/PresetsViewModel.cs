@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.ViewModels;
 
@@ -17,7 +18,7 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public partial class PresetsViewModel : ObservableObject, IDisposable
 {
-    private readonly ISettingsFileStore _store;
+    private readonly IPresetStore _store;
     private readonly ISettingsCoordinator _settings;
     private readonly IDeviceData _deviceData;
     private readonly IDialogService _dialogs;
@@ -30,7 +31,7 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     public bool HasPresets => Presets.Count > 0;
     partial void OnPresetsChanged(List<PresetInfo> value) => OnPropertyChanged(nameof(HasPresets));
 
-    public PresetsViewModel(ISettingsFileStore store, ISettingsCoordinator settings, IDeviceData deviceData,
+    public PresetsViewModel(IPresetStore store, ISettingsCoordinator settings, IDeviceData deviceData,
         IDialogService dialogs, IProfileHotkeys hotkeys, ProfileSwitchService profileSwitch)
     {
         _store = store;

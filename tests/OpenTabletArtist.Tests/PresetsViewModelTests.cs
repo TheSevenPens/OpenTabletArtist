@@ -6,6 +6,7 @@ using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 
@@ -21,7 +22,7 @@ public class PresetsViewModelTests
     }
 
     private static ProfileSwitchService NewSwitch() =>
-        new(new FakeSettingsCoordinator(), new SettingsFileStore(), () => "");
+        new(new FakeSettingsCoordinator(), new PresetStore(NullOtdLog.Instance), () => "");
 
     private static string TempDir()
     {
@@ -36,7 +37,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
+            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.LoadAsync();
@@ -53,7 +54,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
+            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), new FakeSettingsCoordinator { CurrentSettings = new Settings() }, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -72,7 +73,7 @@ public class PresetsViewModelTests
         try
         {
             var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
-            var vm = new PresetsViewModel(new SettingsFileStore(), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch()) { PresetDirectory = dir };
+            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch()) { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);   // writes Preset.json
             await vm.LoadPresetCommand.ExecuteAsync("Preset");
@@ -88,7 +89,7 @@ public class PresetsViewModelTests
         var dir = TempDir();
         try
         {
-            var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
+            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), new FakeSettingsCoordinator(), new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch())
             { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);
@@ -102,7 +103,7 @@ public class PresetsViewModelTests
     public void DataLoaded_PicksUpDirectoryFromSession()
     {
         var device = new FakeDeviceData { PresetDirectory = @"C:\some\presets" };
-        var vm = new PresetsViewModel(new SettingsFileStore(), new FakeSettingsCoordinator(), device, new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch());
+        var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), new FakeSettingsCoordinator(), device, new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch());
         Assert.Equal("", vm.PresetDirectory);
 
         device.RaiseDataLoaded(); // handler sets PresetDirectory synchronously, then rescans (fire-and-forget)

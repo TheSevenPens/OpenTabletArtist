@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using OpenTabletDriver.Desktop;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.ViewModels;
 

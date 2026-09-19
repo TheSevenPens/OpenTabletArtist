@@ -17,10 +17,10 @@ namespace OpenTabletArtist.Services;
 public sealed partial class ProfileSwitchService : ObservableObject
 {
     private readonly ISettingsCoordinator _settings;
-    private readonly ISettingsFileStore _store;
+    private readonly IPresetStore _store;
     private readonly Func<string?> _presetDirectory;
 
-    public ProfileSwitchService(ISettingsCoordinator settings, ISettingsFileStore store,
+    public ProfileSwitchService(ISettingsCoordinator settings, IPresetStore store,
         Func<string?> presetDirectory)
     {
         _settings = settings;

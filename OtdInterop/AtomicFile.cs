@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
 /// <summary>
 /// Replaces a file's contents without ever leaving it half-written or missing (#733, #768).

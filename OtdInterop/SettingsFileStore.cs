@@ -3,10 +3,18 @@ using System.IO;
 using OpenTabletDriver.Desktop;
 using OtdInterop;
 
-namespace OpenTabletArtist.Services;
+namespace OtdInterop;
 
 /// <summary>
-/// Reads and writes OpenTabletDriver <see cref="Settings"/> to disk. Centralizes the
+/// Reads and writes the daemon's active <see cref="Settings"/> file.
+///
+/// The implementation is internal, deliberately: this is the one object that writes the file the daemon
+/// is running from, and handing it out would make every protection around it optional — a caller could
+/// simply write. The interface stays public so a host can supply its own (a test needs a write to fail
+/// on demand), which is not the same as being given ours.
+///
+/// Preset files are a different authority and belong to the host application, which has its own store
+/// over the shared codec. Centralizes the
 /// serialize/deserialize calls that were duplicated across <c>MainViewModel</c>
 /// (settings write-back and snapshot save/load) behind a filesystem seam.
 ///
@@ -28,8 +36,17 @@ public interface ISettingsFileStore
 }
 
 /// <inheritdoc />
-public class SettingsFileStore : ISettingsFileStore
+internal class SettingsFileStore : ISettingsFileStore
 {
+    private readonly IOtdLog _log;
+
+    /// <param name="log">
+    /// Where recovery and write failures are reported. Required rather than optional: this type's one
+    /// unique message is that it fell back to the last-known-good copy, and a store that can silently
+    /// stop saying so is the failure it exists to prevent.
+    /// </param>
+    public SettingsFileStore(IOtdLog log) => _log = log;
+
     // Serialization itself lives in OtdInterop's SettingsCodec now (#807), so this and the preset writer
     // cannot drift into producing different JSON for the same type. What stays here is the authority:
     // which path, whether a failure throws or is reported, and the last-known-good fallback.
@@ -41,8 +58,10 @@ public class SettingsFileStore : ISettingsFileStore
     /// <summary>Suffix of the last-known-good copy kept beside the settings file (#733).</summary>
     public const string BackupSuffix = AtomicFile.BackupSuffix;
 
+    /// <inheritdoc />
     public void Save(Settings settings, string path) => WriteAtomic(settings, path);
 
+    /// <inheritdoc />
     public bool TrySave(Settings settings, string path)
     {
         try
@@ -52,7 +71,7 @@ public class SettingsFileStore : ISettingsFileStore
         }
         catch (Exception ex)
         {
-            AppLog.Warn($"Couldn't save settings to {path}.", ex);
+            _log.Warn($"Couldn't save settings to {path}.", ex);
             return false;
         }
     }
@@ -70,6 +89,7 @@ public class SettingsFileStore : ISettingsFileStore
     private static void WriteAtomic(Settings settings, string path) =>
         AtomicFile.Write(path, stream => SettingsCodec.Encode(settings, stream));
 
+    /// <inheritdoc />
     public bool TryLoad(string path, out Settings? settings)
     {
         if (TryLoadFile(path, out settings)) return true;
@@ -78,7 +98,7 @@ public class SettingsFileStore : ISettingsFileStore
         // so what it holds is the last settings OTA is known to have saved successfully (#733).
         if (TryLoadFile(path + BackupSuffix, out settings))
         {
-            AppLog.Warn($"Settings at {path} were unreadable; recovered the last good copy from " +
+            _log.Warn($"Settings at {path} were unreadable; recovered the last good copy from " +
                         $"{Path.GetFileName(path) + BackupSuffix}.");
             return true;
         }
@@ -87,7 +107,7 @@ public class SettingsFileStore : ISettingsFileStore
         return false;
     }
 
-    private static bool TryLoadFile(string path, out Settings? settings)
+    private bool TryLoadFile(string path, out Settings? settings)
     {
         settings = null;
         try

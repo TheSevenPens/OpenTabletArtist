@@ -25,20 +25,6 @@ public static class ExecutablePath
         return marker >= 0 ? path[..(marker + 4)] : path;
     }
 
-    public static bool SameFile(string? actual, string? expected)
-    {
-        if (string.IsNullOrEmpty(actual) || string.IsNullOrEmpty(expected))
-            return false;
-        try
-        {
-            return string.Equals(
-                Path.GetFullPath(actual),
-                Path.GetFullPath(expected),
-                StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    public static bool SameFile(string? actual, string? expected) =>
+        OtdInterop.SettingsPath.Same(actual, expected);
 }
