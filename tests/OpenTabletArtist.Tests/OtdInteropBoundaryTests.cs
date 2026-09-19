@@ -49,24 +49,61 @@ public class OtdInteropBoundaryTests
     }
 
     /// <summary>
-    /// The connection a host holds carries the device list, the log, the plugin verbs and the lifecycle —
-    /// and no way to read or write settings. Asserted on the composed interface, including what it
-    /// inherits, because inheriting the verbs back would be the easy way to reintroduce them.
+    /// What a host can reach carries the device list, the log and the plugin verbs — and no way to read
+    /// or write settings, and no way to end the connection. Asserted through what it inherits too,
+    /// because inheriting something back is the easy way to reintroduce it.
     /// </summary>
     [Fact]
-    public void TheHostFacingConnection_HasNoSettingsVerbs()
+    public void TheHostFacingCapabilities_CarryNoSettingsOrOwnership()
     {
-        var names = typeof(IDaemonTransport).GetMethods()
-            .Concat(typeof(IDaemonTransport).GetInterfaces().SelectMany(i => i.GetMethods()))
+        var t = typeof(IDaemonCapabilities);
+        var names = t.GetMethods()
+            .Concat(t.GetInterfaces().SelectMany(i => i.GetMethods()))
             .Select(m => m.Name)
             .ToList();
 
         Assert.DoesNotContain("SetSettingsAsync", names);
         Assert.DoesNotContain("GetSettingsAsync", names);
-        // Still the whole of what the host legitimately needs, so this is a narrowing and not a removal.
+        // Ownership: closing, reconnecting, or deciding whether to keep reconnecting.
+        Assert.DoesNotContain("Dispose", names);
+        Assert.DoesNotContain("ConnectAsync", names);
+        Assert.DoesNotContain("get_AutoReconnect", names);
+        Assert.DoesNotContain(t.GetInterfaces(), i => i == typeof(IDisposable));
+
+        // Still the whole of what a page legitimately needs, so this is a narrowing and not a removal.
         Assert.Contains("GetTabletsAsync", names);
         Assert.Contains("GetCurrentLogAsync", names);
         Assert.Contains("DownloadPluginAsync", names);
+        Assert.Contains("SetTabletDebugAsync", names);
+    }
+
+    /// <summary>
+    /// The capabilities object is not the connection wearing a smaller interface.
+    ///
+    /// Narrowing by returning the same instance as a narrower type narrows nothing: anything holding it
+    /// casts back to the full transport, to <see cref="IDisposable"/>, and closes the connection out from
+    /// under the session. This is the assertion that the forwarding object is real.
+    /// </summary>
+    [Fact]
+    public void TheCapabilitiesObject_CannotBeCastBackToTheConnection()
+    {
+        var daemon = new FakeDaemonTransport();
+        var capabilities = FakeSession.Over(daemon).Capabilities;
+
+        Assert.NotSame(daemon, capabilities);
+        Assert.IsNotAssignableFrom<IDaemonTransport>(capabilities);
+        Assert.IsNotAssignableFrom<IDisposable>(capabilities);
+
+        // And it really is wired to that connection, not to nothing.
+        capabilities.SetTabletDebugAsync(true);
+        Assert.Equal(1, daemon.DebugCalls);
+    }
+
+    /// <summary>The connection itself is not something a host can name at all.</summary>
+    [Fact]
+    public void TheConnectionType_IsNotPublic()
+    {
+        Assert.DoesNotContain(Library.GetExportedTypes(), t => t.Name == nameof(IDaemonTransport));
     }
 
     /// <summary>

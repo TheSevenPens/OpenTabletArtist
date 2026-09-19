@@ -49,6 +49,7 @@ public sealed class OtdSession : IDisposable
         ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator)
     {
         Connection = connection;
+        Capabilities = new DaemonCapabilities(connection);
         _channel = channel;
         _store = store;
         _log = log;
@@ -102,22 +103,56 @@ public sealed class OtdSession : IDisposable
         new(connection, connection, store, log, policy, locator);
 
     /// <summary>
-    /// The daemon connection: lifecycle, device queries, the log stream, the debug stream and the plugin
-    /// verbs. Deliberately no way to read or write settings — that is <see cref="OpenSettings"/>.
+    /// What a host may do with this connection: read, watch, and manage plugins.
     /// </summary>
     /// <remarks>
-    /// <b>Borrowed, not given.</b> This session owns it and disposes it. The type is
-    /// <see cref="IDisposable"/> because the underlying connection is, not because a caller should use
-    /// that — doing so leaves this session holding a connection that is gone, with a settings authority
-    /// still reporting over it. Dispose the session.
-    ///
-    /// Connecting and clearing <see cref="IDaemonTransport.AutoReconnect"/> around a user-initiated stop
-    /// are the host's to drive, and stay here for now. Separating the capabilities a host legitimately
-    /// needs from the ownership operations it does not is part of the lifecycle work #807 still owes; a
-    /// narrower interface over this same object would not be enough on its own, since it could be cast
-    /// back, so that will want a forwarding object rather than a cast-away.
+    /// A forwarding object, not this session's connection wearing a smaller interface — see
+    /// <see cref="IDaemonCapabilities"/> for why that distinction is the whole of the guarantee. Nothing
+    /// here can close the connection, reconnect it, or change settings.
     /// </remarks>
-    public IDaemonTransport Connection { get; }
+    public IDaemonCapabilities Capabilities { get; }
+
+    /// <summary>The connection itself. Internal: owning one and using one are different things.</summary>
+    private IDaemonTransport Connection { get; }
+
+    /// <summary>A connection was established. Raised off the host's execution context.</summary>
+    public event Action? Connected
+    {
+        add => Connection.Connected += value;
+        remove => Connection.Connected -= value;
+    }
+
+    /// <summary>The connection dropped. Raised off the host's execution context.</summary>
+    public event Action? Disconnected
+    {
+        add => Connection.Disconnected += value;
+        remove => Connection.Disconnected -= value;
+    }
+
+    /// <summary>
+    /// When true, an unexpected drop schedules an automatic reconnect.
+    ///
+    /// Cleared around a stop the user asked for, so "stopped" stays stopped rather than racing the
+    /// daemon the user has just killed. Any explicit <see cref="ConnectAsync"/> turns it back on.
+    /// </summary>
+    public bool AutoReconnect
+    {
+        get => Connection.AutoReconnect;
+        set => Connection.AutoReconnect = value;
+    }
+
+    /// <summary>Requests a connection. Fire-and-forget; <see cref="Connected"/> reports success.</summary>
+    /// <param name="ct">Cancels the attempt, and the reconnect loop behind it.</param>
+    public Task ConnectAsync(CancellationToken ct) => Connection.ConnectAsync(ct);
+
+    /// <summary>
+    /// The process id answering the connection, or null when it cannot be read.
+    ///
+    /// A fact about the connection, offered because stopping the daemon a host is actually talking to
+    /// needs it. What that id means — whose daemon it is, whether to ask before stopping it — is the
+    /// host's to decide.
+    /// </summary>
+    public int? ConnectedProcessId() => Connection.GetServerProcessId();
 
     /// <summary>
     /// The settings authority for this connection. One per session; a second call is refused.

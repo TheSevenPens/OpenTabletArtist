@@ -164,7 +164,14 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     public Task<JArray> GetDevicesAsync() => Task.FromResult(Devices);
     public int? GetServerProcessId() => ServerProcessId;
 
-    public Task SetTabletDebugAsync(bool enabled) => Task.CompletedTask;
+    /// <summary>How many times the debug stream was toggled -- proof a forwarder reached this object.</summary>
+    public int DebugCalls { get; private set; }
+
+    public Task SetTabletDebugAsync(bool enabled)
+    {
+        DebugCalls++;
+        return Task.CompletedTask;
+    }
     public Task<List<LogMessage>> GetCurrentLogAsync() => Task.FromResult(new List<LogMessage>());
 
     public Task<bool> DownloadPluginAsync(PluginMetadata metadata) => Task.FromResult(true);

@@ -44,10 +44,19 @@ public class ForeignDaemonConfirmTests
     /// than inferred from <c>foreign</c>; #742 made that a single value, so the illegal fourth
     /// combination can no longer be written.
     /// </summary>
-    private static AppSession NewSession(out FakeLifecycle lifecycle, DaemonOwnership ownership)
+    private static AppSession NewSession(out FakeLifecycle lifecycle, DaemonOwnership ownership) =>
+        NewSession(out lifecycle, out _, ownership);
+
+    /// <summary>
+    /// Also hands back the transport, for the test that watches the reconnect gate. That flag belongs to
+    /// the connection, which the app no longer reaches directly (#807).
+    /// </summary>
+    private static AppSession NewSession(out FakeLifecycle lifecycle, out FakeDaemonTransport daemon,
+        DaemonOwnership ownership)
     {
         lifecycle = new FakeLifecycle();
-        return new AppSession(FakeSession.Over(new FakeDaemonTransport()), lifecycle)
+        daemon = new FakeDaemonTransport();
+        return new AppSession(FakeSession.Over(daemon), lifecycle)
         {
             DaemonOperationTimeout = TimeSpan.FromMilliseconds(150),
             Ownership = ownership,
@@ -57,7 +66,7 @@ public class ForeignDaemonConfirmTests
     [Fact]
     public async Task Stop_AsksFirstWhenTheDaemonIsForeign()
     {
-        using var session = NewSession(out var lifecycle, DaemonOwnership.External);
+        using var session = NewSession(out var lifecycle, out var daemon, DaemonOwnership.External);
         var asked = new List<string>();
         session.ConfirmForeignDaemonAction = verb => { asked.Add(verb); return Task.FromResult(false); };
 
@@ -65,7 +74,7 @@ public class ForeignDaemonConfirmTests
 
         Assert.Equal(["stop"], asked);
         Assert.Equal(0, lifecycle.StopAllCount);           // declined → their daemon is untouched
-        Assert.True(session.Daemon.AutoReconnect);         // ...and nothing was half-applied
+        Assert.True(daemon.AutoReconnect);                 // ...and nothing was half-applied
         Assert.False(session.IsDaemonBusy);
     }
 

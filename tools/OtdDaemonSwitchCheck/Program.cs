@@ -181,7 +181,7 @@ internal static class Program
         using var h = await Open(a, blind);
 
         Check("a real pipe still reports a process id",
-            h.Session.Connection.GetServerProcessId() != null, h.Session.Connection.GetServerProcessId());
+            h.Session.ConnectedProcessId() != null, h.Session.ConnectedProcessId());
 
         var seen = h.Session.NoteConnectedDaemon();
         Check("identified while readable", PathEquality.Same(seen.ExecutablePath, a), seen.ExecutablePath);
@@ -241,7 +241,7 @@ internal static class Program
         public async Task SwitchTo(string exe)
         {
             var reconnected = new TaskCompletionSource();
-            Session.Connection.Connected += () => reconnected.TrySetResult();
+            Session.Connected += () => reconnected.TrySetResult();
             KillDaemons();
             await Task.Delay(1500);
             StartDaemon(exe);
@@ -263,11 +263,11 @@ internal static class Program
             locator ?? new DaemonLifecycleService());
 
         var connected = new TaskCompletionSource();
-        session.Connection.Connected += () => connected.TrySetResult();
-        await session.Connection.ConnectAsync(CancellationToken.None);
+        session.Connected += () => connected.TrySetResult();
+        await session.ConnectAsync(CancellationToken.None);
         await connected.Task.WaitAsync(TimeSpan.FromSeconds(30));
 
-        var file = (await session.Connection.GetAppInfoAsync())?.SettingsFile ?? "";
+        var file = (await session.Capabilities.GetAppInfoAsync())?.SettingsFile ?? "";
         Console.WriteLine($"   settings file: {file}");
 
         var settings = session.OpenSettings(() => file, () => true, _ => { });
