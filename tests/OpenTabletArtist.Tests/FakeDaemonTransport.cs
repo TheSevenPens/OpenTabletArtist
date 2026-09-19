@@ -81,6 +81,16 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public Func<Task<Settings?>>? GetSettingsHandler { get; set; }
 
+    /// <summary>Whether a settings session has claimed this connection. Set by the library's factory.</summary>
+    public bool SettingsAuthorityClaimed { get; private set; }
+
+    bool IDaemonSettingsChannel.TryClaimExclusiveUse()
+    {
+        if (SettingsAuthorityClaimed) return false;
+        SettingsAuthorityClaimed = true;
+        return true;
+    }
+
     public Task<Settings?> GetSettingsAsync()
     {
         GetSettingsCalls++;

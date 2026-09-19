@@ -16,11 +16,28 @@ namespace OtdInterop;
 /// stopped it either, and the next thing that wanted to change settings quickly would have found them.
 /// </para>
 /// <para>
-/// One implementation and one consumer: the connection provides it, the settings session uses it.
+/// One implementation and one consumer: the connection provides it, the settings session uses it. That
+/// is enforced rather than assumed — see <see cref="TryClaimExclusiveUse"/>.
 /// </para>
 /// </remarks>
 internal interface IDaemonSettingsChannel
 {
+    /// <summary>
+    /// Claims this connection's settings channel for one session. False when something already holds it.
+    /// </summary>
+    /// <remarks>
+    /// Two sessions over one connection is not two views of the same thing. Each has its own mutation
+    /// gate, its own session generation, its own retry state and its own baseline, so neither can see
+    /// what the other is doing: two applies go to the same daemon at once, each writes the other's
+    /// settings out of its own file, and a reset clears only half the state. Everything the ordering in
+    /// this library guarantees is guaranteed per session, and a second session ends all of it.
+    ///
+    /// Hiding the implementation does not establish one authority when the factory can manufacture
+    /// several, so the claim lives here, on the thing being used exclusively.
+    /// </remarks>
+    /// <returns>True when the caller now holds the channel; false when it was already held.</returns>
+    bool TryClaimExclusiveUse();
+
     /// <summary>The daemon's current in-memory settings. Null when not connected.</summary>
     Task<Settings?> GetSettingsAsync();
 

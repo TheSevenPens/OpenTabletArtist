@@ -3,10 +3,17 @@ namespace OtdInterop;
 /// <summary>What happened when the session re-read the daemon's settings.</summary>
 ///
 /// <remarks>
+/// <para>
 /// Nothing here is a failure the host must handle. Every value is an ordinary thing that happens while a
 /// daemon is starting, stopping or being switched, and the session has already done the right thing with
 /// each. They are distinguished because "the baseline did not change" has several causes and they are
 /// not interchangeable when something looks wrong.
+/// </para>
+/// <para>
+/// <b>Not an exhaustive account of every completion.</b> A reachable daemon that fails the call throws,
+/// and that exception propagates rather than becoming a status — so a host that ignores the result is
+/// still responsible for the throw. Nothing here is returned for a failure of that kind.
+/// </para>
 /// </remarks>
 public enum SettingsReloadStatus
 {
@@ -38,8 +45,12 @@ public enum SettingsReloadStatus
 /// <summary>The result of <see cref="IOtdSettingsSession.ReloadFromDaemonAsync"/>.</summary>
 /// <param name="Status">What happened.</param>
 /// <param name="Adopted">
-/// The new baseline, detached and stamped, when one was adopted. Null otherwise — including when the
-/// adopted baseline is genuinely empty, which <see cref="SettingsReloadStatus.Disconnected"/> reports.
+/// A copy of the new baseline, stamped, when one was adopted and a copy could be made.
+///
+/// Null in three cases, and the status is what tells them apart: nothing was adopted; the adopted
+/// baseline is genuinely empty, which <see cref="SettingsReloadStatus.Disconnected"/> reports; or the
+/// baseline was adopted and the copy failed. A null payload is therefore never evidence that the
+/// baseline did not change — read <see cref="SettingsReloadOutcome.Status"/> for that.
 /// </param>
 public readonly record struct SettingsReloadOutcome(
     SettingsReloadStatus Status,

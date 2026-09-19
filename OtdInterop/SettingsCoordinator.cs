@@ -299,9 +299,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// snapshot then, and reading it back would make that snapshot the editor's baseline — the thing it
     /// is asked to persist as the user's default and to restore to.
     ///
-    /// Deliberately NOT serialized against mutating operations. A read that queued behind an apply would
-    /// be a read of the state that apply produced, which is not what a poll is for; the epoch check is
-    /// what makes an overtaken answer safe, and it does not need the gate.
+    /// Deliberately NOT serialized against mutating operations, so a refresh is never blocked behind a
+    /// long apply. That is an implementation choice which permits overlap, not a claim that overlap is
+    /// desirable: a poll that did read the state an apply had just produced would be perfectly correct.
+    /// What makes the overlap safe is the epoch check below plus the host's confinement contract — the
+    /// epoch invalidates a stale answer, and single-context execution is what keeps the compare and the
+    /// adopt from being interleaved. The epoch is not a substitute for that contract, and if the
+    /// execution model ever changes this sequence needs real synchronization.
     /// </summary>
     /// <returns>What happened. Every outcome is ordinary; none needs the host to act.</returns>
     public async Task<SettingsReloadOutcome> ReloadFromDaemonAsync()
@@ -316,6 +320,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // no settings for, and leaving the previous daemon's settings in place would be worse than an
         // empty editor. Reported separately so "the baseline is empty" is never mistaken for a read that
         // returned the user's settings.
+        //
+        // GetCurrent can itself come back null when the copy cannot be made. The baseline is adopted
+        // either way -- the status says so -- but the payload is then absent, which is why it is
+        // documented as a copy of the new baseline when one could be made rather than as a guarantee.
         return loaded == null
             ? SettingsReloadOutcome.Disconnected
             : new SettingsReloadOutcome(SettingsReloadStatus.Adopted, GetCurrent());

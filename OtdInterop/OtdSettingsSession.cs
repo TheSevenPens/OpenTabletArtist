@@ -12,9 +12,16 @@ namespace OtdInterop;
 /// </para>
 /// <para>
 /// The connection must be one this library made. The session needs the settings channel, which is
-/// internal and which <see cref="DaemonTransport.Create"/> supplies; a host cannot implement it, which
-/// is the point. Passing anything else is a programming error and is reported as one rather than
-/// degrading into a session that silently cannot write.
+/// internal and which <see cref="DaemonTransport.Create"/> supplies; a host can implement or decorate the
+/// public <see cref="IDaemonTransport"/> and pass that, but not the channel behind it, so such a call
+/// fails here rather than degrading into a session that silently cannot write.
+/// </para>
+/// <para>
+/// <b>One session per connection.</b> A second one is refused. Two sessions over one connection are not
+/// two views of the same thing: each has its own mutation gate, session generation, retry state and
+/// baseline, so two applies reach the daemon at once, each writes the other's settings out of its own
+/// file, and a reset clears half the state. Everything the ordering here guarantees is guaranteed per
+/// session. A host that wants a differently configured session makes another connection.
 /// </para>
 /// </remarks>
 public static class OtdSettingsSession
@@ -35,6 +42,9 @@ public static class OtdSettingsSession
     /// <returns>The session. The host owns nothing else it needs to change settings.</returns>
     /// <exception cref="ArgumentException">
     /// <paramref name="daemon"/> did not come from <see cref="DaemonTransport.Create"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="daemon"/> already has a settings session.
     /// </exception>
     public static IOtdSettingsSession Create(IDaemonTransport daemon,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
@@ -60,22 +70,39 @@ public static class OtdSettingsSession
     /// <exception cref="ArgumentException">
     /// <paramref name="daemon"/> did not come from <see cref="DaemonTransport.Create"/>.
     /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="daemon"/> already has a settings session.
+    /// </exception>
     public static IOtdSettingsSession Create(IDaemonTransport daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy) =>
         new SettingsCoordinator(Channel(daemon), store, settingsPath, isOwnedDaemon, onSaveState, log, policy);
 
     /// <summary>
-    /// The settings channel behind a connection.
+    /// The settings channel behind a connection, claimed for the session about to be built.
     ///
-    /// A cast, because the host supplies the connection and the channel it needs is internal. The
+    /// The cast is because the host supplies the connection and the channel it needs is internal. The
     /// alternative — the library creating the connection too — would take away the seam that lets a host
     /// test against a daemon that is not there, which is worth more than avoiding one cast. It fails
     /// loudly rather than leaving a session that cannot write and would not say so.
+    ///
+    /// The claim is the part that matters. Making the implementation internal stopped a host building
+    /// its own session; it did nothing about this factory building a second one over the same
+    /// connection, which is the same loss of ordering by a shorter route.
     /// </summary>
-    private static IDaemonSettingsChannel Channel(IDaemonTransport daemon) =>
-        daemon as IDaemonSettingsChannel
-        ?? throw new ArgumentException(
-            $"{nameof(daemon)} must be a connection from {nameof(DaemonTransport)}.{nameof(DaemonTransport.Create)}.",
-            nameof(daemon));
+    private static IDaemonSettingsChannel Channel(IDaemonTransport daemon)
+    {
+        if (daemon as IDaemonSettingsChannel is not { } channel)
+            throw new ArgumentException(
+                $"{nameof(daemon)} must be a connection from {nameof(DaemonTransport)}.{nameof(DaemonTransport.Create)}.",
+                nameof(daemon));
+
+        if (!channel.TryClaimExclusiveUse())
+            throw new InvalidOperationException(
+                "This connection already has a settings session. One connection has one settings "
+                + "authority: a second would have its own ordering, retry state and baseline, and "
+                + "neither would see what the other was doing. Make another connection instead.");
+
+        return channel;
+    }
 }

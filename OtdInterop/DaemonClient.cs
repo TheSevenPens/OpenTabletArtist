@@ -38,6 +38,13 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
     private readonly IOtdLog _log;
 
+    /// <summary>0 until a settings session takes this connection's channel; 1 afterwards, forever.</summary>
+    private int _settingsAuthorityClaimed;
+
+    /// <inheritdoc />
+    bool IDaemonSettingsChannel.TryClaimExclusiveUse() =>
+        Interlocked.CompareExchange(ref _settingsAuthorityClaimed, 1, 0) == 0;
+
     /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
     internal DaemonClient(IOtdLog log) => _log = log;
 
