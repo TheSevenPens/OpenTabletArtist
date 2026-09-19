@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using OpenTabletArtist.Domain;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 
@@ -11,7 +12,14 @@ namespace OpenTabletArtist.Services;
 /// filesystem seam is isolated behind an interface (it can be faked in view-model tests,
 /// and the daemon-process concerns live in one place).
 /// </summary>
-public interface IDaemonLifecycleService
+/// <remarks>
+/// Also the library's <see cref="IDaemonProcessLocator"/>: the two facts OtdInterop needs about a running
+/// daemon -- which executable a process id belongs to, and which one is running when the connection
+/// cannot say -- are already here, and they are facts rather than decisions. What stays on this side of
+/// the line is everything around them: which executable the app expects, whether the app installed it,
+/// and whether the user is asked before it is stopped.
+/// </remarks>
+public interface IDaemonLifecycleService : IDaemonProcessLocator
 {
     /// <summary>The daemon exe shipped with / built by this project — the bundled copy next to a
     /// published app, or the submodule build output in dev. Null if none is present.</summary>
@@ -56,14 +64,6 @@ public interface IDaemonLifecycleService
     /// effectively a singleton anyway.</summary>
     void StopAll();
 
-    /// <summary>Full executable path for a process id, or null if it can't be read (e.g. elevated).</summary>
-    string? GetProcessPath(int processId);
-
-    /// <summary>The single running daemon's executable path, or null if none — or more than one — is
-    /// running. A macOS/Linux fallback for when the Win32 pipe→PID lookup is unavailable: the daemon is
-    /// effectively a singleton there, so an unambiguous single match is the one we're connected to. The
-    /// count guard means it never misattributes when several daemons are somehow present. (#140)</summary>
-    string? GetSingleRunningDaemonPath();
 }
 
 /// <inheritdoc />
@@ -210,7 +210,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         }
     }
 
-    public string? GetProcessPath(int processId)
+    public string? PathOf(int processId)
     {
         try
         {
@@ -225,7 +225,7 @@ public class DaemonLifecycleService : IDaemonLifecycleService
         }
     }
 
-    public string? GetSingleRunningDaemonPath()
+    public string? SingleRunningDaemonPath()
     {
         var procs = Process.GetProcessesByName(ProcessName);
         try

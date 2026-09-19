@@ -28,8 +28,8 @@ public class AppSessionLifecycleTests
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
-        public string? GetProcessPath(int processId) => null;
-        public string? GetSingleRunningDaemonPath() => null;
+        public string? PathOf(int processId) => null;
+        public string? SingleRunningDaemonPath() => null;
     }
 
     // No exe present and nothing running → the missing-exe short-circuit should fire.
@@ -46,8 +46,8 @@ public class AppSessionLifecycleTests
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
-        public string? GetProcessPath(int processId) => null;
-        public string? GetSingleRunningDaemonPath() => null;
+        public string? PathOf(int processId) => null;
+        public string? SingleRunningDaemonPath() => null;
     }
 
     // Daemon present, but it dies the moment it is started.
@@ -62,8 +62,8 @@ public class AppSessionLifecycleTests
         public string? Launch() => Problem;
         public bool Stop(int processId) => true;
         public void StopAll() { }
-        public string? GetProcessPath(int processId) => null;
-        public string? GetSingleRunningDaemonPath() => null;
+        public string? PathOf(int processId) => null;
+        public string? SingleRunningDaemonPath() => null;
     }
 
     private sealed class FakeSettingsStore : IPresetStore
