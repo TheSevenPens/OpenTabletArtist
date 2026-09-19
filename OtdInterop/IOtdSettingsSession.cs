@@ -87,6 +87,14 @@ namespace OtdInterop;
 /// nothing happened, and no status says that today. Cancelling a disk write is worse still, since a
 /// half-written settings file is the thing atomic writes exist to prevent.</para>
 ///
+/// <para><b>Nothing leaves here with a null Absolute-mode area.</b> Every operation that sends settings
+/// repairs that one shape first, on its own revision, because OpenTabletDriver's UX dereferences the area
+/// in its own Save and crashes on a null. Stated once rather than per operation: it used to run on the
+/// persisting path alone, on the reasoning that a null area only matters to whoever reads the file, and
+/// that was wrong — the UX pulls settings from the daemon on every resync, so a change that never touches
+/// a file reaches it just the same (#836). The repair only replaces nulls; existing areas are never
+/// altered, and the caller's own object is never touched.</para>
+///
 /// <para><b>Failure is reported, not implied.</b> A completed task means the operation finished, not that
 /// it worked. Read the outcome. Applying and persisting fail independently, and a change that is live but
 /// unwritten will be lost the next time the daemon restarts — which the user needs to be told.</para>
