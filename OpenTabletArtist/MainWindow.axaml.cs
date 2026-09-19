@@ -14,6 +14,7 @@ using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using OpenTabletArtist.Views;
+using OtdInterop;
 
 namespace OpenTabletArtist;
 

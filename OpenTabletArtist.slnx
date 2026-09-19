@@ -6,5 +6,6 @@
   <Folder Name="/plugins/">
     <Project Path="plugins/OpenTabletArtist.Dynamics/OpenTabletArtist.Dynamics.csproj" />
   </Folder>
+  <Project Path="OtdInterop/OtdInterop.csproj" />
   <Project Path="OpenTabletArtist/OpenTabletArtist.csproj" />
 </Solution>

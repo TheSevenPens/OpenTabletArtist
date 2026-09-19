@@ -9,6 +9,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using OpenTabletArtist.Tests;
 using Xunit;
+using OtdInterop;
 
 namespace OpenTabletArtist.UiTests;
 

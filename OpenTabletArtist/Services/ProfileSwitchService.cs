@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using OpenTabletArtist.Domain;
+using OtdInterop;
 
 namespace OpenTabletArtist.Services;
 

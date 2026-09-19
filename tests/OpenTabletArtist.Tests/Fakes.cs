@@ -11,6 +11,7 @@ using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Plugin.Logging;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
+using OtdInterop;
 
 namespace OpenTabletArtist.Tests;
 

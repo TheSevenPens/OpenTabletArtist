@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    OTD Interop — headless integration with OpenTabletDriver (#807).
+
+    Connections, session lifetime, and safe settings operations. No UI, no artist-facing policy, and
+    NO reference to OpenTabletArtist: the app depends on this library, never the reverse. That direction
+    is the whole point, and a reference the other way would silently undo it.
+
+    net10.0 matches the only consumer. This is a library that splits one application, not one published
+    for broad consumption, so it does not multi-target. A .NET 8 consumer could not reference it; revisit
+    if a named consumer ever needs that, and only with dependency/API checks and tests on each runtime.
+    (https://learn.microsoft.com/dotnet/standard/net-standard)
+
+    It bundles no runtime. OtdInterop.dll runs on its host application's runtime, which for OTA is the
+    single .NET 10 that its self-contained publish already supplies. Nothing here changes the separate
+    OpenTabletDriver daemon's own runtime prerequisite, which is a property of that process.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OtdInterop</AssemblyName>
+    <RootNamespace>OtdInterop</RootNamespace>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The boundary is only worth having if it is enforced. XML docs are on because the contracts
+         here (ownership, execution, session lifetime) live in doc comments and are the deliverable. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    One reference. OpenTabletDriver.Desktop transitively brings OpenTabletDriver, .Native,
+    .Configurations and StreamJsonRpc, which is everything this library needs for Settings, Profile
+    and the daemon protocol. Deliberately NOT a copy of OTA's dependency list: no Avalonia, no
+    SkiaSharp, no MVVM toolkit. If something here needs one of those, it does not belong here.
+
+    The submodule targets net8.0; referencing it from net10.0 is the allowed direction, and OTA has
+    done exactly this since before the split.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\external\OpenTabletDriver\OpenTabletDriver.Desktop\OpenTabletDriver.Desktop.csproj" />
+  </ItemGroup>
+
+  <!--
+    These three MUST match OpenTabletArtist.csproj exactly, and must move together with it.
+
+    Not a copy of OTA's dependency list - they are the minimum this library needs, and they are pinned
+    for a reason. The submodule references StreamJsonRpc 2.22.23, which drags in MessagePack 2.5.192;
+    that trips NU1903 (GHSA-hv8m-jj95-wg3x, fixed in 2.5.301). OTA already pins past it, so before these
+    lines existed this project reintroduced 44 advisory warnings the app had already dealt with.
+
+    Matching versions is also a correctness requirement, not just tidiness: both assemblies load into
+    one process, so exactly one version of each wins at runtime. If these drift from OTA's, which one
+    that is stops being obvious. Dependabot groups them by coupling for the same reason (#752/#757).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="StreamJsonRpc" Version="2.25.29" />
+    <PackageReference Include="MessagePack" Version="2.5.303" />
+  </ItemGroup>
+
+</Project>
