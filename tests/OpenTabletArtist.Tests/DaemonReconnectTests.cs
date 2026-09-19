@@ -64,9 +64,14 @@ public class DaemonReconnectTests
     /// looks current while describing state from before the change. When the operation is then
     /// superseded, that published revision describes settings the new daemon never accepted.
     ///
-    /// Bounded rather than harmless: nothing was written, and the reload that follows a reconnect adopts
-    /// the new daemon's settings over it. The editor can show a revision the daemon does not have for the
-    /// span between the two, which is the same window a reload always closes.
+    /// <b>Not bounded as well as I first claimed.</b> I wrote that the following reload repairs it, and
+    /// Codex pointed out that is not sufficient: a caller reading the baseline between the two builds its
+    /// next edit on a revision no daemon has, which is the contamination #814 already reproduced. I also
+    /// had the premise wrong — #818 required read invalidation, not publishing before acceptance, and the
+    /// epoch/revision split exists so those can be decided separately.
+    ///
+    /// So this is a characterization of a known gap, not settled behaviour. #832 is the fix, and this
+    /// test should invert when it lands.
     /// </summary>
     [Fact]
     public async Task ASupersededApply_LeavesItsPublishedRevisionForTheReloadToCorrect()
