@@ -9,9 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- xunit v3, matching the UI suite (#756). The two used to sit on different majors, which meant
+         two runners to migrate rather than one; they now share this line. Held at 3.x by
+         Avalonia.Headless.XUnit - see the note in the UI test project. -->
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 

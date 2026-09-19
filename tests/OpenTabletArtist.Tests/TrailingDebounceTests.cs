@@ -26,7 +26,7 @@ public class TrailingDebounceTests
 
         debounce.Schedule(() => { ran.TrySetResult(); return Task.CompletedTask; });
 
-        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class TrailingDebounceTests
         var runs = 0;
 
         debounce.Schedule(() => { Interlocked.Increment(ref runs); return Task.CompletedTask; });
-        await Task.Delay(PastDelay);
+        await Task.Delay(PastDelay, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, Volatile.Read(ref runs));
     }
@@ -67,7 +67,7 @@ public class TrailingDebounceTests
 
         // Only now is the interesting claim testable: give any superseded call a full quiet period to
         // fire wrongly before asserting that none did.
-        await Task.Delay(PastDelay);
+        await Task.Delay(PastDelay, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, Volatile.Read(ref runs));
         Assert.Equal(5, Volatile.Read(ref last));
@@ -96,7 +96,7 @@ public class TrailingDebounceTests
 
         debounce.Schedule(() => { Interlocked.Increment(ref runs); return Task.CompletedTask; });
         debounce.Dispose();
-        await Task.Delay(PastDelay);
+        await Task.Delay(PastDelay, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, Volatile.Read(ref runs));
     }
@@ -109,7 +109,7 @@ public class TrailingDebounceTests
         var runs = 0;
 
         debounce.Schedule(() => { Interlocked.Increment(ref runs); return Task.CompletedTask; });
-        await Task.Delay(PastDelay);
+        await Task.Delay(PastDelay, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, Volatile.Read(ref runs));
         Assert.True(debounce.IsDisposed);
@@ -136,12 +136,12 @@ public class TrailingDebounceTests
 
         debounce.Schedule(() => { Interlocked.Increment(ref cancelled); return Task.CompletedTask; });
         debounce.CancelPending();
-        await Task.Delay(PastDelay);
+        await Task.Delay(PastDelay, TestContext.Current.CancellationToken);
         Assert.Equal(0, Volatile.Read(ref cancelled));
 
         var ran = new TaskCompletionSource();
         debounce.Schedule(() => { ran.TrySetResult(); return Task.CompletedTask; });
-        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     /// <summary>The work is fire-and-forget, so a throw has nowhere to surface. It must be swallowed
@@ -157,11 +157,11 @@ public class TrailingDebounceTests
             threw.TrySetResult();
             throw new InvalidOperationException("boom");
         });
-        await threw.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await threw.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var ran = new TaskCompletionSource();
         debounce.Schedule(() => { ran.TrySetResult(); return Task.CompletedTask; });
-        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class TrailingDebounceTests
         debounce.Schedule(() => { ran.TrySetResult(); return Task.CompletedTask; });
         Assert.True(debounce.IsPending);
 
-        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         debounce.CancelPending();
         Assert.False(debounce.IsPending);
     }

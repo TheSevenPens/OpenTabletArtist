@@ -83,7 +83,7 @@ public class LatestOnlyGateTests
         gate.Dispose();         // owner torn down beneath it
         block.SetResult();
 
-        await running.WaitAsync(TimeSpan.FromSeconds(5)); // must complete, not fault
+        await running.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken); // must complete, not fault
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class LatestOnlyGateTests
         gate.Dispose();
         block.SetResult();
 
-        await Task.WhenAll(running, queued).WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.WhenAll(running, queued).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.False(queuedRan);
     }
 
@@ -167,7 +167,7 @@ public class LatestOnlyGateTests
         block.SetResult();
 
         var all = queued.Append(running).ToArray();
-        try { await Task.WhenAll(all).WaitAsync(TimeSpan.FromSeconds(10)); }
+        try { await Task.WhenAll(all).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); }
         catch (TimeoutException)
         {
             Assert.Fail($"Disposal stranded {all.Count(t => !t.IsCompleted)} of {all.Length} callers: "
@@ -194,7 +194,7 @@ public class LatestOnlyGateTests
 
         // Settling is not enough — a cancelled or faulted task is still a surprise to a caller that was
         // only ever asked to reload.
-        await Task.WhenAll(queued.Append(running)).WaitAsync(TimeSpan.FromSeconds(30));
+        await Task.WhenAll(queued.Append(running)).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         Assert.All(queued, t => Assert.Equal(TaskStatus.RanToCompletion, t.Status));
     }
 }
