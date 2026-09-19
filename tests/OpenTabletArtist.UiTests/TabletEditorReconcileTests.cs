@@ -193,4 +193,68 @@ public class TabletEditorReconcileTests
 
         vm.Dispose();
     }
+
+    /// <summary>
+    /// A slider edit already waiting in its debounce when a different, immediate edit is applied.
+    ///
+    /// The draft count says "has anything changed since this apply started", which is not the same
+    /// question as "does this revision contain everything the user has done". The slider's value was
+    /// never written into the settings the immediate apply submitted, so adopting that apply's result
+    /// and refreshing puts the stored value back on screen and the pending edit disappears.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task APendingSliderEdit_IsNotOverwrittenByALaterImmediateApply()
+    {
+        var settings = SettingsWithForeignFilter();
+        var sent = new List<Settings>();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: SessionThatDisablesTheFilter(sent));
+
+        vm.PressureSmoothing = 0.42;   // schedules a persist; not yet in the settings
+        vm.DisablePressure = true;     // a different edit that applies immediately
+        await Settle();
+
+        Assert.Equal(0.42, vm.PressureSmoothing, 3);
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// An apply completing after the editor has taken up newer settings from elsewhere.
+    ///
+    /// A result that was current when the session finished with it is not necessarily current when the
+    /// editor gets round to it. Adopting settings from another source is a change of editor state just as
+    /// much as a keystroke is, and an older result arriving afterwards must not undo it.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AnOlderResult_DoesNotUndoANewerExternalAdoption()
+    {
+        var settings = SettingsWithForeignFilter();
+        var sent = new List<Settings>();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = false;
+
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: SessionThatDisablesTheFilter(sent, whileInFlight: async () =>
+            {
+                if (held) return;
+                held = true;
+                await release.Task;
+            }));
+
+        vm.DisablePressure = true;                 // starts an apply, held open
+
+        // Meanwhile the daemon's settings changed elsewhere and the editor adopts them.
+        var external = SettingsWithForeignFilter();
+        external.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(external, external.Profiles[0]);
+        Assert.True(vm.DisableTilt);
+
+        release.SetResult();                       // the older apply finally lands
+        await Settle();
+
+        Assert.True(vm.DisableTilt);               // the newer adoption still stands
+
+        vm.Dispose();
+    }
 }

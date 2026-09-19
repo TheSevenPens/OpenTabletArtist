@@ -80,6 +80,41 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>Records that the user changed something, and returns the generation that change created.</summary>
     private int NoteDraftEdit() => ++_draftGeneration;
+
+    /// <summary>
+    /// Edits the user has made that have not been written into the settings yet, one bit per debounced
+    /// group.
+    ///
+    /// The draft count answers "has anything changed since this apply started". This answers the other
+    /// question, which turns out to matter just as much: "does the revision coming back contain
+    /// everything the user has done". A slider moved a moment before a different, immediate edit is
+    /// waiting in its own debounce and is in no revision at all — so adopting that immediate apply's
+    /// result and refreshing would put the stored value back on screen and the pending edit would
+    /// vanish in front of the user.
+    ///
+    /// UI thread only, like the generation counter.
+    /// </summary>
+    private DraftGroup _unsubmitted;
+
+    [System.Flags]
+    private enum DraftGroup
+    {
+        None = 0,
+        Curve = 1,
+        Hover = 2,
+        WheelThreshold = 4,
+        Size = 8,
+    }
+
+    /// <summary>The user has edited <paramref name="group"/>; its persist has not run yet.</summary>
+    private int NoteDraftEdit(DraftGroup group)
+    {
+        _unsubmitted |= group;
+        return NoteDraftEdit();
+    }
+
+    /// <summary><paramref name="group"/>'s pending edit is about to be written into the settings.</summary>
+    private void DraftSubmitted(DraftGroup group) => _unsubmitted &= ~group;
     // Opens the modal binding editor for a card's current binding + label; returns the chosen binding
     // (or Unbound on Clear), or null on Cancel. Provided by the host that has the owner window.
     private readonly Func<AuxBinding, string, Task<AuxBinding?>>? _editBinding;
@@ -940,6 +975,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// stale settings (#124).</summary>
     private void AdoptProfile(Settings settings, Profile profile)
     {
+        // Taking up settings from elsewhere changes what this editor is showing just as surely as a
+        // keystroke does, so it invalidates any apply still outstanding. Without this, a result that was
+        // perfectly current when the session finished with it arrives afterwards and puts the older
+        // values back — the newer adoption silently undone.
+        NoteDraftEdit();
         _settings = settings;
         _profile = profile;
         // The profile must be a live reference inside the settings we now persist through; if a future
@@ -1018,7 +1058,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // about the world, so neither adopting the result nor refreshing from the profile is allowed to
         // run over it -- both rewrite the bound properties, and the user would watch their edit undo
         // itself. The newer edit applies on its own and refreshes then.
-        if (draft != _draftGeneration) return;
+        // Either the user has edited since, or something they changed earlier is still unsubmitted.
+        // Both rewrite the bound properties, and in both cases the user would watch their own edit undo
+        // itself. The pending work applies and reconciles on its own.
+        if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return;
 
         if (!TryAdoptApplied(outcome, draft)) RefreshFromProfile();
     }
@@ -1054,6 +1097,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private bool TryAdoptApplied(SettingsApplyOutcome outcome, int draft)
     {
         if (draft != _draftGeneration) return false;
+        // Something the user changed is still waiting in a debounce and is in no revision yet. Adopting
+        // now would refresh over it. The pending edit persists on its own moments later and reconciles
+        // then, which is the right time: by then a revision exists that contains it.
+        if (_unsubmitted != DraftGroup.None) return false;
+        // A stale session cannot get this far: the coordinator reports those as superseded, which is not
+        // ChangedTheDaemon. This check covers that as well as the ordinary failures.
         if (!outcome.ChangedTheDaemon) return false;
         if (outcome.Prepared is not { } prepared) return false;
 
@@ -1560,7 +1609,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private Task ApplyWheelThresholdAsync(int wheelIndex, bool clockwise, double degrees)
     {
         _pendingThresholds[(wheelIndex, clockwise)] = degrees;
-        NoteDraftEdit();
+        NoteDraftEdit(DraftGroup.WheelThreshold);
         _wheelThresholdDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistThresholdsAsync));
         return Task.CompletedTask;
     }
@@ -1570,6 +1619,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_pendingThresholds.Count == 0 || !WheelEnabled) return;
         var pending = new Dictionary<(int Wheel, bool Clockwise), double>(_pendingThresholds);
         _pendingThresholds.Clear();
+        DraftSubmitted(DraftGroup.WheelThreshold);
         await ApplySettingsChange(p =>
         {
             var wheels = p.BindingSettings.WheelBindings;
@@ -2121,7 +2171,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // stored value mid-debounce — that was the "click a new spot, snaps back to the previous value"
         // bug (#size-snapback).
         _sizeEditPending = true;
-        NoteDraftEdit();
+        NoteDraftEdit(DraftGroup.Size);
         _sizeDebounce.Schedule(ResizeAsync);
     }
 
@@ -2129,6 +2179,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // change, and the body reads and writes VM state directly.
     private async Task ResizeAsync()
     {
+        DraftSubmitted(DraftGroup.Size);
         var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
         var display = DisplayMappingApplier.CurrentlyMapped(_profile, Displays);
         if (dig is not { } d || display == null) { _sizeEditPending = false; return; }
@@ -2220,13 +2271,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void SchedulePersist()
     {
         if (_skipCurvePersist || _applyAction == null || _settings == null) return;
-        NoteDraftEdit();
+        NoteDraftEdit(DraftGroup.Curve);
         _persistDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistCurveAsync));
     }
 
     private async Task PersistCurveAsync()
     {
         if (_applyAction == null || _settings == null) return;
+        DraftSubmitted(DraftGroup.Curve);
         var draft = _draftGeneration;
         var dynamics = new PenDynamicsSettings(Curve, PressureSmoothing, PositionSmoothing, SmoothAfterCurve);
         // The filter is always enabled internally; users neutralize it with linear/zero settings, not a toggle.
@@ -2269,13 +2321,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void SchedulePersistHover()
     {
         if (_skipHoverPersist || _applyAction == null || _settings == null) return;
-        NoteDraftEdit();
+        NoteDraftEdit(DraftGroup.Hover);
         _hoverPersistDebounce.Schedule(async () => await Dispatcher.UIThread.InvokeAsync(PersistHoverAsync));
     }
 
     private async Task PersistHoverAsync()
     {
         if (_applyAction == null || _settings == null) return;
+        DraftSubmitted(DraftGroup.Hover);
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();

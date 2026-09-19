@@ -151,7 +151,18 @@ public sealed class SettingsCoordinator
 
     /// <summary>The settings OTA is editing and would persist — the user's default, never a transient
     /// per-app snapshot.</summary>
-    public Settings? CurrentSettings => _settings;
+    /// <summary>
+    /// The settings this session is editing — the user's own, never a transient per-app snapshot.
+    ///
+    /// A detached copy on every read. The alternative is an escape hatch: <c>_settings</c> is also the
+    /// object sent to the daemon and, after a failed write, the pending retry, so a caller that read it,
+    /// edited it and applied it would be editing all three — and an edit the daemon never accepted would
+    /// get written by the retry. Callers already work that way, so this is the read that has to change
+    /// rather than all of them.
+    ///
+    /// Each read copies, so hold the result rather than re-reading it in a loop.
+    /// </summary>
+    public Settings? CurrentSettings => _settings is { } s ? Snapshot(s) : null;
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -237,9 +248,9 @@ public sealed class SettingsCoordinator
     /// the caller's own object is precisely the guarantee being withdrawn, and a clone failing means a
     /// serialization failure is coming for the disk write anyway.
     /// </summary>
-    private (Settings Working, SettingsStamp Stamp)? Admit(Settings settings)
+    private (Settings Working, SettingsStamp Stamp)? Admit(Settings settings, out Exception? error)
     {
-        var working = Snapshot(settings);
+        var working = Snapshot(settings, out error);
         if (working == null) return null;
         return (working, new SettingsStamp(
             Volatile.Read(ref _sessionGeneration) + 1,      // +1 so a fresh session is never SettingsStamp.None
@@ -250,12 +261,15 @@ public sealed class SettingsCoordinator
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
     public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings)
     {
-        if (Admit(settings) is not { } admitted)
+        if (Admit(settings, out var error) is not { } admitted)
         {
             _log.Warn("Couldn't take a private copy of the settings being applied; nothing was sent or " +
                       "saved. The settings are probably not serializable, which would fail the disk " +
-                      "write next.");
-            return Task.FromResult(SettingsApplyOutcome.Failed(null));
+                      "write next.", error);
+            // The chip has to move off whatever it was saying. Left alone it would go on showing "Saved"
+            // from the previous operation while this one silently did nothing.
+            _onSaveState(SettingsSaveState.ApplyFailed);
+            return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
         return SerializedAsync(session => ApplyAndSaveCoreAsync(admitted.Working, admitted.Stamp, session),
             () => SettingsApplyOutcome.Superseded);
@@ -313,7 +327,17 @@ public sealed class SettingsCoordinator
         _settings = revision;
         // A real apply puts the daemon on these settings, so any per-app override is over (#737).
         HasEphemeralOverride = false;
-        var prepared = new PreparedSettings(revision, stamp);
+        // A copy of its own, not the revision. `revision` is simultaneously this session's state, the
+        // object sent to the daemon, and -- if the write fails -- the pending retry. Handing that same
+        // instance back as a result means a caller which adopts and then edits it is editing all three,
+        // so an edit the daemon never accepted would be written by the retry. That is the ownership
+        // problem this whole change exists to remove, reintroduced at the last step.
+        //
+        // Null rather than an alias when the copy fails: a result that cannot be isolated is not a
+        // result a caller may adopt, and saying nothing is better than saying something untrue.
+        var prepared = Snapshot(revision) is { } detached
+            ? new PreparedSettings(detached, stamp)
+            : null;
 
         // Resolved BEFORE the RPC, not after (#803). It comes from the connected daemon's AppInfo, so
         // reading it late means an apply that outlives a daemon switch writes its result into the *new*
@@ -449,9 +473,9 @@ public sealed class SettingsCoordinator
         // Isolated at admission like every other mutating path. This one used to send the caller's own
         // instance, so an edit made while the RPC was in flight reached the daemon -- the hazard #774
         // fixed for apply-and-save and left open here.
-        if (Admit(settings) is not { } admitted)
+        if (Admit(settings, out var error) is not { } admitted)
         {
-            _log.Warn("Couldn't take a private copy of the live-only settings; nothing was sent.");
+            _log.Warn("Couldn't take a private copy of the live-only settings; nothing was sent.", error);
             return Task.FromResult(false);
         }
         return SerializedAsync(session => ApplyLiveOnlyCoreAsync(admitted.Working, session), () => false);
@@ -496,9 +520,9 @@ public sealed class SettingsCoordinator
     /// </summary>
     public Task<bool> ApplyEphemeralAsync(Settings settings)
     {
-        if (Admit(settings) is not { } admitted)
+        if (Admit(settings, out var error) is not { } admitted)
         {
-            _log.Warn("Couldn't take a private copy of the per-app snapshot; nothing was sent.");
+            _log.Warn("Couldn't take a private copy of the per-app snapshot; nothing was sent.", error);
             return Task.FromResult(false);
         }
         return SerializedAsync(session => ApplyEphemeralCoreAsync(admitted.Working, session), () => false);
@@ -703,16 +727,27 @@ public sealed class SettingsCoordinator
     // Not static: it reports its own failure, and the log is injected (#807). Keeping it static would
     // mean either a static logger or a silent null, and a snapshot that fails silently is how a
     // concurrent edit reaches the daemon unnoticed.
-    private Settings? Snapshot(Settings settings)
+    private Settings? Snapshot(Settings settings) => Snapshot(settings, out _);
+
+    /// <summary>
+    /// A detached copy, or null with <paramref name="error"/> set to why not.
+    ///
+    /// The cause is handed back rather than only logged: a caller that refuses an operation because it
+    /// could not isolate the request should be able to say what went wrong, and "failed for no stated
+    /// reason" is the least useful thing an error can be.
+    /// </summary>
+    private Settings? Snapshot(Settings settings, out Exception? error)
     {
         try
         {
+            error = null;
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(settings);
             return Newtonsoft.Json.JsonConvert.DeserializeObject<Settings>(json);
         }
         catch (Exception ex)
         {
-            _log.Warn("Couldn't snapshot settings for a persistence retry; the retry is skipped.", ex);
+            error = ex;
+            _log.Warn("Couldn't take a private copy of the settings.", ex);
             return null;
         }
     }

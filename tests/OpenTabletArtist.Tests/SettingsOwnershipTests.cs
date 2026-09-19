@@ -203,8 +203,84 @@ public class SettingsOwnershipTests
         var prepared = Assert.IsType<PreparedSettings>(outcome.Prepared);
         Assert.False(ThirdPartyFilterEnabled(prepared.Settings));         // policy applied
         Assert.NotNull(prepared.Settings.Profiles[0].AbsoluteModeSettings); // guard applied
-        Assert.Same(daemon.Applied[0], prepared.Settings);
         Assert.False(prepared.Stamp.IsNone);
+
+        // A copy of what was sent, not the thing itself. The two must agree on content and disagree on
+        // identity -- see the test below for what sharing it costs.
+        Assert.NotSame(daemon.Applied[0], prepared.Settings);
+        Assert.Equal(Json(daemon.Applied[0]), Json(prepared.Settings));
+    }
+
+    private static string Json(Settings s) => Newtonsoft.Json.JsonConvert.SerializeObject(s);
+
+    /// <summary>
+    /// Why the result needs a copy of its own, and not just as a matter of principle.
+    ///
+    /// The revision is this session's state, the object sent to the daemon, and -- when the write fails
+    /// -- the pending retry, all at once. A caller that adopted that instance and went on editing it, as
+    /// the editor does, would be editing the pending retry: the next retry would then write an edit the
+    /// daemon never accepted, which is the disagreement between disk and daemon the retry exists to
+    /// resolve, caused by the retry.
+    /// </summary>
+    [Fact]
+    public async Task EditingTheReturnedRevision_CannotChangeWhatAPendingRetryWrites()
+    {
+        var daemon = new FakeDaemonTransport();
+        var store = new RefusingStore();
+        var coordinator = new SettingsCoordinator(
+            daemon, store,
+            settingsPath: () => "A/settings.json",
+            isOwnedDaemon: () => true,
+            onSaveState: _ => { },
+            log: NullOtdLog.Instance,
+            policy: new HoardingPolicy());
+
+        var outcome = await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, outcome.Status);   // a retry is now pending
+
+        // The caller adopts the revision and keeps editing, exactly as the editor does.
+        outcome.Prepared!.Settings.LockUsableAreaDisplay = true;
+
+        store.SaveSucceeds = true;
+        await coordinator.RetryPersistAsync();
+
+        Assert.NotNull(store.LastWritten);
+        Assert.False(store.LastWritten!.LockUsableAreaDisplay);
+    }
+
+    /// <summary>Fails the first write so a retry is pending, then records what the retry writes.</summary>
+    private sealed class RefusingStore : ISettingsFileStore
+    {
+        public bool SaveSucceeds { get; set; }
+        public Settings? LastWritten { get; private set; }
+
+        public void Save(Settings settings, string path) => TrySave(settings, path);
+
+        public bool TrySave(Settings settings, string path)
+        {
+            if (!SaveSucceeds) return false;
+            LastWritten = settings;
+            return true;
+        }
+
+        public bool TryLoad(string path, out Settings? settings) { settings = null; return false; }
+    }
+
+    /// <summary>
+    /// The published state is a copy too. Callers across the app read it, edit what they read, and apply
+    /// the result; while it was the internal object, that pattern edited this session's state and any
+    /// pending retry along with it.
+    /// </summary>
+    [Fact]
+    public async Task EditingCurrentSettings_DoesNotChangeTheSessionsOwnState()
+    {
+        var (coordinator, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+
+        var read = coordinator.CurrentSettings!;
+        read.LockUsableAreaDisplay = true;
+
+        Assert.False(coordinator.CurrentSettings!.LockUsableAreaDisplay);
     }
 
     /// <summary>
