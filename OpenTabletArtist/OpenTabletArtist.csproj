@@ -81,4 +81,19 @@
     <Message Importance="high" Text="macOS .app bundled → dist/OpenTabletArtist.app" />
   </Target>
 
+  <!--
+    Test-only visibility, for observing what a control has decided to draw.
+
+    ActiveAreaDiagram.Effective reports which values it is rendering: the live drag preview, or the bound
+    area. That distinction is the whole of #815 and it was invisible to every view-model test, because the
+    values the editor published were right and arrived in one step. What was wrong was which of them the
+    control chose, and for how long.
+
+    Marked internal rather than public because it is an observation for a test, not something a consumer
+    should build on.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
+  </ItemGroup>
+
 </Project>
