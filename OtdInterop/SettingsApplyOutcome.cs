@@ -42,10 +42,25 @@ public enum SettingsApplyStatus
     Superseded,
 }
 
-/// <summary>The result of an apply, with the failure attached when there was one.</summary>
+/// <summary>The result of an apply: what happened, the failure if there was one, and what was actually
+/// worked with.</summary>
 /// <param name="Status">What happened.</param>
 /// <param name="Error">The exception behind <see cref="SettingsApplyStatus.ApplyFailed"/>, if any.</param>
-public readonly record struct SettingsApplyOutcome(SettingsApplyStatus Status, Exception? Error = null)
+/// <param name="Prepared">
+/// The request after policy and repairs, detached — see <see cref="PreparedSettings"/>. Present whenever
+/// preparation got far enough to produce one, including on failure: knowing what <em>would</em> have been
+/// sent is exactly what a caller needs in order to explain a failure or retry it.
+///
+/// Null when the operation ended before preparing anything, which is the case for a no-op, a superseded
+/// request, and a preparation failure.
+///
+/// A non-null value is not evidence that anything was applied. <see cref="Status"/> is the only member
+/// entitled to say that.
+/// </param>
+public readonly record struct SettingsApplyOutcome(
+    SettingsApplyStatus Status,
+    Exception? Error = null,
+    PreparedSettings? Prepared = null)
 {
     /// <summary>Live on the daemon and written to disk.</summary>
     public static readonly SettingsApplyOutcome Saved = new(SettingsApplyStatus.AppliedAndSaved);
@@ -107,8 +122,17 @@ public enum SettingsRestoreStatus
     Superseded,
 }
 
-/// <summary>The result of a restore, with the failure attached when there was one.</summary>
-public readonly record struct SettingsRestoreOutcome(SettingsRestoreStatus Status, Exception? Error = null)
+/// <summary>The result of a restore: what happened, the failure if there was one, and what was read.</summary>
+/// <param name="Status">What happened.</param>
+/// <param name="Error">The exception behind <see cref="SettingsRestoreStatus.ApplyFailed"/>, if any.</param>
+/// <param name="Prepared">
+/// The saved default that was read from disk, detached. Null when it could not be read, which is what
+/// <see cref="SettingsRestoreStatus.SourceUnavailable"/> reports.
+/// </param>
+public readonly record struct SettingsRestoreOutcome(
+    SettingsRestoreStatus Status,
+    Exception? Error = null,
+    PreparedSettings? Prepared = null)
 {
     /// <summary>The saved default was read and applied; any override is genuinely over.</summary>
     public static readonly SettingsRestoreOutcome Restored = new(SettingsRestoreStatus.Restored);
