@@ -18,8 +18,13 @@ namespace OpenTabletArtist.Tests;
 /// Before <see cref="IDaemonTransport"/> existed, <c>AppSession</c> took a concrete <c>DaemonClient</c>,
 /// so none of that was reachable from a test: the lifecycle tests had to construct a real client and
 /// assert against a connection that never happened.
+///
+/// It implements <see cref="IDaemonSettingsChannel"/> as well, which the app cannot — that interface is
+/// internal precisely so only the library's own connection carries a settings writer. This project is
+/// granted internal access for the same reason it can construct the file store: the behaviour under test
+/// is the implementation's, not the interface's.
 /// </summary>
-internal sealed class FakeDaemonTransport : IDaemonTransport
+internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsChannel
 {
     // --- Scripted responses ---
 

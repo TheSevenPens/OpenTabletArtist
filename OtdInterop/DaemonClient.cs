@@ -20,7 +20,10 @@ namespace OtdInterop;
 /// straight to the daemon, with none of the ordering, ownership or session checks that
 /// <see cref="IOtdSettingsSession"/> exists to apply. While it was a public class in the app, every
 /// caller that could reach a connection could also reach that write, and the protection was a
-/// convention. Hosts get it through <see cref="DaemonTransport.Create"/>, as an interface.
+/// convention. Hosts get it through <see cref="DaemonTransport.Create"/>, as
+/// <see cref="IDaemonTransport"/> — which does not carry those two verbs. They are on
+/// <see cref="IDaemonSettingsChannel"/>, which is internal, so the settings session can reach them and
+/// the host cannot.
 /// </para>
 /// <para>
 /// Not thread-safe beyond what is marked. The reconnect loop and the debug reference count have their
@@ -28,7 +31,7 @@ namespace OtdInterop;
 /// <see cref="IOtdSettingsSession"/> documents.
 /// </para>
 /// </remarks>
-internal sealed class DaemonClient : IDaemonTransport
+internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
 {
     private const string PipeName = "OpenTabletDriver.Daemon";
 

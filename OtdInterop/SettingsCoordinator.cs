@@ -14,16 +14,20 @@ namespace OtdInterop;
 /// control: the current settings, the two separate revision baselines from #734, the pending unsaved
 /// change, the per-app override flag from #737, and the apply-loop circuit breaker.
 ///
-/// Headless and thread-agnostic on purpose. <c>AppSession</c> keeps the
-/// <c>Dispatcher.UIThread.VerifyAccess()</c> guards on its entry points because it owns observable state;
-/// this class owns none, which is what makes it testable without a dispatcher.
+/// Headless on purpose, which is not the same as thread-safe. Mutating operations are serialized
+/// against each other; several members read and write session state outside that, so this relies on the
+/// host supplying one serialized execution context, exactly as <see cref="IOtdSettingsSession"/>
+/// describes. <c>AppSession</c> supplies Avalonia's UI thread and keeps the
+/// <c>Dispatcher.UIThread.VerifyAccess()</c> guards on its own entry points; a test supplies a single
+/// thread. What being headless buys is testability without a dispatcher, not freedom from the
+/// requirement.
 ///
 /// It also holds no reference back to the session. Apply-then-reload is orchestrated by the caller, so
 /// the dependency runs one way.
 /// </summary>
-public sealed class SettingsCoordinator : IOtdSettingsSession
+internal sealed class SettingsCoordinator : IOtdSettingsSession
 {
-    private readonly IDaemonTransport _daemon;
+    private readonly IDaemonSettingsChannel _daemon;
     // Injected rather than a static call to the app's logger: what this type reports is mostly partial
     // failure -- live but unsaved, discarded because the daemon changed -- and those are exactly the
     // events nobody can see from outside. Where the lines go is the host's decision, not this type's.
@@ -221,7 +225,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// <param name="log">Where this type reports what it did and could not do — mostly partial failure,
     /// which is exactly what is invisible from outside.</param>
     /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
-    public SettingsCoordinator(IDaemonTransport daemon,
+    internal SettingsCoordinator(IDaemonSettingsChannel daemon,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)
         : this(daemon, new SettingsFileStore(log), settingsPath, isOwnedDaemon, onSaveState, log, policy)
@@ -236,7 +240,7 @@ public sealed class SettingsCoordinator : IOtdSettingsSession
     /// The other constructor uses the library's own writer, which is internal and not obtainable from
     /// outside. Supplying an alternative is not the same as being handed ours.
     /// </summary>
-    public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
+    internal SettingsCoordinator(IDaemonSettingsChannel daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
         IOtdLog log, IOtdSettingsPolicy policy)
     {

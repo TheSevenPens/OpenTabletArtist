@@ -180,7 +180,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // Everything about the settings OTA believes in — the current object, the load/persist revision
     // baselines, the pending unsaved change, the override flag and the apply-loop breaker — lives in the
     // coordinator (#740). This class keeps the ISettingsCoordinator contract and the UI-thread guards.
-    private readonly SettingsCoordinator _coordinator;
+    //
+    // The interface, not the class: the implementation is internal to the library now, so this holds what
+    // the library is willing to offer rather than everything the implementation happens to have (#807).
+    private readonly IOtdSettingsSession _coordinator;
 
     /// <inheritdoc />
     public bool HasEphemeralOverride => _coordinator.HasEphemeralOverride;
@@ -416,7 +419,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (name != null && DetectedTablets.Any(t => t.Name == name))
             ActiveTabletName = name;
     }
-    public Settings? CurrentSettings => _coordinator.CurrentSettings;
+    public Settings? CurrentSettings => _coordinator.GetCurrent()?.Settings;
     public event Action? DataLoaded;
 
     public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle,
@@ -429,9 +432,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // data load, identity on connect), so neither has a value yet at construction.
         // No store given means the library uses its own, which the app cannot construct (#807).
         _coordinator = settingsStore is { } store
-            ? new SettingsCoordinator(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
+            ? OtdSettingsSession.Create(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
                 state => SaveState = state, AppLogBridge.Instance, OtaSettingsPolicy.Instance)
-            : new SettingsCoordinator(
+            : OtdSettingsSession.Create(
             daemon,
             settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
@@ -751,7 +754,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // while in flight, and does not read at all while a per-app override is running (#737). This
             // was three steps here, and every one of them failed silently.
             await _coordinator.ReloadFromDaemonAsync();
-            var settings = _coordinator.CurrentSettings;
+            var settings = _coordinator.GetCurrent()?.Settings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
             // one. Persisted below once paths are known. (Forward guard mirrored in save path.)

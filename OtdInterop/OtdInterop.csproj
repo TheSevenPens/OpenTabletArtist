@@ -74,6 +74,9 @@
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
+    <!-- The UI suite compiles the same FakeDaemonTransport source, which implements the internal
+         settings channel; without this it sees a type the app is not meant to see, and cannot build. -->
+    <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
   </ItemGroup>
 
 </Project>

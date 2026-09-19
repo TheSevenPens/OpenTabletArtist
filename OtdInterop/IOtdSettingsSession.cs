@@ -174,6 +174,40 @@ public interface IOtdSettingsSession
     /// </returns>
     Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync();
 
+    /// <summary>
+    /// Retries a pending disk write, if there is one and the bounded retry budget is not spent.
+    ///
+    /// Free to call on every refresh: it reports <see cref="SettingsApplyStatus.NoChange"/> when there is
+    /// nothing to do. A write refused because the file was momentarily locked then fixes itself with no
+    /// user action.
+    /// </summary>
+    /// <returns>The result of the write, or <see cref="SettingsApplyStatus.NoChange"/>.</returns>
+    Task<SettingsApplyOutcome> RetryPendingPersistAsync();
+
+    /// <summary>
+    /// Records the baseline the no-op guard compares against, after the host has finished a refresh.
+    ///
+    /// Separate from <see cref="ReloadFromDaemonAsync"/> because the host repairs what it read — removing
+    /// dead filter stores, disabling ones its policy does not approve — and the guard's subject is what
+    /// the daemon holds once that is done. Recording it before those repairs would let the guard skip an
+    /// apply that would have carried them.
+    /// </summary>
+    void RecordLoadedBaseline();
+
+    /// <summary>
+    /// Forgets everything belonging to the daemon that has gone, because a different one is answering.
+    ///
+    /// Almost all of this session's state is a fact about one daemon: the change it accepted but did not
+    /// persist, the file that change was for, what its settings file last held, whether it is running a
+    /// transient override. None of that describes the new daemon, and each one misleads a different part
+    /// of the host if carried across.
+    /// </summary>
+    /// <returns>
+    /// True when an unsaved change was thrown away, so the host can say so. Everything else this drops is
+    /// bookkeeping the user never knew about; a pending write is an edit they made.
+    /// </returns>
+    bool ResetForNewDaemon();
+
     /// <summary>Re-reads the saved default from disk and applies it, discarding any override.</summary>
     /// <returns>
     /// What happened. Every way this can fall short has its own status, because a restore that did not
