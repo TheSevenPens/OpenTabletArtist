@@ -135,6 +135,12 @@ public interface IOtdSettingsSession
     /// <summary>
     /// Writes an earlier change that the daemon accepted but the disk refused, to the file it was
     /// originally meant for.
+    ///
+    /// <b>Policy is not re-applied.</b> What gets written is the revision the daemon accepted, byte for
+    /// byte. Re-running the host's rules on the way to disk would write something the daemon never saw,
+    /// which is the disagreement between disk and daemon this exists to resolve rather than to create.
+    /// A policy that is not a pure function of its input — one that consults the time, a counter, or
+    /// state the host has since changed — makes that difference real rather than theoretical.
     /// </summary>
     /// <returns>
     /// The result of the write, or <see cref="SettingsApplyStatus.NoChange"/> when nothing is pending.
@@ -188,6 +194,12 @@ public interface IOtdSettingsSession
     /// Free to call on every refresh: it reports <see cref="SettingsApplyStatus.NoChange"/> when there is
     /// nothing to do. A write refused because the file was momentarily locked then fixes itself with no
     /// user action.
+    ///
+    /// <b>Policy is not re-applied.</b> What gets written is the revision the daemon accepted, byte for
+    /// byte. Re-running the host's rules on the way to disk would write something the daemon never saw,
+    /// which is the disagreement between disk and daemon this exists to resolve rather than to create.
+    /// A policy that is not a pure function of its input — one that consults the time, a counter, or
+    /// state the host has since changed — makes that difference real rather than theoretical.
     /// </summary>
     /// <returns>The result of the write, or <see cref="SettingsApplyStatus.NoChange"/>.</returns>
     Task<SettingsApplyOutcome> RetryPendingPersistAsync();

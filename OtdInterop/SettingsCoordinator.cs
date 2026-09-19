@@ -656,6 +656,20 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     public Task<SettingsApplyOutcome> RetryPersistAsync() =>
         SerializedAsync(_ => RetryPersistCoreAsync(), () => SettingsApplyOutcome.NoChange);
 
+    /// <summary>
+    /// Writes the pending revision, and deliberately does NOT run policy over it first.
+    /// </summary>
+    /// <remarks>
+    /// The pending revision is what the daemon accepted. Policing it again on the way to disk would
+    /// write something the daemon never saw — recreating the disagreement between disk and daemon that a
+    /// retry exists to resolve. It matters whenever the host's policy is not a pure function of its
+    /// input, which is a property this library cannot check and should not assume.
+    ///
+    /// Stated because it is invisible: the correct behaviour here is an absence, and an absence is what
+    /// somebody tidies away. `RetryPolicyTests` pins it with a policy that renames on every run, so a
+    /// second application changes the bytes; a policy with stable output would let the mistake through
+    /// unnoticed, which is what every retry test before that one did.
+    /// </remarks>
     private Task<SettingsApplyOutcome> RetryPersistCoreAsync()
     {
         if (_pendingPersistSettings is not { } pending)
