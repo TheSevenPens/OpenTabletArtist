@@ -156,6 +156,67 @@ public class DaemonReconnectTests
         Assert.Single(store.Wrote);
     }
 
+    /// <summary>Replaces the channel from inside the operation, between admission and the send.</summary>
+    private sealed class SwitchDuringPreparation(FakeDaemonTransport daemon) : IOtdSettingsPolicy
+    {
+        public void Apply(Settings settings, SettingsPolicyContext context) => daemon.ReconnectSilently();
+    }
+
+    /// <summary>
+    /// Obsolete work never enters the replacement transport — the send is BOUND, not merely checked.
+    ///
+    /// From Codex's review of the first attempt, which is the reason this test exists in this shape. That
+    /// attempt compared a channel number at the start of the operation and again afterwards, and called
+    /// that binding. It is not: an operation applies policy, takes snapshots, runs format checks and calls
+    /// back into the host between those two points, and the channel can be replaced anywhere in there. The
+    /// check passed, the send went to the replacement, and the later check reported Superseded — after the
+    /// settings had already reached the wrong daemon.
+    ///
+    /// The policy hook is only a way to land the replacement in that interval deterministically; it
+    /// touches no session state. What is asserted is that nothing was sent at all, which a check before
+    /// the send cannot deliver and a hold on the channel can.
+    /// </summary>
+    [Fact]
+    public async Task ObsoleteWorkNeverEntersTheReplacementTransport()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var store = new PathRecordingStore();
+        var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
+            new SwitchDuringPreparation(daemon), locator);
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        await settings.ReloadFromDaemonAsync();
+        session.NoteConnectedDaemon();
+        daemon.Applied.Clear();
+
+        var outcome = await settings.ApplyAndSaveAsync(Tablet("A's edit"));
+
+        Assert.Equal(SettingsApplyStatus.Superseded, outcome.Status);
+        Assert.Empty(store.Wrote);
+        Assert.Empty(daemon.Applied);          // the part a pre-send check cannot give you
+    }
+
+    /// <summary>
+    /// A send that fails because its channel was replaced says so, rather than "not connected".
+    ///
+    /// Both are "it was not sent", and they are different facts. Telling a user with a working daemon
+    /// that they have no connection is wrong in a way they would act on — by going to look at a daemon
+    /// that is fine.
+    /// </summary>
+    [Fact]
+    public async Task ASendBoundToAReplacedChannel_IsSupersededNotDisconnected()
+    {
+        var (_, settings, daemon, _) = Make();
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ => held.Task;
+        var live = settings.ApplyLiveOnlyAsync(Tablet("Live"));
+        daemon.ReconnectSilently();
+        held.SetResult(true);
+
+        Assert.Equal(SettingsApplyStatus.Superseded, (await live).Status);
+    }
+
     private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, PathRecordingStore) Make()
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };

@@ -163,6 +163,30 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// <summary>The channel is replaced, and nothing announces it. The window, on its own.</summary>
     public void ReconnectSilently() => Incarnation++;
 
+    /// <inheritdoc />
+    IDaemonSettingsBinding IDaemonSettingsChannel.Bind() => new Binding(this, Incarnation);
+
+    /// <summary>
+    /// A hold on one of this fake's channels, modelling the real one: a send through a hold taken before
+    /// a reconnect reaches a channel that is gone, and fails -- it is NOT delivered to the replacement.
+    ///
+    /// Recording the attempt on the fake regardless is deliberate. A test asserting that obsolete work
+    /// never entered the transport has to be able to see it if it did, and a hold that silently dropped
+    /// the call would make that assertion unfalsifiable.
+    /// </summary>
+    private sealed class Binding(FakeDaemonTransport daemon, int incarnation) : IDaemonSettingsBinding
+    {
+        public int Incarnation => incarnation;
+
+        private bool Live => incarnation == daemon.Incarnation;
+
+        public Task<Settings?> GetSettingsAsync() =>
+            Live ? daemon.GetSettingsAsync() : Task.FromResult<Settings?>(null);
+
+        public Task<bool> SetSettingsAsync(Settings settings) =>
+            Live ? daemon.SetSettingsAsync(settings) : Task.FromResult(false);
+    }
+
     public Task<Settings?> GetSettingsAsync()
     {
         GetSettingsCalls++;

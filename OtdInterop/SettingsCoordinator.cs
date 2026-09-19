@@ -218,19 +218,41 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// Moves when the host tells us the daemon changed — the deliberate reset, after an executable was
     /// compared and found different.
     /// </param>
-    /// <param name="Incarnation">
-    /// Moves when the channel is replaced, whoever answers it. This covers what the session alone cannot:
-    /// the host has not been told yet, or will never be told because the daemon dropped and came back
-    /// before anything looked. Nobody has to call anything for it to be correct, which is the point — it
-    /// is already right when the first operation after a reconnect is admitted.
+    /// <param name="Channel">
+    /// A hold on the connection itself, not a number describing it. Every send in the operation goes
+    /// through this, so a channel replaced mid-operation cannot receive work authored for its
+    /// predecessor.
+    ///
+    /// The distinction matters and I got it wrong first: comparing a number before sending is a check,
+    /// and a check plus a send is two steps with a gap between them. An operation applies policy, takes
+    /// snapshots and calls back into the host after being admitted — plenty of time for the channel to be
+    /// replaced after the check passes. Holding it removes the gap rather than narrowing it.
     /// </param>
-    private readonly record struct Origin(int Session, int Incarnation);
+    private readonly record struct Origin(int Session, IDaemonSettingsBinding Channel);
 
-    /// <summary>What an operation admitted at this instant would belong to.</summary>
-    private Origin Here() => new(Volatile.Read(ref _sessionGeneration), _daemon.Incarnation);
+    /// <summary>
+    /// Why a send came back false: the channel is gone because it was replaced, or there is simply no
+    /// transport.
+    ///
+    /// They look identical at the call -- both are "not sent" -- and they are different facts. A send
+    /// bound to a replaced channel fails because the work is obsolete, and reporting that as
+    /// "not connected" would tell a user with a perfectly good connection that they have none.
+    /// </summary>
+    private SettingsApplyOutcome NotSent(Origin origin) =>
+        StillCurrent(origin) ? SettingsApplyOutcome.Disconnected : SettingsApplyOutcome.Superseded;
 
-    /// <summary>True while an operation from <paramref name="origin"/> is still entitled to act.</summary>
-    private bool StillCurrent(Origin origin) => origin == Here();
+    /// <summary>What an operation admitted at this instant belongs to.</summary>
+    private Origin Here() => new(Volatile.Read(ref _sessionGeneration), _daemon.Bind());
+
+    /// <summary>
+    /// True while an operation from <paramref name="origin"/> may still publish what it did.
+    ///
+    /// Not what stops it sending to the wrong daemon — <see cref="Origin.Channel"/> does that, by being a
+    /// hold rather than a comparison. This decides whether the result may become this session's state.
+    /// </summary>
+    private bool StillCurrent(Origin origin) =>
+        origin.Session == Volatile.Read(ref _sessionGeneration)
+        && origin.Channel.Incarnation == _daemon.Incarnation;
 
     /// <param name="daemon">The daemon connection.</param>
     /// <param name="settingsPath">Where to persist. Read late: it comes from the daemon's own
@@ -330,8 +352,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     {
         if (HasEphemeralOverride) return SettingsReloadOutcome.SkippedOverride;
 
+        // Read through a hold on the channel, for the same reason every send goes through one: a read
+        // that spans a reconnect would otherwise be answered by whichever channel is current when it
+        // lands, and adopting that makes the new daemon's settings the baseline without anything having
+        // identified it. The epoch does not catch this on its own -- a silent reconnect moves no epoch.
+        var channel = _daemon.Bind();
         var observed = ObservationEpoch;
-        var loaded = await _daemon.GetSettingsAsync();
+        var loaded = await channel.GetSettingsAsync();
+        if (channel.Incarnation != _daemon.Incarnation) return SettingsReloadOutcome.Overtaken;
         if (!AdoptLoadedSettings(loaded, observed)) return SettingsReloadOutcome.Overtaken;
 
         // Null is adopted, not rejected: a daemon that answered with nothing is a daemon this session has
@@ -534,7 +562,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         {
             // False means there is no transport: the change was NOT sent, so it isn't live and we must
             // not say it is (#734). Previously this returned quietly and we reported success.
-            applied = await _daemon.SetSettingsAsync(revision);
+            applied = await origin.Channel.SetSettingsAsync(revision);
         }
         catch (Exception ex)
         {
@@ -550,6 +578,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         if (!applied)
         {
+            // Superseded rather than disconnected when the channel this was bound to has been replaced:
+            // the send failed because the work is obsolete, not because the user has no daemon.
+            if (!StillCurrent(origin))
+            {
+                _log.Warn("A settings apply was bound to a connection that has since been replaced; "
+                            + "it was not sent to its replacement.");
+                return SettingsApplyOutcome.Superseded;
+            }
+
             _onSaveState(SettingsSaveState.Disconnected);
             _log.Warn("Couldn't apply settings: not connected to the daemon.");
             return SettingsApplyOutcome.Disconnected with { Prepared = prepared };
@@ -681,10 +718,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
         // caller must not announce a switch that didn't happen. State moves only on success.
-        if (!await _daemon.SetSettingsAsync(revision))
+        if (!await origin.Channel.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
-            return SettingsApplyOutcome.Disconnected;
+            return NotSent(origin);
         }
         NoteDaemonAccepted();
 
@@ -730,10 +767,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
         // would suppress the reload's settings read on the strength of one that does not exist.
-        if (!await _daemon.SetSettingsAsync(revision))
+        if (!await origin.Channel.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
-            return SettingsApplyOutcome.Disconnected;
+            return NotSent(origin);
         }
         NoteDaemonAccepted();
 
@@ -785,11 +822,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // a failed write would leave the tablet on the snapshot while the reload resumed treating the
         // daemon as authoritative — adopting that snapshot as the editor's default, which is exactly
         // what #737 fixed.
-        if (!await _daemon.SetSettingsAsync(baseline))
+        if (!await origin.Channel.SetSettingsAsync(baseline))
         {
             _log.Warn("Couldn't end the per-app override: not connected to the daemon. " +
                         "The override is still in effect.");
-            return SettingsApplyOutcome.Disconnected;
+            return NotSent(origin);
         }
         NoteDaemonAccepted();
 
@@ -830,7 +867,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         bool applied;
         try
         {
-            applied = await _daemon.SetSettingsAsync(def);
+            applied = await origin.Channel.SetSettingsAsync(def);
         }
         catch (Exception ex)
         {
