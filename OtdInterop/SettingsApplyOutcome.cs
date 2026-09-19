@@ -17,6 +17,17 @@ public enum SettingsApplyStatus
     /// lost on the next daemon restart. Worth retrying the save alone.</summary>
     AppliedNotSaved,
 
+    /// <summary>
+    /// The daemon accepted the change and nothing was written, because nothing was meant to be.
+    ///
+    /// Live-only and per-app applies deliberately leave the saved default alone: the point is a
+    /// temporary override the user's own settings survive. Distinct from
+    /// <see cref="AppliedNotSaved"/>, which describes a write that was wanted and failed — conflating
+    /// them would make a deliberate override look like something to retry, and make a failed save look
+    /// like a choice.
+    /// </summary>
+    AppliedLive,
+
     /// <summary>No daemon transport, so nothing was applied and nothing was saved. Distinct from a
     /// failure: there is nothing wrong except that we aren't connected.</summary>
     Disconnected,
@@ -70,6 +81,8 @@ public readonly record struct SettingsApplyOutcome(
     public static readonly SettingsApplyOutcome Unsaved = new(SettingsApplyStatus.AppliedNotSaved);
     /// <summary>No transport, so nothing was sent and nothing was written.</summary>
     public static readonly SettingsApplyOutcome Disconnected = new(SettingsApplyStatus.Disconnected);
+    /// <summary>Live on the daemon; nothing was written, and nothing was meant to be.</summary>
+    public static readonly SettingsApplyOutcome Live = new(SettingsApplyStatus.AppliedLive);
     /// <summary>The apply-loop circuit breaker tripped; deliberately not sent.</summary>
     public static readonly SettingsApplyOutcome Skipped = new(SettingsApplyStatus.Skipped);
     /// <summary>The daemon changed while this was queued or in flight; it belongs to a session that has ended.</summary>
@@ -81,7 +94,8 @@ public readonly record struct SettingsApplyOutcome(
     /// <summary>The daemon is running these settings now. <see cref="SettingsApplyStatus.NoChange"/>
     /// counts — it already was.</summary>
     public bool IsLive => Status is SettingsApplyStatus.AppliedAndSaved
-        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.NoChange;
+        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.AppliedLive
+        or SettingsApplyStatus.NoChange;
 
     /// <summary>
     /// Something was actually written to the daemon, so there is new state worth reading back.
@@ -91,7 +105,7 @@ public readonly record struct SettingsApplyOutcome(
     /// it (#763). Use this to decide whether to reload; use <see cref="IsLive"/> to describe state.
     /// </summary>
     public bool ChangedTheDaemon => Status is SettingsApplyStatus.AppliedAndSaved
-        or SettingsApplyStatus.AppliedNotSaved;
+        or SettingsApplyStatus.AppliedNotSaved or SettingsApplyStatus.AppliedLive;
 
     /// <summary>These settings will survive a restart.</summary>
     public bool IsPersisted => Status is SettingsApplyStatus.AppliedAndSaved or SettingsApplyStatus.NoChange;

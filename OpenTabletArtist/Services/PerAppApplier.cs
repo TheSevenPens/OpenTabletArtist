@@ -37,9 +37,14 @@ public sealed class PerAppApplier : IPerAppApplier
         // to the log and to the switcher, which needs to know not to record a switch that didn't happen.
         try
         {
-            // False means it never reached the daemon, so the override is still on the tablet (#766) —
-            // the switcher must not record a return to the default that did not happen.
-            return await _settings.ClearEphemeralOverrideAsync();
+            // Anything short of live means the override is still on the tablet (#766) — the switcher
+            // must not record a return to the default that did not happen. The outcome says which kind
+            // of short: no transport, a superseded session, a failure. That reaches the log below at its
+            // source; this contract only needs to know whether the tablet is back.
+            var outcome = await _settings.ClearEphemeralOverrideAsync();
+            if (!outcome.IsLive)
+                AppLog.Warn($"Per-app switch to the default profile did not take effect ({outcome.Status}).");
+            return outcome.IsLive;
         }
         catch (Exception ex)
         {
@@ -67,9 +72,12 @@ public sealed class PerAppApplier : IPerAppApplier
         // perfectly fine. It is its own outcome, and the switcher commits nothing for it (#737).
         try
         {
-            return await _settings.ApplyEphemeralAsync(settings)
-                ? PerAppApplyResult.Applied
-                : PerAppApplyResult.ApplyFailed;   // no transport — nothing was sent (#766)
+            var outcome = await _settings.ApplyEphemeralAsync(settings);
+            if (outcome.IsLive) return PerAppApplyResult.Applied;
+            // Nothing reached the daemon (#766). The reason is worth logging even though this result
+            // type cannot carry it — a per-app switch that silently does nothing is hard to attribute.
+            AppLog.Warn($"Per-app snapshot did not reach the daemon ({outcome.Status}).");
+            return PerAppApplyResult.ApplyFailed;
         }
         catch (Exception ex)
         {

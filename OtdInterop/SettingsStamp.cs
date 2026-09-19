@@ -22,7 +22,7 @@ namespace OtdInterop;
 /// </para>
 /// <para>
 /// So the stamp is captured when an operation is <b>admitted</b> — before it waits — and checked again
-/// before anything leaves the process and before any result is published. <see cref="Sequence"/> orders
+/// before anything leaves the process and before any result is published. <see cref="Version"/> orders
 /// operations within one session, so a result that arrives late cannot overwrite the state of a newer
 /// one that has already completed.
 /// </para>
@@ -32,11 +32,15 @@ namespace OtdInterop;
 /// The daemon connection this belongs to. Opaque and monotonic: a new value means a different daemon, or
 /// the same daemon reached through a new connection. Values are never reused within a process.
 /// </param>
-/// <param name="Sequence">
-/// Position within <paramref name="Session"/>, increasing as operations are admitted. Comparable only
-/// against stamps carrying the same <paramref name="Session"/>.
+/// <param name="Version">
+/// Which state of that session this describes. It counts the moments the session's settings change —
+/// each accepted mutation and each adopted read — so a caller can tell whether the ground has moved
+/// since it last looked. Comparable only against stamps carrying the same <paramref name="Session"/>.
+///
+/// Deliberately not a count of operations. What a caller wants to know is whether the state it is
+/// holding is still the current one, and operations that change nothing do not make it stale.
 /// </param>
-public readonly record struct SettingsStamp(long Session, long Sequence)
+public readonly record struct SettingsStamp(long Session, long Version)
 {
     /// <summary>A stamp belonging to no session — the state before anything has connected.</summary>
     public static readonly SettingsStamp None = new(0, 0);
@@ -52,5 +56,5 @@ public readonly record struct SettingsStamp(long Session, long Sequence)
     /// </summary>
     /// <param name="other">The stamp to compare against, usually the caller's current one.</param>
     public bool SupersededBy(SettingsStamp other) =>
-        other.Session == Session && other.Sequence >= Sequence;
+        other.Session == Session && other.Version >= Version;
 }

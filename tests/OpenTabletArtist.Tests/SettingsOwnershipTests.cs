@@ -91,7 +91,8 @@ public class SettingsOwnershipTests
 
     public static TheoryData<string> EveryMutatingPath => new() { "save", "live", "ephemeral" };
 
-    private static Task Apply(SettingsCoordinator c, string path, Settings s) => path switch
+    /// <summary>All three report an outcome now, so the helper can hand one back.</summary>
+    private static Task<SettingsApplyOutcome> Apply(SettingsCoordinator c, string path, Settings s) => path switch
     {
         "save" => c.ApplyAndSaveAsync(s),
         "live" => c.ApplyLiveOnlyAsync(s),
@@ -321,4 +322,78 @@ public class SettingsOwnershipTests
         Assert.Single(daemon.Applied);
         Assert.Equal("T", daemon.Applied[0].Profiles[0].Tablet);
     }
+
+    // --- Each refusal says which refusal it was -------------------------------------------------
+
+    /// <summary>
+    /// The live-only and per-app paths used to return a bare <c>bool</c>. Three different things made it
+    /// false — the copy failed, there was no transport, the session had ended — and the caller could not
+    /// tell them apart, so a per-app switch that silently did nothing was hard to attribute.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EveryMutatingPath))]
+    public async Task WithNoTransport_EveryPathSaysDisconnected(string path)
+    {
+        var (coordinator, daemon, _) = Make();
+        daemon.SetSettingsSucceeds = false;
+
+        var outcome = await Apply(coordinator, path, WithPolicyBait());
+
+        Assert.Equal(SettingsApplyStatus.Disconnected, outcome.Status);
+        Assert.False(outcome.IsLive);
+    }
+
+    /// <summary>
+    /// Applied, and not saving was the intent — distinct from a save that was wanted and failed.
+    /// Conflating them would make a deliberate override look like something to retry.
+    /// </summary>
+    [Fact]
+    public async Task ALiveOnlyApply_IsLiveButNotPersisted()
+    {
+        var (coordinator, _, _) = Make();
+
+        var outcome = await coordinator.ApplyLiveOnlyAsync(WithPolicyBait());
+
+        Assert.Equal(SettingsApplyStatus.AppliedLive, outcome.Status);
+        Assert.True(outcome.IsLive);
+        Assert.False(outcome.IsPersisted);
+        Assert.False(outcome.NeedsPersistRetry);   // nothing to retry: nothing was meant to be written
+    }
+
+    /// <summary>Ending an override that was never there is not a failure, and not a change either.</summary>
+    [Fact]
+    public async Task ClearingAnOverrideThatWasNeverSet_IsNoChange()
+    {
+        var (coordinator, daemon, _) = Make();
+
+        var outcome = await coordinator.ClearEphemeralOverrideAsync();
+
+        Assert.Equal(SettingsApplyStatus.NoChange, outcome.Status);
+        Assert.Empty(daemon.Applied);
+    }
+
+    /// <summary>
+    /// The current settings come back stamped, so a caller holding them can tell later whether the
+    /// ground has moved. A stamp that never changed would be decoration.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrent_IsStampedAndMovesWhenTheStateDoes()
+    {
+        var (coordinator, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(WithPolicyBait());
+
+        var first = coordinator.GetCurrent();
+        Assert.NotNull(first);
+        Assert.False(first!.Stamp.IsNone);
+
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Changed"));
+        var second = coordinator.GetCurrent();
+
+        Assert.NotNull(second);
+        Assert.True(first.Stamp.SupersededBy(second!.Stamp));
+        Assert.NotSame(first.Settings, second.Settings);
+    }
+
+    private static Settings SettingsFor(string tablet) =>
+        new() { Profiles = new ProfileCollection { new Profile { Tablet = tablet } } };
 }

@@ -21,7 +21,7 @@ namespace OtdInterop;
 /// It also holds no reference back to the session. Apply-then-reload is orchestrated by the caller, so
 /// the dependency runs one way.
 /// </summary>
-public sealed class SettingsCoordinator
+public sealed class SettingsCoordinator : IOtdSettingsSession
 {
     private readonly IDaemonTransport _daemon;
     // Injected rather than a static call to the app's logger: what this type reports is mostly partial
@@ -97,13 +97,6 @@ public sealed class SettingsCoordinator
     private int _sessionGeneration;
 
     /// <summary>
-    /// Increases as operations are admitted, so a result can say where it sat in the order. Together with
-    /// the session it forms the <see cref="SettingsStamp"/> a caller checks before adopting a result:
-    /// without it, two completions arriving out of order are indistinguishable.
-    /// </summary>
-    private long _operationSequence;
-
-    /// <summary>
     /// Changes every time the settings this session publishes change.
     ///
     /// Reading from the daemon is not instantaneous, and a mutation can complete while a read is still
@@ -126,11 +119,31 @@ public sealed class SettingsCoordinator
     public int StateVersion => Volatile.Read(ref _stateVersion);
 
     /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
-    private void Publish(Settings? settings)
+    /// <returns>The version the state is now at, for stamping whatever produced it.</returns>
+    private int Publish(Settings? settings)
     {
         _settings = settings;
-        Interlocked.Increment(ref _stateVersion);
+        return Interlocked.Increment(ref _stateVersion);
     }
+
+    /// <summary>
+    /// A result a caller may keep: a copy of its own, stamped, or null when the copy cannot be made.
+    ///
+    /// Null rather than the revision itself, always. What is handed back must not be the object this
+    /// session holds, sent, or may still retry — a caller that adopted that and went on editing would be
+    /// editing all three.
+    /// </summary>
+    private PreparedSettings? Detach(Settings revision, SettingsStamp stamp) =>
+        Snapshot(revision) is { } copy ? new PreparedSettings(copy, stamp) : null;
+
+    /// <summary>
+    /// The stamp for a state version.
+    ///
+    /// The session is offset by one so a stamp from a freshly-created session is never equal to
+    /// <see cref="SettingsStamp.None"/>, which means no session at all.
+    /// </summary>
+    private SettingsStamp StampFor(int version) =>
+        new(Volatile.Read(ref _sessionGeneration) + 1, version);
 
     /// <summary>
     /// The daemon has just accepted something, so what a read of it can observe has changed.
@@ -221,6 +234,17 @@ public sealed class SettingsCoordinator
     /// Each read copies, so hold the result rather than re-reading it in a loop.
     /// </summary>
     public Settings? CurrentSettings => _settings is { } s ? Snapshot(s) : null;
+
+    /// <summary>
+    /// The settings this session is editing, detached and stamped.
+    ///
+    /// The stamp says which state the copy came from, so a caller holding it can tell later whether the
+    /// ground has moved. Reading the settings and the version is not one atomic step: a change landing
+    /// between them yields a stamp one version newer than the copy, which errs towards "this is stale"
+    /// — the safe direction, and the reason it is not worth locking for.
+    /// </summary>
+    public PreparedSettings? GetCurrent() =>
+        _settings is { } current ? Detach(current, StampFor(StateVersion)) : null;
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -323,20 +347,13 @@ public sealed class SettingsCoordinator
     /// the caller's own object is precisely the guarantee being withdrawn, and a clone failing means a
     /// serialization failure is coming for the disk write anyway.
     /// </summary>
-    private (Settings Working, SettingsStamp Stamp)? Admit(Settings settings, out Exception? error)
-    {
-        var working = Snapshot(settings, out error);
-        if (working == null) return null;
-        return (working, new SettingsStamp(
-            Volatile.Read(ref _sessionGeneration) + 1,      // +1 so a fresh session is never SettingsStamp.None
-            Interlocked.Increment(ref _operationSequence)));
-    }
+    private Settings? Admit(Settings settings, out Exception? error) => Snapshot(settings, out error);
 
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
     public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings)
     {
-        if (Admit(settings, out var error) is not { } admitted)
+        if (Admit(settings, out var error) is not { } working)
         {
             _log.Warn("Couldn't take a private copy of the settings being applied; nothing was sent or " +
                       "saved. The settings are probably not serializable, which would fail the disk " +
@@ -346,12 +363,11 @@ public sealed class SettingsCoordinator
             _onSaveState(SettingsSaveState.ApplyFailed);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyAndSaveCoreAsync(admitted.Working, admitted.Stamp, session),
+        return SerializedAsync(session => ApplyAndSaveCoreAsync(working, session),
             () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(
-        Settings settings, SettingsStamp stamp, int session)
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, int session)
     {
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
@@ -399,7 +415,7 @@ public sealed class SettingsCoordinator
             && json == _lastPersistedSettingsJson)
             return SettingsApplyOutcome.NoChange;
 
-        Publish(revision);
+        var stamp = StampFor(Publish(revision));
         // A real apply puts the daemon on these settings, so any per-app override is over (#737).
         HasEphemeralOverride = false;
         // A copy of its own, not the revision. `revision` is simultaneously this session's state, the
@@ -410,9 +426,7 @@ public sealed class SettingsCoordinator
         //
         // Null rather than an alias when the copy fails: a result that cannot be isolated is not a
         // result a caller may adopt, and saying nothing is better than saying something untrue.
-        var prepared = Snapshot(revision) is { } detached
-            ? new PreparedSettings(detached, stamp)
-            : null;
+        var prepared = Detach(revision, stamp);
 
         // Resolved BEFORE the RPC, not after (#803). It comes from the connected daemon's AppInfo, so
         // reading it late means an apply that outlives a daemon switch writes its result into the *new*
@@ -545,20 +559,21 @@ public sealed class SettingsCoordinator
 
     /// <summary>Applies live without persisting — a temporary override (profile switching, #320). The
     /// saved <c>settings.json</c> default is untouched. Does NOT reload; the caller does.</summary>
-    public Task<bool> ApplyLiveOnlyAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings settings)
     {
         // Isolated at admission like every other mutating path. This one used to send the caller's own
         // instance, so an edit made while the RPC was in flight reached the daemon -- the hazard #774
         // fixed for apply-and-save and left open here.
-        if (Admit(settings, out var error) is not { } admitted)
+        if (Admit(settings, out var error) is not { } working)
         {
             _log.Warn("Couldn't take a private copy of the live-only settings; nothing was sent.", error);
-            return Task.FromResult(false);
+            return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyLiveOnlyCoreAsync(admitted.Working, session), () => false);
+        return SerializedAsync(session => ApplyLiveOnlyCoreAsync(working, session),
+            () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings, int session)
+    private async Task<SettingsApplyOutcome> ApplyLiveOnlyCoreAsync(Settings settings, int session)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
@@ -566,7 +581,7 @@ public sealed class SettingsCoordinator
         if (revision == null)
         {
             _log.Warn("Couldn't isolate the live-only settings after applying policy; nothing was sent.");
-            return false;
+            return SettingsApplyOutcome.Failed(null);
         }
 
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
@@ -574,7 +589,7 @@ public sealed class SettingsCoordinator
         if (!await _daemon.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
-            return false;
+            return SettingsApplyOutcome.Disconnected;
         }
         NoteDaemonAccepted();
 
@@ -583,12 +598,12 @@ public sealed class SettingsCoordinator
         if (!StillCurrent(session))
         {
             _log.Warn("A live-only apply completed after the daemon changed; not adopting it as the baseline.");
-            return false;
+            return SettingsApplyOutcome.Superseded;
         }
 
-        Publish(revision);
+        var stamp = StampFor(Publish(revision));
         HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
-        return true;
+        return SettingsApplyOutcome.Live with { Prepared = Detach(revision, stamp) };
     }
 
     /// <summary>
@@ -596,17 +611,18 @@ public sealed class SettingsCoordinator
     /// no change to <see cref="CurrentSettings"/>. For automatic per-app switching (#167): the editor keeps
     /// showing and persisting the user's default while the daemon runs a transient snapshot.
     /// </summary>
-    public Task<bool> ApplyEphemeralAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings settings)
     {
-        if (Admit(settings, out var error) is not { } admitted)
+        if (Admit(settings, out var error) is not { } working)
         {
             _log.Warn("Couldn't take a private copy of the per-app snapshot; nothing was sent.", error);
-            return Task.FromResult(false);
+            return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(session => ApplyEphemeralCoreAsync(admitted.Working, session), () => false);
+        return SerializedAsync(session => ApplyEphemeralCoreAsync(working, session),
+            () => SettingsApplyOutcome.Superseded);
     }
 
-    private async Task<bool> ApplyEphemeralCoreAsync(Settings settings, int session)
+    private async Task<SettingsApplyOutcome> ApplyEphemeralCoreAsync(Settings settings, int session)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
@@ -614,7 +630,7 @@ public sealed class SettingsCoordinator
         if (revision == null)
         {
             _log.Warn("Couldn't isolate the per-app snapshot after applying policy; nothing was sent.");
-            return false;
+            return SettingsApplyOutcome.Failed(null);
         }
 
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
@@ -622,7 +638,7 @@ public sealed class SettingsCoordinator
         if (!await _daemon.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
-            return false;
+            return SettingsApplyOutcome.Disconnected;
         }
         NoteDaemonAccepted();
 
@@ -635,24 +651,27 @@ public sealed class SettingsCoordinator
         if (!StillCurrent(session))
         {
             _log.Warn("A per-app snapshot completed after the daemon changed; not recording it as an override.");
-            return false;
+            return SettingsApplyOutcome.Superseded;
         }
 
         HasEphemeralOverride = true;
-        return true;
+        // Deliberately does not publish: the point of a per-app snapshot is that what the user edits and
+        // what gets saved stay theirs. So the state version does not move, and the stamp describes the
+        // state this override sits on top of.
+        return SettingsApplyOutcome.Live with { Prepared = Detach(revision, StampFor(StateVersion)) };
     }
 
     /// <summary>Puts the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.</summary>
-    public Task<bool> ClearEphemeralOverrideAsync() =>
-        SerializedAsync(ClearEphemeralOverrideCoreAsync, () => false);
+    public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync() =>
+        SerializedAsync(ClearEphemeralOverrideCoreAsync, () => SettingsApplyOutcome.Superseded);
 
-    private async Task<bool> ClearEphemeralOverrideCoreAsync(int session)
+    private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(int session)
     {
         if (_settings is not { } baseline)
         {
             // Nothing to return to, so nothing is overriding anything.
             HasEphemeralOverride = false;
-            return true;
+            return SettingsApplyOutcome.NoChange;
         }
 
         // The override is only over once the daemon is back on the baseline (#766). Clearing the flag on
@@ -663,7 +682,7 @@ public sealed class SettingsCoordinator
         {
             _log.Warn("Couldn't end the per-app override: not connected to the daemon. " +
                         "The override is still in effect.");
-            return false;
+            return SettingsApplyOutcome.Disconnected;
         }
         NoteDaemonAccepted();
 
@@ -672,11 +691,11 @@ public sealed class SettingsCoordinator
         if (!StillCurrent(session))
         {
             _log.Warn("The per-app override ended after the daemon changed; the new daemon never had one.");
-            return false;
+            return SettingsApplyOutcome.Superseded;
         }
 
         HasEphemeralOverride = false;
-        return true;
+        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, StampFor(StateVersion)) };
     }
 
     /// <summary>

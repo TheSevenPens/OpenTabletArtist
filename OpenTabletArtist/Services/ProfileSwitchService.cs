@@ -72,8 +72,10 @@ public sealed partial class ProfileSwitchService : ObservableObject
         // Only claim the switch once the daemon has it (#766). This path is reached from a hotkey with
         // no window in front of it, so the toast is the entire feedback — announcing a switch that never
         // left the app leaves the artist believing the tablet changed when it did not.
-        if (!await _settings.ApplyLiveOnlyAsync(settings))
+        var outcome = await _settings.ApplyLiveOnlyAsync(settings);
+        if (!outcome.IsLive)
         {
+            AppLog.Warn($"Preset \"{snapshotName}\" did not reach the daemon ({outcome.Status}).");
             SwitchFailed?.Invoke(snapshotName);
             return false;
         }

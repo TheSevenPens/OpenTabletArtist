@@ -200,7 +200,7 @@ public class SettingsCoordinatorFollowupTests
 
         var applied = await session.ApplyLiveOnlyAsync(SettingsFor("Preset"));
 
-        Assert.False(applied);
+        Assert.Equal(SettingsApplyStatus.Disconnected, applied.Status);
     }
 
     [AvaloniaFact]
@@ -213,7 +213,7 @@ public class SettingsCoordinatorFollowupTests
 
         var applied = await session.ApplyEphemeralAsync(SettingsFor("PerApp"));
 
-        Assert.False(applied);
+        Assert.Equal(SettingsApplyStatus.Disconnected, applied.Status);
         Assert.False(session.HasEphemeralOverride);
     }
 
@@ -249,7 +249,7 @@ public class SettingsCoordinatorFollowupTests
         daemon.SetSettingsSucceeds = false;
         var cleared = await session.ClearEphemeralOverrideAsync();
 
-        Assert.False(cleared);
+        Assert.Equal(SettingsApplyStatus.Disconnected, cleared.Status);
         Assert.True(session.HasEphemeralOverride);   // still on the tablet, so still true
     }
 }
