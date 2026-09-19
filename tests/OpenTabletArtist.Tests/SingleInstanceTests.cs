@@ -39,7 +39,7 @@ public class SingleInstanceTests
         // milliseconds; the generous timeout only bites on a genuine failure and absorbs ThreadPool
         // scheduling delay on loaded CI runners (the activation callback runs via
         // RegisterWaitForSingleObject), which previously flaked this test and blocked releases (#222).
-        Assert.True(activated.Wait(TimeSpan.FromSeconds(30)));
+        Assert.True(activated.Wait(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
         second.Dispose();
     }
 

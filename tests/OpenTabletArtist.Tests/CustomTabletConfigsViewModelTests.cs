@@ -70,7 +70,7 @@ public class CustomTabletConfigsViewModelTests
         try
         {
             var file = Path.Combine(dir, "tablet.json");
-            await File.WriteAllTextAsync(file, "{\"Name\":\"Wacom\"}");
+            await File.WriteAllTextAsync(file, "{\"Name\":\"Wacom\"}", TestContext.Current.CancellationToken);
             var dialogs = new FakeDialogService();
             var vm = NewVm(dir, dialogs);
 
@@ -90,7 +90,7 @@ public class CustomTabletConfigsViewModelTests
         try
         {
             var file = Path.Combine(dir, "tablet.json");
-            await File.WriteAllTextAsync(file, "{}");
+            await File.WriteAllTextAsync(file, "{}", TestContext.Current.CancellationToken);
             var dialogs = new FakeDialogService { ConfirmResult = true };
             var vm = NewVm(dir, dialogs);
             Assert.True(vm.HasConfigurations);
@@ -110,7 +110,7 @@ public class CustomTabletConfigsViewModelTests
         try
         {
             var file = Path.Combine(dir, "tablet.json");
-            await File.WriteAllTextAsync(file, "{}");
+            await File.WriteAllTextAsync(file, "{}", TestContext.Current.CancellationToken);
             var dialogs = new FakeDialogService { ConfirmResult = false };
             var vm = NewVm(dir, dialogs);
 

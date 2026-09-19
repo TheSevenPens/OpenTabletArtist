@@ -16,9 +16,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Avalonia.Headless.XUnit 12.x is built on xunit v3, so this project uses v3 while the logic
-         suite stays on v2. Mixing them yields an assembly the runner treats as v3 but that has no app
-         host to launch. -->
+    <!-- Avalonia.Headless.XUnit 12.x is built on xunit v3, which is why this project moved there first.
+         The logic suite followed (#756), so both now sit on one major and share one runner.
+
+         This package is also what pins the major: it is compiled against xunit.v3.extensibility.core
+         3.2.2, and 4.x changed TestIntrospectionHelper.GetTestCaseDetails. Its NuGet dependency is a
+         floor, not a pin, so restore will happily resolve 4.x and every test then fails at discovery
+         with MissingMethodException - a build that warns about nothing. Do not bump past 3.x until
+         Avalonia ships a headless package built against xunit.v3 4.x. -->
     <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

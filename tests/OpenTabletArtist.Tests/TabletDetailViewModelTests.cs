@@ -157,7 +157,7 @@ public class TabletDetailViewModelTests
         vm.SelectedDisplayNumber = 7; // queued — supersedes 6
 
         hold.SetResult(); // release the in-flight apply; the gate drains
-        for (int i = 0; i < 200 && Volatile.Read(ref calls) < 2; i++) await Task.Delay(10);
+        for (int i = 0; i < 200 && Volatile.Read(ref calls) < 2; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Exactly the in-flight (5) and the last pick (7) applied; the middle pick (6) was coalesced away.
         Assert.Equal(new int?[] { 5, 7 }, appliedTo);
