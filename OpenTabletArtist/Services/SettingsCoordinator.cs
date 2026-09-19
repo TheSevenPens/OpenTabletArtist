@@ -26,9 +26,18 @@ namespace OpenTabletArtist.Services;
 public sealed class SettingsCoordinator
 {
     private readonly IDaemonTransport _daemon;
+    // Injected rather than a static call to the app's logger: what this type reports is mostly partial
+    // failure -- live but unsaved, discarded because the daemon changed -- and those are exactly the
+    // events nobody can see from outside. Where the lines go is the host's decision, not this type's.
+    private readonly IOtdLog _log;
     private readonly ISettingsFileStore _store;
     private readonly Func<string> _settingsPath;
     private readonly Func<bool> _isOwnedDaemon;
+    // The host's own rules about what may be written. This type does not hold an opinion about which
+    // third-party filters an application tolerates -- that is a product decision about that
+    // application's users -- but the decision has to take effect inside the operation, after the
+    // request is isolated and before anything is sent (#807).
+    private readonly IOtdSettingsPolicy _policy;
     private readonly Action<SettingsSaveState> _onSaveState;
 
     // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
@@ -121,10 +130,13 @@ public sealed class SettingsCoordinator
     /// negative form let OTA rewrite it (#742).</param>
     /// <param name="onSaveState">Reports save progress; the save chip stays observable state on the session.</param>
     public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
-        Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState)
+        Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
+        IOtdLog log, IOtdSettingsPolicy policy)
     {
         _daemon = daemon;
         _store = store;
+        _log = log;
+        _policy = policy;
         _settingsPath = settingsPath;
         _isOwnedDaemon = isOwnedDaemon;
         _onSaveState = onSaveState;
@@ -253,7 +265,7 @@ public sealed class SettingsCoordinator
             // Cloning failed, which means serialization failed, which means the disk write is about to
             // fail too. Carry on with the caller's object rather than refusing the user's edit outright:
             // send and persist still agree with each other, they are just no longer isolated.
-            AppLog.Warn("Couldn't snapshot the settings being applied; a concurrent edit could change " +
+            _log.Warn("Couldn't snapshot the settings being applied; a concurrent edit could change " +
                         "what gets persisted.");
             revision = settings;
         }
@@ -276,14 +288,14 @@ public sealed class SettingsCoordinator
             // Reachable daemon, failed call. Not live, not saved — a different state from "live but
             // unpersisted", and the UI text must not claim otherwise.
             _onSaveState(SettingsSaveState.ApplyFailed);
-            AppLog.Warn("Couldn't apply settings to the daemon.", ex);
+            _log.Warn("Couldn't apply settings to the daemon.", ex);
             throw; // keep the existing error-propagation contract for callers
         }
 
         if (!applied)
         {
             _onSaveState(SettingsSaveState.Disconnected);
-            AppLog.Warn("Couldn't apply settings: not connected to the daemon.");
+            _log.Warn("Couldn't apply settings: not connected to the daemon.");
             return SettingsApplyOutcome.Disconnected;
         }
 
@@ -292,7 +304,7 @@ public sealed class SettingsCoordinator
         // this session, and "applied" describes a machine the user has moved on from.
         if (!StillCurrent(session))
         {
-            AppLog.Warn("A settings apply completed after the daemon changed; discarding its result "
+            _log.Warn("A settings apply completed after the daemon changed; discarding its result "
                         + "rather than writing it to the new daemon's file.");
             return SettingsApplyOutcome.Superseded;
         }
@@ -313,7 +325,7 @@ public sealed class SettingsCoordinator
         _automaticRetries = 0;
 
         if (!saved)
-            AppLog.Warn(string.IsNullOrEmpty(path)
+            _log.Warn(string.IsNullOrEmpty(path)
                 ? "Settings applied but not saved: the daemon reported no settings file path."
                 : $"Settings applied but not saved: couldn't write {path}.");
 
@@ -365,7 +377,7 @@ public sealed class SettingsCoordinator
         // else's configuration is worse.
         if (_pendingPersistPath is { } origin && !ExecutablePath.SameFile(origin, path))
         {
-            AppLog.Warn($"Discarding an unsaved settings change made for {origin}: the connected daemon " +
+            _log.Warn($"Discarding an unsaved settings change made for {origin}: the connected daemon " +
                         $"now uses {path}, and the change does not belong to it.");
             DiscardPendingPersist();
             _onSaveState(SettingsSaveState.None);
@@ -390,14 +402,13 @@ public sealed class SettingsCoordinator
 
     private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings, int session)
     {
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
+        _policy.Apply(settings, PolicyContext(persisting: false));
 
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
         // caller must not announce a switch that didn't happen. State moves only on success.
         if (!await _daemon.SetSettingsAsync(settings))
         {
-            AppLog.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
+            _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
             return false;
         }
 
@@ -405,7 +416,7 @@ public sealed class SettingsCoordinator
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
         if (!StillCurrent(session))
         {
-            AppLog.Warn("A live-only apply completed after the daemon changed; not adopting it as the baseline.");
+            _log.Warn("A live-only apply completed after the daemon changed; not adopting it as the baseline.");
             return false;
         }
 
@@ -424,14 +435,13 @@ public sealed class SettingsCoordinator
 
     private async Task<bool> ApplyEphemeralCoreAsync(Settings settings, int session)
     {
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
+        _policy.Apply(settings, PolicyContext(persisting: false));
 
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
         // would suppress the reload's settings read on the strength of one that does not exist.
         if (!await _daemon.SetSettingsAsync(settings))
         {
-            AppLog.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
+            _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
             return false;
         }
 
@@ -443,7 +453,7 @@ public sealed class SettingsCoordinator
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
         if (!StillCurrent(session))
         {
-            AppLog.Warn("A per-app snapshot completed after the daemon changed; not recording it as an override.");
+            _log.Warn("A per-app snapshot completed after the daemon changed; not recording it as an override.");
             return false;
         }
 
@@ -470,7 +480,7 @@ public sealed class SettingsCoordinator
         // what #737 fixed.
         if (!await _daemon.SetSettingsAsync(baseline))
         {
-            AppLog.Warn("Couldn't end the per-app override: not connected to the daemon. " +
+            _log.Warn("Couldn't end the per-app override: not connected to the daemon. " +
                         "The override is still in effect.");
             return false;
         }
@@ -479,7 +489,7 @@ public sealed class SettingsCoordinator
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
         if (!StillCurrent(session))
         {
-            AppLog.Warn("The per-app override ended after the daemon changed; the new daemon never had one.");
+            _log.Warn("The per-app override ended after the daemon changed; the new daemon never had one.");
             return false;
         }
 
@@ -501,7 +511,7 @@ public sealed class SettingsCoordinator
         var path = _settingsPath();
         if (string.IsNullOrEmpty(path) || !_store.TryLoad(path, out var def) || def == null)
         {
-            AppLog.Warn("Couldn't restore the saved default: no readable settings file. " +
+            _log.Warn("Couldn't restore the saved default: no readable settings file. " +
                         "Any active override is still in effect.");
             return SettingsRestoreOutcome.SourceUnavailable;
         }
@@ -513,14 +523,14 @@ public sealed class SettingsCoordinator
         }
         catch (Exception ex)
         {
-            AppLog.Warn("Couldn't restore the saved default: the daemon rejected it. " +
+            _log.Warn("Couldn't restore the saved default: the daemon rejected it. " +
                         "Any active override is still in effect.", ex);
             return SettingsRestoreOutcome.Failed(ex);
         }
 
         if (!applied)
         {
-            AppLog.Warn("Couldn't restore the saved default: not connected to the daemon. " +
+            _log.Warn("Couldn't restore the saved default: not connected to the daemon. " +
                         "Any active override is still in effect.");
             return SettingsRestoreOutcome.Disconnected;
         }
@@ -530,7 +540,7 @@ public sealed class SettingsCoordinator
         // default the other's baseline.
         if (!StillCurrent(session))
         {
-            AppLog.Warn("A restore completed after the daemon changed; discarding its result.");
+            _log.Warn("A restore completed after the daemon changed; discarding its result.");
             return SettingsRestoreOutcome.Superseded;
         }
 
@@ -560,18 +570,37 @@ public sealed class SettingsCoordinator
     /// way OUT rather than on load because the shared <c>settings.json</c> is also OTD's own UX's file —
     /// a malformed profile we write would crash their UI, not just ours.
     /// </summary>
+    /// <summary>
+    /// What the host policy is told about the operation it is running inside.
+    ///
+    /// No session identity yet: the coordinator carries no per-operation stamp until the operations move
+    /// behind the facade, and an invented one would be worse than an absent one.
+    /// </summary>
+    /// <param name="persisting">
+    /// Whether this operation asks for a disk write. Intent, not outcome — a requested write can fail.
+    /// </param>
+    private SettingsPolicyContext PolicyContext(bool persisting) =>
+        new(SettingsStamp.None, _isOwnedDaemon(), persisting);
+
     private void Sanitize(Settings settings)
     {
-        // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742: keep only approved filters enabled
+        _policy.Apply(settings, PolicyContext(persisting: true));
 
         // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
         // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the
         // shared settings.json stays valid for OTD's own UI too (#otd-null-areas).
+        // Only this path applies the format guard. Live-only and ephemeral applies do not, and that is
+        // preserved as it stands rather than corrected here.
+        //
+        // It is not a principled line. The guard protects a reader of the settings FILE, so "we do not
+        // write, therefore it cannot matter" looks reasonable -- but OpenTabletDriver's own interface
+        // pulls the daemon's live state into itself (MainForm.SyncSettings, wired to Resynchronize) and
+        // then dereferences AbsoluteModeSettings.Tablet when the user saves. So settings applied
+        // live-only really can reach that crash by another route. Recorded as a gap to close in its own
+        // change, not widened here, where it would be indistinguishable from the extraction.
         int repairedProfiles = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
         if (repairedProfiles > 0)
-            AppLog.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
+            _log.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
                         "(would otherwise crash the OpenTabletDriver UX).");
     }
 
@@ -589,7 +618,10 @@ public sealed class SettingsCoordinator
     /// also be snapshotted. Returns null if it can't be cloned, which simply means there is nothing to
     /// retry — better than retrying something that has since changed underneath us.
     /// </summary>
-    private static Settings? Snapshot(Settings settings)
+    // Not static: it reports its own failure, and the log is injected (#807). Keeping it static would
+    // mean either a static logger or a silent null, and a snapshot that fails silently is how a
+    // concurrent edit reaches the daemon unnoticed.
+    private Settings? Snapshot(Settings settings)
     {
         try
         {
@@ -598,7 +630,7 @@ public sealed class SettingsCoordinator
         }
         catch (Exception ex)
         {
-            AppLog.Warn("Couldn't snapshot settings for a persistence retry; the retry is skipped.", ex);
+            _log.Warn("Couldn't snapshot settings for a persistence retry; the retry is skipped.", ex);
             return null;
         }
     }
