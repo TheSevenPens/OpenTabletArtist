@@ -104,7 +104,8 @@ public class SettingsCoordinatorConcurrencyTests
             daemon, store,
             settingsPath: () => path.Value,
             isOwnedDaemon: () => true,
-            onSaveState: states.Add);
+            onSaveState: states.Add,
+            log: NullOtdLog.Instance);
         return (coordinator, daemon, store, states);
     }
 

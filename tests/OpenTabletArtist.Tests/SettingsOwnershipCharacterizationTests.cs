@@ -75,7 +75,8 @@ public class SettingsOwnershipCharacterizationTests
             daemon, new NoopStore(),
             settingsPath: () => "A/settings.json",
             isOwnedDaemon: () => true,
-            onSaveState: _ => { });
+            onSaveState: _ => { },
+            log: NullOtdLog.Instance);
         return (coordinator, daemon);
     }
 

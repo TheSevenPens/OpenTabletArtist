@@ -430,7 +430,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             daemon, settingsStore,
             settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
-            onSaveState: state => SaveState = state);
+            onSaveState: state => SaveState = state,
+            log: AppLogBridge.Instance);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
