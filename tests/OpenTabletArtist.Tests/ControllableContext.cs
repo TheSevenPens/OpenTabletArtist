@@ -34,9 +34,19 @@ internal sealed class ControllableContext : IOtdExecutionContext
     public bool IsCurrent => true;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Deliberately NOT <c>RunContinuationsAsynchronously</c>. That is the right default almost
+    /// everywhere, and it is wrong here: it would push whatever awaits this onto the thread pool, so work
+    /// the library does <em>after</em> posting — reporting a failure, for instance — would land after
+    /// <see cref="Drain"/> had already returned, and a test would race it.
+    ///
+    /// It cost a green local run and a red CI one to notice, in two different shapes: a missing entry on
+    /// one platform and a collection modified mid-enumeration on another. A context a test controls has
+    /// to control the continuations too, or it controls nothing.
+    /// </remarks>
     public Task PostAsync(Action work)
     {
-        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var done = new TaskCompletionSource();
         _pending.Add((work, done));
         return done.Task;
     }
