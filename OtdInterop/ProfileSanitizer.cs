@@ -1,15 +1,20 @@
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 
-namespace OpenTabletArtist.Domain;
+namespace OtdInterop;
 
 /// <summary>
-/// Keeps the settings OTA writes valid for every consumer of the shared <c>settings.json</c> — notably the
+/// Keeps settings valid for every consumer of the shared <c>settings.json</c> — notably the
 /// OpenTabletDriver UX, whose Save does <c>p.AbsoluteModeSettings.Tablet.Width</c> and NREs (crashing) if a
 /// profile has a null <c>AbsoluteModeSettings</c>, <c>Tablet</c>, or <c>Display</c>. Some app-side profile
 /// creation (e.g. building a profile outside the daemon process, where the virtual-screen service is absent)
 /// can leave those null; this fills them so nothing downstream trips over a null. It only replaces nulls —
-/// existing areas are never altered. (#otd-null-areas)
+/// existing areas are never altered.
+///
+/// This is a compatibility guard, not validation: it repairs one specific shape that is known to crash
+/// a reader of the file. It makes no claim that settings passing through it are valid in any broader
+/// sense. It belongs to this library rather than to any one application, because every writer of that
+/// shared file needs it and none of them gets to decide otherwise.
 /// </summary>
 public static class ProfileSanitizer
 {

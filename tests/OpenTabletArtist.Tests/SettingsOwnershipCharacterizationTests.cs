@@ -76,7 +76,8 @@ public class SettingsOwnershipCharacterizationTests
             settingsPath: () => "A/settings.json",
             isOwnedDaemon: () => true,
             onSaveState: _ => { },
-            log: NullOtdLog.Instance);
+            log: NullOtdLog.Instance,
+            policy: OtaSettingsPolicy.Instance);
         return (coordinator, daemon);
     }
 

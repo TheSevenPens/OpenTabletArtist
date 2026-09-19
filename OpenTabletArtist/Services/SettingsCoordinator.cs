@@ -33,6 +33,11 @@ public sealed class SettingsCoordinator
     private readonly ISettingsFileStore _store;
     private readonly Func<string> _settingsPath;
     private readonly Func<bool> _isOwnedDaemon;
+    // The host's own rules about what may be written. This type does not hold an opinion about which
+    // third-party filters an application tolerates -- that is a product decision about that
+    // application's users -- but the decision has to take effect inside the operation, after the
+    // request is isolated and before anything is sent (#807).
+    private readonly IOtdSettingsPolicy _policy;
     private readonly Action<SettingsSaveState> _onSaveState;
 
     // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
@@ -126,11 +131,12 @@ public sealed class SettingsCoordinator
     /// <param name="onSaveState">Reports save progress; the save chip stays observable state on the session.</param>
     public SettingsCoordinator(IDaemonTransport daemon, ISettingsFileStore store,
         Func<string> settingsPath, Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
-        IOtdLog log)
+        IOtdLog log, IOtdSettingsPolicy policy)
     {
         _daemon = daemon;
         _store = store;
         _log = log;
+        _policy = policy;
         _settingsPath = settingsPath;
         _isOwnedDaemon = isOwnedDaemon;
         _onSaveState = onSaveState;
@@ -396,8 +402,7 @@ public sealed class SettingsCoordinator
 
     private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings, int session)
     {
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
+        _policy.Apply(settings, PolicyContext(persisting: false));
 
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
         // caller must not announce a switch that didn't happen. State moves only on success.
@@ -430,8 +435,7 @@ public sealed class SettingsCoordinator
 
     private async Task<bool> ApplyEphemeralCoreAsync(Settings settings, int session)
     {
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
+        _policy.Apply(settings, PolicyContext(persisting: false));
 
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
         // would suppress the reload's settings read on the strength of one that does not exist.
@@ -566,15 +570,34 @@ public sealed class SettingsCoordinator
     /// way OUT rather than on load because the shared <c>settings.json</c> is also OTD's own UX's file —
     /// a malformed profile we write would crash their UI, not just ours.
     /// </summary>
+    /// <summary>
+    /// What the host policy is told about the operation it is running inside.
+    ///
+    /// No session identity yet: the coordinator carries no per-operation stamp until the operations move
+    /// behind the facade, and an invented one would be worse than an absent one.
+    /// </summary>
+    /// <param name="persisting">
+    /// Whether this operation asks for a disk write. Intent, not outcome — a requested write can fail.
+    /// </param>
+    private SettingsPolicyContext PolicyContext(bool persisting) =>
+        new(SettingsStamp.None, _isOwnedDaemon(), persisting);
+
     private void Sanitize(Settings settings)
     {
-        // Forward guard: never write back a stale/duplicate filter store (e.g. left by a rename).
-        ProfileFilterMaintenance.CleanLegacyFilters(settings);
-        if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742: keep only approved filters enabled
+        _policy.Apply(settings, PolicyContext(persisting: true));
 
         // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
         // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the
         // shared settings.json stays valid for OTD's own UI too (#otd-null-areas).
+        // Only this path applies the format guard. Live-only and ephemeral applies do not, and that is
+        // preserved as it stands rather than corrected here.
+        //
+        // It is not a principled line. The guard protects a reader of the settings FILE, so "we do not
+        // write, therefore it cannot matter" looks reasonable -- but OpenTabletDriver's own interface
+        // pulls the daemon's live state into itself (MainForm.SyncSettings, wired to Resynchronize) and
+        // then dereferences AbsoluteModeSettings.Tablet when the user saves. So settings applied
+        // live-only really can reach that crash by another route. Recorded as a gap to close in its own
+        // change, not widened here, where it would be indistinguishable from the extraction.
         int repairedProfiles = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
         if (repairedProfiles > 0)
             _log.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +

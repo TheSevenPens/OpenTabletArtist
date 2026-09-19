@@ -17,8 +17,12 @@ namespace OtdInterop;
 /// one that declines to act, so the undeterminable case reads as false here.
 /// </param>
 /// <param name="Persisting">
-/// True when this operation will write to disk if it succeeds. False for live-only and temporary
-/// overrides, where the saved default is deliberately left alone.
+/// True when this operation <em>requests</em> a disk write. False for live-only and temporary overrides,
+/// where the saved default is deliberately left alone.
+///
+/// Intent, not outcome — a requested write can still fail. And it is not a guarantee that settings from a
+/// non-persisting operation can never reach a file: they are live on the daemon, and another program
+/// reading that live state may save it.
 /// </param>
 public readonly record struct SettingsPolicyContext(
     SettingsStamp Stamp,

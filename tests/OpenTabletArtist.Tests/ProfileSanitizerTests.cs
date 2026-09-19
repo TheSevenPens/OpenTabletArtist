@@ -2,6 +2,7 @@ using System.Linq;
 using OpenTabletArtist.Domain;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OtdInterop;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;
