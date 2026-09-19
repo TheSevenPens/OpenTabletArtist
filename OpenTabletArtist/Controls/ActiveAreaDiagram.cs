@@ -213,14 +213,52 @@ public sealed class ActiveAreaDiagram : Control
         e.Handled = true;
     }
 
+    /// <summary>
+    /// The bound area changing is what retires a preview: the model has spoken, so what it says wins.
+    /// </summary>
+    /// <remarks>
+    /// Any change retires it, not only one that matches what was dragged. Policy and clamping can
+    /// legitimately alter a request, and the stored value is the truth in every case — continuing to show
+    /// the request after the answer arrived would be showing the user something that is not so.
+    ///
+    /// A commit that changes nothing raises no change here, so the preview stays; it is equal to the
+    /// stored value in that case, so there is nothing to see.
+    /// </remarks>
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == AreaProperty) _preview = null;
+    }
+
+    /// <summary>
+    /// What the diagram is drawing right now: the live preview if there is one, else the bound area.
+    /// </summary>
+    /// <remarks>
+    /// Its own method so the rule can be tested. The flicker it exists for was invisible to every
+    /// view-model test — the values the editor published were correct and arrived in one step — because
+    /// what was wrong was which of them this control chose to draw, and for how long.
+    /// </remarks>
+    internal (double Width, double Height, double CenterX, double CenterY)? Effective =>
+        Area is not { } a ? null
+            : (_preview?.Width ?? a.EffWidth, _preview?.Height ?? a.EffHeight,
+               _preview?.CenterX ?? a.EffCenterX, _preview?.CenterY ?? a.EffCenterY);
+
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
         if (_mode == Mode.None) return;
         _mode = Mode.None;
         e.Pointer.Capture(null);
+        // The preview is NOT cleared here, and that is the fix for #815. Clearing it on release drew the
+        // next frame from the bound Area, which still holds the value from before the drag: committing is
+        // asynchronous -- it mutates the profile, sends to the daemon, and the session reloads before the
+        // call returns -- so Area does not catch up for a round trip. Dropping the preview first meant the
+        // area visibly jumped back to where it started and sat there until it did, which is the "old
+        // position" the flicker begins with. It was guaranteed, not a race.
+        //
+        // What the user dragged stays on screen until the model says what it actually got. OnPropertyChanged
+        // clears it when Area changes, including when policy or clamping changed the request.
         if (_preview is { } edit) AreaCommitted?.Invoke(this, edit);
-        _preview = null;
         InvalidateVisual();
         e.Handled = true;
     }
@@ -257,9 +295,9 @@ public sealed class ActiveAreaDiagram : Control
         }
 
         var l = Compute();
-        // Effective values: the live preview while dragging, else the bound area.
-        double ew = _preview?.Width ?? area.EffWidth, eh = _preview?.Height ?? area.EffHeight;
-        double ecx = _preview?.CenterX ?? area.EffCenterX, ecy = _preview?.CenterY ?? area.EffCenterY;
+        // Through the same property the test asserts, so the rule has one statement rather than two that
+        // could drift.
+        var (ew, eh, ecx, ecy) = Effective!.Value;
 
         // Tablet outline, turned as physically held when rotated (portrait for 90/270).
         var tabletRect = new Rect(l.Center.X - fullW * l.Scale / 2, l.Center.Y - fullH * l.Scale / 2,
