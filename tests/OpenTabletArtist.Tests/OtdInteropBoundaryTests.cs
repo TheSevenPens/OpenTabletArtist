@@ -125,11 +125,23 @@ public class OtdInteropBoundaryTests
         Assert.Equal(2, (await c.GetDevicesAsync()).Count);
         Assert.Equal("settings.json", (await c.GetAppInfoAsync())!.SettingsFile);
 
-        await c.GetCurrentLogAsync();
+        // Results too, scripted apart where two members agree in shape: reaching the right member and
+        // returning the neighbour's answer is a forward that passes a call log.
+        daemon.BufferedLog.Add(new LogMessage());
+        daemon.DownloadSucceeds = true;
+        daemon.UninstallSucceeds = false;
+        var plugin = new PluginMetadata();
+
+        Assert.Single(await c.GetCurrentLogAsync());
         await c.SetTabletDebugAsync(true);
-        await c.DownloadPluginAsync(new PluginMetadata());
-        await c.UninstallPluginAsync("some/plugin");
+        Assert.True(await c.DownloadPluginAsync(plugin));
+        Assert.False(await c.UninstallPluginAsync("some/plugin"));
         await c.LoadPluginsAsync();
+
+        // And the arguments arrived: a forward can reach the right member and hand it the wrong thing.
+        Assert.True(daemon.LastDebugEnabled);
+        Assert.Same(plugin, daemon.LastDownloaded);
+        Assert.Equal("some/plugin", daemon.LastUninstalled);
 
         Assert.Equal(
             [
@@ -159,9 +171,11 @@ public class OtdInteropBoundaryTests
         var tabletChanges = 0;
         var logs = 0;
         void OnReport(JObject _) => reports++;
+        void OnTabletsChanged() => tabletChanges++;
+        void OnLog(LogMessage _) => logs++;
         c.DeviceReport += OnReport;
-        c.TabletsChanged += () => tabletChanges++;
-        c.LogReceived += _ => logs++;
+        c.TabletsChanged += OnTabletsChanged;
+        c.LogReceived += OnLog;
 
         daemon.RaiseDeviceReport(new JObject());
         daemon.RaiseTabletsChanged();
@@ -171,10 +185,20 @@ public class OtdInteropBoundaryTests
         Assert.Equal(1, tabletChanges);
         Assert.Equal(1, logs);
 
-        // And unsubscribing reaches the connection too, or a page closed mid-stream keeps being called.
+        // And unsubscribing reaches the connection, for ALL THREE -- a page closed mid-stream that keeps
+        // being called is the failure, and add/remove forwarding has no return value to notice a missing
+        // remove. One of the three passing says nothing about the other two.
         c.DeviceReport -= OnReport;
+        c.TabletsChanged -= OnTabletsChanged;
+        c.LogReceived -= OnLog;
+
         daemon.RaiseDeviceReport(new JObject());
+        daemon.RaiseTabletsChanged();
+        daemon.RaiseLog(new LogMessage());
+
         Assert.Equal(1, reports);
+        Assert.Equal(1, tabletChanges);
+        Assert.Equal(1, logs);
     }
 
     /// <summary>The connection itself is not something a host can name at all.</summary>

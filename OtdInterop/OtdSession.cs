@@ -106,9 +106,18 @@ public sealed class OtdSession : IDisposable
     /// What a host may do with this connection: read, watch, and manage plugins.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A forwarding object, not this session's connection wearing a smaller interface — see
     /// <see cref="IDaemonCapabilities"/> for why that distinction is the whole of the guarantee. Nothing
     /// here can close the connection, reconnect it, or change settings.
+    /// </para>
+    /// <para>
+    /// <b>Borrowed for this session's lifetime.</b> Disposal does not currently stop it: a holder can go
+    /// on calling and subscribing afterwards, reaching a connection that is gone. Nothing here is
+    /// enforced yet, and whether a late call throws or reports itself disconnected is a decision the
+    /// shutdown work #807 still owes. Unsubscribing must keep working either way, or a page cleaning up
+    /// after the session cannot detach.
+    /// </para>
     /// </remarks>
     public IDaemonCapabilities Capabilities { get; }
 
@@ -146,12 +155,19 @@ public sealed class OtdSession : IDisposable
     public Task ConnectAsync(CancellationToken ct) => Connection.ConnectAsync(ct);
 
     /// <summary>
-    /// The process id answering the connection, or null when it cannot be read.
-    ///
+    /// The process id answering the connection right now, or null when it cannot be read.
+    /// </summary>
+    /// <remarks>
     /// A fact about the connection, offered because stopping the daemon a host is actually talking to
     /// needs it. What that id means — whose daemon it is, whether to ask before stopping it — is the
-    /// host's to decide.
-    /// </summary>
+    /// host's to decide, and this does not hand over any authority to make those decisions.
+    ///
+    /// <b>An observation, not a handle.</b> It describes the moment it was taken. The daemon can exit
+    /// between this returning and a host acting on it, and the id can be reused by an unrelated process,
+    /// so a stop issued against a stale value is a stop aimed at whatever holds that id now. Long-standing
+    /// and not introduced by moving this here — recorded so the next caller does not assume otherwise.
+    /// </remarks>
+    /// <returns>The id as of this call.</returns>
     public int? ConnectedProcessId() => Connection.GetServerProcessId();
 
     /// <summary>

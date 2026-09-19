@@ -19,8 +19,21 @@ In `OpenTabletArtist.slnx`, so CI compiles it — but CI never runs it. Everythi
 behind command-line arguments, so a build is a compile check and nothing more.
 
 That is a correction, not the original plan. This started outside the solution like `tools/OtdLinuxSetup`,
-and within a day a change to `OtdSession`'s API broke it with nothing to say so. A tool that verifies
-behaviour nothing else can verify is worth a compile check.
+and within a day a change to `OtdSession`'s API broke it with nothing to say so. A tool that consumes an
+evolving library API is worth a compile check, and this one consumes the API that is actively changing.
+
+**The policy for `tools/`, since the two members now differ:**
+
+| | built by CI | verified by |
+|---|---|---|
+| `OtdDaemonSwitchCheck` | yes, never run | the command above, by hand, against two real installs |
+| `OtdLinuxSetup` | no | nothing automated |
+
+`OtdLinuxSetup` is **intentionally unvalidated**, not merely unbuilt — that distinction matters, because
+"excluded because nobody builds it" is circular reasoning. It is a reference implementation held for
+[#589](https://github.com/TheSevenPens/OpenTabletArtist/issues/589), and its Avalonia 11.3.0 / net8.0 pin
+is justified by nothing building it. Bringing it into the solution means revisiting that pin in the same
+change, which is a decision about #589 rather than about build hygiene.
 
 ```bash
 dotnet run --project tools/OtdDaemonSwitchCheck -- "C:\path\to\A\OpenTabletDriver.Daemon.exe" "C:\path\to\B\OpenTabletDriver.Daemon.exe"

@@ -190,28 +190,50 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public List<string> Calls { get; } = new();
 
+    /// <summary>The last value passed to each member that takes one — a forward can reach the right
+    /// member and still hand it the wrong thing.</summary>
+    public bool? LastDebugEnabled { get; private set; }
+
+    /// <inheritdoc cref="LastDebugEnabled"/>
+    public PluginMetadata? LastDownloaded { get; private set; }
+
+    /// <inheritdoc cref="LastDebugEnabled"/>
+    public string? LastUninstalled { get; private set; }
+
     public Task SetTabletDebugAsync(bool enabled)
     {
         DebugCalls++;
+        LastDebugEnabled = enabled;
         Calls.Add(nameof(SetTabletDebugAsync));
         return Task.CompletedTask;
     }
+    /// <summary>What <see cref="GetCurrentLogAsync"/> returns, so a forward's result can be checked.</summary>
+    public List<LogMessage> BufferedLog { get; } = new();
+
     public Task<List<LogMessage>> GetCurrentLogAsync()
     {
         Calls.Add(nameof(GetCurrentLogAsync));
-        return Task.FromResult(new List<LogMessage>());
+        return Task.FromResult(BufferedLog);
     }
+
+    /// <summary>What the two plugin verbs report, separately, so a swap between them is visible.</summary>
+    public bool DownloadSucceeds { get; set; } = true;
+
+    /// <inheritdoc cref="DownloadSucceeds"/>
+    public bool UninstallSucceeds { get; set; } = true;
 
     public Task<bool> DownloadPluginAsync(PluginMetadata metadata)
     {
+        LastDownloaded = metadata;
         Calls.Add(nameof(DownloadPluginAsync));
-        return Task.FromResult(true);
+        return Task.FromResult(DownloadSucceeds);
     }
 
     public Task<bool> UninstallPluginAsync(string directory)
     {
+        LastUninstalled = directory;
         Calls.Add(nameof(UninstallPluginAsync));
-        return Task.FromResult(true);
+        return Task.FromResult(UninstallSucceeds);
     }
 
     public Task LoadPluginsAsync()
