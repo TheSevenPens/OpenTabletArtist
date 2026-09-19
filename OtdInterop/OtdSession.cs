@@ -170,19 +170,32 @@ public sealed class OtdSession : IDisposable
     ///
     /// <remarks>
     /// <para>
-    /// Called by the host whenever a connection is established. It is here rather than in the host
-    /// because the state being dropped is this library's — the change a daemon accepted but never wrote,
-    /// the file that change was for, what its settings file last held, whether it is running a transient
-    /// override. None of that describes the new daemon, and each one misleads a different part of the
-    /// host if carried across. Leaving the host to remember to say so is leaving it to be forgotten.
+    /// Called by the host whenever a connection is established. The judgement is here rather than in the
+    /// host because the state being dropped is this library's — the change a daemon accepted but never
+    /// wrote, the file that change was for, what its settings file last held, whether it is running a
+    /// transient override. None of that describes the new daemon, and each one misleads a different part
+    /// of the host if carried across.
+    /// </para>
+    /// <para>
+    /// <b>The trigger is still the host's.</b> Nothing here subscribes to the connection, so this is not
+    /// automatic invalidation — calling it at the right moment is something a host can still get wrong.
+    /// Making it self-driving is outstanding work under #807.
+    /// </para>
+    /// <para>
+    /// <b>Identity means the executable, not the process.</b> A daemon stopped and started again from the
+    /// same path is the same daemon by this test, and does not report a change. That is deliberate and
+    /// long-standing: what the state being protected describes is a settings file and an installation,
+    /// both of which survive a restart. It does mean this is not a detector for every replacement
+    /// process.
     /// </para>
     /// <para>
     /// A daemon whose executable cannot be read is <b>not</b> treated as a change. That is the whole
     /// reason this compares paths instead of connections: users run more than one OpenTabletDriver build
     /// and switch between them, but they also just reconnect, and an elevated daemon is unreadable every
     /// time. Discarding on "cannot see" would throw away a legitimate unsaved edit on an ordinary
-    /// reconnect. The data-loss case that leaves open is covered independently, by the settings session
-    /// refusing to retry a pending write whose destination file has moved.
+    /// reconnect. The pending-write case that leaves open is covered independently, by the settings
+    /// session refusing to retry a write whose destination file has moved — which is that one hazard, not
+    /// a claim that an unidentifiable replacement daemon is safe in general.
     /// </para>
     /// <para>
     /// Runs under the host's serialized execution context, like everything else here.

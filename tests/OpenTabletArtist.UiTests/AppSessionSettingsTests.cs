@@ -73,6 +73,48 @@ public class AppSessionSettingsTests
         return (new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()), daemon, store);
     }
 
+    /// <summary>
+    /// The connect handler identifies the daemon before anything else uses the connection, and a switch
+    /// found there reaches the user.
+    ///
+    /// The two ends of this chain are covered elsewhere -- the session's own identity tests, and the
+    /// coordinator's reset tests -- and neither says anything about the wiring between them. A connect
+    /// handler that stopped identifying, or identified after the reload had already adopted the new
+    /// daemon's settings, would leave both of those suites green.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task OnConnect_TheDaemonIsIdentifiedBeforeAnythingElseUsesIt()
+    {
+        var daemon = new FakeDaemonTransport { Settings = SettingsFor("Baseline"), ServerProcessId = 77 };
+        var store = new RecordingStore();
+        var locator = new FakeProcessLocator { Path = "daemon-one/OpenTabletDriver.Daemon" };
+        using var session = new AppSession(FakeSession.Over(daemon, store, locator), new StubLifecycle());
+
+        daemon.RaiseConnected();
+        await Pump(session);
+
+        // An edit the daemon took and the disk refused: live on daemon-one, and only there.
+        store.SaveSucceeds = false;
+        var applied = await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, applied.Status);
+        Assert.Equal("", session.DiscardedChangeNotice);
+
+        // A different build answers the reconnect.
+        locator.Path = "daemon-two/OpenTabletDriver.Daemon";
+        daemon.RaiseConnected();
+        await Pump(session);
+
+        Assert.Contains("discarded", session.DiscardedChangeNotice);
+        Assert.Equal("daemon-two/OpenTabletDriver.Daemon", session.DaemonSourcePath);
+    }
+
+    /// <summary>Lets the connect handler's dispatcher work and the reload it starts run to completion.</summary>
+    private static async Task Pump(AppSession session)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() => { });
+        await session.ReloadAsync();
+    }
+
     [AvaloniaFact]
     public async Task AReload_AdoptsWhatTheDaemonHolds()
     {

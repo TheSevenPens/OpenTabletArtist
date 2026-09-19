@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -145,6 +146,119 @@ public class OtdSessionIdentityTests
 
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
         Assert.True(session.NoteConnectedDaemon().Changed);
+    }
+
+    // --- When the connection cannot say which process answered -----------------------------------
+    //
+    // The pipe-to-process-id lookup is Windows-only. Elsewhere the daemon is effectively a singleton, so
+    // "the one that is running" is a sound answer where "the one that answered this pipe" is unavailable.
+    // Every test above supplies a process id, so none of them reaches this branch -- which is why it is
+    // covered separately rather than assumed.
+    //
+    // The call counts matter: "the fallback was skipped" and "the fallback ran and returned null" reach
+    // the same answer, and only one of them is the behaviour being asserted.
+
+    /// <summary>
+    /// On Windows the fallback is not consulted at all.
+    ///
+    /// Exact pipe attribution is what distinguishes our daemon from a second OpenTabletDriver instance
+    /// running beside it. Falling back to "whatever daemon is running" would discard that on the one
+    /// platform where it is available, and could attribute the connection to the wrong process.
+    /// </summary>
+    [Fact]
+    public void OnWindows_NoProcessId_MeansNoAttributionRatherThanAGuess()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The pipe-to-process-id lookup is Windows-only.");
+
+        var (session, daemon, locator) = Make();
+        daemon.ServerProcessId = null;
+        locator.OnlyDaemon = "some-other-daemon/OpenTabletDriver.Daemon";
+
+        var change = session.NoteConnectedDaemon();
+
+        Assert.Null(change.ExecutablePath);
+        Assert.Equal(0, locator.FallbackCalls);
+    }
+
+    /// <summary>Elsewhere, the single running daemon is the answer.</summary>
+    [Fact]
+    public void OffWindows_NoProcessId_UsesTheSingleRunningDaemon()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows attributes the pipe exactly and never falls back.");
+
+        var (session, daemon, locator) = Make();
+        daemon.ServerProcessId = null;
+        locator.OnlyDaemon = "daemon-one/OpenTabletDriver.Daemon";
+
+        var change = session.NoteConnectedDaemon();
+
+        Assert.Equal("daemon-one/OpenTabletDriver.Daemon", change.ExecutablePath);
+        Assert.Equal(1, locator.FallbackCalls);
+    }
+
+    /// <summary>
+    /// And when there is not exactly one, or its path cannot be read, that is "cannot see" like any
+    /// other -- not a change, and not a reason to discard anything.
+    /// </summary>
+    [Fact]
+    public void OffWindows_AnAmbiguousFallback_IsJustCannotSee()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows attributes the pipe exactly and never falls back.");
+
+        var (session, daemon, locator) = Make();
+        locator.Path = "daemon-one/OpenTabletDriver.Daemon";
+        session.NoteConnectedDaemon();
+
+        daemon.ServerProcessId = null;
+        locator.OnlyDaemon = null;                 // two running, or unreadable
+        var change = session.NoteConnectedDaemon();
+
+        Assert.Null(change.ExecutablePath);
+        Assert.False(change.Changed);
+    }
+
+    /// <summary>
+    /// A process id that resolves to nothing does NOT fall through to the fallback, on any platform.
+    ///
+    /// The connection named a process; failing to read that one is "cannot see", and answering with some
+    /// other daemon's path instead would be a confident wrong answer where an honest blank was available.
+    /// </summary>
+    [Fact]
+    public void AProcessIdThatCannotBeRead_DoesNotFallBackToAnotherDaemon()
+    {
+        var (session, _, locator) = Make();
+        locator.Path = null;                       // the named process is unreadable
+        locator.OnlyDaemon = "some-other-daemon/OpenTabletDriver.Daemon";
+
+        var change = session.NoteConnectedDaemon();
+
+        Assert.Null(change.ExecutablePath);
+        Assert.Equal(1, locator.PathOfCalls);
+        Assert.Equal(0, locator.FallbackCalls);
+    }
+
+    /// <summary>
+    /// Looking at the daemon before the settings authority exists is harmless.
+    ///
+    /// There is no queued apply, pending retry or baseline to invalidate yet, so remembering what was
+    /// seen is the whole of the work. What must not happen is the opposite: the authority opening later
+    /// and then reporting a discard for a switch that cost nothing.
+    /// </summary>
+    [Fact]
+    public void LookingBeforeSettingsAreOpen_LeavesNothingToDiscardLater()
+    {
+        var (session, _, locator) = Make();
+
+        locator.Path = "daemon-one/OpenTabletDriver.Daemon";
+        session.NoteConnectedDaemon();
+        locator.Path = "daemon-two/OpenTabletDriver.Daemon";
+        Assert.True(session.NoteConnectedDaemon().Changed);
+
+        Open(session);
+
+        var change = session.NoteConnectedDaemon();
+        Assert.False(change.Changed);
+        Assert.False(change.DiscardedUnsavedChange);
     }
 
     // --- Harness ---------------------------------------------------------------------------------

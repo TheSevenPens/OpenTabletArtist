@@ -59,9 +59,28 @@ internal sealed class FakeProcessLocator : IDaemonProcessLocator
     /// <summary>The executable for the off-Windows single-daemon fallback.</summary>
     public string? OnlyDaemon { get; set; }
 
-    public string? PathOf(int processId) => Path;
+    /// <summary>
+    /// How many times each lookup was asked.
+    ///
+    /// Counted because "the fallback was skipped" and "the fallback ran and returned null" produce the
+    /// same answer, and only one of them is the behaviour being asserted.
+    /// </summary>
+    public int PathOfCalls { get; private set; }
 
-    public string? SingleRunningDaemonPath() => OnlyDaemon;
+    /// <inheritdoc cref="PathOfCalls"/>
+    public int FallbackCalls { get; private set; }
+
+    public string? PathOf(int processId)
+    {
+        PathOfCalls++;
+        return Path;
+    }
+
+    public string? SingleRunningDaemonPath()
+    {
+        FallbackCalls++;
+        return OnlyDaemon;
+    }
 }
 
 internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsChannel

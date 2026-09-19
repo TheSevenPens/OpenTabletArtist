@@ -1339,10 +1339,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             return;
         }
 
-        // Which daemon is answering, and the session boundary if it is a different one. Both are the
-        // library's: the state dropped at that boundary is its own, and leaving this class to remember
-        // to ask for it was leaving it to be forgotten (#807). What is still ours is below — what to
-        // show, and whether this daemon is one we may act on without asking.
+        // Which daemon is answering, and the session boundary if it is a different one. The decision is
+        // the library's, because the state dropped at that boundary is its own (#807). The *trigger* is
+        // still ours: nothing subscribes to the connection on that side, so this call being in the right
+        // place is a thing this class has to get right, and making it automatic is still outstanding.
+        // What is ours by design is below — what to show, and whether this daemon is one we may act on
+        // without asking.
         var (actual, _, discardedUnsaved) = _session.NoteConnectedDaemon();
 
         if (discardedUnsaved)
