@@ -78,13 +78,37 @@ public sealed class SettingsCoordinator
     /// </summary>
     private readonly SemaphoreSlim _mutations = new(1, 1);
 
-    /// <summary>Runs <paramref name="operation"/> with no other mutating operation in flight.</summary>
-    private async Task<T> SerializedAsync<T>(Func<Task<T>> operation)
+    /// <summary>
+    /// Which daemon this coordinator's state belongs to. Bumped by <see cref="ResetForNewDaemon"/>.
+    ///
+    /// Serializing alone was not enough (#803). An operation can be <em>queued</em> when the daemon
+    /// changes, or already awaiting its RPC — the reset runs between the two, since it must not wait
+    /// behind work belonging to a daemon that has gone. Without a generation, a queued edit is then sent
+    /// to the new daemon, and an in-flight one writes its result into the new daemon's file.
+    /// </summary>
+    private int _sessionGeneration;
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
+    /// still belongs to the daemon it was asked for.
+    ///
+    /// The generation is captured <b>before</b> waiting for the semaphore, which is the point: time spent
+    /// queued is exactly when the daemon can change underneath a caller.
+    /// </summary>
+    private async Task<T> SerializedAsync<T>(Func<int, Task<T>> operation, Func<T> superseded)
     {
+        var session = Volatile.Read(ref _sessionGeneration);
         await _mutations.WaitAsync().ConfigureAwait(true);
-        try { return await operation().ConfigureAwait(true); }
+        try
+        {
+            if (session != Volatile.Read(ref _sessionGeneration)) return superseded();
+            return await operation(session).ConfigureAwait(true);
+        }
         finally { _mutations.Release(); }
     }
+
+    /// <summary>True while <paramref name="session"/> is still the daemon we are talking to.</summary>
+    private bool StillCurrent(int session) => session == Volatile.Read(ref _sessionGeneration);
 
     /// <param name="daemon">The daemon connection.</param>
     /// <param name="store">The settings file seam.</param>
@@ -166,6 +190,10 @@ public sealed class SettingsCoordinator
     {
         var hadUnsaved = HasUnsavedChange;
 
+        // Everything queued or in flight belongs to the daemon that has gone. Bumping first means a
+        // caller already past the semaphore check still fails StillCurrent before it writes.
+        Interlocked.Increment(ref _sessionGeneration);
+
         DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
         _lastLoadedSettingsJson = null;
@@ -180,9 +208,10 @@ public sealed class SettingsCoordinator
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
     public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
-        SerializedAsync(() => ApplyAndSaveCoreAsync(settings));
+        SerializedAsync(session => ApplyAndSaveCoreAsync(settings, session),
+            () => SettingsApplyOutcome.Superseded);
 
-    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings)
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, int session)
     {
         // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
         // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
@@ -228,6 +257,11 @@ public sealed class SettingsCoordinator
             revision = settings;
         }
 
+        // Resolved BEFORE the RPC, not after (#803). It comes from the connected daemon's AppInfo, so
+        // reading it late means an apply that outlives a daemon switch writes its result into the *new*
+        // daemon's file. #789 bound the pending-retry destination and left this one late.
+        var path = _settingsPath();
+
         _onSaveState(SettingsSaveState.Saving);
         bool applied;
         try
@@ -252,10 +286,19 @@ public sealed class SettingsCoordinator
             return SettingsApplyOutcome.Disconnected;
         }
 
+        // The daemon changed while this was in flight, so what just succeeded landed on a daemon that is
+        // no longer ours to speak for (#803). Write nothing and touch no state: the reset already cleared
+        // this session, and "applied" describes a machine the user has moved on from.
+        if (!StillCurrent(session))
+        {
+            AppLog.Warn("A settings apply completed after the daemon changed; discarding its result "
+                        + "rather than writing it to the new daemon's file.");
+            return SettingsApplyOutcome.Superseded;
+        }
+
         // Persist to disk (same as OTD's own UX Save). Apply and persist are separate outcomes: a failed
         // write means the change is live but won't survive a daemon restart, which we must not hide.
         // An empty settings path is NOT a successful save — there is nowhere to write (#734).
-        var path = _settingsPath();
         bool saved = !string.IsNullOrEmpty(path) && _store.TrySave(revision, path);
 
         // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
@@ -290,20 +333,21 @@ public sealed class SettingsCoordinator
     /// to "Saved". Returns <see cref="SettingsApplyStatus.NoChange"/> when there's nothing to do, so it
     /// is free to call on every load.
     /// </summary>
-    public Task<SettingsApplyOutcome> RetryPendingPersistAsync() => SerializedAsync(() =>
+    public Task<SettingsApplyOutcome> RetryPendingPersistAsync() => SerializedAsync(_ =>
     {
         if (!HasUnsavedChange || _automaticRetries >= MaxAutomaticRetries)
             return Task.FromResult(SettingsApplyOutcome.NoChange);
 
         _automaticRetries++;
         return RetryPersistCoreAsync();
-    });
+    }, () => SettingsApplyOutcome.NoChange);
 
     /// <summary>
     /// Retries the disk write for settings the daemon already accepted but that failed to persist (#734).
     /// No daemon write and no reload — the change is already live; only the file is behind.
     /// </summary>
-    public Task<SettingsApplyOutcome> RetryPersistAsync() => SerializedAsync(RetryPersistCoreAsync);
+    public Task<SettingsApplyOutcome> RetryPersistAsync() =>
+        SerializedAsync(_ => RetryPersistCoreAsync(), () => SettingsApplyOutcome.NoChange);
 
     private Task<SettingsApplyOutcome> RetryPersistCoreAsync()
     {
@@ -341,9 +385,9 @@ public sealed class SettingsCoordinator
     /// <summary>Applies live without persisting — a temporary override (profile switching, #320). The
     /// saved <c>settings.json</c> default is untouched. Does NOT reload; the caller does.</summary>
     public Task<bool> ApplyLiveOnlyAsync(Settings settings) =>
-        SerializedAsync(() => ApplyLiveOnlyCoreAsync(settings));
+        SerializedAsync(session => ApplyLiveOnlyCoreAsync(settings, session), () => false);
 
-    private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings)
+    private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings, int session)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
@@ -353,6 +397,14 @@ public sealed class SettingsCoordinator
         if (!await _daemon.SetSettingsAsync(settings))
         {
             AppLog.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
+            return false;
+        }
+
+        // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
+        // this session's state alone: the reset has already reset it for the daemon that replaced it.
+        if (!StillCurrent(session))
+        {
+            AppLog.Warn("A live-only apply completed after the daemon changed; not adopting it as the baseline.");
             return false;
         }
 
@@ -367,9 +419,9 @@ public sealed class SettingsCoordinator
     /// showing and persisting the user's default while the daemon runs a transient snapshot.
     /// </summary>
     public Task<bool> ApplyEphemeralAsync(Settings settings) =>
-        SerializedAsync(() => ApplyEphemeralCoreAsync(settings));
+        SerializedAsync(session => ApplyEphemeralCoreAsync(settings, session), () => false);
 
-    private async Task<bool> ApplyEphemeralCoreAsync(Settings settings)
+    private async Task<bool> ApplyEphemeralCoreAsync(Settings settings, int session)
     {
         ProfileFilterMaintenance.CleanLegacyFilters(settings);
         if (_isOwnedDaemon()) ProfileFilterMaintenance.DisableUnapprovedFilters(settings); // #465/#742
@@ -386,14 +438,23 @@ public sealed class SettingsCoordinator
         // Leaving _settings untouched here was never enough on its own: the 30-second poll read the
         // daemon back into it, so a transient snapshot silently became the editor's baseline and the
         // source a "restore default" would restore from.
+        // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
+        // this session's state alone: the reset has already reset it for the daemon that replaced it.
+        if (!StillCurrent(session))
+        {
+            AppLog.Warn("A per-app snapshot completed after the daemon changed; not recording it as an override.");
+            return false;
+        }
+
         HasEphemeralOverride = true;
         return true;
     }
 
     /// <summary>Puts the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.</summary>
-    public Task<bool> ClearEphemeralOverrideAsync() => SerializedAsync(ClearEphemeralOverrideCoreAsync);
+    public Task<bool> ClearEphemeralOverrideAsync() =>
+        SerializedAsync(ClearEphemeralOverrideCoreAsync, () => false);
 
-    private async Task<bool> ClearEphemeralOverrideCoreAsync()
+    private async Task<bool> ClearEphemeralOverrideCoreAsync(int session)
     {
         if (_settings is not { } baseline)
         {
@@ -413,6 +474,14 @@ public sealed class SettingsCoordinator
             return false;
         }
 
+        // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
+        // this session's state alone: the reset has already reset it for the daemon that replaced it.
+        if (!StillCurrent(session))
+        {
+            AppLog.Warn("The per-app override ended after the daemon changed; the new daemon never had one.");
+            return false;
+        }
+
         HasEphemeralOverride = false;
         return true;
     }
@@ -423,9 +492,10 @@ public sealed class SettingsCoordinator
     /// couldn't be loaded, and the caller cleared the override indicator and announced a restoration that
     /// never happened — while the override was still running. Does NOT reload; the caller does.
     /// </summary>
-    public Task<SettingsRestoreOutcome> RestoreDefaultAsync() => SerializedAsync(RestoreDefaultCoreAsync);
+    public Task<SettingsRestoreOutcome> RestoreDefaultAsync() =>
+        SerializedAsync(RestoreDefaultCoreAsync, () => SettingsRestoreOutcome.Superseded);
 
-    private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync()
+    private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync(int session)
     {
         var path = _settingsPath();
         if (string.IsNullOrEmpty(path) || !_store.TryLoad(path, out var def) || def == null)
@@ -452,6 +522,15 @@ public sealed class SettingsCoordinator
             AppLog.Warn("Couldn't restore the saved default: not connected to the daemon. " +
                         "Any active override is still in effect.");
             return SettingsRestoreOutcome.Disconnected;
+        }
+
+        // The default we just applied came from the old daemon's file, and the reset has already cleared
+        // this session's state for the new one (#803). Adopting it here would make one daemon's saved
+        // default the other's baseline.
+        if (!StillCurrent(session))
+        {
+            AppLog.Warn("A restore completed after the daemon changed; discarding its result.");
+            return SettingsRestoreOutcome.Superseded;
         }
 
         _settings = def;

@@ -94,6 +94,9 @@ public partial class MainWindow : Window
         {
             SettingsRestoreStatus.SourceUnavailable => "Couldn't restore — saved settings unreadable, preset still active",
             SettingsRestoreStatus.Disconnected => "Couldn't restore — not connected, preset still active",
+            // The daemon changed under the restore, so the preset it would have ended belonged to the
+            // daemon that has gone — saying "preset still active" about the new one would be wrong (#803).
+            SettingsRestoreStatus.Superseded => "Didn't restore — the daemon changed while restoring",
             _ => "Couldn't restore your saved settings — preset still active",
         }));
 

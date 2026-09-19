@@ -178,7 +178,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 {
     private readonly IDaemonTransport _daemon;
     private readonly IDaemonLifecycleService _daemonLifecycle;
-    private readonly ISettingsFileStore _settingsStore;
+    // No _settingsStore field: the store is handed to the coordinator and nothing else here touches it.
+    // AppSession writing settings directly is what #803 found on the load path.
     private readonly CancellationTokenSource _cts = new();
     // Ensures only the most recent data load applies (Connected handler, TabletsChanged event,
     // fallback poll, Refresh). #19.
@@ -430,7 +431,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         _daemon = daemon;
         _daemonLifecycle = daemonLifecycle;
-        _settingsStore = settingsStore;
 
         // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
         // data load, identity on connect), so neither has a value yet at construction.
@@ -822,15 +822,30 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // daemon and settings.json — and that file is the daemon's own AppInfo.SettingsFile, so on an
             // unidentified daemon it may not even belong to this user. The in-memory cleanup still runs,
             // so the Filters and JSON views are right either way; it just isn't written back.
+            //
+            // Through the coordinator, not around it (#803). This used to call the daemon and the store
+            // directly, which meant it ran outside the one semaphore every other mutating path takes, it
+            // ignored what SetSettingsAsync returned -- writing the cleanup to disk even when there was
+            // no transport and it had never been sent -- and it was invisible to the daemon-session
+            // check, so a cleanup for one daemon could be persisted into another's file.
             if ((staleFiltersRemoved || unapprovedDisabled) && settings != null && IsAppOwnedDaemon)
             {
                 try
                 {
-                    await _daemon.SetSettingsAsync(settings);
-                    if (!string.IsNullOrEmpty(SettingsFilePath))
-                        _settingsStore.TrySave(settings, SettingsFilePath);
+                    var cleanup = await _coordinator.ApplyAndSaveAsync(settings);
+                    // Said out loud rather than swallowed. A cleanup that didn't land is not harmful --
+                    // the in-memory repair still fixed what the user sees -- but silence here was how
+                    // "the write never happened" and "the write happened" looked identical.
+                    if (!cleanup.IsPersisted)
+                        AppLog.Info($"Filter cleanup not persisted ({cleanup.Status}); the display is " +
+                                    "correct either way and the next save will carry it.");
                 }
-                catch { /* leave it; next save will retry the cleanup via the forward guard */ }
+                catch (Exception ex)
+                {
+                    // Must not abort the load: a tablet the user can see and configure matters more than
+                    // tidying their file.
+                    AppLog.Warn("Couldn't persist the filter cleanup.", ex);
+                }
             }
 
             // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.

@@ -30,6 +30,16 @@ public enum SettingsApplyStatus
     /// <summary>The apply-loop circuit breaker tripped — a UI binding is looping. Deliberately skipped
     /// to keep the app responsive; not a user-visible failure.</summary>
     Skipped,
+
+    /// <summary>
+    /// The daemon changed while this operation was queued or in flight, so it belongs to a session that
+    /// has ended (#803). Nothing was written to the new daemon and nothing was written to disk.
+    ///
+    /// Distinct from every other status because none of them is true of it: it isn't live (the daemon it
+    /// was for is gone), it isn't a failure (nothing went wrong), and it isn't <see cref="NoChange"/>
+    /// (there was a change; it simply no longer has a destination).
+    /// </summary>
+    Superseded,
 }
 
 /// <summary>The result of an apply, with the failure attached when there was one.</summary>
@@ -42,6 +52,7 @@ public readonly record struct SettingsApplyOutcome(SettingsApplyStatus Status, E
     public static readonly SettingsApplyOutcome Unsaved = new(SettingsApplyStatus.AppliedNotSaved);
     public static readonly SettingsApplyOutcome Disconnected = new(SettingsApplyStatus.Disconnected);
     public static readonly SettingsApplyOutcome Skipped = new(SettingsApplyStatus.Skipped);
+    public static readonly SettingsApplyOutcome Superseded = new(SettingsApplyStatus.Superseded);
     public static SettingsApplyOutcome Failed(Exception? ex) => new(SettingsApplyStatus.ApplyFailed, ex);
 
     /// <summary>The daemon is running these settings now. <see cref="SettingsApplyStatus.NoChange"/>
@@ -82,6 +93,10 @@ public enum SettingsRestoreStatus
 
     /// <summary>No daemon transport. Nothing was applied.</summary>
     Disconnected,
+
+    /// <summary>The daemon changed while this was queued or in flight (#803). Nothing was applied, and
+    /// the override it would have cleared belonged to the daemon that has gone.</summary>
+    Superseded,
 }
 
 /// <summary>The result of a restore, with the failure attached when there was one.</summary>
@@ -90,6 +105,7 @@ public readonly record struct SettingsRestoreOutcome(SettingsRestoreStatus Statu
     public static readonly SettingsRestoreOutcome Restored = new(SettingsRestoreStatus.Restored);
     public static readonly SettingsRestoreOutcome SourceUnavailable = new(SettingsRestoreStatus.SourceUnavailable);
     public static readonly SettingsRestoreOutcome Disconnected = new(SettingsRestoreStatus.Disconnected);
+    public static readonly SettingsRestoreOutcome Superseded = new(SettingsRestoreStatus.Superseded);
     public static SettingsRestoreOutcome Failed(Exception? ex) => new(SettingsRestoreStatus.ApplyFailed, ex);
 
     /// <summary>The daemon is on the saved default now. Only then may an override indicator clear.</summary>

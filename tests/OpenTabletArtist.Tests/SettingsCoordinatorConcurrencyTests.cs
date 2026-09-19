@@ -413,4 +413,118 @@ public class SettingsCoordinatorConcurrencyTests
         Assert.NotEqual(SettingsApplyStatus.NoChange, outcome.Status);
         Assert.Single(daemon.Applied);   // it actually reached the new daemon
     }
+    // --- #803: a daemon change invalidates work that is queued or in flight ------------------
+    //
+    // #787 stopped the coordinator from CARRYING state between daemons. It did not stop an operation
+    // that straddles the change, and serializing every mutating path (#777) could not: the reset is
+    // deliberately NOT behind the semaphore, because it must not queue behind work belonging to a daemon
+    // that has gone. So there are two windows left, and each of these pins one of them.
+
+    /// <summary>
+    /// The window between "the RPC was sent" and "the result is written".
+    ///
+    /// The destination used to be resolved after the await, from whichever daemon was connected by then.
+    /// An apply sent to A, completing after the user switched to B, therefore wrote A's settings into
+    /// <b>B's</b> settings.json — the exact failure #789 closed for the pending-save retry and left open
+    /// on the first write.
+    /// </summary>
+    [Fact]
+    public async Task AnApplyThatOutlivesTheDaemon_DoesNotWriteToTheNewDaemonsFile()
+    {
+        var path = new PathHolder();
+        var (coordinator, daemon, store, _) = Make(path);
+        store.Seed(SettingsFor("B's own settings", locked: false), OtherPath);
+
+        var hold = HoldNextSetSettings(daemon);
+        var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+
+        // The user stops A and starts B while the apply is still waiting on A.
+        coordinator.ResetForNewDaemon();
+        path.Value = OtherPath;
+
+        hold.SetResult(true);   // A answers, too late to matter
+        var outcome = await apply;
+
+        // Asserted before the status, because this is the damage: B's file, holding A's edit.
+        Assert.Equal("B's own settings", Tablet(store.OnDiskAt(OtherPath)));
+        Assert.Equal(SettingsApplyStatus.Superseded, outcome.Status);
+        Assert.False(coordinator.HasUnsavedChange);   // nor is it left pending against B
+    }
+
+    /// <summary>
+    /// The other window: an operation that is still <em>queued</em> when the daemon changes.
+    ///
+    /// The generation has to be captured before the wait, not after acquiring the semaphore — time spent
+    /// queued is exactly when the daemon can change underneath a caller. Sampling it inside would see the
+    /// new value and send A's edit to B.
+    /// </summary>
+    [Fact]
+    public async Task AnApplyQueuedWhenTheDaemonChanges_IsNeverSent()
+    {
+        var path = new PathHolder();
+        var (coordinator, daemon, store, _) = Make(path);
+
+        var hold = HoldNextSetSettings(daemon);
+        var first = coordinator.ApplyAndSaveAsync(SettingsFor("A's first edit", locked: true));
+
+        // Queued behind the first, still meant for A. Started, not awaited — awaiting here would
+        // deadlock the test against the semaphore the first apply is holding.
+        var queued = coordinator.ApplyAndSaveAsync(SettingsFor("A's second edit", locked: false));
+
+        coordinator.ResetForNewDaemon();
+        path.Value = OtherPath;
+        hold.SetResult(true);
+
+        await first;
+        Assert.Equal(SettingsApplyStatus.Superseded, (await queued).Status);
+
+        // One call reached the daemon — the one that was already in flight. The queued edit was dropped
+        // rather than delivered to a daemon it was never meant for.
+        Assert.Single(daemon.Applied);
+        Assert.Null(store.OnDiskAt(OtherPath));
+    }
+
+    /// <summary>
+    /// The same window for a per-app override. Recording one against B would suppress B's settings read
+    /// on the strength of an override B never received — #737's failure, reintroduced by a daemon switch.
+    /// </summary>
+    [Fact]
+    public async Task AnEphemeralOverrideThatOutlivesTheDaemon_IsNotRecorded()
+    {
+        var (coordinator, daemon, _, _) = Make();
+
+        var hold = HoldNextSetSettings(daemon);
+        var ephemeral = coordinator.ApplyEphemeralAsync(SettingsFor("Per-app snapshot", locked: true));
+
+        coordinator.ResetForNewDaemon();
+        hold.SetResult(true);
+
+        Assert.False(await ephemeral);              // it did not happen for this session
+        Assert.False(coordinator.HasEphemeralOverride);
+    }
+
+    /// <summary>
+    /// The control. Every assertion above is "nothing happened", which a coordinator that had stopped
+    /// working entirely would also satisfy. After the switch, B's own edits must still apply and save.
+    /// </summary>
+    [Fact]
+    public async Task ButAfterTheSwitch_TheNewDaemonsEditsStillLand()
+    {
+        var path = new PathHolder();
+        var (coordinator, daemon, store, _) = Make(path);
+
+        var hold = HoldNextSetSettings(daemon);
+        var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+        coordinator.ResetForNewDaemon();
+        path.Value = OtherPath;
+        hold.SetResult(true);
+        await apply;
+
+        daemon.Applied.Clear();
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("B's edit", locked: true));
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
+        Assert.Equal("B's edit", Tablet(store.OnDiskAt(OtherPath)));
+        Assert.Single(daemon.Applied);
+    }
 }
