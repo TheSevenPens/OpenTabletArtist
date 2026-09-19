@@ -99,6 +99,13 @@ public sealed class SettingsCoordinator
     private int _sessionGeneration;
 
     /// <summary>
+    /// Increases as operations are admitted, so a result can say where it sat in the order. Together with
+    /// the session it forms the <see cref="SettingsStamp"/> a caller checks before adopting a result:
+    /// without it, two completions arriving out of order are indistinguishable.
+    /// </summary>
+    private long _operationSequence;
+
+    /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
     /// still belongs to the daemon it was asked for.
     ///
@@ -218,27 +225,45 @@ public sealed class SettingsCoordinator
         return hadUnsaved;
     }
 
+    /// <summary>
+    /// Copies the caller's settings and stamps the copy, at the moment the request is admitted.
+    ///
+    /// Before queueing, deliberately. Time spent waiting for the gate is time the caller can go on
+    /// editing the object it handed over, and an operation that read it later would send whatever it had
+    /// become rather than what was asked for. Isolating here is also what lets the caller keep editing
+    /// immediately: after this returns, its object and this operation have nothing to do with each other.
+    ///
+    /// Returns null when the copy could not be made. That is a refusal, not a fallback: continuing with
+    /// the caller's own object is precisely the guarantee being withdrawn, and a clone failing means a
+    /// serialization failure is coming for the disk write anyway.
+    /// </summary>
+    private (Settings Working, SettingsStamp Stamp)? Admit(Settings settings)
+    {
+        var working = Snapshot(settings);
+        if (working == null) return null;
+        return (working, new SettingsStamp(
+            Volatile.Read(ref _sessionGeneration) + 1,      // +1 so a fresh session is never SettingsStamp.None
+            Interlocked.Increment(ref _operationSequence)));
+    }
+
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
-    public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
-        SerializedAsync(session => ApplyAndSaveCoreAsync(settings, session),
-            () => SettingsApplyOutcome.Superseded);
-
-    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, int session)
+    public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings)
     {
-        // (a) No-op guard: applying settings byte-identical to what the daemon last returned is a pure
-        // write of unchanged data — skip it. Avoids redundant daemon writes/reloads and neutralizes the
-        // common "same value written back repeatedly" loop without a save flicker.
-        //
-        // It must ALSO be what we last persisted (#734). The baseline is the last daemon-LOADED settings,
-        // so after a save failure the reload records the unsaved change as the baseline — retrying the
-        // identical settings then returned here and persistence was never retried. Requiring both means
-        // an unsaved change always gets another chance at disk.
-        if (SerializeForCompare(settings) is { } json
-            && json == _lastLoadedSettingsJson
-            && json == _lastPersistedSettingsJson)
-            return SettingsApplyOutcome.NoChange;
+        if (Admit(settings) is not { } admitted)
+        {
+            _log.Warn("Couldn't take a private copy of the settings being applied; nothing was sent or " +
+                      "saved. The settings are probably not serializable, which would fail the disk " +
+                      "write next.");
+            return Task.FromResult(SettingsApplyOutcome.Failed(null));
+        }
+        return SerializedAsync(session => ApplyAndSaveCoreAsync(admitted.Working, admitted.Stamp, session),
+            () => SettingsApplyOutcome.Superseded);
+    }
 
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(
+        Settings settings, SettingsStamp stamp, int session)
+    {
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
         if (!_applyLoopBreaker.Allow(Environment.TickCount64))
@@ -248,27 +273,47 @@ public sealed class SettingsCoordinator
             return SettingsApplyOutcome.Skipped;
         }
 
-        Sanitize(settings);
-        _settings = settings;
-        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
-        HasEphemeralOverride = false;
+        // `settings` is this operation's private working copy, so policy edits it freely — but the
+        // result is copied again below before anything is sent. The host's policy may keep a reference
+        // to what it was handed; what it keeps must not be what goes to the daemon or the disk.
+        _policy.Apply(settings, PolicyContext(persisting: true));
 
-        // The revision this operation owns, taken BEFORE the daemon call (#774). OTA mutates settings in
-        // place — the tablet editor mutates its profile and pushes the same instance — so the caller's
-        // object can change while the RPC is pending. Sending and persisting one immutable copy is what
-        // makes "what the daemon accepted" and "what went to disk" the same thing by construction.
-        // #765 snapshotted only for the retry, and only after the await, so both the immediate write and
-        // the retry could still persist an edit the daemon had never seen, including one it refused.
         var revision = Snapshot(settings);
         if (revision == null)
         {
-            // Cloning failed, which means serialization failed, which means the disk write is about to
-            // fail too. Carry on with the caller's object rather than refusing the user's edit outright:
-            // send and persist still agree with each other, they are just no longer isolated.
-            _log.Warn("Couldn't snapshot the settings being applied; a concurrent edit could change " +
-                        "what gets persisted.");
-            revision = settings;
+            _onSaveState(SettingsSaveState.ApplyFailed);
+            _log.Warn("Couldn't isolate the settings after applying policy; nothing was sent or saved.");
+            return SettingsApplyOutcome.Failed(null);
         }
+
+        // The format guard runs on the revision that is actually going out, after policy rather than
+        // before it: policy edits profiles, so guarding first would leave anything policy touched
+        // unchecked.
+        GuardFormat(revision);
+
+        // No-op guard: settings byte-identical to what the daemon last returned are a pure write of
+        // unchanged data — skip them. Avoids redundant daemon writes and reloads, and neutralizes the
+        // common "same value written back repeatedly" binding loop without a save flicker.
+        //
+        // It must ALSO match what was last persisted (#734). The baseline is the last daemon-LOADED
+        // settings, so after a save failure the reload records the unsaved change as the baseline;
+        // requiring both means an unsaved change always gets another chance at disk.
+        //
+        // Compared AFTER policy and the format guard, not before. The question is whether this operation
+        // would change anything, and the only honest subject of that question is the revision that would
+        // actually be sent. Comparing the caller's request instead asks it of something that never goes
+        // anywhere: once the library stopped editing the caller's object, a request identical to the last
+        // one still differed from the stored state by exactly the repairs policy had made to it, so the
+        // guard stopped firing and every reapply became a real write.
+        if (SerializeForCompare(revision) is { } json
+            && json == _lastLoadedSettingsJson
+            && json == _lastPersistedSettingsJson)
+            return SettingsApplyOutcome.NoChange;
+
+        _settings = revision;
+        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
+        HasEphemeralOverride = false;
+        var prepared = new PreparedSettings(revision, stamp);
 
         // Resolved BEFORE the RPC, not after (#803). It comes from the connected daemon's AppInfo, so
         // reading it late means an apply that outlives a daemon switch writes its result into the *new*
@@ -289,14 +334,15 @@ public sealed class SettingsCoordinator
             // unpersisted", and the UI text must not claim otherwise.
             _onSaveState(SettingsSaveState.ApplyFailed);
             _log.Warn("Couldn't apply settings to the daemon.", ex);
-            throw; // keep the existing error-propagation contract for callers
+            // Still throws: callers depend on it, and changing that is not this change's business.
+            throw;
         }
 
         if (!applied)
         {
             _onSaveState(SettingsSaveState.Disconnected);
             _log.Warn("Couldn't apply settings: not connected to the daemon.");
-            return SettingsApplyOutcome.Disconnected;
+            return SettingsApplyOutcome.Disconnected with { Prepared = prepared };
         }
 
         // The daemon changed while this was in flight, so what just succeeded landed on a daemon that is
@@ -330,7 +376,8 @@ public sealed class SettingsCoordinator
                 : $"Settings applied but not saved: couldn't write {path}.");
 
         _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
-        return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
+        var result = saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
+        return result with { Prepared = prepared };
     }
 
     /// <summary>
@@ -397,16 +444,33 @@ public sealed class SettingsCoordinator
 
     /// <summary>Applies live without persisting — a temporary override (profile switching, #320). The
     /// saved <c>settings.json</c> default is untouched. Does NOT reload; the caller does.</summary>
-    public Task<bool> ApplyLiveOnlyAsync(Settings settings) =>
-        SerializedAsync(session => ApplyLiveOnlyCoreAsync(settings, session), () => false);
+    public Task<bool> ApplyLiveOnlyAsync(Settings settings)
+    {
+        // Isolated at admission like every other mutating path. This one used to send the caller's own
+        // instance, so an edit made while the RPC was in flight reached the daemon -- the hazard #774
+        // fixed for apply-and-save and left open here.
+        if (Admit(settings) is not { } admitted)
+        {
+            _log.Warn("Couldn't take a private copy of the live-only settings; nothing was sent.");
+            return Task.FromResult(false);
+        }
+        return SerializedAsync(session => ApplyLiveOnlyCoreAsync(admitted.Working, session), () => false);
+    }
 
     private async Task<bool> ApplyLiveOnlyCoreAsync(Settings settings, int session)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
+        var revision = Snapshot(settings);
+        if (revision == null)
+        {
+            _log.Warn("Couldn't isolate the live-only settings after applying policy; nothing was sent.");
+            return false;
+        }
+
         // Report whether it landed (#766). False means no transport — the change was never sent, so a
         // caller must not announce a switch that didn't happen. State moves only on success.
-        if (!await _daemon.SetSettingsAsync(settings))
+        if (!await _daemon.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
             return false;
@@ -420,7 +484,7 @@ public sealed class SettingsCoordinator
             return false;
         }
 
-        _settings = settings;
+        _settings = revision;
         HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
         return true;
     }
@@ -430,16 +494,30 @@ public sealed class SettingsCoordinator
     /// no change to <see cref="CurrentSettings"/>. For automatic per-app switching (#167): the editor keeps
     /// showing and persisting the user's default while the daemon runs a transient snapshot.
     /// </summary>
-    public Task<bool> ApplyEphemeralAsync(Settings settings) =>
-        SerializedAsync(session => ApplyEphemeralCoreAsync(settings, session), () => false);
+    public Task<bool> ApplyEphemeralAsync(Settings settings)
+    {
+        if (Admit(settings) is not { } admitted)
+        {
+            _log.Warn("Couldn't take a private copy of the per-app snapshot; nothing was sent.");
+            return Task.FromResult(false);
+        }
+        return SerializedAsync(session => ApplyEphemeralCoreAsync(admitted.Working, session), () => false);
+    }
 
     private async Task<bool> ApplyEphemeralCoreAsync(Settings settings, int session)
     {
         _policy.Apply(settings, PolicyContext(persisting: false));
 
+        var revision = Snapshot(settings);
+        if (revision == null)
+        {
+            _log.Warn("Couldn't isolate the per-app snapshot after applying policy; nothing was sent.");
+            return false;
+        }
+
         // An override that never reached the daemon is not an override (#766). Setting the flag anyway
         // would suppress the reload's settings read on the strength of one that does not exist.
-        if (!await _daemon.SetSettingsAsync(settings))
+        if (!await _daemon.SetSettingsAsync(revision))
         {
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
             return false;
@@ -582,26 +660,30 @@ public sealed class SettingsCoordinator
     private SettingsPolicyContext PolicyContext(bool persisting) =>
         new(SettingsStamp.None, _isOwnedDaemon(), persisting);
 
-    private void Sanitize(Settings settings)
+    /// <summary>
+    /// Repairs, on the revision that is about to go out, the one profile shape known to crash a reader
+    /// of the shared settings file.
+    ///
+    /// OpenTabletDriver's own interface does <c>p.AbsoluteModeSettings.Tablet.Width</c> when it saves and
+    /// throws if any of that is null. Some profile creation outside the daemon process leaves it null, so
+    /// filling it here keeps the file usable by every program that reads it, not just this one.
+    ///
+    /// This runs on the persisting path only. Live-only and ephemeral applies do not get it, and that
+    /// asymmetry is preserved rather than corrected here.
+    ///
+    /// It is NOT the principled line it appears to be. The guard protects a reader of the settings file,
+    /// so "we do not write, therefore it cannot matter" looks like it follows — but OpenTabletDriver's
+    /// interface pulls the daemon's live state into itself (<c>MainForm.SyncSettings</c>, wired to
+    /// <c>Resynchronize</c>) and then dereferences that same field when the user saves. Settings applied
+    /// live-only really can reach the crash by that route. Widening the guard is a behaviour change owed
+    /// its own review, not something to slip in here.
+    /// </summary>
+    private void GuardFormat(Settings settings)
     {
-        _policy.Apply(settings, PolicyContext(persisting: true));
-
-        // Never persist a profile with null Absolute-mode areas: the OpenTabletDriver UX does
-        // `p.AbsoluteModeSettings.Tablet.Width` on save and would NRE + crash. Repair (fill nulls) so the
-        // shared settings.json stays valid for OTD's own UI too (#otd-null-areas).
-        // Only this path applies the format guard. Live-only and ephemeral applies do not, and that is
-        // preserved as it stands rather than corrected here.
-        //
-        // It is not a principled line. The guard protects a reader of the settings FILE, so "we do not
-        // write, therefore it cannot matter" looks reasonable -- but OpenTabletDriver's own interface
-        // pulls the daemon's live state into itself (MainForm.SyncSettings, wired to Resynchronize) and
-        // then dereferences AbsoluteModeSettings.Tablet when the user saves. So settings applied
-        // live-only really can reach that crash by another route. Recorded as a gap to close in its own
-        // change, not widened here, where it would be indistinguishable from the extraction.
-        int repairedProfiles = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
-        if (repairedProfiles > 0)
-            _log.Warn($"Repaired {repairedProfiles} profile(s) with missing Absolute-mode areas before saving " +
-                        "(would otherwise crash the OpenTabletDriver UX).");
+        int repaired = ProfileSanitizer.EnsureValidAbsoluteAreas(settings);
+        if (repaired > 0)
+            _log.Warn($"Repaired {repaired} profile(s) with missing Absolute-mode areas before saving " +
+                      "(would otherwise crash the OpenTabletDriver UX).");
     }
 
     /// <summary>Forget the pending save and its retry budget — nothing is outstanding.</summary>

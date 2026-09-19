@@ -4,6 +4,7 @@ using OpenTabletArtist.ViewModels;
 using OpenTabletArtist.Views;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
+using OtdInterop;
 
 namespace OpenTabletArtist.UiTests;
 
@@ -30,7 +31,7 @@ public class ViewBindingTests
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(),
             settings,
-            applyAction: _ => Task.CompletedTask,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
             refreshAction: () => Task.FromResult<(Settings?, Profile?)>((settings, settings.Profiles.First())));
 
         using var errors = BindingErrors.Capture();
@@ -52,7 +53,7 @@ public class ViewBindingTests
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(),
             settings,
-            applyAction: _ => Task.CompletedTask,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
             refreshAction: () => Task.FromResult<(Settings?, Profile?)>((settings, settings.Profiles.First())));
         // The view consumes the pending tab when it attaches, so ask before showing it.
         vm.RequestTab(tab);
