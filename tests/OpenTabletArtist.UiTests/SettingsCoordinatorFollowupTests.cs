@@ -77,7 +77,7 @@ public class SettingsCoordinatorFollowupTests
             },
         };
         var store = new RecordingStore();
-        return (new AppSession(daemon, new StubLifecycle(), store), daemon, store);
+        return (new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()), daemon, store);
     }
 
     // --- #763: a no-change apply must not reload ---

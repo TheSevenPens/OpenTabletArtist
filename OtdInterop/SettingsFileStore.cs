@@ -8,10 +8,14 @@ namespace OtdInterop;
 /// <summary>
 /// Reads and writes the daemon's active <see cref="Settings"/> file.
 ///
-/// The implementation is internal, deliberately: this is the one object that writes the file the daemon
-/// is running from, and handing it out would make every protection around it optional — a caller could
-/// simply write. The interface stays public so a host can supply its own (a test needs a write to fail
-/// on demand), which is not the same as being given ours.
+/// Internal, interface included: this is the one object that writes the file the daemon is running
+/// from, and handing it out would make every protection around it optional — a caller could simply
+/// write.
+///
+/// The interface was public while a host had to be able to supply its own, which was never a host's
+/// need: it was this repository's tests wanting a write to fail on demand, reaching the library through
+/// a knob on the application's own constructor. That knob is gone and substitution happens through the
+/// library's internal seam, so the last reason for this to be visible outside went with it.
 ///
 /// Preset files are a different authority and belong to the host application, which has its own store
 /// over the shared codec. Centralizes the
@@ -23,7 +27,7 @@ namespace OtdInterop;
 /// success via its return value (settings write-back) — the return value is the seam that
 /// #21 will use to surface persistence failures instead of swallowing them.
 /// </summary>
-public interface ISettingsFileStore
+internal interface ISettingsFileStore
 {
     /// <summary>Serializes <paramref name="settings"/> to <paramref name="path"/>. Throws on failure.</summary>
     void Save(Settings settings, string path);

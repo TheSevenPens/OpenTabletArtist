@@ -185,6 +185,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // the library is willing to offer rather than everything the implementation happens to have (#807).
     private readonly IOtdSettingsSession _coordinator;
 
+    /// <summary>The library session these two came from, disposed with this one.</summary>
+    private readonly OtdSession _session;
+
     /// <inheritdoc />
     public bool HasEphemeralOverride => _coordinator.HasEphemeralOverride;
 
@@ -422,25 +425,26 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Settings? CurrentSettings => _coordinator.GetCurrent()?.Settings;
     public event Action? DataLoaded;
 
-    public AppSession(IDaemonTransport daemon, IDaemonLifecycleService daemonLifecycle,
-        ISettingsFileStore? settingsStore = null)
+    /// <param name="session">
+    /// The library session: one connection, and the one settings authority over it. Taken rather than
+    /// built here so a test can supply one over a daemon that is not there — and taken whole, because
+    /// the pairing is what guarantees that no second authority exists to reorder writes behind this one.
+    /// </param>
+    /// <param name="daemonLifecycle">Starting, stopping and locating daemon processes. The host's, and
+    /// staying the host's: which executable to run and whether to ask the user first are product
+    /// decisions.</param>
+    public AppSession(OtdSession session, IDaemonLifecycleService daemonLifecycle)
     {
-        _daemon = daemon;
+        _session = session;
+        _daemon = session.Connection;
         _daemonLifecycle = daemonLifecycle;
 
         // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
         // data load, identity on connect), so neither has a value yet at construction.
-        // No store given means the library uses its own, which the app cannot construct (#807).
-        _coordinator = settingsStore is { } store
-            ? OtdSettingsSession.Create(daemon, store, () => SettingsFilePath, () => IsAppOwnedDaemon,
-                state => SaveState = state, AppLogBridge.Instance, OtaSettingsPolicy.Instance)
-            : OtdSettingsSession.Create(
-            daemon,
+        _coordinator = session.OpenSettings(
             settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
-            onSaveState: state => SaveState = state,
-            log: AppLogBridge.Instance,
-            policy: OtaSettingsPolicy.Instance);
+            onSaveState: state => SaveState = state);
 
         _daemon.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -1423,6 +1427,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _connectTicker?.Stop();
         _connectTicker = null;
 
-        _daemon.Dispose();
+        // The session owns the connection, so it is what gets disposed -- disposing the connection
+        // directly would leave the session holding something already gone.
+        _session.Dispose();
     }
 }

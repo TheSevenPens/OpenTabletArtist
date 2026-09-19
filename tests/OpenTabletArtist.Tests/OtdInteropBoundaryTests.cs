@@ -1,14 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
-using OpenTabletDriver.Desktop.Reflection.Metadata;
-using OpenTabletDriver.Plugin.Logging;
 using OtdInterop;
 using Xunit;
 
@@ -75,11 +70,11 @@ public class OtdInteropBoundaryTests
     }
 
     /// <summary>
-    /// The settings session cannot be constructed from outside; it comes from the library's factory.
+    /// The settings session cannot be constructed from outside; it comes from <see cref="OtdSession"/>.
     ///
     /// A host able to build its own would be able to build one over a writer of its choosing, which is
-    /// the same bypass by a longer route. This says nothing about how many the factory will build —
-    /// see <c>OneConnectionGetsOneSettingsAuthority</c>, which is the behaviour that establishes that.
+    /// the same bypass by a longer route. This says nothing about how many a host can obtain — see
+    /// <c>OneConnectionGetsOneSettingsAuthority</c>, which is the behaviour that settles that.
     /// </summary>
     [Fact]
     public void TheSettingsSessionImplementation_IsNotPublic()
@@ -88,21 +83,22 @@ public class OtdInteropBoundaryTests
             t => t.GetInterfaces().Contains(typeof(IOtdSettingsSession)));
 
         // And the supported way in is still there.
-        Assert.Contains(typeof(OtdSettingsSession).GetMethods(BindingFlags.Public | BindingFlags.Static),
-            m => m.Name == nameof(OtdSettingsSession.Create));
+        Assert.Contains(typeof(OtdSession).GetMethods(BindingFlags.Public | BindingFlags.Instance),
+            m => m.Name == nameof(OtdSession.OpenSettings));
     }
 
     /// <summary>
     /// One connection gets one settings authority, and a second is refused.
     ///
     /// This is behaviour, not visibility, and it is the gap making the implementation internal did NOT
-    /// close: a host could not build its own session, but it could ask the factory for two over the same
-    /// connection. Two sessions are not two views of the same thing -- each has its own mutation gate,
-    /// session generation, retry state and baseline -- so neither sees what the other is doing.
+    /// close: a host could not build its own session, but it could ask the old free-standing factory for
+    /// two over the same connection. Two sessions are not two views of the same thing -- each has its own
+    /// mutation gate, session generation, retry state and baseline -- so neither sees what the other is
+    /// doing.
     ///
-    /// Demonstrated as the loss it actually is rather than as an exception message: with the refusal
-    /// removed, the assertion below sees TWO settings RPCs in flight against one daemon at once, which is
-    /// precisely what the serialization exists to prevent.
+    /// Asserted as the loss it actually is rather than as an exception message: the surviving session
+    /// serializes, and with the refusal removed the assertion below sees TWO settings RPCs in flight
+    /// against one daemon at once, which is what the serialization exists to prevent.
     /// </summary>
     [Fact]
     public async Task OneConnectionGetsOneSettingsAuthority()
@@ -112,14 +108,14 @@ public class OtdInteropBoundaryTests
         var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         daemon.SetSettingsHandler = _ => { inFlight++; return held.Task; };
 
-        var first = Session(daemon);
+        var session = FakeSession.Over(daemon);
+        var settings = Open(session);
 
-        var refused = Assert.Throws<InvalidOperationException>(() => Session(daemon));
-        Assert.Contains("already has a settings session", refused.Message);
+        var refused = Assert.Throws<InvalidOperationException>(() => Open(session));
+        Assert.Contains("already open", refused.Message);
 
-        // And the one session that exists still serializes, which is the property being protected.
-        var a = first.ApplyLiveOnlyAsync(Tablet("X"));
-        var b = first.ApplyLiveOnlyAsync(Tablet("Y"));
+        var a = settings.ApplyLiveOnlyAsync(Tablet("X"));
+        var b = settings.ApplyLiveOnlyAsync(Tablet("Y"));
         await Task.Yield();
         Assert.Equal(1, inFlight);
 
@@ -127,48 +123,82 @@ public class OtdInteropBoundaryTests
         await Task.WhenAll(a, b);
     }
 
-    /// <summary>A connection the library did not make is refused, rather than yielding a session that
-    /// silently cannot write.</summary>
+    /// <summary>
+    /// A host cannot bring its own connection, so it cannot bring one without a settings channel.
+    ///
+    /// This used to be a runtime check -- the library was handed a connection and cast it to the internal
+    /// channel -- because the public connection interface can be implemented by anyone. Owning the
+    /// connection makes it a compile-time fact instead, so what this asserts is that nothing offers the
+    /// old way back in.
+    /// </summary>
     [Fact]
-    public void AConnectionTheLibraryDidNotMake_IsRefused()
+    public void NoPublicEntryPointTakesAConnectionFromOutside()
     {
-        var refused = Assert.Throws<ArgumentException>(() => Session(new HostsOwnTransport()));
-        Assert.Contains(nameof(DaemonTransport.Create), refused.Message);
+        var offenders = Library.GetExportedTypes()
+            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                .Concat(t.GetConstructors().Cast<MethodBase>())
+                .Select(m => (Type: t, Method: m)))
+            .Where(x => x.Method.GetParameters().Any(p => p.ParameterType == typeof(IDaemonTransport)))
+            .Select(x => $"{x.Type.Name}.{x.Method.Name}")
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
-    private static IOtdSettingsSession Session(IDaemonTransport daemon) =>
-        OtdSettingsSession.Create(daemon, () => "A/settings.json", () => true, _ => { },
-            NullOtdLog.Instance, OpenTabletArtist.Services.OtaSettingsPolicy.Instance);
+    /// <summary>
+    /// A disposed session starts nothing new, and says so.
+    ///
+    /// Its connection is gone, so there is nothing for an authority to be an authority over. Returning
+    /// one anyway would hand back something whose every operation fails for a reason the caller cannot
+    /// see from the object it was given.
+    /// </summary>
+    [Fact]
+    public void ADisposedSession_RefusesToOpenSettings()
+    {
+        var session = FakeSession.Over(new FakeDaemonTransport());
+        session.Dispose();
+
+        var refused = Assert.Throws<InvalidOperationException>(() => Open(session));
+        Assert.Contains("disposed", refused.Message);
+    }
+
+    /// <summary>
+    /// What already happened stays readable after disposal. A host asking whether a change went unsaved
+    /// is asking about the past, and the honest answer is available -- refusing it would replace a fact
+    /// with an exception at exactly the moment the fact matters.
+    /// </summary>
+    [Fact]
+    public async Task ADisposedSession_StillAnswersForWhatAlreadyHappened()
+    {
+        var daemon = new FakeDaemonTransport();
+        var session = FakeSession.Over(daemon);
+        var settings = Open(session);
+        await settings.ApplyAndSaveAsync(Tablet("T"));
+
+        session.Dispose();
+
+        Assert.Equal("T", settings.GetCurrent()!.Settings.Profiles[0].Tablet);
+    }
+
+    /// <summary>Disposing twice is not an error; a host tearing down in an unexpected order should not
+    /// have to know who got there first.</summary>
+    [Fact]
+    public void DisposingASessionTwice_IsHarmless()
+    {
+        var daemon = new FakeDaemonTransport();
+        var session = FakeSession.Over(daemon);
+
+        session.Dispose();
+        session.Dispose();
+
+        Assert.True(daemon.IsDisposed);
+    }
+
+    private static IOtdSettingsSession Open(OtdSession session) =>
+        session.OpenSettings(() => "A/settings.json", () => true, _ => { });
 
     private static Settings Tablet(string name) =>
         new() { Profiles = new ProfileCollection { new Profile { Tablet = name } } };
-
-    /// <summary>
-    /// What a consumer can build: the public connection interface and nothing behind it. Every member
-    /// throws, because none should ever be reached -- the factory refuses this before using it.
-    /// </summary>
-    private sealed class HostsOwnTransport : IDaemonTransport
-    {
-        public event Action? Connected { add { } remove { } }
-        public event Action? Disconnected { add { } remove { } }
-        public event Action? TabletsChanged { add { } remove { } }
-        public event Action<JObject>? DeviceReport { add { } remove { } }
-        public event Action<LogMessage>? LogReceived { add { } remove { } }
-
-        public bool AutoReconnect { get; set; }
-
-        public Task ConnectAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<AppInfo?> GetAppInfoAsync() => throw new NotSupportedException();
-        public Task<JArray> GetTabletsAsync() => throw new NotSupportedException();
-        public Task<JArray> GetDevicesAsync() => throw new NotSupportedException();
-        public int? GetServerProcessId() => throw new NotSupportedException();
-        public Task SetTabletDebugAsync(bool enabled) => throw new NotSupportedException();
-        public Task<List<LogMessage>> GetCurrentLogAsync() => throw new NotSupportedException();
-        public Task<bool> DownloadPluginAsync(PluginMetadata metadata) => throw new NotSupportedException();
-        public Task<bool> UninstallPluginAsync(string directory) => throw new NotSupportedException();
-        public Task LoadPluginsAsync() => throw new NotSupportedException();
-        public void Dispose() { }
-    }
 
     /// <summary>
     /// The library depends on nothing of the app's, and on no UI framework. A reference the other way

@@ -70,7 +70,7 @@ public class AppSessionSettingsTests
     {
         var daemon = new FakeDaemonTransport { Settings = SettingsFor("Baseline") };
         var store = new RecordingStore();
-        return (new AppSession(daemon, new StubLifecycle(), store), daemon, store);
+        return (new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()), daemon, store);
     }
 
     [AvaloniaFact]
