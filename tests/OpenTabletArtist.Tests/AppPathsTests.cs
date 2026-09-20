@@ -40,6 +40,22 @@ public class AppPathsTests
     }
 
     /// <summary>
+    /// A relative root becomes absolute, once.
+    /// </summary>
+    /// <remarks>
+    /// Left relative it would resolve against whatever the working directory happened to be — which for
+    /// a packaged app is wherever it was launched from, and would move if anything changed it.
+    /// </remarks>
+    [Fact]
+    public void ARelativeRoot_IsMadeAbsolute()
+    {
+        var resolved = AppPaths.Resolve(Path.Combine("sandbox", "data"));
+
+        Assert.True(Path.IsPathFullyQualified(resolved), $"not absolute: {resolved}");
+        Assert.EndsWith("OpenTabletArtist", resolved, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A variable that is set but blank is treated as absent.
     /// </summary>
     /// <remarks>

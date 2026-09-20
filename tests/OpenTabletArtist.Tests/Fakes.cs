@@ -165,8 +165,25 @@ internal sealed class FakeConnectionState : IConnectionState
     }
     private DaemonOwnership _ownership = DaemonOwnership.Owned;
 
-    /// <summary>The daemon is somewhere the app manages, but is not the selected one (#882).</summary>
-    public bool DaemonIsManagedButNotSelected { get; set; }
+    /// <summary>
+    /// The daemon is somewhere the app manages, but is not the selected one (#882).
+    /// </summary>
+    /// <remarks>
+    /// Raises its change notification, because the real one does and because a listener that reacts to
+    /// it is exactly what is under test. As a silent auto-property this fake would have made a card that
+    /// never re-evaluates look correct.
+    /// </remarks>
+    public bool DaemonIsManagedButNotSelected
+    {
+        get => _daemonIsManagedButNotSelected;
+        set
+        {
+            _daemonIsManagedButNotSelected = value;
+            PropertyChanged?.Invoke(this,
+                new PropertyChangedEventArgs(nameof(DaemonIsManagedButNotSelected)));
+        }
+    }
+    private bool _daemonIsManagedButNotSelected;
 
     public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
     public bool IsDaemonRunning => _isConnected;

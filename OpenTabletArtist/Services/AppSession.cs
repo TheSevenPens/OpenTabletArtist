@@ -471,6 +471,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsConnected = false;
             IsDaemonRunning = false;
             Ownership = DaemonOwnership.Unknown;   // nothing to identify once the pipe is gone (#742)
+            // Cleared with it: it describes which daemon was answering, and none is (#882).
+            DaemonIsManagedButNotSelected = false;
             DaemonSourcePath = "";
             DaemonVersion = "";
             HasTablet = false;
@@ -1472,6 +1474,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Connected, but we can't read which binary answered — elevated, another user's, or more
             // than one candidate. Unknown is a real answer, not a soft "no" (#742).
             Ownership = DaemonOwnership.Unknown;
+            // Nothing is known about which daemon this is, so nothing may be said about whether it is
+            // the selected one (#882).
+            DaemonIsManagedButNotSelected = false;
             return;
         }
 
@@ -1485,14 +1490,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
         var managed = _daemonLifecycle.IsAppManaged(actual);
         var owned = resolved && managed;
+
+        // Managed by location, but not the one the user picked: ExpectedExePath prefers a user-chosen
+        // daemon over the bundled candidate, so the bundled copy answering while a selection points
+        // elsewhere lands here. External is the right classification (#880), but "an OpenTabletDriver
+        // you installed, not the bundled copy" is then a false sentence about the bundled copy (#882).
+        //
+        // Set BEFORE Ownership, so a listener woken by the ownership change already sees the matching
+        // value. Its own notification is observed too (HealthService), for the case where ownership
+        // does not move at all: External to External, a different daemon answering.
+        DaemonIsManagedButNotSelected = !owned && managed;
         Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
 
-        // Managed by location, but not the one the user picked -- ExpectedExePath prefers a user-chosen
-        // daemon over the bundled candidate, so the bundled copy answering while a selection points
-        // elsewhere lands here. External is the right classification (#880: a daemon other than the
-        // selected one must not silently gain cleanup and plugin privileges), but "an OpenTabletDriver
-        // you installed, not the bundled copy" is then a false sentence about the bundled copy (#882).
-        DaemonIsManagedButNotSelected = !owned && managed;
     }
 
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on

@@ -25,8 +25,14 @@ public static class AppLog
     /// </summary>
     /// <remarks>
     /// Through <see cref="AppPaths"/>, so an override redirects the log with everything else (#879).
-    /// <see cref="RedirectTo"/> remains for tests that want a directory of their own without touching the
-    /// environment; this is the default that a packaged run resolves.
+    ///
+    /// <para>
+    /// Two levels, deliberately, and they do not compete: <see cref="AppPaths"/> decides the
+    /// application's data root before anything starts, and this is the default derived from it;
+    /// <see cref="RedirectTo"/> hands one test an exact directory afterwards and wins while it is set.
+    /// Collapsing them into environment mutation around a cached static path would make test isolation
+    /// harder, not simpler.
+    /// </para>
     /// </remarks>
     private static readonly string UserLogDirectory = Path.Combine(AppPaths.LocalAppData, "logs");
 

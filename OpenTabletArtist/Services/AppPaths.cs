@@ -29,7 +29,23 @@ namespace OpenTabletArtist.Services;
 /// </remarks>
 public static class AppPaths
 {
-    /// <summary>The environment variable that redirects this application's data directory.</summary>
+    /// <summary>
+    /// The environment variable that redirects this application's data directory.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>What it redirects, and what it does not.</b> This application's settings and logs, written
+    /// under <c>&lt;root&gt;/OpenTabletArtist</c>. It is <em>not</em> an isolated instance of the
+    /// application: the single-instance identity is shared with every other OTA on the machine, and the
+    /// daemon's own data is a separate matter under its own variable. A packaged verification run should
+    /// close other instances first rather than assume this separates them.
+    /// </para>
+    /// <para>
+    /// <b>Read once, at startup.</b> It configures a process before it launches — a CI step or a test
+    /// host — and is not a setting to change under a running app, where half the files would already be
+    /// somewhere else.
+    /// </para>
+    /// </remarks>
     public static readonly string OverrideVariable = "OTA_APPDATA";
 
     /// <summary>
@@ -49,11 +65,18 @@ public static class AppPaths
     /// Separate from the property so the decision can be tested without a process boundary. A blank or
     /// whitespace value is treated as absent rather than as a request to write to the current directory,
     /// because an environment variable that is set but empty is almost always an accident.
+    ///
+    /// <para>
+    /// A relative root is made absolute here, once, against the working directory as it is at startup.
+    /// Left relative it would resolve wherever the process happened to be launched from and move if
+    /// anything ever changed the working directory — which for a packaged app is not somewhere anyone
+    /// intends to keep settings.
+    /// </para>
     /// </remarks>
     public static string Resolve(string? overrideValue) =>
         string.IsNullOrWhiteSpace(overrideValue)
             ? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "OpenTabletArtist")
-            : Path.Combine(overrideValue, "OpenTabletArtist");
+            : Path.Combine(Path.GetFullPath(overrideValue), "OpenTabletArtist");
 }

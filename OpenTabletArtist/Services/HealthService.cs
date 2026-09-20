@@ -67,7 +67,11 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         if (e.PropertyName is nameof(IConnectionState.IsConnected)
             or nameof(IConnectionState.ConnectionStatus)
             or nameof(IConnectionState.IsDaemonExeMissing)
-            or nameof(IConnectionState.IsForeignDaemon))
+            or nameof(IConnectionState.IsForeignDaemon)
+            // Which of two sentences the driver card prints (#882), and it is not implied by ownership:
+            // an External -> External change moves this and not that, so without it the card would keep
+            // the previous wording until some later refresh happened to correct it.
+            or nameof(IConnectionState.DaemonIsManagedButNotSelected))
             Reevaluate();
     }
 

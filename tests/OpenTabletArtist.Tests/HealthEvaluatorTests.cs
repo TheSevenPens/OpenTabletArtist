@@ -180,6 +180,10 @@ public class HealthEvaluatorTests
 
         // Short enough to survive the row's clipping: the first attempt lost "is answering" on screen,
         // which is the half that explained it. Checked against the widest row already shipping.
+        //
+        // A wording guard, not proof: characters are not rendered width in a proportional font, and this
+        // cannot know the row's real bounds. What it catches is the next person making the message
+        // longer than one already known to fit.
         Assert.True(row.Length <= "An OpenTabletDriver you installed, not the bundled copy".Length,
             $"row is longer than the widest one already shipping, and will clip: '{row}'");
 
