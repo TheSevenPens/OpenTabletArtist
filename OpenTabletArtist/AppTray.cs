@@ -29,6 +29,8 @@ public sealed class AppTray : IDisposable
     private readonly IDeviceData _deviceData;
     private readonly ISettingsCoordinator _settingsCoord;
     private readonly Func<Task>? _onQuitAsync; // restore per-app default before exit (#167)
+    private readonly Func<TimeSpan, Task<bool>>? _onCloseAsync; // settle settings work before exit (#828)
+    private readonly Func<Task<Func<Task>?>>? _onPrepareStopAsync; // capture the stop target (#828)
 
     private readonly TrayIcon _tray;
     private readonly NativeMenuItem _activeTabletItem;
@@ -50,7 +52,8 @@ public sealed class AppTray : IDisposable
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
         IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord,
-        Func<Task>? onQuitAsync = null)
+        Func<Task>? onQuitAsync = null, Func<TimeSpan, Task<bool>>? onCloseAsync = null,
+        Func<Task<Func<Task>?>>? onPrepareStopAsync = null)
     {
         _desktop = desktop;
         _window = window;
@@ -58,6 +61,8 @@ public sealed class AppTray : IDisposable
         _deviceData = deviceData;
         _settingsCoord = settingsCoord;
         _onQuitAsync = onQuitAsync;
+        _onCloseAsync = onCloseAsync;
+        _onPrepareStopAsync = onPrepareStopAsync;
 
         _tray = new TrayIcon { ToolTipText = "OpenTabletArtist", IsVisible = true };
         try
@@ -255,31 +260,19 @@ public sealed class AppTray : IDisposable
     private async void Quit(bool stopDaemon = false)
     {
         _window.AllowCloseForQuit();
-        // Restore the user's default while the daemon is still connected, so no per-app snapshot lingers
-        // after exit (#167). Awaited on the UI thread (no blocking); bounded so a stuck RPC can't hang Quit.
-        if (_onQuitAsync != null)
-        {
-            try
-            {
-                var restore = _onQuitAsync();
-                var delay = Task.Delay(5000);
-                if (await Task.WhenAny(restore, delay) == delay)
-                    Trace.TraceWarning("Per-app restore on quit timed out after 5s; a snapshot may remain applied.");
-            }
-            catch { }
-        }
-        // #596 — optionally stop the daemon too (after the restore above, which needs the connection).
-        // Bounded like the restore so a stuck stop can't hang Quit.
-        if (stopDaemon)
-        {
-            try
-            {
-                var stop = _conn.StopDaemonCommand.ExecuteAsync(null);
-                if (await Task.WhenAny(stop, Task.Delay(5000)) != stop)
-                    Trace.TraceWarning("Stopping the daemon on quit timed out after 5s.");
-            }
-            catch { }
-        }
+
+        // Decided here, while the daemon is still connected, and performed by the sequence after the
+        // close. StopDaemonCommand resolves its own target when it runs, so deferring it wholesale would
+        // have it ask a session that has gone -- and stop every daemon on the machine instead of ours.
+        var stop = stopDaemon && _onPrepareStopAsync != null ? await _onPrepareStopAsync() : null;
+
+        // The order matters and is documented where it lives, in QuitSequence.
+        await QuitSequence.RunAsync(
+            restorePerApp: _onQuitAsync,
+            closeSession: _onCloseAsync,
+            stopDaemon: stop,
+            warn: message => Trace.TraceWarning(message));
+
         Dispose();
         _desktop.Shutdown(); // closes the window (→ MainViewModel.Dispose) and exits the app
     }
