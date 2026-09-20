@@ -362,7 +362,7 @@ public class ShutdownTests
     }
 
     /// <summary>
-    /// Teardown happens before anything in flight is abandoned (#891).
+    /// The flag a draining close reads is latched before anything in flight is abandoned (#891).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -378,9 +378,14 @@ public class ShutdownTests
     /// order rather than the outcome. A test that waits to see whether the race happens passes on a fast
     /// machine and proves nothing; this one cannot pass for a reason other than the one it is about.
     /// </para>
+    /// <para>
+    /// It is the <em>flag</em> this pins, not the transport. Those were the same act when this was
+    /// written, and #893 separated them: the transport is now disposed after the abandonment, because
+    /// doing it before let a faulted operation reach the host. The companion below covers that half.
+    /// </para>
     /// </remarks>
     [Fact]
-    public void Disposing_TearsDownBeforeItAbandonsWhatIsInFlight()
+    public void Disposing_LatchesTheCloseFlagBeforeItAbandonsWhatIsInFlight()
     {
         bool? tornDownWhenAbandoning = null;
         var (session, _, _, _) = Make(probe: new OtdSession.LifecycleProbe
@@ -393,7 +398,66 @@ public class ShutdownTests
         Assert.True(tornDownWhenAbandoning.HasValue, "nothing was abandoned, so the order was never tested");
         Assert.True(
             tornDownWhenAbandoning!.Value,
-            "work was abandoned before teardown, so a close released by it can still read _tornDown false");
+            "work was abandoned before the flag was latched, so a close released by it still reads false");
+    }
+
+    /// <summary>
+    /// An operation that faults as the transport goes says nothing to the host (#893).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The other half of the ordering, and the one the first fix for #891 broke. Disposing the transport
+    /// faults whatever is in flight, and the paths that handle that fault report through
+    /// <c>TellTheHost</c>, which only <c>Abandon</c> silences. Tear down before abandoning and a host that
+    /// has finished tearing down hears "ApplyFailed" about work it already gave up on.
+    /// </para>
+    /// <para>
+    /// No sleeps: <c>ReachingTeardown</c> fires at the moment the transport is being torn down, so the
+    /// fault is injected exactly where the window was, and awaiting the operation afterwards means any
+    /// report it was going to make has already been made by the time this asserts. Under the old order
+    /// the same test records <c>ApplyFailed</c>.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AnOperationFaultingAsTheTransportGoes_IsNotReportedToTheHost()
+    {
+        // Deliberately NOT RunContinuationsAsynchronously, unlike every other held operation here. The
+        // fault has to be handled inside the window this is about -- on the thread that is tearing down,
+        // between the transport going and the abandonment -- and asynchronous continuations are scheduled
+        // past it, which made the first version of this test pass against the very defect it was written
+        // for. Inline is safe: the probe fires outside every lock.
+        var held = new TaskCompletionSource<bool>();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var heard = new List<SettingsSaveState>();
+
+        var (session, settings, daemon, _) = Make(
+            probe: new OtdSession.LifecycleProbe
+            {
+                // What a disposed connection does to a call still waiting on it.
+                ReachingTeardown = () => held.TrySetException(new ObjectDisposedException("connection")),
+            },
+            onSaveState: heard.Add);
+
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        var applying = settings.ApplyAndSaveAsync(Tablet("Stuck"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        heard.Clear();   // what it said while the work was live is not what this is about
+        session.Dispose();
+
+        // The fault propagates to whoever called apply, which is fine and is not what this is about. It
+        // is asserted because it is the proof that the fault reached the operation at all: without it,
+        // "the host heard nothing" would pass for a test where nothing ever went wrong.
+        var faulted = await Record.ExceptionAsync(
+            () => applying.WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        Assert.NotNull(faulted);
+        Assert.Empty(heard);
     }
 
     /// <summary>
@@ -834,13 +898,15 @@ public class ShutdownTests
     // --- harness --------------------------------------------------------------------------------
 
     private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make(
-        IOtdExecutionContext? context = null, OtdSession.LifecycleProbe? probe = null)
+        IOtdExecutionContext? context = null,
+        OtdSession.LifecycleProbe? probe = null,
+        Action<SettingsSaveState>? onSaveState = null)
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var store = new RecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
             NoPolicy.Instance, new FakeProcessLocator(), context, probe);
-        var settings = session.OpenSettings(() => true, _ => { });
+        var settings = session.OpenSettings(() => true, onSaveState ?? (_ => { }));
         daemon.Reconnect();
         return (session, settings, daemon, store);
     }

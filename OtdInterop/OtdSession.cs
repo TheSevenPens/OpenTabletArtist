@@ -1087,6 +1087,7 @@ public sealed class OtdSession : IDisposable
     private Task<bool>? _closing;
     private bool _admissionStopped;
     private bool _tornDown;
+    private bool _transportGone;
 
     /// <summary>Whether the transport has gone, for the capabilities this session lends out.</summary>
     private bool TornDown
@@ -1153,14 +1154,34 @@ public sealed class OtdSession : IDisposable
         _settings?.StopAdmitting();
     }
 
+    /// <summary>
+    /// Latches the flag a draining close reads, without touching the transport. Idempotent.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the transport half because the two have opposite constraints around abandonment
+    /// (#893). The flag has to be set <em>before</em> work is abandoned: abandoning releases a draining
+    /// close, which ends on <c>settled &amp;&amp; !_tornDown</c>, and a drain released while the flag is
+    /// still false reports abandoned work as a graceful settlement (#891). The transport has to go
+    /// <em>after</em>: disposing it faults whatever is in flight, and the paths that handle that fault
+    /// report to the host unless abandonment has already silenced them.
+    /// </remarks>
+    private void MarkTornDown()
+    {
+        lock (_closeGate) _tornDown = true;
+    }
+
     /// <summary>Detaches and disposes the transport. Idempotent, and never waits.</summary>
     private void TearDown()
     {
+        MarkTornDown();
+
+        // Its own latch: the flag above may already be set by a Close that set it deliberately early, and
+        // the transport still has to be disposed exactly once.
         lock (_closeGate)
         {
-            if (_tornDown) return;
+            if (_transportGone) return;
 
-            _tornDown = true;
+            _transportGone = true;
         }
 
         // The transport is going, so nothing outstanding on it will be heard from. Latched under the
@@ -1188,16 +1209,25 @@ public sealed class OtdSession : IDisposable
     {
         StopAdmitting();
 
-        // Teardown first, and the order is load-bearing (#891). Abandoning is what releases a close that
-        // is draining, and that close ends on `settled && !_tornDown` -- the guard that stops it calling
-        // abandoned work a graceful settlement. Abandon before the flag is set and the released drain can
-        // reach that return while it still reads false, so a host that gave up on a graceful close, and
-        // disposed, is told its settings were saved when they were not. It is a narrow window, and it was
-        // wide enough to fail CI.
-        TearDown();
+        // Three phases, because the flag and the transport pull in opposite directions around the
+        // abandonment between them, and doing either at the wrong moment is a defect this has already
+        // shipped once each way.
+        //
+        // The flag first (#891): abandoning releases a close that is draining, and that close ends on
+        // `settled && !_tornDown` -- the guard that stops it calling abandoned work a graceful
+        // settlement. Released while the flag is still false, it answers true, and a host that gave up
+        // on a graceful close and disposed is told its settings were saved when they were not.
+        MarkTornDown();
 
+        // Then silence reporting, before the transport goes (#893): disposing it faults whatever is in
+        // flight, and the paths handling that fault report to the host unless this has already run. The
+        // first attempt at the fix above tore down here instead, and a faulted operation reached a host
+        // that had finished tearing down -- which is the thing `_abandoned` exists to prevent.
         _probe?.AbandoningWork?.Invoke(TornDown);
         _settings?.Abandon();
+
+        // And only now the transport.
+        TearDown();
     }
 
     /// <summary>
