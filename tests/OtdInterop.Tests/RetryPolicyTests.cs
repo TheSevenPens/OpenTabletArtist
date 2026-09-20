@@ -5,7 +5,7 @@ using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// A persist retry writes the revision the daemon accepted, unchanged (#837).

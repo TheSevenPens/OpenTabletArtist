@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Channel identity, checked against the real <c>DaemonClient</c> over real named pipes.

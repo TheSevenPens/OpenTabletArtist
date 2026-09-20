@@ -38,8 +38,10 @@
   <ItemGroup>
     <!-- Shared with the logic suite rather than copied: one fake daemon, so a change to
          IDaemonTransport can't leave two drifting stand-ins behind. -->
-    <Compile Include="..\OpenTabletArtist.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
-    <Compile Include="..\OpenTabletArtist.Tests\NullOtdLog.cs" Link="NullOtdLog.cs" />
+    <!-- The library suite owns these now; both app suites compile them from there so there is one copy. -->
+    <Compile Include="..\OtdInterop.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
+    <Compile Include="..\OtdInterop.Tests\NullOtdLog.cs" Link="NullOtdLog.cs" />
+    <Compile Include="..\OtdInterop.Tests\NoPolicy.cs" Link="NoPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>

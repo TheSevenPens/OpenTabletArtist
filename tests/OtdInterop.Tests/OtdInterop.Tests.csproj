@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>OtdInterop.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xunit v3, the same line as the other two suites (#756). -->
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The switch-check tool's execution context, compiled in so its behaviour is tested rather than
+      asserted. Referencing the tool project is not an option, since it is an Exe whose Main runs daemons,
+      and a copy of the file here would be a test of the copy. It belongs in this suite rather than the
+      app's: it implements IOtdExecutionContext and needs nothing else.
+    -->
+    <Compile Include="..\..\tools\OtdDaemonSwitchCheck\PumpContext.cs"
+             Link="Tools\PumpContext.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      OtdInterop and nothing else. No OpenTabletArtist, no Avalonia: this suite exists to prove the
+      library stands on its own, and a reference here would let that quietly stop being true. The check
+      that enforces it is BoundaryDependencyTests, which reads this assembly's actual references rather
+      than trusting this file.
+    -->
+    <ProjectReference Include="..\..\OtdInterop\OtdInterop.csproj" />
+  </ItemGroup>
+
+</Project>

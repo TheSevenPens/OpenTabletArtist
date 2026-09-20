@@ -1,14 +1,12 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using OpenTabletArtist.Domain;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Who owns a settings object handed to the coordinator, now that the answer is "the caller, always".
@@ -46,7 +44,17 @@ public class SettingsOwnershipTests
         public bool TryLoad(string path, out Settings? settings) { settings = null; return false; }
     }
 
-    /// <summary>Records what it was handed, and keeps it — the thing a policy is allowed to do.</summary>
+    /// <summary>
+    /// Records what it was handed, keeps it, and disables the bait filter — the things a policy is
+    /// allowed to do.
+    /// </summary>
+    /// <remarks>
+    /// The mutation used to come from calling the application's own policy, which meant these tests went
+    /// red if OTA changed its filter rules — a coupling nobody chose, and one this suite exists to not
+    /// have. What the library promises is that a policy runs against a private copy and that the outcome
+    /// carries what was actually sent. Any policy that changes something can show that; which change it
+    /// makes is the host's business.
+    /// </remarks>
     private sealed class HoardingPolicy : IOtdSettingsPolicy
     {
         public List<Settings> SeenWorkingCopies { get; } = new();
@@ -56,7 +64,10 @@ public class SettingsOwnershipTests
         {
             SeenWorkingCopies.Add(workingCopy);
             Last = workingCopy;
-            OtaSettingsPolicy.Instance.Apply(workingCopy, context);
+
+            foreach (var filter in workingCopy.Profiles[0].Filters)
+                if (filter.Path == ThirdPartyFilter)
+                    filter.Enable = false;
         }
     }
 

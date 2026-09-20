@@ -23,14 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      The switch-check tool's execution context, compiled into this assembly so its behaviour is tested
-      rather than asserted. Referencing the tool project is not an option, since it is an Exe whose Main
-      runs daemons, and a copy of the file here would be a test of the copy. CI runs these on all three
-      platforms; it still never runs the tool.
-    -->
-    <Compile Include="..\..\tools\OtdDaemonSwitchCheck\PumpContext.cs"
-             Link="Tools\PumpContext.cs" />
+    <!-- The library suite owns these; this suite's own app-level tests still need a stand-in daemon, and
+         one copy of it is better than two that drift. -->
+    <Compile Include="..\OtdInterop.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
+    <Compile Include="..\OtdInterop.Tests\NullOtdLog.cs" Link="NullOtdLog.cs" />
+    <Compile Include="..\OtdInterop.Tests\NoPolicy.cs" Link="NoPolicy.cs" />
+    <Compile Include="..\OtdInterop.Tests\UnwritablePath.cs" Link="UnwritablePath.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,10 +6,9 @@ using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Reflection.Metadata;
 using OpenTabletDriver.Plugin.Logging;
-using OpenTabletArtist.Services;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// A daemon that isn't there (#740). Scripted results, recorded calls, and raisable events, so the
@@ -43,7 +42,7 @@ internal static class FakeSession
     public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null,
         IDaemonProcessLocator? locator = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, OtaSettingsPolicy.Instance,
+        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, NoPolicy.Instance,
             locator ?? new FakeProcessLocator());
 }
 

@@ -7,6 +7,7 @@ using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 using OtdInterop;
+using OtdInterop.Tests;
 
 namespace OpenTabletArtist.Tests;
 

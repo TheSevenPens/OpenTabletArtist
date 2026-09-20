@@ -7,7 +7,7 @@ using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using OpenTabletArtist.Tests;
+using OtdInterop.Tests;
 using Xunit;
 using OtdInterop;
 

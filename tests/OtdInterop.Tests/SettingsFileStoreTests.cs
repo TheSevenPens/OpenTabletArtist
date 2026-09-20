@@ -1,11 +1,10 @@
 using System;
 using System.IO;
 using OpenTabletDriver.Desktop;
-using OpenTabletArtist.Services;
 using Xunit;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 public class SettingsFileStoreTests
 {

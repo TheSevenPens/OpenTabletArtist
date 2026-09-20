@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Work does not survive the connection it was authored against (#828).
@@ -255,7 +254,7 @@ public class DaemonReconnectTests
         var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
         var store = new PathRecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator);
+            NoPolicy.Instance, locator);
         var settings = session.OpenSettings(() => true, _ => { });
 
         // A channel, announced, so the session identifies it and learns where to persist -- which is what

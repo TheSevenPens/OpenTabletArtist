@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/tests/">
     <Project Path="tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj" />
+    <Project Path="tests/OtdInterop.Tests/OtdInterop.Tests.csproj" />
     <Project Path="tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj" />
   </Folder>
   <Folder Name="/tools/">

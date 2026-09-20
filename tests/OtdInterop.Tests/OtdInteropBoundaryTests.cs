@@ -10,7 +10,7 @@ using OpenTabletDriver.Plugin.Logging;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// The library's public surface, asserted rather than assumed (#807).
