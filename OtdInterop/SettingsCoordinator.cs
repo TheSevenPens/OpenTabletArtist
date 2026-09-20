@@ -302,7 +302,42 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// and per-app applies, ending an override, and restoring the saved default all change what a read
     /// can observe, whether or not they change the baseline this session publishes.
     /// </summary>
-    private void NoteDaemonAccepted() => Interlocked.Increment(ref _observationEpoch);
+    /// <summary>
+    /// The daemon took <paramref name="accepted"/>: an outstanding read is now stale, and this is the
+    /// newest thing a later apply can honestly be compared against.
+    /// </summary>
+    /// <remarks>
+    /// The baseline is recorded here, and where a read is adopted, and nowhere else. It used to be a
+    /// public call the host made after its own repairs -- which meant it recorded whatever this session
+    /// happened to be publishing at that moment, including a revision published before the daemon had
+    /// accepted it (#832) or one whose apply had been superseded. "The host says its repairs finished"
+    /// is not the same as "the daemon took this", and only the second is a baseline.
+    /// </remarks>
+    private void NoteDaemonAccepted(Settings accepted)
+    {
+        Interlocked.Increment(ref _observationEpoch);
+        RecordBaseline(accepted);
+    }
+
+    /// <summary>
+    /// The no-op guard's baseline: what this session has actually read, or had the daemon accept.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// No special case for an override, and that is the simplification the move brought. The old
+    /// host-driven version recorded whatever this session was <em>publishing</em>, which during an
+    /// override is precisely not what the daemon is running — so it had to null the baseline to stop the
+    /// guard skipping an apply on the strength of a comparison with settings the daemon did not have
+    /// (#737).
+    /// </para>
+    /// <para>
+    /// Recording what the daemon accepted removes the problem rather than guarding against it: during an
+    /// override the baseline is the snapshot, because the snapshot is what the daemon took. Nulling it
+    /// here would now make the guard less accurate, not safer.
+    /// </para>
+    /// </remarks>
+    private void RecordBaseline(Settings? readOrAccepted) =>
+        _lastLoadedSettingsJson = SerializeForCompare(readOrAccepted);
 
     /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
@@ -527,18 +562,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return false;
         }
         Publish(settings);
+        RecordBaseline(settings);
         return true;
-    }
-
-    /// <summary>
-    /// Records the no-op guard's baseline after a load. While an override is live the daemon does NOT
-    /// hold <see cref="CurrentSettings"/>, so there is no honest value — null disables the guard rather
-    /// than letting it skip an apply on the strength of a comparison against settings the daemon isn't
-    /// running (#737).
-    /// </summary>
-    public void RecordLoadedBaseline()
-    {
-        _lastLoadedSettingsJson = HasEphemeralOverride ? null : SerializeForCompare(_settings);
     }
 
     /// <summary>
@@ -740,7 +765,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             throw;
         }
 
-        if (applied) NoteDaemonAccepted();
+        if (applied) NoteDaemonAccepted(revision);
 
         if (!applied)
         {
@@ -983,7 +1008,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted();
+        NoteDaemonAccepted(revision);
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -1034,7 +1059,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted();
+        NoteDaemonAccepted(revision);
 
         // Flag it so the reload stops overwriting the baseline with what the daemon now holds (#737).
         // Leaving _settings untouched here was never enough on its own: the 30-second poll read the
@@ -1090,7 +1115,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                         "The override is still in effect.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted();
+        NoteDaemonAccepted(baseline);
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -1146,7 +1171,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsRestoreOutcome.Failed(ex);
         }
 
-        if (applied) NoteDaemonAccepted();
+        if (applied) NoteDaemonAccepted(def);
 
         if (!applied)
         {

@@ -458,6 +458,77 @@ public class SettingsCoordinatorConcurrencyTests
         Assert.NotEqual(SettingsApplyStatus.NoChange, outcome.Status);
         Assert.Single(daemon.Applied);   // it actually reached the new daemon
     }
+    // --- #807 Phase 5: the baseline is the library's to record -------------------------------
+
+    /// <summary>
+    /// While a transient override is running, re-applying what the daemon held before it is not skipped.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The no-op guard's subject is "would this change anything", and during an override the daemon is
+    /// running something else entirely — so the settings it held before are not what it has now, and
+    /// sending them is a real change. Skipping it would leave the daemon on the override with the editor
+    /// believing it had been put back (#737).
+    /// </para>
+    /// <para>
+    /// It follows from the baseline being what the daemon <em>accepted</em>: during an override that is
+    /// the snapshot, so the user's own settings no longer match it and the guard cannot fire. The
+    /// host-driven version needed a special case to reach the same answer, because it recorded what this
+    /// session was publishing, which during an override is exactly what the daemon is not running.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task DuringAnOverride_ReapplyingWhatTheDaemonHeldBefore_IsStillSent()
+    {
+        var (coordinator, daemon, _, _) = Make();
+
+        var original = SettingsFor("A's own", locked: true);
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved,
+            (await coordinator.ApplyAndSaveAsync(original)).Status);
+
+        // The daemon is now running something else on this session's behalf.
+        Assert.True((await coordinator.ApplyEphemeralAsync(SettingsFor("A per-app snapshot", locked: true))).IsLive);
+        Assert.True(coordinator.HasEphemeralOverride);
+
+        daemon.Applied.Clear();
+        var again = await coordinator.ApplyAndSaveAsync(SettingsFor("A's own", locked: true));
+
+        // Not NoChange: the daemon does not hold these, whatever this session last published.
+        Assert.NotEqual(SettingsApplyStatus.NoChange, again.Status);
+        Assert.Single(daemon.Applied);
+    }
+
+    /// <summary>
+    /// An accepted apply becomes the baseline, so repeating it is recognised as changing nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The guard needs a baseline, and until now the only thing that set one was the host calling
+    /// <c>RecordLoadedBaseline</c> after its load. So the coordinator on its own could apply the same
+    /// settings for ever and send every one of them; whether the guard worked depended on a host having
+    /// done something unrelated first.
+    /// </para>
+    /// <para>
+    /// Recorded where the daemon accepts instead, which is the only moment this session knows what the
+    /// daemon has. Removing that recording makes the second apply a real send, which is what this
+    /// detects.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AnAcceptedApply_BecomesTheBaselineForTheNextOne()
+    {
+        var (coordinator, daemon, _, _) = Make();
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved,
+            (await coordinator.ApplyAndSaveAsync(SettingsFor("Same", locked: true))).Status);
+        Assert.Single(daemon.Applied);
+
+        var again = await coordinator.ApplyAndSaveAsync(SettingsFor("Same", locked: true));
+
+        Assert.Equal(SettingsApplyStatus.NoChange, again.Status);
+        Assert.Single(daemon.Applied);          // and nothing further reached the daemon
+    }
+
     // --- #828 readiness: a connection nobody has identified yet ------------------------------
 
     /// <summary>

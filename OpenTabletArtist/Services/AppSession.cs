@@ -844,9 +844,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 }
             }
 
-            // Baseline for the no-op apply guard: what the daemon currently holds, as we see it now.
-            _coordinator.RecordLoadedBaseline();
-
             // A change the daemon took but that never reached disk gets another go here (#743). Reloads
             // run on window focus and every 30 seconds, so a write refused because the file was briefly
             // locked — OTD's own UX writes the same settings.json — recovers on its own, and the save
