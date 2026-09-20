@@ -25,6 +25,19 @@ namespace OtdInterop;
 /// than restating them. It adds the read-only queries and the tablet-change signal, which every page that
 /// shows tablets needs and none of which can change anything.
 /// </para>
+/// <para>
+/// <b>After the session is disposed (#828).</b> This is borrowed, and disposing the session does not take
+/// it back — a host that kept a reference can still call every member here. Each one then reports
+/// <b>not connected</b>: null, empty, or false, exactly as it does for a session whose daemon is not
+/// running. Nothing throws, so a caller does not need to know whether the session it is holding has been
+/// disposed in order to know how to read the result.
+/// </para>
+/// <para>
+/// Subscribing after that point does nothing, because there is nothing left to raise an event and
+/// attaching would only keep the handler alive against a connection that has gone.
+/// <b>Unsubscribing keeps working regardless</b>, so a host tearing down in an order this library did not
+/// choose can always let go.
+/// </para>
 /// </remarks>
 public interface IDaemonCapabilities : IDaemonDebugSession, IDaemonLogSource, IDaemonPluginService
 {

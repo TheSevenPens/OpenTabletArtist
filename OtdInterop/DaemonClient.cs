@@ -443,9 +443,37 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
         await _rpc.InvokeAsync("LoadPlugins");
     }
 
+    /// <summary>
+    /// Closes the channel, and leaves this reading as not connected rather than as broken.
+    /// </summary>
+    /// <remarks>
+    /// The references are dropped, not merely disposed, and that is the whole of the fix. Every send here
+    /// guards on <c>_rpc == null</c> — the state a disconnect leaves behind — while disposal left it
+    /// pointing at a disposed channel, which passes that guard and throws inside StreamJsonRpc instead.
+    /// So a host that read through <see cref="OtdSession.Capabilities"/> after disposing got an exception
+    /// where <see cref="IDaemonCapabilities.GetAppInfoAsync"/> promises null.
+    ///
+    /// Dropping the reference is what the disconnect path already does, for the same reason.
+    ///
+    /// <para>
+    /// <b>No regression distinguishes this.</b> <see cref="DaemonCapabilities"/> answers for a torn-down
+    /// session before reaching the transport, so the symptom is fixed there and every test — including a
+    /// live one against a real daemon — passes with this reverted. I checked rather than assumed: the
+    /// live scenario was written believing it covered this, and it does not.
+    /// </para>
+    /// <para>
+    /// Kept because it is the root cause rather than the symptom: any other holder of a disposed client
+    /// would still get an exception where the guard two lines below promises null.
+    /// </para>
+    /// </remarks>
     public void Dispose()
     {
-        _rpc?.Dispose();
-        _pipe?.Dispose();
+        var rpc = _rpc;
+        _rpc = null;
+        rpc?.Dispose();
+
+        var pipe = _pipe;
+        _pipe = null;
+        pipe?.Dispose();
     }
 }
