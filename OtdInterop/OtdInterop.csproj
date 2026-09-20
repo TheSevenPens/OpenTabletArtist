@@ -69,8 +69,13 @@
     reference count - and those are properties of the implementations rather than of the interfaces, so
     they cannot be written from outside.
 
-    The production app is deliberately not granted access. Transitional: #807 Phase 6 gives the library
-    its own test project and this moves with those tests.
+    The production app is deliberately not granted access, and that is the load-bearing part: nothing
+    shipping can reach the raw writer.
+
+    The four grants below are the FINAL arrangement, not a way-station: #807 Phase 6 moved the library's
+    tests into their own project, and what remains is deliberate and explained per entry. The two app test
+    projects are here because they compile the library suite's fakes, which implement internal interfaces;
+    relocating every such test would buy nothing that the app-not-granted rule does not already give.
   -->
   <ItemGroup>
     <!-- The library's own suite, which is where its tests belong: it references OtdInterop and nothing
