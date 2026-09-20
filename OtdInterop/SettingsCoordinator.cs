@@ -145,6 +145,17 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // daemon (the no-op guard: applying byte-identical settings is skipped), and a circuit-breaker that
     // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
     private string? _lastLoadedSettingsJson;
+
+    /// <summary>
+    /// The comparison baseline, for a test that needs to see it directly.
+    /// </summary>
+    /// <remarks>
+    /// Internal and read-only. The no-op guard needs this and the persisted baseline to agree, and a
+    /// daemon change clears both -- so whether this holds the right value is not always reachable through
+    /// behaviour, and a test of "the superseded daemon's reply must not be recorded here" would otherwise
+    /// have nothing to assert. Exposing the field is a smaller cost than leaving that unverified.
+    /// </remarks>
+    internal string? LastObservedDaemonSettingsJson => _lastLoadedSettingsJson;
     private readonly ApplyLoopBreaker _applyLoopBreaker = new();
 
     // The last settings we actually got onto DISK, tracked separately from what the daemon last handed
@@ -313,10 +324,17 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// accepted it (#832) or one whose apply had been superseded. "The host says its repairs finished"
     /// is not the same as "the daemon took this", and only the second is a baseline.
     /// </remarks>
-    private void NoteDaemonAccepted(Settings accepted)
+    private void NoteDaemonAccepted(Settings accepted, Origin origin)
     {
+        // Unconditional, and deliberately so: a reply arriving at all means an outstanding read may
+        // describe a moment that has passed, whichever daemon answered.
         Interlocked.Increment(ref _observationEpoch);
-        RecordBaseline(accepted);
+
+        // The content is a different matter. A late success from a daemon this session has moved off
+        // describes that daemon, and recording it would leave the comparison baseline holding settings
+        // the current one has never had. The two used to happen together, before the check that rejects
+        // the work -- so the rejection protected the result and not this.
+        if (StillCurrent(origin)) RecordBaseline(accepted);
     }
 
     /// <summary>
@@ -722,7 +740,16 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // anywhere: once the library stopped editing the caller's object, a request identical to the last
         // one still differed from the stored state by exactly the repairs policy had made to it, so the
         // guard stopped firing and every reapply became a real write.
-        if (SerializeForCompare(revision) is { } json
+        // Not while an override is running, and the distinction is the whole of it: the guard asks whether
+        // the WRITE would change anything, and an apply-and-save is not only a write. It also publishes
+        // the revision and ends the override. Returning early skipped both, so the override stayed live
+        // and this session went on publishing something the daemon did not have -- which a later
+        // clear-override would then send back to it.
+        //
+        // Reachable only since the baseline became what the daemon accepted, which during an override is
+        // the snapshot: before that, the comparison could never match while one was running.
+        if (!HasEphemeralOverride
+            && SerializeForCompare(revision) is { } json
             && json == _lastLoadedSettingsJson
             && json == _lastPersistedSettingsJson)
             return SettingsApplyOutcome.NoChange;
@@ -765,7 +792,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             throw;
         }
 
-        if (applied) NoteDaemonAccepted(revision);
+        if (applied) NoteDaemonAccepted(revision, origin);
 
         if (!applied)
         {
@@ -1008,7 +1035,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't apply the live-only settings: not connected to the daemon.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted(revision);
+        NoteDaemonAccepted(revision, origin);
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -1059,7 +1086,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _log.Warn("Couldn't apply the per-app snapshot: not connected to the daemon.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted(revision);
+        NoteDaemonAccepted(revision, origin);
 
         // Flag it so the reload stops overwriting the baseline with what the daemon now holds (#737).
         // Leaving _settings untouched here was never enough on its own: the 30-second poll read the
@@ -1115,7 +1142,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                         "The override is still in effect.");
             return NotSent(origin);
         }
-        NoteDaemonAccepted(baseline);
+        NoteDaemonAccepted(baseline, origin);
 
         // Whatever just succeeded, it succeeded against a daemon that is no longer ours (#803). Leave
         // this session's state alone: the reset has already reset it for the daemon that replaced it.
@@ -1171,7 +1198,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsRestoreOutcome.Failed(ex);
         }
 
-        if (applied) NoteDaemonAccepted(def);
+        if (applied) NoteDaemonAccepted(def, origin);
 
         if (!applied)
         {

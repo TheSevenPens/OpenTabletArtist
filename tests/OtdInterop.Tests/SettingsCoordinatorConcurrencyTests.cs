@@ -529,6 +529,85 @@ public class SettingsCoordinatorConcurrencyTests
         Assert.Single(daemon.Applied);          // and nothing further reached the daemon
     }
 
+    /// <summary>
+    /// Explicitly applying the settings the daemon already runs under an override still ends the
+    /// override.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The no-op guard asks whether the transport write would change anything. That is not the same
+    /// question as whether the <em>operation</em> would: an apply-and-save also publishes the revision and
+    /// ends any per-app override, and those are necessary even when the daemon is already running the
+    /// bytes. Returning early skipped them, so the override stayed live and this session went on
+    /// publishing something else — which a later clear-override would then send back to the daemon.
+    /// </para>
+    /// <para>
+    /// Enabled by recording the baseline from what the daemon accepted, which let the guard fire during
+    /// an override for the first time. Codex's probe on #858; the risk was flagged and real.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ApplyingWhatAnOverrideAlreadyRuns_StillEndsTheOverride()
+    {
+        var (coordinator, daemon, _, _) = Make();
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved,
+            (await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: true))).Status);
+
+        // The editor moves to B live-only: published B, disk still A.
+        Assert.True((await coordinator.ApplyLiveOnlyAsync(SettingsFor("B", locked: true))).IsLive);
+
+        // And an override puts the daemon back on A.
+        Assert.True((await coordinator.ApplyEphemeralAsync(SettingsFor("A", locked: true))).IsLive);
+        Assert.True(coordinator.HasEphemeralOverride);
+
+        // Now the user explicitly saves A. The daemon already has those bytes; the session does not.
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: true));
+
+        Assert.False(coordinator.HasEphemeralOverride);
+        Assert.Equal("A", Tablet(coordinator.GetCurrent()?.Settings));
+
+        // And ending an override that is already over sends nothing stale back.
+        daemon.Applied.Clear();
+        await coordinator.ClearEphemeralOverrideAsync();
+        Assert.DoesNotContain(daemon.Applied, sent => Tablet(sent) == "B");
+    }
+
+    /// <summary>
+    /// A superseded daemon's successful reply does not become the current daemon's baseline.
+    /// </summary>
+    /// <remarks>
+    /// Advancing the observation epoch for a reply that arrives late is conservative and right: an
+    /// outstanding read is stale either way. Recording its <em>content</em> is not, because the content
+    /// describes a daemon this session has moved off. Both used to happen in the same helper, before the
+    /// check that rejects the work.
+    /// </remarks>
+    [Fact]
+    public async Task ASupersededReply_DoesNotBecomeTheBaseline()
+    {
+        var (coordinator, daemon, _, _) = Make();
+
+        // A live-only apply to the old daemon, held mid-flight. It owns the mutation gate while held, so
+        // nothing else that mutates can run -- which is why the new daemon's state is established by a
+        // reload, which is a read and is not gated. My first attempt used an apply here and deadlocked.
+        var hold = HoldNextSetSettings(daemon);
+        var stale = coordinator.ApplyLiveOnlyAsync(SettingsFor("Old daemon's", locked: true));
+
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("New daemon's", locked: true);
+        Assert.Equal(SettingsReloadStatus.Adopted, (await coordinator.ReloadFromDaemonAsync()).Status);
+
+        hold.SetResult(true);                       // the old daemon answers, successfully, far too late
+        Assert.Equal(SettingsApplyStatus.Superseded, (await stale).Status);
+
+        // Read directly, because the guard needs the persisted baseline to agree as well and a reset
+        // clears that -- so no sequence reachable from outside can turn this contamination into a
+        // skipped apply on its own. It is still the wrong value to be holding, and holding it is what
+        // this asserts.
+        Assert.Equal(Json(SettingsFor("New daemon's", locked: true)),
+            coordinator.LastObservedDaemonSettingsJson);
+    }
+
     // --- #828 readiness: a connection nobody has identified yet ------------------------------
 
     /// <summary>
