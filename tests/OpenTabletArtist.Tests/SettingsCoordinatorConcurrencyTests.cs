@@ -127,6 +127,22 @@ public class SettingsCoordinatorConcurrencyTests
     private static void Identify(SettingsCoordinator coordinator, FakeDaemonTransport daemon,
         PathHolder path) => coordinator.LearnDestination(path.Value, daemon.Incarnation);
 
+    /// <summary>
+    /// A daemon change as it actually happens: a new channel, and then the reset for it.
+    /// </summary>
+    /// <remarks>
+    /// These tests used to reset without moving the channel, which nothing real does — one pipe
+    /// connection is one daemon process, so a different daemon always means a different channel. It
+    /// stopped being a harmless simplification once the reset had to tell a pending write the NEW daemon
+    /// accepted from one belonging to the daemon that has gone: with the channel left still, every
+    /// pending write looked like the new daemon's.
+    /// </remarks>
+    private static void SwitchDaemon(SettingsCoordinator coordinator, FakeDaemonTransport daemon)
+    {
+        daemon.ReconnectSilently();
+        coordinator.ResetForNewDaemon(daemon.Incarnation);
+    }
+
     /// <summary>A daemon call that does not answer until the test says so.</summary>
     private static TaskCompletionSource<bool> HoldNextSetSettings(FakeDaemonTransport daemon,
         Action<Settings>? onSent = null)
@@ -359,11 +375,11 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task AnOverrideDoesNotSurviveADaemonChange()
     {
-        var (coordinator, _, _, _) = Make();
+        var (coordinator, daemon, _, _) = Make();
         Assert.True((await coordinator.ApplyEphemeralAsync(SettingsFor("A's per-app snapshot", locked: true))).IsLive);
         Assert.True(coordinator.HasEphemeralOverride);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
 
         Assert.False(coordinator.HasEphemeralOverride);
     }
@@ -371,13 +387,13 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task ResetForNewDaemon_DropsEverythingBoundToTheOldOne()
     {
-        var (coordinator, _, store, states) = Make();
+        var (coordinator, daemon, store, states) = Make();
         store.SaveSucceeds = false;
         await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
         Assert.True(coordinator.HasUnsavedChange);
         Assert.Equal(SettingsSaveState.Failed, states[^1]);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
 
         Assert.False(coordinator.HasUnsavedChange);
 
@@ -400,12 +416,13 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task ResetForNewDaemon_SaysWhenAnEditWasThrownAway()
     {
-        var (coordinator, _, store, _) = Make();
+        var (coordinator, daemon, store, _) = Make();
         store.SaveSucceeds = false;
         await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
         Assert.True(coordinator.HasUnsavedChange);
 
-        Assert.True(coordinator.ResetForNewDaemon());
+        daemon.ReconnectSilently();
+        Assert.True(coordinator.ResetForNewDaemon(daemon.Incarnation));
     }
 
     [Fact]
@@ -413,11 +430,12 @@ public class SettingsCoordinatorConcurrencyTests
     {
         // A switch with no pending edit is routine. Announcing it would train the user to dismiss the
         // notice that matters.
-        var (coordinator, _, _, _) = Make();
+        var (coordinator, daemon, _, _) = Make();
         await coordinator.ApplyAndSaveAsync(SettingsFor("Saved fine", locked: true));
         Assert.False(coordinator.HasUnsavedChange);
 
-        Assert.False(coordinator.ResetForNewDaemon());
+        daemon.ReconnectSilently();
+        Assert.False(coordinator.ResetForNewDaemon(daemon.Incarnation));
     }
 
     /// <summary>
@@ -432,7 +450,7 @@ public class SettingsCoordinatorConcurrencyTests
         var edit = SettingsFor("Same", locked: true);
         Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await coordinator.ApplyAndSaveAsync(edit)).Status);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
         Identify(coordinator, daemon, path);      // B answered, and said where it lives
         daemon.Applied.Clear();
@@ -512,7 +530,7 @@ public class SettingsCoordinatorConcurrencyTests
         var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
 
         // The user stops A and starts B while the apply is still waiting on A.
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
         Identify(coordinator, daemon, path);      // B answered, and said where it lives
 
@@ -545,7 +563,7 @@ public class SettingsCoordinatorConcurrencyTests
         // deadlock the test against the semaphore the first apply is holding.
         var queued = coordinator.ApplyAndSaveAsync(SettingsFor("A's second edit", locked: false));
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
         Identify(coordinator, daemon, path);      // B answered, and said where it lives
         hold.SetResult(true);
@@ -571,7 +589,7 @@ public class SettingsCoordinatorConcurrencyTests
         var hold = HoldNextSetSettings(daemon);
         var ephemeral = coordinator.ApplyEphemeralAsync(SettingsFor("Per-app snapshot", locked: true));
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         hold.SetResult(true);
 
         // Superseded, not merely "false": the session it was for had ended.
@@ -591,7 +609,7 @@ public class SettingsCoordinatorConcurrencyTests
 
         var hold = HoldNextSetSettings(daemon);
         var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
         Identify(coordinator, daemon, path);      // B answered, and said where it lives
         hold.SetResult(true);

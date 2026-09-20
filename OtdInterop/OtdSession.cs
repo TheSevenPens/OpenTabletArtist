@@ -450,6 +450,11 @@ public sealed class OtdSession : IDisposable
 
         _settings = settings;
 
+        // How the coordinator asks again when a retry finds it still does not know where to write. The
+        // only rediscovery trigger there is: bounded by the user pressing Retry, rather than a background
+        // loop nobody asked for.
+        settings.RediscoverDestination = LookForTheDestinationAgainAsync;
+
         // A connection established before the settings were opened has already had its transition, so
         // nothing would ask this one where to write. Asking here covers the ordinary startup order, in
         // which a host connects and then opens settings.
@@ -479,30 +484,69 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private void LearnWhereToPersist(int channel) => _ = LearnWhereToPersistAsync(channel);
 
+    /// <summary>
+    /// Looks again, for a caller that has found it still does not know where to write.
+    /// </summary>
+    /// <remarks>
+    /// Coalesced: a second caller arriving while a lookup is outstanding waits for that one rather than
+    /// starting another. Repeatedly pressing Retry is exactly how this gets called twice at once, and
+    /// two concurrent AppInfo calls would race to record answers about the same channel.
+    /// </remarks>
+    private Task LookForTheDestinationAgainAsync(int channel)
+    {
+        lock (_lookupGate)
+        {
+            if (_lookupInFlight is { } running) return running;
+
+            var started = LearnWhereToPersistAsync(channel);
+            _lookupInFlight = started;
+            return started;
+        }
+    }
+
+    private readonly object _lookupGate = new();
+    private Task? _lookupInFlight;
+
     private async Task LearnWhereToPersistAsync(int channel)
     {
-        string path;
         try
         {
-            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
-        }
-        catch (Exception ex)
-        {
-            // Not fatal, and deliberately not retried here: the next transition asks again, and until
-            // then this connection persists nothing rather than persisting somewhere wrong.
-            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
-                      + "written to disk for this connection until it answers.", ex);
-            return;
-        }
+            string path;
+            try
+            {
+                path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
+            }
+            catch (Exception ex)
+            {
+                _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will "
+                          + "be written to disk for this connection until it answers. Retrying a pending "
+                          + "save asks again.", ex);
 
-        Post("record where the connected daemon keeps its settings", () =>
-        {
-            // The answer describes the channel it was asked on. A reply arriving after that channel has
-            // gone says nothing about its replacement.
-            if (!StillTheCurrentTransition(channel)) return;
+                Post("record that the daemon could not be asked where it keeps its settings", () =>
+                {
+                    // Recorded rather than left blank, so a later attempt can tell "the call failed" from
+                    // "nobody has asked yet" and from "this daemon has no settings file". They look the
+                    // same from outside and want different responses.
+                    if (!StillTheCurrentTransition(channel)) return;
 
-            _settings?.LearnDestination(path, channel);
-        });
+                    _settings?.DestinationLookupFailed(channel);
+                });
+                return;
+            }
+
+            Post("record where the connected daemon keeps its settings", () =>
+            {
+                // The answer describes the channel it was asked on. A reply arriving after that channel
+                // has gone says nothing about its replacement.
+                if (!StillTheCurrentTransition(channel)) return;
+
+                _settings?.LearnDestination(path, channel);
+            });
+        }
+        finally
+        {
+            lock (_lookupGate) _lookupInFlight = null;
+        }
     }
 
     /// <summary>
@@ -596,14 +640,31 @@ public sealed class OtdSession : IDisposable
         var changed = previous.Length > 0 && actual != null && !PathEquality.Same(previous, actual);
 
         if (actual != null) _daemonPath = actual;
-        var discarded = changed && (_settings?.ResetForNewDaemon() ?? false);
+        // Work accepted by a channel this session has not identified yet belongs to the daemon arriving,
+        // not the one leaving, so it survives the reset. Anything else -- including work on a channel
+        // already identified, where a change of identity means one of the two readings was wrong -- does
+        // not, because it cannot be attributed with any confidence.
+        var survivor = _channel.Incarnation != _identifiedChannel ? _channel.Incarnation : 0;
+        var discarded = changed && (_settings?.ResetForNewDaemon(survivor) ?? false);
 
         // A discard is owed to whoever is told next, not to this transition in particular. If this one is
         // superseded before it delivers, the edit is still gone and somebody has to hear about it.
         if (discarded) _discardOwed = true;
 
+        _identifiedChannel = _channel.Incarnation;
+
         return new DaemonCommit(previous, actual, changed, discarded);
     }
+
+    /// <summary>
+    /// The channel this session last committed an identity for.
+    /// </summary>
+    /// <remarks>
+    /// Only used to tell "this connection is new to me" from "I have looked at this one before", which is
+    /// what decides whether an accepted-but-unsaved edit belongs to the daemon arriving or the one
+    /// leaving. Zero before the first look, which is also what no channel reads as.
+    /// </remarks>
+    private int _identifiedChannel;
 
     /// <summary>What a commit did, before anyone outside the library has been told any of it.</summary>
     private readonly record struct DaemonCommit(string Previous, string? Actual, bool Changed, bool Discarded);

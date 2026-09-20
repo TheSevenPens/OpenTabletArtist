@@ -52,7 +52,28 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     private Destination? _destination;
 
     /// <summary>The settings file for one channel, as that channel itself reported it.</summary>
-    private sealed record Destination(string Path, int Channel);
+    private sealed record Destination(DestinationKnowledge Knowledge, string Path, int Channel);
+
+    /// <summary>What this session found out when it asked a channel where it keeps its settings.</summary>
+    /// <remarks>
+    /// Three different situations produced the same empty path and therefore the same message, which
+    /// claimed the daemon had reported no settings file even when nothing had asked it yet. They differ
+    /// in what a host should do: wait, try again, or accept that this daemon has no file.
+    /// </remarks>
+    internal enum DestinationKnowledge
+    {
+        /// <summary>Asked, and the answer has not come back. It may still.</summary>
+        Pending,
+
+        /// <summary>Asked, and the call failed. Nothing will change without asking again.</summary>
+        Unavailable,
+
+        /// <summary>Answered, and this daemon has no settings file. Permanent for this connection.</summary>
+        NoFile,
+
+        /// <summary>Answered with a path.</summary>
+        Known,
+    }
 
     /// <summary>
     /// Records where the daemon on <paramref name="channel"/> keeps its settings.
@@ -63,7 +84,31 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// after the connection is already usable, so there was a window in which the answer was the previous
     /// daemon's.
     /// </remarks>
-    internal void LearnDestination(string path, int channel) => _destination = new Destination(path, channel);
+    internal void LearnDestination(string path, int channel) =>
+        _destination = new Destination(
+            string.IsNullOrEmpty(path) ? DestinationKnowledge.NoFile : DestinationKnowledge.Known,
+            path, channel);
+
+    /// <summary>Records that asking <paramref name="channel"/> failed, so a retry has something to fix.</summary>
+    internal void DestinationLookupFailed(int channel) =>
+        _destination = new Destination(DestinationKnowledge.Unavailable, "", channel);
+
+    /// <summary>What is known about where work bound to <paramref name="origin"/> should be written.</summary>
+    private DestinationKnowledge KnowledgeFor(Origin origin) =>
+        _destination is { } known && known.Channel == origin.Channel.Incarnation
+            ? known.Knowledge
+            : DestinationKnowledge.Pending;
+
+    /// <summary>
+    /// Asks the session to look again, when looking is the thing that has not happened.
+    /// </summary>
+    /// <remarks>
+    /// Bounded by the user: this runs on an explicit retry and nowhere else, so a daemon that never
+    /// answers costs one call per attempt rather than a background loop nobody asked for. Without it a
+    /// single failed lookup left the connection unable to persist for its whole life, and the save chip's
+    /// Retry only ever retried the disk.
+    /// </remarks>
+    internal Func<int, Task>? RediscoverDestination { get; set; }
 
     /// <summary>
     /// Where work bound to <paramref name="origin"/> should be written, or empty when this session does
@@ -76,6 +121,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </remarks>
     private string DestinationFor(Origin origin) =>
         _destination is { } known && known.Channel == origin.Channel.Incarnation ? known.Path : "";
+
+    /// <summary>Says which of the three kinds of "nowhere to write" this is, for a log a human reads.</summary>
+    private string WhyNowhereToWrite(Origin origin) => KnowledgeFor(origin) switch
+    {
+        DestinationKnowledge.NoFile => "the daemon reported no settings file path",
+        DestinationKnowledge.Unavailable => "the daemon could not be asked where it keeps its settings",
+        _ => "this session has not yet been told where the connected daemon keeps its settings",
+    };
     private readonly Func<bool> _isOwnedDaemon;
     // The host's own rules about what may be written. This type does not hold an opinion about which
     // third-party filters an application tolerates -- that is a product decision about that
@@ -99,7 +152,20 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // ...and the file it was meant for (#787). The destination is resolved late, from the *connected*
     // daemon's AppInfo, so without recording where the change belongs a retry follows whichever daemon
     // is connected when it happens to run — writing one daemon's unsaved settings into another's file.
-    private string? _pendingPersistPath;
+    /// <summary>
+    /// Where a pending write belongs: the channel that accepted it, and its file if that was known then.
+    /// </summary>
+    /// <remarks>
+    /// A bare path could not say "no destination was known when this was accepted", because the empty
+    /// string it stored for that was then compared against the real path and read as a destination that
+    /// had <em>moved</em> — so a retry discarded the edit under a rule written for a daemon that had
+    /// gone. Not known yet and known-and-changed are different facts, and they were the same value.
+    /// </remarks>
+    private PendingDestination? _pendingDestination;
+
+    /// <param name="Channel">The channel whose daemon accepted this change.</param>
+    /// <param name="Path">Where it was to be written, or null when nothing knew yet.</param>
+    private sealed record PendingDestination(int Channel, string? Path);
 
     // Automatic retries spent on the current pending change (#743). Bounded: the common causes of a
     // refused write are a momentary file lock (OTD's own UX saving the same file), which clears within a
@@ -481,9 +547,25 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </remarks>
     /// <returns>True when an unsaved change was thrown away, so the caller can say so. Everything else
     /// this drops is bookkeeping the user never knew about; a pending write is an edit they made.</returns>
-    internal bool ResetForNewDaemon()
+    /// <param name="channelWhoseWorkSurvives">
+    /// The channel whose accepted-but-unsaved work belongs to the daemon <em>arriving</em> rather than the
+    /// one leaving, or 0 when nothing may be kept.
+    /// </param>
+    internal bool ResetForNewDaemon(int channelWhoseWorkSurvives)
     {
-        var hadUnsaved = HasUnsavedChange;
+        // A pending write accepted by the arriving daemon is not the departing daemon's to lose, which
+        // became possible the moment an apply could be admitted before identification had run.
+        // Discarding it threw away an edit that was live on the daemon the user is now talking to.
+        //
+        // Deciding that on the channel alone was not enough. A channel is one daemon process, so identity
+        // changing while the channel does not is something the transport cannot produce -- but the
+        // identification seam can, and there the same-channel test would have kept a write belonging to
+        // whichever daemon was misidentified. Hence the caller deciding, since only it knows which
+        // channels it has already identified.
+        var keepPending = channelWhoseWorkSurvives != 0
+                          && _pendingDestination is { } made
+                          && made.Channel == channelWhoseWorkSurvives;
+        var hadUnsaved = HasUnsavedChange && !keepPending;
 
         // Everything queued or in flight belongs to the daemon that has gone. Bumping first means a
         // caller already past the semaphore check still fails StillCurrent before it writes.
@@ -492,7 +574,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // unadoptable rather than merely wrong.
         Interlocked.Increment(ref _observationEpoch);
 
-        DiscardPendingPersist();
+        if (!keepPending) DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
         _lastLoadedSettingsJson = null;
         HasEphemeralOverride = false;
@@ -667,14 +749,17 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // The same revision the daemon accepted, so a retry writes that and not whatever the caller's
         // object has become since (#765, #774).
         _pendingPersistSettings = saved ? null : revision;
-        _pendingPersistPath = saved ? null : path;
+        _pendingDestination = saved
+            ? null
+            : new PendingDestination(origin.Channel.Incarnation,
+                                     string.IsNullOrEmpty(path) ? null : path);
         // A new change gets its own budget, and may be retried immediately — a spent budget must not
         // silently disable recovery for the rest of the session (#743).
         _automaticRetries = 0;
 
         if (!saved)
             _log.Warn(string.IsNullOrEmpty(path)
-                ? "Settings applied but not saved: the daemon reported no settings file path."
+                ? $"Settings applied but not saved: {WhyNowhereToWrite(origin)}."
                 : $"Settings applied but not saved: couldn't write {path}.");
 
         _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
@@ -699,6 +784,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     {
         if (!HasUnsavedChange || _automaticRetries >= MaxAutomaticRetries)
             return Task.FromResult(SettingsApplyOutcome.NoChange);
+
+        // Not having been told where to write yet is not a failed write, and must not spend the budget
+        // that exists for failed writes. Otherwise a connection slow to answer could exhaust the
+        // allowance before a single attempt had been made.
+        if (string.IsNullOrEmpty(DestinationFor(origin)))
+            return Task.FromResult(SettingsApplyOutcome.Unsaved);
 
         _automaticRetries++;
         return RetryPersistCoreAsync(origin);
@@ -725,30 +816,58 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// second application changes the bytes; a policy with stable output would let the mistake through
     /// unnoticed, which is what every retry test before that one did.
     /// </remarks>
-    private Task<SettingsApplyOutcome> RetryPersistCoreAsync(Origin origin)
+    private async Task<SettingsApplyOutcome> RetryPersistCoreAsync(Origin origin)
     {
         if (_pendingPersistSettings is not { } pending)
-            return Task.FromResult(SettingsApplyOutcome.NoChange);
+            return SettingsApplyOutcome.NoChange;
+
+        // A retry the user asked for is also the moment to ask again where to write, when that is what is
+        // missing. One lookup per attempt, and only while it would help: a daemon that has answered, or
+        // answered that it has no file, is not asked again.
+        if (KnowledgeFor(origin) is DestinationKnowledge.Pending or DestinationKnowledge.Unavailable
+            && RediscoverDestination is { } lookAgain)
+        {
+            await lookAgain(origin.Channel.Incarnation).ConfigureAwait(false);
+        }
 
         // Empty covers both "the daemon reports no settings file" and "nobody has asked this connection
         // yet". Neither is a reason to write somewhere else, and both leave the change exactly where it
         // was: live, unsaved, and retryable.
         var path = DestinationFor(origin);
         if (string.IsNullOrEmpty(path))
-            return Task.FromResult(SettingsApplyOutcome.Unsaved);
-
-        // The destination moved, which means a different daemon answered since this change was made
-        // (#787). Writing here would put one daemon's settings into another's file — a file OTA was
-        // never asked to touch, belonging to an install the user may share with OTD's own UX. Drop the
-        // change instead: losing an edit the disk already refused is bad, silently overwriting someone
-        // else's configuration is worse.
-        if (_pendingPersistPath is { } madeFor && !PathEquality.Same(madeFor, path))
         {
-            _log.Warn($"Discarding an unsaved settings change made for {madeFor}: the connected daemon " +
-                        $"now uses {path}, and the change does not belong to it.");
-            DiscardPendingPersist();
-            _onSaveState(SettingsSaveState.None);
-            return Task.FromResult(SettingsApplyOutcome.NoChange);
+            _log.Warn($"Couldn't write the pending settings change: {WhyNowhereToWrite(origin)}.");
+            return SettingsApplyOutcome.Unsaved;
+        }
+
+        // Two ways a pending change can fail to belong here, and they are not the same question.
+        if (_pendingDestination is { } made)
+        {
+            // Its destination moved, which means a different daemon answered since it was made (#787).
+            // Writing here would put one daemon's settings into another's file — a file OTA was never
+            // asked to touch, belonging to an install the user may share with OTD's own UX. Drop the
+            // change instead: losing an edit the disk already refused is bad, silently overwriting
+            // someone else's configuration is worse.
+            if (made.Path is { } knownThen && !PathEquality.Same(knownThen, path))
+            {
+                _log.Warn($"Discarding an unsaved settings change made for {knownThen}: the connected " +
+                            $"daemon now uses {path}, and the change does not belong to it.");
+                DiscardPendingPersist();
+                _onSaveState(SettingsSaveState.None);
+                return SettingsApplyOutcome.NoChange;
+            }
+
+            // Or nothing knew where it went when it was accepted. Then only the channel that accepted it
+            // can say: completing it with whatever path is current would adopt an unrelated daemon's
+            // destination, which is the cross-daemon write this whole arrangement exists to prevent.
+            if (made.Path is null && made.Channel != origin.Channel.Incarnation)
+            {
+                _log.Warn("Discarding an unsaved settings change: it was accepted by a connection that " +
+                            "never reported a settings file, and a different one is connected now.");
+                DiscardPendingPersist();
+                _onSaveState(SettingsSaveState.None);
+                return SettingsApplyOutcome.NoChange;
+            }
         }
 
         _onSaveState(SettingsSaveState.Saving);
@@ -759,7 +878,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _pendingPersistSettings = null;
         }
         _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
-        return Task.FromResult(saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved);
+        return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
     }
 
     /// <summary>Applies live without persisting — a temporary override (profile switching, #320). The
@@ -1065,7 +1184,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     private void DiscardPendingPersist()
     {
         _pendingPersistSettings = null;
-        _pendingPersistPath = null;
+        _pendingDestination = null;
         _automaticRetries = 0;
     }
 
