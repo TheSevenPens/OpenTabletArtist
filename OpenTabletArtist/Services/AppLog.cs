@@ -20,10 +20,21 @@ public static class AppLog
     private static readonly object Gate = new();
     private const long MaxBytes = 1_000_000; // ~1 MB, then roll the current file to app.log.1
 
-    /// <summary>Where the user's log lives: under their local application data.</summary>
-    private static readonly string UserLogDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OpenTabletArtist", "logs");
+    /// <summary>
+    /// Where the user's log lives: under this application's data directory.
+    /// </summary>
+    /// <remarks>
+    /// Through <see cref="AppPaths"/>, so an override redirects the log with everything else (#879).
+    ///
+    /// <para>
+    /// Two levels, deliberately, and they do not compete: <see cref="AppPaths"/> decides the
+    /// application's data root before anything starts, and this is the default derived from it;
+    /// <see cref="RedirectTo"/> hands one test an exact directory afterwards and wins while it is set.
+    /// Collapsing them into environment mutation around a cached static path would make test isolation
+    /// harder, not simpler.
+    /// </para>
+    /// </remarks>
+    private static readonly string UserLogDirectory = Path.Combine(AppPaths.LocalAppData, "logs");
 
     /// <summary>
     /// Where log lines actually go. The user's directory unless something redirected it.

@@ -140,6 +140,11 @@ public sealed record HealthInputs
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
+
+    /// <summary>
+    /// The daemon answering is in a location this app manages, but is not the one selected (#882).
+    /// </summary>
+    public bool DaemonIsManagedButNotSelected { get; init; }
     /// <summary>Connected, but OTA couldn't read which binary answered — so it is neither known to be
     /// ours nor known to be the user's. The daemon is single-instance, so this is not "which of several":
     /// it is a process whose path OTA can't see, e.g. one running as another user or elevated.</summary>
@@ -497,10 +502,21 @@ public static class HealthEvaluator
         var severity = HealthSeverity.Information;
 
         // Not "Not built by OpenTabletArtist" any more: since #794 OTA builds no daemon, so that was
-        // true of every daemon including its own bundled one, and distinguished nothing. What this row
-        // actually reports is that the daemon is the user's install rather than the copy OTA ships.
+        // true of every daemon including its own bundled one, and distinguished nothing.
+        //
+        // Two different facts reach here as ForeignDaemon, and saying the wrong one is worse than saying
+        // nothing. A daemon the user installed elsewhere is not the bundled copy; a daemon that IS the
+        // bundled copy, answering while the user's selection points somewhere else, is also External --
+        // and telling that user "not the bundled copy" is false, and points them at the very thing they
+        // are already running (#882). The classification is the same; the sentence must not be.
         if (i.ForeignDaemon)
-            rows.Add(new HealthLink("An OpenTabletDriver you installed, not the bundled copy",
+            rows.Add(new HealthLink(
+                // Short on purpose: the row clips at roughly this width, and the previous wording lost
+                // its last word to that. A sentence whose meaning lives in the clipped part is worse
+                // than a short one -- "a different one is answering" became "a different one is a".
+                i.DaemonIsManagedButNotSelected
+                    ? "Not the OpenTabletDriver you chose"
+                    : "An OpenTabletDriver you installed, not the bundled copy",
                 "", RemediationArea.Daemon));
 
         if (i.DaemonSourceUnknown)

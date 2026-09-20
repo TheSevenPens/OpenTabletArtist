@@ -164,6 +164,35 @@ public class HealthEvaluatorTests
             Assert.Single(issue.Links!).Setting);
     }
 
+    // A daemon that IS the bundled copy, answering while the user's selection points elsewhere, is also
+    // External -- and telling that user "not the bundled copy" is a false sentence about the very thing
+    // they are running (#882). The classification is unchanged; only what it says is.
+    [Fact]
+    public void TheBundledDaemonAnsweringWhileAnotherIsSelected_IsNotDescribedAsSomethingElse()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(
+            Healthy() with { ForeignDaemon = true, DaemonIsManagedButNotSelected = true }));
+
+        var row = Assert.Single(issue.Links!).Setting;
+
+        Assert.DoesNotContain("not the bundled copy", row);
+        Assert.Equal("Not the OpenTabletDriver you chose", row);
+
+        // Short enough to survive the row's clipping: the first attempt lost "is answering" on screen,
+        // which is the half that explained it. Checked against the widest row already shipping.
+        //
+        // A wording guard, not proof: characters are not rendered width in a proportional font, and this
+        // cannot know the row's real bounds. What it catches is the next person making the message
+        // longer than one already known to fit.
+        Assert.True(row.Length <= "An OpenTabletDriver you installed, not the bundled copy".Length,
+            $"row is longer than the widest one already shipping, and will clip: '{row}'");
+
+        // Still the same card, the same severity and the same remedy: nothing about privileges moved.
+        Assert.Equal("otd.driver", issue.Id);
+        Assert.Equal(HealthSeverity.Information, issue.Severity);
+        Assert.Equal("Review", issue.Remediation!.ActionLabel);
+    }
+
     // The point of the merge: three facts about one driver are one card with three rows, not three cards
     // each offering the same Review.
     [Fact]

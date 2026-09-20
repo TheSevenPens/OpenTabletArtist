@@ -418,10 +418,22 @@ jobs:
       #
       # Run under an isolated user-data root so it can't read or write a real OTD install on the runner.
       # The app is a WinExe with no console attached, so the report goes to a file.
+      #
+      # TWO variables, because they isolate different processes and LOCALAPPDATA alone does not do what
+      # it looks like it does (#879). The daemon reads LOCALAPPDATA; OTA resolved its own settings and
+      # logs through Environment.GetFolderPath, which on Windows reads the OS known-folder and ignores
+      # that variable entirely -- so the app's own files went to the real profile while the daemon's
+      # went to the sandbox, and the isolation looked like it worked. OTA_APPDATA is the override it
+      # actually honours (Services/AppPaths).
+      #
+      # This step only runs --verify-bundle, which is read-only, so nothing was corrupted here. The
+      # reason to fix it is the fuller packaged-app test #741 anticipates: without this, such a test
+      # reflects the runner's configuration rather than the artifact's behaviour.
       - name: Smoke-test the packaged app
         shell: pwsh
         env:
           LOCALAPPDATA: ${{ runner.temp }}\smoke-userdata
+          OTA_APPDATA: ${{ runner.temp }}\smoke-userdata
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null

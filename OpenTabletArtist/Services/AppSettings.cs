@@ -12,11 +12,10 @@ namespace OpenTabletArtist.Services;
 /// </summary>
 public static class AppSettings
 {
-    private static readonly string SettingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OpenTabletArtist",
-        "settings.json"
-    );
+    // Through AppPaths, so a redirect reaches this too (#879). Reading GetFolderPath here directly was
+    // why the packaged-app smoke test's sandbox did not cover the app's own settings.
+    private static readonly string SettingsPath =
+        Path.Combine(AppPaths.LocalAppData, "settings.json");
 
     private static JObject? _cache;
 
