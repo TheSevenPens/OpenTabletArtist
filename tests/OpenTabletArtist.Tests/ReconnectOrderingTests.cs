@@ -416,6 +416,114 @@ public class ReconnectOrderingTests
     }
 
     /// <summary>
+    /// A daemon arriving during the commit's own host callbacks does not lose its identity to the
+    /// half-finished commit it interrupted.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Codex's reproduction, in #844. The commit used to log, then reset, and only afterwards assign the
+    /// remembered path — and both the log and the reset's save-state notification are calls into host
+    /// code. A host that brings up another daemon from there runs that daemon's whole transition to
+    /// completion, identity and all, and then the interrupted commit resumes and assigns <em>its</em>
+    /// path last. The session then believes it is on a daemon it has already moved off, so the next look
+    /// at the unchanged daemon is reported as another change.
+    /// </para>
+    /// <para>
+    /// Running C's transition inline is not a contrivance: an execution context is allowed to run posted
+    /// work immediately when the caller is already on it, and OTA's dispatcher does exactly that.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADaemonArrivingDuringTheCommitsCallbacks_KeepsItsIdentity()
+    {
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
+            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+
+        // The save chip is where the reset calls out, so that is where C arrives.
+        var arrived = false;
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, state =>
+        {
+            // Only on the reset's own announcement. Gating on "the first callback" instead put C's
+            // arrival inside ApplyAndSaveAsync, which reports Saving and then Failed -- so the reconnect
+            // happened before the transition being tested even began, and the test passed against the
+            // defect it was written for.
+            if (state != SettingsSaveState.None || arrived) return;
+            arrived = true;
+            locator.Path = "C/OpenTabletDriver.Daemon.exe";
+            daemon.Reconnect();
+        });
+
+        var told = new List<DaemonChange>();
+        session.Connected += told.Add;
+
+        session.NoteConnectedDaemon();                          // A
+        await settings.ReloadFromDaemonAsync();
+        await settings.ApplyAndSaveAsync(new Settings());        // applied, and the store refuses to save
+
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();                                      // B commits; its callbacks bring up C
+
+        Assert.True(arrived);
+
+        // The session is on C. Asking again finds nothing further changed; with B's assignment landing
+        // last, this reports a change to a daemon that has not changed.
+        Assert.False(session.NoteConnectedDaemon().Changed);
+
+        // And the discard survived. B threw the edit away and then lost its own delivery to C, so this is
+        // the only notification anyone gets -- and it is the only chance to hear that an edit is gone.
+        // B is the one transition in these tests that commits and is then superseded, which is why the
+        // carry-forward is asserted here: where a transition is refused at the entry check instead, it
+        // never discards anything and the surviving transition does its own reset.
+        var only = Assert.Single(told);
+        Assert.Equal("C/OpenTabletDriver.Daemon.exe", only.ExecutablePath);
+        Assert.True(only.DiscardedUnsavedChange);
+    }
+
+    /// <summary>
+    /// Two transitions queued together produce one notification, and it still reports the lost edit.
+    /// </summary>
+    /// <remarks>
+    /// The obsolete transition is refused before it commits, so it never discards anything and the
+    /// surviving one does its own reset — no carry-forward is involved here, and mutation confirms it:
+    /// this passes with the carry-forward removed. The case that needs it is a transition that commits
+    /// and is <em>then</em> superseded, which
+    /// <see cref="ADaemonArrivingDuringTheCommitsCallbacks_KeepsItsIdentity"/> covers.
+    ///
+    /// Kept because the plain case is worth pinning on its own: one boundary, one notification, and the
+    /// user still hears that their edit is gone.
+    /// </remarks>
+    [Fact]
+    public async Task TwoQueuedTransitions_ProduceOneNotificationThatStillReportsTheLostEdit()
+    {
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var context = new ControllableContext();
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
+            OtaSettingsPolicy.Instance, locator, context);
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+
+        session.NoteConnectedDaemon();
+        await settings.ReloadFromDaemonAsync();
+        await settings.ApplyAndSaveAsync(new Settings());        // applied but unsaved
+
+        var told = new List<DaemonChange>();
+        session.Connected += told.Add;
+
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();                                      // B's transition, queued
+        locator.Path = "C/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();                                      // and C's, before either runs
+        context.Drain();
+
+        // One notification, for the transition that survived, and it still says the edit was lost.
+        var only = Assert.Single(told);
+        Assert.Equal("C/OpenTabletDriver.Daemon.exe", only.ExecutablePath);
+        Assert.True(only.DiscardedUnsavedChange);
+    }
+
+    /// <summary>
     /// A subscriber that disposes the session stops the ones after it being told.
     /// </summary>
     /// <remarks>
@@ -479,6 +587,24 @@ public class ReconnectOrderingTests
     }
 
     // --- harness --------------------------------------------------------------------------------
+
+    /// <summary>
+    /// An execution context that runs posted work where it was posted.
+    /// </summary>
+    /// <remarks>
+    /// Permitted, and not unusual: a dispatcher may run work immediately when the caller is already on
+    /// its thread. Reentrancy is the consequence, and is what the test using this is about.
+    /// </remarks>
+    private sealed class InlineExecutionContext : IOtdExecutionContext
+    {
+        public bool IsCurrent => true;
+
+        public Task PostAsync(Action work)
+        {
+            try { work(); return Task.CompletedTask; }
+            catch (Exception ex) { return Task.FromException(ex); }
+        }
+    }
 
     /// <summary>A locator that disposes a session while it is being asked who is answering.</summary>
     /// <remarks>

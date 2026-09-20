@@ -107,6 +107,13 @@ public sealed class OtdSession : IDisposable
             if (!StillTheCurrentTransition(channel)) return;
 
             var change = CommitConnectedDaemon(found);
+
+            // And again, because committing ends in host calls of its own -- the log, and the save-state
+            // notification -- either of which can bring up another daemon. This change is then stale as a
+            // notification. What it records about a discarded edit is not stale, and stays owed.
+            if (!StillTheCurrentTransition(channel)) return;
+
+            ClaimDiscard();
             Deliver(Connected, h => h(change), nameof(Connected), () => StillTheCurrentTransition(channel));
         });
     }
@@ -192,7 +199,7 @@ public sealed class OtdSession : IDisposable
             if (!stillWorthTelling()) return;
 
             try { call((T)handler); }
-            catch (Exception ex) { _log.Warn($"A subscriber to {what} threw; the rest were still told.", ex); }
+            catch (Exception ex) { _log.Warn($"A subscriber to {what} threw; it was isolated.", ex); }
         }
     }
 
@@ -443,7 +450,12 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// </remarks>
     /// <returns>What is answering, whether it changed, and whether that cost an unsaved edit.</returns>
-    internal DaemonChange NoteConnectedDaemon() => CommitConnectedDaemon(ConnectedDaemonPath());
+    internal DaemonChange NoteConnectedDaemon()
+    {
+        var change = CommitConnectedDaemon(ConnectedDaemonPath());
+        ClaimDiscard();                 // handed straight to the caller, so it is no longer owed
+        return change;
+    }
 
     /// <summary>
     /// Records <paramref name="actual"/> as the daemon this session knows, and reports what that cost.
@@ -459,19 +471,48 @@ public sealed class OtdSession : IDisposable
         // Both conditions matter. No remembered path means this is the first look, and everything this
         // session holds already belongs to whatever is answering now. An unreadable path means we cannot
         // tell, which is not the same as knowing it is different.
-        var changed = _daemonPath.Length > 0 && actual != null && !PathEquality.Same(_daemonPath, actual);
+        var previous = _daemonPath;
+        var changed = previous.Length > 0 && actual != null && !PathEquality.Same(previous, actual);
 
-        var discarded = false;
+        // --- Nothing below calls out of the library, until the line that says it does. ---
+        //
+        // The logger and the save-state callback are both host code, and host code can reenter: it can
+        // bring up another daemon, whose transition then runs to completion -- committing its own
+        // identity -- while this one is still part-way through committing its own. This used to call the
+        // logger, then reset, and only afterwards assign the path, so the older transition's assignment
+        // landed last and overwrote the newer one. The session then believed it was on a daemon it had
+        // already moved off, and reported the next look at the unchanged daemon as another change.
+        if (actual != null) _daemonPath = actual;
+        var discarded = changed && (_settings?.ResetForNewDaemon() ?? false);
+
+        // A discard is owed to whoever is told next, not to this transition in particular. If this one is
+        // superseded before it delivers, the edit is still gone and somebody has to hear about it.
+        if (discarded) _discardOwed = true;
+
+        // --- Host code from here. The state above is already coherent. ---
         if (changed)
         {
-            _log.Warn($"The connected daemon changed from {_daemonPath} to {actual}; "
+            _log.Warn($"The connected daemon changed from {previous} to {actual}; "
                       + "dropping settings state that belonged to the previous one.");
-            discarded = _settings?.ResetForNewDaemon() ?? false;
+            if (discarded) _settings?.AnnounceDiscardedChange();
         }
 
-        if (actual != null) _daemonPath = actual;
-        return new DaemonChange(actual, changed, discarded);
+        return new DaemonChange(actual, changed, _discardOwed);
     }
+
+    /// <summary>
+    /// Whether an unsaved edit has been discarded and nobody has been told yet.
+    /// </summary>
+    /// <remarks>
+    /// Carried across transitions because the information belongs to the host, not to the occasion that
+    /// produced it. A transition that discards an edit and is then superseded before it delivers would
+    /// otherwise take that fact with it: the surviving transition finds nothing pending to report, and
+    /// the user's edit is gone with no notification anywhere.
+    /// </remarks>
+    private bool _discardOwed;
+
+    /// <summary>Marks the discard as reported, because the change carrying it is being handed over.</summary>
+    private void ClaimDiscard() => _discardOwed = false;
 
     /// <summary>The executable behind the process answering the connection, or null when it can't be read.</summary>
     private string? ConnectedDaemonPath()

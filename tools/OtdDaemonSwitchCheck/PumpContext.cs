@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using OtdInterop;
 
 namespace OtdDaemonSwitchCheck;
@@ -29,11 +30,18 @@ namespace OtdDaemonSwitchCheck;
 /// </remarks>
 internal sealed class PumpContext : IOtdExecutionContext, IDisposable
 {
-    /// <summary>How long shutdown waits for accepted work, and then for the thread.</summary>
-    private static readonly TimeSpan ShutdownBound = TimeSpan.FromSeconds(30);
-
     private readonly BlockingCollection<Action> _queue = new();
     private readonly Thread _thread;
+
+    /// <summary>
+    /// One overall deadline for shutdown, covering both the wait for accepted work and the thread join.
+    /// </summary>
+    /// <remarks>
+    /// A single deadline rather than a bound applied twice, which would have made the worst case double
+    /// what it reads as. Configurable only so the timeout path can be tested in milliseconds instead of
+    /// in half-minutes.
+    /// </remarks>
+    private readonly TimeSpan _shutdownBound;
 
     /// <summary>
     /// Guards admission and closure together.
@@ -51,8 +59,13 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
 
     private bool _closing;
 
-    public PumpContext()
+    /// <param name="shutdownBound">
+    /// How long <see cref="Dispose"/> will wait in total. The default is generous because the alternative
+    /// to waiting is abandoning work.
+    /// </param>
+    public PumpContext(TimeSpan? shutdownBound = null)
     {
+        _shutdownBound = shutdownBound ?? TimeSpan.FromSeconds(30);
         _thread = new Thread(Run) { IsBackground = true, Name = "otd-interop-context" };
         _thread.Start();
     }
@@ -64,8 +77,20 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
     /// Whether shutdown settled everything it had accepted, rather than running out of patience.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Reported rather than swallowed: abandoning accepted work is a failed shutdown, and a tool whose
     /// exit code is its whole output should not present one as a success.
+    /// </para>
+    /// <para>
+    /// <b>False means work was abandoned, not cancelled.</b> Nothing here cancels anything: an operation
+    /// still running when the deadline passes keeps whatever it holds, and its task simply never
+    /// completes. There is no cancellation framework in this tool and this is not a substitute for one.
+    /// </para>
+    /// <para>
+    /// True means every accepted root settled, and therefore that the continuations those roots were
+    /// waiting on ran. A continuation arriving <em>after</em> a clean shutdown is detached work — started
+    /// but not awaited by any root — rather than something the deadline caught.
+    /// </para>
     /// </remarks>
     public bool ShutDownCleanly { get; private set; } = true;
 
@@ -179,10 +204,19 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
             pending = [.. _accepted];
         }
 
+        // One deadline across both waits below, so the worst case is what the bound says rather than
+        // twice it.
+        var elapsed = Stopwatch.StartNew();
+        TimeSpan Remaining()
+        {
+            var left = _shutdownBound - elapsed.Elapsed;
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
+
         try
         {
             // Faults belong to whoever awaited the operation; this only waits for them to settle.
-            ShutDownCleanly = Task.WaitAll(pending, ShutdownBound);
+            ShutDownCleanly = Task.WaitAll(pending, Remaining());
         }
         catch (AggregateException)
         {
@@ -191,7 +225,7 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
 
         lock (_gate) _queue.CompleteAdding();
 
-        if (!_thread.Join(ShutdownBound)) ShutDownCleanly = false;
+        if (!_thread.Join(Remaining())) ShutDownCleanly = false;
     }
 
     /// <summary>Sends continuations to the pump's queue, so <c>await</c> resumes on its thread.</summary>

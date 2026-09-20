@@ -40,11 +40,12 @@ public class DaemonClientChannelIdentityTests
     public async Task AChannelIdentityIsNotReusedAfterADisconnect()
     {
         var pipe = $"ota-test-{Guid.NewGuid():N}";
+        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         using var client = new DaemonClient(NullOtdLog.Instance, pipe);
         var channel = (IDaemonSettingsChannel)client;
 
-        var first = await ConnectOnceAsync(client, channel, pipe);
-        var second = await ConnectOnceAsync(client, channel, pipe);
+        var first = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
+        var second = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
 
         Assert.NotEqual(0, first);
         Assert.NotEqual(0, second);
@@ -60,13 +61,15 @@ public class DaemonClientChannelIdentityTests
     public async Task ADroppedChannelReportsNoIdentity()
     {
         var pipe = $"ota-test-{Guid.NewGuid():N}";
+        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         using var client = new DaemonClient(NullOtdLog.Instance, pipe);
         var channel = (IDaemonSettingsChannel)client;
 
-        var live = await ConnectOnceAsync(client, channel, pipe);
+        var live = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
 
+        // ConnectOnceAsync returns only once Disconnected has been raised, and the client clears its
+        // channel before raising it.
         Assert.NotEqual(0, live);
-        await WaitUntil(() => channel.Incarnation == 0);
         Assert.Equal(0, channel.Incarnation);
     }
 
@@ -75,43 +78,52 @@ public class DaemonClientChannelIdentityTests
     /// then drops it — and reports the identity the channel had while it was up.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Waits on the client's own <c>Connected</c> and <c>Disconnected</c> events rather than polling for
+    /// the channel value. Both are raised by the client after it has finished the corresponding state
+    /// change, so this cannot mistake a channel that has been published for a connection that is
+    /// established — which polling for a non-zero incarnation would.
+    /// </para>
+    /// <para>
     /// <c>AutoReconnect</c> is turned off before the drop so the client does not immediately race to
-    /// re-establish and move the number under the next assertion.
+    /// re-establish and move the number under the next assertion. That means this covers a deliberate
+    /// stop and not the automatic reconnect path; production does the same thing around a stop the user
+    /// asked for. The cancellation token bounds the connect loop, so a failure here cannot leave one
+    /// retrying after the test has gone.
+    /// </para>
     /// </remarks>
     private static async Task<int> ConnectOnceAsync(DaemonClient client, IDaemonSettingsChannel channel,
-        string pipe)
+        string pipe, CancellationToken ct)
     {
         using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1,
             PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
-        var accepted = server.WaitForConnectionAsync();
-        _ = client.ConnectAsync(CancellationToken.None);
-        await accepted.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        var connected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dropped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnConnected() => connected.TrySetResult();
+        void OnDisconnected() => dropped.TrySetResult();
 
-        await WaitUntil(() => channel.Incarnation != 0);
-        var identity = channel.Incarnation;
+        client.Connected += OnConnected;
+        client.Disconnected += OnDisconnected;
+        try
+        {
+            var accepted = server.WaitForConnectionAsync(ct);
+            _ = client.ConnectAsync(ct);
+            await accepted;
+            await connected.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
-        client.AutoReconnect = false;
-        server.Disconnect();
-        await WaitUntil(() => channel.Incarnation == 0);
+            var identity = channel.Incarnation;
 
-        return identity;
-    }
+            client.AutoReconnect = false;
+            server.Disconnect();
+            await dropped.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
-    /// <summary>
-    /// Polls until <paramref name="reached"/> holds, or fails the test.
-    /// </summary>
-    /// <remarks>
-    /// Polling rather than a completion source because the state being waited for is set inside
-    /// <c>JsonRpc</c>'s own disconnect handling, which this test has no hook into. The bound is a failure
-    /// bound, not the synchronisation.
-    /// </remarks>
-    private static async Task WaitUntil(Func<bool> reached)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        while (!reached() && DateTime.UtcNow < deadline)
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-
-        Assert.True(reached(), "the client never reached the expected channel state");
+            return identity;
+        }
+        finally
+        {
+            client.Connected -= OnConnected;
+            client.Disconnected -= OnDisconnected;
+        }
     }
 }

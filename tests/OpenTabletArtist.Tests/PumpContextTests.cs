@@ -148,16 +148,19 @@ public class PumpContextTests
     {
         var pump = new PumpContext();
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reachedTheAwait = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finished = false;
 
         var accepted = pump.RunAsync(async () =>
         {
+            reachedTheAwait.SetResult();
             await release.Task;
             finished = true;
         });
 
-        // Let it reach the await.
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        // Signalled from inside the body, immediately before the held await. A delay here would only mean
+        // time had passed, which is not the same as the operation being where the test needs it.
+        await reachedTheAwait.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         Assert.False(accepted.IsCompleted);
 
         var shutdown = Task.Run(pump.Dispose, TestContext.Current.CancellationToken);
@@ -195,6 +198,38 @@ public class PumpContextTests
         }
 
         Assert.Fail("shutdown never began");
+    }
+
+    /// <summary>
+    /// A shutdown that cannot settle its accepted work says so, and abandons it rather than cancelling.
+    /// </summary>
+    /// <remarks>
+    /// The failure path of the wait, which is worth pinning because it is the honest limit of what this
+    /// arrangement offers. Nothing is cancelled: the operation keeps whatever it holds and its task never
+    /// completes. The tool counts a dirty shutdown as a failed check, which is the whole reason the flag
+    /// exists — a bound that quietly gave up would report a pass.
+    ///
+    /// Run with a short bound, so the timeout path costs milliseconds instead of half a minute.
+    /// </remarks>
+    [Fact]
+    public async Task AShutdownThatCannotSettleReportsItAndAbandonsTheWork()
+    {
+        var pump = new PumpContext(TimeSpan.FromMilliseconds(200));
+        var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reachedTheAwait = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var accepted = pump.RunAsync(async () =>
+        {
+            reachedTheAwait.SetResult();
+            await never.Task;
+        });
+
+        await reachedTheAwait.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        pump.Dispose();
+
+        Assert.False(pump.ShutDownCleanly);
+        Assert.False(accepted.IsCompleted);          // abandoned, and not faulted or cancelled
     }
 
     /// <summary>A new root operation offered once shutdown has begun is refused, not queued.</summary>
