@@ -19,21 +19,20 @@ namespace OtdInterop.Tests;
 /// convenience would undo the whole extraction, build cleanly, and pass every other test.
 /// </para>
 /// <para>
-/// Read from the assembly rather than from the csproj on purpose. A project file says what someone
-/// intended; the assembly says what is actually there, including anything that arrived transitively
-/// through a package.
+/// <b>The guarantee is narrow and deliberately so: emitted managed references.</b> A package the code
+/// never touches does not appear here, because the compiler elides the reference and this assembly
+/// genuinely does not depend on it. What the <em>build</em> pulls in is a different question, and
+/// <see cref="BoundaryRestoreTests"/> answers it by reading what restore resolved — which is where an
+/// unused reference, and anything it brings with it, is caught.
+/// </para>
+/// <para>
+/// Both are worth having. This one catches a forbidden assembly reached through a dependency the restore
+/// graph permits; that one catches a dependency that never shows up as a reference at all.
 /// </para>
 /// <para>
 /// Replaces the single direct check that used to sit among the API tests. That one compared this
 /// assembly's own references against three names; this covers the same three, plus what arrives behind
 /// them and the test suite itself, and says why each one would matter rather than only that it does.
-/// </para>
-/// <para>
-/// <b>Which means a package reference nobody uses is not caught</b>, because the compiler elides the
-/// reference and the assembly genuinely does not depend on it. Verified, rather than assumed: adding an
-/// unused <c>CommunityToolkit.Mvvm</c> reference leaves these green, and using one type from it turns
-/// two of them red. That is the right line — erosion happens when something is used, not when it is
-/// declared — but it is worth knowing, because reading the csproj would answer differently.
 /// </para>
 /// </remarks>
 public class BoundaryDependencyTests
@@ -74,8 +73,11 @@ public class BoundaryDependencyTests
     /// </summary>
     /// <remarks>
     /// The direct check above is the one someone would defeat by accident; this is the one they would
-    /// defeat by adding a package that happens to depend on a UI framework. Walks what is actually on
-    /// disk beside the library, which is what would ship.
+    /// defeat by adding a package that happens to depend on a UI framework.
+    ///
+    /// Walks what sits beside the library in <em>this test run's</em> output, which is not the published
+    /// application's dependency graph and should not be read as it. It is a reachability check over what
+    /// is here to be loaded; <see cref="BoundaryRestoreTests"/> is the one that reads the resolved graph.
     /// </remarks>
     [Fact]
     public void NorDoesAnythingItReferencesDragOneIn()

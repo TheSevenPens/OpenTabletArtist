@@ -40,36 +40,41 @@ public class OtaPolicyThroughTheSessionTests
     [Fact]
     public async Task OnAnOwnedDaemon_ThePolicyDisablesAnUnapprovedFilterOnTheWayOut()
     {
-        var (settings, daemon, store) = Make(isOwnedDaemon: true);
+        var (session, settings, daemon, store) = Make(isOwnedDaemon: true);
+        using var _ = session;
 
         var mine = WithUnapprovedFilter();
         var outcome = await settings.ApplyAndSaveAsync(mine);
 
         Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
 
-        // What the daemon was sent, and what the caller was handed back, both have it off.
-        Assert.False(UnapprovedFilterEnabled(Assert.Single(daemon.Applied)));
-        Assert.False(UnapprovedFilterEnabled(outcome.Prepared!.Settings));
-        Assert.False(UnapprovedFilterEnabled(store.Last!));
+        // Disabled, not absent -- and the difference matters, because a check that only asked "is it
+        // enabled" answers no to a filter that was removed, to settings that are null, and to a write
+        // that never happened. Each is a different defect and none of them is what this asserts.
+        Assert.False(TheUnapprovedFilterIn(Assert.Single(daemon.Applied)).Enable);
+        Assert.False(TheUnapprovedFilterIn(outcome.Prepared!.Settings).Enable);
+        Assert.False(TheUnapprovedFilterIn(store.Last).Enable);
 
         // And the caller's own object is untouched. Policy runs on a private copy; an editor that went on
         // showing its draft would be showing settings nobody has.
-        Assert.True(UnapprovedFilterEnabled(mine));
+        Assert.True(TheUnapprovedFilterIn(mine).Enable);
     }
 
     [Fact]
     public async Task OnADaemonOtaDoesNotOwn_TheSameFilterIsLeftAlone()
     {
-        var (settings, daemon, _) = Make(isOwnedDaemon: false);
+        var (session, settings, daemon, _) = Make(isOwnedDaemon: false);
+        using var _s = session;
 
         var outcome = await settings.ApplyAndSaveAsync(WithUnapprovedFilter());
 
         Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
-        Assert.True(UnapprovedFilterEnabled(Assert.Single(daemon.Applied)));
-        Assert.True(UnapprovedFilterEnabled(outcome.Prepared!.Settings));
+        Assert.True(TheUnapprovedFilterIn(Assert.Single(daemon.Applied)).Enable);
+        Assert.True(TheUnapprovedFilterIn(outcome.Prepared!.Settings).Enable);
     }
 
-    private static (IOtdSettingsSession, FakeDaemonTransport, LastWriteStore) Make(bool isOwnedDaemon)
+    private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, LastWriteStore) Make(
+        bool isOwnedDaemon)
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var store = new LastWriteStore();
@@ -80,7 +85,7 @@ public class OtaPolicyThroughTheSessionTests
         var settings = session.OpenSettings(() => isOwnedDaemon, _ => { });
 
         daemon.Reconnect();
-        return (settings, daemon, store);
+        return (session, settings, daemon, store);
     }
 
     private static Settings WithUnapprovedFilter()
@@ -94,15 +99,25 @@ public class OtaPolicyThroughTheSessionTests
         return new Settings { Profiles = new ProfileCollection { profile } };
     }
 
-    private static bool UnapprovedFilterEnabled(Settings? s)
+    /// <summary>
+    /// The unapproved filter in <paramref name="s"/>, failing the test if it is not there at all.
+    /// </summary>
+    /// <remarks>
+    /// So that a missing filter, or missing settings, cannot masquerade as a disabled one. The policy is
+    /// supposed to turn this filter off, not delete it and not skip the write, and a boolean helper that
+    /// returned false for all three would have reported success for any of them.
+    /// </remarks>
+    private static PluginSettingStore TheUnapprovedFilterIn(Settings? s)
     {
-        if (s == null) return false;
+        Assert.NotNull(s);
+        Assert.NotEmpty(s.Profiles);
 
         foreach (var filter in s.Profiles[0].Filters)
             if (filter.Path == UnapprovedFilter)
-                return filter.Enable;
+                return filter;
 
-        return false;
+        Assert.Fail($"The settings no longer carry {UnapprovedFilter} at all.");
+        return null!;
     }
 
     /// <summary>Keeps the last thing written, since what reached disk is part of the question.</summary>

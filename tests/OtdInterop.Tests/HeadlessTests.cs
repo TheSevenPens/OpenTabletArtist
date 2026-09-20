@@ -25,6 +25,9 @@ namespace OtdInterop.Tests;
 /// </remarks>
 public class HeadlessTests
 {
+    /// <summary>How long any wait here may take before it is a failure rather than a wait.</summary>
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// No synchronization context is installed for these tests by default.
     /// </summary>
@@ -84,29 +87,58 @@ public class HeadlessTests
         // Held, and answered from a thread that is not the pump's, so the reload really suspends.
         var reply = new TaskCompletionSource<OpenTabletDriver.Desktop.Settings?>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        daemon.GetSettingsHandler = () => reply.Task;
+        var readEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        daemon.GetSettingsHandler = () =>
+        {
+            readEntered.TrySetResult();
+            return reply.Task;
+        };
 
         var onTheHost = 0;
         var worked = false;
+        Task? hostWork = null;
 
-        var hostWork = pump.RunAsync(async () =>
+        try
         {
-            daemon.Reconnect();
+            hostWork = pump.RunAsync(async () =>
+            {
+                daemon.Reconnect();
 
-            var settings = session.OpenSettings(() => true, _ => { });
-            await settings.ReloadFromDaemonAsync();
+                var settings = session.OpenSettings(() => true, _ => { });
+                await settings.ReloadFromDaemonAsync();
 
-            // After the suspension, and this is the part the old version could not reach.
-            onTheHost = pump.IsCurrent ? 1 : 0;
+                // After the suspension, and this is the part the old version could not reach.
+                onTheHost = pump.IsCurrent ? 1 : 0;
 
-            var outcome = await settings.ApplyAndSaveAsync(new OpenTabletDriver.Desktop.Settings());
-            worked = outcome.Status == SettingsApplyStatus.AppliedAndSaved && store.Writes == 1;
-        });
+                var outcome = await settings.ApplyAndSaveAsync(new OpenTabletDriver.Desktop.Settings());
+                worked = outcome.Status == SettingsApplyStatus.AppliedAndSaved && store.Writes == 1;
+            });
 
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-        reply.SetResult(new OpenTabletDriver.Desktop.Settings());
+            // A handshake, not a sleep. The read has been entered...
+            await readEntered.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        await hostWork.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            // ...and the pump has since run something else, which it can only do once the body has
+            // yielded at the await. A delay established neither: a slow worker meant the reply could be
+            // completed before the read was even reached, the whole operation then ran without
+            // suspending, and this passed while demonstrating nothing. A longer sleep has the same hole.
+            await pump.PostAsync(() => { }).WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+            Assert.False(hostWork.IsCompleted);      // still parked, so there is something to come back from
+
+            reply.SetResult(new OpenTabletDriver.Desktop.Settings());
+            await hostWork.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            // Nothing outstanding on the way out, however this ended.
+            reply.TrySetResult(new OpenTabletDriver.Desktop.Settings());
+            if (hostWork != null)
+            {
+                try { await hostWork.WaitAsync(Bound, TestContext.Current.CancellationToken); }
+                catch (TimeoutException) { /* the assertion above is the report; do not mask it */ }
+            }
+        }
 
         Assert.Equal(1, onTheHost);
         Assert.True(worked);
