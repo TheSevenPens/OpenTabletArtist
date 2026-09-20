@@ -94,6 +94,16 @@ public sealed class OtdSession : IDisposable
 
         /// <summary>Called just before a lookup's publication contends for the publication gate.</summary>
         public Action? PublishingLookup { get; init; }
+
+        /// <summary>
+        /// Called just before work in flight is abandoned, with whether teardown has already happened.
+        /// </summary>
+        /// <remarks>
+        /// The ordering it reports is the whole of the fix for #891, and it cannot be observed from
+        /// outside: abandoning is what releases a draining close, so by the time anything else could look,
+        /// the answer has already been used.
+        /// </remarks>
+        public Action<bool>? AbandoningWork { get; init; }
     }
 
     private readonly LifecycleProbe? _probe;
@@ -1177,8 +1187,17 @@ public sealed class OtdSession : IDisposable
     private void Close()
     {
         StopAdmitting();
-        _settings?.Abandon();
+
+        // Teardown first, and the order is load-bearing (#891). Abandoning is what releases a close that
+        // is draining, and that close ends on `settled && !_tornDown` -- the guard that stops it calling
+        // abandoned work a graceful settlement. Abandon before the flag is set and the released drain can
+        // reach that return while it still reads false, so a host that gave up on a graceful close, and
+        // disposed, is told its settings were saved when they were not. It is a narrow window, and it was
+        // wide enough to fail CI.
         TearDown();
+
+        _probe?.AbandoningWork?.Invoke(TornDown);
+        _settings?.Abandon();
     }
 
     /// <summary>
