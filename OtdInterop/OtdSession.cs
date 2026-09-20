@@ -134,6 +134,31 @@ public sealed class OtdSession : IDisposable
     /// <summary>Whether a queued disconnect still describes the world.</summary>
     private bool StillDisconnected() => !_disposed && _channel.Incarnation == 0;
 
+    // ---------------------------------------------------------------------------------------------
+    // THE RULE, for everything above and below.
+    //
+    // A call into host code may reenter this session, dispose it, or supersede the transition being
+    // handled. Nothing established before such a call authorises a mutation or a notification after it
+    // without being reconsidered. LOGGING IS SUCH A CALL -- that one is easy to miss, and missing it is
+    // how the commit came to assign its identity after the world had already moved (#844).
+    //
+    // The call-outs on this path, audited:
+    //
+    //   IOtdExecutionContext.PostAsync   where the work runs at all, and it may run it inline
+    //   IDaemonProcessLocator            asked who is answering; a check follows, before the commit
+    //   IOtdLog                          from inside the commit, now after the state it describes
+    //   the save-state callback          likewise, which is why announcing is separate from resetting
+    //   Connected subscribers            checked between each one
+    //
+    // The three validity checks are deliberately NOT consolidated. They answer different questions --
+    // do not begin obsolete work; do not commit an obsolete observation; do not keep announcing
+    // something an earlier subscriber made untrue -- and sharing a predicate is not a reason to share a
+    // location.
+    //
+    // This audit covers the transition path. The settings operations reach host code too, and auditing
+    // those is separate work.
+    // ---------------------------------------------------------------------------------------------
+
     /// <summary>
     /// Whether queued work for <paramref name="channel"/> still describes something worth telling anyone
     /// about.
