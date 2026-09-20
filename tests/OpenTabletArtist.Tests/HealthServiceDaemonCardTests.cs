@@ -31,6 +31,7 @@ public class HealthServiceDaemonCardTests
     public void WhenTheFlagChangesWithoutOwnershipMoving_TheCardRewordsItself()
     {
         var (health, connection) = Make();
+        using var lifetime = health;
 
         Assert.Equal("An OpenTabletDriver you installed, not the bundled copy", DriverRow(health));
 
@@ -46,6 +47,7 @@ public class HealthServiceDaemonCardTests
     public void AndBackAgain_WhenTheSelectedDaemonIsNoLongerTheOneAnswering()
     {
         var (health, connection) = Make();
+        using var lifetime = health;
 
         connection.DaemonIsManagedButNotSelected = true;
         Assert.Equal("Not the OpenTabletDriver you chose", DriverRow(health));
@@ -63,6 +65,12 @@ public class HealthServiceDaemonCardTests
     /// <c>Reevaluate</c> is never called here by the test: every assertion below relies on the service
     /// having heard the property change itself. Calling <c>Refresh()</c> would make this pass against the
     /// defect it exists for.
+    ///
+    /// <para>
+    /// Each caller disposes what it gets back. The service subscribes to <c>DeveloperSettings.Instance</c>,
+    /// which is static and outlives the test, so an undisposed one stays reachable and a later test
+    /// touching those settings makes it reevaluate.
+    /// </para>
     /// </remarks>
     private static (HealthService, FakeConnectionState) Make()
     {
