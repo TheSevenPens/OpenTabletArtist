@@ -291,6 +291,192 @@ public class ShutdownTests
         Assert.Equal(before, reported.Count);
     }
 
+    /// <summary>
+    /// A destination lookup the session started itself is work, and closing waits for it.
+    /// </summary>
+    /// <remarks>
+    /// Registration covered the operations a host asks for and missed the one the session starts on its
+    /// own account. <c>StillTheCurrentTransition</c> stops an obsolete answer being adopted; it does not
+    /// settle the outstanding RPC, and the reply's continuation still posts through the host's execution
+    /// context — the context a successful close has just told the caller it is safe to tear down.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingWaitsForADiscoveryTheSessionStarted()
+    {
+        var (session, _, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return never.Task;
+        };
+
+        daemon.Reconnect();                         // a transition, and the lookup it starts
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Disposing during an asynchronous close tears the transport down rather than waiting on it.
+    /// </summary>
+    /// <remarks>
+    /// I described this behaviour in the review and had it backwards. <c>RunCloseAsync</c> set the
+    /// disposed flag first, so <c>Dispose</c> saw it and returned having done nothing — the transport
+    /// stayed open until the drain finished. A host that gave up on a graceful close and disposed had no
+    /// way to make anything happen.
+    /// </remarks>
+    [Fact]
+    public async Task DisposingDuringAClose_TearsDownAtOnce()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return never.Task;
+        };
+
+        _ = settings.ApplyAndSaveAsync(Tablet("Stuck"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = session.CloseAsync(TimeSpan.FromMinutes(5));
+        await Task.Delay(30, TestContext.Current.CancellationToken);
+        Assert.False(closing.IsCompleted);
+
+        session.Dispose();
+
+        Assert.True(daemon.IsDisposed);
+
+        // And it releases the close rather than leaving it to spend the five minutes waiting for work the
+        // Dispose just abandoned. The held operation is deliberately never completed: the close has to
+        // come back on the abandonment alone, and it does not claim the work settled gracefully.
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        Assert.False(never.Task.IsCompleted);
+    }
+
+    /// <summary>
+    /// A settings handle kept past <c>Dispose</c> cannot go on working.
+    /// </summary>
+    /// <remarks>
+    /// Only the asynchronous close stopped admission, so the synchronous path — the one the application
+    /// actually uses — left a retained handle able to write to disk after the session had been disposed.
+    /// Both ways of closing have to mean the same thing about what may still run.
+    /// </remarks>
+    [Fact]
+    public async Task ARetainedHandle_CannotWorkAfterDispose()
+    {
+        var (session, settings, _, store) = Make();
+
+        store.SaveSucceeds = false;
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(Tablet("Pending"))).Status);
+
+        session.Dispose();
+
+        store.SaveSucceeds = true;
+        Assert.Equal(SettingsApplyStatus.Disconnected, (await settings.RetryPersistAsync()).Status);
+    }
+
+    /// <summary>
+    /// Closing after a <c>Dispose</c> answers at once, and does not claim the session settled.
+    /// </summary>
+    /// <remarks>
+    /// The fourth corner of the lifecycle, after Dispose alone, Dispose during a close, and repeated
+    /// closes. A host with both a window-close handler and an application-exit path can reach here, and
+    /// "it closed anyway" is the honest answer: the transport went down under whatever was running.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingAfterDispose_AnswersAtOnceWithoutClaimingItSettled()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return never.Task;
+        };
+
+        _ = settings.ApplyAndSaveAsync(Tablet("Stuck"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        session.Dispose();
+
+        // A generous window, so passing cannot mean "the wait expired": it has to answer without waiting.
+        var closing = session.CloseAsync(TimeSpan.FromMinutes(5));
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// A close waiting on a discovery alone is released by a <c>Dispose</c>, not left to time out.
+    /// </summary>
+    /// <remarks>
+    /// The settings path reaches the same conclusion through its own abandonment, and would mask this:
+    /// here no settings operation is running, so the lookup wait is the only thing holding the close.
+    /// </remarks>
+    [Fact]
+    public async Task DisposingDuringACloseWaitingOnADiscovery_ReleasesIt()
+    {
+        var (session, _, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return never.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = session.CloseAsync(TimeSpan.FromMinutes(5));
+        await Task.Delay(30, TestContext.Current.CancellationToken);
+        Assert.False(closing.IsCompleted);
+
+        session.Dispose();
+
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        Assert.False(never.Task.IsCompleted);
+    }
+
+    /// <summary>
+    /// Closing after a <c>Dispose</c> that left a discovery outstanding still answers at once.
+    /// </summary>
+    /// <remarks>
+    /// The other order, and it needs its own latch: the teardown's wake finds no one waiting, so a close
+    /// arriving afterwards would create a fresh wait and hold for the whole window on a lookup that was
+    /// abandoned with the transport.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingAfterADisposeThatLeftADiscoveryRunning_AnswersAtOnce()
+    {
+        var (session, _, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return never.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        session.Dispose();
+
+        var closing = session.CloseAsync(TimeSpan.FromMinutes(5));
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make()

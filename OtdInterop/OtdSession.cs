@@ -512,6 +512,12 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private Task DiscoverDestinationAsync(int channel)
     {
+        // Work this session starts on its own account, and it counts: the reply's continuation posts
+        // through the host's execution context, which is exactly what a successful close tells the caller
+        // it may now tear down. StillTheCurrentTransition stops an obsolete answer being adopted; it does
+        // nothing about the call still being outstanding.
+        if (!TryBeginLookup()) return Task.CompletedTask;
+
         lock (_lookupGate)
         {
             if (_lookup is { Channel: var running, Done.Task: var task } && running == channel
@@ -536,6 +542,56 @@ public sealed class OtdSession : IDisposable
 
     private readonly object _lookupGate = new();
     private Lookup? _lookup;
+
+    private readonly object _liveGate = new();
+    private int _liveLookups;
+    private bool _lookupsAbandoned;
+    private TaskCompletionSource? _lookupsQuiet;
+
+    /// <summary>Registers a lookup, or refuses it because this session is closing.</summary>
+    private bool TryBeginLookup()
+    {
+        lock (_liveGate)
+        {
+            if (_admissionStopped) return false;
+
+            _liveLookups++;
+            return true;
+        }
+    }
+
+    private void EndLookup()
+    {
+        lock (_liveGate)
+        {
+            if (--_liveLookups == 0) _lookupsQuiet?.TrySetResult();
+        }
+    }
+
+    /// <summary>Waits until no lookup is outstanding, or the time runs out.</summary>
+    private async Task<bool> LookupsQuietAsync(TimeSpan within)
+    {
+        Task quiet;
+        lock (_liveGate)
+        {
+            // Torn down already, by a Dispose. What is outstanding was abandoned with the transport.
+            if (_lookupsAbandoned) return false;
+
+            if (_liveLookups == 0) return true;
+
+            _lookupsQuiet ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            quiet = _lookupsQuiet.Task;
+        }
+
+        try
+        {
+            // True means the wait ended, not that the work was welcome: an abandonment ends it too, and
+            // RunCloseAsync's own !_tornDown is what turns that into the caller's answer.
+            await quiet.WaitAsync(within).ConfigureAwait(false);
+            return true;
+        }
+        catch (TimeoutException) { return false; }
+    }
 
     private async Task RunLookupAsync(Lookup flight)
     {
@@ -592,6 +648,7 @@ public sealed class OtdSession : IDisposable
         }
         finally
         {
+            EndLookup();
             // The backstop, and the whole point of awaiting. A host can refuse a post -- shutting down,
             // or running work somewhere it does not consider its own -- and then the action above never
             // runs and never settles anything. Completing only from inside it left a retry awaiting a
@@ -810,11 +867,52 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// <para>
     /// Bounded on purpose. The operation in flight may be waiting on a daemon that has stopped answering,
-    /// and an application exiting cannot be held open by one.
+    /// and an application exiting cannot be held open by one. <see cref="Timeout.InfiniteTimeSpan"/> is
+    /// accepted as the deliberate exception, for a caller who would rather hang than close under work --
+    /// a test, or a tool with nothing else to do. It is not a default and should not be one: a host with a
+    /// window to close wants an answer within a time it chose.
+    /// </para>
+    /// <para>
+    /// <b>What a false answer leaves behind.</b> The work is abandoned, not cancelled: the RPC it is
+    /// waiting on has already reached the daemon and cannot be recalled, so the task a caller is holding
+    /// for it may complete long afterwards -- or never, if the daemon never answers. Three things follow,
+    /// and a host that ignores them will see the symptoms rather than the cause:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b>Do not await those tasks after a false answer.</b> Awaiting one is the hang this method exists
+    /// to bound, moved somewhere else. Drop them, or await them under a timeout of the caller's own.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Their results are not reported.</b> Abandoned work does not call back into the host: no save
+    /// state, no settings event. What it returns to a caller still holding the task is what it found, and
+    /// may describe a session that has gone.
+    /// </description></item>
+    /// <item><description>
+    /// <b>They may still have landed.</b> A false answer says the session stopped waiting, not that the
+    /// daemon did nothing. What it holds, and what reached disk, is unknown -- which is the whole reason
+    /// the answer is a <c>bool</c> rather than nothing.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// <b>With <see cref="Dispose"/>.</b> One lifecycle, two entry points, and they may overlap. Calling
+    /// this more than once returns the same operation and the same answer. Disposing while this is
+    /// draining does not wait for it: it stops admission, abandons what is running and tears the transport
+    /// down at once, and this is then released -- rather than spending the rest of its window on work the
+    /// Dispose has already given up on -- answering false, because a close something else interrupted did
+    /// not settle. Disposing first makes a call here answer false immediately, for the same reason: there
+    /// is nothing left that waiting could settle.
     /// </para>
     /// </remarks>
-    /// <param name="settleWithin">How long to wait. Defaults to ten seconds.</param>
-    /// <returns>True when everything in flight finished; false when the wait ran out and it closed anyway.</returns>
+    /// <param name="settleWithin">
+    /// How long to wait. Defaults to ten seconds. <see cref="TimeSpan.Zero"/> closes without waiting;
+    /// <see cref="Timeout.InfiniteTimeSpan"/> waits for as long as it takes.
+    /// </param>
+    /// <returns>
+    /// True when everything in flight finished; false when the wait ran out, or a <see cref="Dispose"/>
+    /// interrupted it, and it closed anyway. See the abandonment note above for what a false answer
+    /// obliges the caller to do.
+    /// </returns>
     public Task<bool> CloseAsync(TimeSpan? settleWithin = null)
     {
         var window = settleWithin ?? DefaultSettleWindow;
@@ -837,34 +935,102 @@ public sealed class OtdSession : IDisposable
 
     private readonly object _closeGate = new();
     private Task<bool>? _closing;
+    private bool _admissionStopped;
+    private bool _tornDown;
 
     private async Task<bool> RunCloseAsync(TimeSpan window)
     {
-        // Set before waiting, and before unsubscribing, so nothing new is admitted while this drains.
-        _disposed = true;
+        StopAdmitting();
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        TimeSpan Remaining()
+        {
+            if (window == Timeout.InfiniteTimeSpan) return window;
+
+            var left = window - clock.Elapsed;
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
 
         try
         {
-            return _settings is not { } settings
-                   || await settings.CloseAsync(window).ConfigureAwait(false);
+            // One deadline over both: the settings session's own operations, and the lookups this session
+            // started for itself. Waiting for each in turn with the full window would make the worst case
+            // twice what the caller asked for.
+            var settled = _settings is not { } settings
+                          || await settings.CloseAsync(Remaining()).ConfigureAwait(false);
+
+            settled &= await LookupsQuietAsync(Remaining()).ConfigureAwait(false);
+
+            // A Dispose that arrived while this was draining has already torn the transport down. What is
+            // still running was abandoned, whatever the waits above found, and saying otherwise would
+            // report a graceful settlement that something else interrupted.
+            lock (_closeGate) return settled && !_tornDown;
         }
         finally
         {
-            // Whatever the settling did, the connection goes. Leaving it open because the wait threw is
-            // how a teardown becomes a leak.
-            Detach();
-            Connection.Dispose();
+            TearDown();
         }
     }
 
-    /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
-    private void Close()
+    /// <summary>
+    /// Stops this session admitting new work, here and in the settings session it handed out.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shared by both ways of closing, and it was not: only the asynchronous close stopped the settings
+    /// session, so a handle retained past a synchronous <c>Dispose</c> went on writing to disk for a
+    /// session that had gone.
+    /// </para>
+    /// <para>
+    /// The call into the settings session is belt and braces rather than the only thing holding it: both
+    /// callers stop its admission by another route as well — <c>Close</c> through <c>Abandon</c>, and the
+    /// asynchronous close through the coordinator's own close. Deleting it fails no test. It is here so
+    /// the method is true to its name, and because "some other path happens to do it" is how the gap it
+    /// fixes appeared in the first place.
+    /// </para>
+    /// </remarks>
+    private void StopAdmitting()
     {
-        if (_disposed) return;
+        lock (_liveGate) _admissionStopped = true;
+
         _disposed = true;
+        _settings?.StopAdmitting();
+    }
+
+    /// <summary>Detaches and disposes the transport. Idempotent, and never waits.</summary>
+    private void TearDown()
+    {
+        lock (_closeGate)
+        {
+            if (_tornDown) return;
+
+            _tornDown = true;
+        }
+
+        // The transport is going, so nothing outstanding on it will be heard from. A close waiting on
+        // those lookups is released here rather than left to spend its window on them.
+        lock (_liveGate)
+        {
+            _lookupsAbandoned = true;
+            _lookupsQuiet?.TrySetResult();
+        }
 
         Detach();
         Connection.Dispose();
+    }
+
+    /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
+    /// <remarks>
+    /// Runs even while an asynchronous close is draining, which it did not: the drain set the disposed
+    /// flag first and this returned having done nothing, so a host that gave up on a graceful close and
+    /// disposed could not make anything happen. Whatever is still running is abandoned -- it may finish,
+    /// and nothing it does will reach the host.
+    /// </remarks>
+    private void Close()
+    {
+        StopAdmitting();
+        _settings?.Abandon();
+        TearDown();
     }
 
     /// <summary>

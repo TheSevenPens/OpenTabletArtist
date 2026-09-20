@@ -427,12 +427,45 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </para>
     /// </remarks>
     /// <returns>True when everything admitted had finished; false when the wait ran out.</returns>
+    /// <summary>
+    /// Stops admitting work, without waiting for what is already running.
+    /// </summary>
+    /// <remarks>
+    /// The half both ways of closing share. Only the asynchronous close used to do this, so a handle
+    /// retained past a synchronous <c>Dispose</c> went on writing to disk for a session that was gone.
+    /// </remarks>
+    internal void StopAdmitting()
+    {
+        lock (_liveGate) _closed = true;
+    }
+
+    /// <summary>
+    /// Gives up on whatever is still running: it may finish, and nothing it does will reach the host.
+    /// </summary>
+    internal void Abandon()
+    {
+        lock (_liveGate)
+        {
+            _closed = true;
+            _abandoned = true;
+
+            // Ends the wait as well as silencing what it was waiting for. Abandoning without this left a
+            // concurrent close still waiting its full window for work nobody was going to hear from, and
+            // a close that arrived after a Dispose waiting for the same thing from a standing start.
+            _quiet?.TrySetResult();
+        }
+    }
+
     internal async Task<bool> CloseAsync(TimeSpan settleWithin)
     {
         Task quiet;
         lock (_liveGate)
         {
             _closed = true;
+
+            // Already given up on. There is nothing left to settle, and waiting would only be the same
+            // window spent to reach the same answer.
+            if (_abandoned) return false;
 
             // Nothing running: settled, and every later caller gets the same answer for the same reason.
             if (_live == 0) return true;
@@ -443,6 +476,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         try
         {
+            // Woken by the last operation finishing, or by an abandonment that gave up on it. The
+            // session distinguishes those: an abandonment comes from a teardown it can see.
             await quiet.WaitAsync(settleWithin).ConfigureAwait(false);
             return true;
         }
