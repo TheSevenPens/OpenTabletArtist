@@ -799,8 +799,43 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// Retries the disk write for settings the daemon already accepted but that failed to persist (#734).
     /// No daemon write and no reload — the change is already live; only the file is behind.
     /// </summary>
-    public Task<SettingsApplyOutcome> RetryPersistAsync() =>
-        SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange);
+    public async Task<SettingsApplyOutcome> RetryPersistAsync()
+    {
+        await LookForTheDestinationIfNeededAsync().ConfigureAwait(false);
+        return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Asks the session where to persist, when that is the thing standing in the way.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Outside the mutation gate, deliberately.</b> This is a network call, and #828 is explicit that
+    /// a short state transition must not wait behind one. Doing it inside the gate -- where it started --
+    /// meant a retry could stall every other settings operation for as long as the daemon took to answer
+    /// a question about metadata. Nothing here mutates, so there is nothing for the gate to protect.
+    /// </para>
+    /// <para>
+    /// Reads the channel directly rather than an operation's origin, since it runs before one exists. A
+    /// reconnect between this and the retry it precedes is handled where it always was: the retry's own
+    /// origin decides what its destination is, and an answer about a channel that has gone is ignored.
+    /// </para>
+    /// </remarks>
+    private Task LookForTheDestinationIfNeededAsync()
+    {
+        if (RediscoverDestination is not { } lookAgain) return Task.CompletedTask;
+
+        var channel = _daemon.Incarnation;
+        var knowledge = _destination is { } known && known.Channel == channel
+            ? known.Knowledge
+            : DestinationKnowledge.Pending;
+
+        // A daemon that has answered, or answered that it has no file, is not asked again.
+        return knowledge is DestinationKnowledge.Pending or DestinationKnowledge.Unavailable
+            ? lookAgain(channel)
+            : Task.CompletedTask;
+    }
 
     /// <summary>
     /// Writes the pending revision, and deliberately does NOT run policy over it first.
@@ -821,14 +856,6 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         if (_pendingPersistSettings is not { } pending)
             return SettingsApplyOutcome.NoChange;
 
-        // A retry the user asked for is also the moment to ask again where to write, when that is what is
-        // missing. One lookup per attempt, and only while it would help: a daemon that has answered, or
-        // answered that it has no file, is not asked again.
-        if (KnowledgeFor(origin) is DestinationKnowledge.Pending or DestinationKnowledge.Unavailable
-            && RediscoverDestination is { } lookAgain)
-        {
-            await lookAgain(origin.Channel.Incarnation).ConfigureAwait(false);
-        }
 
         // Empty covers both "the daemon reports no settings file" and "nobody has asked this connection
         // yet". Neither is a reason to write somewhere else, and both leave the change exactly where it
