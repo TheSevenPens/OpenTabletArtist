@@ -78,6 +78,9 @@ jobs:
       - name: Test
         run: dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug
 
+      - name: Library tests
+        run: dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj -c Debug
+
       # Self-contained so end users need no .NET runtime installed. (Debug symbols are stripped from the
       # whole bundle just before zipping — see the "Strip debug symbols" step below.)
       #
