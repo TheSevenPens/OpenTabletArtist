@@ -119,15 +119,18 @@ public class DaemonOwnershipTests
     /// never seen, which is the disagreement #734 exists to prevent, arrived at from the other side.
     ///
     /// <para>
-    /// <b>The display follows the daemon now (#832).</b> This used to assert the opposite — that the
-    /// repair still showed, because the apply published its revision before sending it — and the summary
-    /// above called that harmless, "everything the user could see was correct". It was not: the daemon
-    /// still had the filter enabled, so showing it disabled told the user a repair had happened that had
-    /// happened nowhere. That is the same disagreement as the disk one, on the other side of the screen.
+    /// <b>The authoritative baseline stays unrepaired when the daemon did not accept the cleanup (#832).</b>
+    /// This used to assert the opposite, because the apply published its revision before sending it, and
+    /// the summary above called that harmless — "everything the user could see was correct". An
+    /// unaccepted repair is not authoritative: the daemon still has the filter enabled, so a baseline
+    /// saying otherwise claims a repair that happened nowhere.
     /// </para>
     /// <para>
-    /// So the visible state is now unrepaired, which is truthful, and the repair reappears when a daemon
-    /// actually accepts it.
+    /// <b>What this does not say.</b> I first wrote that the display now follows the daemon, and that
+    /// overstates it. This asserts on <c>CurrentSettings</c> only. <c>LoadDataCoreAsync</c> builds
+    /// <c>Profiles</c> from its own repaired copy <em>before</em> attempting the cleanup apply, so the
+    /// repaired projection can still reach views by that route. How particular views present it is a
+    /// separate question from which settings are authoritative, and is not what changed here.
     /// </para>
     /// </summary>
     [AvaloniaFact]

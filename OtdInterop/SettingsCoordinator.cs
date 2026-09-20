@@ -301,9 +301,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The daemon has just accepted something, so what a read of it can observe has changed.
     ///
     /// Moves the observation epoch and not the revision, and the distinction is the whole point.
-    /// Publishing happens BEFORE the call, so a read starting between the two sees the new epoch and the
-    /// old daemon state — a combination that looks current and is not. Versioning the local baseline
-    /// does not version what a remote read returns; only the acceptance does.
+    /// Acceptance is what invalidates an overlapping read — including for the operations that publish no
+    /// baseline at all, such as a per-app override. Versioning the local baseline does not version what a
+    /// remote read returns; only the acceptance does, which is why this bump cannot be folded into
+    /// <see cref="Publish"/>.
+    ///
+    /// The old explanation here said publishing happened BEFORE the call. Since #832 it happens after,
+    /// and the reasoning survived the change it described — left in place, it would let the next reader
+    /// reconstruct the premise this method now contradicts.
     ///
     /// It must not move the revision either. An apply publishes once and is accepted once; on one shared
     /// counter the result's stamp would be a revision behind the state it had just created, so a caller
