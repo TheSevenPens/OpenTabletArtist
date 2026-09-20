@@ -777,29 +777,80 @@ public sealed class OtdSession : IDisposable
     }
 
     /// <summary>
-    /// Closes the connection. Safe to call more than once.
+    /// Closes the connection without waiting. Safe to call more than once.
     /// </summary>
     /// <remarks>
-    /// <b>Not a shutdown.</b> It closes the connection and stops this session issuing new work — nothing
-    /// more. Operations already in flight are not awaited, cancelled or settled, and a callback from one
-    /// can still arrive afterwards. #807 still owes that contract, and calling this complete ownership of
-    /// teardown would be the kind of claim that stops anyone finishing it.
+    /// <b>Does not settle work in flight</b>, because it cannot: there is nothing to await it on. An
+    /// operation already running is left running, against a transport this is about to dispose.
+    /// <see cref="CloseAsync"/> is the one that waits, and a host that can await should use it.
     ///
     /// The settings authority is deliberately not torn down, because it has nothing to release and
     /// something to answer: a host asking afterwards whether a change went unsaved should get the truth
     /// rather than an exception. Reading what already happened is allowed; starting something new is what
     /// <see cref="OpenSettings"/> refuses.
     /// </remarks>
-    public void Dispose()
+    public void Dispose() => Close();
+
+    /// <summary>How long <see cref="CloseAsync"/> waits for work in flight before closing anyway.</summary>
+    private static readonly TimeSpan DefaultSettleWindow = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Closes the connection, after letting work already in flight finish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What <see cref="Dispose"/> could never be: it cannot wait, so it closes under whatever is running
+    /// and an apply that had reached the daemon can fail on its way to disk with nothing able to say
+    /// whether it landed. A host that can await should use this.
+    /// </para>
+    /// <para>
+    /// Refuse, settle, close — the order the switch-check pump arrived at for the same question. New work
+    /// is refused first so the wait cannot chase an operation admitted behind it, then the settings
+    /// session is given its window, then the transport goes.
+    /// </para>
+    /// <para>
+    /// Bounded on purpose. The operation in flight may be waiting on a daemon that has stopped answering,
+    /// and an application exiting cannot be held open by one.
+    /// </para>
+    /// </remarks>
+    /// <param name="settleWithin">How long to wait. Defaults to ten seconds.</param>
+    /// <returns>True when everything in flight finished; false when the wait ran out and it closed anyway.</returns>
+    public async Task<bool> CloseAsync(TimeSpan? settleWithin = null)
+    {
+        if (_disposed) return true;
+
+        // Set before waiting, and before unsubscribing, so nothing new is admitted while this drains.
+        _disposed = true;
+
+        var settled = _settings is { } settings
+            ? await settings.CloseAsync(settleWithin ?? DefaultSettleWindow).ConfigureAwait(false)
+            : true;
+
+        Detach();
+        Connection.Dispose();
+        return settled;
+    }
+
+    /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
+    private void Close()
     {
         if (_disposed) return;
         _disposed = true;
 
-        // Before disposing the connection, so a drop raised during teardown does not post work onto a
-        // context for a session that has gone.
+        Detach();
+        Connection.Dispose();
+    }
+
+    /// <summary>
+    /// Stops listening to the transport, before it is disposed.
+    /// </summary>
+    /// <remarks>
+    /// Order matters: a drop raised during teardown would otherwise post work onto a context for a
+    /// session that has gone.
+    /// </remarks>
+    private void Detach()
+    {
         Connection.Connected -= OnTransportConnected;
         Connection.Disconnected -= OnTransportDisconnected;
-
-        Connection.Dispose();
     }
 }

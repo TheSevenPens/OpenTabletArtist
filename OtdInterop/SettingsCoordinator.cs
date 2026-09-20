@@ -311,16 +311,61 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The generation is captured <b>before</b> waiting for the semaphore, which is the point: time spent
     /// queued is exactly when the daemon can change underneath a caller.
     /// </summary>
-    private async Task<T> SerializedAsync<T>(Func<Origin, Task<T>> operation, Func<T> superseded)
+    /// <param name="operation">The work to run, given the origin it was admitted on.</param>
+    /// <param name="superseded">What to report when a different daemon answered while this was queued.</param>
+    /// <param name="closed">
+    /// What to report when the session has been closed, if that is not the same as being superseded.
+    /// They are different facts: superseded means a different daemon answered, and a caller told that
+    /// about a closed session would go looking for a daemon change that never happened.
+    /// </param>
+    private async Task<T> SerializedAsync<T>(Func<Origin, Task<T>> operation, Func<T> superseded,
+        Func<T>? closed = null)
     {
         var admitted = Here();
         await _mutations.WaitAsync().ConfigureAwait(true);
         try
         {
+            // Refused rather than sent into a connection that is going away. A host tearing down while
+            // something else in it is still editing is ordinary.
+            if (_closed) return (closed ?? superseded)();
             if (!StillCurrent(admitted)) return superseded();
+
             return await operation(admitted).ConfigureAwait(true);
         }
         finally { _mutations.Release(); }
+    }
+
+    private volatile bool _closed;
+
+    /// <summary>
+    /// Stops admitting work, and waits for whatever was already admitted to finish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The gate is the whole mechanism: one operation holds it at a time, so acquiring it means nothing
+    /// is running. Setting the flag first is what makes the wait finite — otherwise an operation admitted
+    /// while waiting could take the gate next and the wait would chase it.
+    /// </para>
+    /// <para>
+    /// Bounded, because the operation may be waiting on a daemon that has stopped answering, and an
+    /// application exiting cannot be held open by one. False says it gave up: the work is still running,
+    /// still holds what it holds, and the caller is closing anyway.
+    /// </para>
+    /// </remarks>
+    /// <returns>True when everything admitted had finished; false when the wait ran out.</returns>
+    internal async Task<bool> CloseAsync(TimeSpan settleWithin)
+    {
+        _closed = true;
+
+        if (!await _mutations.WaitAsync(settleWithin).ConfigureAwait(false))
+        {
+            _log.Warn("Closing the settings session with an operation still in flight: the daemon did " +
+                      "not answer in time. Nothing further will be sent, and what it holds is unknown.");
+            return false;
+        }
+
+        _mutations.Release();
+        return true;
     }
 
     /// <summary>
@@ -651,7 +696,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
         return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin),
-            () => SettingsApplyOutcome.Superseded);
+            () => SettingsApplyOutcome.Superseded,
+            closed: () => SettingsApplyOutcome.Disconnected);
     }
 
     private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, Origin origin)
@@ -960,7 +1006,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
         return SerializedAsync(origin => ApplyLiveOnlyCoreAsync(working, origin),
-            () => SettingsApplyOutcome.Superseded);
+            () => SettingsApplyOutcome.Superseded,
+            closed: () => SettingsApplyOutcome.Disconnected);
     }
 
     private async Task<SettingsApplyOutcome> ApplyLiveOnlyCoreAsync(Settings settings, Origin origin)
@@ -1011,7 +1058,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
         return SerializedAsync(origin => ApplyEphemeralCoreAsync(working, origin),
-            () => SettingsApplyOutcome.Superseded);
+            () => SettingsApplyOutcome.Superseded,
+            closed: () => SettingsApplyOutcome.Disconnected);
     }
 
     private async Task<SettingsApplyOutcome> ApplyEphemeralCoreAsync(Settings settings, Origin origin)
@@ -1069,7 +1117,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// override was recorded.
     /// </summary>
     public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync() =>
-        SerializedAsync(ClearEphemeralOverrideCoreAsync, () => SettingsApplyOutcome.Superseded);
+        SerializedAsync(ClearEphemeralOverrideCoreAsync, () => SettingsApplyOutcome.Superseded,
+                        closed: () => SettingsApplyOutcome.Disconnected);
 
     private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(Origin origin)
     {
