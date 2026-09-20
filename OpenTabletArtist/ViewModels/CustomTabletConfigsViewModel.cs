@@ -89,8 +89,7 @@ public partial class CustomTabletConfigsViewModel : ObservableObject
     [RelayCommand]
     private void OpenConfigurationsFolder()
     {
-        if (!string.IsNullOrEmpty(ConfigurationsDirectory) && Directory.Exists(ConfigurationsDirectory))
-            Services.PlatformShell.RevealInFileManager(ConfigurationsDirectory);
+        Services.PlatformShell.RevealInFileManager(ConfigurationsDirectory);
     }
 
     [RelayCommand]

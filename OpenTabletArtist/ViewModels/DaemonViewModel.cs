@@ -333,9 +333,9 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(filePath)) return;
 
-        var folder = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
-            PlatformShell.RevealInFileManager(folder);
+        // The derivation stays here -- the page shows a file, and its folder is what to open. Whether
+        // that folder is still there, or was derivable at all, is the helper's business (#887).
+        PlatformShell.RevealInFileManager(Path.GetDirectoryName(filePath));
     }
 
     /// <summary>OTA's own version, for the "this app" end of the topology (#daemon-topology). Read the
