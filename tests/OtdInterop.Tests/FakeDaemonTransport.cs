@@ -275,7 +275,15 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
         Calls.Add(nameof(GetDevicesAsync));
         return Task.FromResult(Devices);
     }
-    public int? GetServerProcessId() => ServerProcessId;
+    /// <summary>
+    /// Which process is answering, and nothing once this has been disposed.
+    /// </summary>
+    /// <remarks>
+    /// It used to answer after disposal, which no real transport does — the pipe is gone and there is
+    /// nobody to ask. A test about what an exit stops could therefore resolve its target from a closed
+    /// session and still get the right answer, which is precisely the mistake it existed to catch.
+    /// </remarks>
+    public int? GetServerProcessId() => IsDisposed ? null : ServerProcessId;
 
     /// <summary>How many times the debug stream was toggled -- proof a forwarder reached this object.</summary>
     public int DebugCalls { get; private set; }

@@ -69,6 +69,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </remarks>
     public Task<bool> CloseSessionAsync(TimeSpan settleWithin) => _session.CloseAsync(settleWithin);
 
+    /// <summary>
+    /// Decides what "stop the daemon" means while it is still connected, for an exit that stops it after
+    /// closing (#828).
+    /// </summary>
+    /// <remarks>
+    /// Returns null when the user declines the confirmation, which is asked here while there is still a
+    /// window to ask in.
+    /// </remarks>
+    public Task<Func<Task>?> PrepareDaemonStopAsync() => _session.PrepareDaemonStopAsync();
+
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
     // coordinator, and open the per-tablet dialog through the dialog service.

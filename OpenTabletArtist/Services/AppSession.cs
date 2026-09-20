@@ -674,7 +674,33 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     }
 
     // Coalesced entry point: only the most recently requested load applies its results.
-    private Task LoadDataAsync() => _loadGate.RunAsync(LoadDataCoreAsync);
+    /// <summary>
+    /// Set the moment an exit begins, before anything is waited for.
+    /// </summary>
+    /// <remarks>
+    /// Cancelling the token stops the loops <em>starting</em> and stops nothing else. A refresh reaches
+    /// the daemon through <see cref="LoadDataCoreAsync"/>, whose reads go to the capabilities rather than
+    /// through the settings session, so the library's admission control never sees them: the reload that
+    /// follows an apply would begin during the very close that is settling that apply.
+    /// </remarks>
+    private volatile bool _closing;
+
+    /// <summary>
+    /// The one funnel every refresh goes through — the connect handler, the poll, window activation,
+    /// the public reload, and the reload after an apply — so refusing here refuses all of them.
+    /// </summary>
+    private Task LoadDataAsync() =>
+        _closing ? Task.CompletedTask : _loadGate.RunAsync(LoadDataCoreAsync);
+
+    /// <summary>
+    /// Whether a load that is already running should stop where it is.
+    /// </summary>
+    /// <remarks>
+    /// Refusing new loads is not enough on its own: one already past the gate when the exit began would
+    /// go on reading the daemon and publishing into view models that are about to be disposed. Checked
+    /// after every await in the load, because every one of them is a point where an exit can arrive.
+    /// </remarks>
+    private bool Abandoned => _closing || _disposed;
 
     private async Task LoadDataCoreAsync()
     {
@@ -686,6 +712,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             // Tablets (JToken — complex runtime type)
             var tablets = await _session.Capabilities.GetTabletsAsync();
+            if (Abandoned) return;
+
             Tablets = tablets;
 
             var detectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -741,7 +769,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // "No tablets" has two very different causes: nothing is plugged in, or something is and the
             // daemon can't open it. Ask the daemon what it can SEE only in that case — the answer is only
             // interesting when the detected list is empty.
-            DaemonCannotOpenTablet = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
+            var unopened = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
+            if (Abandoned) return;
+
+            DaemonCannotOpenTablet = unopened;
 
             // Settings (typed) + profile derivation.
             //
@@ -750,6 +781,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // while in flight, and does not read at all while a per-app override is running (#737). This
             // was three steps here, and every one of them failed silently.
             await _coordinator.ReloadFromDaemonAsync();
+            if (Abandoned) return;
             var settings = _coordinator.GetCurrent()?.Settings;
             // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
             // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
@@ -798,6 +830,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // App info paths
             var appInfo = await _session.Capabilities.GetAppInfoAsync();
+            if (Abandoned) return;
             if (appInfo != null)
             {
                 PresetDirectory = appInfo.PresetDirectory ?? "";
@@ -829,6 +862,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                 try
                 {
                     var cleanup = await _coordinator.ApplyAndSaveAsync(settings);
+                    if (Abandoned) return;
                     // Said out loud rather than swallowed. A cleanup that didn't land is not harmful --
                     // the in-memory repair still fixed what the user sees -- but silence here was how
                     // "the write never happened" and "the write happened" looked identical.
@@ -849,6 +883,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // locked — OTD's own UX writes the same settings.json — recovers on its own, and the save
             // chip returns to "Saved". Bounded inside the coordinator so a permission problem, which
             // won't fix itself, stops retrying instead of warning on every poll forever.
+            if (Abandoned) return;
+
             await _coordinator.RetryPendingPersistAsync();
 
             DataLoaded?.Invoke();
@@ -1144,6 +1180,46 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// singleton there, so by-name is both the only option and a safe one.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Decides now what stopping the daemon would mean, and hands back something that does it later.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For an exit, which has to stop the daemon <em>after</em> closing rather than before: killing it
+    /// first takes the connection away from the writes the close is trying to settle, so an apply in
+    /// flight when the user chooses "quit and stop" loses its daemon and the edit with it.
+    /// </para>
+    /// <para>
+    /// Resolving cannot simply be deferred along with the stop, which is the trap here.
+    /// <see cref="StopDaemonProcessAsync"/> asks the live session which process is answering, and after a
+    /// close there is no session to ask -- so it would find nothing and fall through to stopping every
+    /// daemon on the machine, including one this application never spoke to. The target is therefore
+    /// captured while still connected and the returned action stops <em>that</em>, or nothing.
+    /// </para>
+    /// <para>
+    /// Returns null when the user declines. The confirmation happens here too, while there is still a
+    /// window to ask in.
+    /// </para>
+    /// </remarks>
+    public async Task<Func<Task>?> PrepareDaemonStopAsync()
+    {
+        if (!await ConfirmedDaemonActionAsync("stop")) return null;
+
+        // Suppressed before the close, not after: reconnecting to a daemon we are about to stop would
+        // race the stop and could leave the session holding a connection nobody meant to keep.
+        _session.AutoReconnect = false;
+
+        if (OtdSystemdService.IsActive()) return () => OtdSystemdService.StopAsync();
+
+        if (_session.ConnectedProcessId() is { } pid)
+            return () => { _daemonLifecycle.Stop(pid); return Task.CompletedTask; };
+
+        // Unidentifiable while connected is the one case where stopping everything is still the answer,
+        // and it is the same answer the interactive path gives. What has changed is that it is decided
+        // here, with the connection open, rather than inferred from a session that has gone.
+        return () => { _daemonLifecycle.StopAll(); return Task.CompletedTask; };
+    }
+
     private async Task StopDaemonProcessAsync()
     {
         if (OtdSystemdService.IsActive())
@@ -1413,6 +1489,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <returns>True when everything in flight finished; false when it closed anyway.</returns>
     public async Task<bool> CloseAsync(TimeSpan settleWithin)
     {
+        // Before anything is awaited. A refresh admitted between here and the settle would read the very
+        // connection this is closing -- and the reload that follows an apply is admitted by the apply
+        // this close is settling, which is the case that made it more than theoretical.
+        _closing = true;
+
         if (!_disposed) _cts.Cancel();
 
         // ConfigureAwait(true) on purpose: the library requires host callers to resume on the same
