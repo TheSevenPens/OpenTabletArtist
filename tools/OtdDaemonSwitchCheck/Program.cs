@@ -24,6 +24,11 @@ namespace OtdDaemonSwitchCheck;
 /// </remarks>
 internal static class Program
 {
+    /// <summary>
+    /// How many checks failed. Incremented atomically because <see cref="MustBeOnTheContext"/> exists to
+    /// be called when the caller may NOT be on the one thread, which is exactly when a plain <c>++</c>
+    /// would be racing — and losing a failure is the one outcome this counter must not produce.
+    /// </summary>
     private static int _failures;
 
     private static async Task<int> Main(string[] args)
@@ -358,14 +363,14 @@ internal static class Program
     private static void MustBeOnTheContext(PumpContext context, string where)
     {
         if (context.IsCurrent) return;
-        _failures++;
+        Interlocked.Increment(ref _failures);
         Console.WriteLine($"   [FAIL] {where} ran off the execution context "
                           + $"(thread {Environment.CurrentManagedThreadId})");
     }
 
     private static void Check(string what, bool ok, object? actual)
     {
-        if (!ok) _failures++;
+        if (!ok) Interlocked.Increment(ref _failures);
         Console.WriteLine($"   [{(ok ? "PASS" : "FAIL")}] {what}   (actual: {actual})");
     }
 

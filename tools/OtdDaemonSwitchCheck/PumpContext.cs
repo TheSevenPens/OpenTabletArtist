@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using OtdInterop;
 
 namespace OtdDaemonSwitchCheck;
@@ -82,15 +83,19 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
 
     private void Run()
     {
-        // The reason awaits come back here rather than going to the thread pool.
-        SynchronizationContext.SetSynchronizationContext(new QueueSynchronizationContext(_queue));
+        // The reason awaits come back here rather than going to the thread pool. Constructed here so it
+        // can capture the pump's own thread, which Send needs in order to tell "already here" from
+        // "somewhere else".
+        SynchronizationContext.SetSynchronizationContext(
+            new QueueSynchronizationContext(_queue, Thread.CurrentThread));
         foreach (var work in _queue.GetConsumingEnumerable()) work();
     }
 
     public void Dispose() => _queue.CompleteAdding();
 
     /// <summary>Sends continuations to the pump's queue, so <c>await</c> resumes on its thread.</summary>
-    private sealed class QueueSynchronizationContext(BlockingCollection<Action> queue) : SynchronizationContext
+    private sealed class QueueSynchronizationContext(BlockingCollection<Action> queue, Thread owner)
+        : SynchronizationContext
     {
         public override void Post(SendOrPostCallback d, object? state)
         {
@@ -99,6 +104,33 @@ internal sealed class PumpContext : IOtdExecutionContext, IDisposable
             if (!queue.IsAddingCompleted) queue.Add(() => d(state));
         }
 
-        public override void Send(SendOrPostCallback d, object? state) => d(state);
+        /// <summary>Runs the callback on the pump and waits for it, as Send is defined to do.</summary>
+        /// <remarks>
+        /// This used to be <c>d(state)</c>, which ran the callback on whatever thread called Send. That is
+        /// wrong in the only case Send exists for: a caller off the pump would have run work on its own
+        /// thread, concurrently with the pump, while believing it had been serialized. Nothing in this
+        /// tool calls it today, which is precisely why it would have stayed wrong.
+        /// </remarks>
+        public override void Send(SendOrPostCallback d, object? state)
+        {
+            if (Thread.CurrentThread == owner) { d(state); return; }
+
+            // Refused rather than queued: a Send whose callback is dropped would block its caller forever.
+            ObjectDisposedException.ThrowIf(queue.IsAddingCompleted, typeof(PumpContext));
+
+            using var done = new ManualResetEventSlim();
+            Exception? failure = null;
+            queue.Add(() =>
+            {
+                try { d(state); }
+                catch (Exception ex) { failure = ex; }
+                finally { done.Set(); }
+            });
+            done.Wait();
+            if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+
+        /// <summary>The same context, since it holds nothing per-copy and the queue must be shared.</summary>
+        public override SynchronizationContext CreateCopy() => this;
     }
 }
