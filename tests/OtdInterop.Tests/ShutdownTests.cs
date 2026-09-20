@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -477,14 +478,107 @@ public class ShutdownTests
         Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// Several callers joining one lookup do not leave the close waiting after it has finished.
+    /// </summary>
+    /// <remarks>
+    /// Registration counted callers rather than flights: a retry that coalesced onto a running lookup
+    /// incremented the count, and only the one <c>RunLookupAsync</c> ever decremented it. So a session
+    /// whose work had all completed still reported a timed-out close — ten seconds by default, and
+    /// forever on an infinite window.
+    /// </remarks>
+    [Fact]
+    public async Task CallersJoiningOneLookup_DoNotHoldTheCloseOpenAfterItFinishes()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var release = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return release.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // Nowhere to write while the lookup is held, so the edit is left pending.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(Tablet("Joined"))).Status);
+
+        // The retry joins that outstanding lookup rather than starting a second one.
+        var retry = settings.RetryPersistAsync();
+
+        release.SetResult(new AppInfo
+        {
+            AppDataDirectory = "x",
+            SettingsFile = "settings.json",
+            PluginDirectory = "",
+        });
+        await retry.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // Everything this session started has finished, so there is nothing left to wait for.
+        Assert.True(await session.CloseAsync(TimeSpan.FromSeconds(5))
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// A reply arriving after the close gave up does not post into the host.
+    /// </summary>
+    /// <remarks>
+    /// Counting the lookup fixed the waiting and not the abandonment. The publication was still posted
+    /// unconditionally, with the staleness check inside the posted action — so the post reached the host
+    /// context that a false close has just told the caller it may tear down, and only then decided it had
+    /// nothing to say. The tests that leave a reply unresolved cannot see this: it needs the RPC to
+    /// complete after the close has returned.
+    /// </remarks>
+    [Fact]
+    public async Task AReplyArrivingAfterTheCloseGaveUp_DoesNotPostIntoTheHost()
+    {
+        var host = new CountingContext();
+        var (session, settings, daemon, _) = Make(host);
+
+        var release = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return release.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(Tablet("Late"))).Status);
+        var retry = settings.RetryPersistAsync();
+
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        var postsWhenClosed = host.Posts;
+
+        release.SetResult(new AppInfo
+        {
+            AppDataDirectory = "x",
+            SettingsFile = "settings.json",
+            PluginDirectory = "",
+        });
+        await retry.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.Equal(postsWhenClosed, host.Posts);
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
-    private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make()
+    private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make(
+        IOtdExecutionContext? context = null)
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var store = new RecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            NoPolicy.Instance, new FakeProcessLocator());
+            NoPolicy.Instance, new FakeProcessLocator(), context);
         var settings = session.OpenSettings(() => true, _ => { });
         daemon.Reconnect();
         return (session, settings, daemon, store);
@@ -502,6 +596,23 @@ public class ShutdownTests
         {
             settings = null;
             return false;
+        }
+    }
+
+    /// <summary>Runs posted work inline, and counts how many times the host was reached.</summary>
+    private sealed class CountingContext : IOtdExecutionContext
+    {
+        private int _posts;
+
+        public int Posts => Volatile.Read(ref _posts);
+
+        public bool IsCurrent => true;
+
+        public Task PostAsync(Action work)
+        {
+            Interlocked.Increment(ref _posts);
+            try { work(); return Task.CompletedTask; }
+            catch (Exception ex) { return Task.FromException(ex); }
         }
     }
 

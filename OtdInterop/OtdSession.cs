@@ -512,19 +512,23 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private Task DiscoverDestinationAsync(int channel)
     {
-        // Work this session starts on its own account, and it counts: the reply's continuation posts
-        // through the host's execution context, which is exactly what a successful close tells the caller
-        // it may now tear down. StillTheCurrentTransition stops an obsolete answer being adopted; it does
-        // nothing about the call still being outstanding.
-        if (!TryBeginLookup()) return Task.CompletedTask;
-
         lock (_lookupGate)
         {
+            // Joining what is already running, which is not new work: the flight it joins carries the one
+            // registration. Counting the caller instead leaked one every time, because only the single
+            // RunLookupAsync ever released it -- so a session whose work had all finished still reported a
+            // timed-out close, for ten seconds by default and forever on an infinite window.
             if (_lookup is { Channel: var running, Done.Task: var task } && running == channel
                 && !task.IsCompleted)
             {
                 return task;
             }
+
+            // Work this session starts on its own account, and it counts: the reply's continuation posts
+            // through the host's execution context, which is exactly what a successful close tells the
+            // caller it may now tear down. StillTheCurrentTransition stops an obsolete answer being
+            // adopted; it does nothing about the call still being outstanding.
+            if (!TryBeginLookup()) return Task.CompletedTask;
 
             // Deliberately NOT RunContinuationsAsynchronously, so that a continuation can run inline on
             // the context that completes this. That is a preference, not the guarantee: what keeps a
@@ -558,6 +562,12 @@ public sealed class OtdSession : IDisposable
             _liveLookups++;
             return true;
         }
+    }
+
+    /// <summary>Whether the session has given up on the lookups that were outstanding.</summary>
+    private bool LookupsAbandoned()
+    {
+        lock (_liveGate) return _lookupsAbandoned;
     }
 
     private void EndLookup()
@@ -595,53 +605,64 @@ public sealed class OtdSession : IDisposable
 
     private async Task RunLookupAsync(Lookup flight)
     {
-        string? path = null;
-        Exception? failed = null;
+        // One cleanup for every way out of this method, including the early return below. It was two
+        // statements in a finally guarding only the publication await, so an early return would have
+        // skipped both -- leaking the registration this flight holds and leaving anyone awaiting it on a
+        // task nobody would complete.
         try
         {
-            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
-        }
-        catch (Exception ex)
-        {
-            failed = ex;
-            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
-                      + "written to disk for this connection until it answers. Retrying a pending save "
-                      + "asks again.", ex);
-        }
-
-        // Reported through the host's context like everything else this session decides, and the lookup
-        // is only finished once that has run -- or has been observed not to.
-        var publication = Report("record where the connected daemon keeps its settings", () =>
-        {
+            string? path = null;
+            Exception? failed = null;
             try
             {
-                // The answer describes the channel it was asked on. A reply arriving after that channel
-                // has gone says nothing about its replacement.
-                if (!StillTheCurrentTransition(flight.Channel)) return;
-
-                if (failed != null)
-                {
-                    // Recorded rather than left blank, so a later attempt can tell "the call failed" from
-                    // "nobody has asked yet" and from "this daemon has no settings file". They look the
-                    // same from outside and want different responses.
-                    _settings?.DestinationLookupFailed(flight.Channel);
-                    return;
-                }
-
-                _settings?.LearnDestination(path ?? "", flight.Channel);
+                path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
             }
-            finally
+            catch (Exception ex)
             {
-                // Settled here when the publication runs, which lets an awaiting continuation run inline
-                // on this context rather than wherever the reply happened to arrive. A permitted
-                // optimisation, not the guarantee -- what confines the caller is its own synchronization
-                // context, which IOtdExecutionContext requires of it.
-                flight.Done.TrySetResult();
+                failed = ex;
+                _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will "
+                          + "be written to disk for this connection until it answers. Retrying a pending "
+                          + "save asks again.", ex);
             }
-        });
 
-        try
-        {
+            // The reply came back to a session that had already given up on it. Posting it would reach
+            // the host context that a false close has just told the caller it may tear down, which is the
+            // promise CloseAsync documents. The staleness check inside the posted action is not this and
+            // cannot be: it runs after the post has arrived, having already done the thing that was not
+            // allowed.
+            if (LookupsAbandoned()) return;
+
+            // Reported through the host's context like everything else this session decides, and the
+            // lookup is only finished once that has run -- or has been observed not to.
+            var publication = Report("record where the connected daemon keeps its settings", () =>
+            {
+                try
+                {
+                    // The answer describes the channel it was asked on. A reply arriving after that
+                    // channel has gone says nothing about its replacement.
+                    if (!StillTheCurrentTransition(flight.Channel)) return;
+
+                    if (failed != null)
+                    {
+                        // Recorded rather than left blank, so a later attempt can tell "the call failed"
+                        // from "nobody has asked yet" and from "this daemon has no settings file". They
+                        // look the same from outside and want different responses.
+                        _settings?.DestinationLookupFailed(flight.Channel);
+                        return;
+                    }
+
+                    _settings?.LearnDestination(path ?? "", flight.Channel);
+                }
+                finally
+                {
+                    // Settled here when the publication runs, which lets an awaiting continuation run
+                    // inline on this context rather than wherever the reply happened to arrive. A
+                    // permitted optimisation, not the guarantee -- what confines the caller is its own
+                    // synchronization context, which IOtdExecutionContext requires of it.
+                    flight.Done.TrySetResult();
+                }
+            });
+
             // Report never throws: it catches and logs. Awaiting it is how this learns that the attempt
             // has concluded, however it concluded.
             await publication.ConfigureAwait(false);
