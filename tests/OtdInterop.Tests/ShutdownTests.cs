@@ -603,28 +603,107 @@ public class ShutdownTests
         daemon.Reconnect();
         await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        host.HoldNextPost();
-        release.SetResult(new AppInfo
+        try
         {
-            AppDataDirectory = "x",
-            SettingsFile = "settings.json",
-            PluginDirectory = "",
-        });
+            host.HoldNextPost();
+            release.SetResult(new AppInfo
+            {
+                AppDataDirectory = "x",
+                SettingsFile = "settings.json",
+                PluginDirectory = "",
+            });
 
-        // The publication has passed the check and is being handed to the host.
-        await host.PostStarted.WaitAsync(Bound, TestContext.Current.CancellationToken);
+            // The publication has passed the check and is being handed to the host.
+            await host.PostStarted.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        // On its own thread: with the handoff held, this blocks, and blocking the test thread would mean
-        // nobody left to release it.
-        var closing = Task.Run(async () => await session.CloseAsync(TimeSpan.Zero),
-            TestContext.Current.CancellationToken);
+            // On its own thread: with the handoff held, this blocks, and blocking the test thread would
+            // mean nobody left to release it.
+            var closing = Task.Run(async () => await session.CloseAsync(TimeSpan.Zero),
+                TestContext.Current.CancellationToken);
 
-        await Task.Delay(100, TestContext.Current.CancellationToken);
-        Assert.False(closing.IsCompleted);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            Assert.False(closing.IsCompleted);
 
-        host.ReleaseHeldPost();
+            host.ReleaseHeldPost();
 
-        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+            Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            // A failed assertion above must not leave the host blocked until the helper's own timeout.
+            host.ReleaseHeldPost();
+        }
+    }
+
+    /// <summary>
+    /// A host that closes from inside a post it is running inline does not deadlock against a teardown
+    /// waiting for that post.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cycle: the publisher holds the publication gate while the host runs the post inline; a close
+    /// on another thread reaches teardown and waits for that gate; the host's callback re-enters
+    /// <c>CloseAsync</c> and waits for the close gate the closer is holding. Neither can move, and the
+    /// callback cannot finish, so this is not the documented cost of a slow host -- it is a deadlock.
+    /// </para>
+    /// <para>
+    /// The cause was auditing the enclosing lock block instead of the whole synchronous call chain.
+    /// <c>TearDown</c> ends its own close-gate block before taking the publication gate, which is what I
+    /// checked and reported; the lock that mattered was the caller's, held across a close that runs its
+    /// synchronous prefix all the way into teardown without yielding.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AHostClosingFromInsideItsOwnPost_DoesNotDeadlockAgainstATeardown()
+    {
+        var host = new GateContext();
+        var (session, _, daemon, _) = Make(host);
+
+        Task<bool>? fromInsideThePost = null;
+        host.WhileHolding = () => fromInsideThePost = session.CloseAsync(TimeSpan.Zero);
+
+        var release = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return release.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        try
+        {
+            host.HoldNextPost();
+            release.SetResult(new AppInfo
+            {
+                AppDataDirectory = "x",
+                SettingsFile = "settings.json",
+                PluginDirectory = "",
+            });
+
+            await host.PostStarted.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+            // Reaches teardown and waits for the publication gate the host is holding.
+            var closing = Task.Run(async () => await session.CloseAsync(TimeSpan.Zero),
+                TestContext.Current.CancellationToken);
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            Assert.False(closing.IsCompleted);
+
+            // Now the host's own callback runs, still inside the handoff, and closes from there.
+            host.ReleaseHeldPost();
+
+            Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+            Assert.NotNull(fromInsideThePost);
+            Assert.False(await fromInsideThePost!.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            host.ReleaseHeldPost();
+        }
     }
 
     // --- harness --------------------------------------------------------------------------------
@@ -669,6 +748,9 @@ public class ShutdownTests
         /// <summary>Completes once the held post has begun, inside the library's handoff.</summary>
         public Task PostStarted => _started.Task;
 
+        /// <summary>What the host does from inside the post, once released and still in the handoff.</summary>
+        public Action? WhileHolding { get; set; }
+
         public bool IsCurrent => true;
 
         public void HoldNextPost() => _armed = true;
@@ -682,6 +764,7 @@ public class ShutdownTests
                 _armed = false;
                 _started.TrySetResult();
                 _held.Wait(TimeSpan.FromSeconds(30));
+                WhileHolding?.Invoke();
             }
 
             try { work(); return Task.CompletedTask; }

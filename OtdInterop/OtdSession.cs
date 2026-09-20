@@ -512,6 +512,7 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private Task DiscoverDestinationAsync(int channel)
     {
+        Lookup started;
         lock (_lookupGate)
         {
             // Joining what is already running, which is not new work: the flight it joins carries the one
@@ -534,11 +535,17 @@ public sealed class OtdSession : IDisposable
             // the context that completes this. That is a preference, not the guarantee: what keeps a
             // caller confined is its own synchronization context, which IOtdExecutionContext requires of
             // any host calling the asynchronous operations.
-            var flight = new Lookup(channel, new TaskCompletionSource());
-            _lookup = flight;
-            _ = RunLookupAsync(flight);
-            return flight.Done.Task;
+            started = new Lookup(channel, new TaskCompletionSource());
+            _lookup = started;
         }
+
+        // The second instance of the same mistake, found by auditing for the first: RunLookupAsync's
+        // synchronous prefix reaches the publication gate whenever the RPC completes synchronously, so
+        // starting it under _lookupGate held that lock across the wait for _publishGate -- and an inline
+        // host callback holding _publishGate can reach here and want _lookupGate. Recorded under the gate
+        // so coalescing still sees it; started outside.
+        _ = RunLookupAsync(started);
+        return started.Done.Task;
     }
 
     /// <summary>One outstanding destination lookup, and the channel it is about.</summary>
@@ -988,7 +995,40 @@ public sealed class OtdSession : IDisposable
         // One close, however many callers. The flag alone answered "true" to everyone after the first,
         // which conflated closing, closed-after-giving-up and everything-settled: a second teardown path
         // could be told the work had finished while it was still running.
-        lock (_closeGate) return _closing ??= RunCloseAsync(window);
+        //
+        // Published under the gate; run outside it. Calling an async method runs its synchronous prefix
+        // on this thread, and a zero-window close reaches TearDown -- and so the publication gate --
+        // without ever yielding. Starting it under _closeGate therefore held that lock across the wait
+        // for _publishGate, which closes a cycle: an inline host callback running under _publishGate that
+        // re-enters this method waits for _closeGate, which the closer will not release until it gets the
+        // gate the callback is holding. TearDown ending its own _closeGate block first is not enough; it
+        // is the caller's lock that matters.
+        TaskCompletionSource<bool> mine;
+        lock (_closeGate)
+        {
+            if (_closing is { } already) return already;
+
+            mine = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _closing = mine.Task;
+        }
+
+        _ = SettleCloseAsync(mine, window);
+        return mine.Task;
+    }
+
+    /// <summary>Runs the close and hands its answer, or its failure, to every caller sharing it.</summary>
+    private async Task SettleCloseAsync(TaskCompletionSource<bool> result, TimeSpan window)
+    {
+        try
+        {
+            result.TrySetResult(await RunCloseAsync(window).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            // Shared like the answer is. Letting this escape would leave every caller waiting on a task
+            // that never completes, and lose the exception on an unobserved one.
+            result.TrySetException(ex);
+        }
     }
 
     private readonly object _closeGate = new();
