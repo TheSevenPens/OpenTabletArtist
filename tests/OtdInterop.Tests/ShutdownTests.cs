@@ -362,6 +362,41 @@ public class ShutdownTests
     }
 
     /// <summary>
+    /// Teardown happens before anything in flight is abandoned (#891).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The test above is the behaviour; this is the ordering underneath it, and the reason that behaviour
+    /// held only sometimes. <c>Close</c> abandoned first and tore down second, but abandoning is what
+    /// <em>releases</em> a draining close, and that close ends on <c>settled &amp;&amp; !_tornDown</c> --
+    /// the guard that stops it calling abandoned work a graceful settlement. Released before the flag was
+    /// set, the drain could read it as false and answer <c>true</c>: a host that gave up on a graceful
+    /// close and disposed was told its settings had been saved when they had not.
+    /// </para>
+    /// <para>
+    /// It failed CI once and passed 25 runs in a row locally, which is the argument for asserting the
+    /// order rather than the outcome. A test that waits to see whether the race happens passes on a fast
+    /// machine and proves nothing; this one cannot pass for a reason other than the one it is about.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void Disposing_TearsDownBeforeItAbandonsWhatIsInFlight()
+    {
+        bool? tornDownWhenAbandoning = null;
+        var (session, _, _, _) = Make(probe: new OtdSession.LifecycleProbe
+        {
+            AbandoningWork = tornDown => tornDownWhenAbandoning = tornDown,
+        });
+
+        session.Dispose();
+
+        Assert.True(tornDownWhenAbandoning.HasValue, "nothing was abandoned, so the order was never tested");
+        Assert.True(
+            tornDownWhenAbandoning!.Value,
+            "work was abandoned before teardown, so a close released by it can still read _tornDown false");
+    }
+
+    /// <summary>
     /// A settings handle kept past <c>Dispose</c> cannot go on working.
     /// </summary>
     /// <remarks>
