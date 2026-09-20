@@ -674,8 +674,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </description></item>
     /// <item><description>
     /// <b><c>_rediscoverDestination</c></b> — the only awaiting call-out, and deliberately outside the
-    /// mutation gate. It mutates nothing, and the retry that follows it re-derives its destination from
-    /// its own origin, so a reconnect across it is already handled.
+    /// mutation gate. The <em>caller</em> assigns no field here, but the awaited discovery can cause a
+    /// destination to be learned, so this is not "an awaited callback with no effects" and must not be
+    /// read as one. What makes it safe is narrower: the lookup's own channel-validity check, and the fact
+    /// that the retry after it establishes a fresh origin and re-derives its destination from that — no
+    /// pre-discovery path is carried across the await into the write.
     /// </description></item>
     /// </list>
     /// <para>
@@ -690,7 +693,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <b>A host disposing from a save-state callback</b> — #845's third question — was already right.
     /// The operation finishes: its destination belongs to the daemon that accepted the change, and
     /// disposal does not move the session off that daemon. The reporting stops (#859) and what already
-    /// happened stays readable (#873). <c>ReentrancyAuditTests</c> pins these conclusions.
+    /// happened stays readable (#873). <b>Only for the path tested:</b> this is not a promise that every
+    /// in-flight operation returns applied-and-saved after a disposal, since a real channel invalidation
+    /// can make one obsolete. What is promised is narrower and is what the tests assert — no fabricated
+    /// success before the send, no reporting to a host that has torn down, and no accepted work
+    /// reassigned to a different daemon. <c>ReentrancyAuditTests</c> pins these conclusions.
     /// Note what it took to make that last one honest: the first version disposed from <c>Saving</c>,
     /// which is announced <em>before</em> the send, and passed only because the fake's binding ignored
     /// disposal where the real client's refuses. Before-send and after-acceptance are separate tests now.

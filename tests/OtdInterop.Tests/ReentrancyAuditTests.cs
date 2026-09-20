@@ -306,6 +306,47 @@ public class ReentrancyAuditTests
         Assert.Null(outcome.Prepared);
     }
 
+    /// <summary>
+    /// A host that supersedes from the <em>final</em> save-state callback gets no adoptable result.
+    /// </summary>
+    /// <remarks>
+    /// The last result check on its own. The failure-logger test reaches it too, but through the logger —
+    /// so it would still pass if only that call-out were guarded. This one supersedes from the last host
+    /// call the operation makes before returning, which is the narrowest thing the check exists for.
+    /// </remarks>
+    [Fact]
+    public async Task AHostSupersedingFromTheFinalCallback_GetsNoAdoptableResult()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var store = new SwitchableStore();
+
+        using var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
+            NoPolicy.Instance, locator);
+
+        Action<SettingsSaveState>? react = null;
+        var settings = session.OpenSettings(() => true, state => react?.Invoke(state));
+
+        daemon.Reconnect();
+        await settings.ReloadFromDaemonAsync();
+
+        var switched = false;
+        react = state =>
+        {
+            if (state != SettingsSaveState.Saved || switched) return;
+
+            switched = true;
+            locator.Path = "B/OpenTabletDriver.Daemon.exe";
+            daemon.Reconnect();
+        };
+
+        var outcome = await settings.ApplyAndSaveAsync(Tablet("Edited"));
+
+        Assert.True(switched, "the final callback never superseded, so this proves nothing");
+        Assert.Equal(SettingsApplyStatus.Superseded, outcome.Status);
+        Assert.Null(outcome.Prepared);
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     /// <summary>A log the test can act from, because logging is a call into host code.</summary>
