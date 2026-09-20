@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
@@ -133,8 +134,161 @@ public class ShutdownTests
         // host that is tidying up.
         Assert.Equal("Unsaved", Tablet(settings.GetCurrent()?.Settings));
 
-        // Retrying is not reading, though -- it is work, and work is refused.
-        Assert.Equal(SettingsApplyStatus.NoChange, (await settings.RetryPersistAsync()).Status);
+        // Retrying is not reading, though -- it is work, and work on a closed session is refused as not
+        // connected, which is what it is.
+        Assert.Equal(SettingsApplyStatus.Disconnected, (await settings.RetryPersistAsync()).Status);
+    }
+
+    /// <summary>
+    /// Closing again while the first close is still waiting does not report success.
+    /// </summary>
+    /// <remarks>
+    /// The flag that stops new work was also doing duty as "this is closed", so any later caller was told
+    /// true immediately — conflating <em>closing</em>, <em>closed after giving up</em> and <em>everything
+    /// settled</em>. A host with two teardown paths would have had one of them told the work had
+    /// finished while it was still running.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingTwiceWhileWorkIsStillRunning_DoesNotReportSuccess()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return never.Task;
+        };
+
+        _ = settings.ApplyAndSaveAsync(Tablet("Never answered"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        // Same question, same answer: the work it gave up on is still running.
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// A read still in flight is work, and closing waits for it.
+    /// </summary>
+    /// <remarks>
+    /// The wait was the mutation gate, which reads do not take — so a session with a reload outstanding
+    /// reported that everything had settled, and the read's continuation could run afterwards. "True when
+    /// everything in flight finished" has to mean every operation, not every operation that mutates.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingWaitsForAReadToo()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetSettingsHandler = () =>
+        {
+            reading.TrySetResult();
+            return never.Task;
+        };
+
+        _ = settings.ReloadFromDaemonAsync();
+        await reading.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Work offered to a closed session is refused at once, not after whatever is stuck finishes.
+    /// </summary>
+    /// <remarks>
+    /// The refusal was inside the mutation gate, so a caller arriving after a close that had already
+    /// given up queued behind the stuck operation and waited for a daemon that was never going to answer.
+    /// It was refused in the end, which is not the same as being refused.
+    /// </remarks>
+    [Fact]
+    public async Task WorkOfferedToAClosedSession_IsRefusedWithoutWaiting()
+    {
+        var (session, settings, daemon, _) = Make();
+
+        var never = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return never.Task;
+        };
+
+        _ = settings.ApplyAndSaveAsync(Tablet("Stuck"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        await session.CloseAsync(TimeSpan.Zero).WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // Promptly: the stuck operation still holds the gate and always will.
+        var refused = await settings.ApplyAndSaveAsync(Tablet("Too late"))
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SettingsApplyStatus.Disconnected, refused.Status);
+    }
+
+    /// <summary>Restoring on a closed session says it is not connected, like everything else.</summary>
+    /// <remarks>
+    /// I claimed this outcome did not exist and that inventing one was more API than the situation
+    /// deserved. <c>SettingsRestoreOutcome.Disconnected</c> was already there; I asserted its absence
+    /// without looking.
+    /// </remarks>
+    [Fact]
+    public async Task RestoringOnAClosedSession_ReportsDisconnected()
+    {
+        var (session, settings, _, _) = Make();
+
+        Assert.True(await session.CloseAsync().WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        Assert.Equal(SettingsRestoreStatus.Disconnected, (await settings.RestoreDefaultAsync()).Status);
+    }
+
+    /// <summary>
+    /// Work the close gave up on does not call back into the host afterwards.
+    /// </summary>
+    /// <remarks>
+    /// The limit of a bounded close: an operation that outlives the window is still running, and its
+    /// daemon may answer long after the host has finished tearing down. It carries on into this session's
+    /// state, which a host reading afterwards will see, and it stops there.
+    ///
+    /// Only after the close has <em>abandoned</em> it. Work that settles inside the window settled
+    /// normally, and suppressing its report would hide a save that actually happened.
+    /// </remarks>
+    [Fact]
+    public async Task WorkTheCloseGaveUpOn_DoesNotCallBackIntoTheHost()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var reported = new List<SettingsSaveState>();
+        var session = OtdSession.ForTesting(daemon, new RecordingStore(), NullOtdLog.Instance,
+            NoPolicy.Instance, new FakeProcessLocator());
+        var settings = session.OpenSettings(() => true, reported.Add);
+        daemon.Reconnect();
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        var apply = settings.ApplyAndSaveAsync(Tablet("Outlives the window"));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.False(await session.CloseAsync(TimeSpan.Zero)
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        var before = reported.Count;
+        held.SetResult(true);                       // the daemon answers, far too late
+        await apply.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.Equal(before, reported.Count);
     }
 
     // --- harness --------------------------------------------------------------------------------

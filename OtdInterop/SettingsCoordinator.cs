@@ -321,21 +321,95 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     private async Task<T> SerializedAsync<T>(Func<Origin, Task<T>> operation, Func<T> superseded,
         Func<T>? closed = null)
     {
-        var admitted = Here();
-        await _mutations.WaitAsync().ConfigureAwait(true);
+        // Before the queue, not inside it: a closed session refuses at once rather than after whatever
+        // is stuck finishes.
+        if (!TryBegin()) return (closed ?? superseded)();
+
         try
         {
-            // Refused rather than sent into a connection that is going away. A host tearing down while
-            // something else in it is still editing is ordinary.
-            if (_closed) return (closed ?? superseded)();
-            if (!StillCurrent(admitted)) return superseded();
+            var admitted = Here();
+            await _mutations.WaitAsync().ConfigureAwait(true);
+            try
+            {
+                // And again for a caller that was already queued when closing began.
+                if (_closed) return (closed ?? superseded)();
+                if (!StillCurrent(admitted)) return superseded();
 
-            return await operation(admitted).ConfigureAwait(true);
+                return await operation(admitted).ConfigureAwait(true);
+            }
+            finally { _mutations.Release(); }
         }
-        finally { _mutations.Release(); }
+        finally { End(); }
     }
 
-    private volatile bool _closed;
+    /// <summary>
+    /// Everything this session is currently doing, and whether it is still accepting more.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Closing used to wait on the mutation gate, which answers a narrower question than it looks like:
+    /// reads do not take it, and a retry waits for destination discovery before reaching it. So a session
+    /// with a reload outstanding reported that everything had settled, and that read's continuation could
+    /// run afterwards.
+    /// </para>
+    /// <para>
+    /// A count covers all of it, because every operation passes through here whether it mutates or not.
+    /// </para>
+    /// </remarks>
+    private readonly object _liveGate = new();
+
+    private int _live;
+    private bool _closed;
+    private TaskCompletionSource? _quiet;
+
+    /// <summary>Registers an operation, or refuses it because the session is closing.</summary>
+    /// <remarks>
+    /// Checked <b>before</b> anything queues or waits. It used to be checked under the mutation gate, so
+    /// a caller arriving after a close that had given up queued behind whatever was stuck and waited for
+    /// a daemon that was never going to answer. It was refused eventually, which is not the same thing.
+    /// </remarks>
+    private bool TryBegin()
+    {
+        lock (_liveGate)
+        {
+            if (_closed) return false;
+
+            _live++;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Reports save progress to the host, unless this session was closed out from under the work.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A bounded close can give up on an operation that never answered. That operation is still running,
+    /// and when its daemon finally replies it carries on into this session's state and, without this,
+    /// into the host's callback -- arriving at something that finished tearing down seconds ago.
+    /// </para>
+    /// <para>
+    /// Only after the close has <em>abandoned</em> it, not merely while one is waiting: work that settles
+    /// inside the window settled normally and its host deserves to hear so.
+    /// </para>
+    /// </remarks>
+    private void TellTheHost(SettingsSaveState state)
+    {
+        if (_abandoned) return;
+
+        _onSaveState(state);
+    }
+
+    private volatile bool _abandoned;
+
+    /// <summary>Marks an operation finished, and wakes a close that is waiting for the last one.</summary>
+    private void End()
+    {
+        lock (_liveGate)
+        {
+            if (--_live == 0) _quiet?.TrySetResult();
+        }
+    }
 
     /// <summary>
     /// Stops admitting work, and waits for whatever was already admitted to finish.
@@ -355,17 +429,39 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <returns>True when everything admitted had finished; false when the wait ran out.</returns>
     internal async Task<bool> CloseAsync(TimeSpan settleWithin)
     {
-        _closed = true;
-
-        if (!await _mutations.WaitAsync(settleWithin).ConfigureAwait(false))
+        Task quiet;
+        lock (_liveGate)
         {
-            _log.Warn("Closing the settings session with an operation still in flight: the daemon did " +
-                      "not answer in time. Nothing further will be sent, and what it holds is unknown.");
-            return false;
+            _closed = true;
+
+            // Nothing running: settled, and every later caller gets the same answer for the same reason.
+            if (_live == 0) return true;
+
+            _quiet ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            quiet = _quiet.Task;
         }
 
-        _mutations.Release();
-        return true;
+        try
+        {
+            await quiet.WaitAsync(settleWithin).ConfigureAwait(false);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            // Reported rather than swallowed, and reported the same way to a second caller: asking again
+            // while the work is still running must not be told it has finished. The old version set one
+            // flag and answered true to everyone after it, which conflated closing, closed-after-giving-up
+            // and settled.
+            // From here the work that outlived the window is on its own: it may still complete and settle
+            // this session's state, and a host reading afterwards will see that. What it will not do is
+            // call back into a host that has finished tearing down.
+            _abandoned = true;
+
+            _log.Warn("Closing the settings session with work still in flight: it did not finish in "
+                      + "time. Nothing further will be admitted, what the daemon holds is unknown, and "
+                      + "nothing further will be reported to the host.");
+            return false;
+        }
     }
 
     /// <summary>
@@ -525,6 +621,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <returns>What happened. Every outcome is ordinary; none needs the host to act.</returns>
     public async Task<SettingsReloadOutcome> ReloadFromDaemonAsync()
     {
+        // A read is work: it holds a channel, it adopts what it finds, and its continuation touches this
+        // session's state. So closing waits for it, and a closed session refuses a fresh one -- reported
+        // as disconnected, which is what a closed session is, and publishing nothing: this read never
+        // happened, so it has nothing to say about the baseline.
+        if (!TryBegin()) return new SettingsReloadOutcome(SettingsReloadStatus.Disconnected);
+
+        try
+        {
+            return await ReloadCoreAsync().ConfigureAwait(true);
+        }
+        finally { End(); }
+    }
+
+    private async Task<SettingsReloadOutcome> ReloadCoreAsync()
+    {
         if (HasEphemeralOverride) return SettingsReloadOutcome.SkippedOverride;
 
         // Read through a hold on the channel, for the same reason every send goes through one: a read
@@ -665,7 +776,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// change is live on a daemon that never received it. But this is a call into host code, so it goes
     /// after the state it describes is settled rather than in the middle of settling it.
     /// </remarks>
-    internal void AnnounceDiscardedChange() => _onSaveState(SettingsSaveState.None);
+    internal void AnnounceDiscardedChange() => TellTheHost(SettingsSaveState.None);
 
     /// <summary>
     /// Copies the caller's settings and stamps the copy, at the moment the request is admitted.
@@ -692,7 +803,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                       "write next.", error);
             // The chip has to move off whatever it was saying. Left alone it would go on showing "Saved"
             // from the previous operation while this one silently did nothing.
-            _onSaveState(SettingsSaveState.ApplyFailed);
+            TellTheHost(SettingsSaveState.ApplyFailed);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
         return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin),
@@ -719,7 +830,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         var revision = Snapshot(settings);
         if (revision == null)
         {
-            _onSaveState(SettingsSaveState.ApplyFailed);
+            TellTheHost(SettingsSaveState.ApplyFailed);
             _log.Warn("Couldn't isolate the settings after applying policy; nothing was sent or saved.");
             return SettingsApplyOutcome.Failed(null);
         }
@@ -768,7 +879,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // the half #828 was still owed.
         var path = DestinationFor(origin);
 
-        _onSaveState(SettingsSaveState.Saving);
+        TellTheHost(SettingsSaveState.Saving);
         bool applied;
         try
         {
@@ -780,7 +891,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         {
             // Reachable daemon, failed call. Not live, not saved — a different state from "live but
             // unpersisted", and the UI text must not claim otherwise.
-            _onSaveState(SettingsSaveState.ApplyFailed);
+            TellTheHost(SettingsSaveState.ApplyFailed);
             _log.Warn("Couldn't apply settings to the daemon.", ex);
             // Still throws: callers depend on it, and changing that is not this change's business.
             throw;
@@ -799,7 +910,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 return SettingsApplyOutcome.Superseded;
             }
 
-            _onSaveState(SettingsSaveState.Disconnected);
+            TellTheHost(SettingsSaveState.Disconnected);
             _log.Warn("Couldn't apply settings: not connected to the daemon.");
             return SettingsApplyOutcome.Disconnected with { Prepared = prepared };
         }
@@ -837,7 +948,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 ? $"Settings applied but not saved: {WhyNowhereToWrite(origin)}."
                 : $"Settings applied but not saved: couldn't write {path}.");
 
-        _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
+        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
         var result = saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
         return result with { Prepared = prepared };
     }
@@ -887,8 +998,18 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // lookup also completes from inside work on the context, so an inline continuation usually lands
         // there anyway; that is a happy accident and not the contract, and writing it down as though it
         // were would be documenting a guarantee nothing enforces.
-        await LookForTheDestinationIfNeededAsync();
-        return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange);
+        // Registered around the discovery too, which happens before the gate: a close that waited only
+        // for gated work could finish while this was still asking the daemon where to write.
+        if (!TryBegin()) return SettingsApplyOutcome.Disconnected;
+
+        try
+        {
+            await LookForTheDestinationIfNeededAsync();
+        }
+        finally { End(); }
+
+        return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange,
+                                     closed: () => SettingsApplyOutcome.Disconnected);
     }
 
     /// <summary>
@@ -965,7 +1086,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 _log.Warn($"Discarding an unsaved settings change made for {knownThen}: the connected " +
                             $"daemon now uses {path}, and the change does not belong to it.");
                 DiscardPendingPersist();
-                _onSaveState(SettingsSaveState.None);
+                TellTheHost(SettingsSaveState.None);
                 return SettingsApplyOutcome.NoChange;
             }
 
@@ -977,19 +1098,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 _log.Warn("Discarding an unsaved settings change: it was accepted by a connection that " +
                             "never reported a settings file, and a different one is connected now.");
                 DiscardPendingPersist();
-                _onSaveState(SettingsSaveState.None);
+                TellTheHost(SettingsSaveState.None);
                 return SettingsApplyOutcome.NoChange;
             }
         }
 
-        _onSaveState(SettingsSaveState.Saving);
+        TellTheHost(SettingsSaveState.Saving);
         bool saved = _store.TrySave(pending, path);
         if (saved)
         {
             _lastPersistedSettingsJson = SerializeForCompare(pending);
             _pendingPersistSettings = null;
         }
-        _onSaveState(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
+        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
         return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
     }
 
@@ -1163,7 +1284,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// never happened — while the override was still running. Does NOT reload; the caller does.
     /// </summary>
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync() =>
-        SerializedAsync(RestoreDefaultCoreAsync, () => SettingsRestoreOutcome.Superseded);
+        SerializedAsync(RestoreDefaultCoreAsync, () => SettingsRestoreOutcome.Superseded,
+                        closed: () => SettingsRestoreOutcome.Disconnected);
 
     private async Task<SettingsRestoreOutcome> RestoreDefaultCoreAsync(Origin origin)
     {
@@ -1230,7 +1352,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // None rather than Saved: restoring reads the default off disk and applies it, so no save
         // happened, and reporting one would be a smaller version of the same lie. The failed paths above
         // all return early and leave their own state standing.
-        _onSaveState(SettingsSaveState.None);
+        TellTheHost(SettingsSaveState.None);
         return SettingsRestoreOutcome.Restored;
     }
 

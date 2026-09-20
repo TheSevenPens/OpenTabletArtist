@@ -815,20 +815,46 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     /// <param name="settleWithin">How long to wait. Defaults to ten seconds.</param>
     /// <returns>True when everything in flight finished; false when the wait ran out and it closed anyway.</returns>
-    public async Task<bool> CloseAsync(TimeSpan? settleWithin = null)
+    public Task<bool> CloseAsync(TimeSpan? settleWithin = null)
     {
-        if (_disposed) return true;
+        var window = settleWithin ?? DefaultSettleWindow;
 
+        // Validated before anything changes. An interval the wait rejects used to throw after the session
+        // had already marked itself closed, so the transport was never disposed and the Dispose that
+        // followed did nothing -- a bad argument leaving the connection open for the life of the process.
+        if (window < TimeSpan.Zero && window != Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(nameof(settleWithin), window,
+                "A settle window must not be negative. Zero closes without waiting; "
+                + "Timeout.InfiniteTimeSpan waits for as long as it takes.");
+        }
+
+        // One close, however many callers. The flag alone answered "true" to everyone after the first,
+        // which conflated closing, closed-after-giving-up and everything-settled: a second teardown path
+        // could be told the work had finished while it was still running.
+        lock (_closeGate) return _closing ??= RunCloseAsync(window);
+    }
+
+    private readonly object _closeGate = new();
+    private Task<bool>? _closing;
+
+    private async Task<bool> RunCloseAsync(TimeSpan window)
+    {
         // Set before waiting, and before unsubscribing, so nothing new is admitted while this drains.
         _disposed = true;
 
-        var settled = _settings is { } settings
-            ? await settings.CloseAsync(settleWithin ?? DefaultSettleWindow).ConfigureAwait(false)
-            : true;
-
-        Detach();
-        Connection.Dispose();
-        return settled;
+        try
+        {
+            return _settings is not { } settings
+                   || await settings.CloseAsync(window).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Whatever the settling did, the connection goes. Leaving it open because the wait threw is
+            // how a teardown becomes a leak.
+            Detach();
+            Connection.Dispose();
+        }
     }
 
     /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
