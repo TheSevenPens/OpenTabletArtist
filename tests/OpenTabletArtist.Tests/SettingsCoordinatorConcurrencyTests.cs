@@ -102,12 +102,45 @@ public class SettingsCoordinatorConcurrencyTests
         var states = new List<SettingsSaveState>();
         var coordinator = new SettingsCoordinator(
             daemon, store,
-            settingsPath: () => path.Value,
             isOwnedDaemon: () => true,
             onSaveState: states.Add,
             log: NullOtdLog.Instance,
             policy: OtaSettingsPolicy.Instance);
+
+        // The connection starts identified, which is the ordinary state and what every test written
+        // before #828 assumed. A test that wants the window BEFORE identification reconnects and does not
+        // call Identify.
+        Identify(coordinator, daemon, path);
+
         return (coordinator, daemon, store, states);
+    }
+
+    /// <summary>
+    /// Tells the coordinator where the daemon on the current channel keeps its settings.
+    /// </summary>
+    /// <remarks>
+    /// What <see cref="OtdSession"/> does for itself once it has asked the daemon's <c>AppInfo</c>. A
+    /// coordinator built directly, as these tests build it, has no session to do that — so a test that
+    /// reconnects and then expects a save to land has to say that the new connection was identified,
+    /// because otherwise it was not.
+    /// </remarks>
+    private static void Identify(SettingsCoordinator coordinator, FakeDaemonTransport daemon,
+        PathHolder path) => coordinator.LearnDestination(path.Value, daemon.Incarnation);
+
+    /// <summary>
+    /// A daemon change as it actually happens: a new channel, and then the reset for it.
+    /// </summary>
+    /// <remarks>
+    /// These tests used to reset without moving the channel, which nothing real does — one pipe
+    /// connection is one daemon process, so a different daemon always means a different channel. It
+    /// stopped being a harmless simplification once the reset had to tell a pending write the NEW daemon
+    /// accepted from one belonging to the daemon that has gone: with the channel left still, every
+    /// pending write looked like the new daemon's.
+    /// </remarks>
+    private static void SwitchDaemon(SettingsCoordinator coordinator, FakeDaemonTransport daemon)
+    {
+        daemon.ReconnectSilently();
+        coordinator.ResetForNewDaemon(daemon.Incarnation);
     }
 
     /// <summary>A daemon call that does not answer until the test says so.</summary>
@@ -342,11 +375,11 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task AnOverrideDoesNotSurviveADaemonChange()
     {
-        var (coordinator, _, _, _) = Make();
+        var (coordinator, daemon, _, _) = Make();
         Assert.True((await coordinator.ApplyEphemeralAsync(SettingsFor("A's per-app snapshot", locked: true))).IsLive);
         Assert.True(coordinator.HasEphemeralOverride);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
 
         Assert.False(coordinator.HasEphemeralOverride);
     }
@@ -354,13 +387,13 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task ResetForNewDaemon_DropsEverythingBoundToTheOldOne()
     {
-        var (coordinator, _, store, states) = Make();
+        var (coordinator, daemon, store, states) = Make();
         store.SaveSucceeds = false;
         await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
         Assert.True(coordinator.HasUnsavedChange);
         Assert.Equal(SettingsSaveState.Failed, states[^1]);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
 
         Assert.False(coordinator.HasUnsavedChange);
 
@@ -383,12 +416,13 @@ public class SettingsCoordinatorConcurrencyTests
     [Fact]
     public async Task ResetForNewDaemon_SaysWhenAnEditWasThrownAway()
     {
-        var (coordinator, _, store, _) = Make();
+        var (coordinator, daemon, store, _) = Make();
         store.SaveSucceeds = false;
         await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
         Assert.True(coordinator.HasUnsavedChange);
 
-        Assert.True(coordinator.ResetForNewDaemon());
+        daemon.ReconnectSilently();
+        Assert.True(coordinator.ResetForNewDaemon(daemon.Incarnation));
     }
 
     [Fact]
@@ -396,11 +430,12 @@ public class SettingsCoordinatorConcurrencyTests
     {
         // A switch with no pending edit is routine. Announcing it would train the user to dismiss the
         // notice that matters.
-        var (coordinator, _, _, _) = Make();
+        var (coordinator, daemon, _, _) = Make();
         await coordinator.ApplyAndSaveAsync(SettingsFor("Saved fine", locked: true));
         Assert.False(coordinator.HasUnsavedChange);
 
-        Assert.False(coordinator.ResetForNewDaemon());
+        daemon.ReconnectSilently();
+        Assert.False(coordinator.ResetForNewDaemon(daemon.Incarnation));
     }
 
     /// <summary>
@@ -415,8 +450,9 @@ public class SettingsCoordinatorConcurrencyTests
         var edit = SettingsFor("Same", locked: true);
         Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await coordinator.ApplyAndSaveAsync(edit)).Status);
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
+        Identify(coordinator, daemon, path);      // B answered, and said where it lives
         daemon.Applied.Clear();
 
         var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("Same", locked: true));
@@ -424,6 +460,50 @@ public class SettingsCoordinatorConcurrencyTests
         Assert.NotEqual(SettingsApplyStatus.NoChange, outcome.Status);
         Assert.Single(daemon.Applied);   // it actually reached the new daemon
     }
+    // --- #828 readiness: a connection nobody has identified yet ------------------------------
+
+    /// <summary>
+    /// Work admitted after a switch, but before anything has identified the new daemon, must not write
+    /// the new daemon's settings into the old daemon's file.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The half of #828 that channel binding does not cover, and the reason binding alone was never
+    /// enough. The bound channel makes the <em>send</em> correct: it goes to B, which is the daemon that
+    /// is actually connected. The destination on disk is a different question, and the answer still comes
+    /// from the host — which learns B's settings file from B's <c>AppInfo</c>, during a data load that
+    /// has not happened yet. So the apply is live on B and persisted into A's file.
+    /// </para>
+    /// <para>
+    /// A's file belongs to an install OTA was never asked to touch, and which the user may also be
+    /// driving with OpenTabletDriver's own UX. This is the same hazard #787 fixed for a <em>pending</em>
+    /// write, where the destination had moved under a retry; what was left is the destination never
+    /// having been right in the first place.
+    /// </para>
+    /// <para>
+    /// Written before the fix, per #828's own instruction that the ordering tests drive the design.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AnApplyAdmittedBeforeTheNewDaemonIsIdentified_DoesNotWriteIntoTheOldDaemonsFile()
+    {
+        var path = new PathHolder();
+        var (coordinator, daemon, store, _) = Make(path);
+
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
+        Assert.Equal("A's edit", Tablet(store.OnDiskAt(DefaultPath)));
+
+        // B answers. Nothing has identified it yet, so the host still believes the settings file is A's:
+        // that only moves once a data load has read B's AppInfo.
+        daemon.Reconnect();
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("B's edit", locked: true));
+
+        // Whatever else happens, A's file must still hold A's edit.
+        Assert.Equal("A's edit", Tablet(store.OnDiskAt(DefaultPath)));
+        Assert.NotEqual(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
+    }
+
     // --- #803: a daemon change invalidates work that is queued or in flight ------------------
     //
     // #787 stopped the coordinator from CARRYING state between daemons. It did not stop an operation
@@ -450,8 +530,9 @@ public class SettingsCoordinatorConcurrencyTests
         var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
 
         // The user stops A and starts B while the apply is still waiting on A.
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
+        Identify(coordinator, daemon, path);      // B answered, and said where it lives
 
         hold.SetResult(true);   // A answers, too late to matter
         var outcome = await apply;
@@ -482,8 +563,9 @@ public class SettingsCoordinatorConcurrencyTests
         // deadlock the test against the semaphore the first apply is holding.
         var queued = coordinator.ApplyAndSaveAsync(SettingsFor("A's second edit", locked: false));
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
+        Identify(coordinator, daemon, path);      // B answered, and said where it lives
         hold.SetResult(true);
 
         await first;
@@ -507,7 +589,7 @@ public class SettingsCoordinatorConcurrencyTests
         var hold = HoldNextSetSettings(daemon);
         var ephemeral = coordinator.ApplyEphemeralAsync(SettingsFor("Per-app snapshot", locked: true));
 
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         hold.SetResult(true);
 
         // Superseded, not merely "false": the session it was for had ended.
@@ -527,8 +609,9 @@ public class SettingsCoordinatorConcurrencyTests
 
         var hold = HoldNextSetSettings(daemon);
         var apply = coordinator.ApplyAndSaveAsync(SettingsFor("A's edit", locked: true));
-        coordinator.ResetForNewDaemon();
+        SwitchDaemon(coordinator, daemon);
         path.Value = OtherPath;
+        Identify(coordinator, daemon, path);      // B answered, and said where it lives
         hold.SetResult(true);
         await apply;
 

@@ -14,15 +14,38 @@ namespace OtdInterop;
 /// may be reading. Demanding a context it cannot reach is no longer enough; it needs one it can post to.
 /// </para>
 /// <para>
-/// <b>Required, never inferred.</b> There is no fallback to the thread pool and no implicit capture of an
-/// ambient <c>SynchronizationContext</c>. Capturing one that happens to be absent yields the thread pool
-/// silently, which is precisely the failure being avoided — a host that never established a context would
-/// get one that looks like it works and does not.
+/// <b>Required, never inferred.</b> Work this library starts on its own account is dispatched through
+/// this interface explicitly: there is no fallback to the thread pool and no implicit capture of an
+/// ambient <c>SynchronizationContext</c> to decide where it runs. Capturing one that happens to be absent
+/// yields the thread pool silently, which is precisely the failure being avoided — a host that never
+/// established a context would get one that looks like it works and does not.
 /// </para>
 /// <para>
-/// OTA supplies its dispatcher. A test supplies a scheduler it can step by hand, which is what makes the
-/// orderings in #828 expressible at all rather than reproducible by luck. A headless host supplies any
-/// single-threaded pump; nothing here needs a UI framework.
+/// <b>And separately: a host calling the asynchronous settings operations must do so from a thread whose
+/// <c>SynchronizationContext</c> resumes continuations back onto this same context.</b> That is a second
+/// requirement, not a restatement of the first, and the paragraph above is about explicit injection for
+/// the library's own work rather than about these awaits — which do depend on the caller's context.
+/// </para>
+/// <para>
+/// The reason is what happens after such an await. Some operations wait on work that has to run here —
+/// learning where a daemon keeps its settings, for one — and what resumes afterwards is coordinator state
+/// access, a file write and a callback into the host. Without a synchronization context those resume on
+/// the thread pool, concurrently with the identification and invalidation running here, and no gate in
+/// this library serializes the two against each other.
+/// </para>
+/// <para>
+/// It would be convenient to say that completing such work on this context is enough, because the
+/// continuation then tends to run inline and stay here. That is <em>permitted</em> rather than
+/// guaranteed — it depends on how the awaited task was constructed and on what the runtime decides — and
+/// a guarantee that holds by accident is not one to publish. So: a synchronization context, or the
+/// confinement is the host's to lose.
+/// </para>
+/// <para>
+/// OTA supplies its dispatcher, which satisfies both. A test supplies a scheduler it can step by hand,
+/// which is what makes the orderings in #828 expressible at all rather than reproducible by luck. A
+/// headless host supplies a single-threaded pump that <b>installs a synchronization context routing
+/// continuations back to that same thread</b> — the switch-check tool's does, for exactly this reason.
+/// Merely serializing posted work is not sufficient.
 /// </para>
 /// </remarks>
 public interface IOtdExecutionContext
@@ -63,4 +86,7 @@ public interface IOtdExecutionContext
     /// </para>
     /// </remarks>
     bool IsCurrent { get; }
+
+    // The host requirement this interface carries is in its own remarks above, so it reaches
+    // IntelliSense rather than only source readers.
 }

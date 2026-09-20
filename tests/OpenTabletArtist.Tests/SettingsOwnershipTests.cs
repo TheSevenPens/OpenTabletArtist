@@ -81,11 +81,11 @@ public class SettingsOwnershipTests
         var policy = new HoardingPolicy();
         var coordinator = new SettingsCoordinator(
             daemon, new NoopStore(),
-            settingsPath: () => "A/settings.json",
             isOwnedDaemon: () => true,
             onSaveState: _ => { },
             log: NullOtdLog.Instance,
             policy: policy);
+        coordinator.LearnDestination("A/settings.json", daemon.Incarnation);
         return (coordinator, daemon, policy);
     }
 
@@ -230,11 +230,11 @@ public class SettingsOwnershipTests
         var store = new RefusingStore();
         var coordinator = new SettingsCoordinator(
             daemon, store,
-            settingsPath: () => "A/settings.json",
             isOwnedDaemon: () => true,
             onSaveState: _ => { },
             log: NullOtdLog.Instance,
             policy: new HoardingPolicy());
+        coordinator.LearnDestination("A/settings.json", daemon.Incarnation);
 
         var outcome = await coordinator.ApplyAndSaveAsync(WithPolicyBait());
         Assert.Equal(SettingsApplyStatus.AppliedNotSaved, outcome.Status);   // a retry is now pending

@@ -68,7 +68,9 @@ namespace OtdInterop;
 /// awaits</em>. "One thread starts the calls" is not sufficient; a thread whose awaits resume on
 /// arbitrary pool threads has not supplied a context. The only host that exists today supplies the UI
 /// thread, and that confinement — not any internal locking — is what makes it safe there. A headless host
-/// can supply an equivalent context without any UI framework, and must.</para>
+/// can supply an equivalent context without any UI framework, and must. What that amounts to in full,
+/// including the synchronization context an asynchronous caller has to have for its own awaits, is on
+/// <see cref="IOtdExecutionContext"/>.</para>
 ///
 /// <para>Being headless does not establish thread safety on its own; a library merely free of UI types is
 /// not thereby safe to call from anywhere.</para>

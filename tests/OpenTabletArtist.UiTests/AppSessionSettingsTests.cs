@@ -70,7 +70,14 @@ public class AppSessionSettingsTests
     {
         var daemon = new FakeDaemonTransport { Settings = SettingsFor("Baseline") };
         var store = new RecordingStore();
-        return (new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()), daemon, store);
+        // A live channel BEFORE the host subscribes to anything. Since #828 the library asks the daemon
+        // where it keeps its settings, so a session that has never seen a connection has nowhere to
+        // persist -- but announcing it after AppSession exists would also run a data load, and these
+        // tests count those.
+        var otd = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+
+        return (new AppSession(otd, new StubLifecycle()), daemon, store);
     }
 
     /// <summary>
@@ -227,7 +234,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
 
         var outcome = await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
@@ -244,7 +250,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
         store.SaveSucceeds = false;
 
@@ -286,7 +291,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
 
         store.SaveSucceeds = false;
@@ -306,7 +310,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
         await session.ApplyAndSaveSettingsAsync(SettingsFor("Edited"));
         var writes = store.Saved.Count;
@@ -326,7 +329,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
 
         store.SaveSucceeds = false;
@@ -347,7 +349,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
 
         store.SaveSucceeds = false;
@@ -372,7 +373,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
 
         store.SaveSucceeds = false;
@@ -406,7 +406,6 @@ public class AppSessionSettingsTests
     {
         var (session, daemon, store) = Make();
         using var _s = session;
-        daemon.AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json" };
         await session.ReloadAsync();
         store.ToLoad = SettingsFor("SavedDefault");
 

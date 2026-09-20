@@ -116,6 +116,11 @@ public sealed class OtdSession : IDisposable
             if (!StillMine()) return;
 
             // Built here, after the announcements, so it carries any discard they produced.
+            // Asked for every channel, not only when the daemon changed. A daemon this session could not
+            // read is deliberately NOT reported as a change (#823), and it can still be a different
+            // install with a different settings file -- so identity is the wrong thing to gate this on.
+            LearnWhereToPersist(channel);
+
             var change = new DaemonChange(commit.Actual, commit.Changed, _discardOwed);
             Deliver(Connected, h => h(change), nameof(Connected), StillMine, ClaimDiscard);
         });
@@ -407,10 +412,6 @@ public sealed class OtdSession : IDisposable
     /// <summary>
     /// The settings authority for this connection. One per session; a second call is refused.
     /// </summary>
-    /// <param name="settingsPath">
-    /// Where the daemon's settings file is, read late. It comes from the daemon itself, so it has no
-    /// value when the session is created, and it changes when a different daemon answers.
-    /// </param>
     /// <param name="isOwnedDaemon">
     /// Whether this daemon is positively known to be the host's own. Positive knowledge, not "not known
     /// to be someone else's" — the host's policy runs against a daemon only when this is true (#742).
@@ -429,7 +430,7 @@ public sealed class OtdSession : IDisposable
     /// <exception cref="InvalidOperationException">
     /// Settings have already been opened on this session, or the session has been disposed.
     /// </exception>
-    public IOtdSettingsSession OpenSettings(Func<string> settingsPath, Func<bool> isOwnedDaemon,
+    public IOtdSettingsSession OpenSettings(Func<bool> isOwnedDaemon,
         Action<SettingsSaveState> onSaveState)
     {
         if (_disposed)
@@ -443,9 +444,162 @@ public sealed class OtdSession : IDisposable
                 + "second would have its own ordering, retry state and baseline, and neither would see "
                 + "what the other was doing. Reuse the authority this returned.");
 
-        return _settings = _store is { } store
-            ? new SettingsCoordinator(_channel, store, settingsPath, isOwnedDaemon, onSaveState, _log, _policy)
-            : new SettingsCoordinator(_channel, settingsPath, isOwnedDaemon, onSaveState, _log, _policy);
+        // DiscoverDestinationAsync is handed over at construction rather than assigned afterwards, and
+        // is not invoked by it. It is how the coordinator asks again when a retry finds it still does not
+        // know where to write -- the only rediscovery trigger there is, bounded by the user pressing
+        // Retry rather than a background loop nobody asked for.
+        var settings = _store is { } store
+            ? new SettingsCoordinator(_channel, store, isOwnedDaemon, onSaveState, _log, _policy,
+                                      DiscoverDestinationAsync)
+            : new SettingsCoordinator(_channel, isOwnedDaemon, onSaveState, _log, _policy,
+                                      DiscoverDestinationAsync);
+
+        _settings = settings;
+
+        // A connection established before the settings were opened has already had its transition, so
+        // nothing would ask this one where to write. Asking here covers the ordinary startup order, in
+        // which a host connects and then opens settings.
+        if (_channel.Incarnation is var channel and not 0) LearnWhereToPersist(channel);
+
+        return settings;
+    }
+
+    /// <summary>
+    /// Asks the connected daemon where it keeps its settings, and records it against that channel.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The library's own question now, and the point of #828's readiness half. It used to be the host's:
+    /// OTA read <c>AppInfo</c> during its data load and handed the path back through a delegate. That
+    /// load runs <em>after</em> the connection is usable, so between a daemon answering and the host
+    /// noticing, the delegate returned the previous daemon's file — and an apply admitted in that window
+    /// was live on the new daemon and written into the old one's settings.
+    /// </para>
+    /// <para>
+    /// Fire-and-forget on purpose. This is a network call, and a transition must not wait behind one:
+    /// #828 is explicit that serializing a short state change is not the same as monopolising the host's
+    /// context for an entire RPC. Until the answer lands the connection simply has no destination, which
+    /// the coordinator already treats as applied-but-not-saved — visible, retryable, and never the wrong
+    /// file.
+    /// </para>
+    /// </remarks>
+    private void LearnWhereToPersist(int channel) => _ = DiscoverDestinationAsync(channel);
+
+    /// <summary>
+    /// Asks the daemon on <paramref name="channel"/> where it keeps its settings, once at a time.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The single way discovery happens: a connection establishing, and a host retrying a save that has
+    /// nowhere to go, both come through here. They used not to, so a retry could run alongside a
+    /// transition's own lookup with nothing coordinating them.
+    /// </para>
+    /// <para>
+    /// <b>Coalesced per channel, and only while a flight is still running.</b> The previous arrangement
+    /// cleared the slot from the lookup's own <c>finally</c>, so a lookup that completed synchronously —
+    /// which a failure does — cleared the slot before the caller had filled it, and the finished task
+    /// then became the permanent answer: the daemon was never asked again, however many times the user
+    /// pressed Retry. Nothing clears the slot now; a flight is replaced when a new one is needed, which
+    /// is what the completion check decides. Keying on the channel matters separately — a caller asking
+    /// about a new connection must not be handed an obsolete one's outstanding lookup.
+    /// </para>
+    /// <para>
+    /// <b>The task completes when the answer has been recorded, not when it arrives.</b> Recording runs on
+    /// the host's context, so a caller that awaits this and then reads the destination sees it. Completing
+    /// at the reply meant an explicit retry had to be pressed twice: the first asked, and the second was
+    /// the one that could act on it.
+    /// </para>
+    /// </remarks>
+    private Task DiscoverDestinationAsync(int channel)
+    {
+        lock (_lookupGate)
+        {
+            if (_lookup is { Channel: var running, Done.Task: var task } && running == channel
+                && !task.IsCompleted)
+            {
+                return task;
+            }
+
+            // Deliberately NOT RunContinuationsAsynchronously, so that a continuation can run inline on
+            // the context that completes this. That is a preference, not the guarantee: what keeps a
+            // caller confined is its own synchronization context, which IOtdExecutionContext requires of
+            // any host calling the asynchronous operations.
+            var flight = new Lookup(channel, new TaskCompletionSource());
+            _lookup = flight;
+            _ = RunLookupAsync(flight);
+            return flight.Done.Task;
+        }
+    }
+
+    /// <summary>One outstanding destination lookup, and the channel it is about.</summary>
+    private sealed record Lookup(int Channel, TaskCompletionSource Done);
+
+    private readonly object _lookupGate = new();
+    private Lookup? _lookup;
+
+    private async Task RunLookupAsync(Lookup flight)
+    {
+        string? path = null;
+        Exception? failed = null;
+        try
+        {
+            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
+        }
+        catch (Exception ex)
+        {
+            failed = ex;
+            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
+                      + "written to disk for this connection until it answers. Retrying a pending save "
+                      + "asks again.", ex);
+        }
+
+        // Reported through the host's context like everything else this session decides, and the lookup
+        // is only finished once that has run -- or has been observed not to.
+        var publication = Report("record where the connected daemon keeps its settings", () =>
+        {
+            try
+            {
+                // The answer describes the channel it was asked on. A reply arriving after that channel
+                // has gone says nothing about its replacement.
+                if (!StillTheCurrentTransition(flight.Channel)) return;
+
+                if (failed != null)
+                {
+                    // Recorded rather than left blank, so a later attempt can tell "the call failed" from
+                    // "nobody has asked yet" and from "this daemon has no settings file". They look the
+                    // same from outside and want different responses.
+                    _settings?.DestinationLookupFailed(flight.Channel);
+                    return;
+                }
+
+                _settings?.LearnDestination(path ?? "", flight.Channel);
+            }
+            finally
+            {
+                // Settled here when the publication runs, which lets an awaiting continuation run inline
+                // on this context rather than wherever the reply happened to arrive. A permitted
+                // optimisation, not the guarantee -- what confines the caller is its own synchronization
+                // context, which IOtdExecutionContext requires of it.
+                flight.Done.TrySetResult();
+            }
+        });
+
+        try
+        {
+            // Report never throws: it catches and logs. Awaiting it is how this learns that the attempt
+            // has concluded, however it concluded.
+            await publication.ConfigureAwait(false);
+        }
+        finally
+        {
+            // The backstop, and the whole point of awaiting. A host can refuse a post -- shutting down,
+            // or running work somewhere it does not consider its own -- and then the action above never
+            // runs and never settles anything. Completing only from inside it left a retry awaiting a
+            // task nobody would ever complete, and every later retry on this channel coalesced onto that
+            // dead flight. Nothing is claimed by settling here: the destination stays unknown, the edit
+            // stays pending, and the next retry starts a fresh lookup.
+            flight.Done.TrySetResult();
+        }
     }
 
     /// <summary>
@@ -539,14 +693,31 @@ public sealed class OtdSession : IDisposable
         var changed = previous.Length > 0 && actual != null && !PathEquality.Same(previous, actual);
 
         if (actual != null) _daemonPath = actual;
-        var discarded = changed && (_settings?.ResetForNewDaemon() ?? false);
+        // Work accepted by a channel this session has not identified yet belongs to the daemon arriving,
+        // not the one leaving, so it survives the reset. Anything else -- including work on a channel
+        // already identified, where a change of identity means one of the two readings was wrong -- does
+        // not, because it cannot be attributed with any confidence.
+        var survivor = _channel.Incarnation != _identifiedChannel ? _channel.Incarnation : 0;
+        var discarded = changed && (_settings?.ResetForNewDaemon(survivor) ?? false);
 
         // A discard is owed to whoever is told next, not to this transition in particular. If this one is
         // superseded before it delivers, the edit is still gone and somebody has to hear about it.
         if (discarded) _discardOwed = true;
 
+        _identifiedChannel = _channel.Incarnation;
+
         return new DaemonCommit(previous, actual, changed, discarded);
     }
+
+    /// <summary>
+    /// The channel this session last committed an identity for.
+    /// </summary>
+    /// <remarks>
+    /// Only used to tell "this connection is new to me" from "I have looked at this one before", which is
+    /// what decides whether an accepted-but-unsaved edit belongs to the daemon arriving or the one
+    /// leaving. Zero before the first look, which is also what no channel reads as.
+    /// </remarks>
+    private int _identifiedChannel;
 
     /// <summary>What a commit did, before anyone outside the library has been told any of it.</summary>
     private readonly record struct DaemonCommit(string Previous, string? Actual, bool Changed, bool Discarded);

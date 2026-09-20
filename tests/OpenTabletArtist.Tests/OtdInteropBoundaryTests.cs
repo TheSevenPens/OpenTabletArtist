@@ -334,7 +334,7 @@ public class OtdInteropBoundaryTests
     }
 
     private static IOtdSettingsSession Open(OtdSession session) =>
-        session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        session.OpenSettings(() => true, _ => { });
 
     private static Settings Tablet(string name) =>
         new() { Profiles = new ProfileCollection { new Profile { Tablet = name } } };

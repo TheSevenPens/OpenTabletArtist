@@ -444,7 +444,7 @@ public class ReconnectOrderingTests
         // The save chip is where the reset calls out, so that is where C arrives.
         var states = new List<SettingsSaveState>();
         var arrivals = 0;
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, state =>
+        var settings = session.OpenSettings(() => true, state =>
         {
             states.Add(state);
 
@@ -520,7 +520,7 @@ public class ReconnectOrderingTests
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator, context);
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
 
         session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
@@ -559,7 +559,7 @@ public class ReconnectOrderingTests
             OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
 
         var states = new List<SettingsSaveState>();
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, states.Add);
+        var settings = session.OpenSettings(() => true, states.Add);
 
         session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
@@ -595,7 +595,7 @@ public class ReconnectOrderingTests
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
             OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
 
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
 
         session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
@@ -700,7 +700,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
 
         session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
@@ -1148,7 +1148,7 @@ public class ReconnectOrderingTests
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log ?? NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator, context);
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
         session.RefreshDaemonIdentityAndTakeChange();              // establish A as the daemon this session knows
         return new Harness(session, daemon, locator, context, settings);
     }

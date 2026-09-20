@@ -319,7 +319,9 @@ internal static class Program
         Console.WriteLine($"   settings file: {file}");
 
         MustBeOnTheContext(context, "opening a settings session");
-        var settings = session.OpenSettings(() => file, () => true, _ => { });
+        // The path is no longer passed in: the session asks the daemon itself, per channel (#828). It is
+        // still read here, for BlockWrites, and printed above so a failure names the file it was about.
+        var settings = session.OpenSettings(() => true, _ => { });
         await settings.ReloadFromDaemonAsync();
         MustBeOnTheContext(context, "after the first reload");
         return new Live(session, settings, file, context);

@@ -103,7 +103,20 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public Func<Settings, Task<bool>>? SetSettingsHandler { get; set; }
 
-    public AppInfo? AppInfo { get; set; }
+    /// <summary>
+    /// What the daemon says about itself, including where it keeps its settings.
+    /// </summary>
+    /// <remarks>
+    /// Populated by default since #828, because a session now asks this to find out where to persist. A
+    /// null AppInfo is a daemon that will not say — a real state, and one a test can still ask for, but
+    /// not the ordinary one, and leaving it as the default made every save in every session-level test a
+    /// write to nowhere.
+    /// </remarks>
+    public AppInfo? AppInfo { get; set; } =
+        new() { AppDataDirectory = "A", SettingsFile = DefaultSettingsFile };
+
+    /// <summary>Where this fake's daemon claims to keep its settings.</summary>
+    public const string DefaultSettingsFile = "A/settings.json";
     public JArray Tablets { get; set; } = [];
     public JArray Devices { get; set; } = [];
     public int? ServerProcessId { get; set; }
@@ -221,11 +234,30 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
         return ok;
     }
 
+    /// <summary>
+    /// When set, replaces <see cref="GetAppInfoAsync"/> entirely — so a test can hold the metadata call
+    /// open, fail it, or answer differently on a second attempt.
+    /// </summary>
+    /// <remarks>
+    /// A session asks this to find out where to persist (#828), and the interesting cases are all about
+    /// <em>when</em> the answer arrives: before or after another daemon connects, and whether a failed
+    /// lookup can recover. An always-immediate fake can express none of them.
+    /// </remarks>
+    public Func<Task<AppInfo?>>? GetAppInfoHandler { get; set; }
+
+    /// <summary>How many times the metadata call was made, so a test can see a lookup it did not expect.</summary>
+    public int GetAppInfoCalls { get; private set; }
+
     public Task<AppInfo?> GetAppInfoAsync()
     {
         Calls.Add(nameof(GetAppInfoAsync));
-        return Task.FromResult(AppInfo);
+        GetAppInfoCalls++;
+        return GetAppInfoHandler?.Invoke() ?? Task.FromResult(AppInfo);
     }
+
+    /// <summary>An <see cref="AppInfo"/> reporting <paramref name="settingsFile"/>.</summary>
+    public static AppInfo Reporting(string settingsFile) =>
+        new() { AppDataDirectory = "A", SettingsFile = settingsFile };
 
     public Task<JArray> GetTabletsAsync()
     {
