@@ -145,7 +145,17 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// alone does not, so a test can model the two separately — a fresh channel, and a notification about
     /// one.
     /// </summary>
-    public int Incarnation { get; private set; }
+    private int _incarnation;
+    private bool _dropped;
+
+    /// <summary>
+    /// Which channel this is, or 0 when there is none.
+    ///
+    /// Zero after a drop, as the real client does -- it clears the channel value when its RPC
+    /// disconnects. A fake that kept reporting the old number could not express "the connection this
+    /// notification is about has already gone", which is the state obsolete queued work has to notice.
+    /// </summary>
+    public int Incarnation => _dropped ? 0 : _incarnation;
 
     /// <summary>
     /// A new channel, as the real client establishes one: the incarnation moves FIRST, then the event.
@@ -156,12 +166,17 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public void Reconnect()
     {
-        Incarnation++;
+        _dropped = false;
+        _incarnation++;
         RaiseConnected();
     }
 
     /// <summary>The channel is replaced, and nothing announces it. The window, on its own.</summary>
-    public void ReconnectSilently() => Incarnation++;
+    public void ReconnectSilently()
+    {
+        _dropped = false;
+        _incarnation++;
+    }
 
     /// <inheritdoc />
     IDaemonSettingsBinding IDaemonSettingsChannel.Bind() => new Binding(this, Incarnation);
@@ -293,11 +308,21 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
 
     // --- Test drivers ---
 
-    /// <summary>Raise the daemon's Connected event, as the real client does after a successful connect.</summary>
+    /// <summary>
+    /// Raise the Connected event <b>without</b> establishing a channel.
+    ///
+    /// Not a state the real client can be in — it assigns its channel before raising — so this exists
+    /// only for a test that wants the bare event. Use <see cref="Reconnect"/> to model a connection;
+    /// a notification with no channel behind it is now correctly discarded as obsolete.
+    /// </summary>
     public void RaiseConnected() => Connected?.Invoke();
 
-    /// <summary>Raise a transport drop.</summary>
-    public void RaiseDisconnected() => Disconnected?.Invoke();
+    /// <summary>Raise a transport drop. The channel goes with it, as the real client's does.</summary>
+    public void RaiseDisconnected()
+    {
+        _dropped = true;
+        Disconnected?.Invoke();
+    }
 
     /// <summary>Raise a tablet add/remove push.</summary>
     public void RaiseTabletsChanged() => TabletsChanged?.Invoke();

@@ -90,7 +90,7 @@ public class AppSessionSettingsTests
         var locator = new FakeProcessLocator { Path = "daemon-one/OpenTabletDriver.Daemon" };
         using var session = new AppSession(FakeSession.Over(daemon, store, locator), new StubLifecycle());
 
-        daemon.RaiseConnected();
+        daemon.Reconnect();      // a real connection: a channel, then the event
         await Pump(session);
 
         // An edit the daemon took and the disk refused: live on daemon-one, and only there.
@@ -101,7 +101,7 @@ public class AppSessionSettingsTests
 
         // A different build answers the reconnect.
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
-        daemon.RaiseConnected();
+        daemon.Reconnect();      // a real connection: a channel, then the event
         await Pump(session);
 
         Assert.Contains("discarded", session.DiscardedChangeNotice);

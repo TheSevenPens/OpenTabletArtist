@@ -27,11 +27,14 @@ internal sealed class ControllableContext : IOtdExecutionContext
     /// Whether the calling thread is this context.
     /// </summary>
     /// <remarks>
-    /// True, because a test drives one thread and posted work runs on it when released. The property
-    /// exists for the library to assert with, and making it lie here would fail assertions about a
-    /// contract the test is in fact honouring.
+    /// True by default, because a test drives one thread and posted work runs on it when released; making
+    /// it lie would fail assertions about a contract the test is in fact honouring.
+    ///
+    /// Settable for the one test whose subject IS the lie -- a host whose context runs the library's work
+    /// somewhere else. Without a way to express that, the library's check could never be shown to fire,
+    /// and a check that cannot fail is not a check.
     /// </remarks>
-    public bool IsCurrent => true;
+    public bool IsCurrent { get; set; } = true;
 
     /// <inheritdoc />
     /// <remarks>

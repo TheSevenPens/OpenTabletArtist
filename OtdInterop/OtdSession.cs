@@ -83,13 +83,46 @@ public sealed class OtdSession : IDisposable
     /// admitted on (#830), and -- still to come -- that this session refuses to persist against a
     /// connection it has not finished preparing.
     /// </remarks>
-    private void OnTransportConnected() => Post("identify the connected daemon", () =>
+    private void OnTransportConnected()
     {
-        var change = NoteConnectedDaemon();
-        Connected?.Invoke(change);
+        // Captured here, where the transition happened -- not read when the work runs. A queued
+        // notification belongs to the channel that raised it, and by the time the host's context gets to
+        // it that channel may have been replaced or dropped.
+        var channel = _channel.Incarnation;
+        Post("identify the connected daemon", () =>
+        {
+            if (!StillTheCurrentTransition(channel)) return;
+            var change = NoteConnectedDaemon();
+            Deliver(Connected, h => h(change), nameof(Connected));
+        });
+    }
+
+    private void OnTransportDisconnected() => Post("report a disconnect", () =>
+    {
+        if (_disposed) return;
+        Deliver(Disconnected, h => h(), nameof(Disconnected));
     });
 
-    private void OnTransportDisconnected() => Post("report a disconnect", () => Disconnected?.Invoke());
+    /// <summary>
+    /// Whether queued work for <paramref name="channel"/> still describes something worth telling anyone
+    /// about.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two ways it stops being so, and both were reachable. The channel it belongs to may have been
+    /// replaced -- so identifying "whatever is answering now" would report a transition that never
+    /// happened as though it had, and report it under the wrong occasion. Or the connection may simply
+    /// have gone, in which case raising Connected tells a host it is connected when it is not; OTA
+    /// responds to that by setting IsConnected and starting a data load.
+    /// </para>
+    /// <para>
+    /// And a disposed session says nothing at all. Work already queued when disposal happens still runs,
+    /// which unsubscribing from the transport does not prevent -- the notification had already been
+    /// posted. A host whose own teardown has begun is not in a state to be told anything.
+    /// </para>
+    /// </remarks>
+    private bool StillTheCurrentTransition(int channel) =>
+        !_disposed && channel != 0 && _channel.Incarnation == channel;
 
     /// <summary>
     /// Runs work on the host's context, and says so when it fails.
@@ -106,11 +139,41 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private void Post(string what, Action work) => _ = Report(what, work);
 
+    /// <summary>
+    /// Calls every subscriber, even when one of them throws.
+    /// </summary>
+    /// <remarks>
+    /// A plain multicast invoke stops at the first subscriber that throws, so the ones after it never
+    /// hear about the connection at all. I wrote that "a bad subscriber loses its notification and
+    /// nothing else" while that was not true: it lost everyone else's too, and which ones depended on
+    /// subscription order.
+    ///
+    /// Each failure is reported separately, because one bad subscriber should not hide a second.
+    /// </remarks>
+    private void Deliver<T>(T? handlers, Action<T> call, string what) where T : Delegate
+    {
+        if (handlers == null) return;
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try { call((T)handler); }
+            catch (Exception ex) { _log.Warn($"A subscriber to {what} threw; the rest were still told.", ex); }
+        }
+    }
+
     private async Task Report(string what, Action work)
     {
         try
         {
-            await _context.PostAsync(work).ConfigureAwait(false);
+            await _context.PostAsync(() =>
+            {
+                // The one place this can be checked: work that IS on the context asking the context
+                // whether it is. A host whose PostAsync runs work somewhere else has broken the promise
+                // the whole arrangement rests on, and would otherwise do so silently.
+                if (!_context.IsCurrent)
+                    _log.Warn("The host's execution context ran posted work somewhere it does not "
+                              + "consider its own; this library's state is not safe under that.");
+                work();
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

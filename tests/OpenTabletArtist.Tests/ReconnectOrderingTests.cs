@@ -73,23 +73,24 @@ public class ReconnectOrderingTests
     }
 
     /// <summary>
-    /// A to B to C, with nothing drained between them: every notification names the daemon that is
-    /// answering <em>now</em>, and exactly one reports a change.
+    /// A to B to C, with nothing drained between them: <b>one</b> notification, naming C.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Not "B then C", which is what I first asserted and is not achievable. Identification reads the
-    /// world when it runs, and by then B has already been replaced — so a notification naming B would be
-    /// naming a daemon that no longer exists, which is worse than telling the host about C twice.
+    /// A queued notification belongs to the channel that raised it. B's has been superseded by the time
+    /// the context reaches it, so it is discarded rather than run against today's world.
     /// </para>
     /// <para>
-    /// Pinned because the tempting "fix" is to capture identity at the moment of the transition instead.
-    /// That would report a daemon that has gone, and a host acting on it — showing its path, deciding
-    /// whether it may be stopped — would be acting on something untrue.
+    /// I had this wrong twice. First I asserted "B then C", which is unachievable — identification reads
+    /// the world when it runs, so naming B would name a daemon that no longer exists. Then I asserted
+    /// "C twice", and defended it as merely redundant. It is not: the second notification replays a
+    /// historical transition with today's identity, which reports a transition that never happened as
+    /// though it had. A host acting on it — OTA starts a data load — is acting on an occasion that did
+    /// not occur.
     /// </para>
     /// </remarks>
     [Fact]
-    public void RapidTransitions_AllNameTheDaemonAnsweringNow()
+    public void RapidTransitions_ReportOnlyTheOneThatSurvived()
     {
         var h = Make();
         var told = new List<DaemonChange>();
@@ -99,9 +100,51 @@ public class ReconnectOrderingTests
         h.MoveTo("C/OpenTabletDriver.Daemon.exe");
         h.Context.Drain();
 
-        Assert.Equal(2, told.Count);
-        Assert.All(told, t => Assert.Equal("C/OpenTabletDriver.Daemon.exe", t.ExecutablePath));
-        Assert.Single(told, t => t.Changed);       // one boundary crossed, however many notifications
+        var change = Assert.Single(told);
+        Assert.Equal("C/OpenTabletDriver.Daemon.exe", change.ExecutablePath);
+        Assert.True(change.Changed);
+    }
+
+    /// <summary>
+    /// A connection that has already gone is not reported as connected.
+    ///
+    /// The transport says it has a channel; it drops before the host's context gets to the notification.
+    /// Raising Connected then tells a host it is connected when it is not — and OTA answers that by
+    /// setting <c>IsConnected</c> and starting a data load against nothing.
+    /// </summary>
+    [Fact]
+    public void AConnectionThatHasAlreadyGone_IsNotReportedAsConnected()
+    {
+        var h = Make();
+        var told = new List<DaemonChange>();
+        h.Session.Connected += told.Add;
+
+        h.Daemon.Reconnect();
+        h.Daemon.RaiseDisconnected();
+        h.Context.Drain();
+
+        Assert.Empty(told);
+    }
+
+    /// <summary>
+    /// Work already queued when disposal happens does not run afterwards.
+    ///
+    /// Unsubscribing from the transport does not cover this: the notification had already been posted.
+    /// And the assumption that a host has stopped listening by then is not true of OTA, which subscribes
+    /// with lambdas it never detaches and disposes its load gate and cancellation source first.
+    /// </summary>
+    [Fact]
+    public void WorkQueuedBeforeDisposal_DoesNotRunAfterIt()
+    {
+        var h = Make();
+        var told = new List<DaemonChange>();
+        h.Session.Connected += told.Add;
+
+        h.Daemon.Reconnect();
+        h.Session.Dispose();
+        h.Context.Drain();
+
+        Assert.Empty(told);
     }
 
     /// <summary>
@@ -141,6 +184,27 @@ public class ReconnectOrderingTests
     }
 
     /// <summary>
+    /// A subscriber that throws does not stop the ones after it hearing.
+    ///
+    /// A plain multicast invoke stops at the first throw, so later subscribers never hear about the
+    /// connection — and which ones depends on subscription order. I claimed a bad subscriber "loses its
+    /// notification and nothing else" while that was untrue.
+    /// </summary>
+    [Fact]
+    public void ASubscriberThatThrows_DoesNotSilenceTheOthers()
+    {
+        var h = Make(new RecordingLog());
+        var second = 0;
+        h.Session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
+        h.Session.Connected += _ => second++;
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");
+        h.Context.Drain();
+
+        Assert.Equal(1, second);
+    }
+
+    /// <summary>
     /// A subscriber that throws does not undo what the session already did.
     ///
     /// The identification and any invalidation happen before the host is told, so a bad subscriber can
@@ -157,6 +221,109 @@ public class ReconnectOrderingTests
 
         // The session is on B, so asking again reports no further change.
         Assert.False(h.Session.NoteConnectedDaemon().Changed);
+    }
+
+    /// <summary>
+    /// A read held across a reconnect: the host is told about the new daemon while the old one's answer is
+    /// still outstanding, and that answer is then discarded rather than adopted.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The case that makes the execution context worth requiring. A settings read is not instantaneous,
+    /// and a daemon switch does not wait for it -- so there is a real interval in which a call that went
+    /// to A is still in flight and B is already answering. Adopting A's reply there would make B's
+    /// baseline describe a daemon that is no longer connected, and the next edit would be built on it and
+    /// sent to B.
+    /// </para>
+    /// <para>
+    /// Both halves are asserted because either alone is satisfiable by accident: a session that told the
+    /// host nothing would also never adopt, and one that adopted everything would still report the
+    /// transition.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AReadHeldAcrossAReconnect_IsDiscarded_AndTheHostHearsWhileItIsStillInFlight()
+    {
+        var h = Make();
+        var told = new List<DaemonChange>();
+        h.Session.Connected += told.Add;
+
+        var a = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Daemon.GetSettingsHandler = () => a.Task;
+
+        var held = h.Settings.ReloadFromDaemonAsync();       // asked A, and A has not answered
+        Assert.False(held.IsCompleted);
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");           // the daemon changes underneath it
+
+        Assert.Empty(told);                                  // still behind the context, as everything is
+        h.Context.Drain();
+        Assert.Equal("B/OpenTabletDriver.Daemon.exe", Assert.Single(told).ExecutablePath);
+
+        a.SetResult(new Settings());                         // A answers at last
+        var outcome = await held;
+
+        Assert.Equal(SettingsReloadStatus.Overtaken, outcome.Status);
+        Assert.Null(outcome.Adopted);
+    }
+
+    /// <summary>
+    /// A read held across a reconnect that <b>nothing announced</b> is still discarded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The case the channel hold exists for, and the one the epoch cannot cover. An announced reconnect
+    /// invalidates, which moves the observation epoch, so a read in flight is caught by that alone -- and
+    /// the sibling test above passes with the channel check deleted. A silent reconnect moves nothing:
+    /// the transport replaced its channel and no notification has run yet, so the epoch the read recorded
+    /// is still current and the only thing that knows is the hold the read was taken through.
+    /// </para>
+    /// <para>
+    /// Found by mutation. Removing the channel check in <c>ReloadFromDaemonAsync</c> left the entire suite
+    /// green, which made a guard whose own comment explains why the epoch is insufficient into one that
+    /// nothing held.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AReadHeldAcrossASilentReconnect_IsDiscarded()
+    {
+        var h = Make();
+
+        var a = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Daemon.GetSettingsHandler = () => a.Task;
+
+        var held = h.Settings.ReloadFromDaemonAsync();
+        Assert.False(held.IsCompleted);
+
+        h.Daemon.ReconnectSilently();               // a new channel, and nothing has said so
+        Assert.Equal(0, h.Context.Pending);        // nothing was posted, so no epoch will move
+
+        a.SetResult(new Settings());
+        var outcome = await held;
+
+        Assert.Equal(SettingsReloadStatus.Overtaken, outcome.Status);
+        Assert.Null(outcome.Adopted);
+    }
+
+    /// <summary>
+    /// A host whose context runs the library's work somewhere it does not consider its own is told so.
+    /// </summary>
+    /// <remarks>
+    /// The only place this is checkable: work that IS on the context, asking the context whether it is.
+    /// The library cannot verify a host's threading from outside, so the whole arrangement rests on the
+    /// host keeping its word -- and a promise nothing ever checks is how this would fail silently.
+    /// </remarks>
+    [Fact]
+    public void AContextThatRunsWorkSomewhereElse_IsReported()
+    {
+        var log = new RecordingLog();
+        var h = Make(log);
+        h.Context.IsCurrent = false;                         // the host's context breaks its own promise
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");
+        h.Context.Drain();
+
+        Assert.Contains(log.Warnings, w => w.Contains("does not"));
     }
 
     // --- harness --------------------------------------------------------------------------------

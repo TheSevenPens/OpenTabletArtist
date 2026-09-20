@@ -59,15 +59,26 @@ internal static class Program
             return 2;
         }
 
+        // One context for the whole run, and the scenarios run ON it rather than merely posting to it.
+        // Starting the session's work here while the tool's own settings calls ran on console
+        // continuations would confine the half that needs it least: the library posts its own work, but
+        // OpenSettings, ReloadFromDaemonAsync and everything resumed after an await would still be
+        // wherever the console left them, which is the thread pool.
+        using var context = new PumpContext();
         try
         {
-            if (scenario is "all" or "1") await SwitchWithPendingEdit(a, b);
-            if (scenario is "all" or "2") await SwitchWithNothingPending(a, b);
-            if (scenario is "all" or "3") await SameDaemonRestart(a);
-            if (scenario is "all" or "4") await UnreadableDaemon(a);
+            await context.RunAsync(async () =>
+            {
+                if (scenario is "all" or "1") await SwitchWithPendingEdit(a, b, context);
+                if (scenario is "all" or "2") await SwitchWithNothingPending(a, b, context);
+                if (scenario is "all" or "3") await SameDaemonRestart(a, context);
+                if (scenario is "all" or "4") await UnreadableDaemon(a, context);
+            });
         }
         finally
         {
+            // Outside the pump deliberately: this is process cleanup, it touches no session state, and it
+            // has to run even when the pump is the thing that failed.
             KillDaemons();
         }
 
@@ -77,11 +88,11 @@ internal static class Program
     }
 
     /// <summary>The case the notice exists for: a different daemon, and an edit the disk never took.</summary>
-    private static async Task SwitchWithPendingEdit(string a, string b)
+    private static async Task SwitchWithPendingEdit(string a, string b, PumpContext context)
     {
         Head("1. switch to a different daemon with an unsaved edit pending");
-        KillDaemons();
-        using var h = await Open(a);
+        await KillDaemonsAsync();
+        using var h = await Open(a, context);
 
         // Nothing to ask: the session identified the daemon as it connected, and Open printed which one.
         h.BlockWrites(true);
@@ -101,11 +112,11 @@ internal static class Program
     }
 
     /// <summary>A switch that costs nothing must say so. A spurious notice is its own bug.</summary>
-    private static async Task SwitchWithNothingPending(string a, string b)
+    private static async Task SwitchWithNothingPending(string a, string b, PumpContext context)
     {
         Head("2. switch to a different daemon with nothing pending");
-        KillDaemons();
-        using var h = await Open(a);
+        await KillDaemonsAsync();
+        using var h = await Open(a, context);
         Check("applied and saved", await h.EditStatus() == SettingsApplyStatus.AppliedAndSaved, "-");
 
         var change = await h.SwitchTo(b);
@@ -118,11 +129,11 @@ internal static class Program
     /// The same binary restarting is the same daemon. Identity is the executable, not the process — what
     /// the protected state describes is a settings file and an installation, and both survive a restart.
     /// </summary>
-    private static async Task SameDaemonRestart(string a)
+    private static async Task SameDaemonRestart(string a, PumpContext context)
     {
         Head("3. restart the SAME daemon with an unsaved edit pending");
-        KillDaemons();
-        using var h = await Open(a);
+        await KillDaemonsAsync();
+        using var h = await Open(a, context);
         h.BlockWrites(true);
         Check("applied but not saved", await h.EditStatus() == SettingsApplyStatus.AppliedNotSaved, "-");
 
@@ -153,10 +164,10 @@ internal static class Program
     /// still yields a process id from the pipe — likely, since the pipe is
     /// <c>PipeOptions.CurrentUserOnly</c> and an elevated daemon runs as the same user, but unobserved.
     /// </summary>
-    private static async Task UnreadableDaemon(string a)
+    private static async Task UnreadableDaemon(string a, PumpContext context)
     {
         Head("4. a daemon whose executable can't be read (what elevation looks like)");
-        KillDaemons();
+        await KillDaemonsAsync();
 
         var real = new DaemonLifecycleService();
         var system = Process.GetProcessesByName("csrss").FirstOrDefault()
@@ -168,7 +179,7 @@ internal static class Program
                 real.PathOf(system.Id) == null, real.PathOf(system.Id) ?? "<null>");
 
         var blind = new BlindLocator(real);
-        using var h = await Open(a, blind);
+        using var h = await Open(a, context, blind);
 
         Check("a real pipe still reports a process id",
             h.Session.ConnectedProcessId() != null, h.Session.ConnectedProcessId());
@@ -200,6 +211,8 @@ internal static class Program
     private sealed class Live(OtdSession session, IOtdSettingsSession settings, string settingsFile,
         PumpContext context) : IDisposable
     {
+        // The context is held to check against, not to dispose: it outlives every scenario, and Main owns it.
+
         public OtdSession Session { get; } = session;
         public IOtdSettingsSession Settings { get; } = settings;
 
@@ -216,15 +229,25 @@ internal static class Program
         }
 
         /// <summary>Makes one real edit and reports what happened to it.</summary>
+        /// <remarks>
+        /// The checks are the point as much as the edit is. Adopting the reload's result and applying it
+        /// are host accesses to state the library also touches when a daemon switches, and both here
+        /// happen after an await, which is exactly where a context that only receives posts would have
+        /// already let go.
+        /// </remarks>
         public async Task<SettingsApplyStatus> EditStatus()
         {
+            MustBeOnTheContext(context, "EditStatus entry");
             var reload = await Settings.ReloadFromDaemonAsync();
+            MustBeOnTheContext(context, "adopting the reload result");
             var s = reload.Adopted?.Settings
                     ?? throw new InvalidOperationException("the daemon returned no settings");
             var profile = s.Profiles[0];
             // Round-trips cleanly and is visible in the file: flip the pressure-disable flag.
             profile.BindingSettings.DisablePressure = !profile.BindingSettings.DisablePressure;
-            return (await Settings.ApplyAndSaveAsync(s)).Status;
+            var status = (await Settings.ApplyAndSaveAsync(s)).Status;
+            MustBeOnTheContext(context, "after applying and saving");
+            return status;
         }
 
         /// <summary>
@@ -246,10 +269,14 @@ internal static class Program
             Session.Connected += Once;
             try
             {
-                KillDaemons();
+                await KillDaemonsAsync();
                 await Task.Delay(1500);
-                StartDaemon(exe);
-                return await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                await StartDaemonAsync(exe);
+                var change = await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                // The reconnect half of the same question: the session raised this from the context, and
+                // the host resumed on it.
+                MustBeOnTheContext(context, "resuming after a reconnect");
+                return change;
             }
             finally { Session.Connected -= Once; }
         }
@@ -258,14 +285,14 @@ internal static class Program
         {
             BlockWrites(false);
             Session.Dispose();
-            context.Dispose();
         }
     }
 
-    private static async Task<Live> Open(string exe, IDaemonProcessLocator? locator = null)
+    private static async Task<Live> Open(string exe, PumpContext context,
+        IDaemonProcessLocator? locator = null)
     {
-        StartDaemon(exe);
-        var context = new PumpContext();
+        MustBeOnTheContext(context, "Open entry");
+        await StartDaemonAsync(exe);
         var session = OtdSession.Create(AppLogBridge.Instance, OtaSettingsPolicy.Instance,
             locator ?? new DaemonLifecycleService(), context);
 
@@ -279,17 +306,31 @@ internal static class Program
         var file = (await session.Capabilities.GetAppInfoAsync())?.SettingsFile ?? "";
         Console.WriteLine($"   settings file: {file}");
 
+        MustBeOnTheContext(context, "opening a settings session");
         var settings = session.OpenSettings(() => file, () => true, _ => { });
         await settings.ReloadFromDaemonAsync();
+        MustBeOnTheContext(context, "after the first reload");
         return new Live(session, settings, file, context);
     }
 
-    private static void StartDaemon(string exe)
+    /// <remarks>
+    /// The settle waits are awaited rather than slept, because these now run ON the context. A blocking
+    /// sleep there holds the only thread the session has, so a connection raised during the wait would sit
+    /// in the queue behind us: working, but only because nothing needed the context meanwhile.
+    /// </remarks>
+    private static async Task StartDaemonAsync(string exe)
     {
         Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true });
-        Thread.Sleep(2500);
+        await Task.Delay(2500);
     }
 
+    private static async Task KillDaemonsAsync()
+    {
+        KillDaemons();
+        await Task.Delay(500);
+    }
+
+    /// <summary>Kills the daemons and returns. For cleanup, where there is nothing left to settle for.</summary>
     private static void KillDaemons()
     {
         foreach (var p in Process.GetProcessesByName("OpenTabletDriver.Daemon"))
@@ -297,13 +338,29 @@ internal static class Program
             try { p.Kill(); p.WaitForExit(5000); }
             catch { /* already gone, or not ours to kill */ }
         }
-        Thread.Sleep(500);
     }
 
     private static void Head(string title)
     {
         Console.WriteLine();
         Console.WriteLine($"=== {title}");
+    }
+
+    /// <summary>
+    /// Reports a host access that happened off the context the session was given.
+    /// </summary>
+    /// <remarks>
+    /// Counted as a failure like any other check, so a regression shows up in the exit code rather than in
+    /// a line someone has to notice. This is the assertion the arrangement is for: every other check here
+    /// would pass just as well with the settings calls running on the thread pool, which is precisely the
+    /// arrangement being ruled out.
+    /// </remarks>
+    private static void MustBeOnTheContext(PumpContext context, string where)
+    {
+        if (context.IsCurrent) return;
+        _failures++;
+        Console.WriteLine($"   [FAIL] {where} ran off the execution context "
+                          + $"(thread {Environment.CurrentManagedThreadId})");
     }
 
     private static void Check(string what, bool ok, object? actual)

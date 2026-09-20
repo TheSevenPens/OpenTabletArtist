@@ -450,7 +450,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectStalled = false;
             ConnectPhase = "";
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
-            ShowConnectedDaemon(change);
+            ApplyDaemonIdentity(change);
             Connected?.Invoke();
             _ = LoadDataAsync();
         };
@@ -1338,25 +1338,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// here is what was always ours -- what to display, and whether this daemon is one we may act on
     /// without asking the user first.
     /// </summary>
-    private void ShowConnectedDaemon(DaemonChange change) => ApplyDaemonIdentity(change);
-
-    /// <summary>
-    /// Asks the library who is answering, for the paths that are not a connection event — a manual
-    /// refresh, where nothing has just transitioned and so nothing is being handed to us.
-    /// </summary>
-    private void UpdateDaemonSource()
-    {
-        if (!IsConnected)
-        {
-            Ownership = DaemonOwnership.Unknown;
-            DaemonSourcePath = "";
-            DaemonVersion = "";
-            return;
-        }
-
-        ApplyDaemonIdentity(_session.NoteConnectedDaemon());
-    }
-
     /// <summary>
     /// Shows a daemon, and says so when identifying it cost the user an edit.
     ///
