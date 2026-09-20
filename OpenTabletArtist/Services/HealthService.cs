@@ -187,6 +187,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             IsWindows = OperatingSystem.IsWindows(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
+            DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
             DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,
             DaemonVersion = _connection.DaemonVersion,

@@ -164,6 +164,26 @@ public class HealthEvaluatorTests
             Assert.Single(issue.Links!).Setting);
     }
 
+    // A daemon that IS the bundled copy, answering while the user's selection points elsewhere, is also
+    // External -- and telling that user "not the bundled copy" is a false sentence about the very thing
+    // they are running (#882). The classification is unchanged; only what it says is.
+    [Fact]
+    public void TheBundledDaemonAnsweringWhileAnotherIsSelected_IsNotDescribedAsSomethingElse()
+    {
+        var issue = Assert.Single(HealthEvaluator.Evaluate(
+            Healthy() with { ForeignDaemon = true, DaemonIsManagedButNotSelected = true }));
+
+        var row = Assert.Single(issue.Links!).Setting;
+
+        Assert.DoesNotContain("not the bundled copy", row);
+        Assert.Equal("Not the OpenTabletDriver you chose — a different one is answering", row);
+
+        // Still the same card, the same severity and the same remedy: nothing about privileges moved.
+        Assert.Equal("otd.driver", issue.Id);
+        Assert.Equal(HealthSeverity.Information, issue.Severity);
+        Assert.Equal("Review", issue.Remediation!.ActionLabel);
+    }
+
     // The point of the merge: three facts about one driver are one card with three rows, not three cards
     // each offering the same Review.
     [Fact]

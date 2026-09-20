@@ -103,6 +103,61 @@ public class DaemonOwnershipRefreshTests
         Assert.False(session.IsAppOwnedDaemon);
     }
 
+    /// <summary>
+    /// The bundled daemon answering while a different one is selected is External, and says which.
+    /// </summary>
+    /// <remarks>
+    /// The state #880 reproduced on a real machine: a stored user selection makes
+    /// <c>ExpectedExePath</c> point away from the bundled daemon, so the bundled copy answering is not
+    /// the selected one. External is the right answer — a daemon other than the selected one must not
+    /// gain cleanup and plugin privileges — but it is External for a different reason than someone
+    /// else's install, and #882 is about not printing the wrong one of those two.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task TheBundledDaemonAnsweringWhileAnotherIsSelected_IsExternalAndSaysWhy()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = SettingsFor("Baseline") };
+        var locator = new FakeProcessLocator { Path = "C:/app/Daemon/OpenTabletDriver.Daemon.exe" };
+
+        // Selection points elsewhere; the managed location is still the app's own Daemon folder.
+        var lifecycle = new PathAwareLifecycle
+        {
+            Managed = "C:/app/Daemon/OpenTabletDriver.Daemon.exe",
+            Selected = "C:/elsewhere/OpenTabletDriver.Daemon.exe",
+        };
+
+        var otd = OtdSession.ForTesting(daemon, new NullStore(), NullOtdLog.Instance,
+            OtaSettingsPolicy.Instance, locator);
+        using var session = new AppSession(otd, lifecycle);
+
+        daemon.Reconnect();
+        await session.ReloadAsync();
+
+        Assert.Equal(DaemonOwnership.External, session.Ownership);
+        Assert.True(session.DaemonIsManagedButNotSelected);
+    }
+
+    /// <summary>
+    /// Someone else's install is External too, and is <em>not</em> flagged as merely unselected.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task SomeoneElsesInstall_IsExternalWithoutTheUnselectedFlag()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = SettingsFor("Baseline") };
+        var locator = new FakeProcessLocator { Path = "C:/elsewhere/OpenTabletDriver.Daemon.exe" };
+        var lifecycle = new PathAwareLifecycle { Managed = "C:/app/Daemon/OpenTabletDriver.Daemon.exe" };
+
+        var otd = OtdSession.ForTesting(daemon, new NullStore(), NullOtdLog.Instance,
+            OtaSettingsPolicy.Instance, locator);
+        using var session = new AppSession(otd, lifecycle);
+
+        daemon.Reconnect();
+        await session.ReloadAsync();
+
+        Assert.Equal(DaemonOwnership.External, session.Ownership);
+        Assert.False(session.DaemonIsManagedButNotSelected);
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     /// <summary>A lifecycle service that manages exactly one path, as the packaged app manages its own.</summary>
@@ -110,7 +165,10 @@ public class DaemonOwnershipRefreshTests
     {
         public string Managed { get; init; } = "";
 
-        public string? ExpectedExePath() => Managed;
+        /// <summary>What the user picked, when that differs from the managed location (#882).</summary>
+        public string? Selected { get; init; }
+
+        public string? ExpectedExePath() => Selected ?? Managed;
 
         public bool IsAppManaged(string? path) =>
             path != null && string.Equals(path, Managed, StringComparison.OrdinalIgnoreCase);

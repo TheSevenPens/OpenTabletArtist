@@ -165,6 +165,9 @@ internal sealed class FakeConnectionState : IConnectionState
     }
     private DaemonOwnership _ownership = DaemonOwnership.Owned;
 
+    /// <summary>The daemon is somewhere the app manages, but is not the selected one (#882).</summary>
+    public bool DaemonIsManagedButNotSelected { get; set; }
+
     public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
     public bool IsDaemonRunning => _isConnected;
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;

@@ -31,6 +31,8 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>Shorthand for <c>Ownership == External</c>. Note this is <b>not</b> the negation of
     /// <see cref="IsAppOwnedDaemon"/> — an unidentifiable daemon is neither.</summary>
     bool IsForeignDaemon { get; }
+    /// <summary>The daemon is somewhere this app manages, but is not the one selected (#882).</summary>
+    bool DaemonIsManagedButNotSelected { get; }
     string DaemonSourcePath { get; }
     /// <summary>Version stamped on the connected daemon's executable (read best-effort from its file
     /// via the pipe-server PID; empty when not connected or the path/version couldn't be read). (#296)</summary>
@@ -219,6 +221,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
     public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
+
+    /// <summary>
+    /// The answering daemon sits in a location this app manages, but is not the one selected (#882).
+    /// </summary>
+    /// <remarks>
+    /// Not a third ownership state: it is still <see cref="DaemonOwnership.External"/>, and nothing about
+    /// privileges changes. It exists so the health card can say which of the two reasons applies rather
+    /// than printing the wrong one.
+    /// </remarks>
+    [ObservableProperty] private bool _daemonIsManagedButNotSelected;
     [ObservableProperty] private string _daemonSourcePath = "";
     partial void OnDaemonSourcePathChanged(string value) => OnPropertyChanged(nameof(HasDaemonSourcePath));
     [ObservableProperty] private string _daemonVersion = "";
@@ -1471,8 +1483,16 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // catalog treating it as Information, not by pretending it is ours.
         // See docs/design/official-otd-release.md.
         var resolved = ExecutablePath.SameFile(actual, _daemonLifecycle.ExpectedExePath());
-        var owned = resolved && _daemonLifecycle.IsAppManaged(actual);
+        var managed = _daemonLifecycle.IsAppManaged(actual);
+        var owned = resolved && managed;
         Ownership = owned ? DaemonOwnership.Owned : DaemonOwnership.External;
+
+        // Managed by location, but not the one the user picked -- ExpectedExePath prefers a user-chosen
+        // daemon over the bundled candidate, so the bundled copy answering while a selection points
+        // elsewhere lands here. External is the right classification (#880: a daemon other than the
+        // selected one must not silently gain cleanup and plugin privileges), but "an OpenTabletDriver
+        // you installed, not the bundled copy" is then a false sentence about the bundled copy (#882).
+        DaemonIsManagedButNotSelected = !owned && managed;
     }
 
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
