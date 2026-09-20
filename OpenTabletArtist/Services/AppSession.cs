@@ -1383,8 +1383,53 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
     /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
 
+    /// <summary>
+    /// Settles the work this session already admitted, then closes the connection.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What <see cref="Dispose"/> cannot be. Disposing closes the transport under whatever is running, so
+    /// an apply that reached the daemon can fail on its way to disk with nothing able to say whether it
+    /// landed. An exit that can wait should come through here first; <see cref="Dispose"/> stays as the
+    /// teardown, and as the fallback for an exit that cannot.
+    /// </para>
+    /// <para>
+    /// The loops are cancelled first, and not for the reason it first appears. They cannot prolong the
+    /// settle -- the library stops admitting the moment the close begins, so anything they started would
+    /// be refused rather than waited for. What they can do is keep using the transport during the window:
+    /// the fallback poll reloads through <c>LoadDataAsync</c>, which reads the daemon directly rather than
+    /// through the settings session, so a poll landing mid-close would read a connection on its way out
+    /// and adopt what it found. Cancelling is not disposing: <see cref="Dispose"/> still owns the token
+    /// source, the gate and the timers.
+    /// </para>
+    /// <para>
+    /// No regression covers that cancellation. The poll runs every thirty seconds against a five-second
+    /// close, so one lands inside a close often enough to matter but never on demand, and provoking it
+    /// would mean making the interval a test seam for a single line whose absence is directly
+    /// inspectable. Said here rather than left to look covered.
+    /// </para>
+    /// </remarks>
+    /// <param name="settleWithin">How long to wait for work in flight before closing anyway.</param>
+    /// <returns>True when everything in flight finished; false when it closed anyway.</returns>
+    public async Task<bool> CloseAsync(TimeSpan settleWithin)
+    {
+        if (!_disposed) _cts.Cancel();
+
+        // ConfigureAwait(true) on purpose: the library requires host callers to resume on the same
+        // serialized context they called from, and for this application that is the UI thread.
+        return await _session.CloseAsync(settleWithin).ConfigureAwait(true);
+    }
+
+    private bool _disposed;
+
     public void Dispose()
     {
+        // Idempotent, because closing and disposing are now two calls a host makes in sequence and an
+        // exit can reach this twice. Cancelling a disposed token source throws.
+        if (_disposed) return;
+
+        _disposed = true;
+
         _cts.Cancel();
         _cts.Dispose();
         _loadGate.Dispose();

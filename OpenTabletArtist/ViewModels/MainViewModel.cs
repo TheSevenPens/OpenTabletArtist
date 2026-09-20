@@ -58,6 +58,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// the tray's Quit while the daemon is still connected, so no per-app snapshot lingers after close.</summary>
     public Task ShutdownRestorePerAppAsync() => _perAppSwitcher.StopAsync();
 
+    /// <summary>
+    /// Settles settings work already in flight and closes the session, for an exit that can wait (#828).
+    /// </summary>
+    /// <remarks>
+    /// Called from the tray's Quit, which is already asynchronous and already bounds its shutdown steps.
+    /// The window's <c>Closed</c> handler still runs <see cref="Dispose"/>, which cannot wait — that is
+    /// the path an exit takes when nobody asked for one, and it remains the fallback rather than the
+    /// intended route.
+    /// </remarks>
+    public Task<bool> CloseSessionAsync(TimeSpan settleWithin) => _session.CloseAsync(settleWithin);
+
     // Surfaced for the tray's tablet actions (#186/#187): the dynamics-reveal line and the
     // Open Tablet Settings / Switch Display items read device data, persist via the settings
     // coordinator, and open the per-tablet dialog through the dialog service.
