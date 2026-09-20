@@ -47,8 +47,21 @@ internal sealed class ControllableContext : IOtdExecutionContext
     /// one platform and a collection modified mid-enumeration on another. A context a test controls has
     /// to control the continuations too, or it controls nothing.
     /// </remarks>
+    /// <summary>
+    /// When set, posts are refused with a faulted task and the work never runs.
+    /// </summary>
+    /// <remarks>
+    /// A host shutting down does this: its dispatcher stops accepting work while the library is still
+    /// deciding things. The library has to settle whatever represented that work rather than leaving a
+    /// caller waiting for a callback nobody will ever run.
+    /// </remarks>
+    public bool RefusePosts { get; set; }
+
     public Task PostAsync(Action work)
     {
+        if (RefusePosts)
+            return Task.FromException(new ObjectDisposedException(nameof(ControllableContext)));
+
         var done = new TaskCompletionSource();
         _pending.Add((work, done));
         return done.Task;

@@ -520,10 +520,10 @@ public sealed class OtdSession : IDisposable
                 return task;
             }
 
-            // Deliberately NOT RunContinuationsAsynchronously. This is completed from inside work running
-            // on the host's context, so an inline continuation keeps whoever awaited it there too --
-            // which is the contract this library publishes, and a pool thread reading coordinator state
-            // is exactly what it exists to prevent.
+            // Deliberately NOT RunContinuationsAsynchronously, so that a continuation can run inline on
+            // the context that completes this. That is a preference, not the guarantee: what keeps a
+            // caller confined is its own synchronization context, which IOtdExecutionContext requires of
+            // any host calling the asynchronous operations.
             var flight = new Lookup(channel, new TaskCompletionSource());
             _lookup = flight;
             _ = RunLookupAsync(flight);
@@ -554,8 +554,8 @@ public sealed class OtdSession : IDisposable
         }
 
         // Reported through the host's context like everything else this session decides, and the lookup
-        // is only finished once that has run.
-        Post("record where the connected daemon keeps its settings", () =>
+        // is only finished once that has run -- or has been observed not to.
+        var publication = Report("record where the connected daemon keeps its settings", () =>
         {
             try
             {
@@ -576,9 +576,28 @@ public sealed class OtdSession : IDisposable
             }
             finally
             {
+                // Settled here when the publication runs, so whoever is awaiting it resumes inline on
+                // this context rather than wherever the reply happened to arrive.
                 flight.Done.TrySetResult();
             }
         });
+
+        try
+        {
+            // Report never throws: it catches and logs. Awaiting it is how this learns that the attempt
+            // has concluded, however it concluded.
+            await publication.ConfigureAwait(false);
+        }
+        finally
+        {
+            // The backstop, and the whole point of awaiting. A host can refuse a post -- shutting down,
+            // or running work somewhere it does not consider its own -- and then the action above never
+            // runs and never settles anything. Completing only from inside it left a retry awaiting a
+            // task nobody would ever complete, and every later retry on this channel coalesced onto that
+            // dead flight. Nothing is claimed by settling here: the destination stays unknown, the edit
+            // stays pending, and the next retry starts a fresh lookup.
+            flight.Done.TrySetResult();
+        }
     }
 
     /// <summary>

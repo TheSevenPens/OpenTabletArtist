@@ -63,4 +63,25 @@ public interface IOtdExecutionContext
     /// </para>
     /// </remarks>
     bool IsCurrent { get; }
+
+    // -----------------------------------------------------------------------------------------------
+    // WHAT A HOST HAS TO PROVIDE, beyond implementing this interface.
+    //
+    // A host that calls the asynchronous settings operations must do so from a thread whose
+    // SynchronizationContext resumes continuations back onto this context. Avalonia's dispatcher does;
+    // the switch-check tool's pump installs one for exactly this reason.
+    //
+    // This is a requirement rather than something the library can arrange. Some of its operations await
+    // work that has to happen on the context -- learning where a daemon keeps its settings, for one --
+    // and what runs after such an await is coordinator state access, a file write, and a host callback.
+    // Without a synchronization context those resume on the thread pool, concurrently with the
+    // identification and invalidation running on the context, and no gate in this library serializes
+    // them against each other.
+    //
+    // It would be nice to say that completing on the context is enough, because an inline continuation
+    // then keeps the caller there. That is PERMITTED rather than guaranteed -- it depends on how the
+    // awaited task was built and on what the runtime decides -- and a guarantee that holds by accident
+    // is not one worth documenting. So: a synchronization context, or the confinement is the host's to
+    // lose.
+    // -----------------------------------------------------------------------------------------------
 }

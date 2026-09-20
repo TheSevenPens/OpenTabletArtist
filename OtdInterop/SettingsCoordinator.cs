@@ -836,9 +836,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // identification and reset running on the host's context. Continuing on a pool thread is the
         // confinement failure this library exists to prevent, arrived at by a keystroke.
         //
-        // The lookup completes from inside work on the host's context, and with a completion source that
-        // continues inline, so this resumes there whether or not the host also installs a
-        // SynchronizationContext.
+        // Which means this resumes on the caller's synchronization context -- which a host calling the
+        // asynchronous operations is required to have, and which IOtdExecutionContext says so. The
+        // lookup also completes from inside work on the context, so an inline continuation usually lands
+        // there anyway; that is a happy accident and not the contract, and writing it down as though it
+        // were would be documenting a guarantee nothing enforces.
         await LookForTheDestinationIfNeededAsync();
         return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange);
     }

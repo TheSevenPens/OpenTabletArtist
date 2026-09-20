@@ -421,6 +421,165 @@ public class DestinationReadinessTests
         Assert.False(bNeverAnswers.Task.IsCompleted);
     }
 
+    /// <summary>
+    /// A publication the host refuses settles the lookup rather than leaving a retry waiting forever.
+    /// </summary>
+    /// <remarks>
+    /// The lookup's task was completed only from inside the posted publication, so a host that refused
+    /// the post — shutting down, or running the work somewhere it does not consider its own — left that
+    /// task unsettled for good. An explicit retry awaited it forever, and every later retry on the
+    /// channel coalesced onto the same dead flight even once the context recovered.
+    ///
+    /// The failure here has already been observed and logged; what was missing is that the task standing
+    /// for the work never heard about it.
+    /// </remarks>
+    [Fact]
+    public async Task APublicationTheHostRefuses_StillSettlesTheLookup()
+    {
+        var h = Make();
+
+        var fail = true;
+        h.Daemon.GetAppInfoHandler = () => fail
+            ? Task.FromException<AppInfo?>(new InvalidOperationException("no answer"))
+            : Task.FromResult<AppInfo?>(FakeDaemonTransport.Reporting("A/settings.json"));
+
+        h.Daemon.Reconnect();
+        h.Context.Drain();
+        await h.Settings.ReloadFromDaemonAsync();
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await h.Settings.ApplyAndSaveAsync(Tablet("Edit"))).Status);
+
+        fail = false;                                // the daemon can answer now
+        h.Context.RefusePosts = true;                // but the host will not take the answer
+
+        var refused = await h.Settings.RetryPersistAsync().WaitAsync(
+            TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        // It came back. Unsaved, because nothing could be recorded -- and the edit is still pending.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, refused.Status);
+        Assert.Empty(h.Store.Wrote);
+
+        // And the connection is not poisoned: once the host is taking work again, a retry recovers.
+        h.Context.RefusePosts = false;
+        var retry = h.Settings.RetryPersistAsync();
+        h.Context.Drain();
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await retry).Status);
+        Assert.Equal("A/settings.json", Assert.Single(h.Store.Wrote).Path);
+    }
+
+    /// <summary>
+    /// A retry waiting on metadata does not hold the settings mutation gate: other work still gets
+    /// through while it waits.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// I declined to write this last round because I could not see how to keep it from passing for the
+    /// wrong reason — a test where neither operation reaches anything interesting passes whether the gate
+    /// is held or not. The answer is positive checkpoints on both: the metadata call must be observed to
+    /// have started, and the other operation must be observed to have reached the daemon, both while the
+    /// metadata response is still outstanding.
+    /// </para>
+    /// <para>
+    /// Put discovery back under the gate and the live apply cannot reach its handler until metadata is
+    /// released, so the assertion fails rather than merely not happening.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ARetryWaitingOnMetadata_DoesNotBlockOtherSettingsWork()
+    {
+        var h = Make();
+
+        var fail = true;
+        var asked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = new TaskCompletionSource<AppInfo?>();
+        h.Daemon.GetAppInfoHandler = () =>
+        {
+            if (fail) return Task.FromException<AppInfo?>(new InvalidOperationException("no answer"));
+
+            asked.TrySetResult();                    // the lookup has started
+            return answer.Task;                      // and will not finish until this test says so
+        };
+
+        h.Daemon.Reconnect();
+        h.Context.Drain();
+        await h.Settings.ReloadFromDaemonAsync();
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await h.Settings.ApplyAndSaveAsync(Tablet("Edit"))).Status);
+
+        fail = false;
+
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>();
+
+        Task<SettingsApplyOutcome>? retry = null;
+        Task<SettingsApplyOutcome>? other = null;
+        try
+        {
+            retry = h.Settings.RetryPersistAsync();
+
+            // Checkpoint one: the lookup really is outstanding, so the retry is genuinely waiting.
+            await asked.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            Assert.False(retry.IsCompleted);
+
+            h.Daemon.SetSettingsHandler = _ => { sent.TrySetResult(); return release.Task; };
+            other = h.Settings.ApplyLiveOnlyAsync(Tablet("Meanwhile"));
+
+            // Checkpoint two: it reached the daemon, while metadata is still outstanding. This is the
+            // assertion -- not that nothing deadlocked, but that other work made real progress.
+            await sent.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            Assert.False(answer.Task.IsCompleted);
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            answer.TrySetResult(FakeDaemonTransport.Reporting("A/settings.json"));
+        }
+
+        h.Context.Drain();
+        await other!;
+        await retry!;
+    }
+
+    /// <summary>
+    /// A later reset on the <b>same</b> channel allows no survivor, so work that channel accepted is
+    /// still discarded.
+    /// </summary>
+    /// <remarks>
+    /// The negative half of the survivor rule. Work survives because it belongs to a channel this session
+    /// had not yet identified — not because its channel happens to be the current one. Once that channel
+    /// has been identified, a further change of identity on it means one of the two readings was wrong,
+    /// and nothing on it can be attributed with confidence.
+    /// </remarks>
+    [Fact]
+    public async Task ASecondResetOnTheSameChannel_AllowsNoSurvivor()
+    {
+        var h = Make();
+
+        h.Daemon.Reconnect();                       // A
+        h.Context.Drain();
+        await h.Settings.ReloadFromDaemonAsync();
+
+        // B arrives and accepts an edit the disk refuses, before anything identifies it.
+        h.Locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        h.Daemon.Reconnect();
+        h.Store.SaveSucceeds = false;
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await h.Settings.ApplyAndSaveAsync(Tablet("B's edit"))).Status);
+        h.Store.SaveSucceeds = true;
+
+        h.Context.Drain();                          // B identified; its own edit survives that
+
+        // Now the same channel reports a different daemon. It cannot: one connection is one process, so
+        // one of the two readings is wrong and the edit on it is no longer attributable.
+        h.Locator.Path = "C/OpenTabletDriver.Daemon.exe";
+        Assert.True(h.Session.RefreshDaemonIdentityAndTakeChange().Changed);
+
+        Assert.Equal(SettingsApplyStatus.NoChange, (await h.Settings.RetryPersistAsync()).Status);
+        Assert.Empty(h.Store.Wrote);
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     private sealed record Harness(OtdSession Session, IOtdSettingsSession Settings,
