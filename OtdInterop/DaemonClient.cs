@@ -443,9 +443,41 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
         await _rpc.InvokeAsync("LoadPlugins");
     }
 
+    /// <summary>
+    /// Closes the channel, and leaves this reading as not connected rather than as broken.
+    /// </summary>
+    /// <remarks>
+    /// The references are dropped, not merely disposed, and that is the whole of the fix. Every send here
+    /// guards on <c>_rpc == null</c> — the state a disconnect leaves behind — while disposal left it
+    /// pointing at a disposed channel, which passes that guard and throws inside StreamJsonRpc instead.
+    /// So a host that read through <see cref="OtdSession.Capabilities"/> after disposing got an exception
+    /// where <see cref="IDaemonCapabilities.GetAppInfoAsync"/> promises null.
+    ///
+    /// Dropping the reference is what the disconnect path already does, for the same reason.
+    ///
+    /// <para>
+    /// <b>No regression distinguishes this, for two reasons.</b> <see cref="DaemonCapabilities"/> answers
+    /// for a torn-down session before reaching the transport, so the symptom is fixed there; and a test
+    /// that calls this client directly after disposing it passes either way, because StreamJsonRpc's own
+    /// disconnect handler clears the same reference first. Both were run rather than reasoned about.
+    /// </para>
+    /// <para>
+    /// The behaviour <em>is</em> pinned, by that direct test and by the wrapper's own. What is not pinned
+    /// is which of the two clearings did it.
+    /// </para>
+    /// <para>
+    /// Kept because it is the root cause rather than the symptom: any other holder of a disposed client
+    /// would still get an exception where the guard two lines below promises null.
+    /// </para>
+    /// </remarks>
     public void Dispose()
     {
-        _rpc?.Dispose();
-        _pipe?.Dispose();
+        var rpc = _rpc;
+        _rpc = null;
+        rpc?.Dispose();
+
+        var pipe = _pipe;
+        _pipe = null;
+        pipe?.Dispose();
     }
 }

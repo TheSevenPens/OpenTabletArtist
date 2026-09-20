@@ -17,51 +17,79 @@ namespace OtdInterop;
 ///
 /// The events forward by subscription rather than by re-raising, so a subscriber is attached to the real
 /// connection and there is no intermediate list to leak or to forget to clear.
+///
+/// <para>
+/// <b>After the session is gone (#828).</b> This is borrowed, and disposing the session does not take it
+/// back: a host that kept a reference can still call and still subscribe. That had no answer, so it got
+/// whatever the transport happened to do — which was to throw, because a disposed channel passes a
+/// null check.
+/// </para>
+/// <para>
+/// It reports <b>not connected</b> instead, which is what every one of these members already documents
+/// for a session with no daemon, and what the transport itself returns when it has no channel. The same
+/// answer either way is the point: a host should not need to know whether the session it is holding has
+/// been disposed to know how to read the result.
+/// </para>
+/// <para>
+/// <b>Subscribing is refused; unsubscribing always works.</b> There is nothing left to observe, so
+/// attaching would only keep the handler — and whatever it closes over — alive against a connection that
+/// has gone. Detaching has to keep working regardless, or a host tearing down in an order this library
+/// did not choose would be unable to let go.
+/// </para>
 /// </remarks>
-internal sealed class DaemonCapabilities(IDaemonTransport inner) : IDaemonCapabilities
+/// <param name="inner">The connection to forward to.</param>
+/// <param name="gone">Whether the session that lent this out has been torn down.</param>
+internal sealed class DaemonCapabilities(IDaemonTransport inner, Func<bool> gone) : IDaemonCapabilities
 {
     /// <inheritdoc />
     public event Action<JObject>? DeviceReport
     {
-        add => inner.DeviceReport += value;
+        add { if (!gone()) inner.DeviceReport += value; }
         remove => inner.DeviceReport -= value;
     }
 
     /// <inheritdoc />
     public event Action<LogMessage>? LogReceived
     {
-        add => inner.LogReceived += value;
+        add { if (!gone()) inner.LogReceived += value; }
         remove => inner.LogReceived -= value;
     }
 
     /// <inheritdoc />
     public event Action? TabletsChanged
     {
-        add => inner.TabletsChanged += value;
+        add { if (!gone()) inner.TabletsChanged += value; }
         remove => inner.TabletsChanged -= value;
     }
 
     /// <inheritdoc />
-    public Task SetTabletDebugAsync(bool enabled) => inner.SetTabletDebugAsync(enabled);
+    public Task SetTabletDebugAsync(bool enabled) =>
+        gone() ? Task.CompletedTask : inner.SetTabletDebugAsync(enabled);
 
     /// <inheritdoc />
-    public Task<List<LogMessage>> GetCurrentLogAsync() => inner.GetCurrentLogAsync();
+    public Task<List<LogMessage>> GetCurrentLogAsync() =>
+        gone() ? Task.FromResult(new List<LogMessage>()) : inner.GetCurrentLogAsync();
 
     /// <inheritdoc />
-    public Task<AppInfo?> GetAppInfoAsync() => inner.GetAppInfoAsync();
+    public Task<AppInfo?> GetAppInfoAsync() =>
+        gone() ? Task.FromResult<AppInfo?>(null) : inner.GetAppInfoAsync();
 
     /// <inheritdoc />
-    public Task<JArray> GetTabletsAsync() => inner.GetTabletsAsync();
+    public Task<JArray> GetTabletsAsync() =>
+        gone() ? Task.FromResult(new JArray()) : inner.GetTabletsAsync();
 
     /// <inheritdoc />
-    public Task<JArray> GetDevicesAsync() => inner.GetDevicesAsync();
+    public Task<JArray> GetDevicesAsync() =>
+        gone() ? Task.FromResult(new JArray()) : inner.GetDevicesAsync();
 
     /// <inheritdoc />
-    public Task<bool> DownloadPluginAsync(PluginMetadata metadata) => inner.DownloadPluginAsync(metadata);
+    public Task<bool> DownloadPluginAsync(PluginMetadata metadata) =>
+        gone() ? Task.FromResult(false) : inner.DownloadPluginAsync(metadata);
 
     /// <inheritdoc />
-    public Task<bool> UninstallPluginAsync(string directory) => inner.UninstallPluginAsync(directory);
+    public Task<bool> UninstallPluginAsync(string directory) =>
+        gone() ? Task.FromResult(false) : inner.UninstallPluginAsync(directory);
 
     /// <inheritdoc />
-    public Task LoadPluginsAsync() => inner.LoadPluginsAsync();
+    public Task LoadPluginsAsync() => gone() ? Task.CompletedTask : inner.LoadPluginsAsync();
 }

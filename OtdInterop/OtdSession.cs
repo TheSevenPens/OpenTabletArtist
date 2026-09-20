@@ -51,7 +51,7 @@ public sealed class OtdSession : IDisposable
     {
         _probe = probe;
         Connection = connection;
-        Capabilities = new DaemonCapabilities(connection);
+        Capabilities = new DaemonCapabilities(connection, () => TornDown);
         _channel = channel;
         _store = store;
         _log = log;
@@ -941,6 +941,10 @@ public sealed class OtdSession : IDisposable
     /// something to answer: a host asking afterwards whether a change went unsaved should get the truth
     /// rather than an exception. Reading what already happened is allowed; starting something new is what
     /// <see cref="OpenSettings"/> refuses.
+    ///
+    /// <see cref="Capabilities"/> answers on the same principle, decided in #828: every member reports
+    /// not connected rather than throwing, because a borrowed handle outlives the session that lent it
+    /// and a host should not have to know which it is holding to know how to read the result.
     /// </remarks>
     public void Dispose() => Close();
 
@@ -1073,6 +1077,12 @@ public sealed class OtdSession : IDisposable
     private Task<bool>? _closing;
     private bool _admissionStopped;
     private bool _tornDown;
+
+    /// <summary>Whether the transport has gone, for the capabilities this session lends out.</summary>
+    private bool TornDown
+    {
+        get { lock (_closeGate) return _tornDown; }
+    }
 
     private async Task<bool> RunCloseAsync(TimeSpan window)
     {

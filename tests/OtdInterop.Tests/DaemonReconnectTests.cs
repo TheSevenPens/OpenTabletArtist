@@ -128,6 +128,63 @@ public class DaemonReconnectTests
     }
 
     /// <summary>
+    /// Identifying a new daemon does not wait behind an outstanding RPC or the mutation gate.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The #828 requirement that had no test: serializing a short state transition is not the same as
+    /// monopolizing the context for an entire network operation. A reset that queued behind an apply
+    /// would leave the session speaking for the departed daemon for as long as that apply took — which,
+    /// against a daemon that has stopped answering, is until the operation's own timeout.
+    /// </para>
+    /// <para>
+    /// The property is structural — the reset is synchronous, uses interlocked writes, and takes no
+    /// gate — but nothing failed if that stopped being true.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task IdentifyingANewDaemon_DoesNotWaitForAnApplyInFlight()
+    {
+        // Its own session, because the daemon has to actually CHANGE: the shared harness keeps one
+        // locator path, so reconnecting it identifies the same daemon and never resets anything. My
+        // first version of this test did exactly that and passed against a reset that took the gate.
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        using var session = OtdSession.ForTesting(daemon, new PathRecordingStore(), NullOtdLog.Instance,
+            NoPolicy.Instance, locator);
+        var settings = session.OpenSettings(() => true, _ => { });
+        daemon.Reconnect();
+        await settings.ReloadFromDaemonAsync();
+
+        DaemonChange? identified = null;
+        session.Connected += c => identified = c;
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        // The gate is held and an RPC is outstanding on it.
+        var apply = settings.ApplyAndSaveAsync(Tablet("Held"));
+        await sending.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        // A different daemon, so identification really does have a reset to perform.
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();
+
+        // Identification and the reset have already happened, with the apply still stuck.
+        Assert.NotNull(identified);
+        Assert.True(identified!.Value.Changed);
+        Assert.False(apply.IsCompleted);
+
+        held.SetResult(true);
+        await apply;
+    }
+
+    /// <summary>
     /// Work queued behind a held operation is refused too, not merely the one in flight.
     ///
     /// The requirement is explicit about this: cover operations already queued, not only work started by
