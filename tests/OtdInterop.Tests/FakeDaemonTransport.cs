@@ -39,10 +39,16 @@ internal static class FakeSession
     /// case for a fake -- and the case where the session must leave its state alone rather than treat
     /// "cannot see" as "it changed".
     /// </param>
+    /// <param name="policy">
+    /// The rules to apply on the way out. Defaults to none, which is what a test about the library's
+    /// mechanics wants; an application test that means to exercise <em>its own</em> policy passes that
+    /// instead, and should, because the default quietly turning those tests into no-policy tests is
+    /// exactly what happened when this helper stopped taking one.
+    /// </param>
     public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null,
-        IDaemonProcessLocator? locator = null)
+        IDaemonProcessLocator? locator = null, IOtdSettingsPolicy? policy = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, NoPolicy.Instance,
+        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, policy ?? NoPolicy.Instance,
             locator ?? new FakeProcessLocator());
 }
 

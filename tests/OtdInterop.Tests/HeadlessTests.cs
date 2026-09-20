@@ -26,13 +26,17 @@ namespace OtdInterop.Tests;
 public class HeadlessTests
 {
     /// <summary>
-    /// No synchronization context is installed for these tests.
+    /// No synchronization context is installed for these tests by default.
     /// </summary>
     /// <remarks>
-    /// Which is the harder condition, and the one that matters: the library must not depend on
-    /// continuations coming back anywhere by default. Where a host <em>does</em> need one is documented on
-    /// <see cref="IOtdExecutionContext"/>, and it is the host's to supply — this suite supplies contexts
-    /// explicitly, per test, which is why its orderings are decidable at all.
+    /// Which is a statement about this suite, not a claim about the library. A host calling the
+    /// asynchronous settings operations <b>does</b> need a synchronization context that returns
+    /// continuations to its serialized context — <see cref="IOtdExecutionContext"/> says so and says why.
+    /// What this pins is that nothing is installed behind these tests' backs, so a test that needs one
+    /// has to supply it, which is what makes their orderings decidable rather than ambient.
+    ///
+    /// The earlier wording here said the library must not depend on continuations coming back anywhere.
+    /// That is the opposite of the contract and would have sent a future host down an unsupported route.
     /// </remarks>
     [Fact]
     public void NothingHasInstalledASynchronizationContext()
@@ -41,39 +45,70 @@ public class HeadlessTests
     }
 
     /// <summary>
-    /// A session can be built, used and disposed on a bare thread pool thread.
+    /// A session works on a headless host that supplies what the contract asks for — including across an
+    /// incomplete await answered from another thread.
     /// </summary>
     /// <remarks>
-    /// End to end rather than by inspection: connect, identify, read, edit, and tear down, on a thread
-    /// that has no context of any kind beyond the one handed to the session. A dependency that needed a
-    /// dispatcher would surface here rather than in a reference list.
+    /// <para>
+    /// This used to run against an inline context whose <c>IsCurrent</c> was always true, with fakes that
+    /// answered synchronously. It therefore showed that nothing <em>crashed</em> without a UI framework,
+    /// and nothing more: no await ever suspended, so confinement across one was never exercised. Calling
+    /// that "works on a bare thread pool thread" invited a host to build exactly the arrangement
+    /// <see cref="IOtdExecutionContext"/> rules out.
+    /// </para>
+    /// <para>
+    /// It uses the switch-check tool's <c>PumpContext</c> instead, which is what a real headless host
+    /// looks like: one thread, one queue, and a synchronization context that routes continuations back to
+    /// it. The daemon's reply is held and completed from another thread, so there is a suspension to come
+    /// back from.
+    /// </para>
+    /// <para>
+    /// Deliberately not a second concurrency suite. That the continuation lands on the host's context is
+    /// established by <c>DestinationReadinessTests.AfterAnAsynchronousLookup_TheRetryStaysOnTheHostContext</c>
+    /// and the pump's own tests; what this adds is that the whole arrangement stands up with no UI
+    /// framework anywhere near it.
+    /// </para>
     /// </remarks>
     [Fact]
-    public async Task ASessionWorksOnABareThreadPoolThread()
+    public async Task ASessionWorksOnAHeadlessHostAcrossAnIncompleteAwait()
     {
-        var worked = await Task.Run(async () =>
+        Assert.Null(SynchronizationContext.Current);
+
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
+        var store = new CountingStore();
+        using var pump = new OtdDaemonSwitchCheck.PumpContext();
+
+        using var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
+            NoPolicy.Instance, new FakeProcessLocator(), pump);
+
+        // Held, and answered from a thread that is not the pump's, so the reload really suspends.
+        var reply = new TaskCompletionSource<OpenTabletDriver.Desktop.Settings?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetSettingsHandler = () => reply.Task;
+
+        var onTheHost = 0;
+        var worked = false;
+
+        var hostWork = pump.RunAsync(async () =>
         {
-            Assert.Null(SynchronizationContext.Current);
-
-            var daemon = new FakeDaemonTransport
-            {
-                ServerProcessId = 1,
-                Settings = new OpenTabletDriver.Desktop.Settings(),
-            };
-            var store = new CountingStore();
-            var context = new InlineTestContext();
-
-            using var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-                NoPolicy.Instance, new FakeProcessLocator(), context);
-            var settings = session.OpenSettings(() => true, _ => { });
-
             daemon.Reconnect();
-            await settings.ReloadFromDaemonAsync();
-            var outcome = await settings.ApplyAndSaveAsync(new OpenTabletDriver.Desktop.Settings());
 
-            return outcome.Status == SettingsApplyStatus.AppliedAndSaved && store.Writes == 1;
+            var settings = session.OpenSettings(() => true, _ => { });
+            await settings.ReloadFromDaemonAsync();
+
+            // After the suspension, and this is the part the old version could not reach.
+            onTheHost = pump.IsCurrent ? 1 : 0;
+
+            var outcome = await settings.ApplyAndSaveAsync(new OpenTabletDriver.Desktop.Settings());
+            worked = outcome.Status == SettingsApplyStatus.AppliedAndSaved && store.Writes == 1;
         });
 
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        reply.SetResult(new OpenTabletDriver.Desktop.Settings());
+
+        await hostWork.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, onTheHost);
         Assert.True(worked);
     }
 
@@ -81,8 +116,12 @@ public class HeadlessTests
     /// And nothing loaded into this test process is a UI framework.
     /// </summary>
     /// <remarks>
-    /// The dependency check reads what the assemblies declare; this reads what actually got loaded,
-    /// which would also catch something pulled in by reflection or by a test helper.
+    /// A snapshot, and worth keeping as one: it reads what actually got loaded, so it would catch
+    /// something pulled in by reflection or by a test helper that no reference list mentions.
+    ///
+    /// It observes this moment only. A later test in the same process could load something and this would
+    /// not know, so it is supplementary to the reference and restore checks rather than a replacement for
+    /// either.
     /// </remarks>
     [Fact]
     public void NoUiFrameworkIsLoaded()
@@ -104,18 +143,6 @@ public class HeadlessTests
         Assert.True(loaded.Count == 0,
             "A UI framework or the application was loaded into the library's own test process: "
             + string.Join(", ", loaded));
-    }
-
-    /// <summary>Runs work where it was handed over, for a test that is not about ordering.</summary>
-    private sealed class InlineTestContext : IOtdExecutionContext
-    {
-        public bool IsCurrent => true;
-
-        public Task PostAsync(Action work)
-        {
-            try { work(); return Task.CompletedTask; }
-            catch (Exception ex) { return Task.FromException(ex); }
-        }
     }
 
     /// <summary>A store that only counts, since where it wrote is another test's subject.</summary>

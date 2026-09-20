@@ -328,10 +328,16 @@ The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when
 ### Who may write settings (#807 Phase 6)
 
 `OtdInterop` owns the **daemon's** `settings.json`. Its writer, `ISettingsFileStore` and
-`SettingsFileStore`, is `internal`, so the application cannot reach it — not by policy but by
-accessibility — and nothing it exposes performs a settings write. `OtdInteropBoundaryTests` holds that:
-no public type offers one, the connection type is not public, and the capabilities object cannot be cast
-back to the connection.
+`SettingsFileStore`, is `internal`, so the application cannot reach the raw writer or bypass the mediated
+settings API — not by policy but by accessibility. `IOtdSettingsSession` of course does write; that is
+what it is for, with ordering, the channel binding, policy, the format guard and the persistence
+bookkeeping applied. `OtdInteropBoundaryTests` holds the boundary: no public type offers an unmediated
+write, the connection type is not public, and the capabilities object cannot be cast back to the
+connection.
+
+What accessibility does **not** do is stop application code opening a filesystem path itself. Nothing
+prevents that, and nothing could without a general enforcement mechanism that would not be worth its
+weight; the protection is the audited call sites below plus the API guards above.
 
 Where the destination comes from moved too (#828). The library asks the connected daemon for its
 `AppInfo` itself, per channel, rather than being handed a path by the host — so an edit made after a
