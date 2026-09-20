@@ -240,6 +240,67 @@ public class AppSessionShutdownTests
         Assert.False(lifecycle.StoppedEverything);
     }
 
+    /// <summary>
+    /// A load held at its <em>final</em> wait does not publish once the exit has begun.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// I put this one guard on the wrong side of its await. The persistence retry takes the mutation gate
+    /// even when it has nothing to save, so a concurrent write holds the load there — for exactly the
+    /// interval a close occupies — and everything after it publishes: <c>DataLoaded</c> has host
+    /// subscribers that rebuild views and start refreshes of their own.
+    /// </para>
+    /// <para>
+    /// The earlier test cannot see this: it pauses a read near the start of the load, so the load stops
+    /// long before reaching here.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ALoadHeldAtItsFinalRetry_DoesNotPublishOnceTheExitHasBegun()
+    {
+        var (session, daemon, _) = Make();
+        daemon.AppInfo = new AppInfo
+        {
+            AppDataDirectory = "x",
+            SettingsFile = "settings.json",
+            PluginDirectory = "plugins",
+            PresetDirectory = "presets",
+        };
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var writing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            writing.TrySetResult();
+            return held.Task;
+        };
+
+        // A host reacting to what the load publishes, which is ordinary: the write it starts then holds
+        // the mutation gate the load's last step needs.
+        Task? started = null;
+        session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(session.PresetDirectory) && started == null)
+                started = session.ApplyAndSaveSettingsAsync(SettingsFor("FromTheCallback"));
+        };
+
+        var published = 0;
+        session.DataLoaded += () => published++;
+
+        var loading = session.ReloadAsync();
+        await writing.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = session.CloseAsync(TimeSpan.FromSeconds(5));
+
+        held.SetResult(true);
+
+        await loading.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        if (started != null) await started.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        await closing.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, published);
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     /// <summary>Records which daemon it was asked to stop, and whether it was asked to stop them all.</summary>

@@ -887,6 +887,13 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             await _coordinator.RetryPendingPersistAsync();
 
+            // And again after it, which is the one place I put the check on the wrong side. The retry
+            // takes the mutation gate even when it has nothing to save, so a concurrent write holds the
+            // load here for as long as that write lasts -- which is exactly the interval a close occupies.
+            // Everything below publishes: DataLoaded has host subscribers that rebuild views and start
+            // their own refreshes, into an application that is leaving.
+            if (Abandoned) return;
+
             DataLoaded?.Invoke();
 
             // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
@@ -929,6 +936,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _pluginEnsured = true;
         var dir = PluginDirectory;
         var outcome = await Task.Run(() => _pluginInstaller.EnsureInstalled(dir));
+
+        // The guard before this call stops it being started during an exit; this one is for an exit that
+        // arrives while it is running. Applying reaches the daemon, and this is fire-and-forget, so
+        // nothing would observe it failing against a connection that has gone.
+        //
+        // No regression covers it: reaching here needs an app-owned daemon and a real plugin installer,
+        // neither of which the test harness has. Said here rather than left to look covered.
+        if (Abandoned) return;
+
         await PluginInstallApplier.ApplyAsync(this, outcome);
     }
 
