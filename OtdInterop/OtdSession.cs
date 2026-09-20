@@ -444,16 +444,17 @@ public sealed class OtdSession : IDisposable
                 + "second would have its own ordering, retry state and baseline, and neither would see "
                 + "what the other was doing. Reuse the authority this returned.");
 
+        // DiscoverDestinationAsync is handed over at construction rather than assigned afterwards, and
+        // is not invoked by it. It is how the coordinator asks again when a retry finds it still does not
+        // know where to write -- the only rediscovery trigger there is, bounded by the user pressing
+        // Retry rather than a background loop nobody asked for.
         var settings = _store is { } store
-            ? new SettingsCoordinator(_channel, store, isOwnedDaemon, onSaveState, _log, _policy)
-            : new SettingsCoordinator(_channel, isOwnedDaemon, onSaveState, _log, _policy);
+            ? new SettingsCoordinator(_channel, store, isOwnedDaemon, onSaveState, _log, _policy,
+                                      DiscoverDestinationAsync)
+            : new SettingsCoordinator(_channel, isOwnedDaemon, onSaveState, _log, _policy,
+                                      DiscoverDestinationAsync);
 
         _settings = settings;
-
-        // How the coordinator asks again when a retry finds it still does not know where to write. The
-        // only rediscovery trigger there is: bounded by the user pressing Retry, rather than a background
-        // loop nobody asked for.
-        settings.RediscoverDestination = LookForTheDestinationAgainAsync;
 
         // A connection established before the settings were opened has already had its transition, so
         // nothing would ask this one where to write. Asking here covers the ordinary startup order, in
@@ -482,71 +483,102 @@ public sealed class OtdSession : IDisposable
     /// file.
     /// </para>
     /// </remarks>
-    private void LearnWhereToPersist(int channel) => _ = LearnWhereToPersistAsync(channel);
+    private void LearnWhereToPersist(int channel) => _ = DiscoverDestinationAsync(channel);
 
     /// <summary>
-    /// Looks again, for a caller that has found it still does not know where to write.
+    /// Asks the daemon on <paramref name="channel"/> where it keeps its settings, once at a time.
     /// </summary>
     /// <remarks>
-    /// Coalesced: a second caller arriving while a lookup is outstanding waits for that one rather than
-    /// starting another. Repeatedly pressing Retry is exactly how this gets called twice at once, and
-    /// two concurrent AppInfo calls would race to record answers about the same channel.
+    /// <para>
+    /// The single way discovery happens: a connection establishing, and a host retrying a save that has
+    /// nowhere to go, both come through here. They used not to, so a retry could run alongside a
+    /// transition's own lookup with nothing coordinating them.
+    /// </para>
+    /// <para>
+    /// <b>Coalesced per channel, and only while a flight is still running.</b> The previous arrangement
+    /// cleared the slot from the lookup's own <c>finally</c>, so a lookup that completed synchronously —
+    /// which a failure does — cleared the slot before the caller had filled it, and the finished task
+    /// then became the permanent answer: the daemon was never asked again, however many times the user
+    /// pressed Retry. Nothing clears the slot now; a flight is replaced when a new one is needed, which
+    /// is what the completion check decides. Keying on the channel matters separately — a caller asking
+    /// about a new connection must not be handed an obsolete one's outstanding lookup.
+    /// </para>
+    /// <para>
+    /// <b>The task completes when the answer has been recorded, not when it arrives.</b> Recording runs on
+    /// the host's context, so a caller that awaits this and then reads the destination sees it. Completing
+    /// at the reply meant an explicit retry had to be pressed twice: the first asked, and the second was
+    /// the one that could act on it.
+    /// </para>
     /// </remarks>
-    private Task LookForTheDestinationAgainAsync(int channel)
+    private Task DiscoverDestinationAsync(int channel)
     {
         lock (_lookupGate)
         {
-            if (_lookupInFlight is { } running) return running;
+            if (_lookup is { Channel: var running, Done.Task: var task } && running == channel
+                && !task.IsCompleted)
+            {
+                return task;
+            }
 
-            var started = LearnWhereToPersistAsync(channel);
-            _lookupInFlight = started;
-            return started;
+            // Deliberately NOT RunContinuationsAsynchronously. This is completed from inside work running
+            // on the host's context, so an inline continuation keeps whoever awaited it there too --
+            // which is the contract this library publishes, and a pool thread reading coordinator state
+            // is exactly what it exists to prevent.
+            var flight = new Lookup(channel, new TaskCompletionSource());
+            _lookup = flight;
+            _ = RunLookupAsync(flight);
+            return flight.Done.Task;
         }
     }
 
-    private readonly object _lookupGate = new();
-    private Task? _lookupInFlight;
+    /// <summary>One outstanding destination lookup, and the channel it is about.</summary>
+    private sealed record Lookup(int Channel, TaskCompletionSource Done);
 
-    private async Task LearnWhereToPersistAsync(int channel)
+    private readonly object _lookupGate = new();
+    private Lookup? _lookup;
+
+    private async Task RunLookupAsync(Lookup flight)
     {
+        string? path = null;
+        Exception? failed = null;
         try
         {
-            string path;
+            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
+        }
+        catch (Exception ex)
+        {
+            failed = ex;
+            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
+                      + "written to disk for this connection until it answers. Retrying a pending save "
+                      + "asks again.", ex);
+        }
+
+        // Reported through the host's context like everything else this session decides, and the lookup
+        // is only finished once that has run.
+        Post("record where the connected daemon keeps its settings", () =>
+        {
             try
             {
-                path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
-            }
-            catch (Exception ex)
-            {
-                _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will "
-                          + "be written to disk for this connection until it answers. Retrying a pending "
-                          + "save asks again.", ex);
+                // The answer describes the channel it was asked on. A reply arriving after that channel
+                // has gone says nothing about its replacement.
+                if (!StillTheCurrentTransition(flight.Channel)) return;
 
-                Post("record that the daemon could not be asked where it keeps its settings", () =>
+                if (failed != null)
                 {
                     // Recorded rather than left blank, so a later attempt can tell "the call failed" from
                     // "nobody has asked yet" and from "this daemon has no settings file". They look the
                     // same from outside and want different responses.
-                    if (!StillTheCurrentTransition(channel)) return;
+                    _settings?.DestinationLookupFailed(flight.Channel);
+                    return;
+                }
 
-                    _settings?.DestinationLookupFailed(channel);
-                });
-                return;
+                _settings?.LearnDestination(path ?? "", flight.Channel);
             }
-
-            Post("record where the connected daemon keeps its settings", () =>
+            finally
             {
-                // The answer describes the channel it was asked on. A reply arriving after that channel
-                // has gone says nothing about its replacement.
-                if (!StillTheCurrentTransition(channel)) return;
-
-                _settings?.LearnDestination(path, channel);
-            });
-        }
-        finally
-        {
-            lock (_lookupGate) _lookupInFlight = null;
-        }
+                flight.Done.TrySetResult();
+            }
+        });
     }
 
     /// <summary>

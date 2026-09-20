@@ -107,8 +107,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// answers costs one call per attempt rather than a background loop nobody asked for. Without it a
     /// single failed lookup left the connection unable to persist for its whole life, and the save chip's
     /// Retry only ever retried the disk.
+    ///
+    /// Taken at construction and never reassigned. It was a settable property because the session creates
+    /// this and this has to call back into the session, but a method group passes through a constructor
+    /// perfectly well, and a type whose whole design is one authority should not also offer a way in.
     /// </remarks>
-    internal Func<int, Task>? RediscoverDestination { get; set; }
+    private readonly Func<int, Task>? _rediscoverDestination;
 
     /// <summary>
     /// Where work bound to <paramref name="origin"/> should be written, or empty when this session does
@@ -359,8 +363,23 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// hold rather than a comparison. This decides whether the result may become this session's state.
     /// </summary>
     private bool StillCurrent(Origin origin) =>
-        origin.Session == Volatile.Read(ref _sessionGeneration)
-        && origin.Channel.Incarnation == _daemon.Incarnation;
+        origin.Channel.Incarnation == _daemon.Incarnation
+        && (origin.Session == Volatile.Read(ref _sessionGeneration)
+            || origin.Channel.Incarnation == Volatile.Read(ref _survivorChannel));
+
+    /// <summary>
+    /// The channel whose work the last reset let through, or 0.
+    /// </summary>
+    /// <remarks>
+    /// A reset invalidates by bumping one generation, which is right for every operation admitted on the
+    /// daemon that has gone and wrong for the one arriving. An apply can be admitted and sent on a new
+    /// channel before anything has identified it, and that channel's own identification then invalidated
+    /// it -- B's work superseded by B's arrival, with a successful edit recorded nowhere.
+    ///
+    /// Which channel accepted or is executing an operation is what decides this, not whether its answer
+    /// happened to arrive before the identification callback did.
+    /// </remarks>
+    private int _survivorChannel;
 
     /// <param name="daemon">The daemon connection.</param>
     /// <param name="isOwnedDaemon">The #465 gate — only rewrite filters on a daemon OTA positively owns.
@@ -371,10 +390,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <param name="log">Where this type reports what it did and could not do — mostly partial failure,
     /// which is exactly what is invisible from outside.</param>
     /// <param name="policy">The host's own rules, applied to a private copy on the way out.</param>
+    /// <param name="rediscoverDestination">
+    /// How to ask the owning session where the daemon on a given channel keeps its settings, for a retry
+    /// that finds this session still does not know. Null leaves an unknown destination unknown.
+    /// </param>
     internal SettingsCoordinator(IDaemonSettingsChannel daemon,
         Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
-        IOtdLog log, IOtdSettingsPolicy policy)
-        : this(daemon, new SettingsFileStore(log), isOwnedDaemon, onSaveState, log, policy)
+        IOtdLog log, IOtdSettingsPolicy policy, Func<int, Task>? rediscoverDestination = null)
+        : this(daemon, new SettingsFileStore(log), isOwnedDaemon, onSaveState, log, policy,
+               rediscoverDestination)
     {
     }
 
@@ -388,8 +412,9 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     internal SettingsCoordinator(IDaemonSettingsChannel daemon, ISettingsFileStore store,
         Func<bool> isOwnedDaemon, Action<SettingsSaveState> onSaveState,
-        IOtdLog log, IOtdSettingsPolicy policy)
+        IOtdLog log, IOtdSettingsPolicy policy, Func<int, Task>? rediscoverDestination = null)
     {
+        _rediscoverDestination = rediscoverDestination;
         _daemon = daemon;
         _store = store;
         _log = log;
@@ -562,6 +587,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // identification seam can, and there the same-channel test would have kept a write belonging to
         // whichever daemon was misidentified. Hence the caller deciding, since only it knows which
         // channels it has already identified.
+        // Work on the arriving channel keeps its authority across the reset that welcomed it, whether it
+        // has finished (a pending write) or is still running (a send outstanding on that channel).
+        Volatile.Write(ref _survivorChannel, channelWhoseWorkSurvives);
+
         var keepPending = channelWhoseWorkSurvives != 0
                           && _pendingDestination is { } made
                           && made.Channel == channelWhoseWorkSurvives;
@@ -801,9 +830,17 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </summary>
     public async Task<SettingsApplyOutcome> RetryPersistAsync()
     {
-        await LookForTheDestinationIfNeededAsync().ConfigureAwait(false);
-        return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange)
-            .ConfigureAwait(false);
+        // No ConfigureAwait(false), deliberately, and it was wrong here for a round. Everything after
+        // this await enters the coordinator, reads its fields, writes a file and calls the host's
+        // save-state callback -- and the mutation gate does not serialize any of that against the
+        // identification and reset running on the host's context. Continuing on a pool thread is the
+        // confinement failure this library exists to prevent, arrived at by a keystroke.
+        //
+        // The lookup completes from inside work on the host's context, and with a completion source that
+        // continues inline, so this resumes there whether or not the host also installs a
+        // SynchronizationContext.
+        await LookForTheDestinationIfNeededAsync();
+        return await SerializedAsync(RetryPersistCoreAsync, () => SettingsApplyOutcome.NoChange);
     }
 
     /// <summary>
@@ -824,7 +861,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </remarks>
     private Task LookForTheDestinationIfNeededAsync()
     {
-        if (RediscoverDestination is not { } lookAgain) return Task.CompletedTask;
+        if (_rediscoverDestination is not { } lookAgain) return Task.CompletedTask;
 
         var channel = _daemon.Incarnation;
         var knowledge = _destination is { } known && known.Channel == channel
