@@ -164,12 +164,16 @@ public class ReconnectOrderingTests
 
     /// <summary>
     /// A subscriber that throws is reported, not swallowed.
-    ///
-    /// Posted work has no caller to throw to — this is reached from the transport's own notification —
-    /// so without this the failure would vanish entirely. That is the whole reason
-    /// <see cref="IOtdExecutionContext.PostAsync"/> returns a task, and discarding it at the one call
-    /// site would have made the return value decorative.
     /// </summary>
+    /// <remarks>
+    /// Posted work has no caller to throw to — this is reached from the transport's own notification —
+    /// so without a report the failure would vanish entirely.
+    ///
+    /// It is <c>Deliver</c> that catches this, not <c>Report</c>. The comment here used to say the latter,
+    /// which was true when this was written and stopped being true the moment delivery started isolating
+    /// subscribers from each other: nothing a subscriber throws reaches the posted work's caller any more.
+    /// <see cref="WorkTheHostsContextRefuses_IsReported"/> is what covers the other path.
+    /// </remarks>
     [Fact]
     public void ASubscriberThatThrows_IsReported()
     {
@@ -326,7 +330,186 @@ public class ReconnectOrderingTests
         Assert.Contains(log.Warnings, w => w.Contains("does not"));
     }
 
+    /// <summary>
+    /// A subscriber that throws is still reported when the host's context runs the work on another
+    /// thread and completes its task there — which is what a real one does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every other test here drives a context that runs and completes inline, so the whole notification
+    /// path has already finished by the time <c>Drain</c> returns. That is a legitimate way to drive the
+    /// session and it is not the arrangement that ships: Avalonia's dispatcher runs the work on the UI
+    /// thread and completes its task there, long after the posting call returned.
+    /// </para>
+    /// <para>
+    /// What this adds over its inline sibling is that the path is exercised with real concurrency between
+    /// the transport's thread, the context's thread and the test's — so the assertion is that the report
+    /// arrives at all, rather than that it arrives before a synchronous drain returns.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ASubscriberThatThrows_IsReportedWhenTheContextCompletesAsynchronously()
+    {
+        var log = new SignallingLog();
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
+        using var context = new ElsewhereContext();
+        using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
+            OtaSettingsPolicy.Instance, locator, context);
+        session.NoteConnectedDaemon();
+        session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
+
+        // Registered before the transition, because the warning may arrive before the next line runs.
+        // Waiting on "the first warning" would not do: identifying the new daemon legitimately logs one
+        // of its own, and this test would then assert against that and pass whatever happened here.
+        var reported = log.Expect(w => w.Contains("a bad subscriber"));
+
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();
+
+        Assert.Contains("a bad subscriber", await reported.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Work the host's execution context refuses is reported rather than lost.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The reason <see cref="IOtdExecutionContext.PostAsync"/> returns a task at all. This is reached from
+    /// the transport's own notification, so there is no caller to throw to, and the session posts it
+    /// fire-and-forget — a faulted task nobody observed would take the failure with it.
+    /// </para>
+    /// <para>
+    /// Not hypothetical: a dispatcher rejects work once its host has begun shutting down, which is exactly
+    /// when a transport is likely to be dropping and raising. Refusing asynchronously is the realistic
+    /// shape, since a dispatcher accepts the call and fails the task afterwards.
+    /// </para>
+    /// <para>
+    /// Written because mutation found nothing holding this. Deleting the report in <c>Report</c> left the
+    /// whole suite green: both subscriber tests were passing through <c>Deliver</c>'s catch, which now
+    /// takes the subscriber exception before it can reach here.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task WorkTheHostsContextRefuses_IsReported()
+    {
+        var log = new SignallingLog();
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
+        using var context = new ElsewhereContext();
+        using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
+            OtaSettingsPolicy.Instance, locator, context);
+        session.NoteConnectedDaemon();
+
+        var reported = log.Expect(w => w.Contains("identify the connected daemon"));
+        context.Refuse = true;                      // the host is shutting down and will take nothing
+
+        daemon.Reconnect();
+
+        Assert.Contains("this host is done", await reported.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+    }
+
     // --- harness --------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A context that runs posted work somewhere else and completes its task there, like a real one.
+    /// </summary>
+    /// <remarks>
+    /// One dedicated thread rather than the pool, so <see cref="IsCurrent"/> can answer honestly: a
+    /// context that reported false for its own work would trip the library's access check and make this
+    /// test about the wrong thing.
+    /// </remarks>
+    private sealed class ElsewhereContext : IOtdExecutionContext, IDisposable
+    {
+        private readonly System.Collections.Concurrent.BlockingCollection<Action> _queue = new();
+        private readonly System.Threading.Thread _thread;
+
+        public ElsewhereContext()
+        {
+            _thread = new System.Threading.Thread(() =>
+            {
+                foreach (var work in _queue.GetConsumingEnumerable()) work();
+            })
+            { IsBackground = true, Name = "test-elsewhere" };
+            _thread.Start();
+        }
+
+        public bool IsCurrent => System.Threading.Thread.CurrentThread == _thread;
+
+        /// <summary>When set, work is accepted and then failed — a dispatcher that is shutting down.</summary>
+        /// <remarks>
+        /// Failed on the context's own thread rather than returned already-faulted, because that is the
+        /// harder case and the one a real dispatcher produces: the posting call has already returned by
+        /// the time anything goes wrong.
+        /// </remarks>
+        public bool Refuse { get; set; }
+
+        public Task PostAsync(Action work)
+        {
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _queue.Add(() =>
+            {
+                if (Refuse)
+                {
+                    done.SetException(new InvalidOperationException("this host is done"));
+                    return;
+                }
+
+                try { work(); done.SetResult(); }
+                catch (Exception ex) { done.SetException(ex); }
+            });
+            return done.Task;
+        }
+
+        public void Dispose() => _queue.CompleteAdding();
+    }
+
+    /// <summary>A log a test can wait on for a particular warning, since reporting is fire-and-forget.</summary>
+    /// <remarks>
+    /// Written from the context's thread and read from the test's, so a completion source does the
+    /// synchronising rather than a field the test polls: polling would pass on a slow machine for the
+    /// wrong reason and fail on a fast one for no reason.
+    ///
+    /// Matching rather than taking the first, because identifying a new daemon logs a warning of its own
+    /// and it wins the race. A test that waited for whatever came first would assert against that and
+    /// stop being about the subscriber at all.
+    /// </remarks>
+    private sealed class SignallingLog : IOtdLog
+    {
+        private readonly object _gate = new();
+        private readonly List<string> _warnings = new();
+        private Func<string, bool>? _wanted;
+        private TaskCompletionSource<string>? _waiting;
+
+        /// <summary>Completes with the first warning matching <paramref name="predicate"/>, past or future.</summary>
+        public Task<string> Expect(Func<string, bool> predicate)
+        {
+            lock (_gate)
+            {
+                foreach (var seen in _warnings)
+                    if (predicate(seen))
+                        return Task.FromResult(seen);
+
+                _wanted = predicate;
+                _waiting = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                return _waiting.Task;
+            }
+        }
+
+        public void Warn(string message, Exception? error = null)
+        {
+            var line = error == null ? message : $"{message} :: {error.Message}";
+            lock (_gate)
+            {
+                _warnings.Add(line);
+                if (_wanted?.Invoke(line) == true) _waiting!.TrySetResult(line);
+            }
+        }
+
+        public void Info(string message) { }
+
+        public void Debug(string message, Exception? error = null) { }
+    }
 
     private sealed class RefusingStore : ISettingsFileStore
     {
