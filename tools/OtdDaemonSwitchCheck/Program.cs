@@ -373,6 +373,19 @@ internal static class Program
         var file = (await session.Capabilities.GetAppInfoAsync())?.SettingsFile ?? "";
         Console.WriteLine($"   settings file: {file}");
 
+        // Checked before anything is asserted about writes. This tool makes the settings file read-only
+        // and restores it in Live.Dispose, so an interrupted run leaves it set -- and then every write
+        // fails for a reason that has nothing to do with what is under test, while checks phrased as
+        // "nothing was written" pass for the wrong reason. Found by a later harness whose first run was
+        // invalidated exactly this way.
+        if (file.Length > 0 && File.Exists(file) && new FileInfo(file).IsReadOnly)
+        {
+            throw new InvalidOperationException(
+                $"{file} is read-only, so every write would fail and the checks below would be "
+                + "meaningless. A previous run was probably interrupted before it restored the flag. "
+                + "Clear it and run again.");
+        }
+
         MustBeOnTheContext(context, "opening a settings session");
         // The path is no longer passed in: the session asks the daemon itself, per channel (#828). It is
         // still read here, for BlockWrites, and printed above so a failure names the file it was about.
