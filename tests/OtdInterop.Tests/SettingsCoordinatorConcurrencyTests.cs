@@ -76,6 +76,95 @@ public class SettingsCoordinatorConcurrencyTests
     private static Settings Clone(Settings s) =>
         JsonConvert.DeserializeObject<Settings>(JsonConvert.SerializeObject(s))!;
 
+    /// <summary>
+    /// A close woken by an abandonment answers false, on its own (#893).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It used to answer true. The wait is released either by the last operation finishing or by an
+    /// <c>Abandon</c> that gave up on it, and this took the same path for both — leaving the session's
+    /// <c>settled &amp;&amp; !_tornDown</c> to repair the answer afterwards. So a question this object can
+    /// answer about its own work depended on an ordering somewhere else, and that ordering was wrong
+    /// twice (#891, #893). Each time, abandoned work was reported as having finished.
+    /// </para>
+    /// <para>
+    /// Tested here rather than through the session on purpose: through the session it passes on the outer
+    /// guard even when this answer is wrong, which is how it stayed wrong.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task CloseAsync_AnswersFalse_WhenWhatItWaitedOnWasAbandoned()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        _ = coordinator.ApplyAndSaveAsync(SettingsFor("Held", locked: false));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = coordinator.CloseAsync(TimeSpan.FromMinutes(5));
+        coordinator.Abandon();
+
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        Assert.False(held.Task.IsCompleted);   // the work was never finished, only given up on
+    }
+
+    /// <summary>Work that actually finishes still answers true — the case the fix must not break.</summary>
+    /// <remarks>
+    /// True means the admitted work finished, not that it saved successfully; an operation can finish
+    /// having failed to save, and that belongs to its save-state rather than to the shape of the close.
+    /// </remarks>
+    [Fact]
+    public async Task CloseAsync_AnswersTrue_WhenTheWorkFinishes()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        var applying = coordinator.ApplyAndSaveAsync(SettingsFor("Finishes", locked: false));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = coordinator.CloseAsync(TimeSpan.FromMinutes(5));
+        held.TrySetResult(true);
+        await applying.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        Assert.True(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>And a close that arrives after the abandonment answers false from a standing start.</summary>
+    [Fact]
+    public async Task CloseAsync_AnswersFalse_WhenItArrivesAfterTheAbandonment()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            sending.TrySetResult();
+            return held.Task;
+        };
+
+        _ = coordinator.ApplyAndSaveAsync(SettingsFor("Held", locked: false));
+        await sending.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        coordinator.Abandon();
+
+        Assert.False(await coordinator.CloseAsync(TimeSpan.FromMinutes(5))
+            .WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(5);
+
     private static string Json(Settings? s) => JsonConvert.SerializeObject(s);
 
     private static Settings SettingsFor(string tablet, bool locked) => new()

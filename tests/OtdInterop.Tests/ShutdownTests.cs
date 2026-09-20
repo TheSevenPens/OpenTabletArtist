@@ -402,6 +402,57 @@ public class ShutdownTests
     }
 
     /// <summary>
+    /// A close waits for a teardown another caller owns, rather than for the claim on it (#893).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The latch marked "someone is tearing down", and a second caller took that for "the transport has
+    /// gone" and returned. So a close could come back while the owner was still inside the publication
+    /// gate — the gate whose whole purpose is that a close cannot return while a lookup reply is on its
+    /// way to the host. The claim-before-cleanup shape predates the split in #894; the split only gave it
+    /// a clearer name.
+    /// </para>
+    /// <para>
+    /// <b>On the bounded wait.</b> It is not hoping to catch a race. Against the defect the close returns
+    /// immediately and this fails every time; the fix is what makes it wait. A slower machine can only
+    /// make it wait longer, never pass wrongly — which is the opposite of the timing test this suite
+    /// already replaced once, and the reason it is safe here.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AClose_WaitsForATeardownAnotherCallerOwns()
+    {
+        var claimed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var owner = new ManualResetEventSlim(false);
+
+        var (session, _, daemon, _) = Make(probe: new OtdSession.LifecycleProbe
+        {
+            // Inside the teardown, after it is claimed and before anything is actually disposed.
+            ReachingTeardown = () =>
+            {
+                claimed.TrySetResult();
+                owner.Wait(Bound);
+            },
+        });
+
+        var disposing = Task.Run(() => session.Dispose(), TestContext.Current.CancellationToken);
+        await claimed.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        var closing = session.CloseAsync(TimeSpan.Zero);
+
+        await Assert.ThrowsAsync<TimeoutException>(
+            () => closing.WaitAsync(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken));
+        Assert.False(daemon.IsDisposed);   // and it is genuinely still up, not merely slow to answer
+
+        owner.Set();
+        await disposing.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // Not settled -- the session was already torn down -- but now it has actually finished.
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        Assert.True(daemon.IsDisposed);
+    }
+
+    /// <summary>
     /// An operation that faults as the transport goes says nothing to the host (#893).
     /// </summary>
     /// <remarks>

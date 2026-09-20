@@ -540,6 +540,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         }
     }
 
+    /// <summary>
+    /// Waits for work already admitted to finish. True means it finished, not that it succeeded.
+    /// </summary>
+    /// <remarks>
+    /// An operation can finish having failed to save, and this still answers true: whether the save
+    /// worked belongs to that operation's own save-state, not to the shape of the close. What false means
+    /// is that the work did not finish -- it ran out of window, or something gave up on it.
+    /// </remarks>
     internal async Task<bool> CloseAsync(TimeSpan settleWithin)
     {
         Task quiet;
@@ -560,10 +568,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         try
         {
-            // Woken by the last operation finishing, or by an abandonment that gave up on it. The
-            // session distinguishes those: an abandonment comes from a teardown it can see.
+            // Woken by the last operation finishing, or by an abandonment that gave up on it -- and this
+            // says which, rather than answering true to both and leaving the session to repair it (#893).
+            // It used to lean on the session seeing a teardown it could distinguish, which made a
+            // question this object can answer about its own work depend on an ordering elsewhere; that
+            // ordering was wrong twice (#891, #893) and each time this reported abandoned work as
+            // settled.
             await quiet.WaitAsync(settleWithin).ConfigureAwait(false);
-            return true;
+            lock (_liveGate) return !_abandoned;
         }
         catch (TimeoutException)
         {
