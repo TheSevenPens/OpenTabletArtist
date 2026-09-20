@@ -73,6 +73,12 @@ public class PublicApiSnapshotTests
         sb.AppendLine("# by IOtdSettingsSession. They are kept public because callers legitimately compose");
         sb.AppendLine("# file and serialization operations of their own; the boundary was never a sandbox,");
         sb.AppendLine("# and removing them would not stop in-process code opening a path itself.");
+        sb.AppendLine("#");
+        sb.AppendLine("# Recorded: accessor visibility, init vs set, static, readonly/const, enum numeric");
+        sb.AppendLine("# values, and actual optional-parameter defaults. NOT recorded, so a change to one");
+        sb.AppendLine("# of these will NOT fail this test: nullable reference annotations, generic");
+        sb.AppendLine("# constraints, attributes, and parameter names on delegates. This is a reviewable");
+        sb.AppendLine("# baseline, not a compatibility analyzer.");
         sb.AppendLine();
 
         foreach (var type in assembly.GetExportedTypes().OrderBy(t => t.FullName, StringComparer.Ordinal))
@@ -106,33 +112,78 @@ public class PublicApiSnapshotTests
 
     private static IEnumerable<string> Members(Type t)
     {
+        const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic
+                                      | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
         var rows = new List<string>();
 
         foreach (var c in t.GetConstructors(BindingFlags.Public | BindingFlags.Instance))
             rows.Add($".ctor({Parameters(c)})");
 
-        foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            rows.Add($"{Name(p.PropertyType)} {p.Name} {{ {(p.CanRead ? "get; " : "")}{(p.CanWrite ? "set; " : "")}}}");
+        foreach (var p in t.GetProperties(Declared))
+        {
+            // An accessor's visibility is part of the contract: a private setter and a public one read
+            // the same here unless it is recorded, so widening access would be invisible.
+            var get = Accessor(p.GetMethod, "get");
+            var set = Accessor(p.SetMethod, IsInitOnly(p.SetMethod) ? "init" : "set");
+            if (get is null && set is null) continue;
+
+            rows.Add($"{Modifiers(p.GetMethod ?? p.SetMethod!)}{Name(p.PropertyType)} {p.Name} "
+                     + $"{{ {get}{set}}}");
+        }
 
         foreach (var e in t.GetEvents(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            rows.Add($"event {Name(e.EventHandlerType!)} {e.Name}");
+            rows.Add($"{Modifiers(e.AddMethod!)}event {Name(e.EventHandlerType!)} {e.Name}");
 
         foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            rows.Add(t.IsEnum ? $"{f.Name}" : $"{Name(f.FieldType)} {f.Name}");
+        {
+            if (t.IsEnum)
+            {
+                // The numeric value, because a name that stays put while its value moves is a silent
+                // breaking change for anything that persisted it.
+                if (f.IsStatic) rows.Add($"{f.Name} = {Convert.ToInt64(f.GetRawConstantValue())}");
+                continue;
+            }
+
+            var kind = f.IsLiteral ? "const " : f.IsInitOnly ? "readonly " : "";
+            var value = f.IsLiteral ? $" = {Literal(f.GetRawConstantValue())}" : "";
+            rows.Add($"{(f.IsStatic && !f.IsLiteral ? "static " : "")}{kind}{Name(f.FieldType)} {f.Name}{value}");
+        }
 
         foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
         {
             if (m.IsSpecialName) continue;   // property/event accessors, already described above
 
-            rows.Add($"{Name(m.ReturnType)} {m.Name}({Parameters(m)})");
+            rows.Add($"{Modifiers(m)}{Name(m.ReturnType)} {m.Name}({Parameters(m)})");
         }
 
         return rows.OrderBy(s => s, StringComparer.Ordinal);
     }
 
+    /// <summary>The accessor as it appears in the contract, or null when callers cannot reach it.</summary>
+    private static string? Accessor(MethodInfo? m, string word) =>
+        m is null || !(m.IsPublic || m.IsFamily || m.IsFamilyOrAssembly)
+            ? null
+            : $"{(m.IsPublic ? "" : "protected ")}{word}; ";
+
+    private static bool IsInitOnly(MethodInfo? setter) =>
+        setter?.ReturnParameter.GetRequiredCustomModifiers()
+            .Any(t => t.FullName == "System.Runtime.CompilerServices.IsExternalInit") == true;
+
+    private static string Modifiers(MethodBase m) => m.IsStatic ? "static " : "";
+
     private static string Parameters(MethodBase m) =>
         string.Join(", ", m.GetParameters().Select(p =>
-            $"{Name(p.ParameterType)} {p.Name}" + (p.HasDefaultValue ? " = default" : "")));
+            $"{Name(p.ParameterType)} {p.Name}"
+            + (p.HasDefaultValue ? $" = {Literal(p.RawDefaultValue)}" : "")));
+
+    /// <summary>A default or constant written the way it would be read, so a changed value is visible.</summary>
+    private static string Literal(object? value) => value switch
+    {
+        null => "null",
+        string s => $"\"{s}\"",
+        bool b => b ? "true" : "false",
+        _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "?",
+    };
 
     /// <summary>A stable, readable type name — generics spelled out, no assembly qualification.</summary>
     private static string Name(Type t)

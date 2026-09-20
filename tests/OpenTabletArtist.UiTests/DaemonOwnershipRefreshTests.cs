@@ -29,9 +29,16 @@ namespace OpenTabletArtist.UiTests;
 /// the classification were stuck, those decisions would be made about the wrong daemon.
 /// </para>
 /// <para>
-/// This pins the classification itself. It says nothing about what the health card renders — if this
-/// passes and the card still disagrees on a real machine, the fault is presentational and lives
-/// elsewhere.
+/// <b>What this does and does not establish.</b> It pins that <c>AppSession</c> re-classifies correctly
+/// <em>when the locator and the lifecycle service give it the paths and decisions these fakes give it</em>.
+/// It does not exercise the packaged <c>ExpectedExePath</c> or <c>IsAppManaged</c>, and it does not
+/// exercise a real identification result.
+/// </para>
+/// <para>
+/// So it does <b>not</b> follow that a card disagreeing on a real machine is presentational. An earlier
+/// version of this comment said exactly that, and it was wrong: the real path resolution could fail in
+/// the single-file layout, or identification could return something these fakes never produce. #880
+/// lists those candidates and is where the live observation is being diagnosed.
 /// </para>
 /// </remarks>
 public class DaemonOwnershipRefreshTests
