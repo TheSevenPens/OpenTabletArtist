@@ -53,9 +53,7 @@ public partial class PluginsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Browse()
     {
-        var dir = _deviceData.PluginDirectory;
-        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
-        Services.PlatformShell.RevealInFileManager(dir);
+        Services.PlatformShell.RevealInFileManager(_deviceData.PluginDirectory);
     }
 
     [RelayCommand]

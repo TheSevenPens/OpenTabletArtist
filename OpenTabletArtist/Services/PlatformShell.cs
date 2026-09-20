@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace OpenTabletArtist.Services;
 
@@ -29,21 +30,29 @@ namespace OpenTabletArtist.Services;
 /// best-effort contract is about, and it could not be provoked before; nor could the escaping claim above
 /// be checked, since nothing could see the <see cref="ProcessStartInfo"/> that was built.
 /// </para>
+/// <para>
+/// <b>What the tests do and do not establish (#887).</b> They cover the request that gets built and what
+/// happens when a launch fails. They do <em>not</em> cover the two public wrappers, which bind the real OS,
+/// the real environment and the real launcher: nothing asserts that those arguments are passed in the
+/// right positions. That binding is checked by reading it and by the manual smoke test, and the wrappers
+/// are kept to one call each, with named arguments, so a transposition is visible on the page. A unit
+/// suite that covered them would have to launch something, which is the problem this solved.
+/// </para>
 /// </remarks>
 public static class PlatformShell
 {
     /// <summary>Open a folder in the OS file manager — Explorer (Windows), Finder (macOS), the freedesktop
-    /// handler (Linux). Best-effort; the caller is expected to check the path exists first.</summary>
-    public static void RevealInFileManager(string path) => Reveal(path, Start);
+    /// handler (Linux). Best-effort; a folder that is not there is a no-op.</summary>
+    public static void RevealInFileManager(string? path) => Reveal(path, Start);
 
     /// <summary>Open the OS display-settings pane. Windows: <c>ms-settings:display</c>; macOS: the Displays
     /// pane in System Settings; elsewhere a no-op. Best-effort.</summary>
     public static void OpenDisplaySettings() => OpenDisplaySettings(
-        OperatingSystem.IsWindows(),
-        OperatingSystem.IsMacOS(),
-        OperatingSystem.IsLinux(),
-        Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"),
-        Start);
+        isWindows: OperatingSystem.IsWindows(),
+        isMacOS: OperatingSystem.IsMacOS(),
+        isLinux: OperatingSystem.IsLinux(),
+        desktop: Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"),
+        start: Start);
 
     /// <summary>The file-manager launcher for an OS: Explorer (Windows), <c>open</c> → Finder (macOS),
     /// <c>xdg-open</c> (Linux). Pure — unit-tested.</summary>
@@ -53,8 +62,20 @@ public static class PlatformShell
     /// <summary>
     /// <see cref="RevealInFileManager"/> with the launch supplied, so a test can watch what would be run.
     /// </summary>
-    internal static void Reveal(string path, Action<ProcessStartInfo> start)
-        => Launch(FileManagerExe(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()), path, start);
+    /// <remarks>
+    /// The folder has to exist before anything is launched, and that check lives here rather than in each
+    /// caller (#887). Explorer answers an argument it cannot resolve by opening its <em>default</em>
+    /// folder, so "reveal a folder that is gone" is not a no-op on Windows — it is a window pointed
+    /// somewhere the user did not ask for. Every caller was already paying for this check, so it costs no
+    /// extra filesystem hit; it is also inherently racy (the folder can go between the check and the
+    /// launch), which is why the failure handling below stays.
+    /// </remarks>
+    internal static void Reveal(string? path, Action<ProcessStartInfo> start)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
+
+        Launch(FileManagerExe(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()), path, start);
+    }
 
     /// <summary>
     /// <see cref="OpenDisplaySettings()"/> with the OS, the desktop and the launch supplied, so every
@@ -69,16 +90,14 @@ public static class PlatformShell
     internal static void OpenDisplaySettings(
         bool isWindows, bool isMacOS, bool isLinux, string? desktop, Action<ProcessStartInfo> start)
     {
-        try
-        {
-            if (isWindows)
-                start(new ProcessStartInfo("ms-settings:display") { UseShellExecute = true });
-            else if (isMacOS)
-                Launch("open", "x-apple.systempreferences:com.apple.preference.displays", start);
-            else if (isLinux)
-                OpenLinuxDisplaySettings(desktop, start);
-        }
-        catch { /* best-effort */ }
+        if (isWindows)
+            // UseShellExecute is load-bearing, not a default: a ms-settings: URI reaches the Settings app
+            // through its registered protocol handler, and there is no executable to run without it.
+            Launch(new ProcessStartInfo("ms-settings:display") { UseShellExecute = true }, start);
+        else if (isMacOS)
+            Launch("open", "x-apple.systempreferences:com.apple.preference.displays", start);
+        else if (isLinux)
+            OpenLinuxDisplaySettings(desktop, start);
     }
 
     private static void OpenLinuxDisplaySettings(string? desktop, Action<ProcessStartInfo> start)
@@ -94,13 +113,35 @@ public static class PlatformShell
 
     private static void Launch(string exe, string arg, Action<ProcessStartInfo> start)
     {
+        var psi = new ProcessStartInfo(exe) { UseShellExecute = false };
+        psi.ArgumentList.Add(arg);   // ArgumentList escapes spaces/quotes — no manual quoting needed
+        Launch(psi, start);
+    }
+
+    /// <summary>
+    /// The one place a launch is attempted, and the one place a failed one is reported.
+    /// </summary>
+    /// <remarks>
+    /// Still best-effort: a desktop with no handler is not worth interrupting anyone over, and these are
+    /// optional "open this for me" actions, so a malformed argument should not take down the command
+    /// either. But a click that silently did nothing should leave evidence — one line, naming what was
+    /// asked for, in the log a user is asked to attach (#887). Narrowing the catch instead would have
+    /// changed which failures reach the UI, which is a different decision from making them visible.
+    /// </remarks>
+    private static void Launch(ProcessStartInfo psi, Action<ProcessStartInfo> start)
+    {
         try
         {
-            var psi = new ProcessStartInfo(exe) { UseShellExecute = false };
-            psi.ArgumentList.Add(arg);   // ArgumentList escapes spaces/quotes — no manual quoting needed
             start(psi);
         }
-        catch { /* best-effort: no handler / not supported on this OS */ }
+        catch (Exception ex)
+        {
+            AppLog.Warn(
+                psi.ArgumentList.Count > 0
+                    ? $"Couldn't ask {psi.FileName} to open \"{psi.ArgumentList[0]}\"; nothing was opened."
+                    : $"Couldn't open {psi.FileName}; nothing was opened.",
+                ex);
+        }
     }
 
     /// <summary>The real launch. The only place in this class that starts a process.</summary>
