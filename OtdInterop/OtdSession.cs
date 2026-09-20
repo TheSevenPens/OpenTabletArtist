@@ -47,8 +47,9 @@ public sealed class OtdSession : IDisposable
 
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
         ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
-        IOtdExecutionContext context)
+        IOtdExecutionContext context, LifecycleProbe? probe)
     {
+        _probe = probe;
         Connection = connection;
         Capabilities = new DaemonCapabilities(connection);
         _channel = channel;
@@ -67,6 +68,35 @@ public sealed class OtdSession : IDisposable
     }
 
     private readonly IOtdExecutionContext _context;
+
+    /// <summary>
+    /// Where a test can be told that a thread has reached a lock it is about to contend for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The deadlock these guard against is an ordering between two threads, and the point that matters --
+    /// "the closer is past everything else and about to take the publication gate" -- has no observable
+    /// boundary outside this class. The test that first covered it waited 100ms and asserted the close
+    /// had not finished, which also passes when the competing thread has not started: on that schedule
+    /// the inline callback becomes the first closer and the inversion is never exercised. A test that
+    /// passes for the wrong reason is what this whole area of the review has been about.
+    /// </para>
+    /// <para>
+    /// So: a seam, deliberately the narrowest one available. It is reachable only through
+    /// <see cref="ForTesting{T}"/>, so no host can install one, and it is a plain notification -- it
+    /// decides nothing and the code reads the same with it absent.
+    /// </para>
+    /// </remarks>
+    internal sealed class LifecycleProbe
+    {
+        /// <summary>Called just before a teardown contends for the publication gate.</summary>
+        public Action? ReachingTeardown { get; init; }
+
+        /// <summary>Called just before a lookup's publication contends for the publication gate.</summary>
+        public Action? PublishingLookup { get; init; }
+    }
+
+    private readonly LifecycleProbe? _probe;
 
     /// <summary>
     /// The transport has a channel. Identify the daemon, invalidate if it is a different one, and only
@@ -302,7 +332,9 @@ public sealed class OtdSession : IDisposable
         IOtdExecutionContext context)
     {
         var client = new DaemonClient(log);
-        return new OtdSession(client, client, store: null, log, policy, locator, context);
+        // No probe: the seam exists for tests of this class's own thread ordering and is not something a
+        // host can install.
+        return new OtdSession(client, client, store: null, log, policy, locator, context, probe: null);
     }
 
     /// <summary>
@@ -327,12 +359,16 @@ public sealed class OtdSession : IDisposable
     /// <param name="policy">The host's rules.</param>
     /// <param name="locator">How to find out which executable is answering.</param>
     /// <param name="context">Where posted work runs; inline when omitted, for tests not about ordering.</param>
+    /// <param name="probe">
+    /// Notifications for tests that <em>are</em> about ordering between threads, and nothing else --
+    /// see <see cref="LifecycleProbe"/>. Omitted, this class behaves exactly as it does for a host.
+    /// </param>
     /// <returns>A session over <paramref name="connection"/>.</returns>
     internal static OtdSession ForTesting<T>(T connection, ISettingsFileStore? store,
         IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
-        IOtdExecutionContext? context = null)
+        IOtdExecutionContext? context = null, LifecycleProbe? probe = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        new(connection, connection, store, log, policy, locator, context ?? new InlineContext());
+        new(connection, connection, store, log, policy, locator, context ?? new InlineContext(), probe);
 
     /// <summary>
     /// What a host may do with this connection: read, watch, and manage plugins.
@@ -656,6 +692,8 @@ public sealed class OtdSession : IDisposable
             }
 
             Task publication;
+
+            _probe?.PublishingLookup?.Invoke();
 
             // The reply came back to a session that may have given up on it. Posting then would reach the
             // host context that a false close has just told the caller it may tear down, which is the
@@ -1109,6 +1147,7 @@ public sealed class OtdSession : IDisposable
         // publish gate and outside the one above, so this waits for a dispatch already under way rather
         // than racing it -- and so a close cannot return while a reply that passed the check is still on
         // its way to the host.
+        _probe?.ReachingTeardown?.Invoke();
         lock (_publishGate) _lookupsAbandoned = true;
 
         // A close waiting on those lookups is released here rather than left to spend its window on them.

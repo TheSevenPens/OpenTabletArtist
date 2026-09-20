@@ -652,12 +652,22 @@ public class ShutdownTests
     /// checked and reported; the lock that mattered was the caller's, held across a close that runs its
     /// synchronous prefix all the way into teardown without yielding.
     /// </para>
+    /// <para>
+    /// The ordering is established by handshake. It was a hundred-millisecond delay and an assertion that
+    /// the competing close had not finished -- which also holds when its thread has not started, and on
+    /// that schedule the inline callback simply becomes the first closer and the inversion is never
+    /// exercised. See <see cref="OtdSession.LifecycleProbe"/> for why this needs a seam.
+    /// </para>
     /// </remarks>
     [Fact]
     public async Task AHostClosingFromInsideItsOwnPost_DoesNotDeadlockAgainstATeardown()
     {
         var host = new GateContext();
-        var (session, _, daemon, _) = Make(host);
+        var atTeardown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (session, _, daemon, _) = Make(host, new OtdSession.LifecycleProbe
+        {
+            ReachingTeardown = () => atTeardown.TrySetResult(),
+        });
 
         Task<bool>? fromInsideThePost = null;
         host.WhileHolding = () => fromInsideThePost = session.CloseAsync(TimeSpan.Zero);
@@ -689,7 +699,9 @@ public class ShutdownTests
             var closing = Task.Run(async () => await session.CloseAsync(TimeSpan.Zero),
                 TestContext.Current.CancellationToken);
 
-            await Task.Delay(100, TestContext.Current.CancellationToken);
+            // It is past everything else and about to contend for that gate -- so it has installed the
+            // shared close, and the callback below cannot quietly become the first closer instead.
+            await atTeardown.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
             Assert.False(closing.IsCompleted);
 
             // Now the host's own callback runs, still inside the handoff, and closes from there.
@@ -706,15 +718,93 @@ public class ShutdownTests
         }
     }
 
+    /// <summary>
+    /// A lookup whose reply arrives synchronously does not deadlock against a host holding the
+    /// publication gate.
+    /// </summary>
+    /// <remarks>
+    /// The second instance of the same mistake, found by audit rather than by a test: starting
+    /// <c>RunLookupAsync</c> under <c>_lookupGate</c> held that lock across the wait for the publication
+    /// gate whenever the RPC completed synchronously -- which the test transport does by default. The
+    /// other half of the cycle is an inline host callback, holding the publication gate, that asks for a
+    /// destination.
+    /// </remarks>
+    [Fact]
+    public async Task ASynchronousLookupReply_DoesNotDeadlockAgainstAHostHoldingThePublication()
+    {
+        var host = new GateContext();
+        var publishes = 0;
+        var secondPublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var (session, settings, daemon, _) = Make(host, new OtdSession.LifecycleProbe
+        {
+            PublishingLookup = () =>
+            {
+                if (Interlocked.Increment(ref publishes) == 2) secondPublish.TrySetResult();
+            },
+        });
+
+        var release = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return release.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // Something for the host's callback to want a destination for.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(Tablet("Wanting"))).Status);
+
+        // From inside the post, the host asks where to persist -- which needs the lookup gate.
+        host.WhileHolding = () => _ = settings.RetryPersistAsync();
+
+        try
+        {
+            host.HoldNextPost();
+            release.SetResult(new AppInfo
+            {
+                AppDataDirectory = "x",
+                SettingsFile = "settings.json",
+                PluginDirectory = "",
+            });
+
+            // The host now holds the publication gate.
+            await host.PostStarted.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+            // A second transition whose reply is already complete, so its lookup runs straight through to
+            // the publication gate. On another thread, because that is the whole point.
+            daemon.GetAppInfoHandler = null;
+            var second = Task.Run(() => daemon.Reconnect(), TestContext.Current.CancellationToken);
+
+            await secondPublish.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+            // It is about to contend for the gate the host holds. Releasing the host now makes it ask for
+            // the lookup gate, which is the other half of the cycle.
+            host.ReleaseHeldPost();
+
+            // Both halves get through. Completing at all is the assertion: under the cycle neither does.
+            await second.WaitAsync(Bound, TestContext.Current.CancellationToken);
+            Assert.True(await session.CloseAsync(TimeSpan.FromSeconds(5))
+                .WaitAsync(Bound, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            host.ReleaseHeldPost();
+        }
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make(
-        IOtdExecutionContext? context = null)
+        IOtdExecutionContext? context = null, OtdSession.LifecycleProbe? probe = null)
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var store = new RecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            NoPolicy.Instance, new FakeProcessLocator(), context);
+            NoPolicy.Instance, new FakeProcessLocator(), context, probe);
         var settings = session.OpenSettings(() => true, _ => { });
         daemon.Reconnect();
         return (session, settings, daemon, store);
