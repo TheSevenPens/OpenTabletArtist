@@ -150,26 +150,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
-    /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
-    [RelayCommand]
     /// <summary>Privacy &amp; Security › Input Monitoring. macOS-only; a no-op elsewhere.</summary>
+    [RelayCommand]
     private static void OpenInputMonitoringSettings()
-    {
-        if (!OperatingSystem.IsMacOS()) return;
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-            {
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Couldn't open the Input Monitoring settings pane.", ex);
-        }
-    }
+        => Services.PlatformShell.OpenInputMonitoringSettings();
 
     private void FollowLink(HealthLink? link)
     {

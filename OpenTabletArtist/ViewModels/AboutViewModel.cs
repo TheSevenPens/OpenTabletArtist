@@ -55,16 +55,13 @@ public partial class AboutViewModel : ObservableObject
     public string AppVersionSentence => $"Version {AppVersion} BETA.";
 
     /// <summary>Opens a URL in the user's default browser.</summary>
+    /// <remarks>
+    /// The four links this serves are constants on this class, so the helper's https-only rule changes
+    /// nothing here today (#889). It is the default being the safe one rather than each caller being
+    /// trusted to stay that way.
+    /// </remarks>
     [RelayCommand]
-    private void OpenUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return;
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch { }
-    }
+    private void OpenUrl(string url) => Services.PlatformShell.OpenUrl(url);
 
     /// <summary>Show OTD's built-in supported-tablets catalog in an in-app dialog (#155), highlighting the
     /// connected tablet. The RESOURCES-card entry point — replaces the former standalone Home card.</summary>

@@ -262,6 +262,122 @@ public class PlatformShellTests
         Assert.Equal(expected, Assert.Single(launched).FileName);
     }
 
+    // --- opening a link -------------------------------------------------------------------------
+
+    /// <summary>An https link is handed to the shell, which is what reaches the user's browser.</summary>
+    [Fact]
+    public void OpenUrl_AsksTheShellForTheLink()
+    {
+        var launched = new List<ProcessStartInfo>();
+        const string url = "https://github.com/TheSevenPens/OpenTabletArtist";
+
+        PlatformShell.OpenUrl(url, launched.Add);
+
+        var psi = Assert.Single(launched);
+        Assert.Equal(url, psi.FileName);
+        Assert.True(psi.UseShellExecute, "a link opens through the handler registered for its scheme");
+    }
+
+    /// <summary>
+    /// Anything that is not an https link is refused, and nothing is launched.
+    /// </summary>
+    /// <remarks>
+    /// The refusal is the point of routing these through here (#889). One caller's links come out of a
+    /// driver <em>detection</em> — text this application did not author — and shell-execute hands whatever
+    /// it is given to the handler registered for that scheme. <c>file:</c> and custom schemes are exactly
+    /// what must not reach it, and "it happens to start with https" is not the same check as "it parses as
+    /// an https URL", which is why this goes through <see cref="Uri"/>.
+    /// </remarks>
+    [Theory]
+    [InlineData("http://example.com")]                       // plain http: no, the safe case is the default
+    [InlineData("file:///C:/Windows/System32/cmd.exe")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("ms-settings:display")]                      // a real scheme, still not a link
+    [InlineData("https:notreallyaurl")]                       // starts with https, is not an https URL
+    [InlineData("not a url at all")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void OpenUrl_LaunchesNothingThatIsNotAnHttpsLink(string? url)
+    {
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.OpenUrl(url, launched.Add);
+
+        Assert.Empty(launched);
+    }
+
+    /// <summary>A refused link leaves a line behind; an empty one is not an event worth logging.</summary>
+    /// <remarks>
+    /// Without this the refusal is another silent do-nothing, which is the thing #887 set out to stop.
+    /// But a command invoked with no link at all is ordinary — a card with nothing to point at — and
+    /// logging that would be noise that teaches people to ignore the log.
+    /// </remarks>
+    [Fact]
+    public void OpenUrl_SaysWhenItRefusesALink()
+    {
+        var refused = $"file:///tmp/ota-{Guid.NewGuid():N}";
+        var lines = new List<string>();
+        void Capture(string line) => lines.Add(line);
+
+        AppLog.LineWritten += Capture;
+        try
+        {
+            PlatformShell.OpenUrl(refused, _ => { });
+            PlatformShell.OpenUrl("   ", _ => { });
+        }
+        finally
+        {
+            AppLog.LineWritten -= Capture;
+        }
+
+        var line = Assert.Single(lines, l => l.Contains(refused, StringComparison.Ordinal));
+        Assert.Contains("[WARNING]", line, StringComparison.Ordinal);
+        Assert.DoesNotContain(lines, l => l.Contains("Refused to open \"   \"", StringComparison.Ordinal));
+    }
+
+    /// <summary>The pure half of that decision, so the rule can be read without a launcher.</summary>
+    [Theory]
+    [InlineData("https://opentabletdriver.net/Wiki", true)]
+    [InlineData("HTTPS://UPPERCASE.EXAMPLE", true)]           // scheme comparison is not case-sensitive
+    [InlineData("http://example.com", false)]
+    [InlineData("file:///etc/passwd", false)]
+    [InlineData("x-apple.systempreferences:com.apple.preference.displays", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsWebLink_AcceptsOnlyHttps(string? url, bool expected)
+        => Assert.Equal(expected, PlatformShell.IsWebLink(url));
+
+    // --- the macOS Input Monitoring pane ----------------------------------------------------------
+
+    /// <summary>macOS asks the shell for the Input Monitoring pane.</summary>
+    /// <remarks>
+    /// Its own operation rather than a URL (#889): the scheme is one <see cref="PlatformShell.OpenUrl"/>
+    /// refuses on purpose, and it names a settings pane rather than a link.
+    /// </remarks>
+    [Fact]
+    public void OpenInputMonitoringSettings_OnMacOs_AsksForThePane()
+    {
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.OpenInputMonitoringSettings(isMacOS: true, start: launched.Add);
+
+        var psi = Assert.Single(launched);
+        Assert.Equal(
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent", psi.FileName);
+        Assert.True(psi.UseShellExecute, "the URI opens through its registered handler");
+    }
+
+    /// <summary>Everywhere else it launches nothing, rather than failing at the launcher.</summary>
+    [Fact]
+    public void OpenInputMonitoringSettings_LaunchesNothingOffMacOs()
+    {
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.OpenInputMonitoringSettings(isMacOS: false, start: launched.Add);
+
+        Assert.Empty(launched);
+    }
+
     // --- harness ---------------------------------------------------------------------------------
 
     /// <summary>A real directory for the length of one test, since the helper now refuses absent ones.</summary>
