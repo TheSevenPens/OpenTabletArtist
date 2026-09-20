@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
@@ -413,10 +414,12 @@ public class ShutdownTests
     /// a clearer name.
     /// </para>
     /// <para>
-    /// <b>On the bounded wait.</b> It is not hoping to catch a race. Against the defect the close returns
-    /// immediately and this fails every time; the fix is what makes it wait. A slower machine can only
-    /// make it wait longer, never pass wrongly — which is the opposite of the timing test this suite
-    /// already replaced once, and the reason it is safe here.
+    /// <b>On the bounded wait.</b> What makes it sound is not the interval: it is that the owner has
+    /// acknowledged its claim before the close starts, and that this fixture is idle, so against the
+    /// defect the non-owner's close takes the already-completed path and returns synchronously. The
+    /// interval is slack over that, not a race being waited for. It is <em>not</em> a general proof that
+    /// a timing assertion cannot pass wrongly — this suite replaced one such test in #894 — so anything
+    /// copied from here needs its own argument.
     /// </para>
     /// </remarks>
     [Fact]
@@ -431,25 +434,40 @@ public class ShutdownTests
             ReachingTeardown = () =>
             {
                 claimed.TrySetResult();
-                owner.Wait(Bound);
+
+                // Checked, so the safety timeout cannot quietly stand in for the handshake and let the
+                // teardown proceed while the test believes it is still held.
+                Assert.True(owner.Wait(Bound), "the owner was never released");
             },
         });
 
         var disposing = Task.Run(() => session.Dispose(), TestContext.Current.CancellationToken);
-        await claimed.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        try
+        {
+            await claimed.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        var closing = session.CloseAsync(TimeSpan.Zero);
+            var closing = session.CloseAsync(TimeSpan.Zero);
 
-        await Assert.ThrowsAsync<TimeoutException>(
-            () => closing.WaitAsync(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken));
-        Assert.False(daemon.IsDisposed);   // and it is genuinely still up, not merely slow to answer
+            await Assert.ThrowsAsync<TimeoutException>(
+                () => closing.WaitAsync(
+                    TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken));
+            Assert.False(daemon.IsDisposed);   // genuinely still up, not merely slow to answer
 
-        owner.Set();
-        await disposing.WaitAsync(Bound, TestContext.Current.CancellationToken);
+            owner.Set();
+            await disposing.WaitAsync(Bound, TestContext.Current.CancellationToken);
 
-        // Not settled -- the session was already torn down -- but now it has actually finished.
-        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
-        Assert.True(daemon.IsDisposed);
+            // Not settled -- the session was already torn down -- but now it has actually finished.
+            Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+            Assert.True(daemon.IsDisposed);
+        }
+        finally
+        {
+            // An assertion above must not leave the worker parked on the event until its safety timeout,
+            // still using it while `using` disposes it underneath.
+            owner.Set();
+            await Record.ExceptionAsync(
+                () => disposing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        }
     }
 
     /// <summary>
@@ -943,6 +961,131 @@ public class ShutdownTests
         finally
         {
             host.ReleaseHeldPost();
+        }
+    }
+
+    /// <summary>
+    /// Cleanup that threw faults the close rather than answering false (#893).
+    /// </summary>
+    /// <remarks>
+    /// False means abandonment — a close that worked and gave something up. A disposal that failed is
+    /// neither that nor a success, and flattening it into false would tell a host the transport went down
+    /// cleanly when nobody knows whether it went down at all.
+    /// </remarks>
+    [Fact]
+    public async Task ACloseWhoseTeardownThrows_FaultsRatherThanAnsweringFalse()
+    {
+        var boom = new InvalidOperationException("cleanup failed");
+        var (session, _, _, _) = Make(probe: new OtdSession.LifecycleProbe
+        {
+            ReachingTeardown = () => throw boom,
+        });
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => session.CloseAsync(TimeSpan.Zero).WaitAsync(Bound, TestContext.Current.CancellationToken));
+
+        Assert.Same(boom, thrown);
+    }
+
+    /// <summary>
+    /// And a close waiting on someone else's teardown hears how that ended, not merely that it did.
+    /// </summary>
+    /// <remarks>
+    /// The companion to the waiting test above. Having made the close wait for an owner it does not
+    /// control, the failure of that owner has to reach it — otherwise waiting would have bought a
+    /// guarantee of completion without a guarantee of what completed.
+    /// </remarks>
+    [Fact]
+    public async Task AClose_HearsTheFailureOfATeardownAnotherCallerOwns()
+    {
+        var claimed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var owner = new ManualResetEventSlim(false);
+        var boom = new InvalidOperationException("someone else's cleanup failed");
+
+        var (session, _, _, _) = Make(probe: new OtdSession.LifecycleProbe
+        {
+            ReachingTeardown = () =>
+            {
+                claimed.TrySetResult();
+                Assert.True(owner.Wait(Bound), "the owner was never released");
+                throw boom;
+            },
+        });
+
+        var disposing = Task.Run(() => session.Dispose(), TestContext.Current.CancellationToken);
+        try
+        {
+            await claimed.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+            var closing = session.CloseAsync(TimeSpan.Zero);
+
+            owner.Set();
+
+            var thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+            Assert.Same(boom, thrown);
+        }
+        finally
+        {
+            owner.Set();
+            await Record.ExceptionAsync(() => disposing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+        }
+    }
+
+    /// <summary>
+    /// How the two halves become one answer, including the case the session cannot produce (#893).
+    /// </summary>
+    /// <remarks>
+    /// Nothing in the settling half can fault today: both waits are completed with <c>TrySetResult</c>,
+    /// and each catches its only throwing case, the timeout. So driving a real close can cover a teardown
+    /// failure and never the combination, and asserting that here is the difference between the branch
+    /// being covered and merely being written.
+    /// </remarks>
+    public class Reconciling
+    {
+        private static readonly Exception Settling = new InvalidOperationException("settling");
+        private static readonly Exception Teardown = new InvalidOperationException("teardown");
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void NeitherFailed_TheSettlingAnswerStands(bool settled)
+            => Assert.Equal(settled, OtdSession.Reconcile(settled, null, null));
+
+        [Fact]
+        public void OnlySettlingFailed_ThatFailureIsWhatTheCallerSees()
+        {
+            var thrown = Assert.Throws<InvalidOperationException>(
+                () => OtdSession.Reconcile(false, Capture(Settling), null));
+
+            Assert.Same(Settling, thrown);
+        }
+
+        [Fact]
+        public void OnlyTeardownFailed_ThatFailureIsWhatTheCallerSees()
+        {
+            var thrown = Assert.Throws<InvalidOperationException>(
+                () => OtdSession.Reconcile(true, null, Capture(Teardown)));
+
+            Assert.Same(Teardown, thrown);
+        }
+
+        /// <summary>Both failed: both travel, settling first, and neither is demoted to a log line.</summary>
+        [Fact]
+        public void BothFailed_BothTravelTogether()
+        {
+            var thrown = Assert.Throws<AggregateException>(
+                () => OtdSession.Reconcile(false, Capture(Settling), Capture(Teardown)));
+
+            Assert.Collection(
+                thrown.InnerExceptions,
+                first => Assert.Same(Settling, first),
+                second => Assert.Same(Teardown, second));
+        }
+
+        private static ExceptionDispatchInfo Capture(Exception ex)
+        {
+            try { throw ex; }
+            catch (Exception caught) { return ExceptionDispatchInfo.Capture(caught); }
         }
     }
 
