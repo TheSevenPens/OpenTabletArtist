@@ -76,6 +76,13 @@ jobs:
       - name: Build
         run: dotnet build OpenTabletArtist.slnx -c Debug
 
+      # The library's own suite (#807 Phase 6). It references OtdInterop and nothing else — no app, no
+      # Avalonia — which is the point of it, and BoundaryDependencyTests fails if that stops being true.
+      # Named here because the workflow runs projects rather than the solution: a suite that only built
+      # would pass every push while testing nothing.
+      - name: Library tests
+        run: dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj -c Debug --no-build
+
       # The unit tests are headless — they exercise Domain/ViewModel logic without creating windows or
       # rendering, so no display/xvfb is needed (they run the same way on the Windows lane).
       - name: Test

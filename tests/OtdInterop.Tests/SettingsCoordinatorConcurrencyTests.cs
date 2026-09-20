@@ -2,14 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using OpenTabletArtist.Domain;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using Xunit;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// What happens when settings operations overlap — #774, #775, #776, from the second follow-up review
@@ -105,7 +103,7 @@ public class SettingsCoordinatorConcurrencyTests
             isOwnedDaemon: () => true,
             onSaveState: states.Add,
             log: NullOtdLog.Instance,
-            policy: OtaSettingsPolicy.Instance);
+            policy: NoPolicy.Instance);
 
         // The connection starts identified, which is the ordinary state and what every test written
         // before #828 assumed. A test that wants the window BEFORE identification reconnects and does not

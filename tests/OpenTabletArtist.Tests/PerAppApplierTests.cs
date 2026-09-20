@@ -6,6 +6,7 @@ using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using Xunit;
 using OtdInterop;
+using OtdInterop.Tests;
 
 namespace OpenTabletArtist.Tests;
 

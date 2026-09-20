@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// An execution context a test steps by hand.

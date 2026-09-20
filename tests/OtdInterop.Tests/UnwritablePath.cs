@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.Versioning;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Makes a path genuinely impossible to write for the life of a scope, the way that actually works on the

@@ -6,7 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
-using OpenTabletArtist.Tests;
+using OtdInterop.Tests;
 using OpenTabletArtist.ViewModels;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Binding;

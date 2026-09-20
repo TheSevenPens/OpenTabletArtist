@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// What a host is told about a reconnect, and when (#828).
@@ -357,7 +356,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, disposing, context);
+            NoPolicy.Instance, disposing, context);
         session.RefreshDaemonIdentityAndTakeChange();              // establish A, with the locator still harmless
 
         var told = new List<DaemonChange>();
@@ -397,7 +396,7 @@ public class ReconnectOrderingTests
         var context = new ControllableContext();
         var overtaking = new ReconnectDuringLookup(locator, daemon);
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, overtaking, context);
+            NoPolicy.Instance, overtaking, context);
         session.RefreshDaemonIdentityAndTakeChange();             // A established, with the locator still harmless
 
         var told = new List<DaemonChange>();
@@ -439,7 +438,7 @@ public class ReconnectOrderingTests
         var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+            NoPolicy.Instance, locator, new InlineExecutionContext());
 
         // The save chip is where the reset calls out, so that is where C arrives.
         var states = new List<SettingsSaveState>();
@@ -519,7 +518,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator, context);
+            NoPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => true, _ => { });
 
         session.RefreshDaemonIdentityAndTakeChange();
@@ -556,7 +555,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var log = new ActingLog();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
-            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+            NoPolicy.Instance, locator, new InlineExecutionContext());
 
         var states = new List<SettingsSaveState>();
         var settings = session.OpenSettings(() => true, states.Add);
@@ -593,7 +592,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var log = new ActingLog();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
-            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+            NoPolicy.Instance, locator, new InlineExecutionContext());
 
         var settings = session.OpenSettings(() => true, _ => { });
 
@@ -699,7 +698,7 @@ public class ReconnectOrderingTests
         var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+            NoPolicy.Instance, locator, new InlineExecutionContext());
         var settings = session.OpenSettings(() => true, _ => { });
 
         session.RefreshDaemonIdentityAndTakeChange();
@@ -938,7 +937,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
         using var context = new ElsewhereContext();
         using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
-            OtaSettingsPolicy.Instance, locator, context);
+            NoPolicy.Instance, locator, context);
         session.RefreshDaemonIdentityAndTakeChange();
         session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
 
@@ -981,7 +980,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
         var context = new DeferringContext();
         using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
-            OtaSettingsPolicy.Instance, locator, context);
+            NoPolicy.Instance, locator, context);
         session.RefreshDaemonIdentityAndTakeChange();
 
         var reported = log.Expect(w => w.Contains("identify the connected daemon"));
@@ -1147,7 +1146,7 @@ public class ReconnectOrderingTests
         var daemon = new FakeDaemonTransport { ServerProcessId = 1 };
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log ?? NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator, context);
+            NoPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => true, _ => { });
         session.RefreshDaemonIdentityAndTakeChange();              // establish A as the daemon this session knows
         return new Harness(session, daemon, locator, context, settings);

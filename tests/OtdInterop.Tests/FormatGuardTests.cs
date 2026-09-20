@@ -1,11 +1,10 @@
 using System.Threading.Tasks;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Nothing leaves this library carrying a null Absolute-mode area (#836).
@@ -111,7 +110,7 @@ public class FormatGuardTests
         var daemon = new FakeDaemonTransport();
         var store = new LoadableStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, new FakeProcessLocator());
+            NoPolicy.Instance, new FakeProcessLocator());
         var settings = session.OpenSettings(() => true, _ => { });
 
         // A channel, announced, so the session identifies it and asks the daemon where it keeps its

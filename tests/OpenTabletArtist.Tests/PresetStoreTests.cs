@@ -4,6 +4,7 @@ using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
+using OtdInterop.Tests;
 
 namespace OpenTabletArtist.Tests;
 

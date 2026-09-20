@@ -2,7 +2,7 @@ using System.Linq;
 using Avalonia.Headless.XUnit;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Services;
-using OpenTabletArtist.Tests;
+using OtdInterop.Tests;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletDriver.Desktop.Reflection;

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using OtdDaemonSwitchCheck;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// The switch-check tool's execution context.

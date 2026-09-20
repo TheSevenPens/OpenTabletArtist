@@ -5,7 +5,7 @@ using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Which daemon is answering, and what a different one costs (#787, #803, #807 Phase 4).

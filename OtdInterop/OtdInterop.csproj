@@ -73,6 +73,9 @@
     its own test project and this moves with those tests.
   -->
   <ItemGroup>
+    <!-- The library's own suite, which is where its tests belong: it references OtdInterop and nothing
+         else, so it can only exercise what the library actually offers. -->
+    <InternalsVisibleTo Include="OtdInterop.Tests" />
     <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
     <!-- The switch-check tool drives NoteConnectedDaemon directly: its unreadable-daemon scenario has to
          ask the session to look again without a real reconnect, since making a daemon unreadable means

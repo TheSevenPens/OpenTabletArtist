@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using OpenTabletArtist.Services;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
 using Xunit;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// What happens to an edit made before this session knows where the connected daemon keeps its settings
@@ -355,7 +354,7 @@ public class DestinationReadinessTests
         var store = new PathRecordingStore();
         using var context = new OneThreadContext();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, new FakeProcessLocator(), context);
+            NoPolicy.Instance, new FakeProcessLocator(), context);
         var settings = session.OpenSettings(() => true, state => context.Observe(state));
 
         // A lookup that will not answer until this test says so, from a thread that is not the context's.
@@ -689,7 +688,7 @@ public class DestinationReadinessTests
         var store = new PathRecordingStore();
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
-            OtaSettingsPolicy.Instance, locator, context);
+            NoPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => true, _ => { });
         return new Harness(session, settings, daemon, locator, context, store);
     }

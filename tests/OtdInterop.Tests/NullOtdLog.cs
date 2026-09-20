@@ -1,7 +1,7 @@
 using System;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>
 /// Swallows what the library logs, for tests that are not about logging.

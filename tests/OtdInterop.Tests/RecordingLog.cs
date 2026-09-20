@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using OtdInterop;
 
-namespace OpenTabletArtist.Tests;
+namespace OtdInterop.Tests;
 
 /// <summary>Keeps what the library logged, for tests whose subject is that something was reported.</summary>
 internal sealed class RecordingLog : IOtdLog
