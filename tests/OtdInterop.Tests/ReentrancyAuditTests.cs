@@ -151,23 +151,23 @@ public class ReentrancyAuditTests
     }
 
     /// <summary>
-    /// A host that disposes its session from a save-state callback gets a finished operation, not a
-    /// broken one.
+    /// A host that disposes before the send gets no apply, no write, and no later report.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The third question #845 asks, and the answer is that it is already right — recorded because "we
-    /// checked and it holds" is worth as much as a fix, and because nothing failed if it stopped holding.
+    /// <b>This test used to claim the opposite</b>, and its explanation described a scenario it was not
+    /// in: it disposed from <c>Saving</c>, which is emitted <em>before</em> <c>SetSettingsAsync</c>, and
+    /// then said the destination belonged to "the daemon that accepted the change". Nothing had accepted
+    /// anything yet.
     /// </para>
     /// <para>
-    /// The operation completes: its destination was resolved before the callback ran and belongs to the
-    /// daemon that accepted the change, and disposal does not move the session off that daemon. What
-    /// stops is the reporting — abandoned work does not call back into a host that has torn down
-    /// (#859) — and what remains readable is what already happened (#873).
+    /// It passed because the fake's binding checked incarnation alone and ignored disposal, so it
+    /// accepted a send the real client's binding refuses on <c>rpc.IsDisposed</c>. The fake models
+    /// disposal now, and the honest answer is this one.
     /// </para>
     /// </remarks>
     [Fact]
-    public async Task AHostDisposingFromItsSaveStateCallback_StillGetsAFinishedOperation()
+    public async Task AHostDisposingBeforeTheSend_GetsNoApplyAndNoWrite()
     {
         var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
         var store = new SwitchableStore();
@@ -185,9 +185,12 @@ public class ReentrancyAuditTests
         daemon.Reconnect();
         await settings.ReloadFromDaemonAsync();
 
+        var before = settings.GetCurrent()!;
+
         var disposed = false;
         react = state =>
         {
+            // Saving is announced before the send, so this disposes with nothing yet accepted.
             if (state != SettingsSaveState.Saving || disposed) return;
 
             disposed = true;
@@ -197,17 +200,125 @@ public class ReentrancyAuditTests
         var outcome = await settings.ApplyAndSaveAsync(Tablet("Edited"));
 
         Assert.True(disposed, "the callback never disposed, so this proves nothing");
+        Assert.Equal(SettingsApplyStatus.Disconnected, outcome.Status);
+        Assert.Null(outcome.Prepared);
+        Assert.Empty(store.Wrote);
+
+        // Nothing was published, and nothing was reported after the host tore down.
+        Assert.Equal(before.Stamp, settings.GetCurrent()!.Stamp);
+        Assert.Equal(SettingsSaveState.Saving, reported[^1]);
+    }
+
+    /// <summary>
+    /// A host that disposes after the daemon has accepted lets that work finish, and hears nothing more.
+    /// </summary>
+    /// <remarks>
+    /// The post-acceptance half, tested at an actual post-acceptance point: the disk write, which runs
+    /// after the send succeeded and after the revision was published. Work already admitted and accepted
+    /// completes (#859); the reporting stops, because a host that has torn down is not called back into;
+    /// and what happened stays readable (#873).
+    /// </remarks>
+    [Fact]
+    public async Task AHostDisposingAfterAcceptance_LetsTheAcceptedWorkFinishAndHearsNothingMore()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
+        var store = new SwitchableStore();
+        var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
+            NoPolicy.Instance, new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" });
+
+        var reported = new List<SettingsSaveState>();
+        var settings = session.OpenSettings(() => true, reported.Add);
+
+        daemon.Reconnect();
+        await settings.ReloadFromDaemonAsync();
+
+        var disposed = false;
+        store.WhileWriting = () =>
+        {
+            if (disposed) return;
+
+            disposed = true;
+            session.Dispose();
+        };
+
+        var outcome = await settings.ApplyAndSaveAsync(Tablet("Edited"));
+
+        Assert.True(disposed, "the store callback never disposed, so this proves nothing");
         Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
         Assert.Single(store.Wrote);
 
-        // Nothing was reported after the host tore down.
         Assert.Equal(SettingsSaveState.Saving, reported[^1]);
-
-        // And what already happened is still readable.
         Assert.Equal("Edited", settings.GetCurrent()!.Settings.Profiles[0].Tablet);
     }
 
+    /// <summary>
+    /// A failure logger that supersedes the operation does not then get its report, or its result.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The gap my audit missed, and the reason its reasoning was wrong rather than merely incomplete: I
+    /// concluded the loggers were safe because the operation's own state had settled by the time they
+    /// ran. State is not the only thing a call-out can outlive. This logger runs after the write has
+    /// failed, and after it come the save-state report and an adoptable result — both of which speak for
+    /// an operation that no longer exists.
+    /// </para>
+    /// <para>
+    /// Left alone, the superseded apply writes "Failed" over the "None" the reset had just reported,
+    /// about a daemon the user has already moved off, and hands back a <c>Prepared</c> revision that
+    /// OTA's editor adopts on the strength of the status alone.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AFailureLoggerThatSupersedes_GetsNeitherTheReportNorTheResult()
+    {
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = Tablet("Baseline") };
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var store = new SwitchableStore { Succeeds = false };
+
+        var log = new ReactingLog();
+        using var session = OtdSession.ForTesting(daemon, store, log, NoPolicy.Instance, locator);
+
+        var reported = new List<SettingsSaveState>();
+        var settings = session.OpenSettings(() => true, reported.Add);
+
+        daemon.Reconnect();
+        await settings.ReloadFromDaemonAsync();
+
+        var switched = false;
+        log.OnWarn = message =>
+        {
+            if (switched || !message.StartsWith("Settings applied but not saved:", StringComparison.Ordinal))
+                return;
+
+            switched = true;
+            locator.Path = "B/OpenTabletDriver.Daemon.exe";
+            daemon.Reconnect();
+        };
+
+        var outcome = await settings.ApplyAndSaveAsync(Tablet("Edited"));
+
+        Assert.True(switched, "the logger never superseded, so this proves nothing");
+
+        // The reset's own announcement is the last word, not the superseded apply's.
+        Assert.Equal(SettingsSaveState.None, reported[^1]);
+
+        Assert.Equal(SettingsApplyStatus.Superseded, outcome.Status);
+        Assert.Null(outcome.Prepared);
+    }
+
     // --- harness --------------------------------------------------------------------------------
+
+    /// <summary>A log the test can act from, because logging is a call into host code.</summary>
+    private sealed class ReactingLog : IOtdLog
+    {
+        public Action<string>? OnWarn { get; set; }
+
+        public void Warn(string message, Exception? error = null) => OnWarn?.Invoke(message);
+
+        public void Info(string message) { }
+
+        public void Debug(string message, Exception? error = null) { }
+    }
 
     private sealed class SwitchableStore : ISettingsFileStore
     {

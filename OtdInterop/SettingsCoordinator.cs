@@ -460,6 +460,30 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         _onSaveState(state);
     }
 
+    /// <summary>
+    /// Reports on behalf of one operation, and says nothing once that operation is obsolete.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A report is a change to something the host owns, and the audit's rule covers it (#845). An
+    /// operation superseded part-way through went on announcing its own progress — writing "Failed" over
+    /// the "None" that the reset superseding it had just reported, about a daemon the user had already
+    /// moved off. My audit called the logger before it safe because the operation's own state had
+    /// settled; state is not the only thing a call-out can outlive.
+    /// </para>
+    /// <para>
+    /// Guarded here rather than at each site, because the sites are what keep growing. Every report that
+    /// belongs to an operation carries its origin; the two that belong to the session itself — an
+    /// admission that never got one, and the reset's own announcement — deliberately do not.
+    /// </para>
+    /// </remarks>
+    private void TellTheHost(SettingsSaveState state, Origin origin)
+    {
+        if (!StillCurrent(origin)) return;
+
+        TellTheHost(state);
+    }
+
     private volatile bool _abandoned;
 
     /// <summary>Marks an operation finished, and wakes a close that is waiting for the last one.</summary>
@@ -636,9 +660,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <see cref="StillCurrent"/>, which is the designed path.
     /// </description></item>
     /// <item><description>
-    /// <b><c>_log</c></b> — every call is either in a branch that returns, or after the operation's state
-    /// has settled. This is the seam that was missed twice on the transition path, so it was checked
-    /// mechanically rather than by eye.
+    /// <b><c>_log</c></b> — the seam that was missed twice on the transition path, and that this audit
+    /// got wrong on its first pass. I concluded the loggers were safe because the operation's own state
+    /// had settled by the time they ran. <b>State is not the only thing a call-out can outlive:</b> a
+    /// logger between a failed write and the report of it superseded the operation, and the report went
+    /// out anyway — over the announcement the superseding reset had just made — followed by an adoptable
+    /// result for a session that had gone. A logger before a discard could likewise throw away a pending
+    /// change a reset had deliberately kept, so the discards now precede their loggers.
     /// </description></item>
     /// <item><description>
     /// <b><c>_isOwnedDaemon</c></b> — read once, to build the policy context. Nothing is established
@@ -651,10 +679,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </description></item>
     /// </list>
     /// <para>
+    /// <b>The rule, restated after that correction.</b> Three things can outlive a call into host code,
+    /// not one: this session's <em>state</em>, the <em>reports</em> it makes to the host, and the
+    /// <em>authority</em> it hands back in a result. State is guarded by re-checking before mutating;
+    /// reports by <see cref="TellTheHost(SettingsSaveState, Origin)"/>, which every operation-scoped
+    /// report goes through; authority by re-checking before returning anything a caller may adopt, since
+    /// OTA's editor adopts on status alone and never compares the stamp against its current session.
+    /// </para>
+    /// <para>
     /// <b>A host disposing from a save-state callback</b> — #845's third question — was already right.
     /// The operation finishes: its destination belongs to the daemon that accepted the change, and
     /// disposal does not move the session off that daemon. The reporting stops (#859) and what already
-    /// happened stays readable (#873). <c>ReentrancyAuditTests</c> pins all three conclusions.
+    /// happened stays readable (#873). <c>ReentrancyAuditTests</c> pins these conclusions.
+    /// Note what it took to make that last one honest: the first version disposed from <c>Saving</c>,
+    /// which is announced <em>before</em> the send, and passed only because the fake's binding ignored
+    /// disposal where the real client's refuses. Before-send and after-acceptance are separate tests now.
     /// </para>
     /// </remarks>
     private bool StillCurrent(Origin origin) =>
@@ -974,7 +1013,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         var revision = Snapshot(settings);
         if (revision == null)
         {
-            TellTheHost(SettingsSaveState.ApplyFailed);
+            TellTheHost(SettingsSaveState.ApplyFailed, origin);
             _log.Warn("Couldn't isolate the settings after applying policy; nothing was sent or saved.");
             return SettingsApplyOutcome.Failed(null);
         }
@@ -1026,7 +1065,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // the half #828 was still owed.
         var path = DestinationFor(origin);
 
-        TellTheHost(SettingsSaveState.Saving);
+        TellTheHost(SettingsSaveState.Saving, origin);
         bool applied;
         try
         {
@@ -1038,7 +1077,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         {
             // Reachable daemon, failed call. Not live, not saved — a different state from "live but
             // unpersisted", and the UI text must not claim otherwise.
-            TellTheHost(SettingsSaveState.ApplyFailed);
+            TellTheHost(SettingsSaveState.ApplyFailed, origin);
             _log.Warn("Couldn't apply settings to the daemon.", ex);
             // Still throws: callers depend on it, and changing that is not this change's business.
             throw;
@@ -1057,7 +1096,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 return SettingsApplyOutcome.Superseded;
             }
 
-            TellTheHost(SettingsSaveState.Disconnected);
+            TellTheHost(SettingsSaveState.Disconnected, origin);
             _log.Warn("Couldn't apply settings: not connected to the daemon.");
             // No payload, because this published no revision. It used to carry the attempted settings
             // stamped with the revision it had already published -- and once publication moved after
@@ -1137,7 +1176,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                 ? $"Settings applied but not saved: {WhyNowhereToWrite(origin)}."
                 : $"Settings applied but not saved: couldn't write {path}.");
 
-        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
+        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed, origin);
+        // Everything above ran host code: the logger for a failed write, then the report itself. A
+        // Prepared result is authority -- OTA adopts it into the editor on the strength of the status and
+        // does not compare its stamp against the session it has now -- so handing one back on behalf of a
+        // session that has moved on is the same defect as publishing one, at the last possible moment.
+        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
+
         var result = saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
         return result with { Prepared = prepared };
     }
@@ -1272,10 +1317,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             // someone else's configuration is worse.
             if (made.Path is { } knownThen && !PathEquality.Same(knownThen, path))
             {
+                // Discarded before the logger, not after: logging is a call into host code, and a host
+                // that supersedes from it may have reset this session in a way that deliberately KEPT a
+                // pending change for the arriving channel. Throwing that away afterwards, on the strength
+                // of a decision made about the world before the call, is the defect this audit is about.
+                DiscardPendingPersist();
                 _log.Warn($"Discarding an unsaved settings change made for {knownThen}: the connected " +
                             $"daemon now uses {path}, and the change does not belong to it.");
-                DiscardPendingPersist();
-                TellTheHost(SettingsSaveState.None);
+                TellTheHost(SettingsSaveState.None, origin);
                 return SettingsApplyOutcome.NoChange;
             }
 
@@ -1284,15 +1333,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             // destination, which is the cross-daemon write this whole arrangement exists to prevent.
             if (made.Path is null && made.Channel != origin.Channel.Incarnation)
             {
+                DiscardPendingPersist();
                 _log.Warn("Discarding an unsaved settings change: it was accepted by a connection that " +
                             "never reported a settings file, and a different one is connected now.");
-                DiscardPendingPersist();
-                TellTheHost(SettingsSaveState.None);
+                TellTheHost(SettingsSaveState.None, origin);
                 return SettingsApplyOutcome.NoChange;
             }
         }
 
-        TellTheHost(SettingsSaveState.Saving);
+        TellTheHost(SettingsSaveState.Saving, origin);
 
         // The host has just run, and everything above was decided before it did (#845). This was the one
         // place in the class that announced and then changed state without asking again: every other
@@ -1323,7 +1372,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             _lastPersistedSettingsJson = SerializeForCompare(pending);
             _pendingPersistSettings = null;
         }
-        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed);
+        TellTheHost(saved ? SettingsSaveState.Saved : SettingsSaveState.Failed, origin);
         return saved ? SettingsApplyOutcome.Saved : SettingsApplyOutcome.Unsaved;
     }
 
@@ -1565,7 +1614,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // None rather than Saved: restoring reads the default off disk and applies it, so no save
         // happened, and reporting one would be a smaller version of the same lie. The failed paths above
         // all return early and leave their own state standing.
-        TellTheHost(SettingsSaveState.None);
+        TellTheHost(SettingsSaveState.None, origin);
         return SettingsRestoreOutcome.Restored;
     }
 
