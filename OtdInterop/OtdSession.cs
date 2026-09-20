@@ -47,8 +47,9 @@ public sealed class OtdSession : IDisposable
 
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
         ISettingsFileStore? store, IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
-        IOtdExecutionContext context)
+        IOtdExecutionContext context, LifecycleProbe? probe)
     {
+        _probe = probe;
         Connection = connection;
         Capabilities = new DaemonCapabilities(connection);
         _channel = channel;
@@ -67,6 +68,35 @@ public sealed class OtdSession : IDisposable
     }
 
     private readonly IOtdExecutionContext _context;
+
+    /// <summary>
+    /// Where a test can be told that a thread has reached a lock it is about to contend for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The deadlock these guard against is an ordering between two threads, and the point that matters --
+    /// "the closer is past everything else and about to take the publication gate" -- has no observable
+    /// boundary outside this class. The test that first covered it waited 100ms and asserted the close
+    /// had not finished, which also passes when the competing thread has not started: on that schedule
+    /// the inline callback becomes the first closer and the inversion is never exercised. A test that
+    /// passes for the wrong reason is what this whole area of the review has been about.
+    /// </para>
+    /// <para>
+    /// So: a seam, deliberately the narrowest one available. It is reachable only through
+    /// <see cref="ForTesting{T}"/>, so no host can install one, and it is a plain notification -- it
+    /// decides nothing and the code reads the same with it absent.
+    /// </para>
+    /// </remarks>
+    internal sealed class LifecycleProbe
+    {
+        /// <summary>Called just before a teardown contends for the publication gate.</summary>
+        public Action? ReachingTeardown { get; init; }
+
+        /// <summary>Called just before a lookup's publication contends for the publication gate.</summary>
+        public Action? PublishingLookup { get; init; }
+    }
+
+    private readonly LifecycleProbe? _probe;
 
     /// <summary>
     /// The transport has a channel. Identify the daemon, invalidate if it is a different one, and only
@@ -302,7 +332,9 @@ public sealed class OtdSession : IDisposable
         IOtdExecutionContext context)
     {
         var client = new DaemonClient(log);
-        return new OtdSession(client, client, store: null, log, policy, locator, context);
+        // No probe: the seam exists for tests of this class's own thread ordering and is not something a
+        // host can install.
+        return new OtdSession(client, client, store: null, log, policy, locator, context, probe: null);
     }
 
     /// <summary>
@@ -327,12 +359,16 @@ public sealed class OtdSession : IDisposable
     /// <param name="policy">The host's rules.</param>
     /// <param name="locator">How to find out which executable is answering.</param>
     /// <param name="context">Where posted work runs; inline when omitted, for tests not about ordering.</param>
+    /// <param name="probe">
+    /// Notifications for tests that <em>are</em> about ordering between threads, and nothing else --
+    /// see <see cref="LifecycleProbe"/>. Omitted, this class behaves exactly as it does for a host.
+    /// </param>
     /// <returns>A session over <paramref name="connection"/>.</returns>
     internal static OtdSession ForTesting<T>(T connection, ISettingsFileStore? store,
         IOtdLog log, IOtdSettingsPolicy policy, IDaemonProcessLocator locator,
-        IOtdExecutionContext? context = null)
+        IOtdExecutionContext? context = null, LifecycleProbe? probe = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        new(connection, connection, store, log, policy, locator, context ?? new InlineContext());
+        new(connection, connection, store, log, policy, locator, context ?? new InlineContext(), probe);
 
     /// <summary>
     /// What a host may do with this connection: read, watch, and manage plugins.
@@ -512,23 +548,40 @@ public sealed class OtdSession : IDisposable
     /// </remarks>
     private Task DiscoverDestinationAsync(int channel)
     {
+        Lookup started;
         lock (_lookupGate)
         {
+            // Joining what is already running, which is not new work: the flight it joins carries the one
+            // registration. Counting the caller instead leaked one every time, because only the single
+            // RunLookupAsync ever released it -- so a session whose work had all finished still reported a
+            // timed-out close, for ten seconds by default and forever on an infinite window.
             if (_lookup is { Channel: var running, Done.Task: var task } && running == channel
                 && !task.IsCompleted)
             {
                 return task;
             }
 
+            // Work this session starts on its own account, and it counts: the reply's continuation posts
+            // through the host's execution context, which is exactly what a successful close tells the
+            // caller it may now tear down. StillTheCurrentTransition stops an obsolete answer being
+            // adopted; it does nothing about the call still being outstanding.
+            if (!TryBeginLookup()) return Task.CompletedTask;
+
             // Deliberately NOT RunContinuationsAsynchronously, so that a continuation can run inline on
             // the context that completes this. That is a preference, not the guarantee: what keeps a
             // caller confined is its own synchronization context, which IOtdExecutionContext requires of
             // any host calling the asynchronous operations.
-            var flight = new Lookup(channel, new TaskCompletionSource());
-            _lookup = flight;
-            _ = RunLookupAsync(flight);
-            return flight.Done.Task;
+            started = new Lookup(channel, new TaskCompletionSource());
+            _lookup = started;
         }
+
+        // The second instance of the same mistake, found by auditing for the first: RunLookupAsync's
+        // synchronous prefix reaches the publication gate whenever the RPC completes synchronously, so
+        // starting it under _lookupGate held that lock across the wait for _publishGate -- and an inline
+        // host callback holding _publishGate can reach here and want _lookupGate. Recorded under the gate
+        // so coalescing still sees it; started outside.
+        _ = RunLookupAsync(started);
+        return started.Done.Task;
     }
 
     /// <summary>One outstanding destination lookup, and the channel it is about.</summary>
@@ -537,61 +590,161 @@ public sealed class OtdSession : IDisposable
     private readonly object _lookupGate = new();
     private Lookup? _lookup;
 
+    private readonly object _liveGate = new();
+    private int _liveLookups;
+    private TaskCompletionSource? _lookupsQuiet;
+
+    /// <summary>
+    /// Makes giving up on the lookups and handing one to the host a single decision.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Reading the flag under a lock and posting afterwards made them two, with a window between: a reply
+    /// could pass the check, be descheduled, and post after the close that abandoned it had already
+    /// returned. Another flag check only moves that window; the post has to be <em>initiated</em> under
+    /// the same gate the abandonment takes, so abandonment happens wholly before the dispatch or wholly
+    /// after it and there is no third possibility.
+    /// </para>
+    /// <para>
+    /// <b>Its own lock, deliberately, and the innermost one.</b> Not <c>_liveGate</c>: an execution
+    /// context may run posted work inline, so host code can run while this is held, and a host that
+    /// re-enters the session would take <c>_closeGate</c> -- which <see cref="CloseAsync"/> already holds
+    /// while <c>StopAdmitting</c> takes <c>_liveGate</c>. That is the inversion. Nothing acquires this
+    /// while holding another of this session's locks, and only the publisher and the teardown acquire it
+    /// at all.
+    /// </para>
+    /// <para>
+    /// Held across <em>initiating</em> the post and never across awaiting it. With a dispatching context
+    /// that is an enqueue; with one that runs work inline it is the action, so a teardown can wait on a
+    /// host callback for that long. That is the cost of the guarantee, and it is bounded by the host's
+    /// own post rather than by anything this library waits for.
+    /// </para>
+    /// </remarks>
+    private readonly object _publishGate = new();
+
+    private volatile bool _lookupsAbandoned;
+
+    /// <summary>Registers a lookup, or refuses it because this session is closing.</summary>
+    private bool TryBeginLookup()
+    {
+        lock (_liveGate)
+        {
+            if (_admissionStopped) return false;
+
+            _liveLookups++;
+            return true;
+        }
+    }
+
+    private void EndLookup()
+    {
+        lock (_liveGate)
+        {
+            if (--_liveLookups == 0) _lookupsQuiet?.TrySetResult();
+        }
+    }
+
+    /// <summary>Waits until no lookup is outstanding, or the time runs out.</summary>
+    private async Task<bool> LookupsQuietAsync(TimeSpan within)
+    {
+        Task quiet;
+        lock (_liveGate)
+        {
+            // Torn down already, by a Dispose. What is outstanding was abandoned with the transport.
+            if (_lookupsAbandoned) return false;
+
+            if (_liveLookups == 0) return true;
+
+            _lookupsQuiet ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            quiet = _lookupsQuiet.Task;
+        }
+
+        try
+        {
+            // True means the wait ended, not that the work was welcome: an abandonment ends it too, and
+            // RunCloseAsync's own !_tornDown is what turns that into the caller's answer.
+            await quiet.WaitAsync(within).ConfigureAwait(false);
+            return true;
+        }
+        catch (TimeoutException) { return false; }
+    }
+
     private async Task RunLookupAsync(Lookup flight)
     {
-        string? path = null;
-        Exception? failed = null;
+        // One cleanup for every way out of this method, including the early return below. It was two
+        // statements in a finally guarding only the publication await, so an early return would have
+        // skipped both -- leaking the registration this flight holds and leaving anyone awaiting it on a
+        // task nobody would complete.
         try
         {
-            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
-        }
-        catch (Exception ex)
-        {
-            failed = ex;
-            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
-                      + "written to disk for this connection until it answers. Retrying a pending save "
-                      + "asks again.", ex);
-        }
-
-        // Reported through the host's context like everything else this session decides, and the lookup
-        // is only finished once that has run -- or has been observed not to.
-        var publication = Report("record where the connected daemon keeps its settings", () =>
-        {
+            string? path = null;
+            Exception? failed = null;
             try
             {
-                // The answer describes the channel it was asked on. A reply arriving after that channel
-                // has gone says nothing about its replacement.
-                if (!StillTheCurrentTransition(flight.Channel)) return;
-
-                if (failed != null)
-                {
-                    // Recorded rather than left blank, so a later attempt can tell "the call failed" from
-                    // "nobody has asked yet" and from "this daemon has no settings file". They look the
-                    // same from outside and want different responses.
-                    _settings?.DestinationLookupFailed(flight.Channel);
-                    return;
-                }
-
-                _settings?.LearnDestination(path ?? "", flight.Channel);
+                path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
             }
-            finally
+            catch (Exception ex)
             {
-                // Settled here when the publication runs, which lets an awaiting continuation run inline
-                // on this context rather than wherever the reply happened to arrive. A permitted
-                // optimisation, not the guarantee -- what confines the caller is its own synchronization
-                // context, which IOtdExecutionContext requires of it.
-                flight.Done.TrySetResult();
+                failed = ex;
+                _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will "
+                          + "be written to disk for this connection until it answers. Retrying a pending "
+                          + "save asks again.", ex);
             }
-        });
 
-        try
-        {
-            // Report never throws: it catches and logs. Awaiting it is how this learns that the attempt
-            // has concluded, however it concluded.
+            Task publication;
+
+            _probe?.PublishingLookup?.Invoke();
+
+            // The reply came back to a session that may have given up on it. Posting then would reach the
+            // host context that a false close has just told the caller it may tear down, which is the
+            // promise CloseAsync documents. The staleness check inside the posted action is not this and
+            // cannot be: it runs after the post has arrived, having already done what was not allowed.
+            //
+            // Decided and dispatched under one gate -- see _publishGate for why checking and then posting
+            // is not enough, and why this is not _liveGate.
+            lock (_publishGate)
+            {
+                if (_lookupsAbandoned) return;
+
+                // Reported through the host's context like everything else this session decides, and the
+                // lookup is only finished once that has run -- or has been observed not to.
+                publication = Report("record where the connected daemon keeps its settings", () =>
+                {
+                    try
+                    {
+                        // The answer describes the channel it was asked on. A reply arriving after that
+                        // channel has gone says nothing about its replacement.
+                        if (!StillTheCurrentTransition(flight.Channel)) return;
+
+                        if (failed != null)
+                        {
+                            // Recorded rather than left blank, so a later attempt can tell "the call failed"
+                            // from "nobody has asked yet" and from "this daemon has no settings file". They
+                            // look the same from outside and want different responses.
+                            _settings?.DestinationLookupFailed(flight.Channel);
+                            return;
+                        }
+
+                        _settings?.LearnDestination(path ?? "", flight.Channel);
+                    }
+                    finally
+                    {
+                        // Settled here when the publication runs, which lets an awaiting continuation run
+                        // inline on this context rather than wherever the reply happened to arrive. A
+                        // permitted optimisation, not the guarantee -- what confines the caller is its own
+                        // synchronization context, which IOtdExecutionContext requires of it.
+                        flight.Done.TrySetResult();
+                    }
+                });
+            }
+
+            // Awaited outside the gate. Report never throws: it catches and logs, and awaiting it is how
+            // this learns the attempt has concluded, however it concluded.
             await publication.ConfigureAwait(false);
         }
         finally
         {
+            EndLookup();
             // The backstop, and the whole point of awaiting. A host can refuse a post -- shutting down,
             // or running work somewhere it does not consider its own -- and then the action above never
             // runs and never settles anything. Completing only from inside it left a retry awaiting a
@@ -777,29 +930,257 @@ public sealed class OtdSession : IDisposable
     }
 
     /// <summary>
-    /// Closes the connection. Safe to call more than once.
+    /// Closes the connection without waiting. Safe to call more than once.
     /// </summary>
     /// <remarks>
-    /// <b>Not a shutdown.</b> It closes the connection and stops this session issuing new work — nothing
-    /// more. Operations already in flight are not awaited, cancelled or settled, and a callback from one
-    /// can still arrive afterwards. #807 still owes that contract, and calling this complete ownership of
-    /// teardown would be the kind of claim that stops anyone finishing it.
+    /// <b>Does not settle work in flight</b>, because it cannot: there is nothing to await it on. An
+    /// operation already running is left running, against a transport this is about to dispose.
+    /// <see cref="CloseAsync"/> is the one that waits, and a host that can await should use it.
     ///
     /// The settings authority is deliberately not torn down, because it has nothing to release and
     /// something to answer: a host asking afterwards whether a change went unsaved should get the truth
     /// rather than an exception. Reading what already happened is allowed; starting something new is what
     /// <see cref="OpenSettings"/> refuses.
     /// </remarks>
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
+    public void Dispose() => Close();
 
-        // Before disposing the connection, so a drop raised during teardown does not post work onto a
-        // context for a session that has gone.
+    /// <summary>How long <see cref="CloseAsync"/> waits for work in flight before closing anyway.</summary>
+    private static readonly TimeSpan DefaultSettleWindow = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Closes the connection, after letting work already in flight finish.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What <see cref="Dispose"/> could never be: it cannot wait, so it closes under whatever is running
+    /// and an apply that had reached the daemon can fail on its way to disk with nothing able to say
+    /// whether it landed. A host that can await should use this.
+    /// </para>
+    /// <para>
+    /// Refuse, settle, close — the order the switch-check pump arrived at for the same question. New work
+    /// is refused first so the wait cannot chase an operation admitted behind it, then the settings
+    /// session is given its window, then the transport goes.
+    /// </para>
+    /// <para>
+    /// Bounded on purpose. The operation in flight may be waiting on a daemon that has stopped answering,
+    /// and an application exiting cannot be held open by one. <see cref="Timeout.InfiniteTimeSpan"/> is
+    /// accepted as the deliberate exception, for a caller who would rather hang than close under work --
+    /// a test, or a tool with nothing else to do. It is not a default and should not be one: a host with a
+    /// window to close wants an answer within a time it chose.
+    /// </para>
+    /// <para>
+    /// <b>What a false answer leaves behind.</b> The work is abandoned, not cancelled: the RPC it is
+    /// waiting on has already reached the daemon and cannot be recalled, so the task a caller is holding
+    /// for it may complete long afterwards -- or never, if the daemon never answers. Three things follow,
+    /// and a host that ignores them will see the symptoms rather than the cause:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b>Do not await those tasks after a false answer.</b> Awaiting one is the hang this method exists
+    /// to bound, moved somewhere else. Drop them, or await them under a timeout of the caller's own.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Their results are not reported.</b> Abandoned work does not call back into the host: no save
+    /// state, no settings event. What it returns to a caller still holding the task is what it found, and
+    /// may describe a session that has gone.
+    /// </description></item>
+    /// <item><description>
+    /// <b>They may still have landed.</b> A false answer says the session stopped waiting, not that the
+    /// daemon did nothing. What it holds, and what reached disk, is unknown -- which is the whole reason
+    /// the answer is a <c>bool</c> rather than nothing.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// The second of those is a guarantee about <em>ordering</em>, and it costs one thing worth knowing:
+    /// a reply that was already being handed to the host when the window ran out is not abandoned
+    /// half-way. Closing waits for that handoff to finish, so that it cannot return while a post is still
+    /// on its way. With a dispatching context the wait is an enqueue; with a context that runs posted
+    /// work inline it is the host's own callback. Nothing else is waited for.
+    /// </para>
+    /// <para>
+    /// <b>With <see cref="Dispose"/>.</b> One lifecycle, two entry points, and they may overlap. Calling
+    /// this more than once returns the same operation and the same answer. Disposing while this is
+    /// draining does not wait for it: it stops admission, abandons what is running and tears the transport
+    /// down at once, and this is then released -- rather than spending the rest of its window on work the
+    /// Dispose has already given up on -- answering false, because a close something else interrupted did
+    /// not settle. Disposing first makes a call here answer false immediately, for the same reason: there
+    /// is nothing left that waiting could settle.
+    /// </para>
+    /// </remarks>
+    /// <param name="settleWithin">
+    /// How long to wait. Defaults to ten seconds. <see cref="TimeSpan.Zero"/> closes without waiting;
+    /// <see cref="Timeout.InfiniteTimeSpan"/> waits for as long as it takes.
+    /// </param>
+    /// <returns>
+    /// True when everything in flight finished; false when the wait ran out, or a <see cref="Dispose"/>
+    /// interrupted it, and it closed anyway. See the abandonment note above for what a false answer
+    /// obliges the caller to do.
+    /// </returns>
+    public Task<bool> CloseAsync(TimeSpan? settleWithin = null)
+    {
+        var window = settleWithin ?? DefaultSettleWindow;
+
+        // Validated before anything changes. An interval the wait rejects used to throw after the session
+        // had already marked itself closed, so the transport was never disposed and the Dispose that
+        // followed did nothing -- a bad argument leaving the connection open for the life of the process.
+        if (window < TimeSpan.Zero && window != Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(nameof(settleWithin), window,
+                "A settle window must not be negative. Zero closes without waiting; "
+                + "Timeout.InfiniteTimeSpan waits for as long as it takes.");
+        }
+
+        // One close, however many callers. The flag alone answered "true" to everyone after the first,
+        // which conflated closing, closed-after-giving-up and everything-settled: a second teardown path
+        // could be told the work had finished while it was still running.
+        //
+        // Published under the gate; run outside it. Calling an async method runs its synchronous prefix
+        // on this thread, and a zero-window close reaches TearDown -- and so the publication gate --
+        // without ever yielding. Starting it under _closeGate therefore held that lock across the wait
+        // for _publishGate, which closes a cycle: an inline host callback running under _publishGate that
+        // re-enters this method waits for _closeGate, which the closer will not release until it gets the
+        // gate the callback is holding. TearDown ending its own _closeGate block first is not enough; it
+        // is the caller's lock that matters.
+        TaskCompletionSource<bool> mine;
+        lock (_closeGate)
+        {
+            if (_closing is { } already) return already;
+
+            mine = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _closing = mine.Task;
+        }
+
+        _ = SettleCloseAsync(mine, window);
+        return mine.Task;
+    }
+
+    /// <summary>Runs the close and hands its answer, or its failure, to every caller sharing it.</summary>
+    private async Task SettleCloseAsync(TaskCompletionSource<bool> result, TimeSpan window)
+    {
+        try
+        {
+            result.TrySetResult(await RunCloseAsync(window).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            // Shared like the answer is. Letting this escape would leave every caller waiting on a task
+            // that never completes, and lose the exception on an unobserved one.
+            result.TrySetException(ex);
+        }
+    }
+
+    private readonly object _closeGate = new();
+    private Task<bool>? _closing;
+    private bool _admissionStopped;
+    private bool _tornDown;
+
+    private async Task<bool> RunCloseAsync(TimeSpan window)
+    {
+        StopAdmitting();
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        TimeSpan Remaining()
+        {
+            if (window == Timeout.InfiniteTimeSpan) return window;
+
+            var left = window - clock.Elapsed;
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
+
+        try
+        {
+            // One deadline over both: the settings session's own operations, and the lookups this session
+            // started for itself. Waiting for each in turn with the full window would make the worst case
+            // twice what the caller asked for.
+            var settled = _settings is not { } settings
+                          || await settings.CloseAsync(Remaining()).ConfigureAwait(false);
+
+            settled &= await LookupsQuietAsync(Remaining()).ConfigureAwait(false);
+
+            // A Dispose that arrived while this was draining has already torn the transport down. What is
+            // still running was abandoned, whatever the waits above found, and saying otherwise would
+            // report a graceful settlement that something else interrupted.
+            lock (_closeGate) return settled && !_tornDown;
+        }
+        finally
+        {
+            TearDown();
+        }
+    }
+
+    /// <summary>
+    /// Stops this session admitting new work, here and in the settings session it handed out.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shared by both ways of closing, and it was not: only the asynchronous close stopped the settings
+    /// session, so a handle retained past a synchronous <c>Dispose</c> went on writing to disk for a
+    /// session that had gone.
+    /// </para>
+    /// <para>
+    /// The call into the settings session is belt and braces rather than the only thing holding it: both
+    /// callers stop its admission by another route as well — <c>Close</c> through <c>Abandon</c>, and the
+    /// asynchronous close through the coordinator's own close. Deleting it fails no test. It is here so
+    /// the method is true to its name, and because "some other path happens to do it" is how the gap it
+    /// fixes appeared in the first place.
+    /// </para>
+    /// </remarks>
+    private void StopAdmitting()
+    {
+        lock (_liveGate) _admissionStopped = true;
+
+        _disposed = true;
+        _settings?.StopAdmitting();
+    }
+
+    /// <summary>Detaches and disposes the transport. Idempotent, and never waits.</summary>
+    private void TearDown()
+    {
+        lock (_closeGate)
+        {
+            if (_tornDown) return;
+
+            _tornDown = true;
+        }
+
+        // The transport is going, so nothing outstanding on it will be heard from. Latched under the
+        // publish gate and outside the one above, so this waits for a dispatch already under way rather
+        // than racing it -- and so a close cannot return while a reply that passed the check is still on
+        // its way to the host.
+        _probe?.ReachingTeardown?.Invoke();
+        lock (_publishGate) _lookupsAbandoned = true;
+
+        // A close waiting on those lookups is released here rather than left to spend its window on them.
+        lock (_liveGate) _lookupsQuiet?.TrySetResult();
+
+        Detach();
+        Connection.Dispose();
+    }
+
+    /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
+    /// <remarks>
+    /// Runs even while an asynchronous close is draining, which it did not: the drain set the disposed
+    /// flag first and this returned having done nothing, so a host that gave up on a graceful close and
+    /// disposed could not make anything happen. Whatever is still running is abandoned -- it may finish,
+    /// and nothing it does will reach the host.
+    /// </remarks>
+    private void Close()
+    {
+        StopAdmitting();
+        _settings?.Abandon();
+        TearDown();
+    }
+
+    /// <summary>
+    /// Stops listening to the transport, before it is disposed.
+    /// </summary>
+    /// <remarks>
+    /// Order matters: a drop raised during teardown would otherwise post work onto a context for a
+    /// session that has gone.
+    /// </remarks>
+    private void Detach()
+    {
         Connection.Connected -= OnTransportConnected;
         Connection.Disconnected -= OnTransportDisconnected;
-
-        Connection.Dispose();
     }
 }

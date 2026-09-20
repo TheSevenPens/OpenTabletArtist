@@ -597,7 +597,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Plugins.Dispose();        // unsubscribes DataLoaded
         WindowsInk.Dispose();     // unsubscribes DataLoaded + connection sync
         VMulti.Dispose();         // cancels the VMulti install/uninstall token
-        _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
         DriverCleanup.Dispose();
         _conflicts.Dispose();
         _health.Dispose();        // unsubscribes from DataLoaded + connection changes
@@ -605,6 +604,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _monitorHotkeys.Dispose(); // drops its registration + event hook
         _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
         _perAppSwitcher.Dispose(); // stops the foreground watcher + pen stream
+
+        // Last, after everything that unsubscribes from it. It used to sit above DriverCleanup, the
+        // conflict monitor and the health service, all of which detach handlers from a session that had
+        // already gone. Detaching from a disposed object is harmless in itself, which is why this
+        // survived -- but the ordering said those three did not depend on the session, and they do.
+        _session.Dispose();       // cancels the connect/poll loops, disposes the daemon client + load gate
     }
 }
 
