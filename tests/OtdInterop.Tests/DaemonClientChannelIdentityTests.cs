@@ -82,6 +82,67 @@ public class DaemonClientChannelIdentityTests
     }
 
     /// <summary>
+    /// A disposed client reports no connection, rather than throwing on a disposed channel.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Against the real client over a real pipe, because that is where the defect was: every send guards
+    /// on "no channel" — the state a <em>disconnect</em> leaves — while disposal disposed the channel and
+    /// kept the reference. A disposed channel passes that guard, so the call reached StreamJsonRpc and
+    /// threw, where <see cref="IDaemonCapabilities.GetAppInfoAsync"/> promises null.
+    /// </para>
+    /// <para>
+    /// I said in review that this could not be unit-tested because the client is internal and needs a
+    /// real connection. Both halves were wrong: this file already connects it to a pipe of its own, and
+    /// the tests one class away do it without any OpenTabletDriver process.
+    /// </para>
+    /// <para>
+    /// <b>What it does not settle, checked rather than guessed.</b> Disposing the channel also makes
+    /// StreamJsonRpc raise its disconnect, whose handler clears the same reference. With the clearing
+    /// reverted this still passes — five runs out of five — because that handler gets there first. So it
+    /// pins the behaviour and is <em>not</em> mutation coverage of the reference-clearing; turning that
+    /// race into a sleep would be worse than leaving it unclaimed.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADisposedClientReportsNoConnection_RatherThanThrowing()
+    {
+        var pipe = $"ota-test-{Guid.NewGuid():N}";
+        var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var client = new DaemonClient(NullOtdLog.Instance, pipe);
+
+        using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1,
+            PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+
+        var connected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnConnected() => connected.TrySetResult();
+        client.Connected += OnConnected;
+
+        try
+        {
+            var accepted = server.WaitForConnectionAsync(cancel.Token);
+            _ = client.ConnectAsync(cancel.Token);
+            await accepted;
+            await connected.Task.WaitAsync(TimeSpan.FromSeconds(30), cancel.Token);
+
+            // Disposed while still connected -- no disconnect has happened, so the reference is live.
+            client.AutoReconnect = false;
+            client.Dispose();
+
+            Assert.Null(await client.GetAppInfoAsync());
+            Assert.Empty(await client.GetTabletsAsync());
+            Assert.Empty(await client.GetDevicesAsync());
+            Assert.Empty(await client.GetCurrentLogAsync());
+            Assert.False(await client.UninstallPluginAsync("anywhere"));
+        }
+        finally
+        {
+            client.Connected -= OnConnected;
+            StopConnecting(client, cancel);
+        }
+    }
+
+    /// <summary>
     /// Stops the client trying to connect, then disposes both it and the token source.
     /// </summary>
     /// <remarks>

@@ -456,10 +456,14 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// Dropping the reference is what the disconnect path already does, for the same reason.
     ///
     /// <para>
-    /// <b>No regression distinguishes this.</b> <see cref="DaemonCapabilities"/> answers for a torn-down
-    /// session before reaching the transport, so the symptom is fixed there and every test — including a
-    /// live one against a real daemon — passes with this reverted. I checked rather than assumed: the
-    /// live scenario was written believing it covered this, and it does not.
+    /// <b>No regression distinguishes this, for two reasons.</b> <see cref="DaemonCapabilities"/> answers
+    /// for a torn-down session before reaching the transport, so the symptom is fixed there; and a test
+    /// that calls this client directly after disposing it passes either way, because StreamJsonRpc's own
+    /// disconnect handler clears the same reference first. Both were run rather than reasoned about.
+    /// </para>
+    /// <para>
+    /// The behaviour <em>is</em> pinned, by that direct test and by the wrapper's own. What is not pinned
+    /// is which of the two clearings did it.
     /// </para>
     /// <para>
     /// Kept because it is the root cause rather than the symptom: any other holder of a disposed client
