@@ -176,7 +176,12 @@ public class HealthEvaluatorTests
         var row = Assert.Single(issue.Links!).Setting;
 
         Assert.DoesNotContain("not the bundled copy", row);
-        Assert.Equal("Not the OpenTabletDriver you chose — a different one is answering", row);
+        Assert.Equal("Not the OpenTabletDriver you chose", row);
+
+        // Short enough to survive the row's clipping: the first attempt lost "is answering" on screen,
+        // which is the half that explained it. Checked against the widest row already shipping.
+        Assert.True(row.Length <= "An OpenTabletDriver you installed, not the bundled copy".Length,
+            $"row is longer than the widest one already shipping, and will clip: '{row}'");
 
         // Still the same card, the same severity and the same remedy: nothing about privileges moved.
         Assert.Equal("otd.driver", issue.Id);

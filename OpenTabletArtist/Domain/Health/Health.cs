@@ -511,8 +511,11 @@ public static class HealthEvaluator
         // are already running (#882). The classification is the same; the sentence must not be.
         if (i.ForeignDaemon)
             rows.Add(new HealthLink(
+                // Short on purpose: the row clips at roughly this width, and the previous wording lost
+                // its last word to that. A sentence whose meaning lives in the clipped part is worse
+                // than a short one -- "a different one is answering" became "a different one is a".
                 i.DaemonIsManagedButNotSelected
-                    ? "Not the OpenTabletDriver you chose — a different one is answering"
+                    ? "Not the OpenTabletDriver you chose"
                     : "An OpenTabletDriver you installed, not the bundled copy",
                 "", RemediationArea.Daemon));
 
