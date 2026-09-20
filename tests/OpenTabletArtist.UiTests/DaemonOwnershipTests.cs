@@ -118,8 +118,20 @@ public class DaemonOwnershipTests
     /// process -- and the next line persisted it anyway. Disk then held a repair the running daemon had
     /// never seen, which is the disagreement #734 exists to prevent, arrived at from the other side.
     ///
-    /// The in-memory repair is unaffected either way, and that is the reason this was easy to miss:
-    /// everything the user could see was correct.
+    /// <para>
+    /// <b>The authoritative baseline stays unrepaired when the daemon did not accept the cleanup (#832).</b>
+    /// This used to assert the opposite, because the apply published its revision before sending it, and
+    /// the summary above called that harmless — "everything the user could see was correct". An
+    /// unaccepted repair is not authoritative: the daemon still has the filter enabled, so a baseline
+    /// saying otherwise claims a repair that happened nowhere.
+    /// </para>
+    /// <para>
+    /// <b>What this does not say.</b> I first wrote that the display now follows the daemon, and that
+    /// overstates it. This asserts on <c>CurrentSettings</c> only. <c>LoadDataCoreAsync</c> builds
+    /// <c>Profiles</c> from its own repaired copy <em>before</em> attempting the cleanup apply, so the
+    /// repaired projection can still reach views by that route. How particular views present it is a
+    /// separate question from which settings are authoritative, and is not what changed here.
+    /// </para>
     /// </summary>
     [AvaloniaFact]
     public async Task ACleanupTheDaemonNeverReceived_IsNotWrittenToDisk()
@@ -131,7 +143,8 @@ public class DaemonOwnershipTests
         await session.ReloadAsync();
 
         Assert.Equal(0, store.Writes);
-        Assert.False(ForeignFilterEnabled(session.CurrentSettings));   // the display is still repaired
+        // Still enabled, because nothing accepted the repair -- which is what the daemon is running.
+        Assert.True(ForeignFilterEnabled(session.CurrentSettings));
     }
 
     [AvaloniaFact]

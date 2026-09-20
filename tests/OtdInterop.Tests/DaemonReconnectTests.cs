@@ -55,42 +55,76 @@ public class DaemonReconnectTests
     }
 
     /// <summary>
-    /// What a superseded apply DOES leave behind: the revision it published before sending.
-    ///
-    /// Pinned rather than asserted away, because it is a real limitation and I would otherwise have
-    /// written a test claiming the opposite. An apply publishes its revision <em>before</em> the RPC, on
-    /// purpose — a read starting between publish and acceptance would otherwise carry a version that
-    /// looks current while describing state from before the change. When the operation is then
-    /// superseded, that published revision describes settings the new daemon never accepted.
-    ///
-    /// <b>Not bounded as well as I first claimed.</b> I wrote that the following reload repairs it, and
-    /// Codex pointed out that is not sufficient: a caller reading the baseline between the two builds its
-    /// next edit on a revision no daemon has, which is the contamination #814 already reproduced. I also
-    /// had the premise wrong — #818 required read invalidation, not publishing before acceptance, and the
-    /// epoch/revision split exists so those can be decided separately.
-    ///
-    /// So this is a characterization of a known gap, not settled behaviour. #832 is the fix, and this
-    /// test should invert when it lands.
+    /// A superseded apply leaves the previous baseline standing, not its own candidate.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This test used to assert the opposite, and said so: the apply published its revision <em>before</em>
+    /// the RPC, so when the operation was superseded that revision described settings the new daemon
+    /// never accepted — and it was this session's authoritative baseline until something reloaded over it.
+    /// I pinned that as a known gap rather than fixing it, on a premise that was wrong: #818 required read
+    /// invalidation, not publishing before acceptance, and the epoch/revision split exists so the two can
+    /// be decided separately.
+    /// </para>
+    /// <para>
+    /// #832 is that fix, and this is the same scenario with the assertion it should always have had.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public async Task ASupersededApply_LeavesItsPublishedRevisionForTheReloadToCorrect()
+    public async Task ASupersededApply_LeavesThePreviousBaselineStanding()
     {
         var (_, settings, daemon, store) = Make();
+
+        var before = settings.GetCurrent()!;
 
         var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         daemon.SetSettingsHandler = _ => held.Task;
         var apply = settings.ApplyAndSaveAsync(Tablet("Edited"));
         daemon.ReconnectSilently();
         held.SetResult(true);
-        await apply;
 
-        Assert.Equal("Edited", settings.GetCurrent()!.Settings.Profiles[0].Tablet);
+        Assert.Equal(SettingsApplyStatus.Superseded, (await apply).Status);
+
+        var after = settings.GetCurrent()!;
+        Assert.Equal("Baseline", after.Settings.Profiles[0].Tablet);
+        Assert.Equal(before.Stamp, after.Stamp);
         Assert.Empty(store.Wrote);
+    }
 
-        // And the reload is what corrects it.
-        daemon.Settings = Tablet("What the new daemon holds");
-        await settings.ReloadFromDaemonAsync();
-        Assert.Equal("What the new daemon holds", settings.GetCurrent()!.Settings.Profiles[0].Tablet);
+    /// <summary>
+    /// The next edit is built from the previous baseline, so a rejected candidate cannot reach the daemon
+    /// through it.
+    /// </summary>
+    /// <remarks>
+    /// The contamination #832 asks about, and the reason "a later reload repairs it" was never a bound:
+    /// a caller reading the baseline between a superseded apply and the repairing reload builds its next
+    /// edit on a revision no daemon has, and sends it. That is the #814 shape, reached through the
+    /// published baseline instead of a retained object.
+    /// </remarks>
+    [Fact]
+    public async Task AnEditBuiltAfterASupersededApply_CarriesNoneOfTheRejectedCandidate()
+    {
+        var (_, settings, daemon, _) = Make();
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ => held.Task;
+        var apply = settings.ApplyAndSaveAsync(Tablet("Rejected"));
+        daemon.ReconnectSilently();
+        held.SetResult(true);
+        Assert.Equal(SettingsApplyStatus.Superseded, (await apply).Status);
+
+        // Deliberately BEFORE any repairing reload: this is the window the bound was claimed for.
+        var next = settings.GetCurrent()!.Settings;
+        next.Profiles[0].BindingSettings.DisablePressure = true;   // a different field
+
+        Settings? sent = null;
+        daemon.SetSettingsHandler = s => { sent = s; return Task.FromResult(true); };
+        daemon.Reconnect();
+        await settings.ApplyAndSaveAsync(next);
+
+        Assert.NotNull(sent);
+        Assert.Equal("Baseline", sent!.Profiles[0].Tablet);
+        Assert.True(sent.Profiles[0].BindingSettings.DisablePressure);
     }
 
     /// <summary>

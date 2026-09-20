@@ -301,9 +301,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The daemon has just accepted something, so what a read of it can observe has changed.
     ///
     /// Moves the observation epoch and not the revision, and the distinction is the whole point.
-    /// Publishing happens BEFORE the call, so a read starting between the two sees the new epoch and the
-    /// old daemon state — a combination that looks current and is not. Versioning the local baseline
-    /// does not version what a remote read returns; only the acceptance does.
+    /// Acceptance is what invalidates an overlapping read — including for the operations that publish no
+    /// baseline at all, such as a per-app override. Versioning the local baseline does not version what a
+    /// remote read returns; only the acceptance does, which is why this bump cannot be folded into
+    /// <see cref="Publish"/>.
+    ///
+    /// The old explanation here said publishing happened BEFORE the call. Since #832 it happens after,
+    /// and the reasoning survived the change it described — left in place, it would let the next reader
+    /// reconstruct the premise this method now contradicts.
     ///
     /// It must not move the revision either. An apply publishes once and is accepted once; on one shared
     /// counter the result's stamp would be a revision behind the state it had just created, so a caller
@@ -322,7 +327,9 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// public call the host made after its own repairs -- which meant it recorded whatever this session
     /// happened to be publishing at that moment, including a revision published before the daemon had
     /// accepted it (#832) or one whose apply had been superseded. "The host says its repairs finished"
-    /// is not the same as "the daemon took this", and only the second is a baseline.
+    /// is not the same as "the daemon took this", and only the second is a baseline. Since #832 the
+    /// apply path publishes only after this has run, so "what this session publishes" no longer includes
+    /// anything a daemon merely had sent to it.
     /// </remarks>
     private void NoteDaemonAccepted(Settings accepted, Origin origin)
     {
@@ -946,18 +953,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             && json == _lastPersistedSettingsJson)
             return SettingsApplyOutcome.NoChange;
 
-        var stamp = StampFor(Publish(revision));
-        // A real apply puts the daemon on these settings, so any per-app override is over (#737).
-        HasEphemeralOverride = false;
-        // A copy of its own, not the revision. `revision` is simultaneously this session's state, the
-        // object sent to the daemon, and -- if the write fails -- the pending retry. Handing that same
-        // instance back as a result means a caller which adopts and then edits it is editing all three,
-        // so an edit the daemon never accepted would be written by the retry. That is the ownership
-        // problem this whole change exists to remove, reintroduced at the last step.
-        //
-        // Null rather than an alias when the copy fails: a result that cannot be isolated is not a
-        // result a caller may adopt, and saying nothing is better than saying something untrue.
-        var prepared = Detach(revision, stamp);
+        // Nothing is published here, and that is the point of #832. This used to publish the revision
+        // and clear the override before the send, so a superseded apply left settings the daemon never
+        // accepted standing as this session's authoritative baseline -- and a caller reading it before
+        // the repairing reload built its next edit on top of them, which is the #814 contamination.
+        // Both now happen after acceptance, which is what ApplyLiveOnlyAsync and RestoreDefaultCoreAsync
+        // already did.
 
         // Resolved BEFORE the RPC, not after (#803), and resolved against the channel this work is bound
         // to rather than against whatever the host last noticed. Reading it late meant an apply that
@@ -999,7 +1000,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
             TellTheHost(SettingsSaveState.Disconnected);
             _log.Warn("Couldn't apply settings: not connected to the daemon.");
-            return SettingsApplyOutcome.Disconnected with { Prepared = prepared };
+            // No payload, because this published no revision. It used to carry the attempted settings
+            // stamped with the revision it had already published -- and once publication moved after
+            // acceptance there is no revision to stamp them with. Stamping them with the current one
+            // would be worse than saying nothing: that stamp identifies different, already-published
+            // content. The outcome's own documentation has always said Prepared is null when nothing
+            // was published; this is the path that did not honour it.
+            return SettingsApplyOutcome.Disconnected;
         }
 
         // The daemon changed while this was in flight, so what just succeeded landed on a daemon that is
@@ -1011,6 +1018,26 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
                         + "rather than writing it to the new daemon's file.");
             return SettingsApplyOutcome.Superseded;
         }
+
+        // Accepted, and by a daemon still ours to speak for -- so now it is a revision. Before the disk
+        // write on purpose: an accepted baseline must not be reverted by a persistence failure, which is
+        // a separate outcome and a separate retry.
+        var stamp = StampFor(Publish(revision));
+
+        // A real apply puts the daemon on these settings, so any per-app override is over (#737). Moved
+        // here with the publication: clearing it on an attempt ended an override the daemon was still
+        // running, and a reload could then adopt that transient snapshot as the editor's default.
+        HasEphemeralOverride = false;
+
+        // A copy of its own, not the revision. `revision` is simultaneously this session's state, the
+        // object sent to the daemon, and -- if the write fails -- the pending retry. Handing that same
+        // instance back as a result means a caller which adopts and then edits it is editing all three,
+        // so an edit the daemon never accepted would be written by the retry. That is the ownership
+        // problem this whole change exists to remove, reintroduced at the last step.
+        //
+        // Null rather than an alias when the copy fails: a result that cannot be isolated is not a
+        // result a caller may adopt, and saying nothing is better than saying something untrue.
+        var prepared = Detach(revision, stamp);
 
         // Persist to disk (same as OTD's own UX Save). Apply and persist are separate outcomes: a failed
         // write means the change is live but won't survive a daemon restart, which we must not hide.
