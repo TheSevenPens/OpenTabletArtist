@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 namespace OtdInterop;
 
 /// <summary>
@@ -1022,13 +1024,33 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// </remarks>
     /// <param name="settleWithin">
-    /// How long to wait. Defaults to ten seconds. <see cref="TimeSpan.Zero"/> closes without waiting;
-    /// <see cref="Timeout.InfiniteTimeSpan"/> waits for as long as it takes.
+    /// How long to wait <em>for work already admitted to settle</em>. Defaults to ten seconds.
+    /// <see cref="TimeSpan.Zero"/> allows it no grace at all; <see cref="Timeout.InfiniteTimeSpan"/> waits
+    /// for as long as it takes.
+    /// <para>
+    /// <b>It does not bound the call.</b> Zero means no settling grace, not a guaranteed immediate return:
+    /// the returned task additionally waits for the teardown to finish -- the handoff already under way,
+    /// and the transport's disposal -- whether this caller does that work or another one is doing it. That
+    /// wait is deliberately unbounded, because returning before it is what made a close say the transport
+    /// had gone while it was still up (#893). A host that needs a hard deadline on exit has to impose one
+    /// itself; it is a different guarantee from this one and cannot be had by weakening this answer.
+    /// </para>
     /// </param>
     /// <returns>
     /// True when everything in flight finished; false when the wait ran out, or a <see cref="Dispose"/>
     /// interrupted it, and it closed anyway. See the abandonment note above for what a false answer
     /// obliges the caller to do.
+    /// <para>
+    /// True means the admitted work <em>finished</em>, not that it succeeded: an operation can finish
+    /// having failed to save, and whether a save worked is its own save-state rather than the shape of
+    /// this answer.
+    /// </para>
+    /// <para>
+    /// Cleanup that <em>threw</em> is never a false: the task faults instead, with the settling failure
+    /// and the teardown failure together in an <see cref="AggregateException"/> when both went wrong.
+    /// False is abandonment, which is a close that worked and gave something up; a disposal that failed
+    /// is neither.
+    /// </para>
     /// </returns>
     public Task<bool> CloseAsync(TimeSpan? settleWithin = null)
     {
@@ -1129,29 +1151,101 @@ public sealed class OtdSession : IDisposable
             return left > TimeSpan.Zero ? left : TimeSpan.Zero;
         }
 
+        // Settling and cleanup are reported together, so neither can bury the other (#893). A `finally`
+        // that awaited the teardown would throw from inside the unwinding of a settling failure and
+        // replace it -- and so would TearDown itself, which rethrows before that await is ever reached.
+        // Neither failure is the secondary one: a disposal that failed may be the reason a connection is
+        // still up, even when settling had already gone wrong.
+        var settling = await SettleOrCaptureAsync(Remaining).ConfigureAwait(false);
+        var teardown = await FinishTeardownAsync().ConfigureAwait(false);
+
+        return Reconcile(settling.Settled, settling.Failure, teardown);
+    }
+
+    /// <summary>
+    /// The one answer, from what the two halves each did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate and pure because its most interesting case cannot be produced through the session.
+    /// Nothing in the settling half can fault today: both waits are completed with <c>TrySetResult</c>
+    /// and each catches its only throwing case, the timeout. So a test that drove a real close could
+    /// cover a teardown failure and never the combination. This can be called with both.
+    /// </para>
+    /// <para>
+    /// Rethrown through <see cref="ExceptionDispatchInfo"/> when it is the only failure, so the caller
+    /// sees the stack it was raised on rather than one rooted here. When both failed, neither is the
+    /// secondary one -- a disposal that failed may be why a connection is still up even though settling
+    /// had already gone wrong -- so both travel together rather than one being left in a log for the host
+    /// to correlate.
+    /// </para>
+    /// </remarks>
+    internal static bool Reconcile(
+        bool settled, ExceptionDispatchInfo? settling, ExceptionDispatchInfo? teardown)
+    {
+        if (settling is not null)
+        {
+            if (teardown is null) settling.Throw();
+
+            throw new AggregateException(settling.SourceException, teardown.SourceException);
+        }
+
+        teardown?.Throw();
+        return settled;
+    }
+
+    /// <summary>The settling half, with its failure captured rather than thrown.</summary>
+    /// <remarks>
+    /// Captured through <see cref="ExceptionDispatchInfo"/> so that when it turns out to be the only
+    /// failure it is rethrown with the stack it was raised on, rather than one rooted here.
+    /// </remarks>
+    private async Task<(bool Settled, ExceptionDispatchInfo? Failure)> SettleOrCaptureAsync(
+        Func<TimeSpan> remaining)
+    {
         try
         {
             // One deadline over both: the settings session's own operations, and the lookups this session
             // started for itself. Waiting for each in turn with the full window would make the worst case
             // twice what the caller asked for.
             var settled = _settings is not { } settings
-                          || await settings.CloseAsync(Remaining()).ConfigureAwait(false);
+                          || await settings.CloseAsync(remaining()).ConfigureAwait(false);
 
-            settled &= await LookupsQuietAsync(Remaining()).ConfigureAwait(false);
+            settled &= await LookupsQuietAsync(remaining()).ConfigureAwait(false);
 
             // A Dispose that arrived while this was draining has already torn the transport down. What is
             // still running was abandoned, whatever the waits above found, and saying otherwise would
             // report a graceful settlement that something else interrupted.
-            lock (_closeGate) return settled && !_tornDown;
+            lock (_closeGate) return (settled && !_tornDown, null);
         }
-        finally
+        catch (Exception ex)
         {
-            TearDown();
+            return (false, ExceptionDispatchInfo.Capture(ex));
+        }
+    }
 
-            // Claiming it is not finishing it. When another caller owns the teardown this is where the
-            // close waits for theirs, outside every lock, so "the close returned" still means the
-            // transport has gone and no lookup handoff is in flight (#893).
+    /// <summary>
+    /// Tears down if nobody else has, then waits for whoever owns it, and reports how that went.
+    /// </summary>
+    /// <remarks>
+    /// Claiming a teardown is not finishing one, so this waits on the shared completion even when another
+    /// caller owns it -- outside every lock, so that "the close returned" still means the transport has
+    /// gone and no lookup handoff is in flight. An owner whose cleanup threw has already put that on the
+    /// shared task, so the throw here is caught and the one answer taken from the task, rather than the
+    /// same failure being counted twice.
+    /// </remarks>
+    private async Task<ExceptionDispatchInfo?> FinishTeardownAsync()
+    {
+        try { TearDown(); }
+        catch { /* already on _teardownComplete; taken from there below so it is reported once */ }
+
+        try
+        {
             await _teardownComplete.Task.ConfigureAwait(false);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ExceptionDispatchInfo.Capture(ex);
         }
     }
 
@@ -1197,9 +1291,14 @@ public sealed class OtdSession : IDisposable
     }
 
     /// <summary>
-    /// Detaches and disposes the transport, once. Never waits: a caller that needs the teardown to have
-    /// finished awaits <see cref="_teardownComplete"/> instead.
+    /// Detaches and disposes the transport, once.
     /// </summary>
+    /// <remarks>
+    /// <b>What does not wait is a non-owner's return.</b> The owner can block here -- on the publication
+    /// gate, holding a lookup handoff already under way, and inside <c>Connection.Dispose()</c> -- so
+    /// this is not a bounded call for whoever claims it. A caller that needs the teardown to have
+    /// finished awaits <see cref="_teardownComplete"/>, which the asynchronous close does.
+    /// </remarks>
     /// <remarks>
     /// The latch marks the claim, and the work runs outside it. Returning early on the latch alone told a
     /// second caller the transport was gone while the first was still holding the publication gate (#893).
@@ -1244,6 +1343,14 @@ public sealed class OtdSession : IDisposable
             // Shared the way the close's answer is: a caller waiting on this must hear what stopped it
             // rather than wait on a task nothing will ever complete.
             _teardownComplete.TrySetException(ex);
+
+            // And observed here, because there may be nobody to await it -- a Dispose with no close in
+            // flight, or a close whose own TearDown call threw before it could. Reading Exception marks
+            // the fault observed without making the task successful, and without hiding anything: the
+            // same failure still reaches this caller through the throw below and any later awaiter
+            // through the task. Logging `ex` would not mark it observed.
+            _ = _teardownComplete.Task.Exception;
+
             throw;
         }
     }
