@@ -598,6 +598,65 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// Not what stops it sending to the wrong daemon — <see cref="Origin.Channel"/> does that, by being a
     /// hold rather than a comparison. This decides whether the result may become this session's state.
     /// </summary>
+    /// <summary>
+    /// <b>The host-reentrancy audit of the settings operations (#845).</b>
+    /// </summary>
+    ///
+    /// <remarks>
+    /// <para>
+    /// The rule, from #843 and #844, stated for the transition path in <c>OtdSession</c>: a call into
+    /// host code may reenter this session, dispose it, or supersede the operation being handled, and
+    /// nothing established before such a call authorises a mutation after it without being reconsidered.
+    /// <b>Logging is such a call.</b> This is that audit applied here, and it is written down because the
+    /// three findings it followed were one defect in three disguises, each found by reading rather than
+    /// by a test.
+    /// </para>
+    /// <para>
+    /// The seams are taken from the fields rather than from a list, because a list is what goes stale:
+    /// <c>_onSaveState</c>, <c>_log</c>, <c>_store</c>, <c>_policy</c>, <c>_isOwnedDaemon</c>, and
+    /// <c>_rediscoverDestination</c> — which #845 could not name, having been written before it existed.
+    /// The <c>_settingsPath()</c> delegate it did name is gone, replaced by <see cref="DestinationFor"/>,
+    /// which answers per operation-origin; that is why "can the path change within one operation" is now
+    /// a question the type cannot pose.
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b><c>_onSaveState</c></b> — one site announced and then changed state: the retry's "Saving",
+    /// followed by the write and by recording what it wrote. Fixed, with a re-check. Every other
+    /// announcement either settles its state first or is the last thing the operation does.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>_store</c></b> — the host's disk, and the same defect again in the apply path, where the
+    /// pending-change and comparison bookkeeping after <c>TrySave</c> was all decided before it ran.
+    /// Fixed. Found by scanning for this shape, not by reading; reading had already been over both.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>_policy</c></b> — runs before anything is published or cleared, since #832 moved both after
+    /// acceptance. A policy that resets the session leaves the send bound to an origin that then fails
+    /// <see cref="StillCurrent"/>, which is the designed path.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>_log</c></b> — every call is either in a branch that returns, or after the operation's state
+    /// has settled. This is the seam that was missed twice on the transition path, so it was checked
+    /// mechanically rather than by eye.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>_isOwnedDaemon</c></b> — read once, to build the policy context. Nothing is established
+    /// across it.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>_rediscoverDestination</c></b> — the only awaiting call-out, and deliberately outside the
+    /// mutation gate. It mutates nothing, and the retry that follows it re-derives its destination from
+    /// its own origin, so a reconnect across it is already handled.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// <b>A host disposing from a save-state callback</b> — #845's third question — was already right.
+    /// The operation finishes: its destination belongs to the daemon that accepted the change, and
+    /// disposal does not move the session off that daemon. The reporting stops (#859) and what already
+    /// happened stays readable (#873). <c>ReentrancyAuditTests</c> pins all three conclusions.
+    /// </para>
+    /// </remarks>
     private bool StillCurrent(Origin origin) =>
         origin.Channel.Incarnation == _daemon.Incarnation
         && (origin.Session == Volatile.Read(ref _sessionGeneration)
@@ -1044,6 +1103,22 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // An empty settings path is NOT a successful save — there is nowhere to write (#734).
         bool saved = !string.IsNullOrEmpty(path) && _store.TrySave(revision, path);
 
+        // The store is the host's disk, so that was a call into host code and everything below was
+        // decided before it (#845). Found by scanning for mutations that follow a call-out without
+        // re-establishing currency, not by reading -- the same defect as the retry path's, in the
+        // operation next door.
+        //
+        // The write itself stands: it went to the file the daemon that accepted it reported. What must
+        // not happen is recording the outcome against a session that has since moved on -- a pending
+        // change for a daemon that never made it, or a comparison baseline claiming the new daemon's
+        // disk holds the old one's settings.
+        if (!StillCurrent(origin))
+        {
+            _log.Warn("A settings write completed after the daemon changed; the file it wrote belongs to "
+                      + "the daemon that accepted it, and this session no longer speaks for that daemon.");
+            return SettingsApplyOutcome.Superseded;
+        }
+
         // Tracked separately from the daemon-loaded baseline so a persistence-only retry is possible.
         _lastPersistedSettingsJson = saved ? SerializeForCompare(revision) : null;
         // The same revision the daemon accepted, so a retry writes that and not whatever the caller's
@@ -1218,7 +1293,31 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         }
 
         TellTheHost(SettingsSaveState.Saving);
+
+        // The host has just run, and everything above was decided before it did (#845). This was the one
+        // place in the class that announced and then changed state without asking again: every other
+        // operation re-establishes currency after its own call-outs, and the apply path does it twice.
+        //
+        // What a host can do here is not exotic. Identification deliberately does not wait behind the
+        // mutation gate (#828), so a host that pumps its dispatcher from this callback -- opening a
+        // dialog is enough -- lets this session identify a different daemon and reset. The reset has
+        // then discarded this very change and cleared the comparison baselines, and the lines below
+        // would write the departed daemon's settings and record them as what disk holds for the session
+        // that replaced it. The next identical apply is skipped as a no-op against a baseline no daemon
+        // ever had.
+        if (!StillCurrent(origin) || !ReferenceEquals(_pendingPersistSettings, pending))
+        {
+            _log.Warn("Discarding a pending settings write: the daemon changed while the retry was "
+                      + "being announced, so the change no longer belongs to this session.");
+            return SettingsApplyOutcome.Superseded;
+        }
+
         bool saved = _store.TrySave(pending, path);
+
+        // And again, because the store is the host's disk and can reenter on the same terms. Recording
+        // what disk holds for a session that has moved on is the half that outlives the write.
+        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
+
         if (saved)
         {
             _lastPersistedSettingsJson = SerializeForCompare(pending);
