@@ -576,8 +576,10 @@ public sealed class OtdSession : IDisposable
             }
             finally
             {
-                // Settled here when the publication runs, so whoever is awaiting it resumes inline on
-                // this context rather than wherever the reply happened to arrive.
+                // Settled here when the publication runs, which lets an awaiting continuation run inline
+                // on this context rather than wherever the reply happened to arrive. A permitted
+                // optimisation, not the guarantee -- what confines the caller is its own synchronization
+                // context, which IOtdExecutionContext requires of it.
                 flight.Done.TrySetResult();
             }
         });

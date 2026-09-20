@@ -470,6 +470,55 @@ public class DestinationReadinessTests
     }
 
     /// <summary>
+    /// A publication the host <b>cancels</b> settles the lookup too, and the edit still recovers.
+    /// </summary>
+    /// <remarks>
+    /// I claimed there was no cancellation path here, on the grounds that <c>IOtdExecutionContext</c>
+    /// takes no token. That was wrong: a host abandoning queued work returns a cancelled task, which is
+    /// all the expression it needs. Awaiting it throws, the report catches and logs it like any other
+    /// failure, and the backstop settles the flight.
+    /// </remarks>
+    [Fact]
+    public async Task APublicationTheHostCancels_StillSettlesTheLookup()
+    {
+        var h = await AConnectionThatCannotPublish(c => c.CancelPosts = true);
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, h.Refused.Status);
+        Assert.Empty(h.Harness.Store.Wrote);
+
+        h.Harness.Context.CancelPosts = false;
+        var retry = h.Harness.Settings.RetryPersistAsync();
+        h.Harness.Context.Drain();
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await retry).Status);
+        Assert.Equal("A/settings.json", Assert.Single(h.Harness.Store.Wrote).Path);
+    }
+
+    /// <summary>
+    /// A publication the access check refuses settles the lookup too, and the edit still recovers.
+    /// </summary>
+    /// <remarks>
+    /// The third way the posted work concludes without running: the host took it and then ran it
+    /// somewhere it does not consider its own, so the session refuses to let it touch anything. The
+    /// refusal is the correct outcome and it still has to reach whoever was waiting.
+    /// </remarks>
+    [Fact]
+    public async Task APublicationTheAccessCheckRefuses_StillSettlesTheLookup()
+    {
+        var h = await AConnectionThatCannotPublish(c => c.IsCurrent = false);
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, h.Refused.Status);
+        Assert.Empty(h.Harness.Store.Wrote);
+
+        h.Harness.Context.IsCurrent = true;
+        var retry = h.Harness.Settings.RetryPersistAsync();
+        h.Harness.Context.Drain();
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, (await retry).Status);
+        Assert.Equal("A/settings.json", Assert.Single(h.Harness.Store.Wrote).Path);
+    }
+
+    /// <summary>
     /// A retry waiting on metadata does not hold the settings mutation gate: other work still gets
     /// through while it waits.
     /// </summary>
@@ -533,13 +582,18 @@ public class DestinationReadinessTests
         }
         finally
         {
+            // The draining and the waits belong in cleanup too. Leaving them after the try meant a failed
+            // progress assertion released the held responses and then skipped them, so a failing run left
+            // its continuations outstanding for the next test to trip over.
             release.TrySetResult(true);
             answer.TrySetResult(FakeDaemonTransport.Reporting("A/settings.json"));
-        }
 
-        h.Context.Drain();
-        await other!;
-        await retry!;
+            h.Context.Drain();
+
+            var cleanup = TestContext.Current.CancellationToken;
+            if (other != null) await other.WaitAsync(TimeSpan.FromSeconds(30), cleanup);
+            if (retry != null) await retry.WaitAsync(TimeSpan.FromSeconds(30), cleanup);
+        }
     }
 
     /// <summary>
@@ -581,6 +635,48 @@ public class DestinationReadinessTests
     }
 
     // --- harness --------------------------------------------------------------------------------
+
+    /// <summary>What a blocked-publication test has after its retry came back empty-handed.</summary>
+    private sealed record Blocked(Harness Harness, SettingsApplyOutcome Refused);
+
+    /// <summary>
+    /// Sets up a pending edit and a daemon that will answer, then blocks the publication the way
+    /// <paramref name="block"/> says, and returns what the retry made of it.
+    /// </summary>
+    /// <remarks>
+    /// The three ways posted work concludes without running — refused, cancelled, and rejected by the
+    /// access check — differ only in that one line, so sharing the rest keeps the difference visible
+    /// rather than buried in three near-identical bodies.
+    /// </remarks>
+    private static async Task<Blocked> AConnectionThatCannotPublish(Action<ControllableContext> block)
+    {
+        var h = Make();
+
+        var fail = true;
+        h.Daemon.GetAppInfoHandler = () => fail
+            ? Task.FromException<AppInfo?>(new InvalidOperationException("no answer"))
+            : Task.FromResult<AppInfo?>(FakeDaemonTransport.Reporting("A/settings.json"));
+
+        h.Daemon.Reconnect();
+        h.Context.Drain();
+        await h.Settings.ReloadFromDaemonAsync();
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await h.Settings.ApplyAndSaveAsync(Tablet("Edit"))).Status);
+
+        fail = false;                                // the daemon can answer now
+        block(h.Context);                            // but its answer cannot be recorded
+
+        // Started, drained, then awaited. The three blocks differ in where they stop the publication: a
+        // refused or cancelled post comes back already finished, while the access check accepts the post
+        // and refuses the work when it runs -- so that one only concludes if the context is pumped.
+        var retry = h.Settings.RetryPersistAsync();
+        h.Context.Drain();
+
+        var refused = await retry.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        return new Blocked(h, refused);
+    }
 
     private sealed record Harness(OtdSession Session, IOtdSettingsSession Settings,
         FakeDaemonTransport Daemon, FakeProcessLocator Locator, ControllableContext Context,

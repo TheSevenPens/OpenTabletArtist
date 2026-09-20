@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using OtdInterop;
 
@@ -57,8 +58,20 @@ internal sealed class ControllableContext : IOtdExecutionContext
     /// </remarks>
     public bool RefusePosts { get; set; }
 
+    /// <summary>
+    /// When set, posts come back cancelled and the work never runs.
+    /// </summary>
+    /// <remarks>
+    /// A host abandoning queued work reports it this way. No cancellation token is needed to express it:
+    /// the returned task carries the answer, which is a thing I asserted was impossible and was wrong
+    /// about.
+    /// </remarks>
+    public bool CancelPosts { get; set; }
+
     public Task PostAsync(Action work)
     {
+        if (CancelPosts) return Task.FromCanceled(new CancellationToken(canceled: true));
+
         if (RefusePosts)
             return Task.FromException(new ObjectDisposedException(nameof(ControllableContext)));
 
