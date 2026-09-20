@@ -570,6 +570,63 @@ public class ShutdownTests
         Assert.Equal(postsWhenClosed, host.Posts);
     }
 
+    /// <summary>
+    /// A close cannot return while a reply that passed the abandonment check is still on its way to the
+    /// host.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The check and the post used to be two operations with a window between them: a reply could read
+    /// "not abandoned", be descheduled, and post after the close that abandoned it had already returned.
+    /// Reading the flag under a lock made the read synchronized without making the dispatch part of the
+    /// same decision, and a second check would only have moved the window.
+    /// </para>
+    /// <para>
+    /// Driven entirely through the host's own execution context, so it needs no seam in the library: the
+    /// host holds the publication open, which is precisely the interval the race lived in.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AClose_CannotReturnWhileAReplyIsOnItsWayToTheHost()
+    {
+        var host = new GateContext();
+        var (session, _, daemon, _) = Make(host);
+
+        var release = new TaskCompletionSource<AppInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetAppInfoHandler = () =>
+        {
+            asking.TrySetResult();
+            return release.Task;
+        };
+
+        daemon.Reconnect();
+        await asking.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        host.HoldNextPost();
+        release.SetResult(new AppInfo
+        {
+            AppDataDirectory = "x",
+            SettingsFile = "settings.json",
+            PluginDirectory = "",
+        });
+
+        // The publication has passed the check and is being handed to the host.
+        await host.PostStarted.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // On its own thread: with the handoff held, this blocks, and blocking the test thread would mean
+        // nobody left to release it.
+        var closing = Task.Run(async () => await session.CloseAsync(TimeSpan.Zero),
+            TestContext.Current.CancellationToken);
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.False(closing.IsCompleted);
+
+        host.ReleaseHeldPost();
+
+        Assert.False(await closing.WaitAsync(Bound, TestContext.Current.CancellationToken));
+    }
+
     // --- harness --------------------------------------------------------------------------------
 
     private static (OtdSession, IOtdSettingsSession, FakeDaemonTransport, RecordingStore) Make(
@@ -596,6 +653,39 @@ public class ShutdownTests
         {
             settings = null;
             return false;
+        }
+    }
+
+    /// <summary>A host that can hold one post open, to stop time inside the handoff.</summary>
+    private sealed class GateContext : IOtdExecutionContext
+    {
+        private readonly TaskCompletionSource _started =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly ManualResetEventSlim _held = new(false);
+
+        private volatile bool _armed;
+
+        /// <summary>Completes once the held post has begun, inside the library's handoff.</summary>
+        public Task PostStarted => _started.Task;
+
+        public bool IsCurrent => true;
+
+        public void HoldNextPost() => _armed = true;
+
+        public void ReleaseHeldPost() => _held.Set();
+
+        public Task PostAsync(Action work)
+        {
+            if (_armed)
+            {
+                _armed = false;
+                _started.TrySetResult();
+                _held.Wait(TimeSpan.FromSeconds(30));
+            }
+
+            try { work(); return Task.CompletedTask; }
+            catch (Exception ex) { return Task.FromException(ex); }
         }
     }
 
