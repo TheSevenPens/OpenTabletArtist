@@ -48,9 +48,19 @@ public interface IOtdExecutionContext
     /// True when the calling thread is already this context.
     /// </summary>
     /// <remarks>
-    /// For asserting, not for branching. The library uses it to catch a host calling in from somewhere it
-    /// promised not to; code that behaves differently depending on where it is called from would be
-    /// reintroducing the ambiguity this type exists to remove.
+    /// <para>
+    /// Two uses, and neither is "decide what this operation should do". An implementation reads it to run
+    /// work inline when the caller is already here, rather than queueing behind itself; and the library
+    /// reads it from <em>inside</em> work this context just ran, to check that the context ran it where
+    /// it says it runs things. Code whose behaviour otherwise depends on where it was called from would
+    /// be reintroducing the ambiguity this type exists to remove.
+    /// </para>
+    /// <para>
+    /// <b>The scope is posted work only.</b> It covers what this library starts on its own account — the
+    /// identification and invalidation that follow a transition. It is not a check on a host's own calls
+    /// into the settings session, which the library has no way to intercept: those the host is trusted to
+    /// make from its context, and nothing here verifies that it did.
+    /// </para>
     /// </remarks>
     bool IsCurrent { get; }
 }
