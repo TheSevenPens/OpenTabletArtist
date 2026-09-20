@@ -329,6 +329,60 @@ The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when
 
 > **The daemon is not in the solution (#786).** A common failure mode ("Disconnected" / "No tablet detected") is having no daemon exe at all: neither `dotnet build OpenTabletArtist.slnx` nor a test run produces one. Use `./scripts/build.ps1`, build `external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj` directly, or let the app adopt an installed OpenTabletDriver. See [BUILDING.md](BUILDING.md).
 
+### The OtdInterop contracts (#807 Phase 7)
+
+The whole boundary in one place, because the reasoning behind each rule lives in the source and a reader
+needs to know which rules exist before knowing where to look.
+
+**Lifetime.** `OtdSession.Create` opens it; `OpenSettings` lends a settings session; `Capabilities` lends
+a read/watch/plugin facade. Closing has two forms and they are not interchangeable. `CloseAsync(window)`
+refuses new work, lets what was admitted settle, then tears the transport down, and answers whether
+everything finished — that is the one a host that can await should use, and OTA's tray Quit does
+(`QuitSequence`). `Dispose` cannot wait and says so; it is the path taken when something other than Quit
+ends the process. Both are idempotent and may overlap. After teardown a borrowed `Capabilities` reports
+**not connected** — null, empty, false — rather than throwing, for calls begun after that point (#828).
+
+**Threading.** `IOtdExecutionContext` is **required, never inferred**: the library dispatches the work it
+starts itself through it, with no fallback to the thread pool, because a context captured from an ambient
+`SynchronizationContext` silently becomes the pool in a host that has none. Separately, a host calling the
+asynchronous settings operations must do so from a thread whose context returns continuations to that same
+context. OTA supplies `DispatcherExecutionContext` (the UI thread); the diagnostic tool supplies a
+single-threaded pump; tests supply a controllable one.
+
+**Publication.** A revision exists once the daemon has **accepted** it, not when it is sent (#832).
+A superseded or refused apply leaves the previous baseline standing and hands back no adoptable payload,
+so a caller reading between a failed apply and the next reload cannot build its next edit on settings no
+daemon ever had. Read invalidation is a separate counter from the published revision, moved at acceptance.
+
+**Host reentrancy.** A call into host code — including **logging** — may reenter the session, dispose it,
+or supersede the operation being handled. Three things can outlive such a call: the session's state, the
+reports it makes, and the authority it hands back in a result. The audit of every seam, and which of the
+three each one threatens, is in `SettingsCoordinator` above `StillCurrent` (#845); the transition path's
+equivalent is in `OtdSession`.
+
+**Assemblies.** Seven projects: the app, `OtdInterop`, the pen-dynamics plugin, the `OtdDaemonSwitchCheck`
+diagnostic tool, and three test projects. `OtdInterop` grants `InternalsVisibleTo` to the three test
+projects and the diagnostic tool — shared test fakes and the tool's use of `ForTesting` — which is a
+deliberate seam, not a migration bridge; none remain.
+
+**Test commands.**
+
+```bash
+dotnet build OpenTabletArtist.slnx -c Debug
+```
+```bash
+dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj -c Debug
+```
+```bash
+dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug
+```
+```bash
+dotnet test tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj -c Debug
+```
+
+The library suite is headless and must stay that way: `BoundaryDependencyTests` and `BoundaryRestoreTests`
+fail if Avalonia reaches `OtdInterop`, by assembly reference and by restore graph respectively.
+
 ### Who may write settings (#807 Phase 6)
 
 `OtdInterop` owns the **daemon's** `settings.json`. Its writer, `ISettingsFileStore` and

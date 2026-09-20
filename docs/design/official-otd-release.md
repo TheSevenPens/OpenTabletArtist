@@ -250,6 +250,32 @@ Phase 6 lands, minus its incorrect premise.
 Port the proven model. The open question is whether Windows ships **bundled** official binaries (adding a
 .NET 8 prerequisite) or goes **install/adopt-only**. Decide with Phase A–C experience in hand, not now.
 
+### Windows missing-runtime recovery — **shipped, never run** (#807 Phase 7)
+
+The gap Phase 7 was asked to state explicitly rather than close, because closing it needs a machine this
+project does not have.
+
+OTA's own package is self-contained: the published exe carries `Microsoft.NETCore.App 10.0.10` inside it,
+so the app itself needs no installed runtime. **The daemon it ships is not.** OTD's Windows release is
+framework-dependent (`SELF_CONTAINED` defaults to false — see the constraints table above), so the bundled
+`Daemon/OpenTabletDriver.Daemon.exe` requires a **.NET 8 runtime present on the user's machine**. On a
+clean Windows install that runtime is absent, and what the user sees is the daemon failing to come online.
+
+**What is verified:** the packaging is correct and unchanged — the digest of the archive the daemon is
+taken from matches the pin in `release.yml` byte for byte, the app is self-contained on a single embedded
+.NET 10, and the packaged app launches, locates its bundled components, connects over the pipe and drives
+a real tablet (#807 Phase 7 evidence).
+
+**What has never been run:** the recovery experience itself. Nobody has started this package on a Windows
+machine without .NET 8 and observed what OTA does — whether the failure is legible, whether the guidance
+names the runtime, whether the offered remedy works. Every machine that has run it, CI runners included,
+had the SDK installed; `release.yml` says as much at the `setup-dotnet` step, which is why that comment
+exists.
+
+**A passing build on an SDK machine is not evidence about this path, and should never be cited as any.**
+It needs one run on a clean Windows install before the recovery path is trusted — the same standard
+Phase B above is held to on macOS.
+
 ### Phase E — Linux
 Follow-on. Distro packaging makes *adopt* the natural default and bundling largely pointless; see
 [`192-linux-feasibility.md`](192-linux-feasibility.md).
