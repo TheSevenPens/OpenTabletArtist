@@ -19,13 +19,21 @@ namespace OpenTabletArtist.Tests;
 public class AppPathsTests
 {
     /// <summary>An override redirects the application's data directory.</summary>
+    /// <remarks>
+    /// The root is built for whichever OS is running rather than written out. A drive-lettered literal is
+    /// absolute on Windows and an ordinary relative directory name everywhere else, where
+    /// <see cref="Path.GetFullPath(string)"/> would then prefix the working directory, and the test would
+    /// be asserting the wrong thing on the two platforms CI also builds.
+    /// </remarks>
     [Fact]
     public void AnOverride_RedirectsTheDataDirectory()
     {
-        var resolved = AppPaths.Resolve(Path.Combine("X:", "sandbox"));
+        var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "ota-879-sandbox"));
 
-        Assert.StartsWith(Path.Combine("X:", "sandbox"), resolved, StringComparison.Ordinal);
-        Assert.EndsWith("OpenTabletArtist", resolved, StringComparison.Ordinal);
+        var resolved = AppPaths.Resolve(root);
+
+        Assert.Equal(Path.Combine(root, "OpenTabletArtist"), resolved);
+        Assert.NotEqual(AppPaths.Resolve(null), resolved);
     }
 
     /// <summary>Without one, it is the user's own directory.</summary>
