@@ -92,16 +92,40 @@ public sealed class OtdSession : IDisposable
         Post("identify the connected daemon", () =>
         {
             if (!StillTheCurrentTransition(channel)) return;
-            var change = NoteConnectedDaemon();
-            Deliver(Connected, h => h(change), nameof(Connected));
+
+            // Looking up who is answering calls out to the host's process locator, which may do anything:
+            // dispose this session, or stop the daemon so that by the time it returns a different channel
+            // is up. So the check goes HERE, between the call-out and the commit, rather than only on the
+            // way in or only before delivery.
+            //
+            // Suppressing the notification alone would not have been enough, and the failure is worse
+            // than a lost notification. Committing what the lookup found would record this session as
+            // being on the daemon that arrived during it -- so the transition that actually happened,
+            // when its own turn came, would compare equal to what was already recorded and be reported
+            // as no change at all. The host would never hear about the daemon it is now talking to.
+            var found = ConnectedDaemonPath();
+            if (!StillTheCurrentTransition(channel)) return;
+
+            var change = CommitConnectedDaemon(found);
+            Deliver(Connected, h => h(change), nameof(Connected), () => StillTheCurrentTransition(channel));
         });
     }
 
+    /// <remarks>
+    /// The same policy as a connection, for the same reason. A queued disconnect whose successor has
+    /// already arrived would tell a host it is disconnected while a channel is up -- and OTA acts on that
+    /// by clearing what it shows. Nothing is captured here because a drop has no channel of its own to
+    /// name: what makes this one obsolete is that a newer connection exists, which is exactly what a
+    /// non-zero incarnation means.
+    /// </remarks>
     private void OnTransportDisconnected() => Post("report a disconnect", () =>
     {
-        if (_disposed) return;
-        Deliver(Disconnected, h => h(), nameof(Disconnected));
+        if (!StillDisconnected()) return;
+        Deliver(Disconnected, h => h(), nameof(Disconnected), StillDisconnected);
     });
+
+    /// <summary>Whether a queued disconnect still describes the world.</summary>
+    private bool StillDisconnected() => !_disposed && _channel.Incarnation == 0;
 
     /// <summary>
     /// Whether queued work for <paramref name="channel"/> still describes something worth telling anyone
@@ -140,21 +164,33 @@ public sealed class OtdSession : IDisposable
     private void Post(string what, Action work) => _ = Report(what, work);
 
     /// <summary>
-    /// Calls every subscriber, even when one of them throws.
+    /// Calls every subscriber, even when one of them throws — for as long as there is still something
+    /// true to tell them.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A plain multicast invoke stops at the first subscriber that throws, so the ones after it never
     /// hear about the connection at all. I wrote that "a bad subscriber loses its notification and
     /// nothing else" while that was not true: it lost everyone else's too, and which ones depended on
-    /// subscription order.
-    ///
-    /// Each failure is reported separately, because one bad subscriber should not hide a second.
+    /// subscription order. Each failure is reported separately, because one bad subscriber should not
+    /// hide a second.
+    /// </para>
+    /// <para>
+    /// <paramref name="stillWorthTelling"/> is rechecked between subscribers, because a subscriber is
+    /// host code and may do anything — including dispose the session, or stop the daemon and bring the
+    /// connection down. Isolating subscribers from each other's exceptions is not a reason to keep
+    /// announcing a connection that has since gone; the first subscriber disposing the session used to
+    /// leave the second one being told about it anyway.
+    /// </para>
     /// </remarks>
-    private void Deliver<T>(T? handlers, Action<T> call, string what) where T : Delegate
+    private void Deliver<T>(T? handlers, Action<T> call, string what, Func<bool> stillWorthTelling)
+        where T : Delegate
     {
         if (handlers == null) return;
         foreach (var handler in handlers.GetInvocationList())
         {
+            if (!stillWorthTelling()) return;
+
             try { call((T)handler); }
             catch (Exception ex) { _log.Warn($"A subscriber to {what} threw; the rest were still told.", ex); }
         }
@@ -169,9 +205,19 @@ public sealed class OtdSession : IDisposable
                 // The one place this can be checked: work that IS on the context asking the context
                 // whether it is. A host whose PostAsync runs work somewhere else has broken the promise
                 // the whole arrangement rests on, and would otherwise do so silently.
+                //
+                // Refused, not merely reported. This session has just established that the serialization
+                // it requires is absent, and the work about to run mutates the state that serialization
+                // protects. Running it anyway is not a recovery: it is the step that corrupts. Losing a
+                // notification is the smaller loss, and the host is told which one and why.
                 if (!_context.IsCurrent)
-                    _log.Warn("The host's execution context ran posted work somewhere it does not "
-                              + "consider its own; this library's state is not safe under that.");
+                {
+                    _log.Warn($"Refused to {what}: the host's execution context ran posted work somewhere "
+                              + "it does not consider its own, and this library's state is not safe "
+                              + "under that.");
+                    return;
+                }
+
                 work();
             }).ConfigureAwait(false);
         }
@@ -359,16 +405,22 @@ public sealed class OtdSession : IDisposable
     ///
     /// <remarks>
     /// <para>
-    /// Called by the host whenever a connection is established. The judgement is here rather than in the
-    /// host because the state being dropped is this library's — the change a daemon accepted but never
-    /// wrote, the file that change was for, what its settings file last held, whether it is running a
-    /// transient override. None of that describes the new daemon, and each one misleads a different part
-    /// of the host if carried across.
+    /// <b>Not a host's entry point.</b> The session subscribes to its own connection and does this itself
+    /// on every transition (#828); this exists so that a test, or the switch-check tool, can drive the
+    /// same decision without standing up a transport that transitions.
     /// </para>
     /// <para>
-    /// <b>The trigger is still the host's.</b> Nothing here subscribes to the connection, so this is not
-    /// automatic invalidation — calling it at the right moment is something a host can still get wrong.
-    /// Making it self-driving is outstanding work under #807.
+    /// Internal for that reason. It was public while the host owned the trigger, and leaving it public
+    /// afterwards would have left a mutating escape hatch into work the session has already done: a host
+    /// calling it between a transport connecting and the posted identification running would consume the
+    /// change, and the notification would then report nothing. The documentation here said the host owned
+    /// the trigger for a round after that stopped being true.
+    /// </para>
+    /// <para>
+    /// The judgement lives here rather than in the host because the state being dropped is this library's
+    /// — the change a daemon accepted but never wrote, the file that change was for, what its settings
+    /// file last held, whether it is running a transient override. None of that describes the new daemon,
+    /// and each one misleads a different part of the host if carried across.
     /// </para>
     /// <para>
     /// <b>Identity means the executable, not the process.</b> A daemon stopped and started again from the
@@ -391,10 +443,19 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// </remarks>
     /// <returns>What is answering, whether it changed, and whether that cost an unsaved edit.</returns>
-    public DaemonChange NoteConnectedDaemon()
-    {
-        var actual = ConnectedDaemonPath();
+    internal DaemonChange NoteConnectedDaemon() => CommitConnectedDaemon(ConnectedDaemonPath());
 
+    /// <summary>
+    /// Records <paramref name="actual"/> as the daemon this session knows, and reports what that cost.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the lookup so that a caller which can be overtaken -- the automatic identification
+    /// on a transition -- has somewhere to check between the two. Everything here mutates: the remembered
+    /// path, and the settings state a different daemon invalidates. None of it should happen on behalf of
+    /// a transition that has already been superseded.
+    /// </remarks>
+    private DaemonChange CommitConnectedDaemon(string? actual)
+    {
         // Both conditions matter. No remembered path means this is the first look, and everything this
         // session holds already belongs to whatever is answering now. An unreadable path means we cannot
         // tell, which is not the same as knowing it is different.

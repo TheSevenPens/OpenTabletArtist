@@ -74,6 +74,10 @@
   -->
   <ItemGroup>
     <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
+    <!-- The switch-check tool drives NoteConnectedDaemon directly: its unreadable-daemon scenario has to
+         ask the session to look again without a real reconnect, since making a daemon unreadable means
+         elevating it and that needs a UAC prompt. A diagnostic seam, not production surface. -->
+    <InternalsVisibleTo Include="OtdDaemonSwitchCheck" />
     <!-- The UI suite compiles the same FakeDaemonTransport source, which implements the internal
          settings channel; without this it sees a type the app is not meant to see, and cannot build. -->
     <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />

@@ -69,7 +69,7 @@ internal static class Program
         // continuations would confine the half that needs it least: the library posts its own work, but
         // OpenSettings, ReloadFromDaemonAsync and everything resumed after an await would still be
         // wherever the console left them, which is the thread pool.
-        using var context = new PumpContext();
+        var context = new PumpContext();
         try
         {
             await context.RunAsync(async () =>
@@ -85,6 +85,13 @@ internal static class Program
             // Outside the pump deliberately: this is process cleanup, it touches no session state, and it
             // has to run even when the pump is the thing that failed.
             KillDaemons();
+
+            // Disposed here rather than by `using`, so that whether it shut down cleanly can be counted.
+            // Abandoning accepted work is a failed shutdown, and a tool whose exit code is its whole
+            // output should not report one as a pass.
+            context.Dispose();
+            Check("the execution context settled its work on shutdown", context.ShutDownCleanly,
+                context.ShutDownCleanly);
         }
 
         Console.WriteLine();
