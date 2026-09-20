@@ -32,7 +32,17 @@ namespace OtdInterop;
 /// </remarks>
 internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
 {
-    private const string PipeName = "OpenTabletDriver.Daemon";
+    private const string DefaultPipeName = "OpenTabletDriver.Daemon";
+
+    /// <summary>
+    /// The pipe this client connects to. The daemon's, except for a test that stands up its own.
+    /// </summary>
+    /// <remarks>
+    /// Injectable so channel identity can be tested against this client rather than against a fake that
+    /// asserts the guarantee it is supposed to be checking. The bug this exists for was invisible to the
+    /// fake precisely because the fake kept its own monotonic counter.
+    /// </remarks>
+    private readonly string _pipeName;
 
     /// <summary>Where connect failures and best-effort probes are recorded. Never null.</summary>
     private readonly IOtdLog _log;
@@ -54,9 +64,33 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// <summary>One JSON-RPC channel and the number identifying it, established and replaced together.</summary>
     private sealed record Channel(JsonRpc Rpc, int Incarnation);
 
+    /// <summary>
+    /// How many channels this client has ever opened. Allocation only; never read as the current identity.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="_channel"/> because that is nullable and a disconnect clears it. Deriving
+    /// the next number from it therefore restarted the count: a drop and reconnect went 1, 0, 1, so two
+    /// different channels carried the same identity and every "is this still the channel I had?" check
+    /// silently answered yes. Verified against the real client over two local pipes.
+    /// </para>
+    /// <para>
+    /// This does not reintroduce the two-field read the record exists to prevent. That hazard is about
+    /// <em>publication</em> -- a reader seeing one channel's RPC beside another's number -- and
+    /// publication is still the single assignment below. Nothing reads this field to learn which channel
+    /// is current; it only hands a fresh number to the value being published.
+    /// </para>
+    /// </remarks>
+    private int _channelsOpened;
+
 
     /// <param name="log">The host's log. Connect failures are throttled and reported here.</param>
-    internal DaemonClient(IOtdLog log) => _log = log;
+    /// <param name="pipeName">The pipe to connect to; the daemon's unless a test supplies its own.</param>
+    internal DaemonClient(IOtdLog log, string? pipeName = null)
+    {
+        _log = log;
+        _pipeName = pipeName ?? DefaultPipeName;
+    }
 
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
@@ -135,7 +169,7 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
             {
                 _pipe = new NamedPipeClientStream(
                     ".",
-                    PipeName,
+                    _pipeName,
                     PipeDirection.InOut,
                     PipeOptions.Asynchronous | PipeOptions.WriteThrough | PipeOptions.CurrentUserOnly
                 );
@@ -148,10 +182,11 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
                 // send goes to the new daemon -- earlier than StartListening, earlier than Connected, and
                 // far earlier than any host handler. An operation that read the incarnation before this
                 // and sends after it must be recognisable as obsolete, and it only is if this moves first.
-                // One assignment, so nothing can observe a half-established channel. The number comes
-                // from the previous channel rather than a separate counter for the same reason: it is
-                // part of the value, not a field kept alongside it.
-                _channel = new Channel(rpc, (_channel?.Incarnation ?? 0) + 1);
+                // One assignment, so nothing can observe a half-established channel. The number is
+                // allocated from a counter that only ever goes up: it must be unique for the life of the
+                // client, and taking it from the previous channel could not be -- a disconnect clears
+                // that, so the next connection reused the number the last one had.
+                _channel = new Channel(rpc, Interlocked.Increment(ref _channelsOpened));
                 _rpc = rpc;
                 rpc.Disconnected += (_, _) =>
                 {

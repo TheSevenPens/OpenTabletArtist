@@ -137,7 +137,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var daemonLifecycle = new DaemonLifecycleService();
         _session = new AppSession(
-            OtdSession.Create(AppLogBridge.Instance, OtaSettingsPolicy.Instance, daemonLifecycle),
+            OtdSession.Create(AppLogBridge.Instance, OtaSettingsPolicy.Instance, daemonLifecycle,
+                DispatcherExecutionContext.Instance),
             daemonLifecycle);
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;

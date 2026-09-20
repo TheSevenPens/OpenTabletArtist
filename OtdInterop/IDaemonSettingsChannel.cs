@@ -36,7 +36,7 @@ internal interface IDaemonSettingsChannel
     /// <para>
     /// Deliberately not "which daemon". A new channel to the same executable is still a new channel, and
     /// work spanning the gap is obsolete either way. Whether the <em>settings</em> survive is a different
-    /// question with a different answer — <see cref="OtdSession.NoteConnectedDaemon"/> compares
+    /// question with a different answer — <see cref="OtdSession.RefreshDaemonIdentityAndTakeChange"/> compares
     /// executables, and deliberately keeps state across a reconnect it cannot identify.
     /// </para>
     /// <para>

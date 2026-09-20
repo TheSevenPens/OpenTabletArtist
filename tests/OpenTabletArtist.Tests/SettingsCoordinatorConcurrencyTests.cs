@@ -363,6 +363,14 @@ public class SettingsCoordinatorConcurrencyTests
         coordinator.ResetForNewDaemon();
 
         Assert.False(coordinator.HasUnsavedChange);
+
+        // The reset itself tells the host NOTHING. Announcing is a call into host code, and host code can
+        // reenter -- bring up another daemon, whose transition then commits while this one is half-done.
+        // So the state change finishes first and the caller announces afterwards.
+        Assert.Equal(SettingsSaveState.Failed, states[^1]);
+
+        coordinator.AnnounceDiscardedChange();
+
         // The chip was describing A's unsaved change; it is not the new daemon's problem.
         Assert.Equal(SettingsSaveState.None, states[^1]);
     }

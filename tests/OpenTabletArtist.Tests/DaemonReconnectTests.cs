@@ -143,7 +143,7 @@ public class DaemonReconnectTests
         Assert.Equal(SettingsApplyStatus.Superseded, (await apply).Status);
 
         // Same executable, so nothing about the user's settings is discarded and no notice is raised.
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
         Assert.False(change.Changed);
         Assert.False(change.DiscardedUnsavedChange);
     }
@@ -191,7 +191,7 @@ public class DaemonReconnectTests
             new SwitchDuringPreparation(daemon), locator);
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
         await settings.ReloadFromDaemonAsync();
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         daemon.Applied.Clear();
 
         var outcome = await settings.ApplyAndSaveAsync(Tablet("A's edit"));
@@ -231,7 +231,7 @@ public class DaemonReconnectTests
             OtaSettingsPolicy.Instance, locator);
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
         settings.ReloadFromDaemonAsync().GetAwaiter().GetResult();
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         return (session, settings, daemon, store);
     }
 

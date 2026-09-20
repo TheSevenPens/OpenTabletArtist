@@ -1,6 +1,6 @@
 namespace OtdInterop;
 
-/// <summary>What <see cref="OtdSession.NoteConnectedDaemon"/> found when it looked at who is answering.</summary>
+/// <summary>What <see cref="OtdSession.RefreshDaemonIdentityAndTakeChange"/> found when it looked at who is answering.</summary>
 ///
 /// <param name="ExecutablePath">
 /// The executable answering now, or null when it cannot be read — an elevated daemon, another user's, or

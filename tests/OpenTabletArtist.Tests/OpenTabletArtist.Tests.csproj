@@ -23,6 +23,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The switch-check tool's execution context, compiled into this assembly so its behaviour is tested
+      rather than asserted. Referencing the tool project is not an option, since it is an Exe whose Main
+      runs daemons, and a copy of the file here would be a test of the copy. CI runs these on all three
+      platforms; it still never runs the tool.
+    -->
+    <Compile Include="..\..\tools\OtdDaemonSwitchCheck\PumpContext.cs"
+             Link="Tools\PumpContext.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />
     <!-- Build the plugin (don't reference its assembly) so the type-name guard test (#104) always
          finds its DLL — including release CI, which tests before the solution/plugin build.

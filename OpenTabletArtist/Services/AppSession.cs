@@ -436,7 +436,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             isOwnedDaemon: () => IsAppOwnedDaemon,
             onSaveState: state => SaveState = state);
 
-        _session.Connected += () => Dispatcher.UIThread.InvokeAsync(() =>
+        // No marshalling here any more: the library posts this to the context OTA supplied, which is
+        // this dispatcher. And no identification call either -- the change is handed over already made,
+        // after the library has invalidated whatever belonged to a daemon that has gone (#828).
+        _session.Connected += change =>
         {
             ConnectionStatus = "Connected";
             IsConnected = true;
@@ -447,11 +450,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ConnectStalled = false;
             ConnectPhase = "";
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
-            UpdateDaemonSource();
+            ApplyDaemonIdentity(change);
             Connected?.Invoke();
             _ = LoadDataAsync();
-        });
-        _session.Disconnected += () => Dispatcher.UIThread.InvokeAsync(() =>
+        };
+        _session.Disconnected += () =>
         {
             ConnectionStatus = "Disconnected";
             IsConnected = false;
@@ -465,7 +468,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             ActiveTabletName = null;
             _pluginEnsured = false; // re-ensure the plugin on the next connection
             Disconnected?.Invoke();
-        });
+        };
 
         // Event-driven detection (#170): the daemon pushes TabletsChanged on plug/unplug (and on
         // sleep/wake), so reload immediately for near-instant detection and an accurate "last seen",
@@ -1327,23 +1330,24 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     // Determine whether the daemon we're connected to is this project's build.
     // Conservative: only flags "foreign" when we can positively read the server path.
-    private void UpdateDaemonSource()
+    /// <summary>
+    /// Shows a daemon the library has already identified and invalidated for (#828).
+    ///
+    /// The connect path no longer asks: the library subscribes to its own connection, does the
+    /// identification on this application's execution context, and hands the answer over. What is left
+    /// here is what was always ours -- what to display, and whether this daemon is one we may act on
+    /// without asking the user first.
+    /// </summary>
+    /// <summary>
+    /// Shows a daemon, and says so when identifying it cost the user an edit.
+    ///
+    /// Everything here is presentation and product judgement: what to display, and whether this daemon is
+    /// one we may stop or restart without asking. The question of <em>which</em> daemon, and what to drop
+    /// because it is a different one, was answered before we got here.
+    /// </summary>
+    private void ApplyDaemonIdentity(DaemonChange change)
     {
-        if (!IsConnected)
-        {
-            Ownership = DaemonOwnership.Unknown;
-            DaemonSourcePath = "";
-            DaemonVersion = "";
-            return;
-        }
-
-        // Which daemon is answering, and the session boundary if it is a different one. The decision is
-        // the library's, because the state dropped at that boundary is its own (#807). The *trigger* is
-        // still ours: nothing subscribes to the connection on that side, so this call being in the right
-        // place is a thing this class has to get right, and making it automatic is still outstanding.
-        // What is ours by design is below — what to show, and whether this daemon is one we may act on
-        // without asking.
-        var (actual, _, discardedUnsaved) = _session.NoteConnectedDaemon();
+        var (actual, _, discardedUnsaved) = change;
 
         if (discardedUnsaved)
         {

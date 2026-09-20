@@ -434,6 +434,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// this, and clearing it would blank the editor for that moment. Clearing the override is what makes
     /// that reload adopt the new daemon's settings.
     /// </summary>
+    /// <remarks>
+    /// <b>Calls nothing out of the library.</b> Telling the host its save chip is stale is a separate
+    /// step, <see cref="AnnounceDiscardedChange"/>, because a host callback can reenter: it can bring up
+    /// another daemon, whose own transition then commits while this one is still half-applied. Every
+    /// state change here has to be finished before anything outside can observe it.
+    /// </remarks>
     /// <returns>True when an unsaved change was thrown away, so the caller can say so. Everything else
     /// this drops is bookkeeping the user never knew about; a pending write is an edit they made.</returns>
     internal bool ResetForNewDaemon()
@@ -452,11 +458,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         _lastLoadedSettingsJson = null;
         HasEphemeralOverride = false;
 
-        // The chip was describing the old daemon's unsaved change. It is not the new one's problem, and
-        // leaving it would claim a change is live on a daemon that never received it.
-        if (hadUnsaved) _onSaveState(SettingsSaveState.None);
         return hadUnsaved;
     }
+
+    /// <summary>
+    /// Tells the host its save chip no longer describes anything.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="ResetForNewDaemon"/>, and the split is the point. The chip was describing
+    /// the old daemon's unsaved change; it is not the new one's problem, and leaving it would claim a
+    /// change is live on a daemon that never received it. But this is a call into host code, so it goes
+    /// after the state it describes is settled rather than in the middle of settling it.
+    /// </remarks>
+    internal void AnnounceDiscardedChange() => _onSaveState(SettingsSaveState.None);
 
     /// <summary>
     /// Copies the caller's settings and stamps the copy, at the moment the request is admitted.
