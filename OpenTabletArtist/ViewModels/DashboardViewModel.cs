@@ -155,6 +155,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private static void OpenInputMonitoringSettings()
         => Services.PlatformShell.OpenInputMonitoringSettings();
 
+    /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
+    /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
+    /// <remarks>
+    /// The attribute is not decoration. Without it no <c>FollowLinkCommand</c> is generated, and
+    /// <c>DashboardView.axaml</c> binds one — which is how every link on a health card became a button
+    /// that did nothing, silently, for twelve days (#889).
+    /// </remarks>
+    [RelayCommand]
     private void FollowLink(HealthLink? link)
     {
         if (link is null) return;
