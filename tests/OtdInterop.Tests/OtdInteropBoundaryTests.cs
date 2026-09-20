@@ -338,18 +338,4 @@ public class OtdInteropBoundaryTests
 
     private static Settings Tablet(string name) =>
         new() { Profiles = new ProfileCollection { new Profile { Tablet = name } } };
-
-    /// <summary>
-    /// The library depends on nothing of the app's, and on no UI framework. A reference the other way
-    /// would undo the whole separation quietly — it compiles, and only the dependency graph shows it.
-    /// </summary>
-    [Fact]
-    public void TheLibraryReferencesNeitherTheAppNorAvalonia()
-    {
-        var referenced = Library.GetReferencedAssemblies().Select(a => a.Name!).ToList();
-
-        Assert.DoesNotContain(referenced, n => n.StartsWith("OpenTabletArtist", StringComparison.Ordinal));
-        Assert.DoesNotContain(referenced, n => n.StartsWith("Avalonia", StringComparison.Ordinal));
-        Assert.DoesNotContain(referenced, n => n.StartsWith("SkiaSharp", StringComparison.Ordinal));
-    }
 }

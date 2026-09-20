@@ -24,6 +24,11 @@ namespace OtdInterop.Tests;
 /// through a package.
 /// </para>
 /// <para>
+/// Replaces the single direct check that used to sit among the API tests. That one compared this
+/// assembly's own references against three names; this covers the same three, plus what arrives behind
+/// them and the test suite itself, and says why each one would matter rather than only that it does.
+/// </para>
+/// <para>
 /// <b>Which means a package reference nobody uses is not caught</b>, because the compiler elides the
 /// reference and the assembly genuinely does not depend on it. Verified, rather than assumed: adding an
 /// unused <c>CommunityToolkit.Mvvm</c> reference leaves these green, and using one type from it turns
@@ -47,6 +52,7 @@ public class BoundaryDependencyTests
                      + "whole claim being made about it"),
         ("CommunityToolkit.Mvvm", "presentation machinery: observable properties and commands belong to "
                                   + "whatever is presenting, not to a settings authority"),
+        ("SkiaSharp", "a rendering library, which arrives with Avalonia and would mean it had too"),
     ];
 
     [Fact]

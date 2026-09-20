@@ -311,15 +311,47 @@ OTD Daemon (built from submodule, .NET 8)
 
 ```
 OpenTabletArtist.slnx
+  ├── OtdInterop/OtdInterop.csproj                               (the OTD boundary; no UI, no app)
   ├── OpenTabletArtist/OpenTabletArtist.csproj                   (this app)
   ├── plugins/OpenTabletArtist.Dynamics/...                      (our OTD filter plugin, net8)
-  ├── tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj (xUnit tests)
+  ├── tests/OtdInterop.Tests/OtdInterop.Tests.csproj             (the library's own suite)
+  ├── tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj (the app's logic tests)
+  ├── tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj (headless Avalonia)
+  ├── tools/OtdDaemonSwitchCheck/...                             (hand-run daemon-switch check)
   └── external/OpenTabletDriver/OpenTabletDriver.Daemon/...      (built daemon)
 ```
 
 The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.
 
 > **The daemon is not in the solution (#786).** A common failure mode ("Disconnected" / "No tablet detected") is having no daemon exe at all: neither `dotnet build OpenTabletArtist.slnx` nor a test run produces one. Use `./scripts/build.ps1`, build `external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj` directly, or let the app adopt an installed OpenTabletDriver. See [BUILDING.md](BUILDING.md).
+
+### Who may write settings (#807 Phase 6)
+
+`OtdInterop` owns the **daemon's** `settings.json`. Its writer, `ISettingsFileStore` and
+`SettingsFileStore`, is `internal`, so the application cannot reach it — not by policy but by
+accessibility — and nothing it exposes performs a settings write. `OtdInteropBoundaryTests` holds that:
+no public type offers one, the connection type is not public, and the capabilities object cannot be cast
+back to the connection.
+
+Where the destination comes from moved too (#828). The library asks the connected daemon for its
+`AppInfo` itself, per channel, rather than being handed a path by the host — so an edit made after a
+daemon switch but before anything identified the new daemon can no longer be written into the old one's
+file.
+
+The application still writes files of its own, and these are deliberate rather than leftovers:
+
+| What | Where | Whose file |
+|---|---|---|
+| OTA preferences | `AppSettings` → `%LOCALAPPDATA%/OpenTabletArtist/settings.json` | OTA's. Same filename as the daemon's, different folder and different owner — worth knowing when reading a log. |
+| Gradient, hotkeys, binding backups | `AppSettings` keys | OTA's preferences. |
+| Per-app profiles | `PerAppProfileStore` | OTA's own config. The feature is off (`FeatureFlags.PerAppProfiles`). |
+| Presets | `IPresetStore` | OTA's named snapshots, not the active settings. |
+| Tablet configuration overrides | `ApprovedConfigsService` → OTD's configuration directory | **OTD's**, deliberately (#480/#467). A separate capability from settings, and the one place OTA writes into OTD's territory. |
+| Calibration capture export | user-chosen path, from the view | The user's, on request. |
+| Diagnostic report | user-chosen path | The user's, on request. |
+
+Checked by reading each call site rather than by grepping for a filename, because the two `settings.json`
+files would make a text search answer confidently and wrongly.
 
 ## Testing & CI
 
