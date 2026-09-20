@@ -363,7 +363,7 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// <para>
     /// That ordering is the point of #828. The host used to have to call
-    /// <see cref="NoteConnectedDaemon"/> itself at the right moment, and calling it late or not at all
+    /// <see cref="RefreshDaemonIdentityAndTakeChange"/> itself at the right moment, and calling it late or not at all
     /// was possible and silent.
     /// </para>
     /// </remarks>
@@ -455,9 +455,27 @@ public sealed class OtdSession : IDisposable
     ///
     /// <remarks>
     /// <para>
+    /// <b>A command, not an enquiry, and the name is deliberately long enough to say so.</b> It looks
+    /// everything up, commits what it finds, calls host code doing it, and <b>consumes any pending
+    /// discard obligation</b> — the returned change is the one and only report of it. It was called
+    /// <c>NoteConnectedDaemon</c>, which read like a question; a test used it as an inert checkpoint and
+    /// it quietly swallowed the state that test was asserting about. Nothing here is free of side
+    /// effects.
+    /// </para>
+    /// <para>
     /// <b>Not a host's entry point.</b> The session subscribes to its own connection and does this itself
     /// on every transition (#828); this exists so that a test, or the switch-check tool, can drive the
     /// same decision without standing up a transport that transitions.
+    /// </para>
+    /// <para>
+    /// <b>It assumes the connection holds still while it runs, and the automatic path does not.</b> A
+    /// transition captures the channel it belongs to and refuses to commit or announce against any other;
+    /// this captures nothing, so its only guard is that the session has not been disposed. If its locator
+    /// or the logger reconnects the transport mid-call, it can commit an overtaken observation or
+    /// announce for a connection that has gone. That is tolerable for what calls it — the tool's
+    /// unreadable-daemon scenario holds one connection still throughout — and it would not be tolerable
+    /// for general diagnostics. Anything reaching for it in a reentrant setting needs the capture and
+    /// checks the transition path has.
     /// </para>
     /// <para>
     /// Internal for that reason. It was public while the host owned the trigger, and leaving it public
@@ -493,7 +511,7 @@ public sealed class OtdSession : IDisposable
     /// </para>
     /// </remarks>
     /// <returns>What is answering, whether it changed, and whether that cost an unsaved edit.</returns>
-    internal DaemonChange NoteConnectedDaemon()
+    internal DaemonChange RefreshDaemonIdentityAndTakeChange()
     {
         var commit = CommitConnectedDaemon(ConnectedDaemonPath());
         AnnounceCommit(commit, () => !_disposed);

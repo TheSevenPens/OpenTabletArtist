@@ -196,14 +196,14 @@ internal static class Program
         Check("a real pipe still reports a process id",
             h.Session.ConnectedProcessId() != null, h.Session.ConnectedProcessId());
 
-        var seen = h.Session.NoteConnectedDaemon();
+        var seen = h.Session.RefreshDaemonIdentityAndTakeChange();
         Check("identified while readable", PathEquality.Same(seen.ExecutablePath, a), seen.ExecutablePath);
 
         h.BlockWrites(true);
         Check("applied but not saved", await h.EditStatus() == SettingsApplyStatus.AppliedNotSaved, "-");
 
         blind.Blind = true;                             // the daemon comes back elevated
-        var change = h.Session.NoteConnectedDaemon();
+        var change = h.Session.RefreshDaemonIdentityAndTakeChange();
 
         Check("unreadable is NOT a change", !change.Changed, change.Changed);
         Check("nothing was discarded", !change.DiscardedUnsavedChange, change.DiscardedUnsavedChange);

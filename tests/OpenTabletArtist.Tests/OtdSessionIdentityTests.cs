@@ -30,7 +30,7 @@ public class OtdSessionIdentityTests
         var (session, _, locator) = Make();
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.False(change.Changed);
         Assert.False(change.DiscardedUnsavedChange);
@@ -43,9 +43,9 @@ public class OtdSessionIdentityTests
     {
         var (session, _, locator) = Make();
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.False(change.Changed);
     }
@@ -60,7 +60,7 @@ public class OtdSessionIdentityTests
         var (session, daemon, locator) = Make(new RefusingStore());
         var settings = Open(session);
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
         // Applied, and the write refused: live on the old daemon, and only there.
         var applied = await settings.ApplyAndSaveAsync(Tablet("T"));
@@ -68,7 +68,7 @@ public class OtdSessionIdentityTests
         Assert.Single(daemon.Applied);
 
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.True(change.Changed);
         Assert.True(change.DiscardedUnsavedChange);
@@ -86,10 +86,10 @@ public class OtdSessionIdentityTests
         var (session, _, locator) = Make();
         Open(session);
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.True(change.Changed);
         Assert.False(change.DiscardedUnsavedChange);
@@ -108,11 +108,11 @@ public class OtdSessionIdentityTests
         var (session, _, locator) = Make(new RefusingStore());
         var settings = Open(session);
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         await settings.ApplyAndSaveAsync(Tablet("T"));
 
         locator.Path = null;                       // elevated, or another user's
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.False(change.Changed);
         Assert.False(change.DiscardedUnsavedChange);
@@ -139,13 +139,13 @@ public class OtdSessionIdentityTests
         var (session, _, locator) = Make();
         Open(session);
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
         locator.Path = null;                       // one reconnect we could not identify
-        Assert.False(session.NoteConnectedDaemon().Changed);
+        Assert.False(session.RefreshDaemonIdentityAndTakeChange().Changed);
 
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
-        Assert.True(session.NoteConnectedDaemon().Changed);
+        Assert.True(session.RefreshDaemonIdentityAndTakeChange().Changed);
     }
 
     // --- When the connection cannot say which process answered -----------------------------------
@@ -174,7 +174,7 @@ public class OtdSessionIdentityTests
         daemon.ServerProcessId = null;
         locator.OnlyDaemon = "some-other-daemon/OpenTabletDriver.Daemon";
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.Null(change.ExecutablePath);
         Assert.Equal(0, locator.FallbackCalls);
@@ -190,7 +190,7 @@ public class OtdSessionIdentityTests
         daemon.ServerProcessId = null;
         locator.OnlyDaemon = "daemon-one/OpenTabletDriver.Daemon";
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.Equal("daemon-one/OpenTabletDriver.Daemon", change.ExecutablePath);
         Assert.Equal(1, locator.FallbackCalls);
@@ -207,11 +207,11 @@ public class OtdSessionIdentityTests
 
         var (session, daemon, locator) = Make();
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
         daemon.ServerProcessId = null;
         locator.OnlyDaemon = null;                 // two running, or unreadable
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.Null(change.ExecutablePath);
         Assert.False(change.Changed);
@@ -230,7 +230,7 @@ public class OtdSessionIdentityTests
         locator.Path = null;                       // the named process is unreadable
         locator.OnlyDaemon = "some-other-daemon/OpenTabletDriver.Daemon";
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
 
         Assert.Null(change.ExecutablePath);
         Assert.Equal(1, locator.PathOfCalls);
@@ -250,13 +250,13 @@ public class OtdSessionIdentityTests
         var (session, _, locator) = Make();
 
         locator.Path = "daemon-one/OpenTabletDriver.Daemon";
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         locator.Path = "daemon-two/OpenTabletDriver.Daemon";
-        Assert.True(session.NoteConnectedDaemon().Changed);
+        Assert.True(session.RefreshDaemonIdentityAndTakeChange().Changed);
 
         Open(session);
 
-        var change = session.NoteConnectedDaemon();
+        var change = session.RefreshDaemonIdentityAndTakeChange();
         Assert.False(change.Changed);
         Assert.False(change.DiscardedUnsavedChange);
     }

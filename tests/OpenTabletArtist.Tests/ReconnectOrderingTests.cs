@@ -12,7 +12,7 @@ namespace OpenTabletArtist.Tests;
 /// <summary>
 /// What a host is told about a reconnect, and when (#828).
 ///
-/// The host used to call <c>NoteConnectedDaemon</c> itself at the right moment, so calling it late or not
+/// The host used to call <c>RefreshDaemonIdentityAndTakeChange</c> itself at the right moment, so calling it late or not
 /// at all was possible and silent. The session subscribes to its own connection now and identifies the
 /// daemon on the host's execution context.
 ///
@@ -69,7 +69,7 @@ public class ReconnectOrderingTests
         Assert.True(change.Changed);
         Assert.True(change.DiscardedUnsavedChange);
 
-        Assert.False(h.Session.NoteConnectedDaemon().Changed);
+        Assert.False(h.Session.RefreshDaemonIdentityAndTakeChange().Changed);
     }
 
     /// <summary>
@@ -224,7 +224,7 @@ public class ReconnectOrderingTests
         h.Context.Drain();
 
         // The session is on B, so asking again reports no further change.
-        Assert.False(h.Session.NoteConnectedDaemon().Changed);
+        Assert.False(h.Session.RefreshDaemonIdentityAndTakeChange().Changed);
     }
 
     /// <summary>
@@ -358,7 +358,7 @@ public class ReconnectOrderingTests
         var context = new ControllableContext();
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, disposing, context);
-        session.NoteConnectedDaemon();              // establish A, with the locator still harmless
+        session.RefreshDaemonIdentityAndTakeChange();              // establish A, with the locator still harmless
 
         var told = new List<DaemonChange>();
         session.Connected += told.Add;
@@ -398,7 +398,7 @@ public class ReconnectOrderingTests
         var overtaking = new ReconnectDuringLookup(locator, daemon);
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, overtaking, context);
-        session.NoteConnectedDaemon();             // A established, with the locator still harmless
+        session.RefreshDaemonIdentityAndTakeChange();             // A established, with the locator still harmless
 
         var told = new List<DaemonChange>();
         session.Connected += told.Add;
@@ -461,7 +461,7 @@ public class ReconnectOrderingTests
         var told = new List<DaemonChange>();
         session.Connected += told.Add;
 
-        session.NoteConnectedDaemon();                          // A
+        session.RefreshDaemonIdentityAndTakeChange();                          // A
         await settings.ReloadFromDaemonAsync();
 
         // The setup has to actually produce an unsaved edit, or the reset discards nothing, the
@@ -487,7 +487,7 @@ public class ReconnectOrderingTests
 
         // The session is on C. Asking again finds nothing further changed; with B's assignment landing
         // last, this reports a change to a daemon that has not changed.
-        Assert.False(session.NoteConnectedDaemon().Changed);
+        Assert.False(session.RefreshDaemonIdentityAndTakeChange().Changed);
 
         // And the discard survived. B threw the edit away and then lost its own delivery to C, so this is
         // the only notification anyone gets -- and it is the only chance to hear that an edit is gone.
@@ -522,7 +522,7 @@ public class ReconnectOrderingTests
             OtaSettingsPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
 
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
         await settings.ApplyAndSaveAsync(new Settings());        // applied but unsaved
 
@@ -561,20 +561,20 @@ public class ReconnectOrderingTests
         var states = new List<SettingsSaveState>();
         var settings = session.OpenSettings(() => "A/settings.json", () => true, states.Add);
 
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
         Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
             (await settings.ApplyAndSaveAsync(new Settings())).Status);
 
         var afterDisposal = 0;
-        log.OnWarn = () => { session.Dispose(); log.OnWarn = null; };
+        log.ActOnNextWarning(session.Dispose);
         session.Connected += _ => afterDisposal++;
 
         var before = states.Count;
         locator.Path = "B/OpenTabletDriver.Daemon.exe";
         daemon.Reconnect();
 
-        Assert.True(log.Warned, "the transition never reached the logger, so this proves nothing");
+        Assert.Equal(1, log.ActionRuns);             // the transition did reach the logger, exactly once
         Assert.Equal(before, states.Count);          // no save-state callback after disposal
         Assert.Equal(0, afterDisposal);              // and nothing delivered either
     }
@@ -597,7 +597,7 @@ public class ReconnectOrderingTests
 
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
 
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         await settings.ReloadFromDaemonAsync();
         Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
             (await settings.ApplyAndSaveAsync(new Settings())).Status);
@@ -606,15 +606,16 @@ public class ReconnectOrderingTests
         session.Connected += told.Add;
 
         // The first log line of B's transition brings up C, whose own transition runs to completion.
-        log.OnWarn = () =>
+        log.ActOnNextWarning(() =>
         {
-            log.OnWarn = null;
             locator.Path = "C/OpenTabletDriver.Daemon.exe";
             daemon.Reconnect();
-        };
+        });
 
         locator.Path = "B/OpenTabletDriver.Daemon.exe";
         daemon.Reconnect();
+
+        Assert.Equal(1, log.ActionRuns);
 
         // C is the one that survived, and it carries B's discard: B threw the edit away before its
         // logger handed control over, and never got to announce or deliver.
@@ -645,7 +646,96 @@ public class ReconnectOrderingTests
         h.MoveTo("B/OpenTabletDriver.Daemon.exe");       // nobody is subscribed to Connected
         h.Context.Drain();
 
-        Assert.True(h.Session.NoteConnectedDaemon().DiscardedUnsavedChange);
+        Assert.True(h.Session.RefreshDaemonIdentityAndTakeChange().DiscardedUnsavedChange);
+    }
+
+    /// <summary>
+    /// A throwing first subscriber consumes the discard obligation, and the next subscriber still
+    /// receives it — but nothing reports it a second time afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Both halves matter and they pull in opposite directions. Delivery was attempted, so the obligation
+    /// is claimed; the payload the later subscribers get is the same one, so they are told. What must not
+    /// happen is the obligation surviving into a later, unrelated report — a user hearing twice that one
+    /// edit was lost is a different kind of wrong from hearing nothing.
+    ///
+    /// The existing exception tests establish isolation, not this.
+    /// </remarks>
+    [Fact]
+    public async Task AThrowingFirstSubscriber_ConsumesTheDiscardButTheSecondStillHearsIt()
+    {
+        var h = Make();
+
+        await h.Settings.ReloadFromDaemonAsync();
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await h.Settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        var told = new List<DaemonChange>();
+        h.Session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
+        h.Session.Connected += told.Add;
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");
+        h.Context.Drain();
+
+        Assert.True(Assert.Single(told).DiscardedUnsavedChange);
+
+        // Claimed, so asking again does not raise the same lost edit a second time.
+        Assert.False(h.Session.RefreshDaemonIdentityAndTakeChange().DiscardedUnsavedChange);
+    }
+
+    /// <summary>
+    /// A discard created <b>during</b> delivery, with nobody to receive it, is still owed afterwards.
+    /// </summary>
+    /// <remarks>
+    /// The obligation being claimed is the one the payload carries, not whatever happens to be pending
+    /// when delivery ends. A subscriber is host code: it can apply an edit and bring up another daemon
+    /// from inside the callback, and that daemon's transition throws the new edit away with no subscriber
+    /// left to tell. Clearing the flag at the end of the outer delivery would take the new obligation
+    /// with it.
+    /// </remarks>
+    [Fact]
+    public async Task ADiscardCreatedDuringDelivery_IsStillOwedWhenItEnds()
+    {
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), NullOtdLog.Instance,
+            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+
+        session.RefreshDaemonIdentityAndTakeChange();
+        await settings.ReloadFromDaemonAsync();
+
+        var told = new List<DaemonChange>();
+        Action<DaemonChange>? subscriber = null;
+        subscriber = change =>
+        {
+            told.Add(change);
+
+            // Unsubscribe first, so the transition this is about to cause has no recipient at all. The
+            // current delivery is unaffected: Deliver walks a snapshot of the list it started with.
+            session.Connected -= subscriber;
+
+            // A fresh edit the daemon takes and the disk refuses, then a different daemon to lose it to.
+            Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+                settings.ApplyAndSaveAsync(new Settings()).GetAwaiter().GetResult().Status);
+
+            locator.Path = "C/OpenTabletDriver.Daemon.exe";
+            daemon.Reconnect();
+        };
+        session.Connected += subscriber;
+
+        // The first edit, lost to B, which is what the delivery below carries.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();
+
+        Assert.True(Assert.Single(told).DiscardedUnsavedChange);       // B's discard was delivered
+
+        // C's discard was created while that delivery was in progress and had nobody to go to, so it is
+        // still owed. Claiming "whatever is pending" at the end of the outer delivery would lose it.
+        Assert.True(session.RefreshDaemonIdentityAndTakeChange().DiscardedUnsavedChange);
     }
 
     /// <summary>
@@ -720,16 +810,34 @@ public class ReconnectOrderingTests
     /// </remarks>
     private sealed class ActingLog : IOtdLog
     {
-        /// <summary>Runs on the next warning. Clear it from inside to make the trigger one-shot.</summary>
-        public Action? OnWarn { get; set; }
+        private Action? _next;
 
-        /// <summary>Whether anything was ever logged, so a test can tell "suppressed" from "never ran".</summary>
-        public bool Warned { get; private set; }
+        /// <summary>
+        /// How many times the installed action has run.
+        /// </summary>
+        /// <remarks>
+        /// Counts the installed action, not warnings in general. A "something was logged" flag is sticky
+        /// and is already true from the failed save in these tests' setup, so asserting on it would not
+        /// have distinguished "we reached the transition's logger" from "we logged at all" — which is the
+        /// whole job of that checkpoint.
+        /// </remarks>
+        public int ActionRuns { get; private set; }
+
+        /// <summary>Installs a one-shot action to run from inside the library's next logging call.</summary>
+        /// <remarks>One-shot by construction rather than by the caller remembering to clear it.</remarks>
+        public void ActOnNextWarning(Action action)
+        {
+            _next = action;
+            ActionRuns = 0;
+        }
 
         public void Warn(string message, Exception? error = null)
         {
-            Warned = true;
-            OnWarn?.Invoke();
+            if (_next is not { } act) return;
+
+            _next = null;
+            ActionRuns++;
+            act();
         }
 
         public void Info(string message) { }
@@ -831,7 +939,7 @@ public class ReconnectOrderingTests
         using var context = new ElsewhereContext();
         using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
             OtaSettingsPolicy.Instance, locator, context);
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
         session.Connected += _ => throw new InvalidOperationException("a bad subscriber");
 
         // Registered before the transition, because the warning may arrive before the next line runs.
@@ -874,7 +982,7 @@ public class ReconnectOrderingTests
         var context = new DeferringContext();
         using var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
             OtaSettingsPolicy.Instance, locator, context);
-        session.NoteConnectedDaemon();
+        session.RefreshDaemonIdentityAndTakeChange();
 
         var reported = log.Expect(w => w.Contains("identify the connected daemon"));
 
@@ -1041,7 +1149,7 @@ public class ReconnectOrderingTests
         var session = OtdSession.ForTesting(daemon, new RefusingStore(), log ?? NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator, context);
         var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
-        session.NoteConnectedDaemon();              // establish A as the daemon this session knows
+        session.RefreshDaemonIdentityAndTakeChange();              // establish A as the daemon this session knows
         return new Harness(session, daemon, locator, context, settings);
     }
 
