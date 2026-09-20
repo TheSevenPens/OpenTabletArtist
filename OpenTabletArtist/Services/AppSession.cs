@@ -937,9 +937,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         var dir = PluginDirectory;
         var outcome = await Task.Run(() => _pluginInstaller.EnsureInstalled(dir));
 
-        // The guard before this call stops it being started during an exit; this one is for an exit that
-        // arrives while it is running. Applying reaches the daemon, and this is fire-and-forget, so
-        // nothing would observe it failing against a connection that has gone.
+        // Narrowly: stops the installer's RESULT being applied to a daemon this application is leaving.
+        // Applying reaches the daemon, and this is fire-and-forget, so nothing would observe it failing
+        // against a connection that has gone.
+        //
+        // It does not cancel an installation already running -- that finishes on its own -- and it does
+        // not make this task's faults observed. Neither is claimed.
         //
         // No regression covers it: reaching here needs an app-owned daemon and a real plugin installer,
         // neither of which the test harness has. Said here rather than left to look covered.
