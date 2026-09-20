@@ -211,7 +211,18 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     {
         public int Incarnation => incarnation;
 
-        private bool Live => incarnation == daemon.Incarnation;
+        /// <summary>
+        /// Whether this binding can still carry a send.
+        /// </summary>
+        /// <remarks>
+        /// <b>Disposal counts, and it did not.</b> This checked incarnation alone, so a send issued after
+        /// the transport had been disposed was accepted — where the real client's binding checks
+        /// <c>rpc.IsDisposed</c> and refuses. A test about what a host's disposal does to an operation in
+        /// flight could therefore assert a successful apply that production would never produce. That is
+        /// the second time this fake has been more permissive than the thing it models; the first was
+        /// reporting a process id after disposal.
+        /// </remarks>
+        private bool Live => !daemon.IsDisposed && incarnation == daemon.Incarnation;
 
         public Task<Settings?> GetSettingsAsync() =>
             Live ? daemon.GetSettingsAsync() : Task.FromResult<Settings?>(null);
