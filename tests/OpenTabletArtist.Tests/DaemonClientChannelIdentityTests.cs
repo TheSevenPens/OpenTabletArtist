@@ -40,16 +40,20 @@ public class DaemonClientChannelIdentityTests
     public async Task AChannelIdentityIsNotReusedAfterADisconnect()
     {
         var pipe = $"ota-test-{Guid.NewGuid():N}";
-        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-        using var client = new DaemonClient(NullOtdLog.Instance, pipe);
-        var channel = (IDaemonSettingsChannel)client;
+        var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var client = new DaemonClient(NullOtdLog.Instance, pipe);
+        try
+        {
+            var channel = (IDaemonSettingsChannel)client;
 
-        var first = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
-        var second = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
+            var first = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
+            var second = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
 
-        Assert.NotEqual(0, first);
-        Assert.NotEqual(0, second);
-        Assert.NotEqual(first, second);
+            Assert.NotEqual(0, first);
+            Assert.NotEqual(0, second);
+            Assert.NotEqual(first, second);
+        }
+        finally { StopConnecting(client, cancel); }
     }
 
     /// <summary>A dropped connection reports no channel at all, so an identity of 0 means "none".</summary>
@@ -61,16 +65,38 @@ public class DaemonClientChannelIdentityTests
     public async Task ADroppedChannelReportsNoIdentity()
     {
         var pipe = $"ota-test-{Guid.NewGuid():N}";
-        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-        using var client = new DaemonClient(NullOtdLog.Instance, pipe);
-        var channel = (IDaemonSettingsChannel)client;
+        var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var client = new DaemonClient(NullOtdLog.Instance, pipe);
+        try
+        {
+            var channel = (IDaemonSettingsChannel)client;
 
-        var live = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
+            var live = await ConnectOnceAsync(client, channel, pipe, cancel.Token);
 
-        // ConnectOnceAsync returns only once Disconnected has been raised, and the client clears its
-        // channel before raising it.
-        Assert.NotEqual(0, live);
-        Assert.Equal(0, channel.Incarnation);
+            // ConnectOnceAsync returns only once Disconnected has been raised, and the client clears its
+            // channel before raising it.
+            Assert.NotEqual(0, live);
+            Assert.Equal(0, channel.Incarnation);
+        }
+        finally { StopConnecting(client, cancel); }
+    }
+
+    /// <summary>
+    /// Stops the client trying to connect, then disposes both it and the token source.
+    /// </summary>
+    /// <remarks>
+    /// <b>Disposing a CancellationTokenSource does not cancel its token.</b> Leaving cleanup to a
+    /// <c>using</c> meant that a wait failing before the 60-second timer fired would dispose the source,
+    /// remove the pending cancellation, and leave the client's reconnect loop running with nothing left
+    /// to stop it. Cancelling explicitly, and clearing AutoReconnect first, is what the documentation
+    /// claimed was already happening.
+    /// </remarks>
+    private static void StopConnecting(DaemonClient client, CancellationTokenSource cancel)
+    {
+        client.AutoReconnect = false;
+        cancel.Cancel();
+        client.Dispose();
+        cancel.Dispose();
     }
 
     /// <summary>
@@ -88,8 +114,8 @@ public class DaemonClientChannelIdentityTests
     /// <c>AutoReconnect</c> is turned off before the drop so the client does not immediately race to
     /// re-establish and move the number under the next assertion. That means this covers a deliberate
     /// stop and not the automatic reconnect path; production does the same thing around a stop the user
-    /// asked for. The cancellation token bounds the connect loop, so a failure here cannot leave one
-    /// retrying after the test has gone.
+    /// asked for. The caller cancels the token in cleanup, which is what stops a retry loop outliving a
+    /// failed test — the timer alone does not, since disposing the source removes it.
     /// </para>
     /// </remarks>
     private static async Task<int> ConnectOnceAsync(DaemonClient client, IDaemonSettingsChannel channel,

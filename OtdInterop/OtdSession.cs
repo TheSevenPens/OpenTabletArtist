@@ -106,15 +106,18 @@ public sealed class OtdSession : IDisposable
             var found = ConnectedDaemonPath();
             if (!StillTheCurrentTransition(channel)) return;
 
-            var change = CommitConnectedDaemon(found);
+            bool StillMine() => StillTheCurrentTransition(channel);
 
-            // And again, because committing ends in host calls of its own -- the log, and the save-state
-            // notification -- either of which can bring up another daemon. This change is then stale as a
+            var commit = CommitConnectedDaemon(found);
+            AnnounceCommit(commit, StillMine);
+
+            // And again, because announcing is host code too. This transition is then stale as a
             // notification. What it records about a discarded edit is not stale, and stays owed.
-            if (!StillTheCurrentTransition(channel)) return;
+            if (!StillMine()) return;
 
-            ClaimDiscard();
-            Deliver(Connected, h => h(change), nameof(Connected), () => StillTheCurrentTransition(channel));
+            // Built here, after the announcements, so it carries any discard they produced.
+            var change = new DaemonChange(commit.Actual, commit.Changed, _discardOwed);
+            Deliver(Connected, h => h(change), nameof(Connected), StillMine, ClaimDiscard);
         });
     }
 
@@ -146,8 +149,8 @@ public sealed class OtdSession : IDisposable
     //
     //   IOtdExecutionContext.PostAsync   where the work runs at all, and it may run it inline
     //   IDaemonProcessLocator            asked who is answering; a check follows, before the commit
-    //   IOtdLog                          from inside the commit, now after the state it describes
-    //   the save-state callback          likewise, which is why announcing is separate from resetting
+    //   IOtdLog                          after the commit's state changes, and rechecked before the next
+    //   the save-state callback          after a recheck of its own, because the logger above can reenter
     //   Connected subscribers            checked between each one
     //
     // The three validity checks are deliberately NOT consolidated. They answer different questions --
@@ -215,13 +218,28 @@ public sealed class OtdSession : IDisposable
     /// leave the second one being told about it anyway.
     /// </para>
     /// </remarks>
-    private void Deliver<T>(T? handlers, Action<T> call, string what, Func<bool> stillWorthTelling)
-        where T : Delegate
+    private void Deliver<T>(T? handlers, Action<T> call, string what, Func<bool> stillWorthTelling,
+        Action? onFirstDelivery = null) where T : Delegate
     {
         if (handlers == null) return;
+
+        var first = true;
         foreach (var handler in handlers.GetInvocationList())
         {
             if (!stillWorthTelling()) return;
+
+            // Immediately before the first subscriber actually runs, and not before that. Claiming at the
+            // top consumed the discard even when there were NO subscribers, or when validity was lost
+            // before any of them ran -- so the fact was marked delivered with nobody to have received it.
+            //
+            // Attempted delivery to a real recipient is the contract, not successful handling: a
+            // subscriber that throws is isolated and the fact stays claimed, because retrying on
+            // subscriber failure would make "was this reported" depend on subscriber behaviour.
+            if (first)
+            {
+                first = false;
+                onFirstDelivery?.Invoke();
+            }
 
             try { call((T)handler); }
             catch (Exception ex) { _log.Warn($"A subscriber to {what} threw; it was isolated.", ex); }
@@ -477,8 +495,11 @@ public sealed class OtdSession : IDisposable
     /// <returns>What is answering, whether it changed, and whether that cost an unsaved edit.</returns>
     internal DaemonChange NoteConnectedDaemon()
     {
-        var change = CommitConnectedDaemon(ConnectedDaemonPath());
-        ClaimDiscard();                 // handed straight to the caller, so it is no longer owed
+        var commit = CommitConnectedDaemon(ConnectedDaemonPath());
+        AnnounceCommit(commit, () => !_disposed);
+
+        var change = new DaemonChange(commit.Actual, commit.Changed, _discardOwed);
+        ClaimDiscard();                 // returned straight to the caller, who is a recipient
         return change;
     }
 
@@ -491,7 +512,7 @@ public sealed class OtdSession : IDisposable
     /// path, and the settings state a different daemon invalidates. None of it should happen on behalf of
     /// a transition that has already been superseded.
     /// </remarks>
-    private DaemonChange CommitConnectedDaemon(string? actual)
+    private DaemonCommit CommitConnectedDaemon(string? actual)
     {
         // Both conditions matter. No remembered path means this is the first look, and everything this
         // session holds already belongs to whatever is answering now. An unreadable path means we cannot
@@ -499,14 +520,6 @@ public sealed class OtdSession : IDisposable
         var previous = _daemonPath;
         var changed = previous.Length > 0 && actual != null && !PathEquality.Same(previous, actual);
 
-        // --- Nothing below calls out of the library, until the line that says it does. ---
-        //
-        // The logger and the save-state callback are both host code, and host code can reenter: it can
-        // bring up another daemon, whose transition then runs to completion -- committing its own
-        // identity -- while this one is still part-way through committing its own. This used to call the
-        // logger, then reset, and only afterwards assign the path, so the older transition's assignment
-        // landed last and overwrote the newer one. The session then believed it was on a daemon it had
-        // already moved off, and reported the next look at the unchanged daemon as another change.
         if (actual != null) _daemonPath = actual;
         var discarded = changed && (_settings?.ResetForNewDaemon() ?? false);
 
@@ -514,15 +527,38 @@ public sealed class OtdSession : IDisposable
         // superseded before it delivers, the edit is still gone and somebody has to hear about it.
         if (discarded) _discardOwed = true;
 
-        // --- Host code from here. The state above is already coherent. ---
-        if (changed)
-        {
-            _log.Warn($"The connected daemon changed from {previous} to {actual}; "
-                      + "dropping settings state that belonged to the previous one.");
-            if (discarded) _settings?.AnnounceDiscardedChange();
-        }
+        return new DaemonCommit(previous, actual, changed, discarded);
+    }
 
-        return new DaemonChange(actual, changed, _discardOwed);
+    /// <summary>What a commit did, before anyone outside the library has been told any of it.</summary>
+    private readonly record struct DaemonCommit(string Previous, string? Actual, bool Changed, bool Discarded);
+
+    /// <summary>
+    /// Tells the host what a commit did, rechecking between each call out.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from the commit, and separate <em>internally</em>, because these are two calls into host
+    /// code and not one. The logger runs first and can do anything: dispose the session, or bring up
+    /// another daemon whose transition completes and announces its own state. Announcing this commit's
+    /// discard afterwards would then be an old notification arriving on a session that has moved on, or
+    /// on one that is gone. Checking only after both had run was too late for the second.
+    /// </para>
+    /// <para>
+    /// Skipping an announcement does not discard the fact. <c>_discardOwed</c> was set by the commit and
+    /// is untouched here, so the edit remains owed to whoever is told next.
+    /// </para>
+    /// </remarks>
+    private void AnnounceCommit(DaemonCommit commit, Func<bool> stillValid)
+    {
+        if (!commit.Changed || !stillValid()) return;
+
+        _log.Warn($"The connected daemon changed from {commit.Previous} to {commit.Actual}; "
+                  + "dropping settings state that belonged to the previous one.");
+
+        if (!commit.Discarded || !stillValid()) return;
+
+        _settings?.AnnounceDiscardedChange();
     }
 
     /// <summary>

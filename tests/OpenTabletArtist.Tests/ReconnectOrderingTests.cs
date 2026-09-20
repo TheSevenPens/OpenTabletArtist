@@ -442,15 +442,18 @@ public class ReconnectOrderingTests
             OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
 
         // The save chip is where the reset calls out, so that is where C arrives.
-        var arrived = false;
+        var states = new List<SettingsSaveState>();
+        var arrivals = 0;
         var settings = session.OpenSettings(() => "A/settings.json", () => true, state =>
         {
-            // Only on the reset's own announcement. Gating on "the first callback" instead put C's
-            // arrival inside ApplyAndSaveAsync, which reports Saving and then Failed -- so the reconnect
-            // happened before the transition being tested even began, and the test passed against the
-            // defect it was written for.
-            if (state != SettingsSaveState.None || arrived) return;
-            arrived = true;
+            states.Add(state);
+
+            // Only on the reset's own announcement, and only once. Gating on "the first callback" instead
+            // put C's arrival inside ApplyAndSaveAsync, which reports Saving and then Failed -- so the
+            // reconnect happened before the transition being tested even began, and the test passed
+            // against the defect it was written for.
+            if (state != SettingsSaveState.None || arrivals > 0) return;
+            arrivals++;
             locator.Path = "C/OpenTabletDriver.Daemon.exe";
             daemon.Reconnect();
         });
@@ -460,12 +463,27 @@ public class ReconnectOrderingTests
 
         session.NoteConnectedDaemon();                          // A
         await settings.ReloadFromDaemonAsync();
-        await settings.ApplyAndSaveAsync(new Settings());        // applied, and the store refuses to save
+
+        // The setup has to actually produce an unsaved edit, or the reset discards nothing, the
+        // announcement never fires, and everything below is vacuous.
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        var statesBeforeTheTransition = states.Count;
 
         locator.Path = "B/OpenTabletDriver.Daemon.exe";
         daemon.Reconnect();                                      // B commits; its callbacks bring up C
 
-        Assert.True(arrived);
+        // The schedule, not just the outcome: C arrived exactly once, and from the reset's own None
+        // announcement rather than from anything ApplyAndSaveAsync reported. That announcement only
+        // happens after the commit has assigned the identity and reset the coordinator, so it also
+        // establishes that B had committed by then.
+        //
+        // Deliberately not checked by asking the session what it thinks the daemon is: the seam that
+        // would answer also CLAIMS the discard, so the checkpoint consumed the state the test exists to
+        // assert about, and turned this green test red for a reason that was purely its own doing.
+        Assert.Equal(1, arrivals);
+        Assert.Equal(SettingsSaveState.None, states[statesBeforeTheTransition]);
 
         // The session is on C. Asking again finds nothing further changed; with B's assignment landing
         // last, this reports a change to a daemon that has not changed.
@@ -521,6 +539,113 @@ public class ReconnectOrderingTests
         var only = Assert.Single(told);
         Assert.Equal("C/OpenTabletDriver.Daemon.exe", only.ExecutablePath);
         Assert.True(only.DiscardedUnsavedChange);
+    }
+
+    /// <summary>
+    /// A session disposed from the transition logger gets no save-state announcement afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Codex's probe in #846. The commit's two host calls — the log, then the discard announcement — had
+    /// only one check, after both. The logger is host code and may tear the session down, and the
+    /// announcement went out regardless.
+    /// </remarks>
+    [Fact]
+    public async Task ASessionDisposedFromTheLogger_AnnouncesNothingAfterwards()
+    {
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var log = new ActingLog();
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
+            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+
+        var states = new List<SettingsSaveState>();
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, states.Add);
+
+        session.NoteConnectedDaemon();
+        await settings.ReloadFromDaemonAsync();
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        var afterDisposal = 0;
+        log.OnWarn = () => { session.Dispose(); log.OnWarn = null; };
+        session.Connected += _ => afterDisposal++;
+
+        var before = states.Count;
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();
+
+        Assert.True(log.Warned, "the transition never reached the logger, so this proves nothing");
+        Assert.Equal(before, states.Count);          // no save-state callback after disposal
+        Assert.Equal(0, afterDisposal);              // and nothing delivered either
+    }
+
+    /// <summary>
+    /// A transition superseded from its own logger does not then announce, and its discard stays owed.
+    /// </summary>
+    /// <remarks>
+    /// The other half of the same seam: coherent internal state does not make an old announcement
+    /// current. The edit is still gone, so the fact survives to be reported by the transition that wins.
+    /// </remarks>
+    [Fact]
+    public async Task ATransitionSupersededFromItsLogger_KeepsTheDiscardOwed()
+    {
+        var locator = new FakeProcessLocator { Path = "A/OpenTabletDriver.Daemon.exe" };
+        var daemon = new FakeDaemonTransport { ServerProcessId = 1, Settings = new Settings() };
+        var log = new ActingLog();
+        var session = OtdSession.ForTesting(daemon, new RefusingStore(), log,
+            OtaSettingsPolicy.Instance, locator, new InlineExecutionContext());
+
+        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+
+        session.NoteConnectedDaemon();
+        await settings.ReloadFromDaemonAsync();
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        var told = new List<DaemonChange>();
+        session.Connected += told.Add;
+
+        // The first log line of B's transition brings up C, whose own transition runs to completion.
+        log.OnWarn = () =>
+        {
+            log.OnWarn = null;
+            locator.Path = "C/OpenTabletDriver.Daemon.exe";
+            daemon.Reconnect();
+        };
+
+        locator.Path = "B/OpenTabletDriver.Daemon.exe";
+        daemon.Reconnect();
+
+        // C is the one that survived, and it carries B's discard: B threw the edit away before its
+        // logger handed control over, and never got to announce or deliver.
+        var only = Assert.Single(told);
+        Assert.Equal("C/OpenTabletDriver.Daemon.exe", only.ExecutablePath);
+        Assert.True(only.DiscardedUnsavedChange);
+    }
+
+    /// <summary>
+    /// A transition with no subscribers keeps the discard owed, so the next enquiry still hears it.
+    /// </summary>
+    /// <remarks>
+    /// Codex's second probe in #846. Claiming before <c>Deliver</c> consumed the fact even when there was
+    /// nobody to deliver to: <c>Deliver</c> returned immediately and the edit was marked reported with no
+    /// recipient anywhere. The contract is attempted delivery to a real subscriber, not the intention to
+    /// deliver.
+    /// </remarks>
+    [Fact]
+    public async Task ATransitionWithNoSubscribers_KeepsTheDiscardOwed()
+    {
+        var h = Make();
+        var settings = h.Settings;
+
+        await settings.ReloadFromDaemonAsync();
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved,
+            (await settings.ApplyAndSaveAsync(new Settings())).Status);
+
+        h.MoveTo("B/OpenTabletDriver.Daemon.exe");       // nobody is subscribed to Connected
+        h.Context.Drain();
+
+        Assert.True(h.Session.NoteConnectedDaemon().DiscardedUnsavedChange);
     }
 
     /// <summary>
@@ -587,6 +712,30 @@ public class ReconnectOrderingTests
     }
 
     // --- harness --------------------------------------------------------------------------------
+
+    /// <summary>A log that lets a test do something from inside the library's own logging call.</summary>
+    /// <remarks>
+    /// Logging is a call into host code, which is the part that was missed twice. This makes it one a
+    /// test can act from, the way a real host's log sink could.
+    /// </remarks>
+    private sealed class ActingLog : IOtdLog
+    {
+        /// <summary>Runs on the next warning. Clear it from inside to make the trigger one-shot.</summary>
+        public Action? OnWarn { get; set; }
+
+        /// <summary>Whether anything was ever logged, so a test can tell "suppressed" from "never ran".</summary>
+        public bool Warned { get; private set; }
+
+        public void Warn(string message, Exception? error = null)
+        {
+            Warned = true;
+            OnWarn?.Invoke();
+        }
+
+        public void Info(string message) { }
+
+        public void Debug(string message, Exception? error = null) { }
+    }
 
     /// <summary>
     /// An execution context that runs posted work where it was posted.
