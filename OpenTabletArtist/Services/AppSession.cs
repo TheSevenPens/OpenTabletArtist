@@ -145,7 +145,6 @@ public interface IDeviceData : INotifyPropertyChanged
     bool HasWindowsInk { get; }
     string PresetDirectory { get; }
     string PluginDirectory { get; }
-    string SettingsFilePath { get; }
     /// <summary>The daemon's tablet-configuration override folder (from AppInfo), or "" if unknown (#480/#467).</summary>
     string ConfigurationDirectory { get; }
     (float Width, float Height)? GetTabletDigitizer(string tabletName);
@@ -399,7 +398,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private bool _hasWindowsInk;
     [ObservableProperty] private string _presetDirectory = "";
     [ObservableProperty] private string _pluginDirectory = "";
-    [ObservableProperty] private string _settingsFilePath = "";
     [ObservableProperty] private string _configurationDirectory = "";   // the daemon's tablet-config folder
     [ObservableProperty] private List<ProfileItem> _profiles = [];
 
@@ -429,10 +427,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _session = session;
         _daemonLifecycle = daemonLifecycle;
 
-        // The path and the ownership flag are read late: both come from the daemon (AppInfo on the first
-        // data load, identity on connect), so neither has a value yet at construction.
+        // The ownership flag is read late: it comes from identity on connect, so it has no value at
+        // construction. Where to persist is no longer ours to supply -- the library asks the daemon
+        // itself, on the channel it asks about, because OTA only learned it during a data load that runs
+        // after the connection is already usable (#828).
         _coordinator = session.OpenSettings(
-            settingsPath: () => SettingsFilePath,
             isOwnedDaemon: () => IsAppOwnedDaemon,
             onSaveState: state => SaveState = state);
 
@@ -802,7 +801,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (appInfo != null)
             {
                 PresetDirectory = appInfo.PresetDirectory ?? "";
-                SettingsFilePath = appInfo.SettingsFile ?? "";
                 PluginDirectory = appInfo.PluginDirectory ?? "";
                 ConfigurationDirectory = appInfo.ConfigurationDirectory ?? "";   // authoritative override folder (#480/#467)
             }

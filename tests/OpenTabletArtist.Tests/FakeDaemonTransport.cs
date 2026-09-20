@@ -103,7 +103,20 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// </summary>
     public Func<Settings, Task<bool>>? SetSettingsHandler { get; set; }
 
-    public AppInfo? AppInfo { get; set; }
+    /// <summary>
+    /// What the daemon says about itself, including where it keeps its settings.
+    /// </summary>
+    /// <remarks>
+    /// Populated by default since #828, because a session now asks this to find out where to persist. A
+    /// null AppInfo is a daemon that will not say — a real state, and one a test can still ask for, but
+    /// not the ordinary one, and leaving it as the default made every save in every session-level test a
+    /// write to nowhere.
+    /// </remarks>
+    public AppInfo? AppInfo { get; set; } =
+        new() { AppDataDirectory = "A", SettingsFile = DefaultSettingsFile };
+
+    /// <summary>Where this fake's daemon claims to keep its settings.</summary>
+    public const string DefaultSettingsFile = "A/settings.json";
     public JArray Tablets { get; set; } = [];
     public JArray Devices { get; set; } = [];
     public int? ServerProcessId { get; set; }

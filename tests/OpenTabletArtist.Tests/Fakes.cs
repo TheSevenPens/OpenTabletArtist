@@ -103,7 +103,6 @@ internal sealed class FakeDeviceData : IDeviceData
     public bool HasWindowsInk { get; set; }
     public string PresetDirectory { get; set; } = "";
     public string PluginDirectory { get; set; } = "";
-    public string SettingsFilePath => "";
     public string ConfigurationDirectory { get; set; } = "";
     public Dictionary<string, (float Width, float Height)> Digitizers { get; } = new();
     public (float Width, float Height)? GetTabletDigitizer(string tabletName) =>

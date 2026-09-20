@@ -148,12 +148,39 @@ public class DaemonReconnectTests
         Assert.False(change.DiscardedUnsavedChange);
     }
 
-    /// <summary>After the channel settles, ordinary work proceeds. The gate is not a one-way door.</summary>
+    /// <summary>
+    /// After the channel settles, ordinary work proceeds — but a channel nobody announced is not settled.
+    /// </summary>
+    /// <remarks>
+    /// This asserted a completed save, which is no longer right and was never quite what it claimed.
+    /// <c>ReconnectSilently</c> models a transport that swapped channels with nothing announcing it, so
+    /// the session has had no occasion to ask the new daemon anything — including where it keeps its
+    /// settings. The send is bound and correct; the destination is unknown, and writing to the previous
+    /// daemon's file on the strength of it is the defect #828 closes.
+    ///
+    /// So: live, not saved, and retryable. Announce the channel and the same work saves.
+    /// </remarks>
     [Fact]
-    public async Task AfterAReconnect_NewWorkIsAdmittedNormally()
+    public async Task AfterASilentReconnect_WorkIsLiveButNotYetPersisted()
     {
         var (_, settings, daemon, store) = Make();
         daemon.ReconnectSilently();
+
+        var outcome = await settings.ApplyAndSaveAsync(Tablet("After"));
+
+        Assert.Equal(SettingsApplyStatus.AppliedNotSaved, outcome.Status);
+        Assert.Empty(store.Wrote);
+    }
+
+    /// <summary>And once the connection is announced, the same work persists.</summary>
+    /// <remarks>
+    /// The other half, without which the test above is satisfied by a session that never persists at all.
+    /// </remarks>
+    [Fact]
+    public async Task AfterAnAnnouncedReconnect_NewWorkIsAdmittedAndPersistedNormally()
+    {
+        var (_, settings, daemon, store) = Make();
+        daemon.Reconnect();
 
         var outcome = await settings.ApplyAndSaveAsync(Tablet("After"));
 
@@ -189,7 +216,7 @@ public class DaemonReconnectTests
         var store = new PathRecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
             new SwitchDuringPreparation(daemon), locator);
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
         await settings.ReloadFromDaemonAsync();
         session.RefreshDaemonIdentityAndTakeChange();
         daemon.Applied.Clear();
@@ -229,9 +256,14 @@ public class DaemonReconnectTests
         var store = new PathRecordingStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, locator);
-        var settings = session.OpenSettings(() => "A/settings.json", () => true, _ => { });
+        var settings = session.OpenSettings(() => true, _ => { });
+
+        // A channel, announced, so the session identifies it and learns where to persist -- which is what
+        // a connection actually looks like. Before #828 the destination came from the host and a fake
+        // channel number was enough; now the session asks the daemon, so there has to be one to ask.
+        daemon.Reconnect();
+
         settings.ReloadFromDaemonAsync().GetAwaiter().GetResult();
-        session.RefreshDaemonIdentityAndTakeChange();
         return (session, settings, daemon, store);
     }
 

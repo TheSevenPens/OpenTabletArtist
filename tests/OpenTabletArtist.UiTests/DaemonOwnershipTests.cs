@@ -86,7 +86,14 @@ public class DaemonOwnershipTests
             },
         };
         var store = new RecordingStore();
-        var session = new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()) { Ownership = ownership };
+        // A live channel BEFORE the host subscribes to anything. Since #828 the library asks the daemon
+        // where it keeps its settings, so a session that has never seen a connection has nowhere to
+        // persist -- but announcing it after AppSession exists would also run a data load, and these
+        // tests count those.
+        var otd = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+
+        var session = new AppSession(otd, new StubLifecycle()) { Ownership = ownership };
         return (session, daemon, store);
     }
 

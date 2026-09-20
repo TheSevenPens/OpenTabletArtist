@@ -77,7 +77,14 @@ public class SettingsCoordinatorFollowupTests
             },
         };
         var store = new RecordingStore();
-        return (new AppSession(FakeSession.Over(daemon, store), new StubLifecycle()), daemon, store);
+        // A live channel BEFORE the host subscribes to anything. Since #828 the library asks the daemon
+        // where it keeps its settings, so a session that has never seen a connection has nowhere to
+        // persist -- but announcing it after AppSession exists would also run a data load, and these
+        // tests count those.
+        var otd = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+
+        return (new AppSession(otd, new StubLifecycle()), daemon, store);
     }
 
     // --- #763: a no-change apply must not reload ---

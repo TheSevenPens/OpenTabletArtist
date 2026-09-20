@@ -112,6 +112,13 @@ public class FormatGuardTests
         var store = new LoadableStore();
         var session = OtdSession.ForTesting(daemon, store, NullOtdLog.Instance,
             OtaSettingsPolicy.Instance, new FakeProcessLocator());
-        return (session.OpenSettings(() => "A/settings.json", () => true, _ => { }), daemon, store);
+        var settings = session.OpenSettings(() => true, _ => { });
+
+        // A channel, announced, so the session identifies it and asks the daemon where it keeps its
+        // settings. Since #828 the destination is the library's own question, so a session with no
+        // connection has nowhere to persist -- which is correct, and not what these tests are about.
+        daemon.Reconnect();
+
+        return (settings, daemon, store);
     }
 }

@@ -116,6 +116,11 @@ public sealed class OtdSession : IDisposable
             if (!StillMine()) return;
 
             // Built here, after the announcements, so it carries any discard they produced.
+            // Asked for every channel, not only when the daemon changed. A daemon this session could not
+            // read is deliberately NOT reported as a change (#823), and it can still be a different
+            // install with a different settings file -- so identity is the wrong thing to gate this on.
+            LearnWhereToPersist(channel);
+
             var change = new DaemonChange(commit.Actual, commit.Changed, _discardOwed);
             Deliver(Connected, h => h(change), nameof(Connected), StillMine, ClaimDiscard);
         });
@@ -407,10 +412,6 @@ public sealed class OtdSession : IDisposable
     /// <summary>
     /// The settings authority for this connection. One per session; a second call is refused.
     /// </summary>
-    /// <param name="settingsPath">
-    /// Where the daemon's settings file is, read late. It comes from the daemon itself, so it has no
-    /// value when the session is created, and it changes when a different daemon answers.
-    /// </param>
     /// <param name="isOwnedDaemon">
     /// Whether this daemon is positively known to be the host's own. Positive knowledge, not "not known
     /// to be someone else's" — the host's policy runs against a daemon only when this is true (#742).
@@ -429,7 +430,7 @@ public sealed class OtdSession : IDisposable
     /// <exception cref="InvalidOperationException">
     /// Settings have already been opened on this session, or the session has been disposed.
     /// </exception>
-    public IOtdSettingsSession OpenSettings(Func<string> settingsPath, Func<bool> isOwnedDaemon,
+    public IOtdSettingsSession OpenSettings(Func<bool> isOwnedDaemon,
         Action<SettingsSaveState> onSaveState)
     {
         if (_disposed)
@@ -443,9 +444,65 @@ public sealed class OtdSession : IDisposable
                 + "second would have its own ordering, retry state and baseline, and neither would see "
                 + "what the other was doing. Reuse the authority this returned.");
 
-        return _settings = _store is { } store
-            ? new SettingsCoordinator(_channel, store, settingsPath, isOwnedDaemon, onSaveState, _log, _policy)
-            : new SettingsCoordinator(_channel, settingsPath, isOwnedDaemon, onSaveState, _log, _policy);
+        var settings = _store is { } store
+            ? new SettingsCoordinator(_channel, store, isOwnedDaemon, onSaveState, _log, _policy)
+            : new SettingsCoordinator(_channel, isOwnedDaemon, onSaveState, _log, _policy);
+
+        _settings = settings;
+
+        // A connection established before the settings were opened has already had its transition, so
+        // nothing would ask this one where to write. Asking here covers the ordinary startup order, in
+        // which a host connects and then opens settings.
+        if (_channel.Incarnation is var channel and not 0) LearnWhereToPersist(channel);
+
+        return settings;
+    }
+
+    /// <summary>
+    /// Asks the connected daemon where it keeps its settings, and records it against that channel.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The library's own question now, and the point of #828's readiness half. It used to be the host's:
+    /// OTA read <c>AppInfo</c> during its data load and handed the path back through a delegate. That
+    /// load runs <em>after</em> the connection is usable, so between a daemon answering and the host
+    /// noticing, the delegate returned the previous daemon's file — and an apply admitted in that window
+    /// was live on the new daemon and written into the old one's settings.
+    /// </para>
+    /// <para>
+    /// Fire-and-forget on purpose. This is a network call, and a transition must not wait behind one:
+    /// #828 is explicit that serializing a short state change is not the same as monopolising the host's
+    /// context for an entire RPC. Until the answer lands the connection simply has no destination, which
+    /// the coordinator already treats as applied-but-not-saved — visible, retryable, and never the wrong
+    /// file.
+    /// </para>
+    /// </remarks>
+    private void LearnWhereToPersist(int channel) => _ = LearnWhereToPersistAsync(channel);
+
+    private async Task LearnWhereToPersistAsync(int channel)
+    {
+        string path;
+        try
+        {
+            path = (await Connection.GetAppInfoAsync().ConfigureAwait(false))?.SettingsFile ?? "";
+        }
+        catch (Exception ex)
+        {
+            // Not fatal, and deliberately not retried here: the next transition asks again, and until
+            // then this connection persists nothing rather than persisting somewhere wrong.
+            _log.Warn("Couldn't ask the connected daemon where it keeps its settings; nothing will be "
+                      + "written to disk for this connection until it answers.", ex);
+            return;
+        }
+
+        Post("record where the connected daemon keeps its settings", () =>
+        {
+            // The answer describes the channel it was asked on. A reply arriving after that channel has
+            // gone says nothing about its replacement.
+            if (!StillTheCurrentTransition(channel)) return;
+
+            _settings?.LearnDestination(path, channel);
+        });
     }
 
     /// <summary>
