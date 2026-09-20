@@ -150,27 +150,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Privacy &amp; Security › Input Monitoring. macOS-only; a no-op elsewhere.</summary>
+    [RelayCommand]
+    private static void OpenInputMonitoringSettings()
+        => Services.PlatformShell.OpenInputMonitoringSettings();
+
     /// <summary>Follow one of a multi-part issue's review links (#artist-pen-health) — each offending
     /// setting lives on a different Pen-page pivot, so navigate to the one that owns it.</summary>
+    /// <remarks>
+    /// The attribute is not decoration. Without it no <c>FollowLinkCommand</c> is generated, and
+    /// <c>DashboardView.axaml</c> binds one — which is how every link on a health card became a button
+    /// that did nothing, silently, for twelve days (#889).
+    /// </remarks>
     [RelayCommand]
-    /// <summary>Privacy &amp; Security › Input Monitoring. macOS-only; a no-op elsewhere.</summary>
-    private static void OpenInputMonitoringSettings()
-    {
-        if (!OperatingSystem.IsMacOS()) return;
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-            {
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn("Couldn't open the Input Monitoring settings pane.", ex);
-        }
-    }
-
     private void FollowLink(HealthLink? link)
     {
         if (link is null) return;

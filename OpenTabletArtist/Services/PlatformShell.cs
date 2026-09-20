@@ -54,6 +54,37 @@ public static class PlatformShell
         desktop: Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"),
         start: Start);
 
+    /// <summary>
+    /// Open an <c>https://</c> link in whatever the user browses with. Best-effort; anything else is a
+    /// no-op.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only https</b>, and that is a refusal rather than a formality (#889). This is reached from the
+    /// driver-cleanup card, whose links come out of a <em>detection</em> — text this application did not
+    /// author — and <see cref="ProcessStartInfo.UseShellExecute"/> hands whatever it is given to the
+    /// registered handler for its scheme. A <c>file:</c> or an arbitrary custom scheme is exactly what
+    /// should not reach that. Callers with a narrower rule keep it: the cleanup card also requires the
+    /// OTD domain, which this deliberately does not know about.
+    /// </remarks>
+    public static void OpenUrl(string? url) => OpenUrl(url, Start);
+
+    /// <summary>
+    /// Open the macOS Input Monitoring pane. macOS-only; a no-op elsewhere. Best-effort.
+    /// </summary>
+    /// <remarks>
+    /// Its own operation rather than a URL passed to <see cref="OpenUrl"/>: it names a settings pane, the
+    /// way <see cref="OpenDisplaySettings()"/> does, and it is reached by a scheme <see cref="OpenUrl"/>
+    /// refuses on purpose. Folding the two together would mean either widening that refusal or describing
+    /// a settings pane as a link.
+    /// </remarks>
+    public static void OpenInputMonitoringSettings()
+        => OpenInputMonitoringSettings(OperatingSystem.IsMacOS(), Start);
+
+    /// <summary>Whether a string is a link this will open. Pure — unit-tested.</summary>
+    public static bool IsWebLink(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var parsed)
+        && parsed.Scheme == Uri.UriSchemeHttps;
+
     /// <summary>The file-manager launcher for an OS: Explorer (Windows), <c>open</c> → Finder (macOS),
     /// <c>xdg-open</c> (Linux). Pure — unit-tested.</summary>
     public static string FileManagerExe(bool isWindows, bool isMacOS)
@@ -75,6 +106,46 @@ public static class PlatformShell
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
 
         Launch(FileManagerExe(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS()), path, start);
+    }
+
+    /// <summary>
+    /// <see cref="OpenUrl(string?)"/> with the launch supplied, so the refusal can be observed.
+    /// </summary>
+    internal static void OpenUrl(string? url, Action<ProcessStartInfo> start)
+    {
+        if (!IsWebLink(url))
+        {
+            // A refusal is still a click that did nothing, so it says so. Only when something was
+            // actually offered: a command invoked with no link at all is not an event.
+            if (!string.IsNullOrWhiteSpace(url))
+                AppLog.Warn($"Refused to open \"{url}\": only https links are opened.");
+            return;
+        }
+
+        // A browser is reached through the registered handler for the scheme, so this one is shell-execute
+        // by necessity -- which is also why the check above is not optional.
+        Launch(new ProcessStartInfo(url!) { UseShellExecute = true }, start);
+    }
+
+    /// <summary>
+    /// <see cref="OpenInputMonitoringSettings()"/> with the OS and the launch supplied.
+    /// </summary>
+    /// <remarks>
+    /// The mechanism is the one this call already used before it moved here: the URI goes to the shell
+    /// rather than to <c>open</c> as an argument, which is how <see cref="OpenDisplaySettings()"/> asks
+    /// for its pane. Both work; they are left as they were because macOS is not verifiable from the
+    /// supported platform, and unifying them blind would be changing a shipped path on a guess.
+    /// </remarks>
+    internal static void OpenInputMonitoringSettings(bool isMacOS, Action<ProcessStartInfo> start)
+    {
+        if (!isMacOS) return;
+
+        Launch(
+            new ProcessStartInfo("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+            {
+                UseShellExecute = true,
+            },
+            start);
     }
 
     /// <summary>

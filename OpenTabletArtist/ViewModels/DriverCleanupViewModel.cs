@@ -44,12 +44,18 @@ public partial class DriverCleanupViewModel : ObservableObject, IDisposable
 
     /// <summary>Opens a detection's FAQ link. Restricted to the OTD wiki domain so a crafted log line
     /// can't turn this into an arbitrary-URL launcher.</summary>
+    /// <remarks>
+    /// The domain restriction stays here, not in the helper (#889). It exists because of where this
+    /// particular URL comes from -- a detection, which is text this application did not author -- and the
+    /// helper's own https-only rule is a floor under every caller, not a replacement for this one.
+    /// </remarks>
     [RelayCommand]
     private void OpenUrl(string? url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return;
+        if (url is null) return;
         if (!url.StartsWith("https://opentabletdriver.net/", StringComparison.OrdinalIgnoreCase)) return;
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+
+        Services.PlatformShell.OpenUrl(url);
     }
 
     [RelayCommand]
