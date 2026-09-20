@@ -206,16 +206,6 @@ public interface IOtdSettingsSession
     /// <returns>The result of the write, or <see cref="SettingsApplyStatus.NoChange"/>.</returns>
     Task<SettingsApplyOutcome> RetryPendingPersistAsync();
 
-    /// <summary>
-    /// Records the baseline the no-op guard compares against, after the host has finished a refresh.
-    ///
-    /// Separate from <see cref="ReloadFromDaemonAsync"/> because the host repairs what it read — removing
-    /// dead filter stores, disabling ones its policy does not approve — and the guard's subject is what
-    /// the daemon holds once that is done. Recording it before those repairs would let the guard skip an
-    /// apply that would have carried them.
-    /// </summary>
-    void RecordLoadedBaseline();
-
     /// <summary>Re-reads the saved default from disk and applies it, discarding any override.</summary>
     /// <returns>
     /// What happened. Every way this can fall short has its own status, because a restore that did not

@@ -38,7 +38,7 @@ internal static class Program
             Console.Error.WriteLine("""
                 Usage: OtdDaemonSwitchCheck <daemon-a.exe> <daemon-b.exe> [scenario]
 
-                Two DIFFERENT OpenTabletDriver.Daemon executables. Scenario is 1-4, or omitted for all.
+                Two DIFFERENT OpenTabletDriver.Daemon executables. Scenario is 1-5, or omitted for all.
 
                 This starts and kills daemon processes and toggles the read-only flag on the settings file
                 the daemon reports. It restores the flag; it does not restore which daemon was running.
@@ -78,6 +78,7 @@ internal static class Program
                 if (scenario is "all" or "2") await SwitchWithNothingPending(a, b, context);
                 if (scenario is "all" or "3") await SameDaemonRestart(a, context);
                 if (scenario is "all" or "4") await UnreadableDaemon(a, context);
+                if (scenario is "all" or "5") await TheSameEditTwice(a, context);
             });
         }
         finally
@@ -217,6 +218,45 @@ internal static class Program
         Check("and saves once writable", saved == SettingsApplyStatus.AppliedAndSaved, saved);
     }
 
+    /// <summary>
+    /// The same settings applied twice: the second time changes nothing, and the session says so.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Added because the four scenarios above could not see the change they were run to validate. The
+    /// library took over recording the no-op guard's baseline (#807 Phase 5), and deleting that recording
+    /// entirely left this tool passing 23 of 23 against real daemons — because every edit it makes flips
+    /// a flag, so no two consecutive applies are ever identical and the guard never gets a chance to
+    /// fire. A guard that cannot fire cannot report on its own baseline.
+    /// </para>
+    /// <para>
+    /// So: apply, then apply the identical thing again. The second must come back <c>NoChange</c>, which
+    /// it can only do if this session recorded what the daemon accepted the first time. Everything real
+    /// is real — the daemon took the first one and the disk holds it, which is what the guard compares
+    /// against.
+    /// </para>
+    /// </remarks>
+    private static async Task TheSameEditTwice(string a, PumpContext context)
+    {
+        Head("5. the same settings applied twice");
+        await KillDaemonsAsync();
+        using var h = await Open(a, context);
+
+        var edit = await h.ReadSettings();
+        var profile = edit.Profiles[0];
+        profile.BindingSettings.DisablePressure = !profile.BindingSettings.DisablePressure;
+
+        var first = (await h.Settings.ApplyAndSaveAsync(edit)).Status;
+        Check("the first apply reaches the daemon and the disk",
+            first == SettingsApplyStatus.AppliedAndSaved, first);
+
+        // The same settings, not a fresh flip. Passing the same object is deliberate: the session copies
+        // what it is given, so this asks whether the SETTINGS are identical rather than the reference.
+        var second = (await h.Settings.ApplyAndSaveAsync(edit)).Status;
+        Check("the second changes nothing, and is recognised as changing nothing",
+            second == SettingsApplyStatus.NoChange, second);
+    }
+
     // --- harness ---------------------------------------------------------------------------------
 
     /// <summary>A live session over a started daemon, plus the settings file it reported.</summary>
@@ -238,6 +278,21 @@ internal static class Program
         public void BlockWrites(bool on)
         {
             if (File.Exists(settingsFile)) new FileInfo(settingsFile).IsReadOnly = on;
+        }
+
+        /// <summary>Re-reads what the daemon holds, for a caller that wants to edit it.</summary>
+        /// <remarks>
+        /// Through the session's own reload, so what comes back is what it would edit — not a second
+        /// opinion obtained around it.
+        /// </remarks>
+        public async Task<Settings> ReadSettings()
+        {
+            MustBeOnTheContext(context, "reading the daemon's settings");
+            var reload = await Settings.ReloadFromDaemonAsync();
+            MustBeOnTheContext(context, "adopting what was read");
+
+            return reload.Adopted?.Settings
+                   ?? throw new InvalidOperationException("the daemon returned no settings");
         }
 
         /// <summary>Makes one real edit and reports what happened to it.</summary>
