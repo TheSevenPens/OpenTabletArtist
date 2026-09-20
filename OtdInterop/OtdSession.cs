@@ -96,7 +96,7 @@ public sealed class OtdSession : IDisposable
         public Action? PublishingLookup { get; init; }
 
         /// <summary>
-        /// Called just before work in flight is abandoned, with whether teardown has already happened.
+        /// Called just before work in flight is abandoned, with whether the terminal flag is latched.
         /// </summary>
         /// <remarks>
         /// The ordering it reports is the whole of the fix for #891, and it cannot be observed from
@@ -1087,9 +1087,30 @@ public sealed class OtdSession : IDisposable
     private Task<bool>? _closing;
     private bool _admissionStopped;
     private bool _tornDown;
-    private bool _transportGone;
 
-    /// <summary>Whether the transport has gone, for the capabilities this session lends out.</summary>
+    /// <summary>Whether someone has claimed the transport teardown -- not whether it has finished.</summary>
+    private bool _teardownStarted;
+
+    /// <summary>
+    /// Completes when the claimed teardown has actually finished, or faults with what stopped it.
+    /// </summary>
+    /// <remarks>
+    /// The two are separate because a second caller arriving mid-teardown used to see the latch, take it
+    /// for "done" and return (#893). A close could then come back while the transport was still up and,
+    /// worse, while the publication gate below was still holding a lookup handoff on its way to the host
+    /// -- which is exactly what that gate exists to make impossible.
+    /// </remarks>
+    private readonly TaskCompletionSource _teardownComplete =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Whether this session has entered terminal shutdown, for the capabilities it lends out.
+    /// </summary>
+    /// <remarks>
+    /// The terminal state, not the transport's: it is latched when shutdown begins and the transport is
+    /// disposed a little later (#893). That is the answer capabilities want -- once a session is going,
+    /// refusing new calls is right whether or not the socket has actually closed yet.
+    /// </remarks>
     private bool TornDown
     {
         get { lock (_closeGate) return _tornDown; }
@@ -1126,6 +1147,11 @@ public sealed class OtdSession : IDisposable
         finally
         {
             TearDown();
+
+            // Claiming it is not finishing it. When another caller owns the teardown this is where the
+            // close waits for theirs, outside every lock, so "the close returned" still means the
+            // transport has gone and no lookup handoff is in flight (#893).
+            await _teardownComplete.Task.ConfigureAwait(false);
         }
     }
 
@@ -1170,32 +1196,56 @@ public sealed class OtdSession : IDisposable
         lock (_closeGate) _tornDown = true;
     }
 
-    /// <summary>Detaches and disposes the transport. Idempotent, and never waits.</summary>
+    /// <summary>
+    /// Detaches and disposes the transport, once. Never waits: a caller that needs the teardown to have
+    /// finished awaits <see cref="_teardownComplete"/> instead.
+    /// </summary>
+    /// <remarks>
+    /// The latch marks the claim, and the work runs outside it. Returning early on the latch alone told a
+    /// second caller the transport was gone while the first was still holding the publication gate (#893).
+    /// Waiting here instead is not the fix either: this runs inside <c>Dispose</c>, which a host may call
+    /// from a callback, and blocking there is how the deadlock #828 removed came back.
+    /// </remarks>
     private void TearDown()
     {
         MarkTornDown();
 
-        // Its own latch: the flag above may already be set by a Close that set it deliberately early, and
-        // the transport still has to be disposed exactly once.
+        // The flag above may already be set by a Close that latched it deliberately early, so the claim
+        // on the transport is its own.
+        bool mine;
         lock (_closeGate)
         {
-            if (_transportGone) return;
-
-            _transportGone = true;
+            mine = !_teardownStarted;
+            _teardownStarted = true;
         }
 
-        // The transport is going, so nothing outstanding on it will be heard from. Latched under the
-        // publish gate and outside the one above, so this waits for a dispatch already under way rather
-        // than racing it -- and so a close cannot return while a reply that passed the check is still on
-        // its way to the host.
-        _probe?.ReachingTeardown?.Invoke();
-        lock (_publishGate) _lookupsAbandoned = true;
+        if (!mine) return;
 
-        // A close waiting on those lookups is released here rather than left to spend its window on them.
-        lock (_liveGate) _lookupsQuiet?.TrySetResult();
+        try
+        {
+            // The transport is going, so nothing outstanding on it will be heard from. Latched under the
+            // publish gate and outside the one above, so this waits for a dispatch already under way
+            // rather than racing it -- and so a close cannot return while a reply that passed the check
+            // is still on its way to the host.
+            _probe?.ReachingTeardown?.Invoke();
+            lock (_publishGate) _lookupsAbandoned = true;
 
-        Detach();
-        Connection.Dispose();
+            // A close waiting on those lookups is released here rather than left to spend its window on
+            // them.
+            lock (_liveGate) _lookupsQuiet?.TrySetResult();
+
+            Detach();
+            Connection.Dispose();
+
+            _teardownComplete.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            // Shared the way the close's answer is: a caller waiting on this must hear what stopped it
+            // rather than wait on a task nothing will ever complete.
+            _teardownComplete.TrySetException(ex);
+            throw;
+        }
     }
 
     /// <summary>Closes without waiting, for <see cref="Dispose"/>.</summary>
