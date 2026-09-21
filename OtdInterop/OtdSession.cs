@@ -16,6 +16,36 @@ public sealed class OtdSession : IDisposable
     private string? _targetSettingsPath;
     private string? _connectedPath;
 
+    /// <summary>
+    /// A write a discarded session gave up waiting for, and the daemon it was sent to (#919).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The knowledge that has to outlive the coordinator. A write OTA stopped waiting for is still the
+    /// daemon's to finish, and it carries whole settings — so if it lands after a replacement session has
+    /// applied and saved something else, it silently replaces that edit, and the replacement finds out
+    /// only on some later refresh, with the artist's work already gone.
+    /// </para>
+    /// <para>
+    /// Editing stays refused while one is outstanding. Two things end that: the write completing, or the
+    /// process it was sent to being gone. Executable and settings paths matching does not establish the
+    /// second — an intentional restart keeps both and changes the process — so the pid is what is
+    /// compared, and an unknown pid counts as unresolved rather than as proof of anything.
+    /// </para>
+    /// </remarks>
+    private Task<bool>? _outstandingWrite;
+    private int? _outstandingWritePid;
+
+    /// <summary>
+    /// The driver process this session last identified, remembered while it was still answering.
+    /// </summary>
+    /// <remarks>
+    /// Asked at retire time it is already gone — a dropped transport reports no pid — and an abandoned
+    /// write would then have nothing to compare against and would block editing for ever, including
+    /// after the driver restart its own message asks for.
+    /// </remarks>
+    private int? _connectedPid;
+
     private OtdSession(IDaemonTransport connection, IDaemonSettingsChannel channel,
         ISettingsFileStore? store, IOtdLog log, IDaemonProcessLocator locator)
     {
@@ -50,6 +80,9 @@ public sealed class OtdSession : IDisposable
     /// <summary>Why settings are unavailable, or an empty string.</summary>
     public string SettingsProblem => _settings is { HasUnconfirmedWrite: true }
         ? "The last apply could not be confirmed. Restart the driver before editing or saving." : _problem;
+
+    /// <summary>Retry initialization; useful once an abandoned write has finally completed.</summary>
+    internal bool HasOutstandingWrite => WriteStillOutstanding();
     /// <summary>Current transport identity, or zero while disconnected. Reject obsolete queued UI notifications using this value.</summary>
     public int ConnectionId => _channel.Incarnation;
     /// <summary>Executable identified on the most recent connection.</summary>
@@ -67,14 +100,52 @@ public sealed class OtdSession : IDisposable
 
     private void OnConnected()
     {
-        lock (_state) Interlocked.Exchange(ref _settings, null)?.Dispose();
+        Retire();
         _ = InitializeAsync();
     }
 
     private void OnDisconnected()
     {
-        lock (_state) Interlocked.Exchange(ref _settings, null)?.Dispose();
+        Retire();
         if (!_disposed) Disconnected?.Invoke();
+    }
+
+    /// <summary>Discards the settings session, keeping what must outlive it.</summary>
+    private void Retire()
+    {
+        SettingsCoordinator? going;
+        lock (_state) going = Interlocked.Exchange(ref _settings, null);
+        if (going?.OutstandingWrite is { } write && !write.IsCompleted)
+        {
+            _outstandingWrite = write;
+            _outstandingWritePid = _connection.GetServerProcessId() ?? _connectedPid;
+            _log.Warn("A settings write was never confirmed by the driver. Editing stays disabled until "
+                      + "it finishes or that driver process is gone, because it would replace whatever is "
+                      + "applied in the meantime.");
+        }
+        going?.Dispose();
+    }
+
+    /// <summary>
+    /// Whether an abandoned write can still overwrite a new session's work.
+    /// </summary>
+    /// <remarks>
+    /// Resolved by the write completing, or by the pid differing from the one it was sent to — a
+    /// different process cannot be holding it. An unknown pid on either side resolves nothing.
+    /// </remarks>
+    private bool WriteStillOutstanding()
+    {
+        if (_outstandingWrite is not { } write) return false;
+        if (write.IsCompleted) { _outstandingWrite = null; _outstandingWritePid = null; return false; }
+
+        var now = _connection.GetServerProcessId();
+        if (_outstandingWritePid is { } then && now is { } current && then != current)
+        {
+            _outstandingWrite = null;
+            _outstandingWritePid = null;
+            return false;
+        }
+        return true;
     }
 
     /// <summary>Retry initial metadata/settings reads. A failed or replaced settings session is never migrated.</summary>
@@ -90,11 +161,18 @@ public sealed class OtdSession : IDisposable
             var info = await _connection.GetAppInfoAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             if (_disposed || channel != _channel.Incarnation) return;
             _connectedPath = path;
+            _connectedPid = _connection.GetServerProcessId();
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(info?.SettingsFile))
                 _problem = "The driver or its settings location could not be identified. Settings are read-only.";
             else if ((_targetPath is not null && !PathEquality.Same(_targetPath, path))
                 || (_targetSettingsPath is not null && !PathEquality.Same(_targetSettingsPath, info.SettingsFile)))
                 _problem = "A different OpenTabletDriver is connected. Restart OpenTabletArtist to use it.";
+            else if (WriteStillOutstanding())
+            {
+                _problem = "A settings change sent to this driver was never confirmed. Editing is "
+                    + "disabled until it finishes or the driver is restarted, so it cannot overwrite "
+                    + "anything you do now.";
+            }
             else
             {
                 _targetPath ??= path;

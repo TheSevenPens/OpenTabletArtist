@@ -53,6 +53,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
     /// <summary>Closed because a write's completion could never be established (#919).</summary>
     internal bool HasUnconfirmedWrite => _unconfirmed;
 
+    private Task<bool>? _outstandingWrite;
+
+    /// <summary>
+    /// A write this session stopped waiting for, or null. Completed once the daemon is finally done
+    /// with it (#919).
+    /// </summary>
+    /// <remarks>
+    /// Survives this session deliberately. The write is still the daemon's to finish, and until it does,
+    /// anything else editing that daemon can be overwritten by it without warning — so the owner carries
+    /// this across a reconnect rather than discarding it with the coordinator.
+    /// </remarks>
+    internal Task<bool>? OutstandingWrite => Volatile.Read(ref _outstandingWrite);
+
     private State Published => Volatile.Read(ref _state);
 
     public PreparedSettings? GetCurrent() => Published.Current is { } current
@@ -151,14 +164,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
         if (SettingsCodec.Same(requested, baseline))
             return SettingsApplyOutcome.NoChange with { Prepared = GetCurrent() };
         // The write and its verification fail differently, and only one of them is terminal.
+        //
+        // The RPC task is kept, not just awaited. Giving up on the wait does not stop the write, and
+        // whoever owns this connection has to be able to find out when it finally lands — a replacement
+        // session cannot be trusted with the daemon until then (#919).
+        var write = _channel.SetSettingsAsync(requested);
         try
         {
-            if (!IsConnected || !await _channel.SetSettingsAsync(requested)
-                    .WaitAsync(_timeout, _lifetime.Token).ConfigureAwait(false))
+            if (!IsConnected || !await write.WaitAsync(_timeout, _lifetime.Token).ConfigureAwait(false))
                 return SettingsApplyOutcome.Disconnected;
         }
         catch (Exception ex)
         {
+            Volatile.Write(ref _outstandingWrite, write);
             // The write has not returned, so we do not know whether it landed — and we cannot find out.
             // SetSettings takes no cancellation token and OTD's RPC host serves every connection against
             // the same daemon object, so neither a fresh pipe nor restarting OTA stops work already
