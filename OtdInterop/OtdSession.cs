@@ -115,6 +115,12 @@ public sealed class OtdSession : IDisposable
     {
         SettingsCoordinator? going;
         lock (_state) going = Interlocked.Exchange(ref _settings, null);
+
+        // Disposed BEFORE the marker is read (#923). Disposal closes admission, so once it returns a send
+        // has either published its marker already or will never start -- and only then does reading the
+        // marker answer the question. Reading first left a send admitted in that gap untracked.
+        going?.Dispose();
+
         if (going?.OutstandingWrite is { } write && !write.IsCompletedSuccessfully)
         {
             _outstandingWrite = write;
@@ -123,7 +129,6 @@ public sealed class OtdSession : IDisposable
                       + "it finishes or that driver process is gone, because it would replace whatever is "
                       + "applied in the meantime.");
         }
-        going?.Dispose();
     }
 
     /// <summary>

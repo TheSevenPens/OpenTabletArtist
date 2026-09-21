@@ -11,6 +11,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
     private readonly string _path;
     private readonly SemaphoreSlim _operations = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
+    /// <summary>Held across admitting a write and across retirement, and nothing else (#923).</summary>
+    private readonly object _admission = new();
     private readonly TimeSpan _timeout;
     /// <summary>
     /// What is live and what is on disk, as one value (#919).
@@ -74,6 +76,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
     /// </para>
     /// </remarks>
     internal Task<bool>? OutstandingWrite => Volatile.Read(ref _outstandingWrite);
+
+    /// <summary>Carries the real write's answer onto the marker published before the send.</summary>
+    /// <remarks>
+    /// Faithfully, including the failures: a faulted or cancelled write leaves the marker unresolved, so
+    /// the owner keeps refusing. Only the daemon actually answering completes it successfully.
+    /// </remarks>
+    private static void Settle(TaskCompletionSource<bool> admitted, Task<bool> write) =>
+        _ = write.ContinueWith(static (finished, state) =>
+        {
+            var marker = (TaskCompletionSource<bool>)state!;
+            if (finished.IsCompletedSuccessfully) marker.TrySetResult(finished.Result);
+            else if (finished.IsCanceled) marker.TrySetCanceled();
+            else marker.TrySetException(finished.Exception!.InnerExceptions);
+        }, admitted, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
 
     private State Published => Volatile.Read(ref _state);
 
@@ -174,11 +191,37 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
             return SettingsApplyOutcome.NoChange with { Prepared = GetCurrent() };
         // The write and its verification fail differently, and only one of them is terminal.
         //
-        // Recorded when it is SENT, not when waiting for it fails (#922). A disconnect reaches the owner
-        // before this method's catch does, so a write recorded there is recorded after the owner has
-        // already retired the session and asked what was outstanding — and got nothing.
-        var write = _channel.SetSettingsAsync(requested);
-        Volatile.Write(ref _outstandingWrite, write);
+        // Recorded BEFORE the transport is entered (#922, #923). The write is what the owner has to
+        // carry across a reconnect, and everything that can go wrong with it can go wrong inside the
+        // send: recording it on the line after meant a disconnect raised during the send reached
+        // retirement while there was still nothing to find. A marker published first is the only thing
+        // certainly earlier than anything the send can do; the real write settles it when it answers.
+        var admitted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Admission and retirement take the same lock, so there is no ordering left to reason about: a
+        // send that started published its marker first, and a coordinator already retired starts none.
+        // Everything else here is outside it, including the Dispose below.
+        Task<bool>? write = null;
+        Exception? refused = null;
+        lock (_admission)
+        {
+            if (_closed) return SettingsApplyOutcome.Disconnected;
+            Volatile.Write(ref _outstandingWrite, admitted.Task);
+            try { write = _channel.SetSettingsAsync(requested); }
+            catch (Exception ex) { refused = ex; }
+        }
+
+        if (write is null)
+        {
+            // Threw on the way out rather than returning a task. Whether anything reached the daemon is
+            // exactly what cannot be established, so the marker stays unresolved and keeps refusing.
+            admitted.TrySetException(refused!);
+            _unconfirmed = true;
+            Dispose();
+            return SettingsApplyOutcome.Failed(new IOException(
+                "The apply could not be confirmed. Restart the driver before editing or saving.", refused!));
+        }
+        Settle(admitted, write);
         try
         {
             if (!IsConnected || !await write.WaitAsync(_timeout, _lifetime.Token).ConfigureAwait(false))
@@ -278,7 +321,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
 
     public void Dispose()
     {
-        _closed = true;
+        // Under the admission lock, so that once this returns, either a send has already published its
+        // marker or no send will start. The owner reads the marker after calling this, and that pairing
+        // is the whole of what keeps an abandoned write from being lost (#923).
+        lock (_admission) _closed = true;
         _lifetime.Cancel();
     }
 }

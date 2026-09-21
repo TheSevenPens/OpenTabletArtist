@@ -96,6 +96,78 @@ public class ConnectionSessionTests
         Assert.True(session.CanEditSettings);
     }
 
+    /// <summary>
+    /// A disconnect raised <em>inside</em> the send still leaves the write recorded (#923).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Recording the write on the line after the send closed the window that started at the timeout and
+    /// left the one inside the send itself. Sending is exactly where a connection goes: the disconnect
+    /// arrives while <c>SetSettingsAsync</c> has not yet returned a task to record, retirement asks what
+    /// is outstanding and gets nothing, and editing reopens on the next connection over a write the
+    /// daemon is still holding.
+    /// </para>
+    /// <para>
+    /// So the marker is published before the transport is entered, and settled from the real write when
+    /// it answers. Before the send is the only point that is certainly earlier than anything the send can
+    /// do.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADisconnectRaisedInsideTheSend_StillLeavesTheWriteRecorded()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = SettingsSessionTests.Document(),
+            ServerProcessId = 4242,
+        };
+        var store = new MemorySettingsFileStore { Saved = SettingsSessionTests.Document() };
+        using var session = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        // The connection goes while the send is still running, before it has a task to hand back.
+        var stranded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            daemon.RaiseDisconnected();
+            return stranded.Task;
+        };
+
+        var applying = session.Settings!.ApplyAsync(SettingsSessionTests.Document(180));
+        await WaitFor(() => daemon.Applied.Count > 0, "the write to reach the daemon");
+
+        daemon.SetSettingsHandler = null;
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        Assert.False(session.CanEditSettings,
+            "the write was sent and never answered, but nothing recorded it");
+        Assert.Contains("never confirmed", session.SettingsProblem);
+
+        // And it ends when the daemon finally answers, as it does everywhere else. The apply gave up at
+        // the disconnect, so waiting on it establishes nothing about the write; the marker settles from
+        // the write's own completion, a moment after the daemon's method returns.
+        stranded.SetResult(true);
+        await applying;
+        await WaitFor(async () =>
+        {
+            await session.InitializeAsync();
+            return session.CanEditSettings;
+        }, "editing to reopen once the write answered");
+    }
+
+    /// <summary>As <see cref="WaitFor(Func{bool}, string)"/>, for a condition that has to be asked.</summary>
+    private static async Task WaitFor(Func<Task<bool>> until, string what)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!await until())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"Timed out waiting for {what}.");
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+    }
+
     private static async Task WaitFor(Func<bool> until, string what)
     {
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
