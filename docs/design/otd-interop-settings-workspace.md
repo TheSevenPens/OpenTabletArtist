@@ -72,7 +72,7 @@ Compared with `6f56723`, counting all C# source and helpers while excluding buil
 
 The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain. Added since: the write boundary, the shutdown cases, an abandoned write across a reconnect and across a real pipe, idle adoption, input arriving during the adoption read and the pause that leaves, a dialog holding the document open against a Reload and against another hand's write, and a calibration whose write was refused.
 
-The full solution build completed with zero warnings and zero errors. All 1,142 test cases passed: 69 interop, 997 application logic, and 76 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
+The full solution build completed with zero warnings and zero errors. All 1,146 test cases passed: 69 interop, 997 application logic, and 80 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
 
 An interactive pass against a real daemon followed on 2026-09-21: apply-live with the unsaved chip,
 explicit save, survival across a driver restart, an external edit pausing the page, reconnect, and the
@@ -102,15 +102,23 @@ before its marker was published, the new host-side pause cleared by the next ref
 replacing the document without ending a dialog's claim on it, and a refused calibration write presented
 as a working preview. A third, over `4009802`, found three more, all of them calibration's: a caller
 overwriting the refusal its own helper had reported, Cancel refused by the overlay's own unfinished
-preview, and a write the driver had accepted described as one that never happened.
+preview, and a write the driver had accepted described as one that never happened. A fourth, over
+`3d27e1a`, found two more on the same boundary: a tap landing while Cancel waited could apply a
+calibration after the overlay had closed, and Keep could close over a Redo that was still running.
 
-Every one of those ten lived in an interval between two correct pieces, and none was reachable from a
-component test. The third round named the structural version of that: calibration keeps a multi-step
+Every one of those lived in an interval between two correct pieces, and the tests that existed did not
+exercise those cases. That is the lesson rather than "component tests cannot catch composition errors":
+refusal handling and a caller overwriting a phase are perfectly testable with a view model and a
+scripted callback. What has to be tested deliberately is ownership, delayed completion and terminal
+close.
+
+The third and fourth rounds named the structural version: calibration keeps a multi-step
 preview-and-restore conversation over a document it captured when it opened, while other writers stay
 live. The generation rule says whether another hand has taken the document; it says nothing about the
-order of the dialog's own steps or what their answers meant. So the dialog now has one place that
-sequences its operations, reads their outcomes and finishes closing — which is a smaller thing than a
-transaction protocol, and the point at which this region stopped producing findings.
+order of the dialog's own steps, what their answers meant, or when the session has ended. So the dialog
+has one place that sequences its operations, one gate that asks again at the front of the queue, and a
+close that is a decision rather than a position in it — a smaller thing than a transaction protocol.
+Whether that is the end of the findings here is not something this note should claim.
 
 That shape — one atomic replacement, then coherent fixes with their reviewed history intact — is what
 this branch merges as.
