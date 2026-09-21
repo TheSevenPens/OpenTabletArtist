@@ -59,6 +59,9 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
                 OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
+
+                // The card itself now depends on the offer, so it has to move with it.
+                OnPropertyChanged(nameof(ShowDriverCard));
             }
         };
     }
@@ -146,9 +149,16 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     public bool ShowLocateCard =>
         Status.IsDaemonExeMissing || HasUserDaemonPath || !Status.HasBundledDaemon;
 
-    /// <summary>The driver block covers both answers to "which OpenTabletDriver?" — install one, or point
-    /// at one you have — so it shows when either is on offer.</summary>
-    public bool ShowDriverCard => ShowLocateCard || ShowInstallCard;
+    /// <summary>The driver block covers the answers to "which OpenTabletDriver?" — install one, point at
+    /// one you have, or go back to the bundled copy — so it shows when any of them is on offer.</summary>
+    /// <remarks>
+    /// The third one had to be added here, and it was found by looking at the page rather than by any
+    /// test (#725). <see cref="CanSwitchToBundledDaemon"/> is true exactly when a bundled copy exists, no
+    /// location is chosen and the exe is not missing — which is the one combination that makes
+    /// <see cref="ShowLocateCard"/> false. So the offer lived inside a card that was hidden whenever the
+    /// offer applied, and visible only in the state that tells the user they cannot take it yet.
+    /// </remarks>
+    public bool ShowDriverCard => ShowLocateCard || ShowInstallCard || CanSwitchToBundledDaemon;
 
     /// <summary>Why the last chosen path was refused, or "" — shown next to the picker so a rejection
     /// explains itself instead of appearing to do nothing.</summary>
