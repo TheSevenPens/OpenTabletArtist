@@ -34,15 +34,19 @@ public record DisplayInfo(int Number, string Name, int Width, int Height, int X,
     /// Used by the per-display list so the designation reads with the name rather than in the detail line.</summary>
     public string DisplayTitleWithPrimary => IsPrimary ? $"{DisplayTitle} (PRIMARY)" : DisplayTitle;
 
-    /// <summary>Detail line beneath the title: resolution · refresh · port · GPU (blanks skipped). The
-    /// primary marker lives on <see cref="DisplayTitleWithPrimary"/> next to the name instead.</summary>
+    /// <summary>Detail line beneath the title: resolution · refresh · port (blanks skipped). The primary
+    /// marker lives on <see cref="DisplayTitleWithPrimary"/> next to the name instead.</summary>
+    /// <remarks>
+    /// No adapter. Which card drives a monitor is not something you choose a mapping by, and on a machine
+    /// with one GPU it repeated the same string down the whole list. <see cref="Gpu"/> is still read — it
+    /// is one cheap GDI call — and is there for anything that wants it.
+    /// </remarks>
     public string DetailSubLine
     {
         get
         {
             var s = ResolutionWithRefresh;
             if (HasPort) s += "  ·  " + Port;
-            if (HasGpu) s += "  ·  " + Gpu;
             return s;
         }
     }

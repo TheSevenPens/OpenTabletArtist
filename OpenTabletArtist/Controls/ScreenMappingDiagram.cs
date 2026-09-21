@@ -290,25 +290,35 @@ public sealed class ScreenMappingDiagram : Control
                  effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
-        // ── The bottom edge's two rails: the display's bottom-left corner to the active area's
-        //    bottom-left, and bottom-right to bottom-right. ──
+        // ── Rails: corner to matching corner, display to active area. ──
         //
-        // The bottom beam is a wedge whose sides are exactly these two lines, and a filled gradient says
-        // "these regions correspond" without saying WHICH point goes where. Drawing the sides makes the
-        // pairing readable: follow a rail and you can see the corner it lands on.
+        // The beams are filled wedges, and a gradient says "these regions correspond" without saying
+        // WHICH point goes where. The rails say it: follow one and you can see the corner it lands on.
         //
-        // Drawn outside the clip above rather than with the beams. They start ON the display's bottom
-        // edge, and a clip that excludes the display box cuts exactly along that line — half a stroke
-        // wide, which would shave the end off each rail at the one point where it has to look attached.
+        // Three of them, which is what a box drawn from outside shows — the fourth edge is the one
+        // behind, and drawing it would turn a solid into a wireframe.
+        //
+        // Clipped out of the display, like the beams. The third rail starts at a corner of the display
+        // rather than below it, and when the active area is narrower than the display it runs down
+        // across the display's face on its way to the matching corner — which is the thing the beams
+        // were clipped to stop doing. Clipped, it emerges from the bottom edge instead, which is how a
+        // solid box reads: the edge is behind the near face until it clears it.
+        //
+        // The two bottom rails are unaffected either way. They begin ON the boundary the clip cuts
+        // along, and I expected that to shave their ends; rendered side by side it does not show.
         if (selectedBox is { } railBox)
         {
-            // The accent again, because this is the same relationship the beams and the active-area
-            // outline already describe. Between the two in weight: firmer than a gradient that fades to
-            // nothing, quieter than the outlines it connects, so it reads as the join rather than as a
-            // third boundary.
-            var rail = new Pen(new SolidColorBrush(Color.FromArgb(0xC4, accent.R, accent.G, accent.B)), 1.75);
+            // The accent, at half weight. These connect things that are already drawn; at full strength
+            // they competed with the outlines they run between, and the diagram grew a third set of
+            // edges as loud as the two it exists to relate.
+            var rail = new Pen(new SolidColorBrush(Color.FromArgb(0x80, accent.R, accent.G, accent.B)), 1.75);
+            using var _railsStopAtTheDisplay = ctx.PushGeometryClip(new CombinedGeometry(
+                GeometryCombineMode.Exclude,
+                new RectangleGeometry(new Rect(Bounds.Size)),
+                new RectangleGeometry(railBox)));
             ctx.DrawLine(rail, railBox.BottomLeft, effRect.BottomLeft);
             ctx.DrawLine(rail, railBox.BottomRight, effRect.BottomRight);
+            ctx.DrawLine(rail, railBox.TopRight, effRect.TopRight);
         }
 
         // The selected display, drawn after the beams — which are also clipped out of it, so its
