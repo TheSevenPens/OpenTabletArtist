@@ -432,10 +432,16 @@
                          an officially-installed / separately-started OpenTabletDriver — and launches whichever
                          one the search ladder resolves to when nothing is running (docs/design/official-otd-release.md:
                          an installed OTD outranks the dev tree on macOS, so "we started it" no longer implies
-                         "it is our build"). When the connected daemon isn't OTA's build,
-                         present that here as a supported setup (path + version), with a one-click switch back
-                         to bundled. The topology already says "External" under the daemon end; this card is
-                         where the explanation and the way out live. -->
+                         "it is our build"). When the connected daemon isn't OTA's build, present that here as
+                         a supported setup (path + version). The topology already says "External" under the
+                         daemon end; this card is where the explanation lives.
+
+                         There is no longer a labelled way back to the bundled copy: 660b49a removed the
+                         "Use bundled daemon instead" button and nothing replaced it. Restart still does it:
+                         it stops the external daemon and starts ours, but only as a generic item in the
+                         daemon flyout, which does not say so. Deliberate or not, this comment claimed the
+                         button for eleven days after it was deleted; whether to offer a labelled route again
+                         is open (#725). -->
                     <!-- One block for both answers to "which driver?", because they are the same
                          question: install the official release, or point OTA at one you already have.
                          They were two sections with two headings and two paragraphs saying so. -->

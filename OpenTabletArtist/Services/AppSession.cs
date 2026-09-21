@@ -44,9 +44,6 @@ public interface IConnectionState : INotifyPropertyChanged
     /// nothing is bundled yet — so the app is built against an OpenTabletDriver release without carrying
     /// a copy of it. (docs/design/official-otd-release.md)</summary>
     bool HasBundledDaemon { get; }
-    /// <summary>Offer "use the bundled daemon instead" only when this build actually ships one. On macOS
-    /// the switch would stop the user's OpenTabletDriver and start the very same one again.</summary>
-    bool CanSwitchToBundledDaemon { get; }
     /// <summary>The connected daemon's path is known and worth showing.</summary>
     bool HasDaemonSourcePath { get; }
     bool ShowDaemonSourceUnknown { get; }
@@ -370,7 +367,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool ShowForeignDaemonWarning => IsConnected && IsForeignDaemon;
     public bool ShowDaemonSourceUnknown => IsConnected && Ownership == DaemonOwnership.Unknown;
     public bool HasBundledDaemon => _daemonLifecycle.HasBundledDaemon();
-    public bool CanSwitchToBundledDaemon => ShowForeignDaemonWarning && HasBundledDaemon;
     public bool HasDaemonSourcePath => !string.IsNullOrEmpty(DaemonSourcePath);
     public bool CanStartDaemon => !IsConnected && _daemonLifecycle.FindExe() != null;
 
@@ -523,7 +519,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(ShowAppOwnedDaemon));
         OnPropertyChanged(nameof(ShowForeignDaemonWarning));
         OnPropertyChanged(nameof(ShowDaemonSourceUnknown));
-        OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
     }
 
     partial void OnIsConnectedChanged(bool value)
