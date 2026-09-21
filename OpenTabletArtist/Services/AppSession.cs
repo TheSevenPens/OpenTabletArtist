@@ -275,7 +275,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
         SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
         SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
-        SettingsSaveState.ChangedElsewhere => "Settings changed elsewhere. Reload current driver settings to continue.",
+        // Not "somebody else edited them": the driver does this to itself. Attaching a tablet it has not
+        // seen before makes it generate a profile and write its own settings back (DetectTablets then
+        // SetSettings, and ProfileCollection.GetProfile adds the missing one), which the next observation
+        // reads as a difference like any other. Naming an editor would be wrong most of the time and
+        // would send the artist looking for an application that is not running (#919).
+        SettingsSaveState.ChangedElsewhere =>
+            "Driver settings changed. Reload to continue. Attaching a new tablet can cause this, "
+            + "as can another settings app.",
         SettingsSaveState.CouldNotCheck => "Couldn't check current settings. Reload to try again.",
         _ => "",
     };

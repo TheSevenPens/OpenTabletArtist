@@ -551,7 +551,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_session.SettingsBusy) return;
         if ((HasPendingInput || _session.SettingsPaused) && !await _dialogs.ShowConfirmAsync(
             "Reload current driver settings?",
-            "Pending local edits will be discarded. This reads the driver's live settings; it does not restore the saved file or save anything."))
+            "Pending local edits will be discarded. This reads the driver's live settings; it does not "
+            + "restore the saved file or save anything. Changes you already applied are still in the "
+            + "driver and survive this."))
             return;
         _session.SettingsBusy = true;
         try

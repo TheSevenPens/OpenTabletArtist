@@ -212,6 +212,56 @@ public class SettingsSessionTests
     }
 
     /// <summary>
+    /// The driver editing its own settings pauses us the same as another application would (#919).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not hypothetical. On a device arriving, and after sleep, OTD runs <c>DetectTablets()</c> and then
+    /// <c>SetSettings(Settings)</c>; reaching a profile for a tablet it has not seen generates one and
+    /// adds it (<c>ProfileCollection.GetProfile</c>), and <c>MatchSpecifications</c> adjusts binding
+    /// collections. The serialized settings genuinely differ afterwards, so the next observation pauses
+    /// — and the artist did nothing but plug in a tablet.
+    /// </para>
+    /// <para>
+    /// Pinned as the behaviour rather than fixed. Accepting differences seen near a detection would
+    /// accept an unrelated edit that happened to arrive at the same moment, since nothing in the
+    /// notification says which difference came from where. The cost is an extra Reload after attaching a
+    /// new tablet; what this test guards is that the cost is deliberate and that the way out works.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADriverThatAddsAProfileForANewTablet_PausesLikeAnyOtherOutsideChange()
+    {
+        var (session, daemon, store) = await Open();
+        using var lifetime = session;
+
+        // What OTD does to itself when a tablet it has not seen is attached.
+        var withNewTablet = Document();
+        withNewTablet.Profiles.Add(new Profile { Tablet = "A tablet OTD had not seen" });
+        daemon.Settings = withNewTablet;
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await session.ApplyAsync(Document(120))).Status);
+        Assert.True(session.IsPaused);
+        Assert.Empty(daemon.Applied);
+        Assert.Equal(0, store.Attempts);
+
+        // And Reload is the way out, taking the driver's new profile with it.
+        Assert.Equal(SettingsReloadStatus.Adopted, (await session.ReloadAsync()).Status);
+        Assert.False(session.IsPaused);
+        Assert.Equal(2, session.GetCurrent()!.Settings.Profiles.Count);
+
+        // Edited from what the reload gave us, which is what the app does — it holds one document and
+        // submits the whole of it. Editing from a snapshot taken before the detection would drop the
+        // driver's new profile on the next write, and asserting that here would be pinning a mistake
+        // the app does not make.
+        var edited = session.GetCurrent()!.Settings;
+        edited.Profiles[0].AbsoluteModeSettings.Tablet.Width = 120;
+
+        Assert.True((await session.ApplyAsync(edited)).IsLive);
+        Assert.Equal(2, session.GetCurrent()!.Settings.Profiles.Count);
+    }
+
+    /// <summary>
     /// A write that returned and a read back that failed is recoverable: Reload is a way out (#919).
     /// </summary>
     /// <remarks>
