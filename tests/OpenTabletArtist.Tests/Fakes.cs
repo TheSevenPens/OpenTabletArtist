@@ -67,9 +67,7 @@ internal sealed class FakeDialogService : IDialogService
 
     public Task<HotkeyChord?> ShowHotkeyCaptureAsync(HotkeyChord? initial = null) => Task.FromResult(HotkeyResult);
 
-    /// <summary>Result returned by <see cref="ShowProcessPickerAsync"/> (default null = cancelled).</summary>
-    public OpenTabletArtist.Domain.AppIdentity? ProcessPickerResult { get; set; }
-    public Task<OpenTabletArtist.Domain.AppIdentity?> ShowProcessPickerAsync() => Task.FromResult(ProcessPickerResult);
+
 
     public Task ShowTextViewerAsync(string title, string content)
     {
@@ -249,6 +247,21 @@ internal sealed class FakeConnectionState : IConnectionState
     /// <summary>Derived, as the real one is: a test cannot set "there is a notice" without a notice.</summary>
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(_discardedChangeNotice);
 
+    private string _settingsRefreshedNotice = "";
+    public string SettingsRefreshedNotice
+    {
+        get => _settingsRefreshedNotice;
+        set
+        {
+            _settingsRefreshedNotice = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SettingsRefreshedNotice)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasSettingsRefreshedNotice)));
+        }
+    }
+
+    /// <summary>Derived for the same reason.</summary>
+    public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(_settingsRefreshedNotice);
+
     /// <summary>How many times each was asked for, so a test can assert which one a refresh chose.</summary>
     public int Reloads { get; private set; }
     public int Connects { get; private set; }
@@ -300,147 +313,19 @@ internal sealed class FakeConnectionState : IConnectionState
 internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
 {
     public Settings? CurrentSettings { get; set; }
-
-    /// <summary>The last settings handed to ANY apply path.</summary>
     public Settings? Applied { get; private set; }
-
-    /// <summary>The last settings handed to <see cref="ApplyAndSaveSettingsAsync"/> specifically — the
-    /// only path that persists, so tests that care about persistence use this rather than
-    /// <see cref="Applied"/>.</summary>
-    public Settings? SavedAndApplied { get; private set; }
-
-    public int SaveCalls { get; private set; }
-    public int LiveOnlyCalls { get; private set; }
-    public int EphemeralCalls { get; private set; }
-    public int ClearCalls { get; private set; }
+    public int ApplyCalls { get; private set; }
     public int RestoreCalls { get; private set; }
-
-    /// <summary>What <see cref="ApplyAndSaveSettingsAsync"/> reports.</summary>
-    public SettingsApplyOutcome ApplyResult { get; set; } = SettingsApplyOutcome.Saved;
-
-    /// <summary>What <see cref="RestoreDefaultAsync"/> reports. Set a failure to exercise the
-    /// "override is still active" path (#734).</summary>
+    public SettingsApplyOutcome ApplyResult { get; set; } = SettingsApplyOutcome.Live;
     public SettingsRestoreOutcome RestoreResult { get; set; } = SettingsRestoreOutcome.Restored;
-
-    /// <summary>When set, the matching call throws — a reachable daemon that refused the change.</summary>
-    public Exception? ThrowOnEphemeral { get; set; }
-    public Exception? ThrowOnClear { get; set; }
-
-    public bool HasEphemeralOverride { get; private set; }
-
-    public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
-    {
-        SaveCalls++;
-        Applied = SavedAndApplied = settings;
-        HasEphemeralOverride = false;
-        return Task.FromResult(ApplyResult);
-    }
-
-    /// <summary>What the caller said it had taken, or none if it has said nothing (#910).</summary>
-    public SettingsStamp Accepted { get; private set; } = SettingsStamp.None;
-
-    /// <summary>What this fake is publishing, so a test can make an acceptance stale.</summary>
-    public SettingsStamp CurrentStamp { get; set; } = new(1, 1);
-
-    /// <summary>
-    /// Settings and stamp as one publication, and a hook to make a reload land mid-read (#910).
-    /// </summary>
-    /// <remarks>
-    /// The hook is the point. A fake that simply returned today's two values could not tell a caller
-    /// that reads them together from one that reads them twice — which is the whole difference this is
-    /// here to observe. <see cref="WhileReadingPublication"/> runs between the two reads a split caller
-    /// would make, so a test can advance this fake exactly where the race lives.
-    /// </remarks>
-    public Action? WhileReadingPublication { get; set; }
-
-    public PreparedSettings? CurrentPublication
-    {
-        get
-        {
-            var settings = CurrentSettings;
-            WhileReadingPublication?.Invoke();
-            return settings is null ? null : new PreparedSettings(settings, CurrentStamp);
-        }
-    }
-
-    /// <summary>
-    /// Refuses a stale acceptance the way the real one does. A fake that accepted anything would let a
-    /// view model name a snapshot nobody is showing and still look right (#910).
-    /// </summary>
-    public bool AcceptCurrentSettings(SettingsStamp accepted)
-    {
-        // Exact equality, as the real one does since #910: a stamp naming a version this session has
-        // not reached is superseded by nothing, and a fake that took it would hide that.
-        if (accepted.IsNone || accepted != CurrentStamp) return false;
-
-        Accepted = accepted;
-        return true;
-    }
-
-    /// <summary>The conflict a test's overwrite was authorised with, or null if none was (#906).</summary>
-    public SettingsConflict? OverwroteWith { get; private set; }
-
-    /// <summary>What an overwrite answers. Defaults to success, which is the case worth defaulting to.</summary>
-    public SettingsApplyOutcome OverwriteResult { get; set; } = SettingsApplyOutcome.Saved;
-
-    public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict)
-    {
-        // Recorded rather than silently accepted: a fake that took an overwrite the same way it takes an
-        // apply would let a view model authorise one it never had, and look right doing it.
-        OverwroteWith = conflict;
-        SaveCalls++;
-        Applied = SavedAndApplied = settings;
-        HasEphemeralOverride = false;
-        return Task.FromResult(OverwriteResult);
-    }
-
-    /// <summary>The hold a test's resubmission presented, or null if nothing has been resubmitted (#906).</summary>
-    public SettingsHold? ResubmittedUnder { get; private set; }
-
-    /// <summary>How many submissions arrived carrying a hold, to tell a resubmission from an apply.</summary>
-    public int ResubmitCalls { get; private set; }
-
-    public Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held)
-    {
-        // A resubmission is recorded as itself. Answering it exactly like an ordinary apply would hide
-        // the difference these tests exist to observe — which hold, if any, the editor presented.
-        ResubmittedUnder = held;
-        ResubmitCalls++;
-        return ApplyAndSaveSettingsAsync(settings);
-    }
-
-    /// <summary>Whether the daemon takes the change. False models no transport — the apply paths then
-    /// report failure and commit nothing (#766).</summary>
     public bool DaemonAccepts { get; set; } = true;
 
-    public Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings)
     {
-        LiveOnlyCalls++;
-        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
+        ApplyCalls++;
         Applied = settings;
-        HasEphemeralOverride = false;
-        return Task.FromResult(SettingsApplyOutcome.Live);
+        return Task.FromResult(DaemonAccepts ? ApplyResult : SettingsApplyOutcome.Disconnected);
     }
-
-    public Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings settings)
-    {
-        EphemeralCalls++;
-        if (ThrowOnEphemeral != null) throw ThrowOnEphemeral;
-        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
-        Applied = settings;
-        HasEphemeralOverride = true;
-        return Task.FromResult(SettingsApplyOutcome.Live);
-    }
-
-    public Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync()
-    {
-        ClearCalls++;
-        if (ThrowOnClear != null) throw ThrowOnClear;
-        if (!DaemonAccepts) return Task.FromResult(SettingsApplyOutcome.Disconnected);
-        HasEphemeralOverride = false;
-        return Task.FromResult(SettingsApplyOutcome.Live);
-    }
-
     public Task<SettingsRestoreOutcome> RestoreDefaultAsync()
     {
         RestoreCalls++;

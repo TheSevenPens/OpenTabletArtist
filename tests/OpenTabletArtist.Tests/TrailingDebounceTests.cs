@@ -19,6 +19,31 @@ public class TrailingDebounceTests
     private const int PastDelay = Delay * 6;
 
     [Fact]
+    public async Task FlushWaitsForRunningEditAndCancellationDropsQueuedEdit()
+    {
+        using var debounce = new TrailingDebounce(60000, "test");
+        var release = new TaskCompletionSource();
+        var secondRan = false;
+        debounce.Schedule(() => release.Task);
+        var first = debounce.FlushAsync();
+        debounce.Schedule(() => { secondRan = true; return Task.CompletedTask; });
+        var second = debounce.FlushAsync();
+        Assert.False(second.IsCompleted);
+        debounce.CancelPending();
+        release.SetResult();
+        await Task.WhenAll(first, second);
+        Assert.False(secondRan);
+    }
+
+    [Fact]
+    public async Task ExplicitFlushPropagatesAnApplyFailureToPreventSaving()
+    {
+        using var debounce = new TrailingDebounce(60000, "test");
+        debounce.Schedule(() => Task.FromException(new InvalidOperationException("apply failed")));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => debounce.FlushAsync());
+    }
+
+    [Fact]
     public async Task Schedule_RunsTheWorkAfterTheQuietPeriod()
     {
         using var debounce = new TrailingDebounce(Delay, "test");

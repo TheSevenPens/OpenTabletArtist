@@ -12,6 +12,25 @@ public class SettingsFileStoreTests
         Path.Combine(Path.GetTempPath(), $"otdtest_{Guid.NewGuid():N}.json");
 
     [Fact]
+    public void DirtyCheckDoesNotMistakeBackupRecoveryForASavedPrimaryFile()
+    {
+        var path = TempPath();
+        var store = new SettingsFileStore(NullOtdLog.Instance);
+        try
+        {
+            store.Save(new Settings(), path);
+            store.Save(new Settings { LockUsableAreaDisplay = false }, path);
+            var good = store.ReadPrimary(path);
+            File.WriteAllText(path, "invalid json");
+            var damaged = store.ReadPrimary(path);
+            Assert.Null(damaged.Settings);
+            Assert.NotEqual(good.Fingerprint, damaged.Fingerprint);
+            Assert.True(store.TryLoad(path, out _));
+        }
+        finally { File.Delete(path); File.Delete(path + SettingsFileStore.BackupSuffix); }
+    }
+
+    [Fact]
     public void SaveThenLoad_RoundTripsValues()
     {
         var store = new SettingsFileStore(NullOtdLog.Instance);

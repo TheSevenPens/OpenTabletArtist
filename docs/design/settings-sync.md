@@ -1,5 +1,7 @@
 # Settings synchronization: daemon ↔ clients
 
+> Historical design. OTA's current behavior is described in [OTD settings workspace and explicit Save](otd-interop-settings-workspace.md). The autosave, per-app, and conflict-reconciliation behavior below has been superseded; upstream protocol observations remain useful.
+
 How OpenTabletDriver (OTD) settings stay in sync between the daemon and its clients — OpenTabletArtist
 (OTA), OTD's own UX, and the OTDWindowsHelper — and what happens when more than one of them changes
 settings at once. This documents the concern in **#162** (OTDWindowsHelper + OTD UX both editing

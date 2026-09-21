@@ -50,7 +50,7 @@ public class MonitorCycleServiceTests
 
         await svc.CycleAsync();
 
-        Assert.NotNull(coord.SavedAndApplied);
+        Assert.NotNull(coord.Applied);
         var profile = coord.CurrentSettings!.Profiles[0];
         Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(profile, TwoDisplays)!.Number);
         Assert.Contains("Test Tablet", message);
@@ -79,7 +79,7 @@ public class MonitorCycleServiceTests
 
         await svc.CycleAsync();
 
-        Assert.Null(coord.SavedAndApplied);        // nothing persisted
+        Assert.Null(coord.Applied);        // nothing persisted
         Assert.Contains("one display", message);
     }
 
@@ -93,7 +93,7 @@ public class MonitorCycleServiceTests
 
         await svc.CycleAsync();
 
-        Assert.Null(coord.SavedAndApplied);
+        Assert.Null(coord.Applied);
         Assert.Contains("active tablet", message);
     }
 }

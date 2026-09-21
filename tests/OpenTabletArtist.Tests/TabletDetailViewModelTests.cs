@@ -56,8 +56,8 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
-            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
-            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>((reloaded, reloaded.Profiles.First(), new SettingsStamp(1, 1))));
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Live); },
+            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((reloaded, reloaded.Profiles.First())));
 
         await vm.RefreshCommand.ExecuteAsync(null);
         await vm.FixOutputModeCommand.ExecuteAsync(null); // any persist path goes through _settings
@@ -78,8 +78,8 @@ public class TabletDetailViewModelTests
         var vm = new TabletDetailViewModel(
             original.Profiles.First(),
             original,
-            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
-            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>((null, null, new SettingsStamp(1, 1))));
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Live); },
+            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((null, null)));
 
         await vm.RefreshCommand.ExecuteAsync(null);
         Assert.False(string.IsNullOrEmpty(vm.RefreshWarning));
@@ -103,7 +103,7 @@ public class TabletDetailViewModelTests
         Settings? pushed = null;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); });
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Live); });
 
         // A known monitor to pick (7 avoids any real display number the ctor may have pre-selected).
         vm.Displays = new List<DisplayInfo> { new(7, "Main", 1920, 1080, 0, 0, true) };
@@ -150,7 +150,7 @@ public class TabletDetailViewModelTests
         {
             appliedTo.Add(DisplayMappingApplier.CurrentlyMapped(profile, displays)?.Number);
             if (Interlocked.Increment(ref calls) == 1) await hold.Task; // keep the first apply in flight
-            return SettingsApplyOutcome.Saved;
+            return SettingsApplyOutcome.Live;
         });
         vm.Displays = displays;
 
@@ -173,7 +173,7 @@ public class TabletDetailViewModelTests
         var settings = AbsoluteSettingsWith("T");
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live),
             isDetected: () => false,
             onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
@@ -191,7 +191,7 @@ public class TabletDetailViewModelTests
         var settings = AbsoluteSettingsWith("T");
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live),
             isDetected: () => detected,
             onCalibrate: _ => Task.CompletedTask); // a host that can run calibration
 
@@ -251,11 +251,10 @@ public class TabletDetailViewModelTests
 
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); });
+            applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Live); });
 
         vm.ReconcileExternalChange(reloaded, reloaded.Profiles.First());
 
-        Assert.False(vm.HasExternalChange);                    // adopted silently, no banner
         await vm.FixOutputModeCommand.ExecuteAsync(null);      // any persist path goes through _settings
         Assert.Same(reloaded, pushed);                         // now persisting through the adopted settings
     }
@@ -273,11 +272,10 @@ public class TabletDetailViewModelTests
 
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved));
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live));
 
         vm.ReconcileExternalChange(sameValues, sameValues.Profiles.First());
 
-        Assert.False(vm.HasExternalChange);
     }
 
     // #177: detection alone isn't enough — a connected tablet in a non-Absolute mode still can't be
@@ -288,7 +286,7 @@ public class TabletDetailViewModelTests
         var settings = SettingsWith("T"); // no Absolute output mode set
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live),
             isDetected: () => true);
 
         Assert.True(vm.IsTabletDetected);
@@ -307,7 +305,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             original.Profiles.First(), original,
-            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Live); });
 
         // An identical reload (no real change) — reconciled, no apply.
         var same = MappedSettings("T", 50);
@@ -330,7 +328,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Live); });
 
         Assert.True(vm.IsAbsoluteMode);                    // loaded as Windows Ink Absolute
 
@@ -391,7 +389,7 @@ public class TabletDetailViewModelTests
         int applies = 0;
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Saved); });
+            applyAction: _ => { applies++; return Task.FromResult(SettingsApplyOutcome.Live); });
 
         vm.SelectMovementCommand.Execute("absolute");   // already absolute (native) → no-op
 
@@ -411,7 +409,7 @@ public class TabletDetailViewModelTests
         var settings = SettingsWithMode("T", NativeAbsolute);
         var vm = new TabletDetailViewModel(
             settings.Profiles.First(), settings,
-            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved));
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.Live));
 
         Assert.True(vm.CanFixOutputMode);   // native (non-WinInk) on Windows → fixable
 

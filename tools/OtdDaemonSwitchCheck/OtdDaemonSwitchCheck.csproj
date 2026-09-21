@@ -1,15 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    In OpenTabletArtist.slnx, unlike tools/OtdLinuxSetup, and for a reason that was demonstrated rather
-    than argued: within a day of this being added, a change to OtdSession's API broke it and nothing said
-    so, because nothing built it.
-
-    CI builds it and never runs it. Everything that needs a real daemon is behind command-line arguments,
-    so a build is a compile check and nothing more - which is exactly the coverage that was missing. It
-    still cannot run in CI: it needs two real OpenTabletDriver installs and a machine it may start and
-    kill daemons on.
-  -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -20,11 +10,6 @@
     <RootNamespace>OtdDaemonSwitchCheck</RootNamespace>
   </PropertyGroup>
 
-  <!--
-    Both, and the app reference is the point rather than an accident: this exercises the real
-    DaemonLifecycleService process lookup and the real OTA settings policy, which are exactly the pieces
-    the unit tests substitute.
-  -->
   <ItemGroup>
     <ProjectReference Include="..\..\OtdInterop\OtdInterop.csproj" />
     <ProjectReference Include="..\..\OpenTabletArtist\OpenTabletArtist.csproj" />

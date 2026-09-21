@@ -20,18 +20,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!--
-      The switch-check tool's execution context, compiled in so its behaviour is tested rather than
-      asserted. Referencing the tool project is not an option, since it is an Exe whose Main runs daemons,
-      and a copy of the file here would be a test of the copy. It belongs in this suite rather than the
-      app's: it implements IOtdExecutionContext and needs nothing else.
-    -->
-    <Compile Include="..\..\tools\OtdDaemonSwitchCheck\PumpContext.cs"
-             Link="Tools\PumpContext.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
+<ItemGroup>
     <!--
       OtdInterop and nothing else. No OpenTabletArtist, no Avalonia: this suite exists to prove the
       library stands on its own, and a reference here would let that quietly stop being true. The check

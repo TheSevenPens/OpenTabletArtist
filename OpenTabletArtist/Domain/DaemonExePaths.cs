@@ -21,6 +21,46 @@ public static class DaemonExePaths
     public static string DaemonExeName { get; } =
         OperatingSystem.IsWindows() ? "OpenTabletDriver.Daemon.exe" : "OpenTabletDriver.Daemon";
 
+    /// <summary>
+    /// OpenTabletDriver's own settings window, beside the daemon it belongs to, or null if it is not
+    /// there.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Three names for one thing, because the UX is built per toolkit: WPF on Windows, GTK on Linux, and
+    /// a macOS build whose binary sits in the same folder as the daemon inside the .app bundle. Beside
+    /// the daemon in every case, which is what makes one rule enough.
+    /// </para>
+    /// <para>
+    /// Derived from the daemon OTA is actually connected to rather than searched for independently. The
+    /// point of the button is to open the UX <em>for this driver</em>; finding some other installation's
+    /// copy and pointing it at a different daemon would be worse than offering nothing.
+    /// </para>
+    /// <para>
+    /// Probed rather than assumed: a daemon can be running from a build tree or a packaged install that
+    /// ships no UX at all, and an offer that opens nothing is worse than an absent one.
+    /// </para>
+    /// </remarks>
+    public static string? UxBeside(string? daemonExePath)
+    {
+        if (string.IsNullOrWhiteSpace(daemonExePath)) return null;
+        try
+        {
+            var folder = Path.GetDirectoryName(Path.GetFullPath(daemonExePath.Trim()));
+            if (string.IsNullOrEmpty(folder)) return null;
+
+            var ux = Path.Combine(folder, UxExeName);
+            return File.Exists(ux) ? ux : null;
+        }
+        catch { return null; }   // an unusable path is simply no UX, like a missing one
+    }
+
+    /// <summary>The OTD settings window's executable file name for this platform.</summary>
+    public static string UxExeName { get; } =
+        OperatingSystem.IsWindows() ? "OpenTabletDriver.UX.Wpf.exe"
+        : OperatingSystem.IsMacOS() ? "OpenTabletDriver.UX.MacOS"
+        : "OpenTabletDriver.UX.Gtk";
+
     /// <summary><see cref="Services.AppSettings"/> key holding a daemon location the user chose
     /// explicitly ("it's already on my system"). Wins over every discovered location.</summary>
     public const string UserPathSettingKey = "daemon.userPath";

@@ -21,8 +21,7 @@ namespace OpenTabletArtist.Services;
 /// </remarks>
 public interface IDaemonLifecycleService : IDaemonProcessLocator
 {
-    /// <summary>The daemon exe shipped with / built by this project — the bundled copy next to a
-    /// published app, or the submodule build output in dev. Null if none is present.</summary>
+    /// <summary>Preferred daemon executable, resolved once at application startup. Null if none is present.</summary>
     string? ExpectedExePath();
 
     /// <summary>Daemon exe to launch: the expected build, falling back to a running instance's path. Null if none found.</summary>
@@ -48,7 +47,8 @@ public interface IDaemonLifecycleService : IDaemonProcessLocator
     /// silent 30-second connect timeout, which says nothing about what went wrong.</summary>
     /// <returns>The problem to report, or null when the daemon was launched and is still alive (or when
     /// there was nothing to launch — the caller already reports that as "exe missing").</returns>
-    string? Launch();
+    /// <param name="executablePath">The pinned connected executable for a restart, or null for the startup selection.</param>
+    string? Launch(string? executablePath = null);
 
     /// <summary>
     /// Kills ONE daemon process by id (best effort) — the one we are connected to. Prefer this over
@@ -71,13 +71,10 @@ public class DaemonLifecycleService : IDaemonLifecycleService
 {
     private const string ProcessName = "OpenTabletDriver.Daemon";
 
-    public string? ExpectedExePath() =>
-        // User-chosen → bundled → an installed OTD → the dev build tree. See DaemonExePaths.
-        DaemonExePaths.Candidates(
-                AppContext.BaseDirectory,
-                AppSettings.Get(DaemonExePaths.UserPathSettingKey),
-                InstalledOtdPaths())
-            .FirstOrDefault(File.Exists);
+    private readonly string? _startupPath = DaemonExePaths.Candidates(
+        AppContext.BaseDirectory, AppSettings.Get(DaemonExePaths.UserPathSettingKey), InstalledOtdPaths())
+        .FirstOrDefault(File.Exists);
+    public string? ExpectedExePath() => _startupPath;
 
     public bool IsAppManaged(string? path) => DaemonExePaths.IsAppManaged(AppContext.BaseDirectory, path);
 
@@ -114,9 +111,9 @@ public class DaemonLifecycleService : IDaemonLifecycleService
     /// on the Start button.</summary>
     private static readonly TimeSpan EarlyExitWindow = TimeSpan.FromSeconds(2);
 
-    public string? Launch()
+    public string? Launch(string? executablePath = null)
     {
-        var daemonPath = FindExe();
+        var daemonPath = executablePath ?? FindExe();
         if (daemonPath == null) return null;   // "nothing to launch" is the caller's own message
 
         Process? proc;

@@ -87,7 +87,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         }
 
         Settings.ForcedTabletName = name;
-        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        await _settings!.ApplySettingsAsync(settings);
         ForceTabletStatus = $"Added \"{name}\" to Home's tablet list as a remembered (not-detected) tablet. " +
                             "It's a real saved profile — remove it with the row's trash icon, or Clear here.";
     }
@@ -103,7 +103,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         bool removed = RemoveProfilesNamed(settings, name);
         Settings.ForcedTabletName = "";
         SelectedForcedTablet = null;
-        if (removed) await _settings!.ApplyAndSaveSettingsAsync(settings);
+        if (removed) await _settings!.ApplySettingsAsync(settings);
         ForceTabletStatus = removed ? $"Removed \"{name}\" from the tablet list." : "Nothing to remove.";
     }
 
@@ -207,7 +207,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         abs.Display.X = rightEdge;                                  // centre on the right edge → right half off-screen
         abs.Display.Y = primary.Y - minY + primary.Height / 2f;     // vertically centred on the primary (on-screen)
 
-        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        await _settings!.ApplySettingsAsync(settings);
         ConfigErrorStatus = $"Pushed {tabletName}'s active area partly off-screen (across the desktop's right edge). " +
                             "Home's Needs attention list should now flag it. Remap the tablet to a display to restore it.";
     }
@@ -231,7 +231,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
 
         abs.Tablet.Rotation = 20f; // non-cardinal → trips the rotation health check
 
-        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        await _settings!.ApplySettingsAsync(settings);
         ConfigErrorStatus = $"Set {tabletName}'s active-area rotation to 20° (a non-standard angle). " +
                             "Home's Needs attention list should now flag it. Pick a standard rotation " +
                             "(0/90/180/270) on the Display Mapping tab to restore it.";
@@ -264,7 +264,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
         profile.BindingSettings.DisablePressure = true; // flat, pressure-less strokes
         profile.BindingSettings.DisableTilt = true;     // no tilt
 
-        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        await _settings!.ApplySettingsAsync(settings);
         ConfigErrorStatus = $"Turned off Windows Ink + pen tip + pressure + tilt on {tabletName}. Home should now " +
                             "flag \"pen isn't set up for drawing\" — its Fix restores them all in one click.";
     }
@@ -312,7 +312,7 @@ public sealed partial class DeveloperViewModel : ObservableObject
             with { Report = BuildSimulatedReport(display, targetsDesktop, measuredRaw, digi, input, output, rng) };
 
         CalibrationProfile.Write(settings, tabletName, data);
-        await _settings!.ApplyAndSaveSettingsAsync(settings);
+        await _settings!.ApplySettingsAsync(settings);
         ConfigErrorStatus = $"Created a slightly-off 4-point calibration on {tabletName}'s mapped display " +
                             $"(Display {display.Number}). Open its Calibration tab to see the report, or Clear calibration to undo.";
     }

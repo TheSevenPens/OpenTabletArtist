@@ -674,7 +674,7 @@
         </ControlTheme>
     </Styles.Resources>
 
-    <!-- Settings auto-save indicator text (#321): secondary while saving/saved, warning when a save
+    <!-- Settings persistence indicator text (#321): secondary while saving/saved, warning when a save
          failed. Kept as classes (no local Foreground) so .failed wins by specificity in either theme. -->
     <Style Selector="TextBlock.saveStatus">
         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />

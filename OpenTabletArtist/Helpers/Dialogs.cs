@@ -12,96 +12,51 @@ using OpenTabletArtist.Views;
 
 namespace OpenTabletArtist.Helpers;
 
+public enum UnsavedSettingsChoice { Cancel, Save, Continue }
+
 public static class Dialogs
 {
-    public static Window? GetMainWindow() =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-
-    /// <summary>A pickable running application: one entry per windowed process (#167).</summary>
-    private sealed record ProcessChoice(string Display, AppIdentity Identity);
-
-    /// <summary>Lists running windowed processes and returns the picked one's identity, or null. (#167)</summary>
-    public static async Task<AppIdentity?> ShowProcessPickerAsync(Window? parent = null)
+    public static async Task<UnsavedSettingsChoice> ShowUnsavedSettingsAsync()
     {
-        parent ??= GetMainWindow();
-        if (parent == null) return null;
-
-        var choices = RunningWindowedApps();
-        AppIdentity? result = null;
-
-        var list = new ListBox
-        {
-            ItemsSource = choices,
-            DisplayMemberBinding = new Avalonia.Data.Binding(nameof(ProcessChoice.Display)),
-            Height = 320,
-            Margin = new Thickness(0, 0, 0, 16),
-        };
-        var addBtn = new Button { Content = "Add", Padding = new Thickness(24, 8), FontSize = 13, IsEnabled = false };
-        var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(24, 8), FontSize = 13 };
-
+        var parent = GetMainWindow();
+        if (parent is null) return UnsavedSettingsChoice.Cancel;
+        if (parent is MainWindow main) main.BringToFront();
+        var choice = UnsavedSettingsChoice.Cancel;
+        var cancel = new Button { Content = "Cancel" };
+        var discard = new Button { Content = "Continue without saving" };
+        var save = new Button { Content = "Save" };
         var dialog = new AppWindow
         {
-            Title = "Add application",
-            Width = 460,
-            Height = 460,
+            Title = "Unsaved driver settings", Width = 520,
+            SizeToContent = SizeToContent.Height, CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
             Content = new StackPanel
             {
-                Margin = new Thickness(24),
+                Margin = new Thickness(24), Spacing = 20,
                 Children =
                 {
                     new TextBlock
                     {
-                        Text = "Pick a running application to give its own preset:",
-                        FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap,
+                        Text = "Save your current settings before continuing? Unsaved changes may be lost when the driver restarts or another preset is loaded. Continuing does not undo changes already running on the driver.",
+                        TextWrapping = TextWrapping.Wrap,
                     },
-                    list,
                     new StackPanel
                     {
-                        Orientation = Orientation.Horizontal,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Spacing = 8,
-                        Children = { cancelBtn, addBtn },
+                        Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+                        Spacing = 8, Children = { cancel, discard, save },
                     },
                 },
             },
         };
-
-        list.SelectionChanged += (_, _) => addBtn.IsEnabled = list.SelectedItem is ProcessChoice;
-        void Commit()
-        {
-            if (list.SelectedItem is ProcessChoice c) { result = c.Identity; dialog.Close(); }
-        }
-        list.DoubleTapped += (_, _) => Commit();
-        addBtn.Click += (_, _) => Commit();
-        cancelBtn.Click += (_, _) => dialog.Close();
-
+        cancel.Click += (_, _) => dialog.Close();
+        discard.Click += (_, _) => { choice = UnsavedSettingsChoice.Continue; dialog.Close(); };
+        save.Click += (_, _) => { choice = UnsavedSettingsChoice.Save; dialog.Close(); };
         await dialog.ShowDialog(parent);
-        return result;
+        return choice;
     }
 
-    private static System.Collections.Generic.List<ProcessChoice> RunningWindowedApps()
-    {
-        var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var choices = new System.Collections.Generic.List<ProcessChoice>();
-        foreach (var p in Process.GetProcesses())
-        {
-            try
-            {
-                if (p.MainWindowHandle == IntPtr.Zero || string.IsNullOrWhiteSpace(p.MainWindowTitle)) continue;
-                var name = p.ProcessName;
-                if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
-                string path = "";
-                try { path = p.MainModule?.FileName ?? ""; } catch { /* elevated/UWP */ }
-                var exe = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name : name + ".exe";
-                choices.Add(new ProcessChoice($"{exe}  —  {p.MainWindowTitle}", new AppIdentity(path, exe)));
-            }
-            catch { /* process exited mid-enumeration */ }
-            finally { p.Dispose(); }
-        }
-        return choices.OrderBy(c => c.Display, StringComparer.OrdinalIgnoreCase).ToList();
-    }
+    public static Window? GetMainWindow() =>
+        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
     public static async Task ShowMessageAsync(string title, string message, Window? parent = null)
     {

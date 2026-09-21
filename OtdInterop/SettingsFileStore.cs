@@ -29,6 +29,7 @@ namespace OtdInterop;
 /// </summary>
 internal interface ISettingsFileStore
 {
+    SettingsFileSnapshot ReadPrimary(string path);
     /// <summary>Serializes <paramref name="settings"/> to <paramref name="path"/>. Throws on failure.</summary>
     void Save(Settings settings, string path);
 
@@ -42,6 +43,23 @@ internal interface ISettingsFileStore
 /// <inheritdoc />
 internal class SettingsFileStore : ISettingsFileStore
 {
+    public SettingsFileSnapshot ReadPrimary(string path)
+    {
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            using var stream = new MemoryStream(bytes);
+            SettingsCodec.TryDecode(stream, out var settings);
+            return new(settings, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
+        }
+        catch (FileNotFoundException) { return new(null, "missing"); }
+        catch (DirectoryNotFoundException) { return new(null, "missing"); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log.Warn("Couldn't read the saved settings; persistence is unknown.", ex);
+            return new(null, null);
+        }
+    }
     private readonly IOtdLog _log;
 
     /// <param name="log">
@@ -128,3 +146,5 @@ internal class SettingsFileStore : ISettingsFileStore
         }
     }
 }
+
+internal sealed record SettingsFileSnapshot(Settings? Settings, string? Fingerprint);

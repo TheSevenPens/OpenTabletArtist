@@ -66,9 +66,7 @@ public interface IConnectionState : INotifyPropertyChanged
     string DaemonOperationError { get; }
     bool HasDaemonOperationError { get; }
 
-    // Settings auto-save feedback (#321): OTA applies + persists every settings change immediately (no
-    // Save button). These surface that quietly, and — critically — surface a disk-save failure so a
-    // change that's live but unpersisted doesn't silently vanish on the next restart.
+    // Live application and explicit persistence share one visible status.
     /// <summary>The save indicator should be shown (Saving / Saved / failed).</summary>
     bool ShowSaveStatus { get; }
     /// <summary>The last settings save failed to write to disk (change is live but not persisted).</summary>
@@ -107,6 +105,12 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>Whether there is such a notice to show.</summary>
     bool HasDiscardedChangeNotice { get; }
 
+    /// <summary>The driver changed its own settings and the page followed along (#920).</summary>
+    string SettingsRefreshedNotice { get; }
+
+    /// <summary>Whether there is such a notice to show.</summary>
+    bool HasSettingsRefreshedNotice { get; }
+
     /// <summary>Re-reads what the daemon holds, for a connection that is already up.</summary>
     Task ReloadAsync();
 
@@ -114,78 +118,11 @@ public interface IConnectionState : INotifyPropertyChanged
     Task ConnectAsync();
 }
 
-/// <summary>Current OTD settings and the apply+persist path (#41 PR 2).</summary>
+/// <summary>The shared editable settings workspace. Applying never persists.</summary>
 public interface ISettingsCoordinator
 {
     Settings? CurrentSettings { get; }
-    /// <summary>Applies settings to the daemon, persists to disk, and reloads. The returned
-    /// <see cref="SettingsApplyOutcome"/> distinguishes applied-and-saved, applied-but-unsaved,
-    /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
-    Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
-
-    /// <summary>
-    /// Applies a change over a conflict the artist has been shown and chosen to overwrite (#906).
-    /// </summary>
-    /// <remarks>
-    /// Separate from <see cref="ApplyAndSaveSettingsAsync"/> because the difference is consent, and
-    /// consent has to be something a caller says rather than something the library infers from a second
-    /// attempt.
-    /// </remarks>
-    Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict);
-
-    /// <summary>
-    /// Re-submits a held change, presenting what it was held against so it is weighed against that and
-    /// not against whatever has arrived since (#906).
-    /// </summary>
-    Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held);
-
-    /// <summary>
-    /// The artist has taken the snapshot they were shown, so nothing is waiting on them (#910). False
-    /// when that snapshot is no longer current, which leaves the held change held.
-    /// </summary>
-    bool AcceptCurrentSettings(SettingsStamp accepted);
-
-    /// <summary>
-    /// What this session is publishing, settings and stamp together, in one read (#910).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// There is deliberately no stamp property beside <see cref="CurrentSettings"/>. Reading the two
-    /// separately is two publications' worth of opportunity: a reload landing between them hands out
-    /// older settings under a newer stamp, and a caller that later accepts that stamp is agreeing to
-    /// something it was never shown — which is exactly what the stamp is checked to prevent.
-    /// </para>
-    /// <para>
-    /// There was such a property, and both callers that needed both halves used it that way. Taking it
-    /// away is what stops the next one, which a comment would not have.
-    /// </para>
-    /// </remarks>
-    PreparedSettings? CurrentPublication { get; }
-    /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
-    /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.
-    /// False means it never reached the daemon, so callers must not announce a switch (#766).</summary>
-    Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings settings);
-    /// <summary>Applies settings to the daemon ONLY — no disk save, no reload, and (unlike
-    /// <see cref="ApplyLiveOnlyAsync"/>) does <b>not</b> mutate <see cref="CurrentSettings"/>. For automatic
-    /// per-app switching (#167): the editor keeps showing/persisting the user's default while the daemon
-    /// runs a transient per-app snapshot. Live pen streams still update (they read daemon reports).
-    /// False means it never reached the daemon and no override was established (#766).</summary>
-    Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings settings);
-
-    /// <summary>
-    /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
-    /// per-app snapshot. The background reload consults this so a temporary override can't become the
-    /// editor's baseline (#737).
-    /// </summary>
-    bool HasEphemeralOverride { get; }
-
-    /// <summary>Put the daemon back on <see cref="CurrentSettings"/>, ending any ephemeral override.
-    /// The counterpart to <see cref="ApplyEphemeralAsync"/>; nothing is written to disk either way.
-    /// False means the override is still in effect on the tablet (#766).</summary>
-    Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync();
-    /// <summary>Reverts the daemon to the saved on-disk default (undoes a live-only override, #320).
-    /// The returned <see cref="SettingsRestoreOutcome"/> says whether the default was actually reached —
-    /// a caller must not clear an override indicator unless it was (#734).</summary>
+    Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings);
     Task<SettingsRestoreOutcome> RestoreDefaultAsync();
 }
 
@@ -242,19 +179,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // fallback poll, Refresh). #19.
     private readonly LatestOnlyGate _loadGate = new();
 
-    // Everything about the settings OTA believes in — the current object, the load/persist revision
-    // baselines, the pending unsaved change, the override flag and the apply-loop breaker — lives in the
-    // coordinator (#740). This class keeps the ISettingsCoordinator contract and the UI-thread guards.
-    //
-    // The interface, not the class: the implementation is internal to the library now, so this holds what
-    // the library is willing to offer rather than everything the implementation happens to have (#807).
-    private readonly IOtdSettingsSession _coordinator;
-
-    /// <summary>The library session these two came from, disposed with this one.</summary>
+    private string? _daemonPath;
+    private SettingsWorkspace? _workspace;
     private readonly OtdSession _session;
-
-    /// <inheritdoc />
-    public bool HasEphemeralOverride => _coordinator.HasEphemeralOverride;
 
     /// <summary>
     /// Fallback reconciliation interval. Detection is event-driven via the daemon's
@@ -337,113 +264,187 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool HasDaemonOperationError => !string.IsNullOrEmpty(DaemonOperationError);
     partial void OnDaemonOperationErrorChanged(string value) => OnPropertyChanged(nameof(HasDaemonOperationError));
 
-    // --- Settings auto-save feedback (#321) ---
     [ObservableProperty] private SettingsSaveState _saveState;
-    public bool ShowSaveStatus => SaveState != SettingsSaveState.None;
-    public bool SaveFailed => SaveState is SettingsSaveState.Failed
-        or SettingsSaveState.ApplyFailed or SettingsSaveState.Disconnected
-        // Not a failure, but it needs the same attention: the change is being held, not applied, and
-        // nothing further happens until the artist decides (#491).
-        or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
-    public string SaveStatusText => SaveState switch
+    [ObservableProperty] private bool _settingsBusy;
+    public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
+    public bool SettingsPaused => _workspace?.IsPaused == true;
+    public bool CanEditSettings => !SettingsBusy && _session.CanEditSettings && !SettingsPaused;
+    public bool ShowSaveStatus => SaveState != SettingsSaveState.None || !string.IsNullOrEmpty(_session.SettingsProblem);
+    public bool SaveFailed => SaveState is SettingsSaveState.Failed or SettingsSaveState.ApplyFailed
+        or SettingsSaveState.Disconnected or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
+    public string SaveStatusText => !string.IsNullOrEmpty(_session.SettingsProblem) ? _session.SettingsProblem : SaveState switch
     {
+        SettingsSaveState.Applying => "Applying…",
+        SettingsSaveState.Unsaved => "Applied — not saved",
         SettingsSaveState.Saving => "Saving…",
         SettingsSaveState.Saved => "Saved",
-        // Only this one is genuinely live-but-unpersisted. The two below never reached the tablet, so
-        // saying "your change is live" would be a lie the artist can't check (#734).
-        SettingsSaveState.Failed => "Couldn't save — your change is live but won't survive a restart",
-        SettingsSaveState.ApplyFailed => "Couldn't apply — your change didn't reach the tablet",
-        SettingsSaveState.Disconnected => "Not connected — your change wasn't applied or saved",
-        // Says what happened, and stops there. Taking the daemon's version is the editor's Reload; there
-        // is no "apply again to overwrite" to point at, because re-applying the same edit is held again
-        // for the same reason (#905). Promising one before it exists is worse than saying nothing.
+        SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
+        SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
+        SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
+        // Not "somebody else edited them": the driver does this to itself. Attaching a tablet it has not
+        // seen before makes it generate a profile and write its own settings back (DetectTablets then
+        // SetSettings, and ProfileCollection.GetProfile adds the missing one), which the next observation
+        // reads as a difference like any other. Naming an editor would be wrong most of the time and
+        // would send the artist looking for an application that is not running (#919).
         SettingsSaveState.ChangedElsewhere =>
-            "Settings changed outside OpenTabletArtist — your change wasn't applied",
-        // Different from the line above on purpose: nothing is known to be waiting on the other side, so
-        // trying again shortly may be all this needs (#905).
-        SettingsSaveState.CouldNotCheck =>
-            "Couldn't check the current settings — your change wasn't applied",
+            "Driver settings changed. Reload to continue. Attaching a new tablet can cause this, "
+            + "as can another settings app.",
+        SettingsSaveState.CouldNotCheck => "Couldn't check current settings. Reload to try again.",
         _ => "",
     };
-
-    /// <summary>
-    /// Set when switching daemons threw away an edit that had never reached disk (#787).
-    ///
-    /// Discarding is the right call — the alternative was writing one daemon's settings into another's
-    /// file — but it is still the loss of something the artist did, and until now it was only written to
-    /// a log nobody reads. The save chip going quiet is not an explanation.
-    ///
-    /// Only raised when a pending write actually existed. The rest of what a daemon switch resets is
-    /// bookkeeping the user never saw.
-    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDiscardedChangeNotice))]
     private string _discardedChangeNotice = "";
-
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(DiscardedChangeNotice);
+    public event Action? SettingsReplaced;
 
     /// <summary>
-    /// Takes the library's save-state report onto the UI thread before it touches anything.
+    /// A hold on the settings for something that edits them across time (#922). Dispose to release.
+    /// </summary>
+    public interface ISettingsEditingScope : IDisposable
+    {
+        /// <summary>Whether the document this scope opened over is still the one in play.</summary>
+        bool StillCurrent { get; }
+
+        /// <summary>Submits a profile, refusing once the document has been replaced underneath.</summary>
+        Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile);
+    }
+
+    /// <summary>
+    /// Whether the host has editor input that has not been submitted yet (#920).
+    /// </summary>
+    /// <remarks>
+    /// Supplied by the shell, because only it can see a half-moved slider or a dialog mid-edit. The
+    /// library is not told about any of that, and the decision about whether local work may be replaced
+    /// stays on this side of the boundary. Absent, nothing is idle — a host that has not said cannot be
+    /// assumed to have nothing to lose.
+    /// </remarks>
+    public Func<bool>? HasPendingEditorInput { get; set; }
+
+    private int _editingReservations;
+
+    private bool EditingIsIdle() =>
+        _editingReservations == 0 && HasPendingEditorInput is { } pending && !pending();
+
+    /// <summary>
+    /// Holds the settings open for something that edits them across time, and refuses its writes once
+    /// the document has been replaced under it (#922).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// It does not arrive on one. The coordinator awaits the daemon with <c>ConfigureAwait(false)</c>, so
-    /// everything after the pre-write read — the write, and this report — continues on the thread pool.
-    /// Measured, not assumed: reports arrived on pool threads 32 and 33 while the UI thread was 2.
+    /// For a dialog that captures the whole settings when it opens and submits a profile from them
+    /// later — calibration is the one that does this. Two things it needs and a plain apply does not:
+    /// nothing may adopt an outside change while it is open, and if something replaces the document
+    /// anyway, its submission must be refused rather than quietly putting the captured values back.
     /// </para>
     /// <para>
-    /// That broke the "Saved" chip in a way that looked like nothing at all. <see cref="SaveState"/> is an
-    /// observable property, so the chip appeared; but <see cref="OnSaveStateChanged"/> creates the
-    /// auto-clear timer on first use, and a <c>DispatcherTimer</c> built on a pool thread belongs to a
-    /// dispatcher that never pumps. It reported <c>IsEnabled = true</c> and never ticked once — so the
-    /// chip said "Saved" until something else changed it, which for a setting nobody touches again is the
-    /// rest of the session.
-    /// </para>
-    /// <para>
-    /// Marshalling the whole report rather than only the timer, because a property that drives bindings
-    /// has no business being assigned from a pool thread whatever it is used for.
-    /// </para>
-    /// <para>
-    /// The library's own self-initiated callbacks are posted through <c>IOtdExecutionContext</c>; this one
-    /// is not, which is arguably where the deeper fix belongs — but that changes ordering for every
-    /// report, so it is a deliberate change rather than part of this one.
+    /// Refusing loses the dialog's work, which is the lesser harm: it is one dialog's worth, and the
+    /// artist is present and can repeat it. Applying it silently reverts settings they may have changed
+    /// deliberately in between, with nothing to indicate it happened.
     /// </para>
     /// </remarks>
-    private void ReportSaveState(SettingsSaveState state)
+    public ISettingsEditingScope ReserveEditing()
     {
-        if (Dispatcher.UIThread.CheckAccess()) SaveState = state;
-        else Dispatcher.UIThread.Post(() => SaveState = state);
+        Dispatcher.UIThread.VerifyAccess();
+        _editingReservations++;
+        return new EditingScope(this, _workspace, _workspace?.Generation ?? 0);
     }
 
-    private DispatcherTimer? _saveClearTimer;
-
-    partial void OnSaveStateChanged(SettingsSaveState value)
+    private sealed class EditingScope(AppSession session, SettingsWorkspace? workspace, int generation)
+        : ISettingsEditingScope
     {
+        private bool _closed;
+        private int _generation = generation;
+
+        /// <summary>
+        /// Whether this scope may still submit. A released one may not (#925).
+        /// </summary>
+        /// <remarks>
+        /// Disposal gave up the reservation and left the scope able to write, so a dialog that had been
+        /// closed and released could still reach the settings through it. Releasing the hold and losing
+        /// the ability to use it are the same event.
+        /// </remarks>
+        public bool StillCurrent =>
+            !_closed
+            && workspace is not null
+            && ReferenceEquals(workspace, session._workspace)
+            && workspace.Generation == _generation;
+
+        /// <summary>
+        /// Submits, and keeps up with its own write only (#923).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Calibration applies as it goes, so a rule that counted every wholesale write as somebody
+        /// else's would break the second preview. It advances past exactly one step, and only when that
+        /// step is the one this call caused: a competing write in the same interval leaves the count
+        /// further on than that, and the scope is behind from then until it is closed.
+        /// </para>
+        /// <para>
+        /// Claimed at submission, not on the way back (#924). The count moves when a write is submitted,
+        /// so catching up only once the driver answered left the scope calling itself stale for as long
+        /// as its own write was in flight -- and a dialog that asked during that interval was told
+        /// somebody else owned the document, when the somebody else was itself.
+        /// </para>
+        /// </remarks>
+        public Task<SettingsApplyOutcome> ApplyProfileAsync(
+            OpenTabletDriver.Desktop.Profiles.Profile profile)
+        {
+            if (!StillCurrent) return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
+            var before = workspace!.Generation;
+            var applying = session.ApplyProfileAsync(profile);
+            if (workspace.Generation == before + 1) _generation = workspace.Generation;
+            return applying;
+        }
+
+        public void Dispose()
+        {
+            if (_closed) return;
+            _closed = true;
+            session._editingReservations--;
+        }
+    }
+
+    /// <summary>
+    /// Says the page now shows something the driver changed by itself (#920).
+    /// </summary>
+    /// <remarks>
+    /// Quiet on purpose: nothing was lost and nothing is being asked of the artist. It exists so the
+    /// values moving under them is explained rather than mysterious — a tablet they just plugged in makes
+    /// the driver rewrite its own settings, and the page following along would otherwise look like a
+    /// glitch.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSettingsRefreshedNotice))]
+    private string _settingsRefreshedNotice = "";
+
+    public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(SettingsRefreshedNotice);
+    public Func<Task<bool>>? ResolveUnsavedChanges { get; set; }
+
+    partial void OnSaveStateChanged(SettingsSaveState value) => NotifySettingsState();
+    partial void OnSettingsBusyChanged(bool value) => NotifySettingsState();
+
+    private void NotifySettingsState()
+    {
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(SettingsPaused));
+        OnPropertyChanged(nameof(CanEditSettings));
         OnPropertyChanged(nameof(ShowSaveStatus));
         OnPropertyChanged(nameof(SaveFailed));
         OnPropertyChanged(nameof(SaveStatusText));
-
-        // A new save attempt supersedes the notice: the user is editing again, and telling them about an
-        // edit lost two daemons ago is clutter by then.
-        if (value == SettingsSaveState.Saving) DiscardedChangeNotice = "";
-
-        // "Saved" fades to nothing after a moment; "Saving"/"Failed" stay until the next save transition.
-        _saveClearTimer?.Stop();
-        if (value != SettingsSaveState.Saved) return;
-        try
-        {
-            _saveClearTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-            _saveClearTimer.Tick -= OnSaveClearTick;
-            _saveClearTimer.Tick += OnSaveClearTick;
-            _saveClearTimer.Start();
-        }
-        catch { /* no Dispatcher (headless tests) — the "Saved" text just lingers until the next save */ }
     }
 
-    private void OnSaveClearTick(object? sender, EventArgs e)
+    private void UpdateSettingsState()
     {
-        _saveClearTimer?.Stop();
-        if (SaveState == SettingsSaveState.Saved) SaveState = SettingsSaveState.None;
+        var next = !IsConnected ? SettingsSaveState.Disconnected
+            : SettingsPaused ? SettingsSaveState.ChangedElsewhere
+            : HasUnsavedChanges ? SettingsSaveState.Unsaved : SettingsSaveState.Saved;
+        // Background observations must not erase a failure before the user acts on it.
+        if (!(SaveState == SettingsSaveState.Failed && next == SettingsSaveState.Unsaved)
+            && !(next == SettingsSaveState.ChangedElsewhere
+                && SaveState is SettingsSaveState.ApplyFailed or SettingsSaveState.CouldNotCheck))
+            SaveState = next;
+        NotifySettingsState();
     }
 
     /// <summary>
@@ -532,7 +533,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (name != null && DetectedTablets.Any(t => t.Name == name))
             ActiveTabletName = name;
     }
-    public Settings? CurrentSettings => _coordinator.GetCurrent()?.Settings;
+    public Settings? CurrentSettings => _workspace?.Current;
     public event Action? DataLoaded;
 
     /// <param name="session">
@@ -548,39 +549,38 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _session = session;
         _daemonLifecycle = daemonLifecycle;
 
-        // The ownership flag is read late: it comes from identity on connect, so it has no value at
-        // construction. Where to persist is no longer ours to supply -- the library asks the daemon
-        // itself, on the channel it asks about, because OTA only learned it during a data load that runs
-        // after the connection is already usable (#828).
-        _coordinator = session.OpenSettings(
-            isOwnedDaemon: () => IsAppOwnedDaemon,
-            onSaveState: ReportSaveState);
-
-        // No marshalling here any more: the library posts this to the context OTA supplied, which is
-        // this dispatcher. And no identification call either -- the change is handed over already made,
-        // after the library has invalidated whatever belonged to a daemon that has gone (#828).
-        _session.Connected += change =>
+        _session.Connected += change => Dispatcher.UIThread.Post(() =>
         {
+            if (Abandoned || change.ConnectionId != session.ConnectionId) return;
             ConnectionStatus = "Connected";
             IsConnected = true;
             IsDaemonRunning = true;
-            // Connected, so the exe clearly isn't missing — clear the flag and its stale message.
             IsDaemonExeMissing = false;
-            // Any prior "still retrying" / connect-phase state is now moot.
             ConnectStalled = false;
             ConnectPhase = "";
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             ApplyDaemonIdentity(change);
+            if (_workspace is not null && HasUnsavedChanges)
+                DiscardedChangeNotice = "Reconnected to the driver. Its current settings replaced the previous unsaved workspace.";
+            _workspace = session.Settings is { } settings ? new SettingsWorkspace(settings, IsAppOwnedDaemon) : null;
+            if (_workspace is null) Profiles = [];
+            SettingsReplaced?.Invoke();
+            SaveState = SettingsSaveState.None;
+            UpdateSettingsState();
             Connected?.Invoke();
             _ = LoadDataAsync();
-        };
-        _session.Disconnected += () =>
+        });
+        _session.Disconnected += () => Dispatcher.UIThread.Post(() =>
         {
+            if (Abandoned || session.ConnectionId != 0) return;
+            if (HasUnsavedChanges)
+                DiscardedChangeNotice = "The driver disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
+            _workspace = null;
+            SettingsReplaced?.Invoke();
             ConnectionStatus = "Disconnected";
             IsConnected = false;
             IsDaemonRunning = false;
-            Ownership = DaemonOwnership.Unknown;   // nothing to identify once the pipe is gone (#742)
-            // Cleared with it: it describes which daemon was answering, and none is (#882).
+            Ownership = DaemonOwnership.Unknown;
             DaemonIsManagedButNotSelected = false;
             DaemonSourcePath = "";
             DaemonVersion = "";
@@ -588,9 +588,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             TabletName = "";
             DetectedTablets = [];
             ActiveTabletName = null;
-            _pluginEnsured = false; // re-ensure the plugin on the next connection
+            _pluginEnsured = false;
+            UpdateSettingsState();
             Disconnected?.Invoke();
-        };
+        });
 
         // Event-driven detection (#170): the daemon pushes TabletsChanged on plug/unplug (and on
         // sleep/wake), so reload immediately for near-instant detection and an accurate "last seen",
@@ -719,7 +720,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // No flat delay: the pipe connect below already waits for the daemon's pipe to come up,
             // so a fixed sleep only adds latency (and risks eating the connect timeout). (#246)
             ConnectPhase = "Starting the daemon…";
-            if (_daemonLifecycle.Launch() is { } launchProblem)
+            if (_daemonLifecycle.Launch(_daemonPath) is { } launchProblem)
             {
                 DaemonOperationError = launchProblem;
                 ConnectionStatus = "Disconnected";
@@ -741,7 +742,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// (including a separately-installed instance)? Gates every connect path so a missing build
     /// surfaces a clear message rather than a silent timeout.</summary>
     private bool DaemonReachable() =>
-        _daemonLifecycle.ExpectedExePath() != null || _daemonLifecycle.IsRunning();
+        (_daemonPath ?? _daemonLifecycle.ExpectedExePath()) != null || _daemonLifecycle.IsRunning();
 
     /// <summary>Flag the daemon exe as missing and surface the message; no connect is attempted.</summary>
     private void SetDaemonExeMissing()
@@ -826,6 +827,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     private async Task LoadDataCoreAsync()
     {
+        var connectionId = _session.ConnectionId;
+        bool Obsolete() => Abandoned || connectionId != _session.ConnectionId;
         // Mutates observable state, so it must run on the UI thread. Every caller (the connect
         // handler, the poll, apply, reload) marshals via the dispatcher; verify so a future
         // off-thread caller fails loudly instead of corrupting bindings. (Codex note, #42.)
@@ -834,7 +837,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             // Tablets (JToken — complex runtime type)
             var tablets = await _session.Capabilities.GetTabletsAsync();
-            if (Abandoned) return;
+            if (Obsolete()) return;
 
             Tablets = tablets;
 
@@ -892,33 +895,31 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // daemon can't open it. Ask the daemon what it can SEE only in that case — the answer is only
             // interesting when the detected list is empty.
             var unopened = detected.Count == 0 && await DaemonSeesUnopenedTabletAsync();
-            if (Abandoned) return;
+            if (Obsolete()) return;
 
             DaemonCannotOpenTablet = unopened;
 
-            // Settings (typed) + profile derivation.
-            //
-            // One call, because the ordering inside it is the protection and it is not this class's to
-            // get right: the session observes its own state before the read, discards an answer overtaken
-            // while in flight, and does not read at all while a per-app override is running (#737). This
-            // was three steps here, and every one of them failed silently.
-            await _coordinator.ReloadFromDaemonAsync();
-            if (Abandoned) return;
-            var settings = _coordinator.GetCurrent()?.Settings;
-            // Drop rename-orphaned/duplicate filter stores before deriving profiles, so the Filters
-            // and JSON views never show e.g. the dead OtdArtist.* DynamicsFilter next to the current
-            // one. Persisted below once paths are known. (Forward guard mirrored in save path.)
-            bool staleFiltersRemoved = ProfileFilterMaintenance.CleanLegacyFilters(settings);
-            // #465: on the app-owned daemon, disable any non-approved (third-party / driver-built-in)
-            // filter so only our Pen Dynamics / Calibration / Hover filters run and the pen stays
-            // consistent. Persisted below if it changed anything.
-            //
-            // Requires positive ownership, not merely "not foreign" (#742). This is the most dangerous
-            // instance of that distinction in the app: it runs on EVERY data load, and what it changes is
-            // pushed to the daemon and written to settings.json below. Against a daemon OTA can't
-            // identify — elevated, or another user's — the old guard let OTA silently disable a
-            // stranger's filters, including OpenTabletDriver's own built-ins, live and on disk.
-            bool unapprovedDisabled = IsAppOwnedDaemon && ProfileFilterMaintenance.DisableUnapprovedFilters(settings);
+            // Observe outside changes. Adopted here only when nothing local is at stake; anything the
+            // artist would lose makes this a pause for them to answer (#920).
+            if (_workspace is { } workspace)
+            {
+                var refreshed = await workspace.RefreshAsync(EditingIsIdle);
+                if (ReferenceEquals(workspace, _workspace) && !Abandoned)
+                {
+                    if (refreshed.ChangedTheBaseline)
+                    {
+                        SettingsRefreshedNotice =
+                            "Driver settings refreshed. The driver changed them and you had nothing unsaved "
+                            + "in progress, so this page now shows what it holds.";
+                        SettingsReplaced?.Invoke();
+                        PublishSettings();
+                        SaveState = SettingsSaveState.None;
+                    }
+                    if (!workspace.HasPendingApply) UpdateSettingsState();
+                }
+            }
+            if (Obsolete()) return;
+            var settings = CurrentSettings;
             if (settings != null)
             {
                 Profiles = settings.Profiles
@@ -952,7 +953,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             // App info paths
             var appInfo = await _session.Capabilities.GetAppInfoAsync();
-            if (Abandoned) return;
+            if (Obsolete()) return;
             if (appInfo != null)
             {
                 PresetDirectory = appInfo.PresetDirectory ?? "";
@@ -965,57 +966,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // remembering when we last saw it. AppSettings logs the failure and flags LastWriteFailed.
             AppSettings.SetMany(lastSeenUpdates);
 
-            // One-time migration: if we stripped orphaned filter stores above, persist the cleaned settings
-            // so they don't linger on disk. Best-effort — the in-memory cleanup has already fixed the
-            // display. (The dynamics-filter normalization above is intentionally NOT persisted here.)
-            //
-            // Only on a daemon OTA positively owns (#742). This is a write nobody asked for, to both the
-            // daemon and settings.json — and that file is the daemon's own AppInfo.SettingsFile, so on an
-            // unidentified daemon it may not even belong to this user. The in-memory cleanup still runs,
-            // so the Filters and JSON views are right either way; it just isn't written back.
-            //
-            // Through the coordinator, not around it (#803). This used to call the daemon and the store
-            // directly, which meant it ran outside the one semaphore every other mutating path takes, it
-            // ignored what SetSettingsAsync returned -- writing the cleanup to disk even when there was
-            // no transport and it had never been sent -- and it was invisible to the daemon-session
-            // check, so a cleanup for one daemon could be persisted into another's file.
-            if ((staleFiltersRemoved || unapprovedDisabled) && settings != null && IsAppOwnedDaemon)
-            {
-                try
-                {
-                    var cleanup = await _coordinator.ApplyAndSaveAsync(settings);
-                    if (Abandoned) return;
-                    // Said out loud rather than swallowed. A cleanup that didn't land is not harmful --
-                    // the in-memory repair still fixed what the user sees -- but silence here was how
-                    // "the write never happened" and "the write happened" looked identical.
-                    if (!cleanup.IsPersisted)
-                        AppLog.Info($"Filter cleanup not persisted ({cleanup.Status}); the display is " +
-                                    "correct either way and the next save will carry it.");
-                }
-                catch (Exception ex)
-                {
-                    // Must not abort the load: a tablet the user can see and configure matters more than
-                    // tidying their file.
-                    AppLog.Warn("Couldn't persist the filter cleanup.", ex);
-                }
-            }
-
-            // A change the daemon took but that never reached disk gets another go here (#743). Reloads
-            // run on window focus and every 30 seconds, so a write refused because the file was briefly
-            // locked — OTD's own UX writes the same settings.json — recovers on its own, and the save
-            // chip returns to "Saved". Bounded inside the coordinator so a permission problem, which
-            // won't fix itself, stops retrying instead of warning on every poll forever.
-            if (Abandoned) return;
-
-            await _coordinator.RetryPendingPersistAsync();
-
-            // And again after it, which is the one place I put the check on the wrong side. The retry
-            // takes the mutation gate even when it has nothing to save, so a concurrent write holds the
-            // load here for as long as that write lasts -- which is exactly the interval a close occupies.
-            // Everything below publishes: DataLoaded has host subscribers that rebuild views and start
-            // their own refreshes, into an application that is leaving.
-            if (Abandoned) return;
-
+            if (Obsolete()) return;
             DataLoaded?.Invoke();
 
             // Make sure our pressure-curve plugin is installed in the app-owned daemon (once per
@@ -1054,6 +1005,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     private async Task EnsurePressurePluginAsync()
     {
+        var connectionId = _session.ConnectionId;
         if (_pluginEnsured || !IsAppOwnedDaemon || string.IsNullOrEmpty(PluginDirectory)) return;
         _pluginEnsured = true;
         var dir = PluginDirectory;
@@ -1068,7 +1020,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         //
         // No regression covers it: reaching here needs an app-owned daemon and a real plugin installer,
         // neither of which the test harness has. Said here rather than left to look covered.
-        if (Abandoned) return;
+        if (Abandoned || connectionId != _session.ConnectionId) return;
 
         await PluginInstallApplier.ApplyAsync(this, outcome);
     }
@@ -1077,98 +1029,127 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// only catches a missed <c>TabletsChanged</c> push so state can't drift indefinitely.</summary>
     private async Task PollDataAsync()
     {
-        while (!_cts.Token.IsCancellationRequested)
+        var token = _cts.Token;
+        try
         {
-            await Task.Delay(FallbackPollInterval, _cts.Token).ConfigureAwait(false);
-            if (IsConnected)
+            while (!token.IsCancellationRequested)
             {
-                try { await Dispatcher.UIThread.InvokeAsync(LoadDataAsync); }
-                catch (Exception ex) { AppLog.Debug($"Fallback poll reload skipped: {ex.Message}"); }
+                await Task.Delay(FallbackPollInterval, token).ConfigureAwait(false);
+                if (IsConnected)
+                {
+                    try { await Dispatcher.UIThread.InvokeAsync(LoadDataAsync); }
+                    catch (Exception ex) { AppLog.Debug($"Fallback poll reload skipped: {ex.Message}"); }
+                }
             }
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
-    /// <summary>Applies settings to the daemon, persists to disk, and reloads. UI-thread only.
-    /// Reports what actually happened rather than collapsing apply and persist into one result (#734).</summary>
-    public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings) =>
-        ApplyThroughAsync(() => _coordinator.ApplyAndSaveAsync(settings));
+    public Task<SettingsApplyOutcome> ApplySettingsAsync(Settings settings) =>
+        ApplyThroughAsync(workspace => workspace.ApplyAsync(settings));
 
-    public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict) =>
-        ApplyThroughAsync(() => _coordinator.OverwriteAsync(settings, conflict));
+    public Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile) =>
+        ApplyThroughAsync(workspace => workspace.ApplyProfileAsync(profile));
 
-    public Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held) =>
-        ApplyThroughAsync(() => _coordinator.ResubmitAsync(settings, held));
-
-    public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
-
-    public PreparedSettings? CurrentPublication => _coordinator.GetCurrent();
-
-    private async Task<SettingsApplyOutcome> ApplyThroughAsync(Func<Task<SettingsApplyOutcome>> apply)
+    private async Task<SettingsApplyOutcome> ApplyThroughAsync(
+        Func<SettingsWorkspace, Task<SettingsApplyOutcome>> apply)
     {
-        // Verify up front so an off-thread caller fails before any side effects (daemon write,
-        // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
         Dispatcher.UIThread.VerifyAccess();
-
-        var outcome = await apply();
-        // Reload only when something actually reached the daemon. A no-op, a tripped circuit breaker or a
-        // disconnected apply have nothing new to read back — and reloading on a no-op re-arms the very
-        // apply/reload loop the no-op guard exists to break, with the circuit breaker already bypassed
-        // because the guard returned before it (#763).
-        if (outcome.ChangedTheDaemon) await LoadDataAsync();
+        var workspace = _workspace;
+        if (workspace is null || !_session.CanEditSettings) return SettingsApplyOutcome.Disconnected;
+        SaveState = SettingsSaveState.Applying;
+        var outcome = await apply(workspace);
+        if (outcome.Error is not null) AppLog.Warn("Settings apply could not be confirmed.", outcome.Error);
+        if (!ReferenceEquals(workspace, _workspace) || Abandoned) return SettingsApplyOutcome.Disconnected;
+        if (!workspace.HasPendingApply)
+        {
+            UpdateSettingsState();
+            if (!outcome.IsLive)
+                SaveState = outcome.Status == SettingsApplyStatus.CouldNotCheck ? SettingsSaveState.CouldNotCheck
+                    : outcome.Status == SettingsApplyStatus.ChangedElsewhere ? SettingsSaveState.ChangedElsewhere
+                    : SettingsSaveState.ApplyFailed;
+            PublishSettings();
+        }
         return outcome;
     }
 
-    /// <inheritdoc />
-    public async Task<SettingsApplyOutcome> ApplyLiveOnlyAsync(Settings settings)
+    private void PublishSettings()
     {
-        Dispatcher.UIThread.VerifyAccess();
-        // Apply live, reload — but deliberately no disk write: this is a temporary override, so the saved
-        // settings.json default must stay intact (#320). No save chip either; the override cue owns the
-        // feedback.
-        var outcome = await _coordinator.ApplyLiveOnlyAsync(settings);
-        if (outcome.ChangedTheDaemon) await LoadDataAsync();
-        return outcome;
+        if (CurrentSettings is { } settings)
+        {
+            Profiles = settings.Profiles.Select(p => new ProfileItem(p,
+                DetectedTablets.Any(t => t.Name == p.Tablet), null)).ToList();
+            OutputMode = settings.Profiles.FirstOrDefault()?.OutputMode?.Path?.Split('.').LastOrDefault() ?? "Unknown";
+            HasWindowsInk = OutputMode.Contains("WinInk", StringComparison.OrdinalIgnoreCase);
+        }
+        DataLoaded?.Invoke();
     }
 
-    /// <inheritdoc />
-    public Task<SettingsApplyOutcome> ApplyEphemeralAsync(Settings settings)
+    public async Task<bool> SaveSettingsAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        // Per-app switch (#167): daemon only — no disk write, no reload, and CurrentSettings stays on the
-        // user's default so the editor edits the default rather than the transient snapshot. Live pen
-        // streams read daemon reports, so they still update.
-        return _coordinator.ApplyEphemeralAsync(settings);
+        var workspace = _workspace;
+        if (workspace is null) return false;
+        SaveState = SettingsSaveState.Saving;
+        var outcome = await workspace.SaveAsync();
+        if (outcome.Error is not null) AppLog.Warn("Settings save failed.", outcome.Error);
+        if (!ReferenceEquals(workspace, _workspace) || Abandoned) return false;
+        UpdateSettingsState();
+        if (!outcome.IsSaved) SaveState = outcome.Status == SettingsSaveStatus.Paused
+            ? SettingsSaveState.ChangedElsewhere : SettingsSaveState.Failed;
+        if (outcome.IsSaved) PublishSettings();
+        return outcome.IsSaved;
     }
 
-    /// <inheritdoc />
-    public async Task<SettingsApplyOutcome> ClearEphemeralOverrideAsync()
+    public async Task ReloadSettingsAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        var outcome = await _coordinator.ClearEphemeralOverrideAsync();
-        // The daemon is back on the baseline, so a reload can safely read it again. Nothing to reload
-        // for when there was no override to end.
-        if (outcome.ChangedTheDaemon) await LoadDataAsync();
-        return outcome;
+        if (_workspace is not { } workspace)
+        {
+            await _session.InitializeAsync();
+            return;
+        }
+        var outcome = await workspace.ReloadAsync();
+        if (!ReferenceEquals(workspace, _workspace) || Abandoned) return;
+        if (outcome.ChangedTheBaseline)
+        {
+            DiscardedChangeNotice = "";
+            SettingsReplaced?.Invoke();
+            PublishSettings();
+            SaveState = SettingsSaveState.None;
+            UpdateSettingsState();
+        }
+        else SaveState = SettingsSaveState.CouldNotCheck;
     }
 
-    /// <inheritdoc />
     public async Task<SettingsRestoreOutcome> RestoreDefaultAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
-        var outcome = await _coordinator.RestoreDefaultAsync();
-        // Reload either way: on success to pick up the restored default, and on failure because the
-        // display may still be showing the override we failed to undo.
-        await LoadDataAsync();
+        var workspace = _workspace;
+        if (workspace is null) return SettingsRestoreOutcome.Disconnected;
+        if (SettingsBusy) return SettingsRestoreOutcome.Failed(null);
+        SettingsBusy = true;
+        SettingsRestoreOutcome outcome;
+        try { outcome = await workspace.RestoreAsync(); }
+        finally { SettingsBusy = false; }
+        if (!ReferenceEquals(workspace, _workspace) || Abandoned) return SettingsRestoreOutcome.Disconnected;
+        if (outcome.IsRestored)
+        {
+            SettingsReplaced?.Invoke();
+            PublishSettings();
+            SaveState = SettingsSaveState.None;
+        }
+        UpdateSettingsState();
         return outcome;
     }
 
-    /// <summary>Force the Pen Dynamics filter present + enabled across all profiles and persist — the Home
+    /// <summary>Force the Pen Dynamics filter present + enabled across all profiles and apply — the Home
     /// health-check "Fix" backing the always-on invariant (#dynamics-always-on). No-op if nothing changed.</summary>
-    public async Task EnsureDynamicsAndSaveAsync()
+    public async Task EnsureDynamicsAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
         if (CurrentSettings is { } s && PressureCurveProfile.EnsureEnabled(s))
-            await ApplyAndSaveSettingsAsync(s);
+            await ApplySettingsAsync(s);
     }
 
     /// <summary>The one-click "Restore recommended pen settings" fix for the artist-pen-behavior health
@@ -1192,11 +1173,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             changed = true;
         }
 
-        if (changed) await ApplyAndSaveSettingsAsync(settings);
+        if (changed) await ApplySettingsAsync(settings);
     }
 
     /// <summary>The Home health-check "Fix" for an off-screen mapping (#629): re-map the tablet's active
-    /// area cleanly to the primary display — a whole-monitor, undistorted 1:1 fit — and persist, pulling the
+    /// area cleanly to the primary display — a whole-monitor, undistorted 1:1 fit — and apply, pulling the
     /// pen back onto real screen space. No-op if the tablet/profile or the display set is unavailable.</summary>
     public async Task MapTabletToPrimaryDisplayAsync(string? tabletName)
     {
@@ -1212,12 +1193,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!Domain.DisplayMappingApplier.ApplyToProfile(profile, GetTabletDigitizer(tabletName), primary, displays))
             return;
 
-        await ApplyAndSaveSettingsAsync(settings);
+        await ApplySettingsAsync(settings);
     }
 
     /// <summary>The Home health-check "Fix" for a non-cardinal active-area rotation (#629): snap the tablet's
     /// rotation to the nearest standard angle (0/90/180/270) and re-fit the area to its mapped display, then
-    /// persist — un-skewing the pen axes. No-op if the tablet/profile is unavailable.</summary>
+    /// apply — un-skewing the pen axes. No-op if the tablet/profile is unavailable.</summary>
     public async Task ResetTabletRotationToCardinalAsync(string? tabletName)
     {
         Dispatcher.UIThread.VerifyAccess();
@@ -1232,7 +1213,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (!Domain.DisplayMappingApplier.ApplyRotation(profile, GetTabletDigitizer(tabletName), cardinal, displays))
             return;
 
-        await ApplyAndSaveSettingsAsync(settings);
+        await ApplySettingsAsync(settings);
     }
 
     public (float Width, float Height)? GetTabletDigitizer(string tabletName)
@@ -1287,7 +1268,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonOperationStatus = "Starting daemon…";
             _session.AutoReconnect = true;
-            if (_daemonLifecycle.Launch() is { } launchProblem)
+            if (_daemonLifecycle.Launch(_daemonPath) is { } launchProblem)
             {
                 // It died on the spot. Waiting out the 30s connect timeout would replace a precise
                 // explanation with a generic one.
@@ -1421,6 +1402,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task StopDaemon()
     {
         if (IsDaemonBusy) return;
+        if (ResolveUnsavedChanges is { } resolve && !await resolve()) return;
         if (!await ConfirmedDaemonActionAsync("stop")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
@@ -1446,18 +1428,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private async Task RestartDaemon()
     {
         if (IsDaemonBusy) return;
-        // Restart asks too, and asks a bigger question: its stop phase kills the foreign daemon and its
-        // start phase launches OUR bundled build, so "restart" silently swaps which daemon you are
-        // running. #613 named Stop and Quit-and-stop, but confirming only those would leave the policy
-        // with a hole you could walk through by pressing the button next to it.
+        if (_daemonPath is not null && _session.ConnectedExecutablePath is { } actual
+            && !PathEquality.Same(_daemonPath, actual))
+        {
+            DaemonOperationError = "A different driver is running. Restart OpenTabletArtist to use it.";
+            return;
+        }
+        if (ResolveUnsavedChanges is { } resolve && !await resolve()) return;
+        // Restart the executable pinned when this app first connected.
         if (!await ConfirmedDaemonActionAsync("restart")) return;
         IsDaemonBusy = true;
         DaemonOperationError = "";
         try
         {
-            // Restart relaunches *our* build, so it needs our exe present — check before stopping,
+            // Confirm a relaunch target before stopping,
             // so we never kill a running daemon we can't bring back.
-            if (_daemonLifecycle.ExpectedExePath() == null) { SetDaemonExeMissing(); return; }
+            if ((_daemonPath ?? _daemonLifecycle.ExpectedExePath()) == null) { SetDaemonExeMissing(); return; }
             IsDaemonExeMissing = false;
 
             // Stop phase: suppress auto-reconnect while the old process dies, wait for the drop.
@@ -1469,7 +1455,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // Start phase: relaunch and connect to the fresh instance.
             DaemonOperationStatus = "Starting daemon…";
             _session.AutoReconnect = true;
-            if (_daemonLifecycle.Launch() is { } launchProblem)
+            if (_daemonLifecycle.Launch(_daemonPath) is { } launchProblem)
             {
                 // Worth being loud here: the old daemon is already stopped, so a silent failure leaves
                 // the user with no driver at all and no idea why.
@@ -1504,11 +1490,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </summary>
     private async Task<bool> WaitForConnectionStateAsync(bool connected, TimeSpan timeout)
     {
+        var token = _cts.Token;
         var sw = Stopwatch.StartNew();
         while (IsConnected != connected)
         {
             if (sw.Elapsed >= timeout) return false;
-            try { await Task.Delay(100, _cts.Token); }
+            try { await Task.Delay(100, token); }
             catch (OperationCanceledException) { return IsConnected == connected; }
         }
         return true;
@@ -1572,17 +1559,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </summary>
     private void ApplyDaemonIdentity(DaemonChange change)
     {
-        var (actual, _, discardedUnsaved) = change;
-
-        if (discardedUnsaved)
-        {
-            // Name what was lost, because "a change was discarded" invites the question this answers:
-            // which settings, belonging to what. The daemon is gone; its settings file may not be.
-            DiscardedChangeNotice =
-                "A change that hadn't been saved yet was discarded, because the OpenTabletDriver "
-                + "you're connected to changed. It belonged to the previous one, and writing it here "
-                + "would have overwritten this daemon's settings.";
-        }
+        var actual = change.ExecutablePath;
+        _daemonPath ??= actual;
 
         DaemonSourcePath = actual ?? "";
         // Read the version off the connected daemon's own binary (no RPC — the daemon doesn't report it).
@@ -1625,49 +1603,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     }
 
-    /// <summary>Best-effort product/file version off an executable's Win32 version stamp. Returns "" on
-    /// any failure (missing file, no version resource). Strips SemVer build metadata (e.g. "+abc123").</summary>
-
-    /// <summary>
-    /// Settles the work this session already admitted, then closes the connection.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// What <see cref="Dispose"/> cannot be. Disposing closes the transport under whatever is running, so
-    /// an apply that reached the daemon can fail on its way to disk with nothing able to say whether it
-    /// landed. An exit that can wait should come through here first; <see cref="Dispose"/> stays as the
-    /// teardown, and as the fallback for an exit that cannot.
-    /// </para>
-    /// <para>
-    /// The loops are cancelled first, and not for the reason it first appears. They cannot prolong the
-    /// settle -- the library stops admitting the moment the close begins, so anything they started would
-    /// be refused rather than waited for. What they can do is keep using the transport during the window:
-    /// the fallback poll reloads through <c>LoadDataAsync</c>, which reads the daemon directly rather than
-    /// through the settings session, so a poll landing mid-close would read a connection on its way out
-    /// and adopt what it found. Cancelling is not disposing: <see cref="Dispose"/> still owns the token
-    /// source, the gate and the timers.
-    /// </para>
-    /// <para>
-    /// No regression covers that cancellation. The poll runs every thirty seconds against a five-second
-    /// close, so one lands inside a close often enough to matter but never on demand, and provoking it
-    /// would mean making the interval a test seam for a single line whose absence is directly
-    /// inspectable. Said here rather than left to look covered.
-    /// </para>
-    /// </remarks>
-    /// <param name="settleWithin">How long to wait for work in flight before closing anyway.</param>
-    /// <returns>True when everything in flight finished; false when it closed anyway.</returns>
+    /// <summary>Cancel background work and close the driver connection. The caller resolves unsaved edits first.</summary>
     public async Task<bool> CloseAsync(TimeSpan settleWithin)
     {
-        // Before anything is awaited. A refresh admitted between here and the settle would read the very
-        // connection this is closing -- and the reload that follows an apply is admitted by the apply
-        // this close is settling, which is the case that made it more than theoretical.
         _closing = true;
-
         if (!_disposed) _cts.Cancel();
-
-        // ConfigureAwait(true) on purpose: the library requires host callers to resume on the same
-        // serialized context they called from, and for this application that is the UI thread.
-        return await _session.CloseAsync(settleWithin).ConfigureAwait(true);
+        return await _session.CloseAsync(settleWithin);
     }
 
     private bool _disposed;
@@ -1684,12 +1625,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _cts.Dispose();
         _loadGate.Dispose();
 
-        // Stop the dispatcher timers, or a disposed session keeps ticking. Both are started in response
-        // to ordinary state changes — the save chip's 2.5s auto-clear and the connect-activity ticker —
-        // and neither was ever stopped here, so a disposed session went on posting to the dispatcher
-        // during teardown. Same family as the debounces in #736: work outliving the object that owns it.
-        _saveClearTimer?.Stop();
-        _saveClearTimer = null;
+        // Stop the connection activity timer before disposing its session.
         _connectTicker?.Stop();
         _connectTicker = null;
 

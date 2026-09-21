@@ -143,26 +143,6 @@ public class DisplayMappingApplierTests
     }
 
     [Fact]
-    public void PreserveAreaMapping_KeepsCurrentMonitor_ButNotOtherSettings()
-    {
-        // Snapshot maps the tablet to monitor 2 and turns on aspect lock; current has it on monitor 1.
-        var displays = TwoMonitors();
-        var snapshot = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("T") } };
-        DisplayMappingApplier.ApplyToProfile(snapshot.Profiles[0], (100f, 100f), displays[1], displays);
-        snapshot.Profiles[0].AbsoluteModeSettings.LockAspectRatio = true;
-
-        var current = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("T") } };
-        DisplayMappingApplier.ApplyToProfile(current.Profiles[0], (100f, 100f), displays[0], displays);
-
-        DisplayMappingApplier.PreserveAreaMapping(snapshot, current);
-
-        // Monitor now follows current (1), not the snapshot's baked-in monitor (2)…
-        Assert.Equal(1, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
-        // …while a non-mapping setting from the snapshot is left untouched.
-        Assert.True(snapshot.Profiles[0].AbsoluteModeSettings.LockAspectRatio);
-    }
-
-    [Fact]
     public void ClassifyMapping_Clean_ForWholeMonitorMapping()
     {
         var displays = TwoMonitors();
@@ -203,19 +183,6 @@ public class DisplayMappingApplierTests
         DisplayMappingApplier.ApplyToProfile(mapped, (152f, 95f), displays[0], displays);
         Assert.Equal(DisplayMappingValidity.None,
             DisplayMappingApplier.ClassifyMapping(mapped, System.Array.Empty<DisplayInfo>()));
-    }
-
-    [Fact]
-    public void PreserveAreaMapping_IgnoresUnmatchedTablets()
-    {
-        var displays = TwoMonitors();
-        var snapshot = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("A") } };
-        DisplayMappingApplier.ApplyToProfile(snapshot.Profiles[0], (100f, 100f), displays[1], displays);
-        var current = new Settings { Profiles = new ProfileCollection { ProfileWithAbsolute("B") } }; // different tablet
-
-        DisplayMappingApplier.PreserveAreaMapping(snapshot, current); // no match → snapshot untouched
-
-        Assert.Equal(2, DisplayMappingApplier.CurrentlyMapped(snapshot.Profiles[0], displays)!.Number);
     }
 
     // Regression for the "Calibration unavailable" bug: with a monitor at a NEGATIVE virtual-desktop

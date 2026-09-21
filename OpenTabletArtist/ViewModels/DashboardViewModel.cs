@@ -133,7 +133,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 break;
             case RemediationArea.TabletPenDynamics:
                 // Re-enable the always-on Pen Dynamics filter across profiles and persist.
-                _ = _session.EnsureDynamicsAndSaveAsync();
+                _ = _session.EnsureDynamicsAsync();
                 break;
             case RemediationArea.RestorePenBehavior:
                 // Artist-pen-behavior bundle: re-enable Windows Ink + tip + pressure + tilt in one apply.

@@ -378,6 +378,58 @@ public class PlatformShellTests
         Assert.Empty(launched);
     }
 
+    /// <summary>Running an application starts it with a shell execute and its own folder (#otd-ux-button).</summary>
+    /// <remarks>
+    /// <c>UseShellExecute</c> and the working directory are the difference from the file-manager
+    /// launches, which hand an argument to a known tool. This starts a GUI application in its own right,
+    /// and on Windows those two are what give it a normal window rather than OTA's environment.
+    /// </remarks>
+    [Fact]
+    public void RunApp_StartsTheExecutableInItsOwnFolder()
+    {
+        using var folder = new TempFolder("driver");
+        var exe = System.IO.Path.Combine(folder.Path, "OpenTabletDriver.UX.Wpf.exe");
+        File.WriteAllText(exe, "");
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.RunApp(exe, launched.Add);
+
+        var psi = Assert.Single(launched);
+        Assert.Equal(exe, psi.FileName);
+        Assert.True(psi.UseShellExecute);
+        Assert.Equal(folder.Path, psi.WorkingDirectory);
+        Assert.Empty(psi.ArgumentList);
+    }
+
+    /// <summary>A path that is not there launches nothing.</summary>
+    /// <remarks>
+    /// The button is hidden when there is no UX, so this is the race rather than the ordinary case: the
+    /// folder can go between the check that showed the button and the click that uses it.
+    /// </remarks>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RunApp_LaunchesNothingWithoutAnExecutable(string? path)
+    {
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.RunApp(path, launched.Add);
+
+        Assert.Empty(launched);
+    }
+
+    [Fact]
+    public void RunApp_LaunchesNothingWhenTheFileIsGone()
+    {
+        using var folder = new TempFolder("driver");
+        var launched = new List<ProcessStartInfo>();
+
+        PlatformShell.RunApp(System.IO.Path.Combine(folder.Path, "never-existed.exe"), launched.Add);
+
+        Assert.Empty(launched);
+    }
+
     // --- harness ---------------------------------------------------------------------------------
 
     /// <summary>A real directory for the length of one test, since the helper now refuses absent ones.</summary>

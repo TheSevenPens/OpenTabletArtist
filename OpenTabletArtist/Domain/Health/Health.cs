@@ -171,7 +171,7 @@ public sealed record HealthInputs
     public bool HasDriverConflict { get; init; }
     /// <summary>At least one conflicting driver blocks tablet detection (→ Broken instead of Misconfigured).</summary>
     public bool BlockingDriverConflict { get; init; }
-    /// <summary>The app itself is running elevated (as Administrator), which breaks Windows Ink + per-app switching.</summary>
+    /// <summary>The app itself is running elevated (as Administrator), which breaks Windows Ink.</summary>
     public bool RunningElevated { get; init; }
     /// <summary>The desktop has no host to render the app's tray icon: a GNOME session with no
     /// StatusNotifierItem watcher on the bus. Avalonia still publishes the icon, but nothing shows it, so
@@ -303,7 +303,7 @@ public static class HealthEvaluator
         {
             issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
                 "Running as administrator",
-                "This can break Windows Ink pressure/tilt and per-app switching — reopen it normally, not elevated.",
+                "This can break Windows Ink pressure/tilt — reopen it normally, not elevated.",
                 Remediation: null));
         }
 

@@ -45,6 +45,28 @@ public static class PlatformShell
     /// handler (Linux). Best-effort; a folder that is not there is a no-op.</summary>
     public static void RevealInFileManager(string? path) => Reveal(path, Start);
 
+    /// <summary>Run an application OTA has already located. Best-effort; a missing file is a no-op.</summary>
+    public static void RunApp(string? exePath) => RunApp(exePath, Start);
+
+    /// <summary>
+    /// <see cref="RunApp(string?)"/> with the launch supplied, so a test can observe what was started.
+    /// </summary>
+    /// <remarks>
+    /// <c>UseShellExecute</c> is on, unlike the file-manager launches: this starts a GUI application in
+    /// its own right rather than handing an argument to a known tool, and on Windows that is what gives
+    /// it a normal window and working directory instead of inheriting OTA's.
+    /// </remarks>
+    internal static void RunApp(string? exePath, Action<ProcessStartInfo> start)
+    {
+        if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath)) return;
+
+        Launch(new ProcessStartInfo(exePath)
+        {
+            UseShellExecute = true,
+            WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
+        }, start);
+    }
+
     /// <summary>Open the OS display-settings pane. Windows: <c>ms-settings:display</c>; macOS: the Displays
     /// pane in System Settings; elsewhere a no-op. Best-effort.</summary>
     public static void OpenDisplaySettings() => OpenDisplaySettings(

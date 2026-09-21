@@ -67,12 +67,12 @@ public class TabletEditorSuppressionTests
 
     private static (TabletDetailViewModel vm, List<Settings> applies) Editor(
         Settings settings,
-        Func<Task<(Settings?, Profile?, SettingsStamp)>>? refreshAction = null)
+        Func<Task<(Settings?, Profile?)>>? refreshAction = null)
     {
         var applies = new List<Settings>();
         var vm = new TabletDetailViewModel(
             settings.Profiles[0], settings,
-            applyAction: s => { applies.Add(s); return Task.FromResult(SettingsApplyOutcome.Saved); },
+            applyAction: s => { applies.Add(s); return Task.FromResult(SettingsApplyOutcome.Live); },
             refreshAction: refreshAction);
         return (vm, applies);
     }
@@ -186,8 +186,8 @@ public class TabletEditorSuppressionTests
     {
         var settings = SettingsFor("T");
         var (vm, applies) = Editor(settings,
-            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>(
-                (settings, settings.Profiles[0], new SettingsStamp(1, 1))));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?)>(
+                (settings, settings.Profiles[0])));
         await Settle(PastDebounce);
         applies.Clear();
 

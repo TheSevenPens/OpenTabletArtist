@@ -92,6 +92,9 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
         _pipeName = pipeName ?? DefaultPipeName;
     }
 
+    private readonly object _connectionLock = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
     private JsonRpc? _rpc;
     private NamedPipeClientStream? _pipe;
 
@@ -154,91 +157,76 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
 
     public Task ConnectAsync(CancellationToken ct = default)
     {
-        // An explicit connect request always re-enables auto-reconnect for later drops.
+        if (_disposed) return Task.CompletedTask;
         AutoReconnect = true;
         _connectFlight.Trigger(() => ConnectLoopAsync(ct));
         return Task.CompletedTask;
     }
 
-    private async Task ConnectLoopAsync(CancellationToken ct)
+    private async Task ConnectLoopAsync(CancellationToken callerToken)
     {
-        if (IsConnected) return; // a prior loop already (re)connected; nothing to do
-        while (!ct.IsCancellationRequested)
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, _lifetime.Token);
+        var ct = linked.Token;
+        if (IsConnected) return;
+        while (!ct.IsCancellationRequested && AutoReconnect)
         {
+            var pipe = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut,
+                PipeOptions.Asynchronous | PipeOptions.WriteThrough | PipeOptions.CurrentUserOnly);
             try
             {
-                _pipe = new NamedPipeClientStream(
-                    ".",
-                    _pipeName,
-                    PipeDirection.InOut,
-                    PipeOptions.Asynchronous | PipeOptions.WriteThrough | PipeOptions.CurrentUserOnly
-                );
-
-                // Wait generously for the daemon's pipe — a cold daemon can take ~5s to listen, and a
-                // too-short timeout drops us into the 3s backoff below for no reason (#246).
-                await _pipe.ConnectAsync(15000, ct);
-                var rpc = new JsonRpc(_pipe);
-                // Before the assignment, deliberately. From the moment `_rpc` points at the new channel a
-                // send goes to the new daemon -- earlier than StartListening, earlier than Connected, and
-                // far earlier than any host handler. An operation that read the incarnation before this
-                // and sends after it must be recognisable as obsolete, and it only is if this moves first.
-                // One assignment, so nothing can observe a half-established channel. The number is
-                // allocated from a counter that only ever goes up: it must be unique for the life of the
-                // client, and taking it from the previous channel could not be -- a disconnect clears
-                // that, so the next connection reused the number the last one had.
-                _channel = new Channel(rpc, Interlocked.Increment(ref _channelsOpened));
-                _rpc = rpc;
+                await pipe.ConnectAsync(15000, ct).ConfigureAwait(false);
+                var rpc = new JsonRpc(pipe);
                 rpc.Disconnected += (_, _) =>
                 {
-                    // Drop the dead instance so IsConnected reads false immediately (its
-                    // IsDisposed flips asynchronously). Guard against a late drop from a
-                    // superseded connection clobbering a newer one.
-                    if (ReferenceEquals(_rpc, rpc)) _rpc = null;
-                    // The channel value goes with it. A hold taken on this one keeps working against the
-                    // disposed RPC and fails, which is correct -- what must not happen is a later hold
-                    // silently picking up a successor under the same number.
-                    if (ReferenceEquals(_channel?.Rpc, rpc)) _channel = null;
-                    // The daemon forgets the debug flag on disconnect; clear the count so it isn't
-                    // left stale (which would suppress a later enable).
+                    lock (_connectionLock)
+                    {
+                        if (!ReferenceEquals(_rpc, rpc)) return;
+                        _rpc = null;
+                        _channel = null;
+                        _pipe = null;
+                    }
                     lock (_debugLock) _debugRefs.Reset();
+                    pipe.Dispose();
                     Disconnected?.Invoke();
-                    // Reconnect only on an UNEXPECTED drop — not a user-initiated Stop. If this
-                    // fires during the current connect's release window, the coordinator still
-                    // honors it (coalesced rerun) — no drop.
-                    if (AutoReconnect)
-                        ConnectAsync(ct);
+                    if (AutoReconnect && !_disposed)
+                        _connectFlight.Trigger(() => ConnectLoopAsync(callerToken));
                 };
                 rpc.AddLocalRpcMethod("DeviceReport", new Action<JObject>(OnDeviceReport));
-                // The daemon forwards its TabletsChanged event as a same-named notification carrying the
-                // new tablet list. We ignore the payload and just signal (accept it as a loose JToken so a
-                // null/empty list can't fault the dispatch), then reload authoritatively (#170).
                 rpc.AddLocalRpcMethod("TabletsChanged", new Action<JToken?>(OnTabletsChanged));
-                // The daemon forwards its Message event as a same-named notification carrying a
-                // serialized LogMessage; surface it for the Console page (#console).
                 rpc.AddLocalRpcMethod("Message", new Action<JObject>(OnLogMessage));
+                lock (_connectionLock)
+                {
+                    if (_disposed || ct.IsCancellationRequested)
+                    {
+                        rpc.Dispose();
+                        pipe.Dispose();
+                        return;
+                    }
+                    _channel = new Channel(rpc, Interlocked.Increment(ref _channelsOpened));
+                    _rpc = rpc;
+                    _pipe = pipe;
+                }
                 rpc.StartListening();
-                Connected?.Invoke();
-                _lastTimeoutLogTick = 0;      // clean connect — let the next offline spell log immediately
+                if (ReferenceEquals(_rpc, rpc)) Connected?.Invoke();
+                _lastTimeoutLogTick = 0;
                 _lastConnectErrorLogTick = 0;
                 return;
             }
+            catch (OperationCanceledException) { pipe.Dispose(); return; }
             catch (TimeoutException)
             {
-                // Expected while the daemon isn't up yet — Debug, and throttled so a long wait doesn't
-                // flood the log (#21).
+                pipe.Dispose();
                 if (ShouldLog(ref _lastTimeoutLogTick))
                     _log.Debug("Daemon connect timed out; retrying (repeats throttled to 5 min).");
-                await Task.Delay(3000, ct);
             }
-            catch (OperationCanceledException) { return; }
             catch (Exception ex)
             {
-                // Unexpected connect failure — Warn with the reason (was silently swallowed), throttled the
-                // same way for a persistent failure (#21).
+                pipe.Dispose();
                 if (ShouldLog(ref _lastConnectErrorLogTick))
                     _log.Warn("Daemon connect failed; retrying (repeats throttled to 5 min).", ex);
-                await Task.Delay(3000, ct);
             }
+            try { await Task.Delay(3000, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
         }
     }
 
@@ -472,12 +460,21 @@ internal sealed class DaemonClient : IDaemonTransport, IDaemonSettingsChannel
     /// </remarks>
     public void Dispose()
     {
-        var rpc = _rpc;
-        _rpc = null;
+        JsonRpc? rpc;
+        NamedPipeClientStream? pipe;
+        lock (_connectionLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            AutoReconnect = false;
+            rpc = _rpc;
+            pipe = _pipe;
+            _rpc = null;
+            _channel = null;
+            _pipe = null;
+        }
+        _lifetime.Cancel();
         rpc?.Dispose();
-
-        var pipe = _pipe;
-        _pipe = null;
         pipe?.Dispose();
     }
 }

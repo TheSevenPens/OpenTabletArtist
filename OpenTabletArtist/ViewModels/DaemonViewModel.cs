@@ -166,6 +166,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasUserDaemonPathProblem))]
     private string _userDaemonPathProblem = "";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDaemonSelectionNotice))]
+    private string _daemonSelectionNotice = "";
+    public bool HasDaemonSelectionNotice => !string.IsNullOrEmpty(DaemonSelectionNotice);
+
     public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
 
     partial void OnUserDaemonPathChanged(string value)
@@ -179,13 +184,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
     }
 
-    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect
-    /// through it. Rejections are reported rather than stored.</summary>
+    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it for the next application launch. Rejections are reported rather than stored.</summary>
     public async Task ChooseDaemonPathAsync(string? rawPath)
     {
         var result = DaemonExePaths.ValidateUserPath(rawPath, File.Exists);
         if (!result.Accepted)
         {
+            DaemonSelectionNotice = "";
             UserDaemonPathProblem = result.Problem ?? "";
             return;
         }
@@ -193,7 +198,8 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         UserDaemonPathProblem = "";
         UserDaemonPath = result.Path!;
         AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
-        await Status.RefreshCommand.ExecuteAsync(null);
+        DaemonSelectionNotice = "Selection saved for the next OpenTabletArtist launch. Stop the current driver first if a different copy is running.";
+        await Task.CompletedTask;
     }
 
     // --- "Install it for me": fetch the pinned official release -----------------------------------
@@ -340,7 +346,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
             // and nothing has to be remembered.
             InstallGuidance = OtdInstaller.GatekeeperGuidance;
-            await Status.RefreshCommand.ExecuteAsync(null);
+            InstallGuidance += " Restart OpenTabletArtist to use this installation.";
         }
         finally
         {
@@ -365,8 +371,34 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         AppSettings.Remove(DaemonExePaths.UserPathSettingKey);
         UserDaemonPath = "";
         UserDaemonPathProblem = "";
-        await Status.RefreshCommand.ExecuteAsync(null);
+        DaemonSelectionNotice = "The default selection takes effect after restarting OpenTabletArtist. Stop the current driver first if a different copy is running.";
+        await Task.CompletedTask;
     }
+
+    /// <summary>
+    /// OpenTabletDriver's own settings window, if the connected driver ships one (#otd-ux-button).
+    /// </summary>
+    /// <remarks>
+    /// Read through the daemon OTA is connected to, so the window that opens belongs to the driver on
+    /// this page rather than to some other copy on the machine. Absent for a daemon running from a build
+    /// tree or a packaged install without a UX, which is why this is a property rather than a button
+    /// that is always shown and sometimes does nothing.
+    /// </remarks>
+    public string? OtdUxPath => DaemonExePaths.UxBeside(Status.DaemonSourcePath);
+
+    public bool CanOpenOtdUx => OtdUxPath is not null;
+
+    /// <summary>
+    /// Opens OpenTabletDriver's own settings window.
+    /// </summary>
+    /// <remarks>
+    /// Worth knowing what this invites: OTD's UX is a second settings editor on the same daemon, and
+    /// this app's whole model is that there is one. Editing there will make OTA notice an outside change
+    /// and pause until the artist reloads — which is correct behaviour rather than a malfunction, and
+    /// the tooltip says so rather than letting it look like one.
+    /// </remarks>
+    [RelayCommand]
+    private void OpenOtdUx() => PlatformShell.RunApp(OtdUxPath);
 
     /// <summary>Reveal a daemon executable's folder in the OS file manager.
     ///

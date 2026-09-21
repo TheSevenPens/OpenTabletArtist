@@ -170,38 +170,7 @@
                        IsVisible="{Binding RefreshWarning, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" />
             <!-- Settings changed outside OTA (e.g. the OTD UX) while the user had an unsaved edit here.
                  Non-destructive: Reload adopts the external values; otherwise it's picked up silently. -->
-            <Border IsVisible="{Binding HasExternalChange}"
-                    Background="{DynamicResource GlassBgBrush}"
-                    BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
-                    CornerRadius="0" Padding="12,8" Margin="0,4,0,0">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding ExternalChangeText}"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               TextWrapping="Wrap" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                Margin="12,0,0,0" VerticalAlignment="Center">
-                        <!-- Ask again. Offered only when nothing was established about the daemon, where
-                             trying once more is the whole of what is needed (#906). -->
-                        <Button Content="Try again"
-                                IsVisible="{Binding CanRetryHeldChange}"
-                                Command="{Binding RetryHeldChangeCommand}"
-                                ToolTip.Tip="Check the current settings again and apply your change"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" />
-                        <!-- Keep mine. Only where a conflict was actually seen, because overwriting is a
-                             decision about something specific, not a way past an unanswered question. -->
-                        <Button Content="Keep my change"
-                                IsVisible="{Binding CanOverwriteHeldChange}"
-                                Command="{Binding OverwriteHeldChangeCommand}"
-                                ToolTip.Tip="Replace the current settings with your change"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" />
-                        <Button Content="Reload"
-                                IsVisible="{Binding CanReloadExternalChange}"
-                                Command="{Binding ReloadExternalChangeCommand}"
-                                ToolTip.Tip="Discard your unsaved change and load the current settings"
-                                Theme="{StaticResource GhostButton}" Padding="12,6" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+
         </StackPanel>
 
         <!-- The tablet page's TAB MENU. It began as one row shared with the switcher dropdown and the

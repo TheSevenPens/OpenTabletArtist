@@ -1,5 +1,7 @@
 # 321 — Settings persistence model + surfacing "saved"
 
+> Historical design. OTA's current behavior is described in [OTD settings workspace and explicit Save](otd-interop-settings-workspace.md). The autosave, per-app, and conflict-reconciliation behavior below has been superseded; upstream protocol observations remain useful.
+
 **Status:** Decided — building the save indicator + failure surfacing
 **Issue:** #321
 

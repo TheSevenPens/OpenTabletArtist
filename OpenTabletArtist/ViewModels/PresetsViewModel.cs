@@ -126,30 +126,13 @@ public partial class PresetsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task LoadPreset(string name)
-    {
-        var path = Path.Combine(PresetDirectory, $"{name}.json");
-        if (_store.TryLoad(path, out var settings) && settings != null)
-        {
-            await _settings.ApplyAndSaveSettingsAsync(settings);
-        }
-    }
+    private async Task LoadPreset(string name) => await _profileSwitch.SwitchToAsync(name);
 
     [RelayCommand]
     private async Task UpdatePreset(string name)
     {
         var settings = _settings.CurrentSettings;
         if (settings == null) return;
-
-        // Guard: while a live-only override is active, CurrentSettings is the override, not your saved
-        // default — updating would capture the wrong config. Make it a deliberate choice. (#320)
-        if (_profileSwitch.HasOverride)
-        {
-            var proceed = await _dialogs.ShowConfirmAsync("Update Preset",
-                $"A profile override (\"{_profileSwitch.ActiveSnapshot}\") is active, so this saves the " +
-                "currently-overridden settings into this preset — not your saved default.\n\nContinue?");
-            if (!proceed) return;
-        }
 
         var path = Path.Combine(PresetDirectory, $"{name}.json");
         _store.Save(settings, path);

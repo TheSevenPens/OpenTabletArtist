@@ -50,7 +50,6 @@ public class SettingsRailTests
     /// saved during the same visit missing from the list next door.</summary>
     [Theory]
     [InlineData(SettingsTab.Hotkeys)]
-    [InlineData(SettingsTab.PerAppPresets)]
     public void PresetBackedTabs_RescanOnEnter(SettingsTab tab)
         => Assert.True(SettingsViewModel.TabRescansPresets(tab));
 

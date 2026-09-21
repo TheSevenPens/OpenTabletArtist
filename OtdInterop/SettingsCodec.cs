@@ -23,6 +23,16 @@ namespace OtdInterop;
 /// </remarks>
 public static class SettingsCodec
 {
+    /// <summary>Copy settings so an operation never borrows an editable payload.</summary>
+    public static Settings Clone(Settings settings) =>
+        JsonConvert.DeserializeObject<Settings>(JsonConvert.SerializeObject(settings))
+        ?? throw new JsonSerializationException("Settings were empty.");
+
+    /// <summary>Compare values independently of JSON property ordering.</summary>
+    public static bool Same(Settings left, Settings right) =>
+        Newtonsoft.Json.Linq.JToken.DeepEquals(Newtonsoft.Json.Linq.JToken.FromObject(left),
+            Newtonsoft.Json.Linq.JToken.FromObject(right));
+
     /// <summary>
     /// Writes <paramref name="settings"/> to <paramref name="destination"/>, leaving the stream open.
     /// </summary>

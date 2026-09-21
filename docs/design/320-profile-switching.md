@@ -1,5 +1,7 @@
 # 320 — Switching profiles (hotkeys + per-app auto-switch)
 
+> Historical design. OTA's current behavior is described in [OTD settings workspace and explicit Save](otd-interop-settings-workspace.md). The autosave, per-app, and conflict-reconciliation behavior below has been superseded; upstream protocol observations remain useful.
+
 **Status:** Reviewed & approved (Cursor) — ready to implement Part 1
 **Issue:** #320
 **Related:** #167 (per-app settings — Part 2 *is* this), #321 (persistence model), #72 (tray/background mode, shipped)

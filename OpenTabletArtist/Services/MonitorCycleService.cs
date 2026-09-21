@@ -10,7 +10,7 @@ namespace OpenTabletArtist.Services;
 /// Cycles the active tablet's Absolute-mode area mapping to the next monitor (#89). A single shared
 /// instance driven by the global "cycle mapped monitor" hotkey. The mapping is stored per-tablet, so a
 /// press acts on the active/detected tablet's profile — moving it to the next display in the enumerated
-/// list (wrapping around) — and persists the change (a deliberate remap, not a temporary override).
+/// list (wrapping around) — applies the remap to the shared workspace.
 /// Reuses <see cref="DisplayMappingApplier"/> so the result matches picking a display on the tablet page.
 /// UI-thread only (persist path verifies UI access).
 /// </summary>
@@ -32,7 +32,7 @@ public sealed class MonitorCycleService
         _displays = displays ?? DisplayEnumerator.Enumerate;
     }
 
-    /// <summary>Remap the active tablet to the next monitor and persist. No-ops (with a toast message)
+    /// <summary>Remap the active tablet to the next monitor. Save remains explicit. No-ops (with a toast message)
     /// when there's no active tablet, it isn't in an absolute mapping, or there's only one display.</summary>
     public async Task CycleAsync()
     {
@@ -64,7 +64,7 @@ public sealed class MonitorCycleService
             return;
         }
 
-        await _settings.ApplyAndSaveSettingsAsync(settings);
+        await _settings.ApplySettingsAsync(settings);
         Cycled?.Invoke($"{tabletName} → {next.DisplayTitle}");
     }
 

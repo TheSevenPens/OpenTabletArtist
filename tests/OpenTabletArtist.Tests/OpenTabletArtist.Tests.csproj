@@ -25,9 +25,9 @@
   <ItemGroup>
     <!-- The library suite owns these; this suite's own app-level tests still need a stand-in daemon, and
          one copy of it is better than two that drift. -->
+    <Compile Include="..\OtdInterop.Tests\MemorySettingsFileStore.cs" Link="MemorySettingsFileStore.cs" />
     <Compile Include="..\OtdInterop.Tests\FakeDaemonTransport.cs" Link="FakeDaemonTransport.cs" />
     <Compile Include="..\OtdInterop.Tests\NullOtdLog.cs" Link="NullOtdLog.cs" />
-    <Compile Include="..\OtdInterop.Tests\NoPolicy.cs" Link="NoPolicy.cs" />
     <Compile Include="..\OtdInterop.Tests\UnwritablePath.cs" Link="UnwritablePath.cs" />
   </ItemGroup>
 
