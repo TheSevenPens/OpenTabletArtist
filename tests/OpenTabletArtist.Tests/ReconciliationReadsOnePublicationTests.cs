@@ -50,20 +50,58 @@ public class ReconciliationReadsOnePublicationTests
         Assert.Contains("CurrentPublication", body, StringComparison.Ordinal);
     }
 
-    /// <summary>The text between a method's opening brace and its matching close.</summary>
+    /// <summary>And the other adoption route reads the same way.</summary>
+    /// <remarks>
+    /// The caller-level fix reached one of the two routes first. An editor's own Refresh adopts settings
+    /// exactly as reconciliation does, so reading the two halves separately there has the same
+    /// consequence and had to be found by something other than noticing it.
+    /// </remarks>
+    [Fact]
+    public void TheEditorRefreshCallback_ReadsTheSnapshotAndItsStampAsOnePublication()
+    {
+        var source = File.ReadAllText(Path.Combine(SourceDirectory(), "Services", "DialogService.cs"));
+        var body = MethodBody(source,
+            "public TabletDetailViewModel? CreateTabletDetail(string tabletName, Func<Task> onForget, "
+            + "Action? openConfigsPage = null)");
+
+        Assert.False(string.IsNullOrWhiteSpace(body),
+            "CreateTabletDetail was not found; this guard is no longer checking anything");
+        Assert.Contains("refreshAction", body, StringComparison.Ordinal);
+
+        var refresh = body[body.IndexOf("refreshAction", StringComparison.Ordinal)..];
+        refresh = refresh[..refresh.IndexOf("tabletDigitizer", StringComparison.Ordinal)];
+
+        Assert.DoesNotContain("CurrentStamp", refresh, StringComparison.Ordinal);
+        Assert.Contains("CurrentPublication", refresh, StringComparison.Ordinal);
+    }
+
+    /// <summary>A method's body, whether it is written as a block or as an expression.</summary>
+    /// <remarks>
+    /// Both forms, because the method this guards became a one-liner while the guard was being written
+    /// — and a scan that only understood blocks would have gone on passing by reading the next method's
+    /// body instead of the one it was asked about.
+    /// </remarks>
     private static string MethodBody(string source, string signature)
     {
         var at = source.IndexOf(signature, StringComparison.Ordinal);
         if (at < 0) return "";
 
-        var open = source.IndexOf('{', at + signature.Length);
-        if (open < 0) return "";
+        var rest = at + signature.Length;
+        while (rest < source.Length && char.IsWhiteSpace(source[rest])) rest++;
+
+        if (source[rest] == '=')                                  // => expression;
+        {
+            var end = source.IndexOf(';', rest);
+            return end < 0 ? "" : source[rest..end];
+        }
+
+        if (source[rest] != '{') return "";
 
         var depth = 0;
-        for (var i = open; i < source.Length; i++)
+        for (var i = rest; i < source.Length; i++)
         {
             if (source[i] == '{') depth++;
-            else if (source[i] == '}' && --depth == 0) return source[(open + 1)..i];
+            else if (source[i] == '}' && --depth == 0) return source[(rest + 1)..i];
         }
 
         return "";

@@ -964,6 +964,8 @@ public class TabletEditorReconcileTests
         await session.ReloadAsync();
         await Settle();
 
+        var readsBeforeTheEdit = daemon.GetSettingsCalls;
+
         // Not the button: just carrying on editing.
         // A plain profile setting, not Windows Ink: OnDisableWindowsInkChanged returns early off
         // Windows, so an edit made through it submits nothing there and this would pass by doing
@@ -974,6 +976,11 @@ public class TabletEditorReconcileTests
 
         Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
             "editing on overwrote an external edit that nobody had agreed to replace");
+
+        // And the edit really was submitted and really was held, rather than never leaving the editor:
+        // the check reads the daemon before it decides, so a read means a submission reached it.
+        Assert.True(daemon.GetSettingsCalls > readsBeforeTheEdit,
+            "no submission reached the daemon, so this proves nothing about holding one");
 
         vm.Dispose();
     }
@@ -1080,61 +1087,119 @@ public class TabletEditorReconcileTests
     }
 
     /// <summary>
-    /// A draft whose hold the session can no longer use is given up, not held for ever (#906).
+    /// A reconnect under a held draft stops submission until the artist decides — it does not quietly
+    /// re-enable it (#906).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Refusing an unusable hold is right in the library, and it leaves the editor somewhere it has to be
-    /// got out of: every route in presents the same hold, so a draft that keeps one the session rejects
-    /// can never be submitted again by any means. A reconnect to the <em>same</em> daemon does not go
-    /// through <c>DaemonReplaced</c> — the source path has not moved — so nothing else would ever clear
-    /// it either.
+    /// The sequence the library's refusal creates, and the one my first two attempts at handling it both
+    /// got wrong. Clearing the hold let the next edit go out as an ordinary apply, which met a baseline
+    /// the reconnect's reload had brought level with the daemon and wrote over the external change:
+    /// protection dropped rather than resolved. Giving the draft up lost the artist's work silently, for
+    /// a reason #905 does not supply — that was a different daemon, this is the same one one connection
+    /// later.
     /// </para>
     /// <para>
-    /// The draft goes, on #905's terms: losing an edit is bad, and writing it over settings it was never
-    /// compared with is worse. What the editor then shows is what the daemon last gave it.
+    /// Driven through a real session, because the defect is in what the editor and the session do to each
+    /// other across a reconnect, and a stubbed outcome cannot have a reconnect. The second edit is made
+    /// <b>before</b> any reconciliation, which is what my earlier version quietly skipped past.
     /// </para>
     /// </remarks>
     [AvaloniaFact]
-    public async Task ADraftWhoseHoldTheSessionRefuses_IsGivenUpRatherThanStranded()
+    public async Task AfterAReconnectUnderAHeldDraft_TheNextEditIsNotWrittenEither()
     {
-        var settings = SettingsWithForeignFilter();
-        var answer = SettingsApplyOutcome.CouldNotCheck;
-        var submissions = 0;
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
 
-        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
-            applyAction: _ => { submissions++; return Task.FromResult(answer); },
-            resubmitAction: (_, _) => { submissions++; return Task.FromResult(answer); });
+        // Somebody else suppresses tilt, and the artist's pressure edit is held against what this
+        // session had read before that.
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
 
         vm.DisablePressure = true;
         await Settle();
         Assert.True(vm.HasExternalChange, "the change should be held to begin with");
 
-        // The session now refuses the hold this draft carries.
-        answer = SettingsApplyOutcome.HoldNotApplicable;
-        vm.RetryHeldChangeCommand.Execute(null);
+        // The connection is replaced and the session reloads, so its baseline is now the daemon's own
+        // settings. The editor still holds its draft, and its hold names the connection that has gone.
+        daemon.Reconnect();
+        await session.ReloadAsync();
         await Settle();
 
-        Assert.False(vm.HasExternalChange, "the orphaned draft should have been given up");
-        Assert.False(vm.CanRetryHeldChange);
+        // The artist edits again. The library refuses the hold; nothing may be written.
+        vm.DisablePressure = false;
+        await Settle();
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the first edit after the reconnect overwrote the external change");
 
-        // Given up means the next reload is taken rather than refused, which is how the editor comes
-        // back to showing the daemon's settings. Nothing is restored at the moment of giving up: the
-        // draft lives in this editor's own profile, and what replaces it arrives with reconciliation.
-        var theirs = SettingsWithForeignFilter();
+        // And again, before any reconciliation has offered them anything. This is the edit that used to
+        // go through: the hold had been cleared, so the submission was an ordinary apply.
+        var writesBefore = daemon.Applied.Count;
+        vm.DisablePressure = true;
+        await Settle();
+
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "editing on after the reconnect overwrote an external change nobody agreed to replace");
+        Assert.Equal(writesBefore, daemon.Applied.Count);
+
+        // Said explicitly, because "the daemon was not written to" is also what a test that submitted
+        // nothing at all would observe. This banner is set on exactly one path — the editor taking a
+        // refused hold — so it distinguishes a refusal that happened from an edit that never left.
+        Assert.Contains("connection to OpenTabletDriver was replaced", vm.ExternalChangeText);
+        Assert.True(vm.HasExternalChange, "and the artist is still owed a decision");
+        Assert.False(vm.CanRetryHeldChange, "trying again would be the ordinary apply that must not run");
+        Assert.False(vm.CanOverwriteHeldChange, "the conflict it held belonged to the old connection");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// And the artist is not stuck: taking the current settings resolves it and editing works again
+    /// (#906).
+    /// </summary>
+    /// <remarks>
+    /// The other half, without which stopping submission would just be a more explicit way of losing the
+    /// artist's work. Reload is the decision: it adopts a snapshot the session vouched for, which is the
+    /// thing a reconnect took away.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AfterAReconnect_TakingTheCurrentSettingsLetsTheArtistWorkAgain()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        var theirs = Clone(daemon.Settings!);
         theirs.Profiles[0].BindingSettings.DisableTilt = true;
-        vm.ReconcileExternalChange(theirs, theirs.Profiles[0], new SettingsStamp(1, 1));
+        daemon.Settings = theirs;
 
-        Assert.True(vm.DisableTilt, "the daemon's settings should have been adopted");
-        Assert.False(vm.DisablePressure, "and the orphaned draft is not still showing over them");
-
-        // And the editor works again: an ordinary edit submits.
-        answer = SettingsApplyOutcome.Saved;
-        var before = submissions;
-        vm.DisableTilt = false;
+        vm.DisablePressure = true;
         await Settle();
 
-        Assert.True(submissions > before, "the editor was left unable to submit anything");
+        daemon.Reconnect();
+        await session.ReloadAsync();
+        await Settle();
+
+        vm.DisablePressure = false;
+        await Settle();
+        Assert.True(vm.HasExternalChange);
+
+        // A reload offers the current settings, and the artist takes them.
+        await session.ReloadAsync();
+        await Settle();
+        Assert.True(vm.CanReloadExternalChange, "there should be something to take");
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.False(vm.HasExternalChange, "taking the current settings should have resolved it");
+        Assert.True(vm.DisableTilt, "and the editor should be showing them");
+
+        // Editing works again, and what it writes keeps what the artist just accepted.
+        vm.DisablePressure = true;
+        await PumpUntil(() => Pressure(daemon.Settings!), "the redone edit to reach the daemon");
+
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the redone edit undid the external change the artist had just accepted");
 
         vm.Dispose();
     }
@@ -1191,6 +1256,90 @@ public class TabletEditorReconcileTests
         Assert.Equal(42, daemon.Settings!.Profiles[0].BindingSettings.TipActivationThreshold);
         Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
             "editing on after a refusal overwrote an edit nobody had agreed to replace");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// The forwarder hands each editor the pair it was given, whatever has been published since (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The behavioural half of the snapshot/stamp fix. The caller reads one publication; this shows what
+    /// the editors then receive is that publication and not a later one — which is what makes an
+    /// acceptance quoting the stamp an agreement about the settings actually on screen.
+    /// </para>
+    /// <para>
+    /// The newer publication is created before the forward and left available throughout, so a forwarder
+    /// that went back for a second opinion about the stamp would pick it up. No thread and no timing:
+    /// the two publications simply both exist, and only one of them may arrive.
+    /// </para>
+    /// <para>
+    /// The stamp is observed where it actually matters — through the acceptance the editor makes when
+    /// the artist takes what it is showing. Reading it off a property would test a property; this tests
+    /// the thing the stamp is for.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ForwardingAPublication_GivesEditorsThatPublicationsOwnStamp()
+    {
+        var older = SettingsWithForeignFilter();
+        older.Profiles[0].BindingSettings.DisableTilt = true;
+        var olderStamp = new SettingsStamp(1, 7);
+
+        // Already published by the time the forward happens, and never handed over.
+        var newer = SettingsWithForeignFilter();
+        newer.Profiles[0].BindingSettings.DisableTilt = false;
+        var newerStamp = new SettingsStamp(1, 8);
+        Assert.NotEqual(olderStamp, newerStamp);
+
+        SettingsStamp? accepted = null;
+        var mine = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(mine.Profiles[0], mine,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere),
+            acceptCurrentAction: stamp =>
+            {
+                accepted = stamp;
+                return true;
+            });
+
+        // A held draft, so reconciliation offers rather than adopts and the artist has a decision to make.
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.HasExternalChange);
+
+        EditorReconciliation.Forward(
+            new PreparedSettings(older, olderStamp),
+            new Dictionary<string, TabletDetailViewModel> { ["T"] = vm });
+
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.Equal(olderStamp, accepted);
+        Assert.True(vm.DisableTilt, "the settings that arrived were not the ones that were forwarded");
+
+        vm.Dispose();
+    }
+
+    /// <summary>A publication of nothing leaves every editor alone.</summary>
+    /// <remarks>
+    /// Before anything has loaded there is no snapshot to reconcile against, and handing editors a null
+    /// one would be telling them the daemon holds nothing.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ForwardingNothing_LeavesEditorsAlone()
+    {
+        var mine = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(mine.Profiles[0], mine,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        EditorReconciliation.Forward(
+            null, new Dictionary<string, TabletDetailViewModel> { ["T"] = vm });
+
+        Assert.True(vm.DisablePressure, "the editor's own draft was disturbed by an empty publication");
 
         vm.Dispose();
     }
@@ -1307,11 +1456,14 @@ public class TabletEditorReconcileTests
         // The second artist, who has decided nothing, carries on editing. Its own tablet's tilt, which
         // is a plain profile setting and so submits on every platform — and is a different profile from
         // the one the external edit touched, so it cannot mask the assertion below.
+        var readsBeforeTheSecondEdit = daemon.GetSettingsCalls;
         second.DisableTilt = !second.DisableTilt;
         await Settle();
 
         Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
             "the second editor overwrote an edit that only the first artist had agreed to replace");
+        Assert.True(daemon.GetSettingsCalls > readsBeforeTheSecondEdit,
+            "the second editor submitted nothing, so this proves nothing about holding it");
         Assert.True(second.HasExternalChange, "and its own change is still held, because it still is");
 
         first.Dispose();
@@ -1349,12 +1501,15 @@ public class TabletEditorReconcileTests
         var afterTheirWrite = Clone(daemon.Settings!);
 
         // The second artist, who decided nothing, carries on editing.
+        var readsBeforeTheSecondEdit = daemon.GetSettingsCalls;
         second.DisableTilt = !second.DisableTilt;
         await Settle();
 
         Assert.Equal(
             Newtonsoft.Json.JsonConvert.SerializeObject(afterTheirWrite),
             Newtonsoft.Json.JsonConvert.SerializeObject(daemon.Settings));
+        Assert.True(daemon.GetSettingsCalls > readsBeforeTheSecondEdit,
+            "the second editor submitted nothing, so this proves nothing about holding it");
         Assert.True(second.HasExternalChange, "the second editor's change should still be held");
 
         first.Dispose();

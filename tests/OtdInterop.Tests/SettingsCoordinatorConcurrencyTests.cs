@@ -689,6 +689,68 @@ public class SettingsCoordinatorConcurrencyTests
     }
 
     /// <summary>
+    /// A publication is captured whole: the stamp that comes back names the settings that come with it
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The settings and the revision used to be two fields, assigned one after the other and read the
+    /// same way. Nothing about that is visibly wrong until you ask what a reader between the two writes
+    /// sees, or what a publication landing between the two reads does — either way, one publication's
+    /// settings come back under another's stamp. A caller that accepts that stamp is agreeing to
+    /// something it was never shown, which is the whole thing the stamp was added to prevent.
+    /// </para>
+    /// <para>
+    /// Checked by making each publication identifiable: the settings carry the version they were
+    /// published at, so a mismatched pair is visible in the pair itself rather than inferred from
+    /// timing. No thread and no sleep — what is being established is that capture is coherent, and
+    /// coherence is a property of a single read.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task EveryPublication_ComesBackAsTheSettingsAndStampThatBelongTogether()
+    {
+        var (coordinator, _, _, _) = Make();
+
+        for (var i = 0; i < 5; i++)
+        {
+            await coordinator.ApplyAndSaveAsync(SettingsFor($"rev{i}", locked: false));
+
+            var published = coordinator.GetCurrent();
+            Assert.NotNull(published);
+
+            // The pair names itself: these settings were published at this revision, or they were not.
+            Assert.Equal($"rev{i}", Tablet(published!.Settings));
+            Assert.Equal(coordinator.GetCurrent()!.Stamp, published.Stamp);
+        }
+    }
+
+    /// <summary>
+    /// A stamp handed out before a daemon switch does not compare equal to one handed out after it
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// The session generation is half of a stamp. While it was added when a stamp was asked for rather
+    /// than when one was published, the published stamp silently started reading as the new session's
+    /// while still naming the old session's revision — so a snapshot taken before a switch could be
+    /// accepted afterwards, against a daemon it had never described.
+    /// </remarks>
+    [Fact]
+    public async Task AStampFromBeforeADaemonSwitch_IsNotTheSameAsOneFromAfterIt()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var before = coordinator.GetCurrent()!.Stamp;
+
+        SwitchDaemon(coordinator, daemon);
+
+        Assert.NotEqual(before, coordinator.GetCurrent()!.Stamp);
+        Assert.False(coordinator.AcceptCurrentState(before),
+            "a snapshot from the previous daemon was accepted against this one");
+    }
+
+    /// <summary>
     /// A stamp naming a version this session has not reached is refused too (#910).
     /// </summary>
     /// <remarks>

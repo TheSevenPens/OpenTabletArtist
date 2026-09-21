@@ -560,17 +560,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// what the session is publishing, while the artist is looking at something else. That is precisely
     /// the substitution the stamp argument exists to prevent, arranged by the caller instead.
     /// </remarks>
-    private void ReconcileOpenTabletDetails()
-    {
-        if (_session.CurrentPublication is not { } published) return;
-
-        foreach (var (name, vm) in _tabletDetails)
-        {
-            var profile = published.Settings.Profiles.FirstOrDefault(p =>
-                string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
-            vm.ReconcileExternalChange(published.Settings, profile, published.Stamp);
-        }
-    }
+    private void ReconcileOpenTabletDetails() =>
+        EditorReconciliation.Forward(_session.CurrentPublication, _tabletDetails);
 
     // Throttle so rapid focus flicker doesn't spam the daemon; the reload itself is coalesced anyway.
     private long _lastActivationReloadTick;

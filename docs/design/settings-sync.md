@@ -137,14 +137,29 @@ If OTD's UX (or the OTDWindowsHelper) changes settings while OTA is open:
   A hold names the session that issued it and the connection it was taken on. One that matches neither is
   **refused** (`HoldNotApplicable`) rather than ignored: falling back to this session's own baseline reads
   as the careful choice, but that baseline can match the daemon exactly while the draft belongs somewhere
-  else — so the check passes and a foreign draft is written. The editor gives such a draft up, on the
-  same terms as a daemon switch (#905).
+  else — so the check passes and a foreign draft is written.
+
+  The reachable case is a **reconnect to the same daemon**, which moves the connection without moving the
+  daemon's identity, so it does not go through the #905 daemon-switch path. The editor keeps the draft and
+  **stops submitting anything** until the artist has seen the current settings and taken them; the banner
+  says so. Neither of the other two ways out applies — trying again would be the ordinary apply that must
+  not run, and the conflict the editor was holding belonged to the connection that has gone. Clearing the
+  protection instead would let the next edit through against a baseline the reconnect's reload has already
+  brought level with the daemon, which is the original hole; discarding the draft would lose the artist's
+  work for a reason #905 does not supply, since that is a *different* daemon and this is the same one.
 
   What a hold guarantees is narrower than it first looks. It is **not** that a hold only ever makes a
   write harder: if the daemon moves away from the expected state and back again, the held draft is taken
   while an ordinary submission of the same edit is held, because a reload advanced the ordinary baseline
   in between. The invariant is *compare this draft against its own unchanged expectation*. A hold belongs
   to one draft, is dropped when that draft is resolved or replaced, and is never attached to a later one.
+
+  **Snapshot and stamp are one published value.** An editor quotes its stamp back when the artist accepts
+  what it is showing, and the session honours an acceptance whose stamp is the one it is publishing — so
+  reading the settings and the stamp separately, at either end, hands out an older snapshot under a newer
+  stamp and makes that acceptance an agreement to something nobody was shown. The coordinator replaces one
+  field whole (including on a daemon switch, since the session generation is half of every stamp), and
+  both adoption routes — reconciliation and an editor's own Refresh — read it once.
 
   The hold lives on the draft rather than on the session because editors are cached and two can be live
   at once. With one shared expectation, whichever artist resolved first cleared it, and the other's

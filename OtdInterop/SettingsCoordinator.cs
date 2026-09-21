@@ -210,7 +210,29 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // so a permission problem stops warning in the log eventually, not to ration attempts.
     private const int MaxAutomaticRetries = 10;
 
-    private Settings? _settings;
+    /// <summary>
+    /// What this session publishes, settings and stamp as one value (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One field, replaced whole, so no reader can see half of a publication. They used to be a settings
+    /// field and a revision counter written one after the other, and read the same way — which meant a
+    /// reader between the two writes, or a publication between the two reads, came away with one
+    /// publication's settings under another's stamp. A caller that later accepts that stamp is agreeing
+    /// to something it was never shown, and the stamp exists to stop exactly that.
+    /// </para>
+    /// <para>
+    /// The session generation is inside the stamp rather than added when one is asked for, so a reset
+    /// moves both halves together too.
+    /// </para>
+    /// </remarks>
+    private Publication _published = new(null, new SettingsStamp(1, 0));
+
+    /// <summary>The settings this session publishes and the stamp they were published under.</summary>
+    private sealed record Publication(Settings? Settings, SettingsStamp Stamp);
+
+    /// <summary>Read once. Every caller that needs both halves must take them from one of these.</summary>
+    private Publication Published => Volatile.Read(ref _published);
 
     /// <summary>
     /// One mutating operation at a time (#775). Every path here reads shared state, awaits the daemon,
@@ -255,7 +277,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// happens BEFORE the call that changes the daemon, so a read starting in between would otherwise
     /// carry an epoch that looks current while returning state from before the change.
     ///
-    /// Deliberately not the same counter as <see cref="_revision"/>. This one answers "could a read I
+    /// Deliberately not the same counter as the published revision. This one answers "could a read I
     /// started still be trusted"; that one answers "which published settings is this". An override moves
     /// this and not that, and an apply moves this twice while publishing once.
     /// </summary>
@@ -279,19 +301,20 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// changing what this session publishes — a per-app override — produces no revision of its own and
     /// must not borrow this one.
     /// </summary>
-    private int _revision;
-
-    /// <summary>The revision <see cref="CurrentSettings"/> is at right now.</summary>
-    private int Revision => Volatile.Read(ref _revision);
-
     /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
-    /// <returns>The revision the published state is now at, for stamping whatever produced it.</returns>
-    private int Publish(Settings? settings)
+    /// <returns>The stamp the published state is now at, for stamping whatever produced it.</returns>
+    /// <remarks>
+    /// The next publication is built and then assigned, rather than assembled in place. Assembling in
+    /// place is what let a reader see a new settings object under the old stamp.
+    /// </remarks>
+    private SettingsStamp Publish(Settings? settings)
     {
-        _settings = settings;
+        var next = new Publication(settings, StampFor(Published.Stamp.Version + 1));
+        Volatile.Write(ref _published, next);
+
         // A new baseline is also something a read in flight can no longer be trusted against.
         Interlocked.Increment(ref _observationEpoch);
-        return Interlocked.Increment(ref _revision);
+        return next.Stamp;
     }
 
     /// <summary>
@@ -310,7 +333,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The session is offset by one so a stamp from a freshly-created session is never equal to
     /// <see cref="SettingsStamp.None"/>, which means no session at all.
     /// </summary>
-    private SettingsStamp StampFor(int revision) =>
+    private SettingsStamp StampFor(long revision) =>
         new(Volatile.Read(ref _sessionGeneration) + 1, revision);
 
     /// <summary>
@@ -388,7 +411,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // not reached is not superseded by anything, so the looser test accepted a snapshot that does not
         // exist here. Whatever produced it, this session cannot vouch for it, and "I am looking at what
         // you are publishing" is an equality.
-        if (accepted.IsNone || accepted != StampFor(Revision))
+        if (accepted.IsNone || accepted != Published.Stamp)
         {
             _log.Warn("A caller accepted settings that are no longer the current ones; the change it was "
                       + "holding stays held, because agreeing to something out of date is not agreeing to "
@@ -1095,7 +1118,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     ///
     /// Each read copies, so hold the result rather than re-reading it in a loop.
     /// </summary>
-    public Settings? CurrentSettings => _settings is { } s ? Snapshot(s) : null;
+    public Settings? CurrentSettings => Published.Settings is { } s ? Snapshot(s) : null;
 
     /// <summary>
     /// The settings this session is editing, detached and stamped.
@@ -1109,7 +1132,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// set is deliberately not what the daemon is running.
     /// </summary>
     public PreparedSettings? GetCurrent() =>
-        _settings is { } current ? Detach(current, StampFor(Revision)) : null;
+        Published is { Settings: { } current } now ? Detach(current, now.Stamp) : null;
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -1268,6 +1291,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // An outstanding read belongs to the daemon that has gone; bumping this makes its response
         // unadoptable rather than merely wrong.
         Interlocked.Increment(ref _observationEpoch);
+
+        // The generation is half of every stamp, so republish to carry it into the published one (#910).
+        // Recomputing the generation whenever a stamp was asked for hid this: the published stamp would
+        // silently start reading as the new session's while naming a revision from the old one, so a
+        // stamp handed out before the reset compared equal to one handed out after it.
+        Publish(Published.Settings);
 
         if (!keepPending) DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
@@ -1521,7 +1550,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // Accepted, and by a daemon still ours to speak for -- so now it is a revision. Before the disk
         // write on purpose: an accepted baseline must not be reverted by a persistence failure, which is
         // a separate outcome and a separate retry.
-        var stamp = StampFor(Publish(revision));
+        var stamp = Publish(revision);
 
         // A real apply puts the daemon on these settings, so any per-app override is over (#737). Moved
         // here with the publication: clearing it on an attempt ended an override the daemon was still
@@ -1824,8 +1853,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsApplyOutcome.Superseded;
         }
 
-        var stamp = StampFor(Publish(revision));
-        HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
+        var stamp = Publish(revision);
+        HasEphemeralOverride = false;   // the daemon is on the published settings again (#737)
         return SettingsApplyOutcome.Live with { Prepared = Detach(revision, stamp) };
     }
 
@@ -1906,7 +1935,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
     private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(Origin origin)
     {
-        if (_settings is not { } baseline)
+        if (Published.Settings is not { } baseline)
         {
             // Nothing to return to, so nothing is overriding anything.
             HasEphemeralOverride = false;
@@ -1937,7 +1966,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // The baseline was already published; putting the daemon back on it creates no new revision, so
         // the stamp is the one it already had. Unlike the per-app apply above, the result IS the
         // published settings, so handing it back says something true.
-        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, StampFor(Revision)) };
+        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, Published.Stamp) };
     }
 
     /// <summary>

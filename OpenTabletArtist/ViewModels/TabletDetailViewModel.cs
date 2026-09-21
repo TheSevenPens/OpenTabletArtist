@@ -1051,6 +1051,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             // the release under #906 -- the session keeps nothing to clear, so another editor holding its
             // own draft is untouched by a decision that was never about it.
             _heldHold = null;
+
+            // And this is the decision a replaced connection was waiting for: the artist has taken a
+            // snapshot the session vouched for, so submission is safe again.
+            _needsFreshDecision = false;
         }
 
         _heldChange = false;
@@ -1151,6 +1155,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
         _heldChange = false;
         _heldHold = null;
+        _needsFreshDecision = false;
         ClearExternalChange();
     }
 
@@ -1275,22 +1280,28 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // puts on screen.
         if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
 
-        // The session cannot use the hold this draft was submitted with, so the draft is orphaned: it was
-        // weighed against a connection that has been replaced, and this editor has no way to reason about
-        // it any more (#906). Kept, it would be refused for ever — every route in submits the same hold,
-        // and a reconnect to the same daemon does not go through DaemonReplaced, so nothing else would
-        // ever clear it.
+        // The session cannot use the hold this draft was submitted with: it was weighed against a
+        // connection that has been replaced, and nothing here can speak for that observation any more
+        // (#906).
         //
-        // Given up, on #905's terms and for #905's reason: losing an edit is bad, and writing it over
-        // settings it was never compared with is worse. Telling the artist it went is #906's remaining
-        // work, tracked there rather than guessed at here.
+        // The draft is kept and submission stops until the artist decides. Clearing the hold and
+        // carrying on was the first thing I wrote and it reopened the hole this whole change exists to
+        // close: the editor's next edit went out as an ordinary apply, met a baseline the reconnect's
+        // reload had made equal to the daemon, and wrote over the external change. Protection that is
+        // dropped rather than resolved is not protection.
+        //
+        // Not given up either, which was the second thing I wrote. #905 discards a draft when a
+        // DIFFERENT daemon answers, where the edit is meaningless; this is the same daemon one
+        // connection later, where the edit is merely unverified. Losing an artist's work silently is not
+        // the cheaper option just because it is the simpler code.
         if (outcome.Status is SettingsApplyStatus.HoldNotApplicable)
         {
-            _heldChange = false;
-            _heldConflict = null;
+            _heldChange = true;
+            _heldConflict = null;   // bound to the connection that has gone, so it authorises nothing
             _heldHold = null;
-            ClearExternalChange();
-            return false;   // refresh from the profile, which is what the daemon last gave us
+            _needsFreshDecision = true;
+            SayTheConnectionChangedUnderTheChange();
+            return false;
         }
 
         if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
@@ -1336,10 +1347,47 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// page, and each of those edits submits the same draft by another name — so if carrying the hold
     /// were the button's job, editing on would be the way past the check.
     /// </remarks>
-    private Task<SettingsApplyOutcome> SubmitAsync(Settings settings) =>
-        _heldHold is { } hold && _resubmitAction is { } resubmit
+    private Task<SettingsApplyOutcome> SubmitAsync(Settings settings)
+    {
+        // Nothing goes out while the artist owes a decision (#906). Their draft was weighed against a
+        // connection that has gone, so submitting it now would be an ordinary apply against a baseline
+        // the reconnect's reload has already brought level with the daemon — it would pass the check and
+        // overwrite whatever the reconnect revealed. Editing on is the likeliest route into that, since
+        // an artist whose change is held does not stop touching the page.
+        if (_needsFreshDecision) return Task.FromResult(SettingsApplyOutcome.HoldNotApplicable);
+
+        return _heldHold is { } hold && _resubmitAction is { } resubmit
             ? resubmit(settings, hold)
             : _applyAction!(settings);
+    }
+
+    /// <summary>
+    /// The connection this editor's held draft was weighed against has been replaced (#906).
+    /// </summary>
+    /// <remarks>
+    /// True until the artist resolves it, and nothing this editor submits leaves the machine while it is.
+    /// Cleared by taking the settings on offer, which is a decision about what is actually there.
+    /// </remarks>
+    private bool _needsFreshDecision;
+
+    /// <summary>
+    /// Says the connection moved under a change that was already being held (#906).
+    /// </summary>
+    /// <remarks>
+    /// Neither of the usual two offers applies. Trying again would be an ordinary apply, which is the
+    /// thing that must not happen; keeping the change would need a conflict, and the one this editor was
+    /// holding belonged to the connection that has gone. What is left is taking what is there now, which
+    /// is the one decision that can be made about the connection the artist actually has.
+    /// </remarks>
+    private void SayTheConnectionChangedUnderTheChange()
+    {
+        CanRetryHeldChange = false;
+        CanOverwriteHeldChange = false;
+        ExternalChangeText =
+            "The connection to OpenTabletDriver was replaced while your change was waiting, so it "
+            + "hasn't been applied and can't be until you've seen the current settings. Reload to take "
+            + "them — your change here will be replaced.";
+    }
 
     /// <summary>
     /// Says so in the editor, at once, rather than waiting for a reload that may never differ (#906).
