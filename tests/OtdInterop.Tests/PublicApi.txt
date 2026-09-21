@@ -128,6 +128,8 @@ struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsAp
     System.String ToString()
     System.Void Deconstruct(OtdInterop.SettingsApplyStatus& Status, System.Exception& Error, OtdInterop.PreparedSettings& Prepared)
     static OtdInterop.SettingsApplyOutcome Failed(System.Exception ex)
+    static readonly OtdInterop.SettingsApplyOutcome ChangedElsewhere
+    static readonly OtdInterop.SettingsApplyOutcome CouldNotCheck
     static readonly OtdInterop.SettingsApplyOutcome Disconnected
     static readonly OtdInterop.SettingsApplyOutcome Live
     static readonly OtdInterop.SettingsApplyOutcome NoChange
@@ -141,6 +143,8 @@ enum OtdInterop.SettingsApplyStatus : System.IComparable, System.IConvertible, S
     AppliedLive = 2
     AppliedNotSaved = 1
     ApplyFailed = 4
+    ChangedElsewhere = 8
+    CouldNotCheck = 9
     Disconnected = 3
     NoChange = 5
     Skipped = 6
@@ -207,6 +211,8 @@ enum OtdInterop.SettingsRestoreStatus : System.IComparable, System.IConvertible,
 
 enum OtdInterop.SettingsSaveState : System.IComparable, System.IConvertible, System.IFormattable, System.ISpanFormattable
     ApplyFailed = 4
+    ChangedElsewhere = 6
+    CouldNotCheck = 7
     Disconnected = 5
     Failed = 3
     None = 0

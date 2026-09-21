@@ -93,7 +93,8 @@ Neither is concurrency control — they only suppress redundant *self*-writes.
 
 ## Conflict semantics: last-writer-wins
 
-There is **no merge, no version/ETag, no optimistic-concurrency check** anywhere:
+There is **no merge and no version/ETag** anywhere. Since #491 there is one client-side check, described
+under the scenario below; it is a read immediately before the write, not a guarantee:
 
 - **Daemon:** `SetSettings` overwrites the whole `Settings`. The last caller wins completely; any field a
   concurrent editor changed is lost.
@@ -109,10 +110,31 @@ If OTD's UX (or the OTDWindowsHelper) changes settings while OTA is open:
 - **(a) Does OTA find out?** Not by a push — the daemon has no settings-changed event and OTA ignores
   `Resynchronize`. OTA learns only by pulling: incidentally on `TabletsChanged`, on **window focus**
   (~1 s), or on the **30 s fallback poll**.
-- **(b) Does OTA's next apply clobber it?** **Yes, if OTA applies before it reloads.** OTA sends its whole
-  in-memory `Settings` (based on its last load), overwriting the external edit in both the daemon and
-  `settings.json`. The no-op guard doesn't help — it only compares against OTA's own last-loaded copy, not
-  the daemon's current state.
+- **(b) Does OTA's next apply clobber it?** **No, since #491 — it holds the change instead.** Immediately
+  before sending, OTA re-reads `GetSettings` and compares it against what it last read from *that same
+  daemon*. If they differ, nothing is sent: the apply returns `ChangedElsewhere`, the save chip says so,
+  and the editor keeps the held edit rather than letting the next reload adopt the daemon's version over
+  it. Taking the daemon's version is the banner's **Reload**, which is a decision the artist makes.
+
+  If the read fails, times out (2 s) or answers nothing, the change is held on the same terms and
+  reported as `CouldNotCheck` instead. Proceeding there would abandon the protection exactly where the
+  state is least certain: a daemon that will not say what it holds is not evidence that it holds what we
+  last saw. The cost is deliberate — a daemon answering writes but not reads now refuses edits it used
+  to take.
+
+  **There is no "apply again to overwrite" yet.** The baseline does not move when a change is held, so
+  re-applying the same edit is held again; an explicit "replace what is there with mine" action is
+  still to be built. Until then the way forward is Reload and redo, which is a real cost and is why the
+  action is worth building.
+
+  **Which writes are covered:** the ordinary apply-and-save path. `ApplyLiveOnlyAsync` and the
+  restore-default path deliberately do not check — restoring a saved default is an intentional
+  replacement of whatever is there, not an edit that could be built on a stale read.
+
+  It is a **narrowing, not a fix**. Two writes can still interleave inside the gap between that read and
+  the write, and the check does not apply before the first read or against a daemon the baseline did not
+  come from.
+
 - **(c) What does a reload reconcile?** It discards OTA's stale view and adopts the daemon's current
   state (updates the display via `ReconcileOpenTabletDetails`). It reconciles what's *shown*; it does not
   merge unsaved OTA edits — a reload overwrites OTA's view, and a later apply re-pushes that reconciled
@@ -125,9 +147,10 @@ another tool and an OTA apply that races it will resolve last-writer-wins with n
 
 ## Implications / possible improvements (not implemented)
 
-- **Detect-before-clobber:** before an apply, OTA could re-pull `GetSettings` and, if the daemon's state no
-  longer matches OTA's last-loaded copy, warn / reconcile instead of overwriting. This closes the
-  #162 window without needing a daemon change.
+- ~~**Detect-before-clobber**~~ — done in #491; see the scenario above. What remains unimplemented is
+  the *reconciling* half: OTA holds the change and asks, rather than merging an edit that touched a
+  different profile or tablet than the external one. A merge needs a field-level model this layer does
+  not have.
 - **Push on change:** a daemon-side settings-changed event would make external edits reflect instantly
   rather than on focus/poll — but that's an upstream OTD change, out of OTA's control.
 - **Subscribe to `Resynchronize`** (#204): currently ignored; reacting to it (re-pull) would at least catch

@@ -989,6 +989,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// stale settings (#124).</summary>
     private void AdoptProfile(Settings settings, Profile profile)
     {
+        // Whatever was held has been resolved by taking these instead (#905).
+        _heldChange = false;
+
         // Taking up settings from elsewhere changes what this editor is showing just as surely as a
         // keystroke does, so it invalidates any apply still outstanding. Without this, a result that was
         // perfectly current when the session finished with it arrives afterwards and puts the older
@@ -1050,6 +1053,34 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// The connected daemon has been replaced, so anything held here belonged to the previous one (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Editors are cached by tablet name, not by daemon, so a replacement exposing the same name reuses
+    /// this one. A draft held because <em>daemon A</em> disagreed is not a candidate for <em>daemon B</em>:
+    /// nobody has compared it against what B holds, and keeping the hold would make B''s editor refuse to
+    /// show B''s own settings on the strength of a disagreement with somebody else.
+    /// </para>
+    /// <para>
+    /// The draft is given up rather than carried across, which is the same answer #787 gives for an
+    /// unsaved change when the daemon changes underneath it, and for the same reason: writing it here
+    /// would overwrite settings it was never compared with.
+    /// </para>
+    /// <para>
+    /// This is data ownership and not presentation, which is why it is here rather than waiting on the
+    /// resolution UI in #906.
+    /// </para>
+    /// </remarks>
+    public void DaemonReplaced()
+    {
+        if (!_heldChange) return;
+
+        _heldChange = false;
+        ClearExternalChange();
+    }
+
     /// <summary>Adopt the externally-changed settings the banner is holding (the banner's Reload action).</summary>
     [RelayCommand]
     private void ReloadExternalChange()
@@ -1065,12 +1096,35 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (ExternalChangeText.Length != 0) ExternalChangeText = "";
     }
 
-    /// <summary>The user has a change here that isn't yet persisted, so an external reload must not
-    /// silently overwrite it. Every edit on the page now auto-applies immediately (the display mapping
-    /// was the last deferred one — it applies on selection now), so nothing is ever unsaved. Kept as the
-    /// single extension point: set this true if a future deferred edit is added, and the reconcile banner
-    /// re-activates for it.</summary>
-    private bool HasUnsavedEdit => false;
+    /// <summary>
+    /// A change the artist made that is not on the daemon, so an external reload must not quietly
+    /// overwrite it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This was hardcoded false, with a comment explaining that every edit auto-applies immediately so
+    /// nothing is ever unsaved. That stopped being true with #491: an apply can now come back having
+    /// deliberately sent nothing, and the change it declined to send is sitting right here. Left false,
+    /// the next focus or poll reload adopted the daemon's version over it and the artist's edit went
+    /// without anyone choosing to lose it — which is the opposite of what holding it was for (#905).
+    /// </para>
+    /// <para>
+    /// It is the extension point that comment described, now that there is finally something deferred to
+    /// hang on it.
+    /// </para>
+    /// </remarks>
+    private bool HasUnsavedEdit => _heldChange;
+
+    /// <summary>
+    /// Set when the session held an edit rather than writing it, and cleared when that edit is resolved.
+    /// </summary>
+    /// <remarks>
+    /// Resolution is any of: a later apply that does reach the daemon, or taking up settings from
+    /// elsewhere — the banner's Reload, or an adoption the artist did not have to ask for. All of them
+    /// end with this editor and the daemon agreeing, which is the only thing this flag is guarding
+    /// against losing.
+    /// </remarks>
+    private bool _heldChange;
 
     private async Task ApplySettingsChange(Action<Profile> modify)
     {
@@ -1088,7 +1142,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // itself. The pending work applies and reconciles on its own.
         if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return;
 
-        if (!TryAdoptApplied(outcome, draft)) RefreshFromProfile();
+        if (!TakeOutcome(outcome, draft)) RefreshFromProfile();
     }
 
     /// <summary>
@@ -1119,6 +1173,39 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// </remarks>
     ///
     /// <returns>True when the revision was adopted, so the caller can skip its own refresh.</returns>
+    /// <summary>
+    /// What an apply's result means for this editor: whether a held draft starts, ends, or stands (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every path that applies goes through here, because two of them did not and it showed. The curve
+    /// and hover tabs called <see cref="TryAdoptApplied"/> directly, so an edit of theirs held by #491 was
+    /// left unprotected and the next reload took it; the assignment lived in the pressure path alone.
+    /// </para>
+    /// <para>
+    /// A held result <em>establishes</em> protection. Only an outcome that shows the draft actually
+    /// reached the daemon takes it away. An unrelated later failure — disconnected, rejected, superseded
+    /// — must not, because none of them is evidence that the held edit got anywhere: releasing on one
+    /// meant a tilt edit that failed to send discarded a pressure edit that was being kept safe.
+    /// </para>
+    /// </remarks>
+    private bool TakeOutcome(SettingsApplyOutcome outcome, int draft)
+    {
+        // A stale result decides nothing, and that includes whether a change is being held (#905). The
+        // guard used to sit inside TryAdoptApplied, which runs after the mutation, so an older curve
+        // success released a newer pressure edit that was being kept safe and the next reload took it.
+        // It belongs in front of everything the result is allowed to touch, not only in front of what it
+        // puts on screen.
+        if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
+
+        if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
+            _heldChange = true;
+        else if (outcome.ChangedTheDaemon || outcome.Status is SettingsApplyStatus.NoChange)
+            _heldChange = false;
+
+        return TryAdoptApplied(outcome, draft);
+    }
+
     private bool TryAdoptApplied(SettingsApplyOutcome outcome, int draft)
     {
         if (draft != _draftGeneration) return false;
@@ -2311,7 +2398,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
         // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
         UpdateFiltersDisplay();
-        TryAdoptApplied(await _applyAction(_settings), draft);
+        TakeOutcome(await _applyAction(_settings), draft);
     }
 
     // ── Hover limit tab (#188) ──────────────────────────────────
@@ -2357,7 +2444,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();
-        TryAdoptApplied(await _applyAction(_settings), draft);
+        TakeOutcome(await _applyAction(_settings), draft);
     }
 
     /// <summary>
