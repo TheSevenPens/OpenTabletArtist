@@ -1075,6 +1075,218 @@ public class TabletEditorReconcileTests
         vm.Dispose();
     }
 
+    /// <summary>
+    /// An overwrite refused because the world moved again leaves the draft held, and still held against
+    /// what it was first held against (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A refusal is the session declining to act on a decision about a state that is no longer there. It
+    /// reports the conflict it found but issues no hold, because it made no comparison on the draft's
+    /// behalf — so an editor that took the result at face value would come away holding nothing, and the
+    /// next edit would be weighed against whatever a reload had since adopted and written straight over
+    /// the external change.
+    /// </para>
+    /// <para>
+    /// The editor keeps the hold it had unless it is given a new one. Nothing about a refusal resolves
+    /// anything.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AnOverwriteRefusedBecauseTheWorldMovedAgain_LeavesTheDraftHeld()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        // Somebody else edits, and the artist's change is held against what this session had read.
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.CanOverwriteHeldChange, "the artist should be offered the choice");
+
+        // They edit again before the artist decides, so the thing the artist was shown is gone.
+        var theirsAgain = Clone(daemon.Settings!);
+        theirsAgain.Profiles[0].BindingSettings.TipActivationThreshold = 42;
+        daemon.Settings = theirsAgain;
+
+        vm.OverwriteHeldChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.True(vm.HasExternalChange, "a refused overwrite resolves nothing");
+        Assert.Equal(42, daemon.Settings!.Profiles[0].BindingSettings.TipActivationThreshold);
+
+        // A reload learns what is actually there, and the artist carries on editing.
+        await session.ReloadAsync();
+        await Settle();
+        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        await Settle();
+
+        Assert.Equal(42, daemon.Settings!.Profiles[0].BindingSettings.TipActivationThreshold);
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "editing on after a refusal overwrote an edit nobody had agreed to replace");
+
+        vm.Dispose();
+    }
+
+    private sealed record TwoEditors(
+        FakeDaemonTransport Daemon,
+        AppSession Session,
+        TabletDetailViewModel First,
+        TabletDetailViewModel Second);
+
+    /// <summary>Two tablets, so the shell caches two editors over one session (#906).</summary>
+    private static Settings TwoTablets()
+    {
+        var settings = new Settings { Profiles = new ProfileCollection() };
+        foreach (var name in new[] { "T", "U" })
+        {
+            var profile = new Profile { Tablet = name };
+            profile.BindingSettings.WheelBindings.Add(new WheelBindingSettings());
+            settings.Profiles.Add(profile);
+        }
+
+        return settings;
+    }
+
+    /// <summary>
+    /// Two real editors over one real session, wired as the shell wires them.
+    /// </summary>
+    /// <remarks>
+    /// Real on both sides on purpose. The hole these tests are about lived in what the editors and the
+    /// session shared, so a fake on either side of that boundary is a fake of the thing under test: one
+    /// editor with a stubbed session cannot collide with anybody, and a stubbed editor cannot hold a
+    /// draft of its own.
+    /// </remarks>
+    private static async Task<TwoEditors> TwoRealEditors()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = TwoTablets(),
+            AppInfo = new AppInfo { AppDataDirectory = "x", SettingsFile = "settings.json", PluginDirectory = "" },
+        };
+        var session = new AppSession(FakeSession.Over(daemon, new NoopStore()), new StubLifecycle())
+        {
+            Ownership = DaemonOwnership.Owned,
+        };
+        await session.ReloadAsync();
+
+        var dialogs = new DialogService(session);
+        var first = dialogs.CreateTabletDetail("T", () => Task.CompletedTask);
+        var second = dialogs.CreateTabletDetail("U", () => Task.CompletedTask);
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+
+        session.DataLoaded += () =>
+        {
+            var current = session.CurrentSettings;
+            var stamp = session.CurrentStamp;
+            first!.ReconcileExternalChange(
+                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"), stamp);
+            second!.ReconcileExternalChange(
+                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "U"), stamp);
+        };
+
+        return new TwoEditors(daemon, session, first!, second!);
+    }
+
+    /// <summary>
+    /// One artist resolving their own held change does not resolve somebody else's (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Editors are cached, so two of them are live at once, and either can be holding a draft. The
+    /// expectation a held draft is compared against used to be one field on the session, shared by both.
+    /// Whichever artist resolved first cleared it — and the other's draft, still built on the state it
+    /// was held against, was then weighed against the daemon's current settings, found to agree with
+    /// them, and written. One person's decision about their own tablet silently authorised a write over
+    /// an edit nobody had shown the other.
+    /// </para>
+    /// <para>
+    /// The expectation now travels with the draft, so there is no shared thing for a decision to clear.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task OneEditorTakingTheDaemonsVersion_DoesNotResolveTheOthersHeldChange()
+    {
+        var (daemon, session, first, second) = await TwoRealEditors();
+        using var _s = session;
+
+        // Somebody else edits the daemon. Both artists edit on top of a state that has moved.
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        first.DisablePressure = true;
+        second.DisablePressure = true;
+        await Settle();
+
+        Assert.True(first.HasExternalChange, "the first editor's change should be held");
+        Assert.True(second.HasExternalChange, "and so should the second's");
+
+        // A reload gives both banners something to show, and the first artist takes the daemon's version.
+        await session.ReloadAsync();
+        await Settle();
+        first.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        // The second artist, who has decided nothing, carries on editing.
+        second.DisableWindowsInk = !second.DisableWindowsInk;
+        await Settle();
+
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the second editor overwrote an edit that only the first artist had agreed to replace");
+        Assert.True(second.HasExternalChange, "and its own change is still held, because it still is");
+
+        first.Dispose();
+        second.Dispose();
+    }
+
+    /// <summary>
+    /// Nor does resolving it by writing over it, which cleared the same shared field (#906).
+    /// </summary>
+    /// <remarks>
+    /// The other release. A write that landed cleared the session's one expectation just as acceptance
+    /// did, so keeping your change had the same reach into somebody else's draft as taking theirs — and
+    /// this is the route an artist is more likely to take, since it is the one that keeps their work.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task OneEditorKeepingItsChange_DoesNotResolveTheOthersHeldChange()
+    {
+        var (daemon, session, first, second) = await TwoRealEditors();
+        using var _s = session;
+
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        first.DisablePressure = true;
+        second.DisablePressure = true;
+        await Settle();
+
+        Assert.True(first.CanOverwriteHeldChange, "the first artist should be offered the choice");
+
+        // The first artist keeps their change, which is a write that lands.
+        first.OverwriteHeldChangeCommand.Execute(null);
+        await PumpUntil(() => !first.HasExternalChange, "the first editor's change to go through");
+
+        var afterTheirWrite = Clone(daemon.Settings!);
+
+        // The second artist, who decided nothing, carries on editing.
+        second.DisableWindowsInk = !second.DisableWindowsInk;
+        await Settle();
+
+        Assert.Equal(
+            Newtonsoft.Json.JsonConvert.SerializeObject(afterTheirWrite),
+            Newtonsoft.Json.JsonConvert.SerializeObject(daemon.Settings));
+        Assert.True(second.HasExternalChange, "the second editor's change should still be held");
+
+        first.Dispose();
+        second.Dispose();
+    }
+
     private sealed record ReadHarness(
         FakeDaemonTransport Daemon,
         AppSession Session,

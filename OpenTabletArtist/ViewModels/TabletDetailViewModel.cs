@@ -69,6 +69,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Applies over a conflict the artist has chosen to overwrite (#906).</summary>
     private readonly Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? _overwriteAction;
 
+    /// <summary>Submits a draft that is being held, presenting the hold it was held under (#906).</summary>
+    private readonly Func<Settings, SettingsHold, Task<SettingsApplyOutcome>>? _resubmitAction;
+
     /// <summary>
     /// Says the artist has taken a named snapshot, releasing a held comparison (#910). False when that
     /// snapshot is no longer the current one.
@@ -748,6 +751,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public TabletDetailViewModel(Profile profile, Settings? settings,
         Func<Settings, Task<SettingsApplyOutcome>>? applyAction = null,
         Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? overwriteAction = null,
+        Func<Settings, SettingsHold, Task<SettingsApplyOutcome>>? resubmitAction = null,
         Func<SettingsStamp, bool>? acceptCurrentAction = null,
         Func<Task<(Settings? Settings, Profile? Profile, SettingsStamp Stamp)>>? refreshAction = null,
         (float Width, float Height)? tabletDigitizer = null,
@@ -769,6 +773,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             "The profile must be a reference inside the settings the editor will submit.");
         _applyAction = applyAction;
         _overwriteAction = overwriteAction;
+        _resubmitAction = resubmitAction;
         _acceptCurrentAction = acceptCurrentAction;
         _editBinding = editBinding;
         _refreshAction = refreshAction;
@@ -1041,6 +1046,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             }
 
             _heldConflict = null;
+
+            // This editor's draft is resolved, and only this editor's. Dropping the hold is the whole of
+            // the release under #906 -- the session keeps nothing to clear, so another editor holding its
+            // own draft is untouched by a decision that was never about it.
+            _heldHold = null;
         }
 
         _heldChange = false;
@@ -1140,6 +1150,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (!_heldChange) return;
 
         _heldChange = false;
+        _heldHold = null;
         ClearExternalChange();
     }
 
@@ -1197,7 +1208,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null) return;
         var draft = NoteDraftEdit();
         modify(_profile);
-        var outcome = await _applyAction(_settings);
+        var outcome = await SubmitAsync(_settings);
 
         // The user has edited since this started. Their change is newer than anything this apply can say
         // about the world, so neither adopting the result nor refreshing from the profile is allowed to
@@ -1268,12 +1279,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             _heldChange = true;
             _heldConflict = outcome.Conflict;
+
+            // Kept if the session handed none back, so a held draft never loses the expectation it was
+            // first weighed against (#906).
+            _heldHold = outcome.Held ?? _heldHold;
             SayTheChangeIsHeld(outcome.Status);
         }
         else if (outcome.ChangedTheDaemon || outcome.Status is SettingsApplyStatus.NoChange)
         {
             _heldChange = false;
             _heldConflict = null;
+            _heldHold = null;
             ClearExternalChange();
         }
 
@@ -1282,6 +1298,30 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The conflict the session reported, and the thing an overwrite is authorised with.</summary>
     private SettingsConflict? _heldConflict;
+
+    /// <summary>
+    /// What this editor's held draft was weighed against, to present with every later submission of it
+    /// (#906).
+    /// </summary>
+    /// <remarks>
+    /// Held here rather than in the session because two editors can be holding two drafts at once: a
+    /// single shared expectation made one artist's decision resolve the other's draft, and cached editors
+    /// mean both are live at the same time rather than one at a time.
+    /// </remarks>
+    private SettingsHold? _heldHold;
+
+    /// <summary>
+    /// Submits the draft: as a resubmission while something is held, as an ordinary apply otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Every route in, not just the Retry button. An artist whose change is held goes on touching the
+    /// page, and each of those edits submits the same draft by another name — so if carrying the hold
+    /// were the button's job, editing on would be the way past the check.
+    /// </remarks>
+    private Task<SettingsApplyOutcome> SubmitAsync(Settings settings) =>
+        _heldHold is { } hold && _resubmitAction is { } resubmit
+            ? resubmit(settings, hold)
+            : _applyAction!(settings);
 
     /// <summary>
     /// Says so in the editor, at once, rather than waiting for a reload that may never differ (#906).
@@ -1341,7 +1381,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null) return;
 
         var draft = _draftGeneration;
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     /// <summary>
@@ -2554,7 +2594,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
         // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
         UpdateFiltersDisplay();
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     // ── Hover limit tab (#188) ──────────────────────────────────
@@ -2600,7 +2640,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     /// <summary>

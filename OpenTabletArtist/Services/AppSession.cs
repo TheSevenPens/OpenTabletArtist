@@ -134,6 +134,12 @@ public interface ISettingsCoordinator
     Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict);
 
     /// <summary>
+    /// Re-submits a held change, presenting what it was held against so it is weighed against that and
+    /// not against whatever has arrived since (#906).
+    /// </summary>
+    Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held);
+
+    /// <summary>
     /// The artist has taken the snapshot they were shown, so nothing is waiting on them (#910). False
     /// when that snapshot is no longer current, which leaves the held change held.
     /// </summary>
@@ -1042,6 +1048,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict) =>
         ApplyThroughAsync(() => _coordinator.OverwriteAsync(settings, conflict));
+
+    public Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held) =>
+        ApplyThroughAsync(() => _coordinator.ResubmitAsync(settings, held));
 
     public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
 

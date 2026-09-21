@@ -114,11 +114,18 @@ public enum SettingsApplyStatus
 /// <see cref="SettingsApplyStatus.CouldNotCheck"/>: nothing was observed there, so there is nothing to
 /// consent to.
 /// </param>
+/// <param name="Held">
+/// What this change was weighed against when it was held, to present with it if it is submitted again
+/// (#906). Null for every status that is not held. Distinct from <paramref name="Conflict"/>: that says
+/// what the daemon had <em>instead</em> and authorises replacing it; this says what the draft was
+/// compared <em>with</em>, and keeps that comparison from drifting.
+/// </param>
 public readonly record struct SettingsApplyOutcome(
     SettingsApplyStatus Status,
     Exception? Error = null,
     PreparedSettings? Prepared = null,
-    SettingsConflict? Conflict = null)
+    SettingsConflict? Conflict = null,
+    SettingsHold? Held = null)
 {
     /// <summary>Live on the daemon and written to disk.</summary>
     public static readonly SettingsApplyOutcome Saved = new(SettingsApplyStatus.AppliedAndSaved);

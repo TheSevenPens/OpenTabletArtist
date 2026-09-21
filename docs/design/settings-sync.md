@@ -122,10 +122,22 @@ If OTD's UX (or the OTDWindowsHelper) changes settings while OTA is open:
   last saw. The cost is deliberate — a daemon answering writes but not reads now refuses edits it used
   to take.
 
-  **There is no "apply again to overwrite" yet.** The baseline does not move when a change is held, so
-  re-applying the same edit is held again; an explicit "replace what is there with mine" action is
-  still to be built. Until then the way forward is Reload and redo, which is a real cost and is why the
-  action is worth building.
+  **Resolving it is the artist's, and it is per draft (#906).** A held change comes back with a
+  `SettingsHold`: what that draft was weighed against. Every later submission of the same draft — the
+  banner's **Try again**, and equally just carrying on editing, which submits by another route —
+  presents that hold, so the draft is compared against the state it was held against rather than against
+  whatever a reload has learned since. Learning somebody's settings is not consent to replace them.
+
+  Two ways out, both decisions the artist makes. **Reload** takes the daemon's version, and the editor
+  then drops its hold. **Keep my change** sends the draft back with the `SettingsConflict` it was shown;
+  the session re-reads the daemon and writes only if what is there is still what the artist looked at,
+  refusing with a fresh conflict otherwise. An authorised write that does not land resolves nothing, and
+  neither does a refusal: the hold stands until something the artist did actually settles it.
+
+  The hold lives on the draft rather than on the session because editors are cached and two can be live
+  at once. With one shared expectation, whichever artist resolved first cleared it, and the other's
+  draft — still built on the older state — was then found to agree with the daemon and written. There is
+  now nothing shared for a decision to clear.
 
   **Which writes are covered:** the ordinary apply-and-save path. `ApplyLiveOnlyAsync` and the
   restore-default path deliberately do not check — restoring a saved default is an intentional

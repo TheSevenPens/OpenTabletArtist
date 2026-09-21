@@ -81,6 +81,7 @@ interface OtdInterop.IOtdSettingsSession
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ApplyLiveOnlyAsync(OpenTabletDriver.Desktop.Settings requested)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ClearEphemeralOverrideAsync()
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> OverwriteAsync(OpenTabletDriver.Desktop.Settings requested, OtdInterop.SettingsConflict conflict)
+    System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ResubmitAsync(OpenTabletDriver.Desktop.Settings requested, OtdInterop.SettingsHold held)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> RetryPendingPersistAsync()
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> RetryPersistAsync()
     System.Threading.Tasks.Task<OtdInterop.SettingsReloadOutcome> ReloadFromDaemonAsync()
@@ -116,10 +117,11 @@ class OtdInterop.ProfileSanitizer
     static System.Int32 EnsureValidAbsoluteAreas(OpenTabletDriver.Desktop.Settings settings)
 
 struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsApplyOutcome>
-    .ctor(OtdInterop.SettingsApplyStatus Status, System.Exception Error = null, OtdInterop.PreparedSettings Prepared = null, OtdInterop.SettingsConflict Conflict = null)
+    .ctor(OtdInterop.SettingsApplyStatus Status, System.Exception Error = null, OtdInterop.PreparedSettings Prepared = null, OtdInterop.SettingsConflict Conflict = null, OtdInterop.SettingsHold Held = null)
     OtdInterop.PreparedSettings Prepared { get; init; }
     OtdInterop.SettingsApplyStatus Status { get; init; }
     OtdInterop.SettingsConflict Conflict { get; init; }
+    OtdInterop.SettingsHold Held { get; init; }
     System.Boolean ChangedTheDaemon { get; }
     System.Boolean Equals(OtdInterop.SettingsApplyOutcome other)
     System.Boolean Equals(System.Object obj)
@@ -129,7 +131,7 @@ struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsAp
     System.Exception Error { get; init; }
     System.Int32 GetHashCode()
     System.String ToString()
-    System.Void Deconstruct(OtdInterop.SettingsApplyStatus& Status, System.Exception& Error, OtdInterop.PreparedSettings& Prepared, OtdInterop.SettingsConflict& Conflict)
+    System.Void Deconstruct(OtdInterop.SettingsApplyStatus& Status, System.Exception& Error, OtdInterop.PreparedSettings& Prepared, OtdInterop.SettingsConflict& Conflict, OtdInterop.SettingsHold& Held)
     static OtdInterop.SettingsApplyOutcome Failed(System.Exception ex)
     static readonly OtdInterop.SettingsApplyOutcome ChangedElsewhere
     static readonly OtdInterop.SettingsApplyOutcome CouldNotCheck
@@ -160,6 +162,13 @@ class OtdInterop.SettingsCodec
 class OtdInterop.SettingsConflict : System.IEquatable<OtdInterop.SettingsConflict>
     OtdInterop.SettingsConflict <Clone>$()
     System.Boolean Equals(OtdInterop.SettingsConflict other)
+    System.Boolean Equals(System.Object obj)
+    System.Int32 GetHashCode()
+    System.String ToString()
+
+class OtdInterop.SettingsHold : System.IEquatable<OtdInterop.SettingsHold>
+    OtdInterop.SettingsHold <Clone>$()
+    System.Boolean Equals(OtdInterop.SettingsHold other)
     System.Boolean Equals(System.Object obj)
     System.Int32 GetHashCode()
     System.String ToString()

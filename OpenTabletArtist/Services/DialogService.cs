@@ -75,6 +75,7 @@ public class DialogService : IDialogService
             applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
             overwriteAction: async (updated, conflict) =>
                 await _session.OverwriteSettingsAsync(updated, conflict),
+            resubmitAction: async (updated, held) => await _session.ResubmitSettingsAsync(updated, held),
             acceptCurrentAction: accepted => _session.AcceptCurrentSettings(accepted),
             refreshAction: async () =>
             {

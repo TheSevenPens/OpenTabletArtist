@@ -147,6 +147,24 @@ public interface IOtdSettingsSession
     Task<SettingsApplyOutcome> OverwriteAsync(Settings requested, SettingsConflict conflict);
 
     /// <summary>
+    /// Submits a change that is being held, presenting the hold it was held under (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not a way past the check — the same comparison runs. What the hold changes is <em>what the draft
+    /// is compared with</em>: the state it was weighed against when it was held, rather than whatever has
+    /// arrived since. A reload that learns somebody else's edit must not turn a resubmission of an older
+    /// draft into an overwrite of it, and learning settings is not consent to replace them.
+    /// </para>
+    /// <para>
+    /// The hold belongs to the draft, so each caller carries its own. That is what lets two editors hold
+    /// two changes at once without either one's decision resolving the other's: resolving is the caller
+    /// dropping its hold, and there is nothing shared here to drop.
+    /// </para>
+    /// </remarks>
+    Task<SettingsApplyOutcome> ResubmitAsync(Settings requested, SettingsHold held);
+
+    /// <summary>
     /// Says the caller has taken what the daemon holds, ending a hold that was waiting on them (#910).
     /// </summary>
     /// <remarks>

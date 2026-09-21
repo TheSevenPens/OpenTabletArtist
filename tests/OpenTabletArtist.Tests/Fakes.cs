@@ -371,6 +371,21 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
         return Task.FromResult(OverwriteResult);
     }
 
+    /// <summary>The hold a test's resubmission presented, or null if nothing has been resubmitted (#906).</summary>
+    public SettingsHold? ResubmittedUnder { get; private set; }
+
+    /// <summary>How many submissions arrived carrying a hold, to tell a resubmission from an apply.</summary>
+    public int ResubmitCalls { get; private set; }
+
+    public Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held)
+    {
+        // A resubmission is recorded as itself. Answering it exactly like an ordinary apply would hide
+        // the difference these tests exist to observe — which hold, if any, the editor presented.
+        ResubmittedUnder = held;
+        ResubmitCalls++;
+        return ApplyAndSaveSettingsAsync(settings);
+    }
+
     /// <summary>Whether the daemon takes the change. False models no transport — the apply paths then
     /// report failure and commit nothing (#766).</summary>
     public bool DaemonAccepts { get; set; } = true;

@@ -594,10 +594,14 @@ public class SettingsCoordinatorConcurrencyTests
         await coordinator.ReloadFromDaemonAsync();
 
         reading.SetResult(SettingsFor("B", locked: false));
-        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await applying).Status);
 
-        // The same draft again. It was held against A, and must still be.
-        var second = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        var first = await applying;
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, first.Status);
+        Assert.NotNull(first.Held);
+
+        // The same draft again, presenting the hold it came back with. It was held against A, and the
+        // hold must still say A rather than the B the reload adopted while the read was out.
+        var second = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), first.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, second.Status);
         Assert.Equal("B", Tablet(daemon.Settings));
@@ -620,6 +624,7 @@ public class SettingsCoordinatorConcurrencyTests
         daemon.Settings = SettingsFor("B", locked: false);
         var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
         Assert.NotNull(held.Conflict);
+        Assert.NotNull(held.Held);
 
         // An ordinary reload learns B. Without this the hold's absence would not show: the ordinary
         // baseline would still be A, so the resubmission below would meet a conflict either way and the
@@ -631,9 +636,10 @@ public class SettingsCoordinatorConcurrencyTests
         var failed = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
         Assert.NotEqual(SettingsApplyStatus.AppliedAndSaved, failed.Status);
 
-        // Sending works again, and the artist's draft is submitted the ordinary way.
+        // Sending works again, and the artist submits their draft again, still holding it: nothing they
+        // did resolved it, so the hold goes with it.
         daemon.SetSettingsHandler = null;
-        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        var afterwards = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
         Assert.Equal("B", Tablet(daemon.Settings));
@@ -665,9 +671,9 @@ public class SettingsCoordinatorConcurrencyTests
         var shown = coordinator.GetCurrent()!.Stamp;
 
         daemon.Settings = SettingsFor("Theirs", locked: false);
-        Assert.Equal(
-            SettingsApplyStatus.ChangedElsewhere,
-            (await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false))).Status);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+        Assert.NotNull(held.Held);
 
         // The session moves on while that editor is still showing the older snapshot.
         daemon.Settings = SettingsFor("TheirsAgain", locked: false);
@@ -675,17 +681,19 @@ public class SettingsCoordinatorConcurrencyTests
 
         Assert.False(coordinator.AcceptCurrentState(shown), "a stale acceptance should be refused");
 
-        // And the hold stands, so the draft cannot be resubmitted over what nobody agreed to.
-        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        // Refused, so the caller keeps its hold and the draft cannot go over what nobody agreed to.
+        var afterwards = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
         Assert.Equal("TheirsAgain", Tablet(daemon.Settings));
     }
 
-    /// <summary>Accepting what is actually current does release it.</summary>
+    /// <summary>Accepting what is actually current is answered yes, and the draft then lands.</summary>
     /// <remarks>
-    /// The other direction, without which refusing would simply be a way of never letting the artist
-    /// work again.
+    /// The other direction, without which refusing would simply be a way of never letting the artist work
+    /// again. Since #906 the release itself is the caller dropping its hold rather than anything this
+    /// session clears — so what is checked here is that acceptance answers yes, and that a submission
+    /// made without a hold is weighed against the ordinary baseline and lands.
     /// </remarks>
     [Fact]
     public async Task AcceptingTheCurrentSnapshot_ReleasesTheHold()
@@ -704,6 +712,23 @@ public class SettingsCoordinatorConcurrencyTests
 
         Assert.True(afterwards.ChangedTheDaemon, $"the edit was held: {afterwards.Status}");
         Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>Nor does a hold, which carries somebody's settings for the same reasons (#906).</summary>
+    /// <remarks>
+    /// The same question asked of the other opaque value. It is worth asking twice rather than assuming
+    /// the answer carries across: these are separate types, and the compiler's generated
+    /// <c>PrintMembers</c> is decided per type by what that type happens to expose.
+    /// </remarks>
+    [Fact]
+    public void AHoldDoesNotPrintWhatItHolds()
+    {
+        var hold = new SettingsHold(Guid.NewGuid(), 7, "{\"secret\":\"settings\"}");
+
+        var printed = hold.ToString();
+
+        Assert.DoesNotContain("secret", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("7", printed, StringComparison.Ordinal);
     }
 
     /// <summary>The token prints nothing about the settings it describes (#910).</summary>
