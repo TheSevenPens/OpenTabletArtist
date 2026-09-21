@@ -396,18 +396,17 @@ what it is for, with one serialization gate, the channel binding, the area repai
 confirmation applied. Artist-specific policy is no longer among them: it moved to `OtaSettingsPolicy`,
 which the application applies in `SettingsWorkspace` before submitting.
 
-> **Gap.** `OtdInteropBoundaryTests` used to hold this boundary — that no public type offers an unmediated
-> write, that the connection type is not public, and that the capabilities object cannot be cast back to
-> the connection. It was removed with the simplification and has no replacement. The accessibility is
-> still correct (`ISettingsFileStore` and `SettingsFileStore` are `internal`, and were made more so when
-> the host stopped supplying its own), but nothing fails if that changes. `BoundaryDependencyTests` and
-> `BoundaryRestoreTests` survive, and they guard a different thing: that Avalonia never reaches the
-> library.
+`OtdInteropBoundaryTests` used to hold this boundary. It went with the simplification, and
+`WriteBoundaryTests` now holds the three claims from it that are architectural rather than incidental:
+that no exported type offers an unmediated settings write, that the transport, binding and file writer
+are not visible outside the library, and that the borrowed capabilities object cannot be cast back to
+the connection it wraps. The compiler already enforces all three; the test exists so that widening one
+of them fails loudly instead of passing quietly. `BoundaryDependencyTests` and `BoundaryRestoreTests`
+guard a different thing: that Avalonia never reaches the library.
 
 What accessibility does **not** do is stop application code opening a filesystem path itself. Nothing
 prevents that, and nothing could without a general enforcement mechanism that would not be worth its
-weight; the protection is the audited call sites below plus the accessibility above — which, per the gap
-noted there, is now asserted by the compiler rather than by a test.
+weight; the protection is the audited call sites below plus the accessibility above.
 
 Where the destination comes from moved too (#828). The library asks the connected daemon for its
 `AppInfo` itself, per channel, rather than being handed a path by the host — so an edit made after a

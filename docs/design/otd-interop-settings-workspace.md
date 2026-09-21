@@ -65,11 +65,38 @@ Compared with `6f56723`, counting all C# source and helpers while excluding buil
 | Measure | Before | After |
 | --- | ---: | ---: |
 | OtdInterop C# files | 31 | 23 |
-| OtdInterop source lines, including comments | 6,289 | 1,944 |
-| OtdInterop nonblank lines excluding line comments | 2,021 | 1,050 |
-| Interop test Fact/Theory methods | 243 | 46 |
-| Interop test C# source lines, including helpers/comments | 9,716 | 1,720 |
+| OtdInterop source lines, including comments | 6,289 | 2,111 |
+| OtdInterop nonblank lines excluding line comments | 2,021 | 1,115 |
+| Interop test Fact/Theory methods | 243 | 59 |
+| Interop test C# source lines, including helpers/comments | 9,716 | 2,435 |
 
-The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain.
+The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain. Added since: the write boundary, the shutdown cases, an abandoned write across a reconnect and across a real pipe, idle adoption, input arriving during the adoption read, and a dialog holding the document open.
 
-The full solution build completed with zero warnings and zero errors. All 1,092 test cases passed: 49 interop, 976 application logic, and 67 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon, so physical-tablet behavior and real daemon apply/save/restart still need an interactive smoke check. No live driver settings were changed by that diagnostic.
+The full solution build completed with zero warnings and zero errors. All 1,132 test cases passed: 68 interop, 995 application logic, and 69 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
+
+An interactive pass against a real daemon followed on 2026-09-21: apply-live with the unsaved chip,
+explicit save, survival across a driver restart, an external edit pausing the page, reconnect, and the
+driver adding a profile by itself. Calibration was not part of it — which is where the third of Codex's
+findings turned out to live, and the reason that one is covered by tests rather than by having been
+seen working.
+
+## How this landed, and what that means for the history
+
+The replacement arrived as **one atomic commit** on top of `6f56723`: the old interop layer and its
+243 interop tests went out, and this design and its tests came in, in a single step. There is no
+intermediate state in which the smaller contract was validated against the protocols it replaced,
+because no such state was ever committed. Nothing can recover that now — a reconstructed history would
+be a tidier story about work that did not happen — so it is written down here instead.
+
+What the first commit was actually checked against: a full solution build and the surviving suites, and
+a hands-on pass against a real daemon. What it was not checked against: the retired
+conflict-resolution, per-draft-hold, stamp, autosave-retry, per-app-override and execution-context
+protocols, whose tests left with them. Those protocols are deliberately gone and are not coming back;
+the point of recording it is that their absence was never demonstrated to be safe, only argued.
+
+Codex reviewed `6f56723..779e25c` as a whole and reproduced three correctness problems that the
+composition had and no individual component test could see — a faulted RPC task read as a finished
+write, input discarded during the adoption read, and a calibration dialog submitting a document that
+had been replaced underneath it. Each is fixed in its own commit after `779e25c`, with the regression
+that catches it. That shape — one atomic replacement, then coherent fixes with their reviewed history
+intact — is what this branch merges as.
