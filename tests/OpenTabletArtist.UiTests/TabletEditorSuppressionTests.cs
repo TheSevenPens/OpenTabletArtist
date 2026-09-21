@@ -66,7 +66,8 @@ public class TabletEditorSuppressionTests
     }
 
     private static (TabletDetailViewModel vm, List<Settings> applies) Editor(
-        Settings settings, Func<Task<(Settings?, Profile?)>>? refreshAction = null)
+        Settings settings,
+        Func<Task<(Settings?, Profile?, SettingsStamp)>>? refreshAction = null)
     {
         var applies = new List<Settings>();
         var vm = new TabletDetailViewModel(
@@ -185,7 +186,8 @@ public class TabletEditorSuppressionTests
     {
         var settings = SettingsFor("T");
         var (vm, applies) = Editor(settings,
-            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((settings, settings.Profiles[0])));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>(
+                (settings, settings.Profiles[0], new SettingsStamp(1, 1))));
         await Settle(PastDebounce);
         applies.Clear();
 

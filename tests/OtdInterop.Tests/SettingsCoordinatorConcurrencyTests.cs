@@ -306,6 +306,424 @@ public class SettingsCoordinatorConcurrencyTests
         never.TrySetResult(null);
     }
 
+    /// <summary>Presenting the conflict writes the change over it (#906).</summary>
+    /// <remarks>
+    /// The other half of #491. Holding an edit is only defensible if the artist has a way to say "I have
+    /// seen what is there and I still want mine".
+    /// </remarks>
+    [Fact]
+    public async Task WithTheConflictPresented_TheChangeIsWrittenOverIt()
+    {
+        var (coordinator, daemon, store, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+
+        daemon.Settings = SettingsFor("TheirEdit", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+        Assert.NotNull(held.Conflict);
+
+        var overwritten = await coordinator.OverwriteAsync(
+            SettingsFor("MyEdit", locked: false), held.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, overwritten.Status);
+        Assert.Equal("MyEdit", Tablet(daemon.Settings));
+        Assert.Equal("MyEdit", Tablet(store.OnDisk));
+    }
+
+    /// <summary>
+    /// Applying the same edit again is not consent (#905, #906).
+    /// </summary>
+    /// <remarks>
+    /// The distinction the whole token exists for. An artist who edits a value, sees it held, and edits
+    /// again has not decided anything about somebody else's work — and an application that treated
+    /// persistence as permission would discard that work on the second keystroke.
+    /// </remarks>
+    [Fact]
+    public async Task ApplyingTheSameChangeAgain_IsStillHeld()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+        daemon.Settings = SettingsFor("TheirEdit", locked: false);
+
+        var first = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+        var second = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, first.Status);
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, second.Status);
+        Assert.Equal("TheirEdit", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A conflict authorises overwriting what it described, not whatever has arrived since (#906).
+    /// </summary>
+    /// <remarks>
+    /// The token is not a permission slip. Between being told about a conflict and deciding about it, the
+    /// artist may take a while — and a third change in that window is something nobody has seen, so it is
+    /// reported rather than flattened. The refusal carries the new conflict, so the choice can be made
+    /// again against what is actually there.
+    /// </remarks>
+    [Fact]
+    public async Task IfTheDaemonMovesAgainBeforeTheOverwrite_ItIsRefusedWithTheNewConflict()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+
+        daemon.Settings = SettingsFor("TheirEdit", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        // Somebody writes again while the artist is still deciding.
+        daemon.Settings = SettingsFor("SomebodyElseAgain", locked: false);
+
+        var refused = await coordinator.OverwriteAsync(
+            SettingsFor("MyEdit", locked: false), held.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, refused.Status);
+        Assert.Equal("SomebodyElseAgain", Tablet(daemon.Settings));
+        Assert.NotNull(refused.Conflict);
+        Assert.NotEqual(held.Conflict, refused.Conflict);
+
+        // And the new one authorises the write, because it describes what is actually there.
+        var overwritten = await coordinator.OverwriteAsync(
+            SettingsFor("MyEdit", locked: false), refused.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, overwritten.Status);
+        Assert.Equal("MyEdit", Tablet(daemon.Settings));
+    }
+
+    /// <summary>Nothing is reported to consent to when the daemon never said what it holds.</summary>
+    /// <remarks>
+    /// <c>CouldNotCheck</c> is the absence of an observation, so there is no conflict to describe and
+    /// none is handed out. A caller cannot authorise an overwrite of something nobody saw.
+    /// </remarks>
+    [Fact]
+    public async Task AnUncheckedHold_CarriesNoConflictToAuthorise()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, held.Status);
+        Assert.Null(held.Conflict);
+    }
+
+    /// <summary>
+    /// A reload between the conflict and the decision does not turn the token into a free pass (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The token check used to live inside the ordinary comparison, and only in its "changed" branch. That
+    /// comparison's baseline advances on every reload — including the automatic ones that happen while an
+    /// editor is deliberately holding a draft. So: conflict reported against B, daemon moves to C, a
+    /// reload makes C the baseline, and the overwrite is classified "unchanged" and sent without anyone
+    /// looking at the token. The artist's change went over a state they were never shown.
+    /// </para>
+    /// <para>
+    /// An overwrite now asks its own question — is the daemon still holding what the artist looked at —
+    /// which no reload can answer on their behalf.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AReloadBetweenTheConflictAndTheOverwrite_DoesNotAuthoriseIt()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("B", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+
+        // The world moves again, and an ordinary reload adopts it as the new baseline.
+        daemon.Settings = SettingsFor("C", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        var refused = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, refused.Status);
+        Assert.Equal("C", Tablet(daemon.Settings));
+        Assert.NotNull(refused.Conflict);
+    }
+
+    /// <summary>
+    /// A token from another session is not consent, however well its numbers match (#910).
+    /// </summary>
+    /// <remarks>
+    /// Channel numbers are a per-session counter, so two sessions hand out the same small integers. A
+    /// token carrying only a channel was therefore accepted by a session that never issued it, given
+    /// settings that happened to match — which is a coincidence of counters rather than a decision
+    /// anybody made.
+    /// </remarks>
+    [Fact]
+    public async Task AConflictFromAnotherSession_IsNotConsentHere()
+    {
+        var elsewhere = Make();
+        await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+        elsewhere.daemon.Settings = SettingsFor("Theirs", locked: false);
+        var theirToken = (await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false)))
+            .Conflict;
+        Assert.NotNull(theirToken);
+
+        // A different session, holding the same settings, on a channel that happens to be numbered alike.
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+
+        var refused = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), theirToken!);
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, refused.Status);
+        Assert.Equal("Theirs", Tablet(daemon.Settings));
+    }
+
+    /// <summary>A refusal hands back a token that does authorise the write, so the artist is not stuck.</summary>
+    /// <remarks>
+    /// The other side of refusing: each refusal describes what is actually there, so deciding again is a
+    /// decision about the present rather than a loop.
+    /// </remarks>
+    [Fact]
+    public async Task TheRefusalsOwnConflict_AuthorisesTheOverwrite()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("B", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        daemon.Settings = SettingsFor("C", locked: false);
+        var refused = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
+
+        var done = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), refused.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, done.Status);
+        Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// An overwrite whose daemon will not say what it holds is held, not written (#910).
+    /// </summary>
+    /// <remarks>
+    /// Consent is to replacing something in particular. If nobody can see what is there, nobody can be
+    /// said to have agreed to replace it — and a token is evidence of a past decision, not a standing
+    /// permission to write blind.
+    /// </remarks>
+    [Fact]
+    public async Task AnOverwriteAgainstADaemonThatWillNotAnswer_IsHeld()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+
+        var refused = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
+
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, refused.Status);
+        Assert.Equal("Theirs", Tablet(daemon.Settings));
+        Assert.Null(refused.Conflict);
+    }
+
+    /// <summary>
+    /// A hold does not outlive the daemon it was taken against (#910).
+    /// </summary>
+    /// <remarks>
+    /// The pin exists so a held draft is compared against what it was held against rather than whatever a
+    /// reload has since learned. Left standing across a daemon change it becomes the opposite: the new
+    /// daemon's settings are compared against the old one's, never match, and every apply is held —
+    /// permanently, because neither release is reachable. No write can succeed to clear it, and the
+    /// editor has already given its draft up, so it will never accept anything either.
+    /// </remarks>
+    [Fact]
+    public async Task AHoldDoesNotSurviveTheDaemonItWasTakenAgainst()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("TheirEdit", locked: false);
+        Assert.Equal(
+            SettingsApplyStatus.ChangedElsewhere,
+            (await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false))).Status);
+
+        // A different daemon answers, and this session learns what it holds.
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("NewDaemon", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        // An ordinary edit on the new daemon is ordinary. It is not still answering for the old one.
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("OnTheNewOne", locked: false));
+
+        // Reached the daemon is the whole assertion. Whether it also reached disk depends on this
+        // session having learned the new daemon's settings path, which is a different question and not
+        // one a stale hold has any business answering.
+        Assert.True(outcome.ChangedTheDaemon, $"the apply was held: {outcome.Status}");
+        Assert.Equal("OnTheNewOne", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A reload landing during the check does not become the thing the hold protects (#910).
+    /// </summary>
+    /// <remarks>
+    /// The hold used to be recorded from whatever the baseline was when the result came back, rather than
+    /// from the state the comparison had actually been made against. A reload arriving while the daemon
+    /// was being read therefore became the protected state — so the next ordinary submission of the same
+    /// draft matched it, and wrote.
+    /// </remarks>
+    [Fact]
+    public async Task AReloadDuringTheCheck_DoesNotBecomeWhatTheHoldProtects()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // Somebody else has already written B; this session does not know yet.
+        daemon.Settings = SettingsFor("B", locked: false);
+
+        var reading = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetSettingsHandler = () =>
+        {
+            daemon.GetSettingsHandler = null;   // only the first read is held
+            started.TrySetResult();
+            return reading.Task;
+        };
+
+        var applying = coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        await started.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+
+        // A reload lands while the check is still out, and adopts B as the ordinary baseline.
+        await coordinator.ReloadFromDaemonAsync();
+
+        reading.SetResult(SettingsFor("B", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await applying).Status);
+
+        // The same draft again. It was held against A, and must still be.
+        var second = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, second.Status);
+        Assert.Equal("B", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// An overwrite that was authorised but did not land leaves the change held (#910).
+    /// </summary>
+    /// <remarks>
+    /// Authorising a write is not the write happening. The release used to sit in the authorisation step,
+    /// so a send that came back false — no transport — cleared the hold anyway, and the next ordinary
+    /// apply sailed through and overwrote the edit the artist had never agreed to replace.
+    /// </remarks>
+    [Fact]
+    public async Task AnAuthorisedOverwriteThatDoesNotLand_LeavesTheChangeHeld()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("B", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.NotNull(held.Conflict);
+
+        // An ordinary reload learns B. Without this the hold's absence would not show: the ordinary
+        // baseline would still be A, so the resubmission below would meet a conflict either way and the
+        // test would pass while proving nothing. This is what makes the release observable.
+        await coordinator.ReloadFromDaemonAsync();
+
+        // Authorised, and the send fails.
+        daemon.SetSettingsHandler = _ => Task.FromResult(false);
+        var failed = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
+        Assert.NotEqual(SettingsApplyStatus.AppliedAndSaved, failed.Status);
+
+        // Sending works again, and the artist's draft is submitted the ordinary way.
+        daemon.SetSettingsHandler = null;
+        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
+        Assert.Equal("B", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// Accepting a snapshot that is no longer current does not release the hold (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Acceptance used to take no argument and mean "whatever you hold now". An editor can be showing a
+    /// snapshot while a later read advances this session underneath it — so a blind release turned a
+    /// draft built on the older snapshot into permission to overwrite the newer one, which is the token
+    /// bug one level up.
+    /// </para>
+    /// <para>
+    /// Refusing is the safe direction. What the caller is looking at is out of date, and choosing again
+    /// against what is actually there is theirs to do, not this session's to do for them by substituting
+    /// the latest state silently.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AcceptingASnapshotThatIsNoLongerCurrent_LeavesTheChangeHeld()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // What an editor is showing.
+        var shown = coordinator.GetCurrent()!.Stamp;
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        Assert.Equal(
+            SettingsApplyStatus.ChangedElsewhere,
+            (await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false))).Status);
+
+        // The session moves on while that editor is still showing the older snapshot.
+        daemon.Settings = SettingsFor("TheirsAgain", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        Assert.False(coordinator.AcceptCurrentState(shown), "a stale acceptance should be refused");
+
+        // And the hold stands, so the draft cannot be resubmitted over what nobody agreed to.
+        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
+        Assert.Equal("TheirsAgain", Tablet(daemon.Settings));
+    }
+
+    /// <summary>Accepting what is actually current does release it.</summary>
+    /// <remarks>
+    /// The other direction, without which refusing would simply be a way of never letting the artist
+    /// work again.
+    /// </remarks>
+    [Fact]
+    public async Task AcceptingTheCurrentSnapshot_ReleasesTheHold()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        // The artist reloads, sees what is there, and takes it.
+        await coordinator.ReloadFromDaemonAsync();
+        Assert.True(coordinator.AcceptCurrentState(coordinator.GetCurrent()!.Stamp));
+
+        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        Assert.True(afterwards.ChangedTheDaemon, $"the edit was held: {afterwards.Status}");
+        Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>The token prints nothing about the settings it describes (#910).</summary>
+    /// <remarks>
+    /// Opacity here means a caller cannot depend on the representation through the public API — it is not
+    /// secrecy from a debugger. But a record's generated <c>ToString</c> prints its properties, and these
+    /// ones carry a serialized copy of somebody's settings, so it is worth knowing which side of that
+    /// line the compiler put us on. It prints neither.
+    /// </remarks>
+    [Fact]
+    public void AConflictDoesNotPrintWhatItHolds()
+    {
+        var conflict = new SettingsConflict(Guid.NewGuid(), 7, "{\"secret\":\"settings\"}");
+
+        var printed = conflict.ToString();
+
+        Assert.DoesNotContain("secret", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("7", printed, StringComparison.Ordinal);
+    }
+
     private static string Json(Settings? s) => JsonConvert.SerializeObject(s);
 
     private static Settings SettingsFor(string tablet, bool locked) => new()

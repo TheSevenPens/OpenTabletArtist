@@ -74,11 +74,13 @@ interface OtdInterop.IOtdSettingsPolicy
 
 interface OtdInterop.IOtdSettingsSession
     OtdInterop.PreparedSettings GetCurrent()
+    System.Boolean AcceptCurrentState(OtdInterop.SettingsStamp accepted)
     System.Boolean HasEphemeralOverride { get; }
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ApplyAndSaveAsync(OpenTabletDriver.Desktop.Settings requested)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ApplyEphemeralAsync(OpenTabletDriver.Desktop.Settings requested)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ApplyLiveOnlyAsync(OpenTabletDriver.Desktop.Settings requested)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> ClearEphemeralOverrideAsync()
+    System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> OverwriteAsync(OpenTabletDriver.Desktop.Settings requested, OtdInterop.SettingsConflict conflict)
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> RetryPendingPersistAsync()
     System.Threading.Tasks.Task<OtdInterop.SettingsApplyOutcome> RetryPersistAsync()
     System.Threading.Tasks.Task<OtdInterop.SettingsReloadOutcome> ReloadFromDaemonAsync()
@@ -114,9 +116,10 @@ class OtdInterop.ProfileSanitizer
     static System.Int32 EnsureValidAbsoluteAreas(OpenTabletDriver.Desktop.Settings settings)
 
 struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsApplyOutcome>
-    .ctor(OtdInterop.SettingsApplyStatus Status, System.Exception Error = null, OtdInterop.PreparedSettings Prepared = null)
+    .ctor(OtdInterop.SettingsApplyStatus Status, System.Exception Error = null, OtdInterop.PreparedSettings Prepared = null, OtdInterop.SettingsConflict Conflict = null)
     OtdInterop.PreparedSettings Prepared { get; init; }
     OtdInterop.SettingsApplyStatus Status { get; init; }
+    OtdInterop.SettingsConflict Conflict { get; init; }
     System.Boolean ChangedTheDaemon { get; }
     System.Boolean Equals(OtdInterop.SettingsApplyOutcome other)
     System.Boolean Equals(System.Object obj)
@@ -126,7 +129,7 @@ struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsAp
     System.Exception Error { get; init; }
     System.Int32 GetHashCode()
     System.String ToString()
-    System.Void Deconstruct(OtdInterop.SettingsApplyStatus& Status, System.Exception& Error, OtdInterop.PreparedSettings& Prepared)
+    System.Void Deconstruct(OtdInterop.SettingsApplyStatus& Status, System.Exception& Error, OtdInterop.PreparedSettings& Prepared, OtdInterop.SettingsConflict& Conflict)
     static OtdInterop.SettingsApplyOutcome Failed(System.Exception ex)
     static readonly OtdInterop.SettingsApplyOutcome ChangedElsewhere
     static readonly OtdInterop.SettingsApplyOutcome CouldNotCheck
@@ -153,6 +156,13 @@ enum OtdInterop.SettingsApplyStatus : System.IComparable, System.IConvertible, S
 class OtdInterop.SettingsCodec
     static System.Boolean TryDecode(System.IO.Stream source, OpenTabletDriver.Desktop.Settings& settings)
     static System.Void Encode(OpenTabletDriver.Desktop.Settings settings, System.IO.Stream destination)
+
+class OtdInterop.SettingsConflict : System.IEquatable<OtdInterop.SettingsConflict>
+    OtdInterop.SettingsConflict <Clone>$()
+    System.Boolean Equals(OtdInterop.SettingsConflict other)
+    System.Boolean Equals(System.Object obj)
+    System.Int32 GetHashCode()
+    System.String ToString()
 
 struct OtdInterop.SettingsPolicyContext : System.IEquatable<OtdInterop.SettingsPolicyContext>
     .ctor(OtdInterop.SettingsStamp Stamp, System.Boolean IsOwnedDaemon, System.Boolean Persisting)

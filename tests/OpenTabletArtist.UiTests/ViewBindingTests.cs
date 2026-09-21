@@ -32,7 +32,8 @@ public class ViewBindingTests
             settings.Profiles.First(),
             settings,
             applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
-            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((settings, settings.Profiles.First())));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>(
+                (settings, settings.Profiles.First(), new SettingsStamp(1, 1))));
 
         using var errors = BindingErrors.Capture();
         HarnessTests.Show(new TabletDetailView { DataContext = vm });
@@ -54,7 +55,8 @@ public class ViewBindingTests
             settings.Profiles.First(),
             settings,
             applyAction: _ => Task.FromResult(SettingsApplyOutcome.Saved),
-            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((settings, settings.Profiles.First())));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>(
+                (settings, settings.Profiles.First(), new SettingsStamp(1, 1))));
         // The view consumes the pending tab when it attaches, so ask before showing it.
         vm.RequestTab(tab);
 
