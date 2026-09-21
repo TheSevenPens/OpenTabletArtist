@@ -334,36 +334,40 @@ The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when
 The whole boundary in one place, because the reasoning behind each rule lives in the source and a reader
 needs to know which rules exist before knowing where to look.
 
-**Lifetime.** `OtdSession.Create` opens it; `OpenSettings` lends a settings session; `Capabilities` lends
-a read/watch/plugin facade. Closing has two forms and they are not interchangeable. `CloseAsync(window)`
-refuses new work, lets what was admitted settle, then tears the transport down, and answers whether
-everything finished — that is the one a host that can await should use, and OTA's tray Quit does
-(`QuitSequence`). `Dispose` cannot wait and says so; it is the path taken when something other than Quit
-ends the process. Both are idempotent and may overlap. After teardown a borrowed `Capabilities` reports
+**Lifetime.** `OtdSession.Create` opens it. `Settings` exposes the settings session for the **current
+connection** — null until the daemon has been identified and its settings loaded, and replaced outright on
+every reconnect rather than migrated; `CanEditSettings` says whether there is a usable one and
+`SettingsProblem` says why not. `Capabilities` lends a read/watch/plugin facade.
+
+Closing has two forms and they are not interchangeable. `CloseAsync(window)` refuses new work, lets what
+was admitted settle, then tears the transport down, and answers whether everything finished — that is the
+one a host that can await should use, and OTA's tray Quit does (`QuitSequence`). `Dispose` cannot wait and
+says so; it is the path taken when something other than Quit ends the process. Both are idempotent and may overlap. After teardown a borrowed `Capabilities` reports
 **not connected** — null, empty, false — rather than throwing, for calls begun after that point (#828).
 
-**Threading.** `IOtdExecutionContext` is **required, never inferred**: the library dispatches the work it
-starts itself through it, with no fallback to the thread pool, because a context captured from an ambient
-`SynchronizationContext` silently becomes the pool in a host that has none. Separately, a host calling the
-asynchronous settings operations must do so from a thread whose context returns continuations to that same
-context. OTA supplies `DispatcherExecutionContext` (the UI thread); the diagnostic tool supplies a
-single-threaded pump; tests supply a controllable one.
+**Threading.** The library no longer asks the host for an execution context, and no longer calls host
+code from inside a settings operation. It used to do both: an injected `IOtdExecutionContext` for work the
+library started itself, plus a requirement that the host call the async operations from a context that
+returned continuations to that same context — which the library then discarded with `ConfigureAwait(false)`
+and reported through a host callback from the thread pool. That is what stranded the "Saved" chip's timer
+on a dispatcher that never pumped.
 
-**Publication.** A revision exists once the daemon has **accepted** it, not when it is sent (#832).
-A superseded or refused apply leaves the previous baseline standing and hands back no adoptable payload,
-so a caller reading between a failed apply and the next reload cannot build its next edit on settings no
-daemon ever had. Read invalidation is a separate counter from the published revision, moved at acceptance.
+Now: operations are serialized on one gate, take detached inputs, and return detached results. Nothing
+calls out mid-operation. The host awaits without `ConfigureAwait(false)`, so its own state updates resume
+on its UI thread, which is where `SettingsWorkspace` keeps the editable document. The two transport events
+(`Connected`, `Disconnected`) still fire on the transport thread and say so.
 
-**Host reentrancy.** A call into host code — including **logging** — may reenter the session, dispose it,
-or supersede the operation being handled. Three things can outlive such a call: the session's state, the
-reports it makes, and the authority it hands back in a result. The audit of every seam, and which of the
-three each one threatens, is in `SettingsCoordinator` above `StillCurrent` (#845); the transition path's
-equivalent is in `OtdSession`.
+**Confirmation, not publication.** There is no revision counter and no stamp. An apply reads the daemon
+first and refuses if it has moved (`ChangedElsewhere`), writes, then **reads back and compares**: OTD's
+`SetSettings` can recover internally from a failure and still complete the RPC normally, so a completed
+call is not evidence the values took. A mismatch pauses the session rather than reporting success. A write
+whose outcome could not be established at all closes the session, because a late arrival must not race a
+later reload or save.
 
 **Assemblies.** Seven projects: the app, `OtdInterop`, the pen-dynamics plugin, the `OtdDaemonSwitchCheck`
 diagnostic tool, and three test projects. `OtdInterop` grants `InternalsVisibleTo` to the three test
-projects and the diagnostic tool — shared test fakes and the tool's use of `ForTesting` — which is a
-deliberate seam, not a migration bridge; none remain.
+projects — shared fakes and `ForTesting` — which is a deliberate seam, not a migration bridge; none
+remain. The diagnostic tool no longer needs it.
 
 **Test commands.**
 
@@ -388,14 +392,22 @@ fail if Avalonia reaches `OtdInterop`, by assembly reference and by restore grap
 `OtdInterop` owns the **daemon's** `settings.json`. Its writer, `ISettingsFileStore` and
 `SettingsFileStore`, is `internal`, so the application cannot reach the raw writer or bypass the mediated
 settings API — not by policy but by accessibility. `IOtdSettingsSession` of course does write; that is
-what it is for, with ordering, the channel binding, policy, the format guard and the persistence
-bookkeeping applied. `OtdInteropBoundaryTests` holds the boundary: no public type offers an unmediated
-write, the connection type is not public, and the capabilities object cannot be cast back to the
-connection.
+what it is for, with one serialization gate, the channel binding, the area repair and the read-back
+confirmation applied. Artist-specific policy is no longer among them: it moved to `OtaSettingsPolicy`,
+which the application applies in `SettingsWorkspace` before submitting.
+
+> **Gap.** `OtdInteropBoundaryTests` used to hold this boundary — that no public type offers an unmediated
+> write, that the connection type is not public, and that the capabilities object cannot be cast back to
+> the connection. It was removed with the simplification and has no replacement. The accessibility is
+> still correct (`ISettingsFileStore` and `SettingsFileStore` are `internal`, and were made more so when
+> the host stopped supplying its own), but nothing fails if that changes. `BoundaryDependencyTests` and
+> `BoundaryRestoreTests` survive, and they guard a different thing: that Avalonia never reaches the
+> library.
 
 What accessibility does **not** do is stop application code opening a filesystem path itself. Nothing
 prevents that, and nothing could without a general enforcement mechanism that would not be worth its
-weight; the protection is the audited call sites below plus the API guards above.
+weight; the protection is the audited call sites below plus the accessibility above — which, per the gap
+noted there, is now asserted by the compiler rather than by a test.
 
 Where the destination comes from moved too (#828). The library asks the connected daemon for its
 `AppInfo` itself, per channel, rather than being handed a path by the host — so an edit made after a
@@ -408,7 +420,6 @@ The application still writes files of its own, and these are deliberate rather t
 |---|---|---|
 | OTA preferences | `AppSettings` → `%LOCALAPPDATA%/OpenTabletArtist/settings.json` | OTA's. Same filename as the daemon's, different folder and different owner — worth knowing when reading a log. |
 | Gradient, hotkeys, binding backups | `AppSettings` keys | OTA's preferences. |
-| Per-app profiles | `PerAppProfileStore` | OTA's own config. The feature is off (`FeatureFlags.PerAppProfiles`). |
 | Presets | `IPresetStore` | OTA's named snapshots, not the active settings. |
 | Tablet configuration overrides | `ApprovedConfigsService` → OTD's configuration directory | **OTD's**, deliberately (#480/#467). A separate capability from settings, and the one place OTA writes into OTD's territory. |
 | Calibration capture export | user-chosen path, from the view | The user's, on request. |
