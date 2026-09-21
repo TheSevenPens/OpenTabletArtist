@@ -196,8 +196,81 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool SaveFailed => false;
     public string SaveStatusText => "";
     public bool ShowAppOwnedDaemon => false;
-    public bool ShowForeignDaemonWarning => false;
-    public bool HasBundledDaemon => false;
+
+    // Settable, and notifying, because the daemon page is derived from them: a silent auto-property here
+    // would let a view model that never hears about a change look correct (#900).
+    private bool _showForeignDaemonWarning;
+    public bool ShowForeignDaemonWarning
+    {
+        get => _showForeignDaemonWarning;
+        set => Set(ref _showForeignDaemonWarning, value, nameof(ShowForeignDaemonWarning));
+    }
+
+    private bool _hasBundledDaemon;
+    public bool HasBundledDaemon
+    {
+        get => _hasBundledDaemon;
+        set => Set(ref _hasBundledDaemon, value, nameof(HasBundledDaemon));
+    }
+
+    private bool _connectStalled;
+    public bool ConnectStalled
+    {
+        get => _connectStalled;
+        set => Set(ref _connectStalled, value, nameof(ConnectStalled));
+    }
+
+    private bool _showDaemonActivity;
+    public bool ShowDaemonActivity
+    {
+        get => _showDaemonActivity;
+        set => Set(ref _showDaemonActivity, value, nameof(ShowDaemonActivity));
+    }
+
+    private string _daemonActivityText = "";
+    public string DaemonActivityText
+    {
+        get => _daemonActivityText;
+        set => Set(ref _daemonActivityText, value, nameof(DaemonActivityText));
+    }
+
+    private string _discardedChangeNotice = "";
+    public string DiscardedChangeNotice
+    {
+        get => _discardedChangeNotice;
+        set
+        {
+            _discardedChangeNotice = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscardedChangeNotice)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasDiscardedChangeNotice)));
+        }
+    }
+
+    /// <summary>Derived, as the real one is: a test cannot set "there is a notice" without a notice.</summary>
+    public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(_discardedChangeNotice);
+
+    /// <summary>How many times each was asked for, so a test can assert which one a refresh chose.</summary>
+    public int Reloads { get; private set; }
+    public int Connects { get; private set; }
+
+    public Task ReloadAsync()
+    {
+        Reloads++;
+        return Task.CompletedTask;
+    }
+
+    public Task ConnectAsync()
+    {
+        Connects++;
+        return Task.CompletedTask;
+    }
+
+    private void Set<T>(ref T field, T value, string name)
+    {
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
     public bool HasDaemonSourcePath => false;
     public bool DaemonCannotOpenTablet => false;
     public bool ShowDaemonSourceUnknown => false;

@@ -14,10 +14,19 @@ namespace OpenTabletArtist.ViewModels;
 /// </summary>
 public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposable
 {
-    private readonly AppSession _session;
+    private readonly IConnectionState _session;
     private readonly Action? _openDaemonPage;
 
-    public DaemonStatusViewModel(AppSession session, Action? openDaemonPage = null)
+    /// <summary>
+    /// Takes the state it reads, not the class that happens to hold it (#900).
+    /// </summary>
+    /// <remarks>
+    /// It took <c>AppSession</c> itself, so nothing downstream of this -- which is the whole daemon page
+    /// -- could be built in a test. Both defects in the way back to the bundled daemon lived there, and
+    /// both were found by a person looking at the running app rather than by anything that could have
+    /// run in CI.
+    /// </remarks>
+    public DaemonStatusViewModel(IConnectionState session, Action? openDaemonPage = null)
     {
         _session = session;
         _openDaemonPage = openDaemonPage;
