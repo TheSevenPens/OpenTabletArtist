@@ -365,19 +365,27 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         /// Submits, and keeps up with its own write only (#923).
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Calibration applies as it goes, so a rule that counted every wholesale write as somebody
         /// else's would break the second preview. It advances past exactly one step, and only when that
         /// step is the one this call caused: a competing write in the same interval leaves the count
         /// further on than that, and the scope is behind from then until it is closed.
+        /// </para>
+        /// <para>
+        /// Claimed at submission, not on the way back (#924). The count moves when a write is submitted,
+        /// so catching up only once the driver answered left the scope calling itself stale for as long
+        /// as its own write was in flight -- and a dialog that asked during that interval was told
+        /// somebody else owned the document, when the somebody else was itself.
+        /// </para>
         /// </remarks>
-        public async Task<SettingsApplyOutcome> ApplyProfileAsync(
+        public Task<SettingsApplyOutcome> ApplyProfileAsync(
             OpenTabletDriver.Desktop.Profiles.Profile profile)
         {
-            if (!StillCurrent) return SettingsApplyOutcome.ChangedElsewhere;
+            if (!StillCurrent) return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
             var before = workspace!.Generation;
-            var outcome = await session.ApplyProfileAsync(profile);
+            var applying = session.ApplyProfileAsync(profile);
             if (workspace.Generation == before + 1) _generation = workspace.Generation;
-            return outcome;
+            return applying;
         }
 
         public void Dispose()

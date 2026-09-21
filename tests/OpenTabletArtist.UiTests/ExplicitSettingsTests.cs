@@ -336,4 +336,43 @@ public class ExplicitSettingsTests
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere,
             (await editing.ApplyProfileAsync(mine.Profiles[0])).Status);
     }
+
+    /// <summary>
+    /// A scope is not stale to itself while its own write is in flight (#924).
+    /// </summary>
+    /// <remarks>
+    /// The count moves when a write is submitted, and the scope used to catch up only once the driver
+    /// answered — so between those two moments it reported that somebody else owned the document, and
+    /// the somebody else was itself. Calibration met this as a Cancel that would not undo the preview it
+    /// was cancelling; sequencing its commands keeps it out of the interval, and claiming the step where
+    /// it actually happens removes the interval.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AScopeIsNotStaleToItselfWhileItsOwnWriteIsOut()
+    {
+        var (app, daemon, _) = await Open();
+        using var lifetime = app;
+
+        using var editing = app.ReserveEditing();
+        var mine = app.CurrentSettings!;
+        mine.Profiles[0].BindingSettings.DisableTilt = true;
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            daemon.SetSettingsHandler = null;
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var applying = editing.ApplyProfileAsync(mine.Profiles[0]);
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        Assert.True(editing.StillCurrent, "a scope called itself stale over its own unfinished write");
+
+        held.SetResult(true);
+        Assert.True((await applying).IsLive);
+        Assert.True(editing.StillCurrent);
+    }
 }
