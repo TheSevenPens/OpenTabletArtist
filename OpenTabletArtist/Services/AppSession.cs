@@ -83,6 +83,35 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>True when OpenTabletDriver's own UX can actually be launched — see
     /// <see cref="AppSession.CanLaunchOtdUx"/>. False in a published build, where the UI hides the card.</summary>
     bool CanLaunchOtdUx { get; }
+
+    // --- The rest of what the daemon page's status surface reads (#900) ---------------------------
+    //
+    // These were reachable only through the concrete AppSession, so DaemonStatusViewModel took the class
+    // and everything downstream of it -- the whole daemon page -- was unreachable from a test. Two
+    // defects lived there because of it: a switch-to-bundled button whose condition never consulted the
+    // chosen daemon location, and its replacement, which rendered in no state at all (#899). Neither was
+    // subtle; both were invisible.
+
+    /// <summary>A connect that has not answered within the grace period, so the UI can say so.</summary>
+    bool ConnectStalled { get; }
+
+    /// <summary>Whether a start, stop, restart or the initial connect is in flight.</summary>
+    bool ShowDaemonActivity { get; }
+
+    /// <summary>What that in-flight operation is, phrased for the topology wire.</summary>
+    string DaemonActivityText { get; }
+
+    /// <summary>An unsaved edit thrown away because the connected daemon changed (#787).</summary>
+    string DiscardedChangeNotice { get; }
+
+    /// <summary>Whether there is such a notice to show.</summary>
+    bool HasDiscardedChangeNotice { get; }
+
+    /// <summary>Re-reads what the daemon holds, for a connection that is already up.</summary>
+    Task ReloadAsync();
+
+    /// <summary>Connects to a daemon, for one that is not.</summary>
+    Task ConnectAsync();
 }
 
 /// <summary>Current OTD settings and the apply+persist path (#41 PR 2).</summary>

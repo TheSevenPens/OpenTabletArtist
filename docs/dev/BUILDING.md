@@ -63,6 +63,77 @@ missing, and confirms the daemon exe was produced:
 ./scripts/build.ps1 -SkipDaemon           # solution only, for driving an installed OTD
 ```
 
+## Seeing the Windows release states
+
+A dev tree ships no bundled daemon, and one flag reads exactly that:
+
+```csharp
+public bool HasBundledDaemon() => File.Exists(DaemonExePaths.BundledPath(AppContext.BaseDirectory));
+```
+
+Every Windows-release binding on the **daemon page** hangs off it, so running from `bin/Debug` shows you
+the branch a macOS build takes. The page renders, nothing looks broken, and none of the release states are
+on screen — which makes a visual pass from a dev tree feel conclusive while establishing nothing (#901).
+
+What stays dark without a bundled daemon:
+
+| | dev tree | Windows release |
+|---|---|---|
+| THIS APP line | `built against OTD 0.6.7.0` | `bundles OTD 0.6.7.0` |
+| provenance chip | `YOURS` only | `BUNDLED`, or `YOURS` on someone else's daemon |
+| way back to the bundled copy | cannot appear | offered, or explained when a location is chosen |
+| driver card | always shown | hidden until there is something to offer |
+
+### Putting a bundled daemon in place
+
+One file is all the flag reads, so copy any daemon exe next to the app under `Daemon/`:
+
+```powershell
+Copy-Item -Recurse <a daemon folder> OpenTabletArtist\bin\Debug\net10.0\Daemon
+```
+
+A release package's `Daemon/` folder is the faithful choice, since that is OpenTabletDriver's own released
+binary; the submodule build works too if you only care about the UI states, because "is this ours?" is
+decided by the path, not by the binary.
+
+**Remove it afterwards.** Left in place, the dev tree goes on behaving like a release build, which is the
+same trap in the other direction:
+
+```powershell
+Remove-Item -Recurse OpenTabletArtist\bin\Debug\net10.0\Daemon
+```
+
+### Keep the run out of your real settings
+
+Set `OTA_APPDATA` (#879) so the run writes its settings and logs somewhere disposable:
+
+```powershell
+$env:OTA_APPDATA = "$env:TEMP\ota-scratch"
+dotnet run --project OpenTabletArtist
+```
+
+It redirects this application's own files only. The daemon has its own data under its own variable, and
+the single-instance identity is shared with every other OTA on the machine — so close other instances
+first rather than assuming this separates them.
+
+### Reaching the foreign-daemon states
+
+`YOURS`, and the offer of a way back to the bundled copy, need a daemon the app did not start and does not
+manage. Start one from anywhere outside the app's folder, then launch the app and let it adopt:
+
+```powershell
+Copy-Item -Recurse <a daemon folder> $env:TEMP\foreign-otd
+Start-Process $env:TEMP\foreign-otd\OpenTabletDriver.Daemon.exe -WindowStyle Hidden
+```
+
+To reach the state where a chosen location sits in front of the bundled copy, either pick one through
+**Use a different one…** on the driver card, or write `daemon.userPath` straight into the redirected
+`settings.json` and relaunch.
+
+> **What none of this gives you** is a machine without the .NET 8 runtime the shipped daemon needs. That
+> is #878, and it wants a clean VM or a Windows Sandbox session (#902) — not a dev box with a folder moved
+> around.
+
 ## Tests
 
 ```bash
