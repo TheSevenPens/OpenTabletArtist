@@ -55,16 +55,6 @@
                                                       IsVisible="{Binding !IsDetected}" />
                                         </Panel>
                                     </StackPanel>
-                                    <!-- Where the active area is mapped (#tablet-card-mapping): the mapped
-                                         display when it's a clean single-monitor mapping, or a "needs attention"
-                                         line when it isn't. State reads from the wording, not color (#no-orange-text):
-                                         the attention line is a touch more prominent (primary vs secondary text). -->
-                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
-                                               IsVisible="{Binding MappingIsNormal}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}" />
-                                    <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
-                                               IsVisible="{Binding MappingNeedsAttention}"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <!-- The quiet end of the ramp (TextBlock.Detail): CONNECTED, or when
                                          this tablet was last seen. A timestamp is context, not something
                                          you read the card for; and a connected tablet has no timestamp, so

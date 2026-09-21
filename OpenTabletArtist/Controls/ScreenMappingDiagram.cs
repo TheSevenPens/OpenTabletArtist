@@ -290,6 +290,27 @@ public sealed class ScreenMappingDiagram : Control
                  effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
+        // ── The bottom edge's two rails: the display's bottom-left corner to the active area's
+        //    bottom-left, and bottom-right to bottom-right. ──
+        //
+        // The bottom beam is a wedge whose sides are exactly these two lines, and a filled gradient says
+        // "these regions correspond" without saying WHICH point goes where. Drawing the sides makes the
+        // pairing readable: follow a rail and you can see the corner it lands on.
+        //
+        // Drawn outside the clip above rather than with the beams. They start ON the display's bottom
+        // edge, and a clip that excludes the display box cuts exactly along that line — half a stroke
+        // wide, which would shave the end off each rail at the one point where it has to look attached.
+        if (selectedBox is { } railBox)
+        {
+            // The accent again, because this is the same relationship the beams and the active-area
+            // outline already describe. Between the two in weight: firmer than a gradient that fades to
+            // nothing, quieter than the outlines it connects, so it reads as the join rather than as a
+            // third boundary.
+            var rail = new Pen(new SolidColorBrush(Color.FromArgb(0xC4, accent.R, accent.G, accent.B)), 1.75);
+            ctx.DrawLine(rail, railBox.BottomLeft, effRect.BottomLeft);
+            ctx.DrawLine(rail, railBox.BottomRight, effRect.BottomRight);
+        }
+
         // The selected display, drawn after the beams — which are also clipped out of it, so its
         // translucent fill shows the page behind rather than the beams.
         if (selectedBox is { } sbx && selDisplay is { } sdd)
