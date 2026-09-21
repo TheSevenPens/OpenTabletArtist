@@ -65,14 +65,14 @@ Compared with `6f56723`, counting all C# source and helpers while excluding buil
 | Measure | Before | After |
 | --- | ---: | ---: |
 | OtdInterop C# files | 31 | 23 |
-| OtdInterop source lines, including comments | 6,289 | 2,111 |
-| OtdInterop nonblank lines excluding line comments | 2,021 | 1,115 |
-| Interop test Fact/Theory methods | 243 | 59 |
-| Interop test C# source lines, including helpers/comments | 9,716 | 2,435 |
+| OtdInterop source lines, including comments | 6,289 | 2,162 |
+| OtdInterop nonblank lines excluding line comments | 2,021 | 1,142 |
+| Interop test Fact/Theory methods | 243 | 60 |
+| Interop test C# source lines, including helpers/comments | 9,716 | 2,506 |
 
-The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain. Added since: the write boundary, the shutdown cases, an abandoned write across a reconnect and across a real pipe, idle adoption, input arriving during the adoption read, and a dialog holding the document open.
+The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain. Added since: the write boundary, the shutdown cases, an abandoned write across a reconnect and across a real pipe, idle adoption, input arriving during the adoption read and the pause that leaves, a dialog holding the document open against a Reload and against another hand's write, and a calibration whose write was refused.
 
-The full solution build completed with zero warnings and zero errors. All 1,132 test cases passed: 68 interop, 995 application logic, and 69 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
+The full solution build completed with zero warnings and zero errors. All 1,138 test cases passed: 69 interop, 997 application logic, and 72 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
 
 An interactive pass against a real daemon followed on 2026-09-21: apply-live with the unsaved chip,
 explicit save, survival across a driver restart, an external edit pausing the page, reconnect, and the
@@ -94,9 +94,15 @@ conflict-resolution, per-draft-hold, stamp, autosave-retry, per-app-override and
 protocols, whose tests left with them. Those protocols are deliberately gone and are not coming back;
 the point of recording it is that their absence was never demonstrated to be safe, only argued.
 
-Codex reviewed `6f56723..779e25c` as a whole and reproduced three correctness problems that the
-composition had and no individual component test could see — a faulted RPC task read as a finished
-write, input discarded during the adoption read, and a calibration dialog submitting a document that
-had been replaced underneath it. Each is fixed in its own commit after `779e25c`, with the regression
-that catches it. That shape — one atomic replacement, then coherent fixes with their reviewed history
-intact — is what this branch merges as.
+Codex reviewed `6f56723..779e25c` as a whole and reproduced three correctness problems the composition
+had and no individual component test could see — a faulted RPC task read as a finished write, input
+discarded during the adoption read, and a calibration dialog submitting a document that had been
+replaced underneath it. A second round over `8a4a6d6` found four more in the same region: a send begun
+before its marker was published, the new host-side pause cleared by the next refresh, a preset hotkey
+replacing the document without ending a dialog's claim on it, and a refused calibration write presented
+as a working preview. Each is fixed in its own commit, with the regression that catches it.
+
+That both rounds found their problems in the composition rather than in any component is the pattern
+worth keeping: every one of them lived in an interval between two correct pieces. That shape — one
+atomic replacement, then coherent fixes with their reviewed history intact — is what this branch
+merges as.
