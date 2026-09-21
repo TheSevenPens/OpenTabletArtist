@@ -131,7 +131,8 @@ public partial class CalibrationViewModel : ObservableObject
     public bool IsFailed => CurrentPhase == Phase.Failed;
     /// <summary>A write was refused, so this overlay can do nothing further but close (#923).</summary>
     public bool IsInterrupted => CurrentPhase == Phase.Interrupted;
-    public bool ShowApply => IsConfirming;
+    /// <summary>Keeping is offered for a settled preview only, never over work still in flight.</summary>
+    public bool ShowApply => IsConfirming && !IsWorking;
     public bool ShowRedo => IsConfirming || IsFailed;
     /// <summary>Clearing is a write too, so it goes with the rest when they cannot land (#923).</summary>
     public bool ShowClear => !IsInterrupted;
@@ -194,15 +195,70 @@ public partial class CalibrationViewModel : ObservableObject
     /// </para>
     /// </remarks>
     private Task _sequence = Task.CompletedTask;
+    private int _working;
 
-    private Task Sequenced(Func<Task> step) => _sequence = After(_sequence, step);
+    /// <summary>
+    /// This editing session has ended (#925).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from the queue, because ordering the overlay's operations is not the same as ending
+    /// them. Closing used to be just another operation, so work admitted before it still ran after: a
+    /// tap landing while Cancel waited queued a Finish that applied a whole new calibration once the
+    /// overlay had gone, over settings nobody was looking at any more.
+    /// </para>
+    /// <para>
+    /// Set the moment a closing command is <em>asked for</em>, not when its turn comes, so the pen
+    /// stream and every other command stop at once. Work already queued honours it when it reaches the
+    /// front.
+    /// </para>
+    /// </remarks>
+    private bool _closing;
 
-    private static async Task After(Task previous, Func<Task> step)
+    /// <summary>Whether one of this overlay's own operations is in flight.</summary>
+    private bool IsWorking => _working > 0;
+
+    private Task Sequenced(Func<Task> step) => Queue(step, closing: false);
+
+    /// <summary>Queues a step that ends the session, which nothing may cancel out from under it.</summary>
+    private Task Closing(Func<Task> step) => Queue(step, closing: true);
+
+    private Task Queue(Func<Task> step, bool closing)
     {
-        // Each step reports its own outcome through the phase, so a failed predecessor is not this
-        // one's to re-raise -- only to wait for.
-        try { await previous; } catch { }
-        await step();
+        // Counted here rather than inside the continuation, so a command asked for while another is
+        // running sees it.
+        _working++;
+        OnPropertyChanged(nameof(ShowApply));
+        return _sequence = After(_sequence, step, closing);
+    }
+
+    private async Task After(Task previous, Func<Task> step, bool closing)
+    {
+        try
+        {
+            // Each step reports its own outcome through the phase, so a failed predecessor is not this
+            // one's to re-raise -- only to wait for.
+            try { await previous; } catch { }
+
+            // Asked again at the front of the queue, because the answer can change while a step waits:
+            // this is where work admitted before a close, or before an interruption, finds out (#925).
+            // One gate rather than a guard in every step — the per-caller version is how Redo came to
+            // talk an interrupted overlay back into capturing.
+            if (!closing && (_closing || IsInterrupted)) return;
+            await step();
+        }
+        finally
+        {
+            _working--;
+            OnPropertyChanged(nameof(ShowApply));
+        }
+    }
+
+    /// <summary>Ends the session and asks the window to go.</summary>
+    private void Close()
+    {
+        _closing = true;
+        CloseRequested?.Invoke();
     }
 
     /// <summary>
@@ -222,13 +278,17 @@ public partial class CalibrationViewModel : ObservableObject
         // Refused and written-but-unconfirmed are different facts, and the library keeps them apart
         // (#924). A readback that fails after the driver accepted the write leaves a calibration that may
         // well be in effect; saying it was not applied is as wrong as the preview this replaced.
+        //
+        // The recovery points back into the app rather than out to OpenTabletDriver (#925). Which remedy
+        // applies depends on whether the session is paused, disconnected or merely unread, and this
+        // overlay knows none of that -- the host does, and says so on the page the artist came from.
         CurrentPhase = Phase.Interrupted;
         Instruction = outcome.Status == SettingsApplyStatus.ChangedElsewhere
             ? "Something else changed these settings while calibration was open, so this calibration "
               + "was not applied. Close this and start it again."
             : "This calibration could not be confirmed with the driver, so it may or may not be in "
-              + "effect. Close this and check the tablet's calibration in OpenTabletDriver before "
-              + "relying on it.";
+              + "effect. Close this and check the connection status on the tablet's page; once the "
+              + "settings have been reloaded, its Calibration tab shows what the driver actually holds.";
         return false;
     }
 
@@ -241,8 +301,10 @@ public partial class CalibrationViewModel : ObservableObject
         await _input.StartAsync();
     });
 
+    /// <summary>Ends the session and stops the pen stream. The window calls this as it goes.</summary>
     public async Task StopAsync()
     {
+        _closing = true;
         _input.Sample -= OnSample;
         await _input.StopAsync();
     }
@@ -276,6 +338,10 @@ public partial class CalibrationViewModel : ObservableObject
 
     public void OnSample(PenSample s)
     {
+        // Nothing the pen does after a close has been asked for belongs to this session (#925). The
+        // stream is stopped as well, but a sample already on its way must not start new work either.
+        if (_closing) return;
+
         // Map the raw position to the display (uncorrected) for the live dot + hit-testing.
         var raw = new Vector2((float)s.RawX, (float)s.RawY);
         var desktop = AbsolutePositionMapper.MapToDesktop(raw, _ctx.Digitizer, _ctx.Input, _ctx.Output, false, false);
@@ -338,7 +404,6 @@ public partial class CalibrationViewModel : ObservableObject
 
     private async Task FinishAsync()
     {
-        if (IsInterrupted) return;
 
         // Targets are placed in OTD virtual-desktop space (via the Output origin) so they share the space
         // MapToDesktop produces the measured points in — otherwise the solver pairs targets and taps that
@@ -408,15 +473,29 @@ public partial class CalibrationViewModel : ObservableObject
 
     // --- Commands ---
 
+    /// <summary>
+    /// Keeps the preview — which is a close, so it goes through the same boundary as the rest (#925).
+    /// </summary>
+    /// <remarks>
+    /// It used to raise the close directly, so it could be pressed while Redo's bypass write was still
+    /// out: the overlay closed, the bypass landed afterwards, and the artist was left with calibration
+    /// disabled by the Redo they had abandoned — having just pressed the button that keeps it. Refused
+    /// while any of the overlay's own operations is in flight; the settings were already written during
+    /// the preview, so there is nothing here but the close itself.
+    /// </remarks>
     [RelayCommand]
-    private void Apply() => CloseRequested?.Invoke(); // already written+applied during preview
+    private Task Apply()
+    {
+        if (!IsConfirming || IsWorking) return Task.CompletedTask;
+        _closing = true;
+        return Closing(() => { Close(); return Task.CompletedTask; });
+    }
 
     [RelayCommand]
     private Task Redo() => Sequenced(RedoCoreAsync);
 
     private async Task RedoCoreAsync()
     {
-        if (IsInterrupted) return;
         _measuredRaw.Clear();
         _tapSampleCounts.Clear();
         _measuredTilt.Clear();
@@ -440,7 +519,7 @@ public partial class CalibrationViewModel : ObservableObject
 
     private async Task UndoLastPointCoreAsync()
     {
-        if (IsInterrupted || _measuredRaw.Count == 0) return;
+        if (_measuredRaw.Count == 0) return;
 
         bool wasPreviewing = CurrentPhase != Phase.Capturing;
         _measuredRaw.RemoveAt(_measuredRaw.Count - 1);
@@ -461,14 +540,19 @@ public partial class CalibrationViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task Clear() => Sequenced(ClearCoreAsync);
+    private Task Clear()
+    {
+        _closing = true;
+        return Closing(ClearCoreAsync);
+    }
 
     private async Task ClearCoreAsync()
     {
-        if (IsInterrupted) return;
+        // Closing, so it is not gated — but a refused write still leaves it open and interrupted
+        // rather than closing over a clear that never happened.
         CalibrationProfile.Clear(_ctx.Settings, _ctx.TabletName);
         if (!await WriteAsync()) return;
-        CloseRequested?.Invoke();
+        Close();
     }
 
     /// <summary>
@@ -481,7 +565,11 @@ public partial class CalibrationViewModel : ObservableObject
     /// settings, which is exactly when the captured values must not go back.
     /// </remarks>
     [RelayCommand]
-    private Task Cancel() => Sequenced(CancelCoreAsync);
+    private Task Cancel()
+    {
+        _closing = true;
+        return Closing(CancelCoreAsync);
+    }
 
     private async Task CancelCoreAsync()
     {
@@ -490,7 +578,7 @@ public partial class CalibrationViewModel : ObservableObject
         else
             CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, _original);
         await _ctx.Apply(_ctx.Settings);
-        CloseRequested?.Invoke();
+        Close();
     }
 
     private static bool Near(double x, double y, (double X, double Y) t)

@@ -33,6 +33,13 @@ namespace OpenTabletArtist.UiTests;
 /// OpenTabletDriver process is involved; the daemon is <see cref="FakeDaemonTransport"/> and the file
 /// store is memory.
 /// </para>
+/// <para>
+/// <b>What they do not cover.</b> No <c>CalibrationOverlayWindow</c> is created: these drive the view
+/// model, and <see cref="Overlay"/> stands in for the window by doing what it does when the overlay
+/// closes — stop the pen stream, release the hold. The window's own wiring is therefore not under
+/// test here, only the view model's behaviour across that boundary. Codex named this limit; recording
+/// it is cheaper than implying the coverage.
+/// </para>
 /// </remarks>
 public class CalibrationJourneyTests
 {
@@ -61,6 +68,33 @@ public class CalibrationJourneyTests
         CalibrationViewModel Vm,
         AppSession.ISettingsEditingScope Scope) : IDisposable
     {
+        /// <summary>Whether the overlay has asked to be closed.</summary>
+        public bool Closed { get; private set; }
+
+        /// <summary>Settings writes the daemon had taken by the time it closed.</summary>
+        public int WritesAtClose { get; private set; }
+
+        /// <summary>
+        /// Does what the window does when the overlay closes: stop the pen stream, release the hold.
+        /// </summary>
+        /// <remarks>
+        /// A boolean alone says the overlay asked to close and nothing about whether closing meant
+        /// anything. What matters afterwards is that no further settings write happens, and that is only
+        /// a real question once the stop and the release have actually taken effect.
+        /// </remarks>
+        public Overlay Watch()
+        {
+            Vm.CloseRequested += () =>
+            {
+                if (Closed) return;
+                Closed = true;
+                WritesAtClose = Daemon.Applied.Count;
+                _ = Vm.StopAsync();
+                Scope.Dispose();
+            };
+            return this;
+        }
+
         public void Dispose() { Scope.Dispose(); App.Dispose(); }
     }
 
@@ -80,7 +114,7 @@ public class CalibrationJourneyTests
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
             s => editing.ApplyProfileAsync(s.Profiles.First(p => p.Tablet == "T")), new NoPenInput());
-        return new Overlay(app, daemon, new CalibrationViewModel(ctx), editing);
+        return new Overlay(app, daemon, new CalibrationViewModel(ctx), editing).Watch();
     }
 
     private static async Task PumpUntil(Func<bool> condition)
@@ -89,6 +123,25 @@ public class CalibrationJourneyTests
         while (!condition())
         {
             Assert.True(DateTime.UtcNow < deadline, "UI did not settle.");
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    /// <summary>
+    /// Runs the loop for a while, so that anything still queued has had its chance.
+    /// </summary>
+    /// <remarks>
+    /// Time-based, and deliberately so: the assertion it serves is that <em>nothing further happens</em>,
+    /// and an absence cannot be waited for the way an event can. There is nothing to signal, so what
+    /// gives this its teeth is the mutation — removing the guard it tests makes it fail, promptly and
+    /// every time.
+    /// </remarks>
+    private static async Task Quiet()
+    {
+        for (var n = 0; n < 40; n++)
+        {
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(5, TestContext.Current.CancellationToken);
         }
@@ -223,6 +276,143 @@ public class CalibrationJourneyTests
         Assert.Equal(CalibrationViewModel.Phase.Interrupted, overlay.Vm.CurrentPhase);
         Assert.DoesNotContain("not applied", overlay.Vm.Instruction);
         Assert.Contains("could not be confirmed", overlay.Vm.Instruction);
+        Assert.Contains("Calibration tab", overlay.Vm.Instruction);
         Assert.Equal("Close (Esc)", overlay.Vm.CancelLabel);
+    }
+
+    /// <summary>
+    /// A tap landing while Cancel waits cannot apply a calibration after the overlay closes (#925).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sequencing put the overlay's operations in order and left closing as merely another operation, so
+    /// work admitted before the close still ran after it. Codex's reproduction: hold Cancel's restore
+    /// inside the driver, let the artist land the last tap while it waits, then release. Cancel restores
+    /// the original and the overlay closes — and then the queued Finish applies the calibration just
+    /// captured, over settings nobody is looking at any more.
+    /// </para>
+    /// <para>
+    /// A close request now stops the pen stream and every non-closing command at once, and work already
+    /// queued honours that when its turn comes. Closing is a decision, not a position in a queue.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ATapThatLandsWhileCancelWaits_CannotApplyAfterTheOverlayCloses()
+    {
+        using var overlay = await Open();
+
+        // Three of the four taps are in when the artist gives up and presses Cancel.
+        for (var i = 0; i < overlay.Vm.Targets.Count - 1; i++) Tap(overlay.Vm, i);
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        overlay.Daemon.SetSettingsHandler = _ =>
+        {
+            overlay.Daemon.SetSettingsHandler = null;
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var cancelling = overlay.Vm.CancelCommand.ExecuteAsync(null);
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        // The pen is still on the tablet, and the last target completes while the restore is out.
+        var captured = overlay.Vm.CapturedCount;
+        Tap(overlay.Vm, overlay.Vm.Targets.Count - 1);
+        Assert.Equal(captured, overlay.Vm.CapturedCount);
+
+        held.SetResult(true);
+        await cancelling;
+        await PumpUntil(() => overlay.Closed);
+        await Quiet();
+
+        Assert.Equal(overlay.WritesAtClose, overlay.Daemon.Applied.Count);
+        Assert.False(CalibrationEnabled(overlay.Daemon.Settings),
+            "a calibration was applied after the overlay closed");
+    }
+
+    /// <summary>
+    /// Keep does not close over a Redo that is still running (#925).
+    /// </summary>
+    /// <remarks>
+    /// Keep raised the close directly instead of taking its turn, so it could be pressed while Redo's
+    /// bypass write was still out: the overlay closed, the bypass then landed, and the artist was left
+    /// with calibration <em>disabled</em> by the Redo they had abandoned — having just pressed the
+    /// button that keeps it. It goes through the same boundary as everything else now, and is refused
+    /// while another of the overlay's own operations is in flight.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task KeepDoesNotCloseOverAnUnfinishedRedo()
+    {
+        using var overlay = await Open();
+
+        TapAll(overlay.Vm);
+        await PumpUntil(() => overlay.Vm.IsConfirming);
+        Assert.True(CalibrationEnabled(overlay.Daemon.Settings));
+
+        // Redo's bypass is still out when the artist changes their mind and presses Keep.
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        overlay.Daemon.SetSettingsHandler = _ =>
+        {
+            overlay.Daemon.SetSettingsHandler = null;
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var redoing = overlay.Vm.RedoCommand.ExecuteAsync(null);
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        overlay.Vm.ApplyCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(overlay.Closed, "Keep closed the overlay over an operation still in flight");
+
+        held.SetResult(true);
+        await redoing;
+
+        Assert.Equal(CalibrationViewModel.Phase.Capturing, overlay.Vm.CurrentPhase);
+        Assert.False(overlay.Closed);
+    }
+
+    /// <summary>
+    /// A command pressed while Cancel is waiting does not run once it has closed (#925).
+    /// </summary>
+    /// <remarks>
+    /// The other half of the same contract, and the half a per-step guard kept hiding: it is not enough
+    /// to stop taking new work at the moment of the close, because work already in the queue reaches the
+    /// front afterwards. Redo pressed while the restore is out would otherwise bypass the calibration
+    /// that was just restored and leave the closed overlay's document disabled.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ACommandQueuedBeforeTheCloseDoesNotRunAfterIt()
+    {
+        using var overlay = await Open();
+
+        TapAll(overlay.Vm);
+        await PumpUntil(() => overlay.Vm.IsConfirming);
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        overlay.Daemon.SetSettingsHandler = _ =>
+        {
+            overlay.Daemon.SetSettingsHandler = null;
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var cancelling = overlay.Vm.CancelCommand.ExecuteAsync(null);
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        // Pressed while the restore is still out, so it queues behind the close.
+        var redoing = overlay.Vm.RedoCommand.ExecuteAsync(null);
+
+        held.SetResult(true);
+        await cancelling;
+        await redoing;
+        await PumpUntil(() => overlay.Closed);
+        await Quiet();
+
+        Assert.Equal(overlay.WritesAtClose, overlay.Daemon.Applied.Count);
+        Assert.NotEqual(CalibrationViewModel.Phase.Capturing, overlay.Vm.CurrentPhase);
     }
 }
