@@ -345,29 +345,32 @@
                          framework-dependent where OTA is self-contained, so a machine with no .NET 8 gets a
                          daemon that exits before printing anything. Offered here, beside the error that
                          explains it, rather than as a health card: this is a prerequisite for connecting,
-                         which is what this page is about. -->
+                         which is what this page is about.
+
+                         The button opens Microsoft's page rather than installing anything. OTA used to do
+                         the download and the elevated install itself; watching that on a clean machine
+                         (#878) showed a progress display the user could not trust, no way to cancel, and,
+                         when OTA was already elevated, a quiet install with no visible sign at all,
+                         which reads as a hang. The browser does all of that properly already. -->
                     <StackPanel Margin="0,14,0,0" Spacing="8" IsVisible="{Binding ShowInstallRuntime}">
                         <TextBlock Text="OpenTabletDriver needs the .NET 8 runtime" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextPrimaryBrush}" />
                         <TextBlock Text="{Binding InstallRuntimeDescription}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Install .NET 8"
-                                    Command="{Binding InstallRuntimeCommand}"
-                                    IsEnabled="{Binding !IsInstallingRuntime}"
+                            <Button Content="Get .NET 8 from Microsoft"
+                                    Command="{Binding OpenRuntimeDownloadCommand}"
                                     Theme="{StaticResource AccentButton}" Padding="12,6" />
-                            <TextBlock Text="{Binding InstallStatus}" VerticalAlignment="Center"
-                                       IsVisible="{Binding IsInstallingRuntime}"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Content="Check again"
+                                    Command="{Binding RecheckRuntimeCommand}"
+                                    Padding="12,6" />
                         </StackPanel>
-                        <TextBlock Text="{Binding RuntimeInstallProblem}" TextWrapping="Wrap"
-                                   IsVisible="{Binding HasRuntimeInstallProblem}"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
 
-                    <!-- Outside the offer above, deliberately: a successful install removes the offer, and
-                         with it anything drawn inside it — including "Windows needs a restart", which is
-                         precisely the moment the user needs to read something. -->
+                    <!-- Outside the offer above, deliberately: finding the runtime removes the offer, and
+                         with it anything drawn inside, at the moment there is finally something to read.
+                         This also carries the "still not found" answer, so Check again can never look like
+                         a button that did nothing. -->
                     <TextBlock Margin="0,14,0,0" TextWrapping="Wrap"
                                Text="{Binding RuntimeInstallOutcome}"
                                IsVisible="{Binding HasRuntimeInstallOutcome}"

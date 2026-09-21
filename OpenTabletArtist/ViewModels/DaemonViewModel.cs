@@ -204,8 +204,6 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// macOS, with no OpenTabletDriver found. Anywhere else the answer is Locate, not Install.</summary>
     public bool ShowInstallCard => OperatingSystem.IsMacOS() && Status.IsDaemonExeMissing;
 
-    private readonly DotnetRuntimeInstaller _runtimeInstaller = new();
-
     /// <summary>
     /// Offer the .NET runtime when the daemon isn't connected and this machine has no runtime that could
     /// run OpenTabletDriver's official build (#786, D2).
@@ -214,7 +212,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// user sits through a daemon that exits instantly. The launch failure remains the authoritative
     /// signal and produces its own message; this is the offer that goes with it.
     ///
-    /// Windows only — macOS gets a self-contained OTD and Linux gets a packaged one, so neither has the
+    /// Windows only -- macOS gets a self-contained OTD and Linux gets a packaged one, so neither has the
     /// prerequisite.
     /// </summary>
     public bool ShowInstallRuntime =>
@@ -223,80 +221,69 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         && !DotnetRuntime.Satisfies(DotnetRuntime.Installed(), DotnetRuntime.DaemonMajor);
 
     /// <summary>What pressing it does, said before it is pressed.</summary>
-    public string InstallRuntimeDescription => DotnetRuntimeInstaller.Description;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRuntimeInstallProblem))]
-    private string _runtimeInstallProblem = "";
-
-    public bool HasRuntimeInstallProblem => !string.IsNullOrEmpty(RuntimeInstallProblem);
+    public string InstallRuntimeDescription => DotnetRuntimeDownload.Description;
 
     /// <summary>
-    /// What the install did, shown <b>outside</b> the offer. A successful install makes the offer
-    /// disappear — that is the point of it — so anything rendered inside the offer vanishes with it,
-    /// including "you need to reboot", which is exactly when the user needs to read it.
+    /// Hand the download to the browser (#878).
+    ///
+    /// OTA used to fetch the installer and run it elevated itself. What that cost is recorded on
+    /// <see cref="DotnetRuntimeDownload"/>; what matters here is that this command cannot hang, cannot
+    /// need cancelling, and cannot leave the app in a state only a diagnostic script can explain. It
+    /// opens a page and returns.
+    /// </summary>
+    [RelayCommand]
+    private void OpenRuntimeDownload()
+    {
+        RuntimeInstallOutcome = "";
+        PlatformShell.OpenUrl(DotnetRuntimeDownload.Url);
+    }
+
+    /// <summary>
+    /// "Check again", after the user has installed the runtime themselves.
+    ///
+    /// The offer is derived from what is on disk and nothing tells OTA when that changes, so this is the
+    /// re-ask. It reports both outcomes deliberately: still not finding the runtime has to say so rather
+    /// than look like a button that did nothing, which is exactly how the Fix button failed on this path
+    /// (#878) -- the user could not tell "not installed yet" from "OTA didn't notice".
+    /// </summary>
+    [RelayCommand]
+    private async Task RecheckRuntime()
+    {
+        OnPropertyChanged(nameof(ShowInstallRuntime));
+
+        if (!DotnetRuntime.Satisfies(DotnetRuntime.Installed(), DotnetRuntime.DaemonMajor))
+        {
+            RuntimeInstallOutcome =
+                $"Still no .NET {DotnetRuntime.DaemonMajor} runtime on this machine. If you have just run "
+                + "the installer, let it finish -- and if it asked for a restart, the runtime only becomes "
+                + "available after that.";
+            return;
+        }
+
+        RuntimeInstallOutcome = $"The .NET {DotnetRuntime.DaemonMajor} runtime is installed.";
+
+        // Refresh alone only retries the pipe -- it never launches anything. On this path the daemon
+        // exited the moment it was started, because there was no runtime, so there is nothing to
+        // reconnect to and refreshing would sit at "not connected" having apparently done nothing.
+        //
+        // Starting it explicitly is right *here* and nowhere else: the user asked for this recovery.
+        // Ordinary reconnects must still never auto-launch a daemon, which is what keeps OTA from
+        // fighting someone who stopped one deliberately (#787).
+        if (!Status.IsConnected && Status.StartDaemonCommand.CanExecute(null))
+            await Status.StartDaemonCommand.ExecuteAsync(null);
+        else
+            await Status.RefreshCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>
+    /// What the recheck found, shown <b>outside</b> the offer: finding the runtime removes the offer, and
+    /// anything drawn inside it would vanish at the moment there is finally something to read.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRuntimeInstallOutcome))]
     private string _runtimeInstallOutcome = "";
 
     public bool HasRuntimeInstallOutcome => !string.IsNullOrEmpty(RuntimeInstallOutcome);
-
-    [ObservableProperty] private bool _isInstallingRuntime;
-
-    [RelayCommand]
-    private async Task InstallRuntime()
-    {
-        if (IsInstallingRuntime) return;
-        IsInstallingRuntime = true;
-        RuntimeInstallProblem = "";
-        RuntimeInstallOutcome = "";
-        InstallProgress = 0;
-        try
-        {
-            _runtimeInstaller.StatusChanged += OnInstallStatus;
-            _runtimeInstaller.ProgressChanged += OnInstallProgress;
-
-            var result = await _runtimeInstaller.InstallAsync();
-
-            // Declining the elevation prompt is an answer, not a fault (#786 review). Say nothing and
-            // leave the offer standing — retrying it automatically would be arguing with the user.
-            if (result.Cancelled) return;
-
-            if (!result.Installed)
-            {
-                RuntimeInstallProblem = result.Problem ?? "The .NET runtime didn't install.";
-                return;
-            }
-
-            RuntimeInstallOutcome = result.RebootRequired
-                ? "The .NET runtime is installed, but Windows needs a restart to finish. The tablet will "
-                  + "work after you reboot."
-                : "The .NET runtime is installed.";
-
-            // The offer is derived from what's on disk, so re-ask now that the answer has changed.
-            OnPropertyChanged(nameof(ShowInstallRuntime));
-
-            // Refresh alone only retries the pipe — it never launches anything. On this path the daemon
-            // exited the moment it was started, because there was no runtime, so there is nothing to
-            // reconnect to and refreshing would sit at "not connected" having apparently done nothing.
-            //
-            // Starting it explicitly is right *here* and nowhere else: the user asked for this recovery.
-            // Ordinary reconnects must still never auto-launch a daemon, which is what keeps OTA from
-            // fighting someone who stopped one deliberately (#787).
-            if (!Status.IsConnected && Status.StartDaemonCommand.CanExecute(null))
-                await Status.StartDaemonCommand.ExecuteAsync(null);
-            else
-                await Status.RefreshCommand.ExecuteAsync(null);
-        }
-        finally
-        {
-            _runtimeInstaller.StatusChanged -= OnInstallStatus;
-            _runtimeInstaller.ProgressChanged -= OnInstallProgress;
-            InstallStatus = "";
-            IsInstallingRuntime = false;
-        }
-    }
 
     /// <summary>Progress text while installing ("Downloading…", "Extracting…"), or "".</summary>
     [ObservableProperty] private string _installStatus = "";
