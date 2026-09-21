@@ -60,7 +60,10 @@ public class WriteAcrossADropTests
         var first = new Daemon(name, () => live, Write, info);
         try
         {
-            await Connect(client, first, session, cancel.Token);
+            var ready = Reconnected(session);
+            _ = client.ConnectAsync(cancel.Token);
+            await ready.WaitAsync(TimeSpan.FromSeconds(30), cancel.Token);
+
             Assert.True(session.CanEditSettings);
 
             // The write leaves, reaches the daemon, and is still inside it when the pipe goes.
@@ -74,7 +77,6 @@ public class WriteAcrossADropTests
 
             await reconnected.WaitAsync(TimeSpan.FromSeconds(30), cancel.Token);
             await second.Served.WaitAsync(TimeSpan.FromSeconds(30), cancel.Token);
-            await session.InitializeAsync();
 
             Assert.False(session.CanEditSettings,
                 "the daemon is still holding a write that would replace whatever is applied now");
@@ -89,19 +91,16 @@ public class WriteAcrossADropTests
         }
     }
 
-    /// <summary>Connects the client to a waiting daemon and waits for the session to load settings.</summary>
-    private static async Task Connect(DaemonClient client, Daemon daemon, OtdSession session,
-        CancellationToken ct)
-    {
-        _ = client.ConnectAsync(ct);
-        await daemon.Served.WaitAsync(TimeSpan.FromSeconds(30), ct);
-        await session.InitializeAsync();
-    }
-
-    /// <summary>Completes once the session has been through a disconnect and a reconnect.</summary>
+    /// <summary>
+    /// Completes once the session has finished initializing over a connection.
+    /// </summary>
     /// <remarks>
-    /// Subscribed before the drop, because the client reconnects from inside its own disconnect handler
-    /// and a subscription taken afterwards can miss the connect it is waiting for.
+    /// The session's own event, not the server accepting (#923). A server that has started answering
+    /// says nothing about whether the client has published its channel yet, and an
+    /// <c>InitializeAsync</c> that arrives first captures incarnation 0 and returns having done nothing
+    /// — leaving the test to assert against a session that was never ready. Subscribed before the
+    /// connect it is waiting for, including before the drop, because the client reconnects from inside
+    /// its own disconnect handler.
     /// </remarks>
     private static Task Reconnected(OtdSession session)
     {
