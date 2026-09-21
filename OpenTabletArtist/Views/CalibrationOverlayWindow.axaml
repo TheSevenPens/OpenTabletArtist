@@ -43,7 +43,7 @@
                             ToolTip.Tip="Discard all recorded points and start over." />
                     <Button x:Name="ClearBtn" Content="Clear calibration" IsVisible="{Binding ShowClear}" Command="{Binding ClearCommand}"
                             Theme="{StaticResource GhostButton}" Padding="16,8" />
-                    <Button x:Name="CancelBtn" Content="Cancel (Esc)" Command="{Binding CancelCommand}"
+                    <Button x:Name="CancelBtn" Content="{Binding CancelLabel}" Command="{Binding CancelCommand}"
                             Theme="{StaticResource GhostButton}" Padding="16,8" />
                 </StackPanel>
             </StackPanel>
