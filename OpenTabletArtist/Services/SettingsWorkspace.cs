@@ -22,7 +22,18 @@ public sealed class SettingsWorkspace
         _draft = session.GetCurrent()?.Settings;
     }
     public Settings? Current => _draft is null ? null : SettingsCodec.Clone(_draft);
-    public bool IsPaused => _session.IsPaused || _failed;
+    public bool IsPaused => _session.IsPaused || _failed || _awaitingDecision;
+
+    /// <summary>
+    /// An adoption that could not finish because input arrived while it was running (#922).
+    /// </summary>
+    /// <remarks>
+    /// The library has already taken the driver's values as its baseline by then, so the pre-apply
+    /// comparison would let the artist's edit through against settings it was never weighed with. Held
+    /// here instead, on the host's side of the decision, until an explicit Reload settles it — which is
+    /// what every other pause means too.
+    /// </remarks>
+    private bool _awaitingDecision;
     public bool HasUnsavedChanges => _session.HasUnsavedChanges || !_pending.IsCompleted || _failed;
     public bool HasPendingApply => !_pending.IsCompleted;
 
@@ -113,20 +124,50 @@ public sealed class SettingsWorkspace
         if (pausedBefore || observed.Status != SettingsReloadStatus.Paused) return observed;
 
         // Re-asked after the read, on the UI thread this runs on, so the answer describes now.
-        if (editBefore != _edit || HasPendingApply || _failed || _saving || !editingIsIdle())
-            return observed;
+        if (!StillIdle(editBefore, editingIsIdle)) return observed;
 
-        return await ReloadAsync();
+        // Adoption is a SECOND read, and just as long. Asking once before it and publishing whatever
+        // comes back discarded input that arrived while it was running — the check has to bracket the
+        // whole sequence, not just its beginning (#922).
+        //
+        // The counter is claimed first, so anything the artist does during the read moves it past this
+        // value and is visible afterwards. Adoption is its own edit as far as everything else is
+        // concerned: it replaces what the editors are showing.
+        var mine = ++_edit;
+        var adopted = await AdoptAsync();
+        if (adopted.Status != SettingsReloadStatus.Adopted) return adopted;
+
+        if (StillIdle(mine, editingIsIdle)) return adopted;
+
+        // Somebody started editing while this was adopting. Their input is theirs to keep, so it is not
+        // published over — and the baseline underneath it has moved, so their next edit must not sail
+        // through the pre-apply comparison as though nothing had. Paused until they decide.
+        _awaitingDecision = true;
+        return observed;
     }
 
-    public async Task<SettingsReloadOutcome> ReloadAsync()
+    private bool StillIdle(int expectedEdit, Func<bool> editingIsIdle) =>
+        expectedEdit == _edit && !HasPendingApply && !_failed && !_saving && editingIsIdle();
+
+    public Task<SettingsReloadOutcome> ReloadAsync()
     {
         ++_edit;
+        return AdoptAsync();
+    }
+
+    /// <summary>Takes the driver's current document, without claiming the edit counter.</summary>
+    /// <remarks>
+    /// Split out because automatic adoption claims the counter itself, one step earlier, so that input
+    /// arriving during the read is distinguishable afterwards. Reload claims it here instead.
+    /// </remarks>
+    private async Task<SettingsReloadOutcome> AdoptAsync()
+    {
         var outcome = await _session.ReloadAsync();
         if (outcome.Adopted is { } adopted)
         {
             _draft = adopted.Settings;
             _failed = false;
+            _awaitingDecision = false;
         }
         return outcome;
     }

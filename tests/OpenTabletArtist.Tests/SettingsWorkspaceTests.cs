@@ -153,6 +153,68 @@ public class SettingsWorkspaceTests
             "an observation that began while idle adopted over input that arrived during it");
     }
 
+    /// <summary>
+    /// Input that arrives during the <em>adoption</em> read keeps its pause too (#922).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Adoption is a second read, and just as long as the first. My earlier test held the observation,
+    /// which is the read that decides whether to adopt at all — so it could not reach this one, and the
+    /// check that guarded it was asked before adoption started and never again.
+    /// </para>
+    /// <para>
+    /// Codex reproduced the consequence through the real workspace and editor hooks: hold the adoption
+    /// read, move the pressure-smoothing slider, release. Adoption then republished and reset the editor,
+    /// and the artist's input was gone with no sign it had ever existed.
+    /// </para>
+    /// <para>
+    /// What must not happen afterwards is quieter and worse: the library has taken the driver's values as
+    /// its baseline, so an edit made before that would sail through the pre-apply comparison and land on
+    /// settings it was never weighed against. Preserved input therefore also holds a pause until the
+    /// artist decides.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task InputThatArrivesDuringTheAdoptionRead_IsPreservedAndHoldsAPause()
+    {
+        var (session, daemon, _) = await Connected();
+        using var lifetime = session;
+        var workspace = new SettingsWorkspace(session.Settings!, false);
+
+        var theirs = SettingsCodec.Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        // Idle throughout the observation; the artist touches a control during the ADOPTION read.
+        var editing = false;
+        var reads = 0;
+        var held = new TaskCompletionSource<Settings?>();
+        daemon.GetSettingsHandler = () =>
+        {
+            if (++reads != 2) return Task.FromResult<Settings?>(SettingsCodec.Clone(daemon.Settings!));
+            editing = true;              // a hand reaches the slider while this read is out
+            return held.Task;
+        };
+
+        var refreshing = workspace.RefreshAsync(() => !editing);
+        held.SetResult(SettingsCodec.Clone(theirs));
+        var refreshed = await refreshing;
+
+        Assert.NotEqual(SettingsReloadStatus.Adopted, refreshed.Status);
+        Assert.True(workspace.IsPaused, "the baseline moved under an edit in progress");
+
+        // And the artist's next edit is refused rather than written against the moved baseline.
+        var edit = workspace.Current!;
+        edit.Profiles[1].BindingSettings.DisablePressure = true;
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await workspace.ApplyAsync(edit)).Status);
+
+        // Explicit Reload is the way out, as everywhere else.
+        editing = false;
+        daemon.GetSettingsHandler = null;
+        Assert.Equal(SettingsReloadStatus.Adopted, (await workspace.ReloadAsync()).Status);
+        Assert.False(workspace.IsPaused);
+    }
+
     /// <summary>A pause already on the board is never cleared by a background refresh.</summary>
     /// <remarks>
     /// Answering it is the artist's. A poll quietly resolving it is how a protection becomes a
