@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using OpenTabletDriver.Desktop;
 using Xunit;
@@ -7,6 +8,104 @@ namespace OtdInterop.Tests;
 
 public class ConnectionSessionTests
 {
+    /// <summary>
+    /// A write whose RPC task faulted when the connection dropped is still outstanding (#922).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Losing the connection faults the client's task while the server method carries on running — the
+    /// reply simply has nowhere to go. Clearing the block on <c>IsCompleted</c> therefore cleared it on
+    /// exactly the case it exists for, because a faulted task is a completed one.
+    /// </para>
+    /// <para>
+    /// Codex reproduced the consequence over a real pipe: drop the connection mid-write, reconnect, apply
+    /// 140 and save it, then let the original write land. The daemon ends up holding 180, the file and
+    /// OTA's snapshot hold 140, and nothing reports a conflict. This is that fault modelled at the seam
+    /// where the decision is made.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AWriteWhoseTaskFaultedOnDisconnect_StillBlocksEditing()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = SettingsSessionTests.Document(),
+            ServerProcessId = 4242,
+        };
+        var store = new MemorySettingsFileStore { Saved = SettingsSessionTests.Document() };
+        using var session = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        var stranded = new TaskCompletionSource<bool>();
+        daemon.SetSettingsHandler = _ => stranded.Task;
+        Assert.False((await session.Settings!.ApplyAsync(SettingsSessionTests.Document(180))).IsLive);
+
+        // The connection goes, and with it the channel the answer would have come back on.
+        daemon.RaiseDisconnected();
+        stranded.SetException(new IOException("the pipe went away mid-write"));
+        daemon.SetSettingsHandler = null;
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        Assert.False(session.CanEditSettings,
+            "a faulted task says the answer was lost, not that the write was");
+        Assert.Contains("never confirmed", session.SettingsProblem);
+    }
+
+    /// <summary>
+    /// A disconnect that arrives before the write's own timeout still leaves it recorded (#922).
+    /// </summary>
+    /// <remarks>
+    /// The write used to be recorded in the catch that handles giving up on it. A disconnect reaches the
+    /// owner first, so retirement asked what was outstanding and got nothing — the record appeared
+    /// afterwards, on a coordinator already thrown away. Recorded when the write is sent instead, which
+    /// is the only moment that is certainly before anything can go wrong.
+    /// </remarks>
+    [Fact]
+    public async Task AWriteStillInFlightWhenTheConnectionDrops_IsRetainedByTheOwner()
+    {
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = SettingsSessionTests.Document(),
+            ServerProcessId = 4242,
+        };
+        var store = new MemorySettingsFileStore { Saved = SettingsSessionTests.Document() };
+        using var session = FakeSession.Over(daemon, store);
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        // Held open, and the connection drops well inside the RPC timeout.
+        var stranded = new TaskCompletionSource<bool>();
+        daemon.SetSettingsHandler = _ => stranded.Task;
+        var applying = session.Settings!.ApplyAsync(SettingsSessionTests.Document(180));
+        await WaitFor(() => daemon.Applied.Count > 0, "the write to reach the daemon");
+
+        daemon.RaiseDisconnected();
+        daemon.SetSettingsHandler = null;
+        daemon.Reconnect();
+        await session.InitializeAsync();
+
+        Assert.False(session.CanEditSettings,
+            "a write in flight when the connection dropped was forgotten with the session");
+
+        // And it ends when the write finally answers.
+        stranded.SetResult(true);
+        await applying;
+        await session.InitializeAsync();
+        Assert.True(session.CanEditSettings);
+    }
+
+    private static async Task WaitFor(Func<bool> until, string what)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!until())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"Timed out waiting for {what}.");
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+    }
+
     /// <summary>
     /// A write nobody waited for cannot be allowed to land on top of a replacement session's work
     /// (#919).

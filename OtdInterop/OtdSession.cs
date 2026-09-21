@@ -115,7 +115,7 @@ public sealed class OtdSession : IDisposable
     {
         SettingsCoordinator? going;
         lock (_state) going = Interlocked.Exchange(ref _settings, null);
-        if (going?.OutstandingWrite is { } write && !write.IsCompleted)
+        if (going?.OutstandingWrite is { } write && !write.IsCompletedSuccessfully)
         {
             _outstandingWrite = write;
             _outstandingWritePid = _connection.GetServerProcessId() ?? _connectedPid;
@@ -136,7 +136,12 @@ public sealed class OtdSession : IDisposable
     private bool WriteStillOutstanding()
     {
         if (_outstandingWrite is not { } write) return false;
-        if (write.IsCompleted) { _outstandingWrite = null; _outstandingWritePid = null; return false; }
+
+        // Successfully, not merely completed (#922). A connection loss faults the client's task while the
+        // server method runs on — the reply has nowhere to go — so a fault says the answer was lost, not
+        // that the write was. Only the daemon returning an answer, or a different daemon process, ends
+        // this.
+        if (write.IsCompletedSuccessfully) { _outstandingWrite = null; _outstandingWritePid = null; return false; }
 
         var now = _connection.GetServerProcessId();
         if (_outstandingWritePid is { } then && now is { } current && then != current)
