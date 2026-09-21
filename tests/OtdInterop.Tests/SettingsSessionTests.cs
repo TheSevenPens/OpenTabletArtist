@@ -29,39 +29,58 @@ public class SettingsSessionTests
     /// Closing while a write is out does not wait for it, and nothing is saved behind it (#919).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The existing close test holds the <em>preflight read</em>, which is the easy half: nothing has
-    /// been sent, so refusing is free. This holds the write itself, with a Save queued behind it — the
-    /// shape where a close could plausibly wait forever, or let the queued Save run against a session
-    /// that is going away.
+    /// been sent, so refusing is free. This holds the write itself, with a Save queued behind it.
+    /// </para>
+    /// <para>
+    /// The operation timeout is deliberately far longer than the close budget. My first version had it
+    /// at 50 ms against a two-second budget, so the RPC timeout released the gate on its own and the
+    /// close never had to cancel anything — the test passed with the cancellation removed, and I claimed
+    /// otherwise because the mutation I checked it against changed the timeout as well as the token and
+    /// I credited the wrong one. Inverted here: only cancellation can free the gate inside the budget.
+    /// </para>
     /// </remarks>
     [Fact]
     public async Task ClosingDuringAWriteIsBoundedAndTheQueuedSaveNeverRuns()
     {
-        var (session, daemon, store) = await Open(TimeSpan.FromMilliseconds(50));
+        var (session, daemon, store) = await Open(TimeSpan.FromSeconds(30));
         var inFlight = new TaskCompletionSource<bool>();
         daemon.SetSettingsHandler = _ => inFlight.Task;
+        try
+        {
+            var apply = session.ApplyAsync(Document(120));
+            var queued = session.SaveAsync();
 
-        var apply = session.ApplyAsync(Document(120));
-        var queued = session.SaveAsync();
+            Assert.True(await session.CloseAsync(TimeSpan.FromMilliseconds(500)),
+                "close must cancel the outstanding write rather than wait out its RPC timeout");
+            Assert.False((await apply).IsLive);
+            Assert.Equal(SettingsSaveStatus.Disconnected, (await queued).Status);
+            Assert.Equal(0, store.Attempts);
 
-        Assert.True(await session.CloseAsync(TimeSpan.FromSeconds(2)), "close should not wait on the daemon");
-        Assert.False((await apply).IsLive);
-        Assert.Equal(SettingsSaveStatus.Disconnected, (await queued).Status);
-        Assert.Equal(0, store.Attempts);
-
-        // The write lands afterwards, as it is entitled to. It must change nothing here.
-        inFlight.SetResult(true);
-        Assert.Equal(0, store.Attempts);
-        Assert.Equal(SettingsReloadStatus.Disconnected, (await session.ReloadAsync()).Status);
+            // The write lands afterwards, as it is entitled to. It must change nothing here.
+            inFlight.SetResult(true);
+            Assert.Equal(0, store.Attempts);
+            Assert.Equal(SettingsReloadStatus.Disconnected, (await session.ReloadAsync()).Status);
+        }
+        finally { inFlight.TrySetResult(true); }
     }
 
     /// <summary>
     /// A close whose budget expires against genuinely stuck work says so rather than claiming success.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>QuitSequence</c> bounds its own stop step, but it relies on this answer being truthful about
     /// whether local work actually settled. A close that returned true regardless would make that
     /// bounding meaningless.
+    /// </para>
+    /// <para>
+    /// The distinction being drawn: closing admits no new persistence and cancels what is queued. It
+    /// cannot revoke a filesystem write already executing — nothing can — and that write may finish
+    /// after the close has given up on it. What the answer reports is whether it settled in time, not
+    /// whether it was stopped.
+    /// </para>
     /// </remarks>
     [Fact]
     public async Task ACloseBudgetThatExpires_ReportsThatWorkDidNotSettle()
@@ -75,12 +94,17 @@ public class SettingsSessionTests
         // directly stops this test's awaits from ever resuming, which is a deadlock in the test rather
         // than a finding about the code.
         var save = Task.Run(() => session.SaveAsync());
-        await WaitFor(() => store.Attempts > 0, "the save to reach the file");
+        try
+        {
+            await WaitFor(() => store.Attempts > 0, "the save to reach the file");
 
-        Assert.False(await session.CloseAsync(TimeSpan.FromMilliseconds(200)),
-            "a close that could not settle its own work must not report success");
+            Assert.False(await session.CloseAsync(TimeSpan.FromMilliseconds(200)),
+                "a close that could not settle its own work must not report success");
+        }
+        finally { blocked.Set(); }
 
-        blocked.Set();
+        // It finishes afterwards, which is the point: the close reported that it had not settled, not
+        // that it had been stopped.
         await save;
     }
 
