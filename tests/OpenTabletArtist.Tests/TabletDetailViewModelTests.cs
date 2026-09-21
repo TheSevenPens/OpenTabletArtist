@@ -57,7 +57,7 @@ public class TabletDetailViewModelTests
             original.Profiles.First(),
             original,
             applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
-            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((reloaded, reloaded.Profiles.First())));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>((reloaded, reloaded.Profiles.First(), new SettingsStamp(1, 1))));
 
         await vm.RefreshCommand.ExecuteAsync(null);
         await vm.FixOutputModeCommand.ExecuteAsync(null); // any persist path goes through _settings
@@ -79,7 +79,7 @@ public class TabletDetailViewModelTests
             original.Profiles.First(),
             original,
             applyAction: s => { pushed = s; return Task.FromResult(SettingsApplyOutcome.Saved); },
-            refreshAction: () => Task.FromResult<(Settings?, Profile?)>((null, null)));
+            refreshAction: () => Task.FromResult<(Settings?, Profile?, SettingsStamp)>((null, null, new SettingsStamp(1, 1))));
 
         await vm.RefreshCommand.ExecuteAsync(null);
         Assert.False(string.IsNullOrEmpty(vm.RefreshWarning));

@@ -135,6 +135,34 @@ public interface IOtdSettingsSession
     Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings requested);
 
     /// <summary>
+    /// Applies a change over a conflict this session reported and the caller has chosen to overwrite
+    /// (#906).
+    /// </summary>
+    /// <remarks>
+    /// The conflict is presented rather than remembered: the daemon is read again, and the write proceeds
+    /// only if what is there is still what the caller was shown. Anything that arrived since is something
+    /// nobody has seen, so it is reported instead of overwritten. Authorisation is per conflict and per
+    /// connection, and is never inferred from a second ordinary apply.
+    /// </remarks>
+    Task<SettingsApplyOutcome> OverwriteAsync(Settings requested, SettingsConflict conflict);
+
+    /// <summary>
+    /// Says the caller has taken what the daemon holds, ending a hold that was waiting on them (#910).
+    /// </summary>
+    /// <remarks>
+    /// A reload tells this session what is there; only the caller can say they have accepted it. Until
+    /// they do, a change held earlier goes on being compared against the state it was held against, so
+    /// resubmitting it cannot quietly overwrite something a later reload happened to learn about.
+    /// <para>
+    /// The snapshot is named rather than assumed. A caller can be showing one while a later read advances
+    /// this session underneath it, and accepting "whatever is current" would turn a draft built on the
+    /// older one into permission to overwrite the newer. A stale acceptance is refused and the hold
+    /// stands (#910).
+    /// </para>
+    /// </remarks>
+    bool AcceptCurrentState(SettingsStamp accepted);
+
+    /// <summary>
     /// Writes an earlier change that the daemon accepted but the disk refused, to the file it was
     /// originally meant for.
     ///

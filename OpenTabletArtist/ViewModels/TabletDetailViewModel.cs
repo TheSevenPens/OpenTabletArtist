@@ -66,6 +66,18 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private Settings? _settings;
     private readonly Func<Settings, Task<SettingsApplyOutcome>>? _applyAction;
 
+    /// <summary>Applies over a conflict the artist has chosen to overwrite (#906).</summary>
+    private readonly Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? _overwriteAction;
+
+    /// <summary>
+    /// Says the artist has taken a named snapshot, releasing a held comparison (#910). False when that
+    /// snapshot is no longer the current one.
+    /// </summary>
+    private readonly Func<SettingsStamp, bool>? _acceptCurrentAction;
+
+    /// <summary>Which published snapshot the banner is offering, so accepting names it (#910).</summary>
+    private SettingsStamp _pendingExternalStamp = SettingsStamp.None;
+
     /// <summary>
     /// Counts local edits, so a completed apply can tell whether the user has moved on since it started.
     ///
@@ -138,7 +150,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private readonly Action? _openConfigsPage;
     // Returns the freshly-reloaded settings together with this tablet's profile from within them, so
     // the VM can keep _settings and _profile coherent (the profile is a reference inside the settings).
-    private readonly Func<Task<(Settings? Settings, Profile? Profile)>>? _refreshAction;
+    private readonly Func<Task<(Settings? Settings, Profile? Profile, SettingsStamp Stamp)>>? _refreshAction;
     // Probes whether this tablet is currently detected/connected (re-checked on open and on Refresh).
     private readonly Func<bool>? _isDetectedProbe;
     private readonly (float Width, float Height)? _tabletDigitizer;
@@ -156,6 +168,16 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// edit here; drives a header banner with a Reload action. Empty otherwise.</summary>
     [ObservableProperty] private string _externalChangeText = "";
     public bool HasExternalChange => !string.IsNullOrEmpty(ExternalChangeText);
+
+    /// <summary>
+    /// Whether taking the daemon's version is actually on offer (#906).
+    /// </summary>
+    /// <remarks>
+    /// Reload adopts a snapshot this editor is holding, so it can only be offered once a reload has
+    /// brought one. A held change says so immediately, which is before that has happened — and a button
+    /// that silently does nothing is worse than no button.
+    /// </remarks>
+    public bool CanReloadExternalChange => _pendingExternalSettings != null;
     partial void OnExternalChangeTextChanged(string value) => OnPropertyChanged(nameof(HasExternalChange));
 
     [ObservableProperty] private IReadOnlyList<DisplayInfo> _displays = [];
@@ -725,7 +747,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     public TabletDetailViewModel(Profile profile, Settings? settings,
         Func<Settings, Task<SettingsApplyOutcome>>? applyAction = null,
-        Func<Task<(Settings? Settings, Profile? Profile)>>? refreshAction = null,
+        Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? overwriteAction = null,
+        Func<SettingsStamp, bool>? acceptCurrentAction = null,
+        Func<Task<(Settings? Settings, Profile? Profile, SettingsStamp Stamp)>>? refreshAction = null,
         (float Width, float Height)? tabletDigitizer = null,
         IDaemonDebugSession? penInput = null,
         Func<bool>? isDetected = null,
@@ -744,6 +768,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         Debug.Assert(settings == null || settings.Profiles.Contains(profile),
             "The profile must be a reference inside the settings the editor will submit.");
         _applyAction = applyAction;
+        _overwriteAction = overwriteAction;
+        _acceptCurrentAction = acceptCurrentAction;
         _editBinding = editBinding;
         _refreshAction = refreshAction;
         _isDetectedProbe = isDetected;
@@ -969,7 +995,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private async Task Refresh()
     {
         if (_refreshAction == null) return;
-        var (settings, profile) = await _refreshAction();
+        var (settings, profile, stamp) = await _refreshAction();
         if (profile == null)
         {
             // The tablet/profile is gone (unplugged or removed since it was opened). Keep showing the
@@ -980,16 +1006,43 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
 
         if (settings == null) { RefreshDetectionStatus(); return; }
-        AdoptProfile(settings, profile);
+        AdoptProfile(settings, profile, stamp);
     }
 
     /// <summary>Point the editor at a freshly-loaded settings/profile pair (from a manual Refresh or an
     /// external-change reload) and rebuild every bound view from it. Both are reassigned together so
     /// later edits push the same settings object the profile lives in — otherwise persists would mutate
     /// stale settings (#124).</summary>
-    private void AdoptProfile(Settings settings, Profile profile)
+    /// <param name="stamp">
+    /// Which published snapshot <paramref name="settings"/> is, so that resolving a held change names what
+    /// was taken. Passed rather than read off the banner's pending state, because this is also reached
+    /// from an ordinary refresh whose snapshot is not the banner's (#910).
+    /// </param>
+    /// <returns>False when a held change was NOT resolved, so nothing was adopted.</returns>
+    private bool AdoptProfile(Settings settings, Profile profile, SettingsStamp stamp)
     {
-        // Whatever was held has been resolved by taking these instead (#905).
+        // Whatever was held is resolved by taking these instead (#905) -- but only if the session agrees
+        // it can be. This editor may be showing a snapshot the session has already moved past, and
+        // accepting "whatever is current" would make a draft built on the older one into permission to
+        // overwrite the newer (#910).
+        //
+        // The answer is honoured rather than merely requested. It was not: the result was discarded and
+        // the draft replaced regardless, so a refusal the session made correctly was undone by its own
+        // caller -- and the comment here said the opposite of what the code did.
+        if (_heldChange)
+        {
+            // Only a session that answers "no" refuses. A host with no acceptance mechanism at all is not
+            // refusing -- there is no hold being tracked anywhere for it to release, so adopting is the
+            // whole of what resolution means there.
+            if (_acceptCurrentAction is { } accept && !accept(stamp))
+            {
+                SayTheOfferedSettingsMovedOn();
+                return false;
+            }
+
+            _heldConflict = null;
+        }
+
         _heldChange = false;
 
         // Taking up settings from elsewhere changes what this editor is showing just as surely as a
@@ -1012,6 +1065,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         SelectedDisplayNumber = DefaultSelectedDisplay();
         _suppressMappingApply = false;
         RefreshDetectionStatus();
+        return true;
     }
 
     /// <summary>Reconcile this editor with a fresh settings load from the session. Called by the shell
@@ -1020,7 +1074,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// mutate <c>_profile</c> before pushing, so its live fingerprint already equals the reloaded one.
     /// When it genuinely diverged (an external editor changed the daemon), adopt it silently, or — if
     /// the user has an unsaved edit — raise a non-destructive banner instead of discarding it.</summary>
-    public void ReconcileExternalChange(Settings? freshSettings, Profile? freshProfile)
+    /// <param name="stamp">
+    /// Which published snapshot these are, so that taking them can name what was taken rather than
+    /// meaning "whatever is current by the time I ask" (#910). Defaults to none for callers that have no
+    /// stamp to give; accepting then refuses, which is the safe direction.
+    /// </param>
+    public void ReconcileExternalChange(
+        Settings? freshSettings, Profile? freshProfile, SettingsStamp stamp = default)
     {
         if (freshSettings == null || freshProfile == null) return; // tablet gone — detection banner owns that
 
@@ -1043,13 +1103,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         {
             _pendingExternalSettings = freshSettings;
             _pendingExternalProfile = freshProfile;
+            _pendingExternalStamp = stamp;
+            OnPropertyChanged(nameof(CanReloadExternalChange));
             ExternalChangeText =
                 "These settings were changed outside OpenTabletArtist (for example in the OpenTabletDriver " +
                 "UX). Reload to use the current values — your unsaved change here will be discarded.";
         }
         else
         {
-            AdoptProfile(freshSettings, freshProfile);
+            AdoptProfile(freshSettings, freshProfile, stamp);
         }
     }
 
@@ -1086,13 +1148,17 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     private void ReloadExternalChange()
     {
         if (_pendingExternalSettings != null && _pendingExternalProfile != null)
-            AdoptProfile(_pendingExternalSettings, _pendingExternalProfile);
+            AdoptProfile(_pendingExternalSettings, _pendingExternalProfile, _pendingExternalStamp);
     }
 
     private void ClearExternalChange()
     {
         _pendingExternalSettings = null;
         _pendingExternalProfile = null;
+        _pendingExternalStamp = SettingsStamp.None;
+        OnPropertyChanged(nameof(CanReloadExternalChange));
+        CanOverwriteHeldChange = false;
+        CanRetryHeldChange = false;
         if (ExternalChangeText.Length != 0) ExternalChangeText = "";
     }
 
@@ -1199,11 +1265,101 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
 
         if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
+        {
             _heldChange = true;
+            _heldConflict = outcome.Conflict;
+            SayTheChangeIsHeld(outcome.Status);
+        }
         else if (outcome.ChangedTheDaemon || outcome.Status is SettingsApplyStatus.NoChange)
+        {
             _heldChange = false;
+            _heldConflict = null;
+            ClearExternalChange();
+        }
 
         return TryAdoptApplied(outcome, draft);
+    }
+
+    /// <summary>The conflict the session reported, and the thing an overwrite is authorised with.</summary>
+    private SettingsConflict? _heldConflict;
+
+    /// <summary>
+    /// Says so in the editor, at once, rather than waiting for a reload that may never differ (#906).
+    /// </summary>
+    /// <remarks>
+    /// The banner used to be raised only from <see cref="ReconcileExternalChange"/>, which needs a reload
+    /// that actually disagrees. That is fine for a conflict and useless for a check that could not be
+    /// made: there the daemon may hold exactly what we think, the read simply failed, and an artist whose
+    /// edit is being held would have had nothing on the page to tell them so.
+    /// </remarks>
+    private void SayTheChangeIsHeld(SettingsApplyStatus status)
+    {
+        CanOverwriteHeldChange = status is SettingsApplyStatus.ChangedElsewhere
+            && _heldConflict is not null
+            && _overwriteAction is not null;
+
+        CanRetryHeldChange = status is SettingsApplyStatus.CouldNotCheck;
+
+        ExternalChangeText = status is SettingsApplyStatus.ChangedElsewhere
+            ? "These settings changed outside OpenTabletArtist (for example in the OpenTabletDriver UX), "
+              + "so your change here hasn't been applied."
+            // Deliberately not phrased as somebody having changed something: nobody knows that. The read
+            // failed, and saying otherwise would invent a culprit.
+            : "Couldn't check the current settings, so your change here hasn't been applied.";
+    }
+
+    /// <summary>
+    /// Says the settings on offer are no longer the ones this editor was showing (#910).
+    /// </summary>
+    /// <remarks>
+    /// Reached when the session refuses an acceptance because what was being offered has been overtaken.
+    /// The held change stays held and stays on screen: the artist decided about something that is no
+    /// longer there, and the honest response is to say so rather than to quietly apply their decision to
+    /// whatever arrived instead.
+    /// </remarks>
+    private void SayTheOfferedSettingsMovedOn()
+    {
+        CanRetryHeldChange = true;
+        CanOverwriteHeldChange = false;
+        ExternalChangeText =
+            "The settings changed again while you were deciding, so your change here still hasn't been "
+            + "applied. Review the current ones and choose again.";
+    }
+
+    /// <summary>Whether the artist can write their held change over what the daemon holds (#906).</summary>
+    [ObservableProperty] private bool _canOverwriteHeldChange;
+
+    /// <summary>Whether the held change can simply be tried again, because nothing was established.</summary>
+    [ObservableProperty] private bool _canRetryHeldChange;
+
+    /// <summary>
+    /// Ask again. Not a way past the check — it runs the same apply, and the same check with it.
+    /// </summary>
+    [RelayCommand]
+    private async Task RetryHeldChange()
+    {
+        if (_applyAction == null || _settings == null) return;
+
+        var draft = _draftGeneration;
+        TakeOutcome(await _applyAction(_settings), draft);
+    }
+
+    /// <summary>
+    /// Write the held change over what the daemon holds, having been shown it.
+    /// </summary>
+    /// <remarks>
+    /// The conflict goes back with it, so the session can confirm the artist is overwriting what they
+    /// were actually shown. If something arrived in between, this is refused and the newer conflict
+    /// reported — which lands here as another held change, with this button still offered against the
+    /// new one.
+    /// </remarks>
+    [RelayCommand]
+    private async Task OverwriteHeldChange()
+    {
+        if (_overwriteAction == null || _settings == null || _heldConflict is not { } conflict) return;
+
+        var draft = _draftGeneration;
+        TakeOutcome(await _overwriteAction(_settings, conflict), draft);
     }
 
     private bool TryAdoptApplied(SettingsApplyOutcome outcome, int draft)

@@ -144,6 +144,35 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // Apply-loop hardening (#applyloop): a serialized snapshot of the settings as last loaded from the
     // daemon (the no-op guard: applying byte-identical settings is skipped), and a circuit-breaker that
     // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
+    /// <summary>
+    /// Who this session is, for the conflict tokens it issues (#910).
+    /// </summary>
+    /// <remarks>
+    /// Channel numbers are a per-session counter, so two sessions hand out the same small integers. A
+    /// token carrying only a channel was therefore accepted by a session that never issued it, given
+    /// settings that happened to match — which is not consent, it is a coincidence of counters.
+    /// </remarks>
+    private readonly Guid _issuer = Guid.NewGuid();
+
+    /// <summary>
+    /// What an unresolved held change is compared against, pinned when the hold began (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Without it, a held draft is silently rebased onto every reload. The sequence is ordinary: a change
+    /// is held, an automatic reload learns what the daemon actually holds, and the next submission of
+    /// that same draft is compared against the state it was never weighed against — finds it unchanged,
+    /// and writes over the external edit the reload had just discovered. Learning somebody's settings is
+    /// not consent to replace them.
+    /// </para>
+    /// <para>
+    /// Released only by something the caller did: a write that succeeded, or
+    /// <see cref="AcceptCurrentState"/> when they take what the daemon holds. Never by a reload, which is
+    /// the whole point.
+    /// </para>
+    /// </remarks>
+    private string? _heldAgainst;
+
     private string? _lastLoadedSettingsJson;
 
     /// <summary>The channel <see cref="_lastLoadedSettingsJson"/> was read from (#491).</summary>
@@ -364,6 +393,50 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// here would now make the guard less accurate, not safer.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// The caller has taken what the daemon holds, so a held change is no longer waiting on them (#910).
+    /// </summary>
+    /// <remarks>
+    /// Explicit because nothing else can stand for it. A reload tells this session what is there; only
+    /// the caller can say they have accepted it, and until they do, a draft they have not resolved goes
+    /// on being compared against the state it was held against rather than against whatever arrived
+    /// since.
+    /// </remarks>
+    /// <summary>
+    /// The caller has taken a snapshot this session published, so a held change is no longer waiting on
+    /// them (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Names what was accepted rather than meaning "whatever you hold now". Taking no argument, this
+    /// released a hold against a state the caller may never have seen: an editor can be showing a
+    /// snapshot while a later read advances this session underneath it, and a blind release would turn a
+    /// draft built on the older one into permission to overwrite the newer.
+    /// </para>
+    /// <para>
+    /// A stale acceptance is refused rather than honoured, and the hold stands. The caller is then
+    /// looking at something that is no longer current, which is a fresh decision for them to make, not
+    /// one to make on their behalf by substituting the latest state silently.
+    /// </para>
+    /// </remarks>
+    /// <param name="accepted">
+    /// The stamp of the snapshot taken, as it came from <see cref="GetCurrent"/>.
+    /// </param>
+    /// <returns>True when the hold was released; false when the snapshot is no longer current.</returns>
+    public bool AcceptCurrentState(SettingsStamp accepted)
+    {
+        if (accepted.IsNone || accepted.SupersededBy(StampFor(Revision)))
+        {
+            _log.Warn("A caller accepted settings that are no longer the current ones; the change it was "
+                      + "holding stays held, because agreeing to something out of date is not agreeing to "
+                      + "what is there now.");
+            return false;
+        }
+
+        _heldAgainst = null;
+        return true;
+    }
+
     private void RecordBaseline(Settings? readOrAccepted)
     {
         _lastLoadedSettingsJson = SerializeForCompare(readOrAccepted);
@@ -543,13 +616,130 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// a re-serialisation that changes only formatting cannot read as somebody else's edit.
     /// </para>
     /// </remarks>
-    private async Task<ConflictCheck> DaemonMovedUnderUsAsync(Origin origin)
+    /// <summary>
+    /// Refuses an authorised overwrite unless the daemon still holds what the authorisation describes,
+    /// or null to go ahead (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Independent of the ordinary comparison on purpose. That one asks "has the daemon moved since this
+    /// session last read it", and its baseline advances on every reload — including reloads that happen
+    /// while an editor is deliberately holding a draft. An overwrite asks something else: "is the daemon
+    /// still holding the thing the artist looked at when they decided". Answering the second with the
+    /// first meant a reload could make the answer yes without anyone looking at the token at all.
+    /// </para>
+    /// <para>
+    /// The token must also come from this session. Channel numbers are per-session counters, so a token
+    /// from another session can carry the same number; matching data and a coincidentally equal counter
+    /// are not consent.
+    /// </para>
+    /// </remarks>
+    private async Task<SettingsApplyOutcome?> RefuseUnlessStillTheSameAsync(
+        Origin origin, SettingsConflict token)
     {
-        if (_lastLoadedSettingsJson is not { } baseline) return ConflictCheck.NotApplicable;
+        var seen = await ReadDaemonStateAsync(origin).ConfigureAwait(false);
+
+        // The read is a call-out, so nothing learned before it still holds (#845).
+        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
+
+        // Nobody knows what is there, so nobody can be said to have agreed to replace it.
+        if (seen is null)
+        {
+            TellTheHost(SettingsSaveState.CouldNotCheck, origin);
+            return SettingsApplyOutcome.CouldNotCheck;
+        }
+
+        if (token.Issuer != _issuer
+            || token.Channel != origin.Channel.Incarnation
+            || token.DaemonState != seen)
+        {
+            _log.Warn("The settings changed again since the artist chose to overwrite them; holding the "
+                      + "change rather than writing over something nobody has seen.");
+            TellTheHost(SettingsSaveState.ChangedElsewhere, origin);
+            return new SettingsApplyOutcome(
+                SettingsApplyStatus.ChangedElsewhere,
+                Conflict: new SettingsConflict(_issuer, origin.Channel.Incarnation, seen));
+        }
+
+        // Deliberately does NOT release the hold (#910). Authorising a write is not the write happening:
+        // a send that returns false, throws, or is superseded leaves the artist's change exactly as held
+        // as it was, and releasing here meant a failed overwrite let the next ordinary apply through.
+        _log.Warn("Overwriting settings that changed outside this application, at the artist's request.");
+        return null;
+    }
+
+    /// <summary>
+    /// Holds an ordinary apply unless the daemon still holds what this session last read, or null to go
+    /// ahead (#491).
+    /// </summary>
+    private async Task<SettingsApplyOutcome?> HoldUnlessUnchangedAsync(Origin origin)
+    {
+        var (checkResult, seen, compared) = await DaemonMovedUnderUsAsync(origin).ConfigureAwait(false);
+
+        // True of a read that failed or timed out as much as one that answered: a replacement can span
+        // either (#905). Superseded takes precedence -- a conflict with a daemon that has since been
+        // replaced is not a conflict at all.
+        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
+
+        switch (checkResult)
+        {
+            case ConflictCheck.Changed:
+                _log.Warn("Settings changed outside this application since it last read them; holding the "
+                          + "change rather than overwriting it.");
+                // The state this decision was actually made against, carried through the await (#910).
+                // Reading the baseline again here meant a reload that landed during the read became what
+                // the hold protected -- which is the very state nobody had agreed to.
+                _heldAgainst ??= compared;
+                TellTheHost(SettingsSaveState.ChangedElsewhere, origin);
+                return new SettingsApplyOutcome(
+                    SettingsApplyStatus.ChangedElsewhere,
+                    Conflict: seen is null
+                        ? null
+                        : new SettingsConflict(_issuer, origin.Channel.Incarnation, seen));
+
+            case ConflictCheck.Unknown:
+                _heldAgainst ??= compared;
+                TellTheHost(SettingsSaveState.CouldNotCheck, origin);
+                return SettingsApplyOutcome.CouldNotCheck;
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>What the daemon holds now, normalised for comparison, or null if it would not say.</summary>
+    private async Task<string?> ReadDaemonStateAsync(Origin origin)
+    {
+        try
+        {
+            var reading = origin.Channel.GetSettingsAsync();
+            var current = await reading.WaitAsync(ConflictCheckBudget).ConfigureAwait(false);
+            return current is null ? null : SerializeForCompare(current);
+        }
+        catch (TimeoutException)
+        {
+            _log.Warn("The daemon did not say what it holds within the check budget.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _log.Warn("Couldn't read the daemon's settings.", ex);
+            return null;
+        }
+    }
+
+    private async Task<(ConflictCheck Result, string? Seen, string? Compared)> DaemonMovedUnderUsAsync(
+        Origin origin)
+    {
+        // An unresolved hold compares against what it was held against, not against whatever the last
+        // reload learned (#910).
+        if ((_heldAgainst ?? _lastLoadedSettingsJson) is not { } baseline)
+            return (ConflictCheck.NotApplicable, null, null);
 
         // Only against the daemon the baseline came from. A reconnect legitimately brings different
         // settings, and calling that a conflict would refuse the first apply after every reconnect.
-        if (_lastLoadedChannel != origin.Channel.Incarnation) return ConflictCheck.NotApplicable;
+        if (_lastLoadedChannel != origin.Channel.Incarnation)
+            return (ConflictCheck.NotApplicable, null, null);
 
         Settings? current;
         try
@@ -564,21 +754,26 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         {
             _log.Warn("The daemon did not say what it holds within the check budget; holding the change "
                       + "rather than writing over an answer nobody has.");
-            return ConflictCheck.Unknown;
+            return (ConflictCheck.Unknown, null, baseline);
         }
         catch (Exception ex)
         {
             _log.Warn("Couldn't read the daemon's settings before applying; holding the change.", ex);
-            return ConflictCheck.Unknown;
+            return (ConflictCheck.Unknown, null, baseline);
         }
 
         // Nothing to compare against is not the same as "unchanged": a daemon that answers null has told
         // us nothing about what it holds.
-        if (current is null) return ConflictCheck.Unknown;
+        if (current is null) return (ConflictCheck.Unknown, null, baseline);
 
-        return SerializeForCompare(current) is { } now && now != baseline
-            ? ConflictCheck.Changed
-            : ConflictCheck.Unchanged;
+        // A state that will not serialize cannot be compared, and an incomparable observation is not
+        // affirmative evidence that nothing moved (#910). The overwrite path already held here; both now
+        // read an unusable answer the same way.
+        if (SerializeForCompare(current) is not { } now) return (ConflictCheck.Unknown, null, baseline);
+
+        return now != baseline
+            ? (ConflictCheck.Changed, now, baseline)
+            : (ConflictCheck.Unchanged, now, baseline);
     }
 
     private void TellTheHost(SettingsSaveState state, Origin origin)
@@ -1068,6 +1263,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         if (!keepPending) DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
         _lastLoadedSettingsJson = null;
+
+        // The pin belongs to the daemon that has gone (#910). Left standing, it would be compared against
+        // the NEW daemon's settings once a reload gave this session a baseline again -- never matching,
+        // so every apply held, for ever, with neither release reachable: no write can succeed to clear
+        // it, and the editor has already given its draft up under #905 so it will never accept anything
+        // either.
+        _heldAgainst = null;
+
         HasEphemeralOverride = false;
 
         return hadUnsaved;
@@ -1100,7 +1303,29 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
-    public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
+        ApplyAndSaveAsync(settings, authorised: null);
+
+    /// <summary>
+    /// Applies a change the caller has chosen to write over a conflict this session reported (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The conflict is presented, not merely remembered: the daemon is read again, and the overwrite
+    /// proceeds only if what is there is still what the caller was shown. If it has moved on since, this
+    /// refuses and reports the new conflict, because consent to overwrite something seen is not consent
+    /// to overwrite whatever arrived afterwards.
+    /// </para>
+    /// <para>
+    /// Authorisation is per conflict and per connection, and is never inferred. An ordinary apply of the
+    /// same settings a second time is not this: re-editing a value is not a decision to discard somebody
+    /// else's work, and #905 is explicit that repeated failure grants no authority.
+    /// </para>
+    /// </remarks>
+    public Task<SettingsApplyOutcome> OverwriteAsync(Settings settings, SettingsConflict conflict) =>
+        ApplyAndSaveAsync(settings, conflict);
+
+    private Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings, SettingsConflict? authorised)
     {
         if (Admit(settings, out var error) is not { } working)
         {
@@ -1112,12 +1337,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             TellTheHost(SettingsSaveState.ApplyFailed);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin),
+        return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin, authorised),
             () => SettingsApplyOutcome.Superseded,
             closed: () => SettingsApplyOutcome.Disconnected);
     }
 
-    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(Settings settings, Origin origin)
+    private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(
+        Settings settings, Origin origin, SettingsConflict? authorised = null)
     {
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
@@ -1191,25 +1417,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // Detect before clobbering (#491). SetSettings replaces the whole object and keeps no version, so
         // an edit made in OpenTabletDriver's own UX between this session's last read and this send would
         // be overwritten with no trace. Asking first is the only check available without a daemon change.
-        var checked_ = await DaemonMovedUnderUsAsync(origin).ConfigureAwait(false);
-
-        // The read is a call-out, so nothing learned before it still holds (#845) -- and that is true of
-        // a read that failed or timed out as much as one that answered, because a replacement can span
-        // either (#905). Superseded takes precedence: a conflict with a daemon that has since been
-        // replaced is not a conflict at all.
-        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
-
-        switch (checked_)
+        // An overwrite is authorised against what the daemon holds NOW, whatever the ordinary comparison
+        // would make of it (#910). Deciding it inside that comparison meant an automatic reload could
+        // advance the baseline to match the daemon, the check would call it "unchanged", and the token was
+        // never looked at -- so a change authorised against one state was written over another.
+        if (authorised is { } token)
         {
-            case ConflictCheck.Changed:
-                _log.Warn("Settings changed outside this application since it last read them; holding the "
-                          + "change rather than overwriting it.");
-                TellTheHost(SettingsSaveState.ChangedElsewhere, origin);
-                return SettingsApplyOutcome.ChangedElsewhere;
-
-            case ConflictCheck.Unknown:
-                TellTheHost(SettingsSaveState.CouldNotCheck, origin);
-                return SettingsApplyOutcome.CouldNotCheck;
+            if (await RefuseUnlessStillTheSameAsync(origin, token).ConfigureAwait(false) is { } refusal)
+                return refusal;
+        }
+        else
+        {
+            if (await HoldUnlessUnchangedAsync(origin).ConfigureAwait(false) is { } held)
+                return held;
         }
 
         TellTheHost(SettingsSaveState.Saving, origin);
@@ -1230,7 +1450,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             throw;
         }
 
-        if (applied) NoteDaemonAccepted(revision, origin);
+        if (applied)
+        {
+            NoteDaemonAccepted(revision, origin);
+
+            // The change reached the daemon, so there is nothing left held against anything (#910).
+            // Behind its own currency check: NoteDaemonAccepted makes that judgement internally, and it
+            // does not cover an assignment that merely follows it.
+            if (StillCurrent(origin)) _heldAgainst = null;
+        }
 
         if (!applied)
         {

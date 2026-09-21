@@ -122,6 +122,25 @@ public interface ISettingsCoordinator
     /// <see cref="SettingsApplyOutcome"/> distinguishes applied-and-saved, applied-but-unsaved,
     /// disconnected, and apply-failed — callers must not assume a completed task means saved (#734).</summary>
     Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings);
+
+    /// <summary>
+    /// Applies a change over a conflict the artist has been shown and chosen to overwrite (#906).
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="ApplyAndSaveSettingsAsync"/> because the difference is consent, and
+    /// consent has to be something a caller says rather than something the library infers from a second
+    /// attempt.
+    /// </remarks>
+    Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict);
+
+    /// <summary>
+    /// The artist has taken the snapshot they were shown, so nothing is waiting on them (#910). False
+    /// when that snapshot is no longer current, which leaves the held change held.
+    /// </summary>
+    bool AcceptCurrentSettings(SettingsStamp accepted);
+
+    /// <summary>The stamp of what this session is publishing now, for naming a snapshot taken (#910).</summary>
+    SettingsStamp CurrentStamp { get; }
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.
     /// False means it never reached the daemon, so callers must not announce a switch (#766).</summary>
@@ -1018,13 +1037,23 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     /// <summary>Applies settings to the daemon, persists to disk, and reloads. UI-thread only.
     /// Reports what actually happened rather than collapsing apply and persist into one result (#734).</summary>
-    public async Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings)
+    public Task<SettingsApplyOutcome> ApplyAndSaveSettingsAsync(Settings settings) =>
+        ApplyThroughAsync(() => _coordinator.ApplyAndSaveAsync(settings));
+
+    public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict) =>
+        ApplyThroughAsync(() => _coordinator.OverwriteAsync(settings, conflict));
+
+    public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
+
+    public SettingsStamp CurrentStamp => _coordinator.GetCurrent()?.Stamp ?? SettingsStamp.None;
+
+    private async Task<SettingsApplyOutcome> ApplyThroughAsync(Func<Task<SettingsApplyOutcome>> apply)
     {
         // Verify up front so an off-thread caller fails before any side effects (daemon write,
         // disk save, reload) rather than only at the reload's VerifyAccess. (Codex #43.)
         Dispatcher.UIThread.VerifyAccess();
 
-        var outcome = await _coordinator.ApplyAndSaveAsync(settings);
+        var outcome = await apply();
         // Reload only when something actually reached the daemon. A no-op, a tripped circuit breaker or a
         // disconnected apply have nothing new to read back — and reloading on a no-op re-arms the very
         // apply/reload loop the no-op guard exists to break, with the circuit breaker already bypassed

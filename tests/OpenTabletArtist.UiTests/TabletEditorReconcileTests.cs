@@ -743,6 +743,338 @@ public class TabletEditorReconcileTests
         vm.Dispose();
     }
 
+    /// <summary>
+    /// A held change says so in the editor at once, without waiting for a reload (#906).
+    /// </summary>
+    /// <remarks>
+    /// The banner used to be raised only from reconciliation, which needs a reload that actually
+    /// disagrees. For a check that could not be made there may be nothing to disagree with — the daemon
+    /// may hold exactly what we think and the read simply failed — so an artist whose edit was being held
+    /// had nothing on the page telling them so.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AChangeHeldBecauseTheDaemonCouldNotBeAsked_SaysSoAtOnceAndOffersToTryAgain()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.CouldNotCheck));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        Assert.True(vm.HasExternalChange, "the artist should be told, not left guessing");
+        Assert.Contains("Couldn't check", vm.ExternalChangeText);
+        Assert.True(vm.CanRetryHeldChange);
+
+        // Nothing was seen, so there is nothing to overwrite and nothing to reload.
+        Assert.False(vm.CanOverwriteHeldChange, "an unanswered question is not a conflict to overwrite");
+        Assert.False(vm.CanReloadExternalChange, "no snapshot has arrived, so Reload would do nothing");
+
+        vm.Dispose();
+    }
+
+    /// <summary>Trying again is the same apply, and the same check with it (#906).</summary>
+    /// <remarks>
+    /// Retry must not be a way past the check. It re-runs the ordinary apply, so if the daemon has
+    /// recovered the change lands, and if it has not the change is held again.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task TryingAgainAfterTheDaemonRecovers_AppliesTheHeldChange()
+    {
+        var settings = SettingsWithForeignFilter();
+        var sent = new List<Settings>();
+        var answer = SettingsApplyOutcome.CouldNotCheck;
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: draft =>
+            {
+                if (answer.Status != SettingsApplyStatus.AppliedAndSaved) return Task.FromResult(answer);
+                var revision = Clone(draft);
+                sent.Add(revision);
+                return Task.FromResult(new SettingsApplyOutcome(
+                    SettingsApplyStatus.AppliedAndSaved, null,
+                    new PreparedSettings(revision, new SettingsStamp(1, 1))));
+            });
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.CanRetryHeldChange);
+
+        answer = SettingsApplyOutcome.Saved;           // the daemon starts answering again
+        vm.RetryHeldChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.NotEmpty(sent);
+        Assert.True(Pressure(sent[^1]), "the held change should have been the thing retried");
+        Assert.False(vm.HasExternalChange, "and nothing is held any more");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// Keeping the artist's change sends the conflict back as the authorisation (#906).
+    /// </summary>
+    /// <remarks>
+    /// The button exists so consent is something the artist gives about a particular conflict. Sending
+    /// the change without the conflict would be an ordinary apply, which the session would hold again —
+    /// and sending it with one the session never issued would be this editor inventing permission.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task KeepingTheArtistsChange_AuthorisesItWithTheConflictTheyWereShown()
+    {
+        var settings = SettingsWithForeignFilter();
+        var conflict = ConflictSeenByTheSession();
+        SettingsConflict? authorisedWith = null;
+
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(
+                new SettingsApplyOutcome(SettingsApplyStatus.ChangedElsewhere, Conflict: conflict)),
+            overwriteAction: (draft, seen) =>
+            {
+                authorisedWith = seen;
+                var revision = Clone(draft);
+                return Task.FromResult(new SettingsApplyOutcome(
+                    SettingsApplyStatus.AppliedAndSaved, null,
+                    new PreparedSettings(revision, new SettingsStamp(1, 1))));
+            });
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        Assert.True(vm.HasExternalChange);
+        Assert.Contains("changed outside OpenTabletArtist", vm.ExternalChangeText);
+        Assert.True(vm.CanOverwriteHeldChange);
+        Assert.False(vm.CanRetryHeldChange, "a seen conflict is not resolved by asking again");
+
+        vm.OverwriteHeldChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.Same(conflict, authorisedWith);
+        Assert.False(vm.HasExternalChange, "the banner should go once the change lands");
+
+        vm.Dispose();
+    }
+
+    /// <summary>A conflict with nothing to overwrite it with offers no such button.</summary>
+    /// <remarks>
+    /// The editor must not show an action it cannot carry out. Without an overwrite action wired in —
+    /// which is the case in every test harness that does not supply one — the offer is withheld rather
+    /// than presented and silently ignored.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WithNoWayToOverwrite_TheOfferIsNotMade()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(new SettingsApplyOutcome(
+                SettingsApplyStatus.ChangedElsewhere, Conflict: ConflictSeenByTheSession())));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        Assert.True(vm.HasExternalChange);
+        Assert.False(vm.CanOverwriteHeldChange);
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// A conflict as the session would report one.
+    /// </summary>
+    /// <remarks>
+    /// Constructed rather than obtained from a real coordinator, because what these tests are about is
+    /// the editor carrying the token back unchanged. Whether the token means anything is the session's
+    /// business and is covered where that decision lives.
+    /// </remarks>
+    private static SettingsConflict ConflictSeenByTheSession() =>
+        new(issuer: Guid.NewGuid(), channel: 1, daemonState: "{\"whatever\":\"the daemon held\"}");
+
+    /// <summary>
+    /// Retrying a held change does not overwrite an external edit a reload merely learned about (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The comparison a held draft is weighed against used to be rebased onto every reload. So: reads
+    /// fail and a change is held; reads recover and somebody else edits the daemon; an automatic reload
+    /// learns their edit; and the held draft — still built against the older state — is resubmitted,
+    /// found "unchanged" against the newly advanced baseline, and written straight over them.
+    /// </para>
+    /// <para>
+    /// Learning somebody's settings is not consent to replace them. The draft is now compared against
+    /// what it was held against until the artist resolves it, so the retry meets the conflict it should.
+    /// </para>
+    /// <para>
+    /// Driven through a real session because the defect lived in the space between the coordinator's
+    /// baseline and the editor's draft; a fake apply action cannot have that space.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task RetryingAHeldChange_DoesNotOverwriteAnEditTheReloadJustLearnedAbout()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        // The daemon stops answering reads, so the artist's edit is held with nothing established.
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.False(Pressure(daemon.Settings!), "nothing should have been sent");
+
+        // Reads recover, and somebody else changes the daemon in the meantime.
+        daemon.GetSettingsHandler = null;
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        // An ordinary reload learns their edit. It does not resolve anything on the artist's behalf.
+        await session.ReloadAsync();
+        await Settle();
+
+        vm.RetryHeldChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the retry overwrote an external edit that nobody had agreed to replace");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// Nor does simply carrying on editing, which is the same submission by another route (#910).
+    /// </summary>
+    /// <remarks>
+    /// Hiding the Retry button would have left this open. An artist whose change is held does not stop
+    /// touching the page, and every edit submits.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task EditingOnAfterAChangeIsHeld_DoesNotOverwriteWhatTheReloadLearned()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+        vm.DisablePressure = true;
+        await Settle();
+
+        daemon.GetSettingsHandler = null;
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        await session.ReloadAsync();
+        await Settle();
+
+        // Not the button: just carrying on editing.
+        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        await Settle();
+
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "editing on overwrote an external edit that nobody had agreed to replace");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// And once the artist takes the daemon's version, editing lands again (#910).
+    /// </summary>
+    /// <remarks>
+    /// The pin has to be released by something, or holding it would turn into refusing the artist's work
+    /// for ever. Taking their version is the release, because it is the artist saying what a reload
+    /// cannot say for them.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AfterTakingTheirVersion_EditingLandsAgain()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+        vm.DisablePressure = true;
+        await Settle();
+
+        daemon.GetSettingsHandler = null;
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        await session.ReloadAsync();
+        await Settle();
+
+        // The artist takes theirs, which is the banner's Reload.
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        vm.DisablePressure = true;
+        await PumpUntil(() => Pressure(daemon.Settings!), "the redone edit to reach the daemon");
+
+        Assert.True(Pressure(daemon.Settings!));
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "and it did not undo what the artist had just accepted");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// A refused acceptance leaves the draft where it is (#910).
+    /// </summary>
+    /// <remarks>
+    /// The session can correctly refuse to release a hold — the snapshot this editor is offering has
+    /// been overtaken — and the editor was throwing the draft away anyway, because it asked and then
+    /// discarded the answer. The comment beside that call even said a refusal leaves the hold standing.
+    /// It did not.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhenAcceptanceIsRefused_TheDraftIsKept()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere),
+            acceptCurrentAction: _ => false);   // the session says that snapshot is no longer current
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        var theirs = SettingsWithForeignFilter();
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(theirs, theirs.Profiles[0], new SettingsStamp(1, 1));
+
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.True(vm.DisablePressure, "the editor discarded the draft despite acceptance being refused");
+        Assert.False(vm.DisableTilt, "and it should not have adopted the snapshot it was refused");
+        Assert.True(vm.HasExternalChange, "the artist needs to be told the offer moved on");
+        Assert.Contains("changed again", vm.ExternalChangeText);
+
+        vm.Dispose();
+    }
+
+    /// <summary>And an accepted one still resolves, so refusing is not simply a wall.</summary>
+    [AvaloniaFact]
+    public async Task WhenAcceptanceIsGranted_TheSnapshotIsAdopted()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere),
+            acceptCurrentAction: _ => true);
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        var theirs = SettingsWithForeignFilter();
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(theirs, theirs.Profiles[0], new SettingsStamp(1, 1));
+
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.True(vm.DisableTilt);
+        Assert.False(vm.DisablePressure);
+        Assert.False(vm.HasExternalChange);
+
+        vm.Dispose();
+    }
+
     private sealed record ReadHarness(
         FakeDaemonTransport Daemon,
         AppSession Session,
@@ -767,7 +1099,10 @@ public class TabletEditorReconcileTests
         session.DataLoaded += () =>
         {
             var current = session.CurrentSettings;
-            vm!.ReconcileExternalChange(current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"));
+            // With the stamp, as the shell passes it: an acceptance has to name the snapshot it took,
+            // and a harness that omitted it would make every acceptance stale (#910).
+            vm!.ReconcileExternalChange(
+                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"), session.CurrentStamp);
         };
         return new ReadHarness(daemon, session, vm!);
     }

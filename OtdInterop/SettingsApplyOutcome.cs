@@ -108,10 +108,17 @@ public enum SettingsApplyStatus
 /// A non-null value is not evidence that anything was applied. <see cref="Status"/> is the only member
 /// entitled to say that.
 /// </param>
+/// <param name="Conflict">
+/// What was seen instead, when <see cref="SettingsApplyStatus.ChangedElsewhere"/> held the change — and
+/// the thing to present back to authorise overwriting it (#906). Null for every other status, including
+/// <see cref="SettingsApplyStatus.CouldNotCheck"/>: nothing was observed there, so there is nothing to
+/// consent to.
+/// </param>
 public readonly record struct SettingsApplyOutcome(
     SettingsApplyStatus Status,
     Exception? Error = null,
-    PreparedSettings? Prepared = null)
+    PreparedSettings? Prepared = null,
+    SettingsConflict? Conflict = null)
 {
     /// <summary>Live on the daemon and written to disk.</summary>
     public static readonly SettingsApplyOutcome Saved = new(SettingsApplyStatus.AppliedAndSaved);

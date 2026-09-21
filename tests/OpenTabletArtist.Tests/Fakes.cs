@@ -336,6 +336,41 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
         return Task.FromResult(ApplyResult);
     }
 
+    /// <summary>What the caller said it had taken, or none if it has said nothing (#910).</summary>
+    public SettingsStamp Accepted { get; private set; } = SettingsStamp.None;
+
+    /// <summary>What this fake is publishing, so a test can make an acceptance stale.</summary>
+    public SettingsStamp CurrentStamp { get; set; } = new(1, 1);
+
+    /// <summary>
+    /// Refuses a stale acceptance the way the real one does. A fake that accepted anything would let a
+    /// view model name a snapshot nobody is showing and still look right (#910).
+    /// </summary>
+    public bool AcceptCurrentSettings(SettingsStamp accepted)
+    {
+        if (accepted.IsNone || accepted.SupersededBy(CurrentStamp)) return false;
+
+        Accepted = accepted;
+        return true;
+    }
+
+    /// <summary>The conflict a test's overwrite was authorised with, or null if none was (#906).</summary>
+    public SettingsConflict? OverwroteWith { get; private set; }
+
+    /// <summary>What an overwrite answers. Defaults to success, which is the case worth defaulting to.</summary>
+    public SettingsApplyOutcome OverwriteResult { get; set; } = SettingsApplyOutcome.Saved;
+
+    public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict)
+    {
+        // Recorded rather than silently accepted: a fake that took an overwrite the same way it takes an
+        // apply would let a view model authorise one it never had, and look right doing it.
+        OverwroteWith = conflict;
+        SaveCalls++;
+        Applied = SavedAndApplied = settings;
+        HasEphemeralOverride = false;
+        return Task.FromResult(OverwriteResult);
+    }
+
     /// <summary>Whether the daemon takes the change. False models no transport — the apply paths then
     /// report failure and commit nothing (#766).</summary>
     public bool DaemonAccepts { get; set; } = true;

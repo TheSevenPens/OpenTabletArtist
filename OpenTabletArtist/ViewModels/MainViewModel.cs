@@ -558,7 +558,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             var profile = settings.Profiles.FirstOrDefault(p =>
                 string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
-            vm.ReconcileExternalChange(settings, profile);
+            vm.ReconcileExternalChange(settings, profile, _session.CurrentStamp);
         }
     }
 

@@ -73,13 +73,20 @@ public class DialogService : IDialogService
             profile,
             settings,
             applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
+            overwriteAction: async (updated, conflict) =>
+                await _session.OverwriteSettingsAsync(updated, conflict),
+            acceptCurrentAction: accepted => _session.AcceptCurrentSettings(accepted),
             refreshAction: async () =>
             {
                 // Authoritative reload through the session so its cache stays coherent; return the
                 // reloaded settings + this tablet's profile (a reference inside them) together (#124).
                 await _session.ReloadAsync();
                 var settings = _session.CurrentSettings;
-                return (settings, settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
+                // The stamp travels with the snapshot, so an editor resolving a held change names the
+                // one it actually took rather than whatever is current by the time it asks (#910).
+                return (settings,
+                    settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName),
+                    _session.CurrentStamp);
             },
             tabletDigitizer: _session.GetTabletDigitizer(tabletName),
             penInput: _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
