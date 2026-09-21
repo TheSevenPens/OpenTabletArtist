@@ -43,7 +43,6 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     public bool ShowAppOwnedDaemon => _session.ShowAppOwnedDaemon;
     public bool ShowForeignDaemonWarning => _session.ShowForeignDaemonWarning;
     public bool HasBundledDaemon => _session.HasBundledDaemon;
-    public bool CanSwitchToBundledDaemon => _session.CanSwitchToBundledDaemon;
     public bool HasDaemonSourcePath => _session.HasDaemonSourcePath;
     public bool ShowDaemonSourceUnknown => _session.ShowDaemonSourceUnknown;
     public string DaemonSourcePath => _session.DaemonSourcePath;

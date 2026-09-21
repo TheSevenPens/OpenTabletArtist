@@ -198,7 +198,6 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool ShowAppOwnedDaemon => false;
     public bool ShowForeignDaemonWarning => false;
     public bool HasBundledDaemon => false;
-    public bool CanSwitchToBundledDaemon => false;
     public bool HasDaemonSourcePath => false;
     public bool DaemonCannotOpenTablet => false;
     public bool ShowDaemonSourceUnknown => false;
