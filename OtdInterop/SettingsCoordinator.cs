@@ -304,13 +304,38 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
     /// <returns>The stamp the published state is now at, for stamping whatever produced it.</returns>
     /// <remarks>
-    /// The next publication is built and then assigned, rather than assembled in place. Assembling in
+    /// <para>
+    /// The next publication is built and then swapped in, rather than assembled in place. Assembling in
     /// place is what let a reader see a new settings object under the old stamp.
+    /// </para>
+    /// <para>
+    /// Swapped with a compare-and-exchange rather than a plain write, because publishing is not confined
+    /// to the one-at-a-time section: <see cref="ResetForNewDaemon"/> runs outside it, on whichever thread
+    /// noticed the daemon change. Reading the version and writing the successor as two steps would let
+    /// two publications take the same number — two different settings under one stamp, which the exact
+    /// stamp check then cannot tell apart, and that check is what stands between an acceptance and the
+    /// snapshot it is about. The retry also keeps the versions in order: a loser recomputes from the
+    /// winner rather than overwriting it.
+    /// </para>
     /// </remarks>
+    /// <summary>Publishing, reachable from a test (#910).</summary>
+    /// <remarks>
+    /// The only way to establish that two publications cannot share a stamp is to run two that are not
+    /// serialized against each other, which is what <c>ResetForNewDaemon</c> already does against a
+    /// running apply. Exposed internally rather than approximated through the public paths, because
+    /// those serialize and so cannot ask the question.
+    /// </remarks>
+    internal SettingsStamp PublishForTest(Settings? settings) => Publish(settings);
+
     private SettingsStamp Publish(Settings? settings)
     {
-        var next = new Publication(settings, StampFor(Published.Stamp.Version + 1));
-        Volatile.Write(ref _published, next);
+        Publication next;
+        while (true)
+        {
+            var current = Volatile.Read(ref _published);
+            next = new Publication(settings, StampFor(current.Stamp.Version + 1));
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _published, next, current), current)) break;
+        }
 
         // A new baseline is also something a read in flight can no longer be trusted against.
         Interlocked.Increment(ref _observationEpoch);

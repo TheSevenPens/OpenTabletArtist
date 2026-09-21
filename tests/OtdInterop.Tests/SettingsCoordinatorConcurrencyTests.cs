@@ -726,6 +726,50 @@ public class SettingsCoordinatorConcurrencyTests
     }
 
     /// <summary>
+    /// Two publications never share a stamp, even when they are not serialized against each other
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Publishing is not confined to the one-at-a-time section: <c>ResetForNewDaemon</c> runs outside it,
+    /// on whichever thread noticed the daemon change, while an apply may be publishing on another. Making
+    /// the settings and the stamp one value cost the atomic increment the version used to get, and a
+    /// read-then-write of the successor lets two publications take the same number — two different
+    /// settings under one stamp, which the exact stamp check cannot tell apart, and that check is what
+    /// stands between an acceptance and the snapshot it is about.
+    /// </para>
+    /// <para>
+    /// Threads here rather than a scripted seam, because what is being established is that concurrent
+    /// publication is safe, and there is no way to say that without concurrency. It is not a timing
+    /// test: every stamp issued is collected and the duplicates are counted, so the assertion is exact
+    /// and a failure is a real duplicate rather than a slow machine. Under the read-then-write version
+    /// it fails immediately.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ConcurrentPublications_NeverShareAStamp()
+    {
+        var (coordinator, _, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        const int PerThread = 200;
+        var issued = new System.Collections.Concurrent.ConcurrentBag<SettingsStamp>();
+
+        // Two publishers that are not serialized against each other: ResetForNewDaemon is exactly this
+        // shape, and it is the one the library genuinely permits.
+        var publishers = Enumerable.Range(0, 2).Select(_ => Task.Run(() =>
+        {
+            for (var i = 0; i < PerThread; i++) issued.Add(coordinator.PublishForTest(SettingsFor("x", locked: false)));
+        }));
+
+        await Task.WhenAll(publishers);
+
+        var all = issued.ToList();
+        Assert.Equal(2 * PerThread, all.Count);
+        Assert.Equal(all.Count, all.Distinct().Count());
+    }
+
+    /// <summary>
     /// A stamp handed out before a daemon switch does not compare equal to one handed out after it
     /// (#910).
     /// </summary>
