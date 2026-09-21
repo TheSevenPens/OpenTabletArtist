@@ -1,3 +1,4 @@
+using System;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop;
@@ -71,7 +72,52 @@ public sealed class SettingsWorkspace
         finally { _saving = false; }
     }
 
-    public Task<SettingsReloadOutcome> RefreshAsync() => _session.RefreshAsync();
+    /// <summary>
+    /// Observes the driver, and adopts what it finds when nothing local is at stake (#920).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The driver edits its own settings: attaching a tablet it has not seen makes it generate a profile
+    /// and write the whole document back. Pausing for that stopped an artist who had done nothing but
+    /// plug something in. While idle there is no draft to protect and nothing to merge — one live
+    /// snapshot to show — so the honest response is to show what the driver actually holds.
+    /// </para>
+    /// <para>
+    /// <b>Idle is not "saved".</b> Settings applied but not written to disk are live driver state; their
+    /// difference from the file is not a reason to refuse a refresh. What makes this unsafe is a local
+    /// edit that would be replaced: unsubmitted input, an apply in flight, a failed one awaiting a
+    /// decision, or a pause somebody already has to answer.
+    /// </para>
+    /// <para>
+    /// <b>Checked on both sides of the read.</b> Testing eligibility only before the observation is not
+    /// enough: the read takes as long as the driver takes, and an edit can arrive — or start and finish —
+    /// while it is outstanding. The edit counter is captured first and compared afterwards, so input that
+    /// appeared during the observation keeps its pause instead of being adopted over.
+    /// </para>
+    /// <para>
+    /// A pause that was already there is never cleared by this route. Answering it is the artist's, and
+    /// a background poll silently resolving it is how a protection becomes a formality.
+    /// </para>
+    /// </remarks>
+    /// <param name="editingIsIdle">
+    /// Whether the host has unsubmitted editor input. Decided by OTA rather than the library: only the
+    /// host knows what is half-typed into a control, and teaching the library about that is exactly the
+    /// coupling this split removed.
+    /// </param>
+    public async Task<SettingsReloadOutcome> RefreshAsync(Func<bool> editingIsIdle)
+    {
+        var pausedBefore = _session.IsPaused;
+        var editBefore = _edit;
+
+        var observed = await _session.RefreshAsync();
+        if (pausedBefore || observed.Status != SettingsReloadStatus.Paused) return observed;
+
+        // Re-asked after the read, on the UI thread this runs on, so the answer describes now.
+        if (editBefore != _edit || HasPendingApply || _failed || _saving || !editingIsIdle())
+            return observed;
+
+        return await ReloadAsync();
+    }
 
     public async Task<SettingsReloadOutcome> ReloadAsync()
     {

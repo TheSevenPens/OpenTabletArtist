@@ -19,7 +19,15 @@ Implemented on `codex/simplify-otd-interop`, starting from `6f56723`. This super
 
 ## Outside edits and their cost
 
-OTA expects to be the active settings editor. Focus refresh, tablet notifications, the fallback poll, and preflight reads detect changes to the live document. A mismatch pauses settings changes for the whole app. File-only changes are checked before Save.
+OTA expects to be the active settings editor. Focus refresh, tablet notifications, the fallback poll, and preflight reads detect changes to the live document. File-only changes are checked before Save.
+
+What a mismatch costs depends on whether anything local is at stake. **While OTA is idle it adopts what the driver holds** and says so quietly — there is one live snapshot to show and no draft to merge. Idle means no unsubmitted editor input, no apply in flight, no failed edit awaiting a decision, and no pause somebody already has to answer. It does **not** mean saved: settings applied but not written to disk are live driver state, and their difference from the file is not a local edit at risk.
+
+With something at stake, **a mismatch pauses settings changes for the whole app** until the artist reloads.
+
+Eligibility is asked on both sides of the read, because the read takes as long as the driver takes and a hand can reach a slider while it is outstanding. An existing pause is never cleared by this route; answering it is the artist's.
+
+This matters more than it sounds because the driver edits its own settings. Attaching a tablet it has not seen runs `DetectTablets()` then `SetSettings(Settings)`, generating a profile for the new device; `MatchSpecifications` can also resize binding collections and normalize wheel settings, so detection is not reliably additive. Without idle adoption, plugging in a tablet stopped an artist who had done nothing else.
 
 The artist sees the pause in the persistent footer, uses Reload, and reviews the driver's current values. Unsaved edits already overwritten by another client cannot be recovered automatically; pending local input is discarded on reload. Opening the OTD UX merely to inspect settings does not trigger a pause. Actually changing settings there can require an extra reload after returning to OTA.
 

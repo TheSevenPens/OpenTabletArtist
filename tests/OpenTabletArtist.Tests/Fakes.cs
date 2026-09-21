@@ -247,6 +247,21 @@ internal sealed class FakeConnectionState : IConnectionState
     /// <summary>Derived, as the real one is: a test cannot set "there is a notice" without a notice.</summary>
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(_discardedChangeNotice);
 
+    private string _settingsRefreshedNotice = "";
+    public string SettingsRefreshedNotice
+    {
+        get => _settingsRefreshedNotice;
+        set
+        {
+            _settingsRefreshedNotice = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SettingsRefreshedNotice)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasSettingsRefreshedNotice)));
+        }
+    }
+
+    /// <summary>Derived for the same reason.</summary>
+    public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(_settingsRefreshedNotice);
+
     /// <summary>How many times each was asked for, so a test can assert which one a refresh chose.</summary>
     public int Reloads { get; private set; }
     public int Connects { get; private set; }

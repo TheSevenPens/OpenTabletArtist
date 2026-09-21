@@ -294,6 +294,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Then reconcile any open tablet page with the freshly-loaded settings so an external edit
         // (e.g. via the OTD UX) is picked up. Subscribed after RebuildTablets so it runs on survivors.
         _session.DataLoaded += ReconcileOpenTabletDetails;
+        ReportPendingInputTo(_session);
 
         // A different OpenTabletDriver answering means every open editor is looking at another machine's
         // settings. Editors are cached by tablet name, so one survives a replacement that happens to
@@ -504,6 +505,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
             || _session.CanEditSettings);
 
     private bool HasPendingInput => _tabletDetails.Values.Any(e => e.HasPendingEdits);
+
+    /// <summary>
+    /// Lets the session ask whether anything is half-edited before it adopts an outside change (#920).
+    /// </summary>
+    /// <remarks>
+    /// Wired from here because this is where the cached editors are. The session cannot see them and the
+    /// library is told nothing about them at all; the question "may local work be replaced" is the
+    /// shell's to answer.
+    /// </remarks>
+    private void ReportPendingInputTo(AppSession session) =>
+        session.HasPendingEditorInput = () => HasPendingInput;
 
     [RelayCommand]
     private async Task SaveSettings() => await SaveNowAsync();

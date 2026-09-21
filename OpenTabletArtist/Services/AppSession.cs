@@ -105,6 +105,12 @@ public interface IConnectionState : INotifyPropertyChanged
     /// <summary>Whether there is such a notice to show.</summary>
     bool HasDiscardedChangeNotice { get; }
 
+    /// <summary>The driver changed its own settings and the page followed along (#920).</summary>
+    string SettingsRefreshedNotice { get; }
+
+    /// <summary>Whether there is such a notice to show.</summary>
+    bool HasSettingsRefreshedNotice { get; }
+
     /// <summary>Re-reads what the daemon holds, for a connection that is already up.</summary>
     Task ReloadAsync();
 
@@ -291,6 +297,34 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     private string _discardedChangeNotice = "";
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(DiscardedChangeNotice);
     public event Action? SettingsReplaced;
+
+    /// <summary>
+    /// Whether the host has editor input that has not been submitted yet (#920).
+    /// </summary>
+    /// <remarks>
+    /// Supplied by the shell, because only it can see a half-moved slider or a dialog mid-edit. The
+    /// library is not told about any of that, and the decision about whether local work may be replaced
+    /// stays on this side of the boundary. Absent, nothing is idle — a host that has not said cannot be
+    /// assumed to have nothing to lose.
+    /// </remarks>
+    public Func<bool>? HasPendingEditorInput { get; set; }
+
+    private bool EditingIsIdle() => HasPendingEditorInput is { } pending && !pending();
+
+    /// <summary>
+    /// Says the page now shows something the driver changed by itself (#920).
+    /// </summary>
+    /// <remarks>
+    /// Quiet on purpose: nothing was lost and nothing is being asked of the artist. It exists so the
+    /// values moving under them is explained rather than mysterious — a tablet they just plugged in makes
+    /// the driver rewrite its own settings, and the page following along would otherwise look like a
+    /// glitch.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSettingsRefreshedNotice))]
+    private string _settingsRefreshedNotice = "";
+
+    public bool HasSettingsRefreshedNotice => !string.IsNullOrEmpty(SettingsRefreshedNotice);
     public Func<Task<bool>>? ResolveUnsavedChanges { get; set; }
 
     partial void OnSaveStateChanged(SettingsSaveState value) => NotifySettingsState();
@@ -771,12 +805,24 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
             DaemonCannotOpenTablet = unopened;
 
-            // Observe outside changes; explicit Reload alone adopts them.
+            // Observe outside changes. Adopted here only when nothing local is at stake; anything the
+            // artist would lose makes this a pause for them to answer (#920).
             if (_workspace is { } workspace)
             {
-                await workspace.RefreshAsync();
-                if (ReferenceEquals(workspace, _workspace) && !workspace.HasPendingApply)
-                    UpdateSettingsState();
+                var refreshed = await workspace.RefreshAsync(EditingIsIdle);
+                if (ReferenceEquals(workspace, _workspace) && !Abandoned)
+                {
+                    if (refreshed.ChangedTheBaseline)
+                    {
+                        SettingsRefreshedNotice =
+                            "Driver settings refreshed. The driver changed them and you had nothing unsaved "
+                            + "in progress, so this page now shows what it holds.";
+                        SettingsReplaced?.Invoke();
+                        PublishSettings();
+                        SaveState = SettingsSaveState.None;
+                    }
+                    if (!workspace.HasPendingApply) UpdateSettingsState();
+                }
             }
             if (Obsolete()) return;
             var settings = CurrentSettings;
