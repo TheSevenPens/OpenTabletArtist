@@ -354,17 +354,31 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         : ISettingsEditingScope
     {
         private bool _closed;
+        private int _generation = generation;
 
         public bool StillCurrent =>
             workspace is not null
             && ReferenceEquals(workspace, session._workspace)
-            && workspace.Generation == generation;
+            && workspace.Generation == _generation;
 
-        public Task<SettingsApplyOutcome> ApplyProfileAsync(
-            OpenTabletDriver.Desktop.Profiles.Profile profile) =>
-            StillCurrent
-                ? session.ApplyProfileAsync(profile)
-                : Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
+        /// <summary>
+        /// Submits, and keeps up with its own write only (#923).
+        /// </summary>
+        /// <remarks>
+        /// Calibration applies as it goes, so a rule that counted every wholesale write as somebody
+        /// else's would break the second preview. It advances past exactly one step, and only when that
+        /// step is the one this call caused: a competing write in the same interval leaves the count
+        /// further on than that, and the scope is behind from then until it is closed.
+        /// </remarks>
+        public async Task<SettingsApplyOutcome> ApplyProfileAsync(
+            OpenTabletDriver.Desktop.Profiles.Profile profile)
+        {
+            if (!StillCurrent) return SettingsApplyOutcome.ChangedElsewhere;
+            var before = workspace!.Generation;
+            var outcome = await session.ApplyProfileAsync(profile);
+            if (workspace.Generation == before + 1) _generation = workspace.Generation;
+            return outcome;
+        }
 
         public void Dispose()
         {

@@ -230,6 +230,113 @@ public class ExplicitSettingsTests
             "the dialog's captured values were written back over the reloaded document");
     }
 
+    /// <summary>
+    /// A whole-document write by anyone else also ends the dialog's claim on it (#923).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Reload and reconnect are not the only ways the ground moves. A preset hotkey reaches
+    /// <c>ProfileSwitchService</c> while the overlay is up, the tray swaps the mapped display, the
+    /// monitor cycle fires — each replaces the whole document through the ordinary apply, which does not
+    /// look like a replacement from the outside. Codex reproduced the consequence with the real preset
+    /// service: calibration's Cancel put back a tilt setting the preset had just changed.
+    /// </para>
+    /// <para>
+    /// So the count moves on every wholesale write, and a scope keeps up only with the one write it made
+    /// itself. Two writes between its submissions, or one it did not make, leave it behind.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AWholeDocumentWriteByAnotherHand_EndsTheDialogsClaim()
+    {
+        var (app, daemon, store) = await Open();
+        using var lifetime = app;
+
+        using var editing = app.ReserveEditing();
+        var captured = app.CurrentSettings!;
+
+        // What a preset hotkey, a tray remap or the monitor cycle all do: replace the whole document.
+        Assert.True((await app.ApplySettingsAsync(Document(true))).IsLive);
+        Assert.False(editing.StillCurrent, "the document this scope opened over has been replaced");
+
+        var outcome = await editing.ApplyProfileAsync(captured.Profiles[0]);
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, outcome.Status);
+        Assert.Single(daemon.Applied);
+        Assert.Equal(0, store.Attempts);
+        Assert.True(app.CurrentSettings!.Profiles[0].BindingSettings.DisablePressure,
+            "the dialog's captured values were written back over the other hand's");
+    }
+
+    /// <summary>
+    /// The dialog's own writes do not invalidate it (#923).
+    /// </summary>
+    /// <remarks>
+    /// Calibration applies as it goes: each preview is a write. A rule that treated every wholesale write
+    /// as somebody else's would make the second preview impossible, which is not a safe default but a
+    /// broken dialog.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ADialogsOwnWritesLeaveItStillCurrent()
+    {
+        var (app, _, _) = await Open();
+        using var lifetime = app;
+
+        using var editing = app.ReserveEditing();
+        var settings = app.CurrentSettings!;
+        settings.Profiles[0].BindingSettings.DisablePressure = true;
+
+        Assert.True((await editing.ApplyProfileAsync(settings.Profiles[0])).IsLive);
+        Assert.True(editing.StillCurrent, "a scope invalidated by its own write");
+
+        settings.Profiles[0].BindingSettings.DisableTilt = true;
+        Assert.True((await editing.ApplyProfileAsync(settings.Profiles[0])).IsLive);
+        Assert.True(editing.StillCurrent);
+    }
+
+    /// <summary>
+    /// A competing write during the dialog's own apply leaves the dialog behind (#923).
+    /// </summary>
+    /// <remarks>
+    /// The interval that makes "keep up with my own write" harder than it sounds. A preset hotkey landing
+    /// while calibration's preview is in flight moves the count twice, and a scope that simply adopted
+    /// whatever it found afterwards would take the preset's document as its own and carry on writing over
+    /// it. Advancing by exactly one step, and only the step this call caused, is what distinguishes them.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AWriteThatLandsDuringTheDialogsOwnApply_StillLeavesItBehind()
+    {
+        var (app, daemon, _) = await Open();
+        using var lifetime = app;
+
+        using var editing = app.ReserveEditing();
+        var mine = app.CurrentSettings!;
+        mine.Profiles[0].BindingSettings.DisableTilt = true;
+
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            daemon.SetSettingsHandler = null;   // only the dialog's own write waits
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var previewing = editing.ApplyProfileAsync(mine.Profiles[0]);
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        // The preset hotkey fires while that preview is still out.
+        var theirs = app.ApplySettingsAsync(Document(true));
+
+        held.SetResult(true);
+        await previewing;
+        await theirs;
+
+        Assert.False(editing.StillCurrent, "the scope adopted a document another hand had written");
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere,
+            (await editing.ApplyProfileAsync(mine.Profiles[0])).Status);
+    }
+
     private sealed class Lifecycle : IDaemonLifecycleService
     {
         public string Expected { get; set; } = "daemon.exe";

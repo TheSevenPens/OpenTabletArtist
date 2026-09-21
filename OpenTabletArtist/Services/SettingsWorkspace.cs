@@ -38,14 +38,22 @@ public sealed class SettingsWorkspace
     public bool HasPendingApply => !_pending.IsCompleted;
 
     /// <summary>
-    /// Bumped whenever the document is <b>replaced</b> rather than edited (#922).
+    /// Counts wholesale writes to the document: submitted applies, adoptions, restores (#922, #923).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A dialog that captures the whole settings and submits a profile from them minutes later has no
     /// way to notice that the ground moved underneath it — an adopted outside change, a Reload, a
-    /// restore. Its submission then passes the pre-apply comparison, because the baseline it is weighed
-    /// against is the new one, and quietly puts the old values back. Something that holds a document
-    /// across time can compare this instead.
+    /// restore, a preset hotkey. Its submission then passes the pre-apply comparison, because the
+    /// baseline it is weighed against is the new one, and quietly puts the old values back. Something
+    /// that holds a document across time compares this instead.
+    /// </para>
+    /// <para>
+    /// <b>Every apply counts, including the holder's own.</b> A preset switch, a tray remap and a
+    /// monitor cycle all replace the document through the ordinary apply and are indistinguishable from
+    /// it here (#923). Telling them apart is the holder's job, not this counter's: it knows which single
+    /// step was its own and keeps up with that one only.
+    /// </para>
     /// </remarks>
     public int Generation { get; private set; }
 
@@ -56,6 +64,7 @@ public sealed class SettingsWorkspace
         OtaSettingsPolicy.Prepare(copy, _owned);
         _draft = copy;
         var edit = ++_edit;
+        Generation++;
         return _pending = ApplyCoreAsync(copy, edit);
     }
 
