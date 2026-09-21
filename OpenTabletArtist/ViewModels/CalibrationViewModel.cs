@@ -298,6 +298,13 @@ public partial class CalibrationViewModel : ObservableObject
     public Task StartAsync() => Sequenced(async () =>
     {
         if (!await BypassCalibrationAsync()) return;
+
+        // Asked again before the stream is turned on (#926). The gate decides whether a step may start;
+        // it cannot speak for what the step does after its own awaits, and this one waits for the
+        // driver. Closing the window in that interval stops the stream first, and the continuation would
+        // then turn it back on — the input source keeps its desired state across its own awaits, so the
+        // earlier stop does not win, and the driver is left reporting to an overlay nobody can see.
+        if (_closing || IsInterrupted) return;
         await _input.StartAsync();
     });
 

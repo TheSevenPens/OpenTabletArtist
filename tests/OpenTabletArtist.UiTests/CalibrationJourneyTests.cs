@@ -34,11 +34,11 @@ namespace OpenTabletArtist.UiTests;
 /// store is memory.
 /// </para>
 /// <para>
-/// <b>What they do not cover.</b> No <c>CalibrationOverlayWindow</c> is created: these drive the view
-/// model, and <see cref="Overlay"/> stands in for the window by doing what it does when the overlay
-/// closes — stop the pen stream, release the hold. The window's own wiring is therefore not under
-/// test here, only the view model's behaviour across that boundary. Codex named this limit; recording
-/// it is cheaper than implying the coverage.
+/// Most of them drive the view model, with <see cref="Overlay"/> standing in for the window by doing
+/// what it does when the overlay closes — stop the pen stream, release the hold. That stand-in is
+/// accurate about the order of those two things and says nothing about the window's own start, which is
+/// where the next fault turned out to be; the last journey here builds the real
+/// <c>CalibrationOverlayWindow</c> for that reason.
 /// </para>
 /// </remarks>
 public class CalibrationJourneyTests
@@ -59,7 +59,19 @@ public class CalibrationJourneyTests
 #pragma warning disable CS0067
         public event Action<JObject>? DeviceReport;
 #pragma warning restore CS0067
-        public Task SetTabletDebugAsync(bool enabled) => Task.CompletedTask;
+
+        /// <summary>How many times reporting was switched on.</summary>
+        /// <remarks>
+        /// The observable consequence of the overlay starting its pen stream. A closed overlay that
+        /// leaves this raised has left the driver reporting for nobody.
+        /// </remarks>
+        public int Enabled { get; private set; }
+
+        public Task SetTabletDebugAsync(bool enabled)
+        {
+            if (enabled) Enabled++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed record Overlay(
@@ -130,21 +142,18 @@ public class CalibrationJourneyTests
     }
 
     /// <summary>
-    /// Runs the loop for a while, so that anything still queued has had its chance.
+    /// Waits for everything the overlay had queued, by queueing one more thing behind it.
     /// </summary>
     /// <remarks>
-    /// Time-based, and deliberately so: the assertion it serves is that <em>nothing further happens</em>,
-    /// and an absence cannot be waited for the way an event can. There is nothing to signal, so what
-    /// gives this its teeth is the mutation — removing the guard it tests makes it fail, promptly and
-    /// every time.
+    /// A settling period was the obvious way to assert that nothing further happens, and a weaker one:
+    /// an interval that passed without an event is not the same as the work having finished. Codex's
+    /// alternative is better and needs nothing added to the overlay — a non-closing command appended
+    /// after the close waits behind whatever is still in the queue and is then skipped by the gate, so
+    /// awaiting it is an observable boundary rather than a guess at one.
     /// </remarks>
-    private static async Task Quiet()
+    private static async Task Drained(Overlay overlay)
     {
-        for (var n = 0; n < 40; n++)
-        {
-            Dispatcher.UIThread.RunJobs();
-            await Task.Delay(5, TestContext.Current.CancellationToken);
-        }
+        await overlay.Vm.RedoCommand.ExecuteAsync(null);
         Dispatcher.UIThread.RunJobs();
     }
 
@@ -324,7 +333,7 @@ public class CalibrationJourneyTests
         held.SetResult(true);
         await cancelling;
         await PumpUntil(() => overlay.Closed);
-        await Quiet();
+        await Drained(overlay);
 
         Assert.Equal(overlay.WritesAtClose, overlay.Daemon.Applied.Count);
         Assert.False(CalibrationEnabled(overlay.Daemon.Settings),
@@ -410,9 +419,78 @@ public class CalibrationJourneyTests
         await cancelling;
         await redoing;
         await PumpUntil(() => overlay.Closed);
-        await Quiet();
+        Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(overlay.WritesAtClose, overlay.Daemon.Applied.Count);
         Assert.NotEqual(CalibrationViewModel.Phase.Capturing, overlay.Vm.CurrentPhase);
+    }
+
+    /// <summary>
+    /// Closing the window during its own startup leaves the driver reporting to nobody (#926).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The gate governs entry to a step, not what a step does after its own awaits — and startup has
+    /// one: it bypasses the existing calibration, waits for the driver, and then turns the pen stream
+    /// on. Close the window in that interval and its <c>OnClosed</c> stops the stream first; the
+    /// continuation then starts it again, on an overlay nobody can see. The input source keeps a desired
+    /// state across its own awaits, so the earlier stop does not win.
+    /// </para>
+    /// <para>
+    /// This is the one journey that builds a real <c>CalibrationOverlayWindow</c>, because the fault is
+    /// in the wiring between the window's lifetime and the view model's — which is exactly what the
+    /// stand-in elsewhere in this file substitutes for.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ClosingTheWindowDuringStartup_DoesNotLeaveTheDriverReporting()
+    {
+        var daemon = new FakeDaemonTransport { Settings = WithCalibration() };
+        daemon.GetSettingsHandler = async () => { await Task.Yield(); return daemon.Settings; };
+        var store = new MemorySettingsFileStore { Saved = Document() };
+        using var app = new AppSession(FakeSession.Over(daemon, store), new FakeLifecycle());
+        daemon.Reconnect();
+        await PumpUntil(() => app.CurrentSettings is not null);
+        app.HasPendingEditorInput = () => false;
+
+        var pen = new NoPenInput();
+        var editing = app.ReserveEditing();
+        var settings = app.CurrentSettings!;
+        var ctx = new CalibrationViewModel.Context(
+            "T", Digi, Input, Output, Display, settings,
+            s => editing.ApplyProfileAsync(s.Profiles.First(p => p.Tablet == "T")), pen);
+        var vm = new CalibrationViewModel(ctx);
+
+        // Startup's bypass is held open, so the window is still starting when it is closed.
+        var held = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.SetSettingsHandler = _ =>
+        {
+            daemon.SetSettingsHandler = null;
+            reached.TrySetResult();
+            return held.Task;
+        };
+
+        var window = new Views.CalibrationOverlayWindow(vm, Display);
+        window.Show();
+        await PumpUntil(() => reached.Task.IsCompleted);
+
+        window.Close();
+        await PumpUntil(() => !window.IsVisible);
+        editing.Dispose();          // what DialogService's using does when the dialog returns
+
+        held.SetResult(true);
+        await vm.StartAsync();      // queued behind the startup that was in flight
+
+        Assert.Equal(0, pen.Enabled);
+    }
+
+    /// <summary>A document whose tablet already carries an enabled calibration, so startup must bypass.</summary>
+    private static Settings WithCalibration()
+    {
+        var settings = Document();
+        CalibrationProfile.Write(settings, "T",
+            new CalibrationProfile.CalibrationData(Matrix3x2.Identity, Enabled: true, Fingerprint: "f"));
+        return settings;
     }
 }
