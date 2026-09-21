@@ -39,7 +39,7 @@ public class ExplicitSettingsTests
         var daemon = new FakeDaemonTransport { Settings = Document() };
         daemon.GetSettingsHandler = async () => { await Task.Yield(); return daemon.Settings; };
         var store = new MemorySettingsFileStore { Saved = Document() };
-        var app = new AppSession(FakeSession.Over(daemon, store), new Lifecycle());
+        var app = new AppSession(FakeSession.Over(daemon, store), new FakeLifecycle());
         daemon.Reconnect();
         await PumpUntil(() => app.CurrentSettings is not null);
         return (app, daemon, store);
@@ -157,7 +157,7 @@ public class ExplicitSettingsTests
     public async Task RestartRelaunchesTheConnectedExecutableInsteadOfANewSelection()
     {
         var daemon = new FakeDaemonTransport { Settings = Document() };
-        var lifecycle = new Lifecycle
+        var lifecycle = new FakeLifecycle
         {
             StopAction = () => daemon.RaiseDisconnected(),
             LaunchAction = () => daemon.Reconnect(),
@@ -335,29 +335,5 @@ public class ExplicitSettingsTests
         Assert.False(editing.StillCurrent, "the scope adopted a document another hand had written");
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere,
             (await editing.ApplyProfileAsync(mine.Profiles[0])).Status);
-    }
-
-    private sealed class Lifecycle : IDaemonLifecycleService
-    {
-        public string Expected { get; set; } = "daemon.exe";
-        public string? Launched { get; private set; }
-        public Action? StopAction { get; set; }
-        public Action? LaunchAction { get; set; }
-        public string? ExpectedExePath() => Expected;
-        public bool IsAppManaged(string? path) => true;
-        public bool HasBundledDaemon() => false;
-        public string? FindExe() => "daemon.exe";
-        public bool IsRunning() => true;
-        public string? Launch(string? executablePath = null)
-        { Launched = executablePath; LaunchAction?.Invoke(); return null; }
-        public bool Stop(int processId)
-        {
-            if (StopAction is null) throw new InvalidOperationException("Stop was not approved.");
-            StopAction();
-            return true;
-        }
-        public void StopAll() => throw new InvalidOperationException("Stop was not approved.");
-        public string? PathOf(int processId) => "daemon.exe";
-        public string? SingleRunningDaemonPath() => "daemon.exe";
     }
 }
