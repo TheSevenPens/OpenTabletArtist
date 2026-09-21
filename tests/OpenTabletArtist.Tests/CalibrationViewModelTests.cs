@@ -23,6 +23,9 @@ public class CalibrationViewModelTests
         public Task SetTabletDebugAsync(bool enabled) => Task.CompletedTask;
     }
 
+    /// <summary>A write the driver confirmed, which is what these tests are about.</summary>
+    private static Task<SettingsApplyOutcome> Applied => Task.FromResult(SettingsApplyOutcome.Live);
+
     private static readonly TabletDigitizerSpec Digi = new(100, 100, 1000, 1000);
     private static readonly MappingArea Input = new(50, 50, 100, 100);
     private static readonly MappingArea Output = new(960, 540, 1920, 1080);
@@ -35,8 +38,22 @@ public class CalibrationViewModelTests
         int applies = 0;
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
-            _ => { applies++; return Task.CompletedTask; }, new NoopDebugSession());
+            _ => { applies++; return Applied; }, new NoopDebugSession());
         return (new CalibrationViewModel(ctx), settings, _ => { });
+    }
+
+    /// <summary>A view model whose writes are all refused, as they are once its document is replaced.</summary>
+    private static CalibrationViewModel Refused(out int attempts)
+    {
+        var count = 0;
+        var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
+        var ctx = new CalibrationViewModel.Context(
+            "T", Digi, Input, Output, Display, settings,
+            _ => { count++; return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere); },
+            new NoopDebugSession());
+        var vm = new CalibrationViewModel(ctx);
+        attempts = count;
+        return vm;
     }
 
     // Feed a full hold (HoldSamplesTarget on-target down-samples) whose raw maps exactly onto target
@@ -189,7 +206,7 @@ public class CalibrationViewModelTests
         var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context(
             "T", Digi, Input, Output, Display, settings,
-            _ => Task.CompletedTask, new NoopDebugSession(),
+            _ => Applied, new NoopDebugSession(),
             CalibrationMode.Grid, GridCols: 3, GridRows: 3);
         var vm = new CalibrationViewModel(ctx);
 
@@ -298,7 +315,7 @@ public class CalibrationViewModelTests
         var output = new MappingArea(960, 2700, 1920, 1080);   // center (960, 2160+540)
         var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
-            _ => Task.CompletedTask, new NoopDebugSession());
+            _ => Applied, new NoopDebugSession());
         var vm = new CalibrationViewModel(ctx);
 
         for (int i = 0; i < vm.Targets.Count; i++)
@@ -337,7 +354,7 @@ public class CalibrationViewModelTests
         var output = new MappingArea(2400, 1350, 960, 540);
         var settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } };
         var ctx = new CalibrationViewModel.Context("T", Digi, Input, output, display, settings,
-            _ => Task.CompletedTask, new NoopDebugSession());
+            _ => Applied, new NoopDebugSession());
         var vm = new CalibrationViewModel(ctx);
 
         float originX = output.CenterX - output.Width / 2, originY = output.CenterY - output.Height / 2;
@@ -353,5 +370,39 @@ public class CalibrationViewModelTests
         // Every target captured despite the shift → hit-testing used the Output origin, not raw DisplayInfo.
         Assert.Equal(vm.Targets.Count, vm.CapturedCount);
         Assert.True(vm.IsConfirming);
+    }
+
+    /// <summary>
+    /// A calibration whose write was refused says so, instead of inviting the artist to check it (#923).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The overlay discarded the apply outcome, so a refused write went straight on to "Move the pen
+    /// around {D} does the cursor track the nib? Apply to keep, or Redo." over a driver that had never been
+    /// sent anything. The artist moves the pen, sees the old behaviour, and concludes their taps were
+    /// bad; Redo writes nothing either, for the same reason, and neither does Apply.
+    /// </para>
+    /// <para>
+    /// Losing a calibration because something replaced the settings underneath it is an acceptable
+    /// simplification {D} it is one dialog's work and the artist is right there. Being told it worked is
+    /// not.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void ARefusedWriteIsReportedRatherThanPresentedAsAPreview()
+    {
+        var vm = Refused(out _);
+
+        for (int i = 0; i < vm.Targets.Count; i++) Tap(vm, i);
+
+        Assert.Equal(CalibrationViewModel.Phase.Interrupted, vm.CurrentPhase);
+        Assert.False(vm.IsConfirming, "a refused write was presented as a live preview");
+        Assert.Contains("not applied", vm.Instruction);
+
+        // And nothing is offered that would only fail again.
+        Assert.False(vm.ShowApply);
+        Assert.False(vm.ShowRedo);
+        Assert.False(vm.ShowClear);
+        Assert.False(vm.CanUndoPoint);
     }
 }

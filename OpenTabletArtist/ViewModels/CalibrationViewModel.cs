@@ -52,13 +52,21 @@ public partial class CalibrationViewModel : ObservableObject
         MappingArea Output,
         DisplayInfo Display,
         Settings Settings,
-        Func<Settings, Task> Apply,
+        Func<Settings, Task<SettingsApplyOutcome>> Apply,
         IDaemonDebugSession Daemon,
         CalibrationMode Mode = CalibrationMode.Corners,
         int GridCols = 3,
         int GridRows = 3);
 
-    public enum Phase { Capturing, Confirming, Failed }
+    /// <summary>
+    /// <c>Interrupted</c> is a write this overlay was refused (#923).
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <c>Failed</c>, which is taps that would not solve and is answered by taking them
+    /// again. Here the document this overlay has been editing is no longer the one in play — something
+    /// else replaced it — so nothing it writes will land, and Redo would only fail the same way.
+    /// </remarks>
+    public enum Phase { Capturing, Confirming, Failed, Interrupted }
 
     // Target positions normalized to the display (0..1). Corners = 4 inset corners (TL, TR, BR, BL);
     // Grid = a cols×rows lattice, row-major.
@@ -121,10 +129,14 @@ public partial class CalibrationViewModel : ObservableObject
     public bool IsCapturing => CurrentPhase == Phase.Capturing;
     public bool IsConfirming => CurrentPhase == Phase.Confirming;
     public bool IsFailed => CurrentPhase == Phase.Failed;
+    /// <summary>A write was refused, so this overlay can do nothing further but close (#923).</summary>
+    public bool IsInterrupted => CurrentPhase == Phase.Interrupted;
     public bool ShowApply => IsConfirming;
     public bool ShowRedo => IsConfirming || IsFailed;
+    /// <summary>Clearing is a write too, so it goes with the rest when they cannot land (#923).</summary>
+    public bool ShowClear => !IsInterrupted;
     /// <summary>Undo removes just the last recorded point (#458) — available once at least one is captured.</summary>
-    public bool CanUndoPoint => _measuredRaw.Count > 0;
+    public bool CanUndoPoint => _measuredRaw.Count > 0 && !IsInterrupted;
 
     /// <summary>Normalized target positions for the view to draw (in capture order).</summary>
     public IReadOnlyList<(double X, double Y)> Targets => _targets;
@@ -144,19 +156,42 @@ public partial class CalibrationViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCapturing));
         OnPropertyChanged(nameof(IsConfirming));
         OnPropertyChanged(nameof(IsFailed));
+        OnPropertyChanged(nameof(IsInterrupted));
         OnPropertyChanged(nameof(ShowApply));
         OnPropertyChanged(nameof(ShowRedo));
+        OnPropertyChanged(nameof(ShowClear));
+        OnPropertyChanged(nameof(CanUndoPoint));
         OnPropertyChanged(nameof(ProgressText));
     }
 
     partial void OnCurrentTargetChanged(int value) => OnPropertyChanged(nameof(ProgressText));
+
+    /// <summary>
+    /// Writes the overlay's settings, and says whether they landed (#923).
+    /// </summary>
+    /// <remarks>
+    /// The outcome used to be discarded, so a refused write went on to say "Move the pen around {D} does
+    /// the cursor track the nib?" over a driver that had never been sent anything. Losing a calibration
+    /// because the document was replaced underneath is an acceptable simplification; being told it
+    /// worked is not.
+    /// </remarks>
+    private async Task<bool> WriteAsync()
+    {
+        var outcome = await _ctx.Apply(_ctx.Settings);
+        if (outcome.IsLive) return true;
+
+        CurrentPhase = Phase.Interrupted;
+        Instruction = "Something else changed these settings while calibration was open, so this "
+            + "calibration was not applied. Close this and start it again.";
+        return false;
+    }
 
     // --- Lifecycle ---
 
     /// <summary>Disable any existing calibration (so capture is uncorrected) and start the pen stream.</summary>
     public async Task StartAsync()
     {
-        await BypassCalibrationAsync();
+        if (!await BypassCalibrationAsync()) return;
         await _input.StartAsync();
     }
 
@@ -169,15 +204,16 @@ public partial class CalibrationViewModel : ObservableObject
     /// <summary>Disable whatever calibration is <em>currently</em> active so taps are captured
     /// uncorrected — covers both the calibration that existed at open and a preview applied before a
     /// Redo (otherwise recapture would be corrected by the matrix we're replacing). (Cursor review)</summary>
-    private async Task BypassCalibrationAsync()
+    private async Task<bool> BypassCalibrationAsync()
     {
         var current = CalibrationProfile.ReadProfile(_ctx.Settings.Profiles.FirstOrDefault(p => p.Tablet == _ctx.TabletName));
         if (current is { Enabled: true })
         {
             // Re-write the current calibration disabled, preserving its model + payload.
             CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, current with { Enabled = false });
-            await _ctx.Apply(_ctx.Settings);
+            return await WriteAsync();
         }
+        return true;
     }
 
     // The mapped display's origin (top-left) in OTD virtual-desktop space — the SAME space
@@ -288,7 +324,7 @@ public partial class CalibrationViewModel : ObservableObject
 
         // Apply for the live preview ("move the pen around"). Apply == persist in this app; Cancel restores.
         CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, data);
-        await _ctx.Apply(_ctx.Settings);
+        if (!await WriteAsync()) return;
 
         CurrentPhase = Phase.Confirming;
         Instruction = "Move the pen around — does the cursor track the nib? Apply to keep, or Redo.";
@@ -362,8 +398,9 @@ public partial class CalibrationViewModel : ObservableObject
         OnPropertyChanged(nameof(CapturedCount));
         OnPropertyChanged(nameof(CanUndoPoint));
 
-        if (wasPreviewing)
-            await BypassCalibrationAsync(); // we'd applied a preview; clear it so recapture is uncorrected
+        // We'd applied a preview; clear it so recapture is uncorrected. If that write is refused there
+        // is nothing to recapture into, and WriteAsync has already said so.
+        if (wasPreviewing && !await BypassCalibrationAsync()) return;
         CurrentPhase = Phase.Capturing;
         UpdateInstruction();
     }
@@ -372,7 +409,7 @@ public partial class CalibrationViewModel : ObservableObject
     private async Task Clear()
     {
         CalibrationProfile.Clear(_ctx.Settings, _ctx.TabletName);
-        await _ctx.Apply(_ctx.Settings);
+        if (!await WriteAsync()) return;
         CloseRequested?.Invoke();
     }
 
@@ -384,6 +421,10 @@ public partial class CalibrationViewModel : ObservableObject
             CalibrationProfile.Clear(_ctx.Settings, _ctx.TabletName);
         else
             CalibrationProfile.Write(_ctx.Settings, _ctx.TabletName, _original);
+
+        // Closes whatever the answer is. A refused restore is the right outcome here rather than a
+        // problem to report: it means something else owns these settings now, and putting the captured
+        // ones back is exactly what must not happen.
         await _ctx.Apply(_ctx.Settings);
         CloseRequested?.Invoke();
     }
