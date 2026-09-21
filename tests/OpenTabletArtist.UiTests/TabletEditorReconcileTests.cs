@@ -965,7 +965,11 @@ public class TabletEditorReconcileTests
         await Settle();
 
         // Not the button: just carrying on editing.
-        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        // A plain profile setting, not Windows Ink: OnDisableWindowsInkChanged returns early off
+        // Windows, so an edit made through it submits nothing there and this would pass by doing
+        // nothing at all. Windows is the supported platform, but a test that only tests on one of
+        // the three legs CI runs is not saying so — it is just quiet.
+        vm.DisablePressure = false;
         await Settle();
 
         Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
@@ -1127,7 +1131,7 @@ public class TabletEditorReconcileTests
         // And the editor works again: an ordinary edit submits.
         answer = SettingsApplyOutcome.Saved;
         var before = submissions;
-        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        vm.DisableTilt = false;
         await Settle();
 
         Assert.True(submissions > before, "the editor was left unable to submit anything");
@@ -1181,7 +1185,7 @@ public class TabletEditorReconcileTests
         // A reload learns what is actually there, and the artist carries on editing.
         await session.ReloadAsync();
         await Settle();
-        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        vm.DisablePressure = false;
         await Settle();
 
         Assert.Equal(42, daemon.Settings!.Profiles[0].BindingSettings.TipActivationThreshold);
@@ -1300,8 +1304,10 @@ public class TabletEditorReconcileTests
         first.ReloadExternalChangeCommand.Execute(null);
         await Settle();
 
-        // The second artist, who has decided nothing, carries on editing.
-        second.DisableWindowsInk = !second.DisableWindowsInk;
+        // The second artist, who has decided nothing, carries on editing. Its own tablet's tilt, which
+        // is a plain profile setting and so submits on every platform — and is a different profile from
+        // the one the external edit touched, so it cannot mask the assertion below.
+        second.DisableTilt = !second.DisableTilt;
         await Settle();
 
         Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
@@ -1343,7 +1349,7 @@ public class TabletEditorReconcileTests
         var afterTheirWrite = Clone(daemon.Settings!);
 
         // The second artist, who decided nothing, carries on editing.
-        second.DisableWindowsInk = !second.DisableWindowsInk;
+        second.DisableTilt = !second.DisableTilt;
         await Settle();
 
         Assert.Equal(
