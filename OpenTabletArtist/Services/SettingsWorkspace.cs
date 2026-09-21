@@ -37,6 +37,18 @@ public sealed class SettingsWorkspace
     public bool HasUnsavedChanges => _session.HasUnsavedChanges || !_pending.IsCompleted || _failed;
     public bool HasPendingApply => !_pending.IsCompleted;
 
+    /// <summary>
+    /// Bumped whenever the document is <b>replaced</b> rather than edited (#922).
+    /// </summary>
+    /// <remarks>
+    /// A dialog that captures the whole settings and submits a profile from them minutes later has no
+    /// way to notice that the ground moved underneath it — an adopted outside change, a Reload, a
+    /// restore. Its submission then passes the pre-apply comparison, because the baseline it is weighed
+    /// against is the new one, and quietly puts the old values back. Something that holds a document
+    /// across time can compare this instead.
+    /// </remarks>
+    public int Generation { get; private set; }
+
     public Task<SettingsApplyOutcome> ApplyAsync(Settings requested)
     {
         if (IsPaused || _saving) return Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
@@ -168,6 +180,7 @@ public sealed class SettingsWorkspace
             _draft = adopted.Settings;
             _failed = false;
             _awaitingDecision = false;
+            Generation++;
         }
         return outcome;
     }
@@ -189,6 +202,7 @@ public sealed class SettingsWorkspace
             ++_edit;
             _draft = outcome.Prepared?.Settings ?? _session.GetCurrent()?.Settings;
             _failed = false;
+            Generation++;
             return SettingsRestoreOutcome.Restored;
         }
         finally { _saving = false; }

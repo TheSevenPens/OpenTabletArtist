@@ -155,9 +155,15 @@ public class DialogService : IDialogService
             return;
         }
 
+        // Calibration captures the whole settings here and submits a profile from them when the artist
+        // finishes — minutes later, in the slow case. Two things follow (#922): nothing may adopt an
+        // outside change while it is open, and if the document is replaced anyway, this submission must
+        // be refused rather than quietly putting the captured values back. Both come from the scope.
+        using var editing = _session.ReserveEditing();
+
         var ctx = new ViewModels.CalibrationViewModel.Context(
             tabletName, digi.Value, input, output, display, settings,
-            s => _session.ApplyProfileAsync(s.Profiles.First(p => p.Tablet == tabletName)), _session.Daemon,
+            s => editing.ApplyProfileAsync(s.Profiles.First(p => p.Tablet == tabletName)), _session.Daemon,
             options.Mode, options.Cols, options.Rows);
 
         var window = new Views.CalibrationOverlayWindow(new ViewModels.CalibrationViewModel(ctx), display);

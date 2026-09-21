@@ -299,6 +299,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public event Action? SettingsReplaced;
 
     /// <summary>
+    /// A hold on the settings for something that edits them across time (#922). Dispose to release.
+    /// </summary>
+    public interface ISettingsEditingScope : IDisposable
+    {
+        /// <summary>Whether the document this scope opened over is still the one in play.</summary>
+        bool StillCurrent { get; }
+
+        /// <summary>Submits a profile, refusing once the document has been replaced underneath.</summary>
+        Task<SettingsApplyOutcome> ApplyProfileAsync(OpenTabletDriver.Desktop.Profiles.Profile profile);
+    }
+
+    /// <summary>
     /// Whether the host has editor input that has not been submitted yet (#920).
     /// </summary>
     /// <remarks>
@@ -309,7 +321,58 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// </remarks>
     public Func<bool>? HasPendingEditorInput { get; set; }
 
-    private bool EditingIsIdle() => HasPendingEditorInput is { } pending && !pending();
+    private int _editingReservations;
+
+    private bool EditingIsIdle() =>
+        _editingReservations == 0 && HasPendingEditorInput is { } pending && !pending();
+
+    /// <summary>
+    /// Holds the settings open for something that edits them across time, and refuses its writes once
+    /// the document has been replaced under it (#922).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a dialog that captures the whole settings when it opens and submits a profile from them
+    /// later — calibration is the one that does this. Two things it needs and a plain apply does not:
+    /// nothing may adopt an outside change while it is open, and if something replaces the document
+    /// anyway, its submission must be refused rather than quietly putting the captured values back.
+    /// </para>
+    /// <para>
+    /// Refusing loses the dialog's work, which is the lesser harm: it is one dialog's worth, and the
+    /// artist is present and can repeat it. Applying it silently reverts settings they may have changed
+    /// deliberately in between, with nothing to indicate it happened.
+    /// </para>
+    /// </remarks>
+    public ISettingsEditingScope ReserveEditing()
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        _editingReservations++;
+        return new EditingScope(this, _workspace, _workspace?.Generation ?? 0);
+    }
+
+    private sealed class EditingScope(AppSession session, SettingsWorkspace? workspace, int generation)
+        : ISettingsEditingScope
+    {
+        private bool _closed;
+
+        public bool StillCurrent =>
+            workspace is not null
+            && ReferenceEquals(workspace, session._workspace)
+            && workspace.Generation == generation;
+
+        public Task<SettingsApplyOutcome> ApplyProfileAsync(
+            OpenTabletDriver.Desktop.Profiles.Profile profile) =>
+            StillCurrent
+                ? session.ApplyProfileAsync(profile)
+                : Task.FromResult(SettingsApplyOutcome.ChangedElsewhere);
+
+        public void Dispose()
+        {
+            if (_closed) return;
+            _closed = true;
+            session._editingReservations--;
+        }
+    }
 
     /// <summary>
     /// Says the page now shows something the driver changed by itself (#920).

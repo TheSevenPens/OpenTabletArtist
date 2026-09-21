@@ -171,6 +171,65 @@ public class ExplicitSettingsTests
         Assert.True(app.IsConnected);
     }
 
+    /// <summary>
+    /// A dialog holding the settings open stops a background refresh adopting under it (#922).
+    /// </summary>
+    /// <remarks>
+    /// Calibration captures the whole document when it opens and submits a profile from it when the
+    /// artist finishes. It contributes nothing to the editor-input predicate, because it is not an
+    /// editor — so an outside change arriving while it was open was adopted, and its eventual submit
+    /// put the captured values back over the top, reverting settings nobody had touched in calibration.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhileADialogHoldsTheSettings_ABackgroundRefreshDoesNotAdopt()
+    {
+        var (app, daemon, _) = await Open();
+        using var lifetime = app;
+        app.HasPendingEditorInput = () => false;   // no half-moved slider anywhere
+
+        using var editing = app.ReserveEditing();
+        Assert.True(editing.StillCurrent);
+
+        daemon.Settings = Document(true);
+        await app.ReloadAsync();
+
+        Assert.True(app.SettingsPaused,
+            "a refresh adopted while a dialog was holding the settings open");
+        Assert.False(app.CurrentSettings!.Profiles[0].BindingSettings.DisablePressure);
+    }
+
+    /// <summary>
+    /// And a dialog whose document was replaced anyway cannot submit what it captured (#922).
+    /// </summary>
+    /// <remarks>
+    /// The hold stops automatic adoption, not an explicit Reload or a reconnect. Refusing loses that
+    /// dialog's work, which is the lesser harm: it is one dialog's worth and the artist is present to
+    /// repeat it. Applying it silently reverts whatever they changed in between, with nothing to say it
+    /// happened.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ADialogWhoseDocumentWasReplaced_CannotSubmitWhatItCaptured()
+    {
+        var (app, daemon, store) = await Open();
+        using var lifetime = app;
+
+        using var editing = app.ReserveEditing();
+        var captured = app.CurrentSettings!;
+
+        // The artist reloads explicitly while the dialog is still open.
+        daemon.Settings = Document(true);
+        await app.ReloadSettingsAsync();
+        Assert.False(editing.StillCurrent, "the document was replaced under this scope");
+
+        var outcome = await editing.ApplyProfileAsync(captured.Profiles[0]);
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, outcome.Status);
+        Assert.Empty(daemon.Applied);
+        Assert.Equal(0, store.Attempts);
+        Assert.True(app.CurrentSettings!.Profiles[0].BindingSettings.DisablePressure,
+            "the dialog's captured values were written back over the reloaded document");
+    }
+
     private sealed class Lifecycle : IDaemonLifecycleService
     {
         public string Expected { get; set; } = "daemon.exe";
