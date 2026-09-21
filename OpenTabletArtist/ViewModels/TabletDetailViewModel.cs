@@ -1053,6 +1053,34 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// The connected daemon has been replaced, so anything held here belonged to the previous one (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Editors are cached by tablet name, not by daemon, so a replacement exposing the same name reuses
+    /// this one. A draft held because <em>daemon A</em> disagreed is not a candidate for <em>daemon B</em>:
+    /// nobody has compared it against what B holds, and keeping the hold would make B''s editor refuse to
+    /// show B''s own settings on the strength of a disagreement with somebody else.
+    /// </para>
+    /// <para>
+    /// The draft is given up rather than carried across, which is the same answer #787 gives for an
+    /// unsaved change when the daemon changes underneath it, and for the same reason: writing it here
+    /// would overwrite settings it was never compared with.
+    /// </para>
+    /// <para>
+    /// This is data ownership and not presentation, which is why it is here rather than waiting on the
+    /// resolution UI in #906.
+    /// </para>
+    /// </remarks>
+    public void DaemonReplaced()
+    {
+        if (!_heldChange) return;
+
+        _heldChange = false;
+        ClearExternalChange();
+    }
+
     /// <summary>Adopt the externally-changed settings the banner is holding (the banner's Reload action).</summary>
     [RelayCommand]
     private void ReloadExternalChange()
@@ -1163,6 +1191,13 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// </remarks>
     private bool TakeOutcome(SettingsApplyOutcome outcome, int draft)
     {
+        // A stale result decides nothing, and that includes whether a change is being held (#905). The
+        // guard used to sit inside TryAdoptApplied, which runs after the mutation, so an older curve
+        // success released a newer pressure edit that was being kept safe and the next reload took it.
+        // It belongs in front of everything the result is allowed to touch, not only in front of what it
+        // puts on screen.
+        if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
+
         if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
             _heldChange = true;
         else if (outcome.ChangedTheDaemon || outcome.Status is SettingsApplyStatus.NoChange)

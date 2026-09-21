@@ -313,6 +313,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Then reconcile any open tablet page with the freshly-loaded settings so an external edit
         // (e.g. via the OTD UX) is picked up. Subscribed after RebuildTablets so it runs on survivors.
         _session.DataLoaded += ReconcileOpenTabletDetails;
+
+        // A different OpenTabletDriver answering means every open editor is looking at another machine's
+        // settings. Editors are cached by tablet name, so one survives a replacement that happens to
+        // expose the same name -- and a change it was holding belonged to the daemon that has gone
+        // (#905).
+        _session.PropertyChanged += OnSessionDaemonChanged;
         RebuildTablets();
 
         CurrentPage = Dashboard;
@@ -528,6 +534,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded
     /// settings so a change made outside OTA (e.g. in the OTD UX) is picked up rather than showing stale
     /// values. Runs after <see cref="RebuildTablets"/>, which has already dropped VMs for gone tablets.</summary>
+    /// <summary>
+    /// Tells every cached editor when the connected daemon is replaced, so none of them carries a held
+    /// change across to a daemon it was never compared with (#905).
+    /// </summary>
+    /// <remarks>
+    /// The source path is the identity worth watching here: it moves when a different OpenTabletDriver
+    /// answers, which is precisely the boundary a held draft must not cross. An ordinary reload does not
+    /// change it, so this does not fire on every poll.
+    /// </remarks>
+    private void OnSessionDaemonChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AppSession.DaemonSourcePath)) return;
+
+        foreach (var vm in _tabletDetails.Values) vm.DaemonReplaced();
+    }
+
     private void ReconcileOpenTabletDetails()
     {
         var settings = _session.CurrentSettings;
@@ -603,6 +625,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _session.DataLoaded -= RebuildTablets;
         _session.DataLoaded -= ReconcileOpenTabletDetails;
+        _session.PropertyChanged -= OnSessionDaemonChanged;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
         Daemon.Dispose();         // stops the connection card's uptime timer + unsubscribes

@@ -240,6 +240,97 @@ public class TabletEditorReconcileTests
         vm.Dispose();
     }
 
+    /// <summary>
+    /// A result about an older draft cannot release a newer held change (#905).
+    /// </summary>
+    /// <remarks>
+    /// The staleness guard sat inside the adoption step, which runs after the held-state decision. So a
+    /// curve apply that succeeded — about an edit the artist had already moved on from — announced
+    /// "nothing is held any more" about a pressure edit it knew nothing about, and the next reload took
+    /// it. The guard now runs in front of everything the result is allowed to touch.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AnOlderApplySucceeding_DoesNotReleaseANewerHeldChange()
+    {
+        var settings = SettingsWithForeignFilter();
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var slowCurve = true;
+
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: async draft =>
+            {
+                if (slowCurve)
+                {
+                    // The curve apply is still out there when the next edit is made.
+                    await release.Task;
+                    var revision = Clone(draft);
+                    return new SettingsApplyOutcome(
+                        SettingsApplyStatus.AppliedAndSaved, null,
+                        new PreparedSettings(revision, new SettingsStamp(1, 1)));
+                }
+
+                return SettingsApplyOutcome.ChangedElsewhere;
+            });
+
+        vm.PressureSmoothing = 0.42;                 // starts the slow curve apply
+        await Pump(TimeSpan.FromMilliseconds(600));  // past the curve debounce, still held open
+
+        slowCurve = false;
+        vm.DisablePressure = true;                   // a newer edit, which the daemon holds
+        await Settle();
+
+        release.SetResult(true);                     // the older curve result finally lands
+        await Settle();
+
+        var fresh = SettingsWithForeignFilter();
+        fresh.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+
+        Assert.True(vm.DisablePressure, "an older result gave away an edit it knew nothing about");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// A change held against one daemon is not carried to the one that replaces it (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Editors are cached by tablet name rather than by daemon, so a replacement exposing the same name
+    /// reuses this one. A draft held because daemon A disagreed has never been compared with daemon B,
+    /// and keeping the hold would make B's editor refuse to show B's own settings on the strength of a
+    /// disagreement with somebody else.
+    /// </para>
+    /// <para>
+    /// The draft is given up, which is the answer #787 already gives for an unsaved change when the
+    /// daemon changes underneath it. Losing an edit is bad; writing it over settings it was never
+    /// compared with is worse.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AChangeHeldAgainstOneDaemon_IsNotHeldAgainstItsReplacement()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        // A different OpenTabletDriver answers, exposing a tablet of the same name.
+        vm.DaemonReplaced();
+
+        var theirs = SettingsWithForeignFilter();
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(theirs, theirs.Profiles[0]);
+
+        Assert.True(vm.DisableTilt, "the new daemon's settings should be showing");
+        Assert.False(vm.DisablePressure, "a draft from the previous daemon was carried across");
+        Assert.False(vm.HasExternalChange, "and its banner went with it");
+
+        vm.Dispose();
+    }
+
     private static Settings SettingsWithForeignFilter(string tablet = "T")
     {
         var profile = new Profile { Tablet = tablet };
