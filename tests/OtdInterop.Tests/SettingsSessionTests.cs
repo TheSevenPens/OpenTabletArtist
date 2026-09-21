@@ -25,6 +25,141 @@ public class SettingsSessionTests
         }
     };
 
+    /// <summary>
+    /// Closing while a write is out does not wait for it, and nothing is saved behind it (#919).
+    /// </summary>
+    /// <remarks>
+    /// The existing close test holds the <em>preflight read</em>, which is the easy half: nothing has
+    /// been sent, so refusing is free. This holds the write itself, with a Save queued behind it — the
+    /// shape where a close could plausibly wait forever, or let the queued Save run against a session
+    /// that is going away.
+    /// </remarks>
+    [Fact]
+    public async Task ClosingDuringAWriteIsBoundedAndTheQueuedSaveNeverRuns()
+    {
+        var (session, daemon, store) = await Open(TimeSpan.FromMilliseconds(50));
+        var inFlight = new TaskCompletionSource<bool>();
+        daemon.SetSettingsHandler = _ => inFlight.Task;
+
+        var apply = session.ApplyAsync(Document(120));
+        var queued = session.SaveAsync();
+
+        Assert.True(await session.CloseAsync(TimeSpan.FromSeconds(2)), "close should not wait on the daemon");
+        Assert.False((await apply).IsLive);
+        Assert.Equal(SettingsSaveStatus.Disconnected, (await queued).Status);
+        Assert.Equal(0, store.Attempts);
+
+        // The write lands afterwards, as it is entitled to. It must change nothing here.
+        inFlight.SetResult(true);
+        Assert.Equal(0, store.Attempts);
+        Assert.Equal(SettingsReloadStatus.Disconnected, (await session.ReloadAsync()).Status);
+    }
+
+    /// <summary>
+    /// A close whose budget expires against genuinely stuck work says so rather than claiming success.
+    /// </summary>
+    /// <remarks>
+    /// <c>QuitSequence</c> bounds its own stop step, but it relies on this answer being truthful about
+    /// whether local work actually settled. A close that returned true regardless would make that
+    /// bounding meaningless.
+    /// </remarks>
+    [Fact]
+    public async Task ACloseBudgetThatExpires_ReportsThatWorkDidNotSettle()
+    {
+        var (session, _, store) = await Open();
+        using var blocked = new ManualResetEventSlim(false);
+        store.BlockInsideSave = blocked;
+
+        // Started off the test's own synchronization context. The block happens inside a synchronous file
+        // write, and xUnit runs continuations on a context with limited concurrency — so blocking there
+        // directly stops this test's awaits from ever resuming, which is a deadlock in the test rather
+        // than a finding about the code.
+        var save = Task.Run(() => session.SaveAsync());
+        await WaitFor(() => store.Attempts > 0, "the save to reach the file");
+
+        Assert.False(await session.CloseAsync(TimeSpan.FromMilliseconds(200)),
+            "a close that could not settle its own work must not report success");
+
+        blocked.Set();
+        await save;
+    }
+
+    private static async Task WaitFor(Func<bool> until, string what)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!until())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"Timed out waiting for {what}.");
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// A write finishing after its connection was replaced cannot reach the replacement (#919).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The uncertain-write test covers a late completion against the session that issued it. This is the
+    /// other direction: the reconnect has happened, a new session owns the connection, and the old
+    /// session must not be able to act on the completion.
+    /// </para>
+    /// <para>
+    /// What the replacement sees is the more interesting half, and it is not "nothing". The late write
+    /// <em>does</em> reach the daemon — <c>SetSettings</c> takes no cancellation token, so a fresh pipe
+    /// is not a barrier against work already accepted. The daemon really is holding different settings
+    /// afterwards, and the replacement treats that as what it is: an outside change, which pauses it
+    /// rather than being quietly overwritten. That is the protection doing its job, not an accident.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AWriteCompletingAfterAReconnect_CannotWriteToTheReplacementSession()
+    {
+        var daemon = new FakeDaemonTransport { Settings = Document() };
+        daemon.Reconnect();
+        var store = new MemorySettingsFileStore { Saved = Document() };
+
+        var old = new SettingsCoordinator(daemon, store, "settings.json", TimeSpan.FromMilliseconds(50));
+        Assert.Equal(SettingsReloadStatus.Adopted, (await old.ReloadAsync()).Status);
+
+        var inFlight = new TaskCompletionSource<bool>();
+        daemon.SetSettingsHandler = _ => inFlight.Task;
+        var orphaned = old.ApplyAsync(Document(180));
+        Assert.False((await orphaned).IsLive, "the write never returned, so it cannot be live");
+
+        // The connection is replaced and a fresh session takes over, as OtdSession does on reconnect.
+        daemon.SetSettingsHandler = null;
+        daemon.Reconnect();
+        var replacement = new SettingsCoordinator(daemon, store, "settings.json");
+        Assert.Equal(SettingsReloadStatus.Adopted, (await replacement.ReloadAsync()).Status);
+
+        // The old write finally completes. It belongs to a connection that is gone — but it still lands
+        // in the daemon, because nothing on this side can stop work the daemon already accepted.
+        inFlight.SetResult(true);
+        // The daemon records the attempt before awaiting, and only stores the settings once the write
+        // completes — so waiting on Applied would wait for something that already happened.
+        await WaitFor(() => SettingsCodec.Same(daemon.Settings!, Document(180)),
+                      "the orphaned write to land in the daemon");
+
+        // The old session can do nothing with that, which is the guarantee it owes.
+        var before = store.Attempts;
+        Assert.Equal(SettingsReloadStatus.Disconnected, (await old.ReloadAsync()).Status);
+        Assert.Equal(SettingsSaveStatus.Disconnected, (await old.SaveAsync()).Status);
+        Assert.Equal(before, store.Attempts);
+
+        // And the replacement pauses on it rather than writing over it: from where it stands, this is an
+        // outside change like any other, and it is right about that.
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere,
+            (await replacement.ApplyAsync(Document(140))).Status);
+        Assert.True(replacement.IsPaused);
+
+        // Reload is the way out, as everywhere else.
+        Assert.Equal(SettingsReloadStatus.Adopted, (await replacement.ReloadAsync()).Status);
+        Assert.True((await replacement.ApplyAsync(Document(140))).IsLive);
+
+        replacement.Dispose();
+        old.Dispose();
+    }
+
     private static async Task<(SettingsCoordinator Session, FakeDaemonTransport Daemon, MemorySettingsFileStore Store)>
         Open(TimeSpan? timeout = null)
     {
