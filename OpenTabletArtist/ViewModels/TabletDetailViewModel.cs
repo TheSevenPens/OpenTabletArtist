@@ -1111,7 +1111,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var freshFp = ProfileFingerprint.Compute(freshProfile);
         var ownFp = ProfileFingerprint.Compute(_profile);
         if (freshFp.Length == 0 || ownFp.Length == 0) return; // can't compare → don't risk a false positive
-        if (freshFp == ownFp) { ClearExternalChange(); return; } // in sync (covers our own applies)
+        // In sync (covers our own applies) — unless a decision is owed, in which case agreeing with the
+        // settings on offer is not the same as having accepted them. Clearing here left an editor whose
+        // draft happened to match the daemon silently blocked: the banner went, the block stayed, and
+        // every edit after it did nothing with nothing on screen to say why. A draft that agrees is the
+        // easiest possible decision, not the absence of one.
+        if (freshFp == ownFp && !_needsFreshDecision) { ClearExternalChange(); return; }
 
         if (HasUnsavedEdit)
         {
@@ -1119,9 +1124,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             _pendingExternalProfile = freshProfile;
             _pendingExternalStamp = stamp;
             OnPropertyChanged(nameof(CanReloadExternalChange));
-            ExternalChangeText =
-                "These settings were changed outside OpenTabletArtist (for example in the OpenTabletDriver " +
-                "UX). Reload to use the current values — your unsaved change here will be discarded.";
+
+            // Which banner, because the two say different things. A replaced connection is not somebody
+            // having edited the settings, and telling the artist it was would invent a culprit.
+            if (_needsFreshDecision) SayTheConnectionChangedUnderTheChange();
+            else
+                ExternalChangeText =
+                    "These settings were changed outside OpenTabletArtist (for example in the "
+                    + "OpenTabletDriver UX). Reload to use the current values — your unsaved change here "
+                    + "will be discarded.";
         }
         else
         {

@@ -726,6 +726,85 @@ public class SettingsCoordinatorConcurrencyTests
     }
 
     /// <summary>
+    /// Ending an override returns the settings it read with the stamp <em>they</em> were published
+    /// under (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The separated read again, wearing the new type. This operation reads the published settings, sends
+    /// them, and then built its result by reading the stamp a second time — so a reload landing while the
+    /// send was out published something else, and the result described settings that had never been
+    /// published under the stamp it carried. A caller accepting that stamp agrees to a snapshot nobody
+    /// ever had, which is the whole of what the stamp is checked for.
+    /// </para>
+    /// <para>
+    /// No race and nothing fabricated: the send is simply held open, which is a thing a daemon does.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task EndingAnOverride_ReturnsTheStampTheSettingsItReadWerePublishedUnder()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var whenItRead = coordinator.GetCurrent()!;
+        Assert.Equal("A", Tablet(whenItRead.Settings));
+
+        var hold = HoldNextSetSettings(daemon);
+        var clearing = coordinator.ClearEphemeralOverrideAsync();
+
+        // A reload publishes something else while the send is still out. Clearing without a recorded
+        // override is supported, so nothing here is out of bounds.
+        daemon.Settings = SettingsFor("B", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+        Assert.NotEqual(whenItRead.Stamp, coordinator.GetCurrent()!.Stamp);
+
+        hold.SetResult(true);
+        var outcome = await clearing;
+
+        Assert.NotNull(outcome.Prepared);
+        Assert.Equal("A", Tablet(outcome.Prepared!.Settings));
+        Assert.Equal(whenItRead.Stamp, outcome.Prepared.Stamp);
+    }
+
+    /// <summary>
+    /// A reset that loses its exchange republishes the winner's settings, not the ones it had read
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The reset changes identity and must not change what is published. Written as
+    /// <c>Publish(Published.Settings)</c> it read the settings once, before the exchange loop: a
+    /// publication winning in between was then overwritten by the older settings this had already picked
+    /// up, under a version high enough to look like the newer one. Unique, increasing stamps do not make
+    /// that safe — they make it harder to see, which is why the stamp-uniqueness test passes either way.
+    /// </para>
+    /// <para>
+    /// The interleaving is placed rather than raced. The hook runs between reading the publication to
+    /// replace and exchanging it, which is a window a few instructions wide; a test that waited for it to
+    /// happen by itself would be a test that usually proved nothing.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AResetThatLosesItsExchange_KeepsTheSettingsThatWon()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // Exactly once, between the reset reading what it means to replace and exchanging it.
+        coordinator.BeforePublishExchange = () =>
+        {
+            coordinator.BeforePublishExchange = null;
+            coordinator.PublishForTest(SettingsFor("B won the race", locked: false));
+        };
+
+        daemon.ReconnectSilently();
+        coordinator.ResetForNewDaemon(daemon.Incarnation);
+
+        Assert.Equal("B won the race", Tablet(coordinator.GetCurrent()!.Settings));
+    }
+
+    /// <summary>
     /// Two publications never share a stamp, even when they are not serialized against each other
     /// (#910).
     /// </summary>

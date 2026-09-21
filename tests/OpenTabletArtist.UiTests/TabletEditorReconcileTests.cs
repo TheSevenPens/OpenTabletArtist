@@ -1155,6 +1155,79 @@ public class TabletEditorReconcileTests
     }
 
     /// <summary>
+    /// A reload that fails after the reconnect keeps the block, and a later one that succeeds lifts it
+    /// (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Refusing to write is the safe half, and I expected the other half to be worse than it is: I wrote
+    /// this test asserting the artist would have a banner and nothing to press, and it failed. Reload is
+    /// still offered, because the session goes on publishing the snapshot it last read successfully, and
+    /// taking that is a coherent decision — it carries the stamp the session will check the acceptance
+    /// against.
+    /// </para>
+    /// <para>
+    /// What the failed read costs is therefore not the way out but its currency: the settings on offer
+    /// are from before the reconnect. So this pins the part that matters — nothing is written while the
+    /// artist has not decided, and a read that lands afterwards puts the current settings in front of
+    /// them and lets them work again.
+    /// </para>
+    /// <para>
+    /// An affordance that retries the <em>read</em> rather than the held draft would say all of this out
+    /// loud. That is UX, tracked separately.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhenTheReloadAfterAReconnectFails_TheBlockHoldsUntilOneSucceeds()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.HasExternalChange);
+
+        // The connection is replaced and reads stop working, so no reload can offer anything.
+        daemon.Reconnect();
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+        await session.ReloadAsync();
+        await Settle();
+
+        vm.DisablePressure = false;
+        await Settle();
+
+        var writesWhileBlocked = daemon.Applied.Count;
+        vm.DisableTilt = true;
+        await Settle();
+
+        Assert.Equal(writesWhileBlocked, daemon.Applied.Count);
+        Assert.True(vm.HasExternalChange, "the artist is still owed a decision");
+        Assert.Contains("connection to OpenTabletDriver was replaced", vm.ExternalChangeText);
+
+        // A later read succeeds — the focus reload, or the poll — and what is offered becomes current.
+        daemon.GetSettingsHandler = null;
+        await session.ReloadAsync();
+        await Settle();
+
+        Assert.True(vm.CanReloadExternalChange, "a successful read should have offered the way out");
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.False(vm.HasExternalChange, "taking the current settings should have resolved it");
+
+        vm.DisablePressure = true;
+        await PumpUntil(() => Pressure(daemon.Settings!), "the redone edit to reach the daemon");
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the redone edit undid what the artist had just accepted");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
     /// And the artist is not stuck: taking the current settings resolves it and editing works again
     /// (#906).
     /// </summary>

@@ -327,20 +327,55 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </remarks>
     internal SettingsStamp PublishForTest(Settings? settings) => Publish(settings);
 
-    private SettingsStamp Publish(Settings? settings)
+    private SettingsStamp Publish(Settings? settings) => Exchange(_ => settings);
+
+    /// <summary>
+    /// Publishes what is already published, under a new stamp — for a change of identity rather than of
+    /// settings (#910).
+    /// </summary>
+    /// <remarks>
+    /// Its own operation because the settings must be taken from the publication the exchange is racing
+    /// against, and taken again on every retry. Written as <c>Publish(Published.Settings)</c> it read the
+    /// settings once, before the loop: a publication winning in between would then be overwritten by the
+    /// older settings this had already picked up, under a version high enough to look like the newer
+    /// one. Unique, increasing stamps do not make that safe — they make it harder to see.
+    /// </remarks>
+    private SettingsStamp Republish() => Exchange(current => current.Settings);
+
+    /// <summary>
+    /// Swaps in the next publication, deriving it from whichever one this is actually replacing.
+    /// </summary>
+    /// <param name="nextSettings">
+    /// What to publish, given the publication being replaced. Called inside the loop, so an operation
+    /// defined in terms of the current settings sees the winner's rather than a stale capture.
+    /// </param>
+    private SettingsStamp Exchange(Func<Publication, Settings?> nextSettings)
     {
-        Publication next;
         while (true)
         {
             var current = Volatile.Read(ref _published);
-            next = new Publication(settings, StampFor(current.Stamp.Version + 1));
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _published, next, current), current)) break;
-        }
+            BeforePublishExchange?.Invoke();
+            var next = new Publication(nextSettings(current), StampFor(current.Stamp.Version + 1));
 
-        // A new baseline is also something a read in flight can no longer be trusted against.
-        Interlocked.Increment(ref _observationEpoch);
-        return next.Stamp;
+            if (!ReferenceEquals(Interlocked.CompareExchange(ref _published, next, current), current))
+                continue;
+
+            // A new baseline is also something a read in flight can no longer be trusted against.
+            Interlocked.Increment(ref _observationEpoch);
+            return next.Stamp;
+        }
     }
+
+    /// <summary>
+    /// Runs between reading the publication to replace and exchanging it, so a test can make that
+    /// exchange lose (#910).
+    /// </summary>
+    /// <remarks>
+    /// The retry path is the whole of what makes <see cref="Republish"/> correct, and nothing reaches it
+    /// without a publication landing in a window a few instructions wide. A test that raced for it would
+    /// be a test that usually proved nothing. Null in every build that is not a test's.
+    /// </remarks>
+    internal Action? BeforePublishExchange { get; set; }
 
     /// <summary>
     /// A result a caller may keep: a copy of its own, stamped, or null when the copy cannot be made.
@@ -1321,7 +1356,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // Recomputing the generation whenever a stamp was asked for hid this: the published stamp would
         // silently start reading as the new session's while naming a revision from the old one, so a
         // stamp handed out before the reset compared equal to one handed out after it.
-        Publish(Published.Settings);
+        //
+        // Republish rather than Publish(Published.Settings): this changes identity and must not change
+        // what is published, which means taking the settings from whatever this exchange actually
+        // replaces rather than from a read made before the attempt.
+        Republish();
 
         if (!keepPending) DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
@@ -1960,7 +1999,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
     private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(Origin origin)
     {
-        if (Published.Settings is not { } baseline)
+        // The whole publication, once, before anything is awaited (#910). Reading the settings here and
+        // the stamp after the send is the separated read again, wearing the new type: a reload landing
+        // while the send is out publishes something else, and the result then describes settings that
+        // were never published under the stamp it carries. Which is what an acceptance is checked
+        // against — so the caller agrees to a snapshot nobody ever had.
+        var published = Published;
+        if (published.Settings is not { } baseline)
         {
             // Nothing to return to, so nothing is overriding anything.
             HasEphemeralOverride = false;
@@ -1989,9 +2034,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         HasEphemeralOverride = false;
         // The baseline was already published; putting the daemon back on it creates no new revision, so
-        // the stamp is the one it already had. Unlike the per-app apply above, the result IS the
-        // published settings, so handing it back says something true.
-        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, Published.Stamp) };
+        // the stamp is the one it had when this operation read it. Unlike the per-app apply above, the
+        // result IS those published settings, so handing them back with their own stamp says something
+        // true — and borrowing whatever the latest stamp happens to be by now never would, whether or
+        // not anything had moved.
+        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, published.Stamp) };
     }
 
     /// <summary>
