@@ -32,6 +32,47 @@ public static class DaemonExePaths
     public static string BundledPath(string baseDir) =>
         Path.GetFullPath(Path.Combine(baseDir, "Daemon", DaemonExeName));
 
+    /// <summary>What the driver card can honestly offer about the bundled daemon (#725).</summary>
+    public enum BundledOffer
+    {
+        /// <summary>Nothing to say: no bundled copy, or the connected daemon is already ours.</summary>
+        Nothing,
+
+        /// <summary>A restart would reach the bundled copy, so the switch can be offered.</summary>
+        Switch,
+
+        /// <summary>The bundled copy exists but a chosen location is in front of it in the ladder.</summary>
+        ClearTheChosenLocationFirst,
+    }
+
+    /// <summary>
+    /// Whether a way back to the bundled daemon can be offered, and truthfully.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The switch is a restart, and a restart launches whatever <see cref="Candidates"/> resolves to:
+    /// user-chosen first, then bundled. So the bundled copy is what a restart reaches only while no
+    /// location has been chosen. With one chosen, the same press relaunches <em>that</em> — which is the
+    /// daemon the user is trying to leave.
+    /// </para>
+    /// <para>
+    /// The button this replaces asked only whether a foreign daemon was connected and whether a bundled
+    /// copy existed, so in exactly that case it offered a switch and did the opposite. It was removed in
+    /// 660b49a as duplication; what was wrong with it was never the duplication.
+    /// </para>
+    /// <para>
+    /// Pure, and the OS is not one of its inputs: whether a copy is bundled is already the caller's
+    /// answer (<c>HasBundledDaemon</c>), which is false on macOS for the reason
+    /// <see cref="BundledPath"/> gives.
+    /// </para>
+    /// </remarks>
+    public static BundledOffer OfferBundled(bool onForeignDaemon, bool hasBundled, bool hasChosenLocation)
+    {
+        if (!onForeignDaemon || !hasBundled) return BundledOffer.Nothing;
+
+        return hasChosenLocation ? BundledOffer.ClearTheChosenLocationFirst : BundledOffer.Switch;
+    }
+
     /// <summary>The macOS app-bundle name OTD installs under.</summary>
     private const string MacBundleName = "OpenTabletDriver.app";
 
