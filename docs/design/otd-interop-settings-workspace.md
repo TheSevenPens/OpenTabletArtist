@@ -72,7 +72,7 @@ Compared with `6f56723`, counting all C# source and helpers while excluding buil
 
 The tests for retired protocols were replaced with scenario tests for the smaller contract. Coverage includes apply without persistence, explicit-save failure/retry, external live and file edits, readback rejection, timeout/late completion, connection replacement, identity pinning, shutdown, backup integrity, two cached tablet editors, policy ownership, input flush/discard, and restart targeting. Existing named-pipe transport, boundary dependency, codec/file, and UI suppression tests remain. Added since: the write boundary, the shutdown cases, an abandoned write across a reconnect and across a real pipe, idle adoption, input arriving during the adoption read and the pause that leaves, a dialog holding the document open against a Reload and against another hand's write, and a calibration whose write was refused.
 
-The full solution build completed with zero warnings and zero errors. All 1,146 test cases passed: 69 interop, 997 application logic, and 80 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
+The full solution build completed with zero warnings and zero errors. All 1,147 test cases passed: 69 interop, 997 application logic, and 81 headless UI cases. Run `dotnet test OpenTabletArtist.slnx` for all suites. The read-only check is `dotnet run --project tools/OtdDaemonSwitchCheck -- --read-only`. During implementation it timed out waiting for a ready daemon and changed no live driver settings.
 
 An interactive pass against a real daemon followed on 2026-09-21: apply-live with the unsaved chip,
 explicit save, survival across a driver restart, an external edit pausing the page, reconnect, and the
@@ -118,7 +118,9 @@ live. The generation rule says whether another hand has taken the document; it s
 order of the dialog's own steps, what their answers meant, or when the session has ended. So the dialog
 has one place that sequences its operations, one gate that asks again at the front of the queue, and a
 close that is a decision rather than a position in it — a smaller thing than a transaction protocol.
-Whether that is the end of the findings here is not something this note should claim.
+The gate governs whether a step may start; a step that waits for the driver and then takes a resource
+has to ask again itself, which is what the fifth round found. Whether that is the end of the findings
+here is not something this note should claim.
 
 That shape — one atomic replacement, then coherent fixes with their reviewed history intact — is what
 this branch merges as.
