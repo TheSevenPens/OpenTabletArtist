@@ -48,7 +48,6 @@ public partial class MainWindow : Window
             if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; _switchSub.RestoreFailed -= OnProfileRestoreFailed; }
             if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
             if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
-            Screens.Changed -= OnScreensChanged;
             ProfileToast.Dismiss();
             (DataContext as MainViewModel)?.Dispose();
         };
@@ -132,14 +131,7 @@ public partial class MainWindow : Window
         // Turn off Windows' pen/touch tap-feedback rings across the app — they're just visual noise on a
         // drawing-tablet UI. Per-window; gestures (e.g. right-click) still work.
         ShellPenFeedback.DisableFor(this);
-        // Keep the Home tablet cards' mapped-display line accurate when monitors are (un)plugged
-        // (#tablet-card-mapping). Screens is available once the window is opened; unsubscribed on Closed.
-        Screens.Changed += OnScreensChanged;
     }
-
-    // A monitor was (un)plugged / rearranged → recompute which display each tablet maps to.
-    private void OnScreensChanged(object? sender, EventArgs e) =>
-        (DataContext as MainViewModel)?.RefreshTabletMappings();
 
     /// <summary>
     /// Shrink + re-center the window when the default size doesn't fit the current screen's working

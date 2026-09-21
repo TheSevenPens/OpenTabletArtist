@@ -218,9 +218,19 @@ public sealed class ScreenMappingDiagram : Control
         // ── Connector: two gradient "beams" mapping like edges together — the active area's LEFT edge to
         //    the display's LEFT edge, and RIGHT edge to RIGHT edge (the two side faces of the frustum), so
         //    the left↔left / right↔right correspondence is obvious. Brighter at each box, fading across the
-        //    gap; the selected display is drawn afterwards so it sits above the beams. ──
+        //    gap. ──
         if (selectedBox is { } selBox)
         {
+            // Clipped out of the selected display, so the display is in front of the beams rather than
+            // merely painted after them. Drawing order alone was not enough: the beams' quads reach the
+            // display's far corners and so cross its interior, and its fill is a translucent tint — so
+            // they showed straight through the box they were supposed to be arriving at, and the display
+            // read as the thing behind the picture instead of the thing the picture points to.
+            using var _beamsStopAtTheDisplay = ctx.PushGeometryClip(new CombinedGeometry(
+                GeometryCombineMode.Exclude,
+                new RectangleGeometry(new Rect(Bounds.Size)),
+                new RectangleGeometry(selBox)));
+
             void Beam(IBrush brush, Point a1, Point a2, Point b2, Point b1)
             {
                 var geo = new StreamGeometry();
@@ -280,7 +290,50 @@ public sealed class ScreenMappingDiagram : Control
                  effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
-        // The selected display, drawn last so it sits above the connector beams.
+        // ── Rails: corner to matching corner, display to active area. ──
+        //
+        // The beams are filled wedges, and a gradient says "these regions correspond" without saying
+        // WHICH point goes where. The rails say it: follow one and you can see the corner it lands on.
+        //
+        // Three of them, which is what a box drawn from outside shows — the fourth edge is the one
+        // behind, and drawing it would turn a solid into a wireframe.
+        //
+        // WHICH top edge is the visible one depends on where the display sits. Both bottom rails always
+        // show, because the active area is below the display and we are looking at the underside; of the
+        // two top rails, the visible one is on the side the active area is displaced TOWARDS — that is
+        // the side whose face we can see. Hardcoding the right-hand one was right for a display left of
+        // the active area and wrong the moment the display was to its right, where the left edge is the
+        // one on show and the right one is buried in the solid.
+        //
+        // Clipped out of the display, like the beams. The third rail starts at a corner of the display
+        // rather than below it, and when the active area is narrower than the display it runs down
+        // across the display's face on its way to the matching corner — which is the thing the beams
+        // were clipped to stop doing. Clipped, it emerges from the bottom edge instead, which is how a
+        // solid box reads: the edge is behind the near face until it clears it.
+        //
+        // The two bottom rails are unaffected either way. They begin ON the boundary the clip cuts
+        // along, and I expected that to shave their ends; rendered side by side it does not show.
+        if (selectedBox is { } railBox)
+        {
+            // The accent, at half weight. These connect things that are already drawn; at full strength
+            // they competed with the outlines they run between, and the diagram grew a third set of
+            // edges as loud as the two it exists to relate.
+            var rail = new Pen(new SolidColorBrush(Color.FromArgb(0x80, accent.R, accent.G, accent.B)), 1.75);
+            using var _railsStopAtTheDisplay = ctx.PushGeometryClip(new CombinedGeometry(
+                GeometryCombineMode.Exclude,
+                new RectangleGeometry(new Rect(Bounds.Size)),
+                new RectangleGeometry(railBox)));
+            ctx.DrawLine(rail, railBox.BottomLeft, effRect.BottomLeft);
+            ctx.DrawLine(rail, railBox.BottomRight, effRect.BottomRight);
+
+            if (effRect.Center.X >= railBox.Center.X)
+                ctx.DrawLine(rail, railBox.TopRight, effRect.TopRight);
+            else
+                ctx.DrawLine(rail, railBox.TopLeft, effRect.TopLeft);
+        }
+
+        // The selected display, drawn after the beams — which are also clipped out of it, so its
+        // translucent fill shows the page behind rather than the beams.
         if (selectedBox is { } sbx && selDisplay is { } sdd)
         {
             ctx.DrawRectangle(pal.SelFill, pal.SelBorder, new RoundedRect(sbx), pal.Glow);

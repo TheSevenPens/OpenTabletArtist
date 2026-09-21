@@ -426,10 +426,15 @@
                 </ItemsControl>
 
 
-            <!-- The secondary cards share the topology block's WrapPanel, so they sit beside it when
-                 there is room and drop underneath when there is not. All three are conditional (external
+            <!-- The rest of this column, under the issues above it. Each card is conditional (external
                  daemon, Linux-only package state, dev-only OTD UX), so on a released Windows build with
-                 the bundled daemon this area is empty and the page is just the diagram. -->
+                 the bundled daemon this area is empty and the page is just the diagram.
+
+                 Left-aligned, like the issues list. They are capped at 440 and the column is wider than
+                 that, so without it a card centred itself in the leftover space — which put the driver
+                 block adrift somewhere right of the card explaining which driver is in use, with a gap
+                 between them and nothing in it. The comment that used to sit here described a WrapPanel
+                 that had already stopped existing. -->
 
                     <!-- EXTERNAL DAEMON (#591): OTA connects to whatever daemon is already running — including
                          an officially-installed / separately-started OpenTabletDriver — and launches whichever
@@ -448,9 +453,10 @@
                     <!-- One block for both answers to "which driver?", because they are the same
                          question: install the official release, or point OTA at one you already have.
                          They were two sections with two headings and two paragraphs saying so. -->
-                    <c:Section MaxWidth="440" VerticalAlignment="Top" IsVisible="{Binding ShowDriverCard}">
+                    <c:Section MaxWidth="440" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               IsVisible="{Binding ShowDriverCard}">
                         <StackPanel>
-                            <TextBlock Classes="Display section" Text="driver" TextWrapping="Wrap" Margin="0,0,0,0" />
+                            <TextBlock Classes="Display section" Text="OTD daemon" TextWrapping="Wrap" Margin="0,0,0,0" />
 
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                                 <Button Content="{Binding InstallVersion, StringFormat='Install v{0}'}"
@@ -519,7 +525,8 @@
 
                     <!-- Linux only: is OTD installed as a system RPM package (the normal Fedora/RHEL install), or is
                          it running from source / a tarball? Checked on-demand (tab entry + the Refresh button). -->
-                    <c:Section MaxWidth="440" VerticalAlignment="Top" IsVisible="{Binding IsLinux}">
+                    <c:Section MaxWidth="440" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               IsVisible="{Binding IsLinux}">
                         <StackPanel>
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                 <StackPanel Grid.Column="0" MinWidth="0">

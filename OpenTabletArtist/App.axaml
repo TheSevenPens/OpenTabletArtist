@@ -75,6 +75,19 @@
             <sys:Double x:Key="TypeDetailSize">11.5</sys:Double>  <!-- incidental detail under a title -->
             <sys:Double x:Key="TypeCaptionSize">10</sys:Double>   <!-- captions, badges, chips, status text -->
 
+            <!-- The height the top nav row always occupies, switcher or no switcher.
+
+                 The row is Auto-height with the wordmarks aligned to its BOTTOM, so anything taller in it
+                 pushes them down. The tablet switcher is one pixel taller than the wordmarks and appears
+                 on some pages and not others — so the whole nav stepped down by a pixel on TABLET and PEN
+                 and back up again on the others, which is small enough to read as the window twitching
+                 rather than as a layout change.
+
+                 Reserving the taller of the two on every page costs one pixel of chrome and holds the
+                 wordmarks still. It is the switcher's height, and NavRowStaysPutTests fails if that
+                 changes, so the number cannot drift out of date quietly. -->
+            <sys:Double x:Key="NavRowHeight">32</sys:Double>
+
             <!-- Shared page transition: a quick crossfade for subpage/content swaps (the Zune motion
                  layer). Applied to the tabbed-page content host now; the top-level shell adopts it in a
                  later phase. -->

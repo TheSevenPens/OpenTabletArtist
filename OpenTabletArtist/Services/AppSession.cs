@@ -382,6 +382,39 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
 
     public bool HasDiscardedChangeNotice => !string.IsNullOrEmpty(DiscardedChangeNotice);
 
+    /// <summary>
+    /// Takes the library's save-state report onto the UI thread before it touches anything.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It does not arrive on one. The coordinator awaits the daemon with <c>ConfigureAwait(false)</c>, so
+    /// everything after the pre-write read — the write, and this report — continues on the thread pool.
+    /// Measured, not assumed: reports arrived on pool threads 32 and 33 while the UI thread was 2.
+    /// </para>
+    /// <para>
+    /// That broke the "Saved" chip in a way that looked like nothing at all. <see cref="SaveState"/> is an
+    /// observable property, so the chip appeared; but <see cref="OnSaveStateChanged"/> creates the
+    /// auto-clear timer on first use, and a <c>DispatcherTimer</c> built on a pool thread belongs to a
+    /// dispatcher that never pumps. It reported <c>IsEnabled = true</c> and never ticked once — so the
+    /// chip said "Saved" until something else changed it, which for a setting nobody touches again is the
+    /// rest of the session.
+    /// </para>
+    /// <para>
+    /// Marshalling the whole report rather than only the timer, because a property that drives bindings
+    /// has no business being assigned from a pool thread whatever it is used for.
+    /// </para>
+    /// <para>
+    /// The library's own self-initiated callbacks are posted through <c>IOtdExecutionContext</c>; this one
+    /// is not, which is arguably where the deeper fix belongs — but that changes ordering for every
+    /// report, so it is a deliberate change rather than part of this one.
+    /// </para>
+    /// </remarks>
+    private void ReportSaveState(SettingsSaveState state)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) SaveState = state;
+        else Dispatcher.UIThread.Post(() => SaveState = state);
+    }
+
     private DispatcherTimer? _saveClearTimer;
 
     partial void OnSaveStateChanged(SettingsSaveState value)
@@ -521,7 +554,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // after the connection is already usable (#828).
         _coordinator = session.OpenSettings(
             isOwnedDaemon: () => IsAppOwnedDaemon,
-            onSaveState: state => SaveState = state);
+            onSaveState: ReportSaveState);
 
         // No marshalling here any more: the library posts this to the context OTA supplied, which is
         // this dispatcher. And no identification call either -- the change is handed over already made,

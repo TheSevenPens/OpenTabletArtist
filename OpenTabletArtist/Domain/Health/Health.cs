@@ -546,7 +546,7 @@ public static class HealthEvaluator
         if (rows.Count == 0) return;
 
         issues.Add(new HealthIssue("otd.driver", severity,
-            "Your OpenTabletDriver",
+            "OTD Daemon version",
             "Worth knowing about the driver this app is using. Nothing here stops it working.",
             new Remediation("Review", RemediationArea.Daemon),
             Links: rows));

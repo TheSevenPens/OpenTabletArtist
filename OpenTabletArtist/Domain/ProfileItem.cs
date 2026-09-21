@@ -20,11 +20,22 @@ public record ProfileItem(Profile Profile, bool IsDetected, DateTime? LastSeen)
         }
     }
 
-    public string? LastSeenDetail
+    /// <summary>
+    /// The card's quiet third line: CONNECTED for a tablet that is here, when it was last seen for one
+    /// that is not.
+    /// </summary>
+    /// <remarks>
+    /// A connected tablet has no last-seen time to show — it is being seen — so the line used to be
+    /// blank, and the card lost a row while its neighbours kept theirs. Saying so outright also puts the
+    /// state in words on the card itself, where previously it was carried only by the link icon and its
+    /// tooltip.
+    /// </remarks>
+    public string? StatusDetail
     {
         get
         {
-            if (IsDetected || LastSeen == null) return null;
+            if (IsDetected) return "CONNECTED";
+            if (LastSeen == null) return null;
             return $"Last seen {LastSeen.Value:yyyy-MM-dd} at {LastSeen.Value:h:mm tt}";
         }
     }

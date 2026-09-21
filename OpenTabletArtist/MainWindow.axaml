@@ -65,7 +65,8 @@
              native min/max/close buttons and window-drag still own the top edge.
              (PRESETS + PER-APP PRESETS live in SETTINGS tabs, #571; DEVELOPER too, #572.) -->
         <Border Grid.Row="0" Background="Transparent">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,34,20,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,34,20,0"
+                  MinHeight="{DynamicResource NavRowHeight}">
                 <!-- The wordmarks, left-aligned. (No brand mark here — the OS window caption + taskbar
                      already carry the app name; a second one read as a duplicate.) Wraps to a second row
                      on a narrow window instead of clipping. -->
