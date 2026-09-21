@@ -211,6 +211,52 @@ public class SettingsSessionTests
         Assert.Equal(0, store.Attempts);
     }
 
+    /// <summary>
+    /// A write that returned and a read back that failed is recoverable: Reload is a way out (#919).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both halves used to share one catch and one answer — close the session, tell the artist to restart
+    /// their driver. Only one of them earns that. A write that has not returned may still be running
+    /// inside the daemon, and nothing on this side can stop it: <c>SetSettings</c> takes no cancellation
+    /// token and OTD's RPC host serves every connection against the same daemon object, so a fresh pipe
+    /// is not a barrier. Restarting the daemon is the remedy because it is the only one that works.
+    /// </para>
+    /// <para>
+    /// A verification read that failed is a different situation wearing the same exception. The write
+    /// finished; only our knowledge of the result is missing, and another read supplies it. Closing there
+    /// spent the artist's daemon restart on a question a Reload could answer.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AWriteThatLandedButCouldNotBeVerified_IsPausedRatherThanClosed()
+    {
+        var (session, daemon, store) = await Open(TimeSpan.FromMilliseconds(50));
+        using var lifetime = session;
+
+        // The write returns; the read back after it does not.
+        var reads = 0;
+        daemon.GetSettingsHandler = () => ++reads == 2
+            ? new TaskCompletionSource<Settings?>().Task    // the verification read, never answered
+            : Task.FromResult<Settings?>(Document());
+
+        var applied = await session.ApplyAsync(Document(120));
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, applied.Status);
+        Assert.True(session.IsPaused, "an unverified apply should pause");
+
+        // Not closed: a read that works establishes the baseline again.
+        daemon.GetSettingsHandler = null;
+        daemon.Settings = Document(120);
+        var reloaded = await session.ReloadAsync();
+
+        Assert.Equal(SettingsReloadStatus.Adopted, reloaded.Status);
+        Assert.False(session.IsPaused, "Reload should have resolved it");
+        Assert.Equal(0, store.Attempts);
+
+        // And editing works again.
+        Assert.True((await session.ApplyAsync(Document(140))).IsLive);
+    }
+
     [Fact]
     public async Task DisconnectInvalidatesQueuedWorkAndNeverWritesToReplacement()
     {

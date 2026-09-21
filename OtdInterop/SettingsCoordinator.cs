@@ -17,6 +17,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
     private volatile bool _paused;
     private volatile bool _closed;
 
+    /// <summary>
+    /// A write whose completion was never established, so this session is finished (#919).
+    /// </summary>
+    /// <remarks>
+    /// Stated rather than inferred. Read off "disposed but the transport is still up" it also caught a
+    /// session closed for any other reason and told those callers to restart their driver.
+    /// </remarks>
+    private volatile bool _unconfirmed;
+
     internal SettingsCoordinator(IDaemonSettingsChannel connection, ISettingsFileStore store,
         string path, TimeSpan? timeout = null)
     {
@@ -29,6 +38,9 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
 
     internal bool IsConnected => !_closed && _channel.Incarnation != 0
         && _channel.Incarnation == _connection.Incarnation;
+
+    /// <summary>Closed because a write's completion could never be established (#919).</summary>
+    internal bool HasUnconfirmedWrite => _unconfirmed;
 
     public PreparedSettings? GetCurrent() => Volatile.Read(ref _current) is { } current
         ? new(SettingsCodec.Clone(current)) : null;
@@ -114,12 +126,28 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
         }
         if (SettingsCodec.Same(requested, _current))
             return SettingsApplyOutcome.NoChange with { Prepared = GetCurrent() };
+        // The write and its verification fail differently, and only one of them is terminal.
         try
         {
             if (!IsConnected || !await _channel.SetSettingsAsync(requested)
                     .WaitAsync(_timeout, _lifetime.Token).ConfigureAwait(false))
                 return SettingsApplyOutcome.Disconnected;
+        }
+        catch (Exception ex)
+        {
+            // The write has not returned, so we do not know whether it landed — and we cannot find out.
+            // SetSettings takes no cancellation token and OTD's RPC host serves every connection against
+            // the same daemon object, so neither a fresh pipe nor restarting OTA stops work already
+            // accepted. Only the daemon going away does. Terminal, and the message says which remedy
+            // actually works.
+            _unconfirmed = true;
+            Dispose();
+            return SettingsApplyOutcome.Failed(new IOException(
+                "The apply could not be confirmed. Restart the driver before editing or saving.", ex));
+        }
 
+        try
+        {
             // OTD may recover a failed SetSettings and still complete the RPC normally.
             var confirmed = await ReadAsync().ConfigureAwait(false);
             _current = confirmed;
@@ -133,10 +161,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
         }
         catch (Exception ex)
         {
-            // A timed-out write may still land. Do not let a reload or Save race it.
-            Dispose();
-            return SettingsApplyOutcome.Failed(new IOException(
-                "The apply could not be confirmed. Restart the driver before editing or saving.", ex));
+            // The write returned; only the read back failed. Nothing is outstanding against the daemon,
+            // so what the settings are is merely unknown rather than unknowable — and another read can
+            // establish it. Paused, not closed: Reload is a way out from here.
+            _paused = true;
+            return IsConnected
+                ? SettingsApplyOutcome.CouldNotCheck with { Error = ex }
+                : SettingsApplyOutcome.Disconnected;
         }
     }
 

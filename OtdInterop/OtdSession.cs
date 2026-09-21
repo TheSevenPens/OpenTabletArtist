@@ -48,7 +48,7 @@ public sealed class OtdSession : IDisposable
     public bool CanEditSettings => _settings is { IsConnected: true, IsPaused: false };
     private string _problem = "";
     /// <summary>Why settings are unavailable, or an empty string.</summary>
-    public string SettingsProblem => _settings is { IsConnected: false } && ConnectionId != 0
+    public string SettingsProblem => _settings is { HasUnconfirmedWrite: true }
         ? "The last apply could not be confirmed. Restart the driver before editing or saving." : _problem;
     /// <summary>Current transport identity, or zero while disconnected. Reject obsolete queued UI notifications using this value.</summary>
     public int ConnectionId => _channel.Incarnation;
