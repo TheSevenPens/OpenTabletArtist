@@ -59,37 +59,10 @@
     <PackageReference Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
 
-  <!--
-    Test-only visibility for the internal writer and the internal connection.
-
-    Both are internal because both can reach past the protected settings path: SettingsFileStore writes
-    the file the daemon is running from, and DaemonClient writes settings to the daemon itself. Nothing
-    outside should be able to construct either. They still need tests of their own - atomic replacement,
-    the last-known-good fallback, an unwritable destination, the reconnect coalescing, the debug-stream
-    reference count - and those are properties of the implementations rather than of the interfaces, so
-    they cannot be written from outside.
-
-    The production app is deliberately not granted access, and that is the load-bearing part: nothing
-    shipping can reach the raw writer.
-
-    The four grants below are the FINAL arrangement, not a way-station: #807 Phase 6 moved the library's
-    tests into their own project, and what remains is deliberate and explained per entry. The two app test
-    projects are here because they compile the library suite's fakes, which implement internal interfaces;
-    relocating every such test would buy nothing that the app-not-granted rule does not already give.
-  -->
+  <!-- Test-only seams. The production application cannot reach the raw settings writer. -->
   <ItemGroup>
-    <!-- The library's own suite, which is where its tests belong: it references OtdInterop and nothing
-         else, so it can only exercise what the library actually offers. -->
     <InternalsVisibleTo Include="OtdInterop.Tests" />
     <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
     <InternalsVisibleTo Include="OpenTabletArtist.Tests" />
-    <!-- The switch-check tool drives NoteConnectedDaemon directly: its unreadable-daemon scenario has to
-         ask the session to look again without a real reconnect, since making a daemon unreadable means
-         elevating it and that needs a UAC prompt. A diagnostic seam, not production surface. -->
-    <InternalsVisibleTo Include="OtdDaemonSwitchCheck" />
-    <!-- The UI suite compiles the same FakeDaemonTransport source, which implements the internal
-         settings channel; without this it sees a type the app is not meant to see, and cannot build. -->
-    <InternalsVisibleTo Include="OpenTabletArtist.UiTests" />
   </ItemGroup>
-
 </Project>

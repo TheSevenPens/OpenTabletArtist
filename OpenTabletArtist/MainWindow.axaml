@@ -22,6 +22,10 @@
          edge instead of a gray system caption bar. The native min/max/close buttons stay (top-right);
          a drag strip below provides window move/maximize. OffScreenMargin keeps content on-screen when
          maximized (Windows over-sizes an extended-chrome window by the frame width). -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSettingsCommand}" />
+        <KeyBinding Gesture="Meta+S" Command="{Binding SaveSettingsCommand}" />
+    </Window.KeyBindings>
     <Panel Margin="{Binding OffScreenMargin, RelativeSource={RelativeSource AncestorType=Window}}">
         <!-- Full-window backdrop layer. Transparent in Light/Dark; the sakura image in the Anime
              skin (#anime), or the user's chosen image in the Custom skin. Sits behind everything so
@@ -57,7 +61,7 @@
              (#207). Hit-test invisible; sits above the backdrop, behind the chrome and content. -->
         <controls:SakuraPetals />
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <!-- TOP WORDMARK BAR (Zune Phase 1). Replaces the left sidebar: the whole top-level nav as one
              horizontal row of lowercase wordmarks (data-driven NavSections), the active one marked by
              accent color + weight. The row sits below the caption/drag band (top ~40px, kept by the
@@ -130,47 +134,33 @@
                      pages for ~180ms, which read as a glitch when their content differed a lot (worst
                      Settings → Scribble, whose big flat canvas ghosted over Settings' cards). Sub-page
                      pivots keep their own PageFade. -->
-                <TransitioningContentControl Content="{Binding CurrentPage}"
+                <TransitioningContentControl Content="{Binding CurrentPage}" IsEnabled="{Binding PageInputEnabled}"
                                              PageTransition="{x:Null}" />
             </Border>
         </ScrollViewer>
 
-        <!-- Bottom-left status cues, pinned to the content area (Row 1). Stacked so the per-app (#167)
-             and override (#320) chips never collide when both are active. Mirrors the save chip. -->
-        <StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Left"
-                    Margin="24,0,0,20" Spacing="8">
-            <!-- Active per-app profile (#167): a mapped app is in focus and its snapshot is applied live. -->
-            <Border IsVisible="{Binding PerAppSwitch.HasActiveProfile}"
-                    Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                    BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-                <TextBlock Text="{Binding PerAppSwitch.ActiveProfile, StringFormat='App preset: {0}'}"
-                           FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                           TextWrapping="Wrap" MaxWidth="280" />
-            </Border>
-
-            <!-- Active-profile override cue (#320): a live-only hotkey switch runs a temporary override on
-                 the daemon, NOT your saved default. Persistent while overridden. -->
-            <Border IsVisible="{Binding ProfileSwitch.HasOverride}"
-                    Background="{DynamicResource AccentMutedBrush}" BorderBrush="{DynamicResource AccentBrush}"
-                    BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-                <TextBlock Text="{Binding ProfileSwitch.ActiveSnapshot, StringFormat='Preset override: {0}'}"
-                           FontSize="{DynamicResource TypeCaptionSize}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
-                           TextWrapping="Wrap" MaxWidth="280" />
-            </Border>
-        </StackPanel>
+        <Border Grid.Row="2" Padding="24,10" Background="{DynamicResource GlassBgBrush}"
+                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
+                               IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                            IsEnabled="{Binding !SettingsSession.SettingsBusy}">
+                    <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
+                            IsEnabled="{Binding SettingsSession.CanEditSettings}"
+                            ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
+                    <Button Content="Reload driver settings" Command="{Binding ReloadSettingsCommand}"
+                            ToolTip.Tip="Read current live settings. Pending local edits will be discarded; nothing is saved." />
+                    <Button Content="Save" Command="{Binding SaveSettingsCommand}"
+                            IsEnabled="{Binding SettingsSession.CanEditSettings}"
+                            ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
-
-    <!-- Settings auto-save indicator (#321): OTA has no Save button — every change is applied + saved
-         immediately. This quietly confirms that, and stays as a warning if a disk save failed (so a
-         live-but-unpersisted change isn't hidden). Overlays the content, bottom-right. -->
-    <Border VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,24,20"
-            IsVisible="{Binding Connection.ShowSaveStatus}"
-            Background="{DynamicResource GlassBgBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
-            BorderThickness="1" CornerRadius="0" Padding="12,7" BoxShadow="{DynamicResource CardShadow}">
-        <TextBlock Text="{Binding Connection.SaveStatusText}" Classes="saveStatus"
-                   Classes.failed="{Binding Connection.SaveFailed}"
-                   FontSize="{DynamicResource TypeCaptionSize}" TextWrapping="Wrap" MaxWidth="300" />
-    </Border>
 
     <!-- Title-bar drag strip (#titlebar): the top edge is app-colored now, so this transparent strip
          gives the window its move/double-click-maximize behaviour. It stops short of the top-right so

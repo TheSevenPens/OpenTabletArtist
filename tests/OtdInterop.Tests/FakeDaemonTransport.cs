@@ -10,46 +10,15 @@ using OtdInterop;
 
 namespace OtdInterop.Tests;
 
-/// <summary>
-/// A daemon that isn't there (#740). Scripted results, recorded calls, and raisable events, so the
-/// session's data load, apply path and connection handling can be exercised without a pipe.
-///
-/// Before <see cref="IDaemonTransport"/> existed, <c>AppSession</c> took a concrete <c>DaemonClient</c>,
-/// so none of that was reachable from a test: the lifecycle tests had to construct a real client and
-/// assert against a connection that never happened.
-///
-/// It implements <see cref="IDaemonSettingsChannel"/> as well, which the app cannot — that interface is
-/// internal precisely so only the library's own connection carries a settings writer. This project is
-/// granted internal access for the same reason it can construct the file store: the behaviour under test
-/// is the implementation's, not the interface's.
-/// </summary>
+/// <summary>Headless sessions over the same scripted transport in all three test suites.</summary>
 internal static class FakeSession
 {
-    /// <summary>
-    /// A library session over a daemon that is not there.
-    ///
-    /// The library's own test support, reached through its internal seam. It used to be a parameter on
-    /// the supported host API -- <c>AppSession</c> took an optional file store purely so a write could be
-    /// made to fail on demand -- which shaped the application's constructor around this project's needs.
-    /// </summary>
-    /// <param name="daemon">The stand-in connection.</param>
-    /// <param name="store">A writer whose failures a test controls, or null for the library's own.</param>
-    /// <param name="locator">
-    /// What the session is told is running. Defaults to one that can see nothing, which is the ordinary
-    /// case for a fake -- and the case where the session must leave its state alone rather than treat
-    /// "cannot see" as "it changed".
-    /// </param>
-    /// <param name="policy">
-    /// The rules to apply on the way out. Defaults to none, which is what a test about the library's
-    /// mechanics wants; an application test that means to exercise <em>its own</em> policy passes that
-    /// instead, and should, because the default quietly turning those tests into no-policy tests is
-    /// exactly what happened when this helper stopped taking one.
-    /// </param>
+    // Memory persistence is the default: a fake session must never write an actual driver settings file.
     public static OtdSession Over<T>(T daemon, ISettingsFileStore? store = null,
-        IDaemonProcessLocator? locator = null, IOtdSettingsPolicy? policy = null)
+        IDaemonProcessLocator? locator = null)
         where T : IDaemonTransport, IDaemonSettingsChannel =>
-        OtdSession.ForTesting(daemon, store, NullOtdLog.Instance, policy ?? NoPolicy.Instance,
-            locator ?? new FakeProcessLocator());
+        OtdSession.ForTesting(daemon, store ?? new MemorySettingsFileStore(), NullOtdLog.Instance,
+            locator ?? new FakeProcessLocator { Path = "daemon.exe", OnlyDaemon = "daemon.exe" });
 }
 
 /// <summary>
@@ -96,6 +65,7 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     public Settings? Settings { get; set; }
 
     /// <summary>What <see cref="SetSettingsAsync"/> reports. False models no transport (#734).</summary>
+    public Func<Settings, Settings>? Readback { get; set; }
     public bool SetSettingsSucceeds { get; set; } = true;
 
     /// <summary>When set, <see cref="SetSettingsAsync"/> throws it — a reachable daemon that refused.</summary>
@@ -124,7 +94,7 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     public const string DefaultSettingsFile = "A/settings.json";
     public JArray Tablets { get; set; } = [];
     public JArray Devices { get; set; } = [];
-    public int? ServerProcessId { get; set; }
+    public int? ServerProcessId { get; set; } = 1;
 
     // --- Recorded calls ---
 
@@ -246,7 +216,7 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
             ? await handler(settings)
             : SetSettingsSucceeds;
 
-        if (ok) Settings = settings;   // the daemon now holds it
+        if (ok) Settings = Readback?.Invoke(settings) ?? SettingsCodec.Clone(settings);   // the daemon now holds it
         return ok;
     }
 
@@ -294,7 +264,7 @@ internal sealed class FakeDaemonTransport : IDaemonTransport, IDaemonSettingsCha
     /// nobody to ask. A test about what an exit stops could therefore resolve its target from a closed
     /// session and still get the right answer, which is precisely the mistake it existed to catch.
     /// </remarks>
-    public int? GetServerProcessId() => IsDisposed ? null : ServerProcessId;
+    public int? GetServerProcessId() => IsDisposed || Incarnation == 0 ? null : ServerProcessId;
 
     /// <summary>How many times the debug stream was toggled -- proof a forwarder reached this object.</summary>
     public int DebugCalls { get; private set; }

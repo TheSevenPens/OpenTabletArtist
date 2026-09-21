@@ -45,9 +45,6 @@ public interface IDialogService
     /// <summary>Opens a read-only, scrollable monospace viewer (used for config JSON).</summary>
     Task ShowTextViewerAsync(string title, string content);
 
-    /// <summary>Lets the user pick a running windowed application; returns its identity, or null if
-    /// cancelled. Used to add a per-app profile mapping (#167).</summary>
-    Task<Domain.AppIdentity?> ShowProcessPickerAsync();
 
     /// <summary>Shows the built-in, searchable list of tablets OpenTabletDriver supports, highlighting
     /// the connected tablet when <paramref name="detectedName"/> matches one (#155).</summary>
@@ -73,28 +70,13 @@ public class DialogService : IDialogService
         return new TabletDetailViewModel(
             profile,
             settings,
-            applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
-            overwriteAction: async (updated, conflict) =>
-                await _session.OverwriteSettingsAsync(updated, conflict),
-            resubmitAction: async (updated, held) => await _session.ResubmitSettingsAsync(updated, held),
-            acceptCurrentAction: accepted => _session.AcceptCurrentSettings(accepted),
+            applyAction: updated => _session.ApplyProfileAsync(
+                updated.Profiles.First(p => p.Tablet == tabletName)),
             refreshAction: async () =>
             {
-                // Authoritative reload through the session so its cache stays coherent; return the
-                // reloaded settings + this tablet's profile (a reference inside them) together (#124).
                 await _session.ReloadAsync();
-
-                // The stamp travels with the snapshot, so an editor resolving a held change names the
-                // one it actually took rather than whatever is current by the time it asks (#910). One
-                // read for both: asking for the settings and then for the stamp is a window in which a
-                // publication can land, and the pair that comes out of it describes no snapshot that
-                // ever existed — which is the substitution the stamp is here to prevent, performed by
-                // the caller. The other adoption route, MainViewModel's reconciliation, reads the same
-                // way and for the same reason.
-                var published = _session.CurrentPublication;
-                return (published?.Settings,
-                    published?.Settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName),
-                    published?.Stamp ?? SettingsStamp.None);
+                var current = _session.CurrentSettings;
+                return (current, current?.Profiles.FirstOrDefault(p => p.Tablet == tabletName));
             },
             tabletDigitizer: _session.GetTabletDigitizer(tabletName),
             penInput: _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)
@@ -175,7 +157,7 @@ public class DialogService : IDialogService
 
         var ctx = new ViewModels.CalibrationViewModel.Context(
             tabletName, digi.Value, input, output, display, settings,
-            s => _session.ApplyAndSaveSettingsAsync(s), _session.Daemon,
+            s => _session.ApplyProfileAsync(s.Profiles.First(p => p.Tablet == tabletName)), _session.Daemon,
             options.Mode, options.Cols, options.Rows);
 
         var window = new Views.CalibrationOverlayWindow(new ViewModels.CalibrationViewModel(ctx), display);
@@ -195,7 +177,6 @@ public class DialogService : IDialogService
         return owner != null ? await Views.HotkeyCaptureDialog.ShowAsync(owner, initial) : null;
     }
 
-    public Task<Domain.AppIdentity?> ShowProcessPickerAsync() => Dialogs.ShowProcessPickerAsync();
 
     public async Task ShowSupportedTabletsAsync(string? detectedName)
     {

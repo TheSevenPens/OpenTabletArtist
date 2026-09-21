@@ -36,8 +36,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ProfileHotkeyManager _profileHotkeys;
     private readonly MonitorCycleService _monitorCycle;
     private readonly MonitorCycleHotkeys _monitorHotkeys;
-    private readonly PerAppProfileStore _perAppStore;
-    private readonly PerAppSwitcher _perAppSwitcher;
 
     // One cached settings VM per tablet (heavy: holds subscriptions). Reconciled on each data load.
     private readonly Dictionary<string, TabletDetailViewModel> _tabletDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -50,13 +48,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Monitor-cycle switch events (#89) — the shell subscribes to show a toast on cycle.</summary>
     public MonitorCycleService MonitorCycle => _monitorCycle;
-
-    /// <summary>Per-app switch state (#167) — the shell binds this for the "App profile" cue.</summary>
-    public PerAppSwitcher PerAppSwitch => _perAppSwitcher;
-
-    /// <summary>Restore the user's default before exit if a per-app snapshot is applied (#167). Awaited by
-    /// the tray's Quit while the daemon is still connected, so no per-app snapshot lingers after close.</summary>
-    public Task ShutdownRestorePerAppAsync() => _perAppSwitcher.StopAsync();
 
     /// <summary>
     /// Settles settings work already in flight and closes the session, for an exit that can wait (#828).
@@ -92,7 +83,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public CustomTabletConfigsViewModel Configs { get; }
     public PresetsViewModel Presets { get; }
     public HotkeysViewModel Hotkeys { get; }
-    public PerAppViewModel PerApp { get; }
     public DiagnosticsViewModel Diagnostics { get; }
     public DashboardViewModel Dashboard { get; }
     public TestViewModel Test { get; }
@@ -158,11 +148,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var daemonLifecycle = new DaemonLifecycleService();
         _session = new AppSession(
-            OtdSession.Create(AppLogBridge.Instance, OtaSettingsPolicy.Instance, daemonLifecycle,
-                DispatcherExecutionContext.Instance),
+            OtdSession.Create(AppLogBridge.Instance, daemonLifecycle),
             daemonLifecycle);
         var dialogs = new DialogService(_session);
         _dialogs = dialogs;
+        _session.ResolveUnsavedChanges = ResolveUnsavedSettingsAsync;
 
         // Stopping or restarting a daemon this app didn't start asks first (#613, option 2). Wired here
         // rather than injected because DialogService is built FROM the session, so it cannot be a
@@ -216,19 +206,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // monitor-cycle manager each register their own chords on it and filter presses by their ids.
         _globalHotkeys = new GlobalHotkeyService();
         _profileSwitch = new ProfileSwitchService(_session, _presetStore, () => _session.PresetDirectory);
+        _profileSwitch.BeforeReplaceAsync = restoring => restoring
+            ? ConfirmRevertAsync() : ResolveUnsavedSettingsAsync();
         _profileHotkeys = new ProfileHotkeyManager(_globalHotkeys, _profileSwitch);
         _monitorCycle = new MonitorCycleService(_session, _session);
         _monitorHotkeys = new MonitorCycleHotkeys(_globalHotkeys, _monitorCycle);
-        // Per-app profile switching (#167): a foreground watcher + pen-state provider drive the switch
-        // policy, applying snapshots ephemerally (editor stays on the user's default).
-        _perAppStore = PerAppProfileStore.ForApp();
-        _perAppSwitcher = new PerAppSwitcher(
-            new Win32ForegroundAppWatcher(),
-            _perAppStore,
-            new PerAppApplier(_session, _presetStore, () => _session.PresetDirectory),
-            new DispatcherDebounceScheduler(TimeSpan.FromMilliseconds(200)),
-            ownExeName: System.Diagnostics.Process.GetCurrentProcess().ProcessName + ".exe");
-
         // Page VMs depend on the session through its role interfaces and on IDialogService,
         // and self-subscribe to the session's data load / connection state.
         DriverCleanup = new DriverCleanupViewModel(dialogs, _conflicts);
@@ -236,7 +218,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             new ConfigurationsDirectoryProvider(() => _session.ConfigurationDirectory));
         Presets = new PresetsViewModel(_presetStore, _session, _session, dialogs, _profileHotkeys, _profileSwitch);
         Hotkeys = new HotkeysViewModel(_profileHotkeys, _monitorHotkeys, dialogs, _session);
-        PerApp = new PerAppViewModel(_perAppSwitcher, _perAppStore, _session, dialogs, _session);
         Diagnostics = new DiagnosticsViewModel(_session.Daemon, _session, _session);
         WindowsInk = new WindowsInkViewModel(_session, dialogs, _health);
         VMulti = new VMultiViewModel(dialogs, _health);
@@ -270,10 +251,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ContentScrollBarVisibility));
         };
         // The SETTINGS page holds OTA's own preferences as tabs, sharing the same VM instances,
-        // under its own page-menu entry in front of ADVANCED. Presets + Per-App Presets (#571) and Developer
-        // (#572) are folded in as tabs — Per-App is feature-gated; Developer is always shown.
+        // under its own page-menu entry in front of ADVANCED. Presets (#571) and Developer
+        // (#572) are folded in as tabs.
         Settings = new SettingsViewModel(Startup, Hotkeys, Theme, Shortcut, DesktopEntry, DriverCleanup,
-            VMulti, Presets, PerApp, Developer);
+            VMulti, Presets, Developer);
 
         // The single TABLET page (#542): a switcher dropdown over the selected tablet's headerless detail
         // view. It resolves detail VMs through the shell (which owns the per-tablet cache + daemon plumbing).
@@ -289,7 +270,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             getLastUsed: () => _session.ActiveTabletName,
             setLastUsed: name => _session.SetActiveTablet(name));
 
-        // The whole top-level nav as one ordered list (Zune Phase 0.2). Presets + Per-App Presets live in
+        // The whole top-level nav as one ordered list (Zune Phase 0.2). Presets live in
         // SETTINGS tabs (#571). Selection is synced in OnCurrentPageChanged. TABLET's page carries a
         // placeholder when no tablet is known; SETTINGS + ADVANCED each open a tabbed page.
         NavSections.Add(new NavLeafViewModel("HOME", Dashboard));
@@ -318,7 +299,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // settings. Editors are cached by tablet name, so one survives a replacement that happens to
         // expose the same name -- and a change it was holding belonged to the daemon that has gone
         // (#905).
-        _session.PropertyChanged += OnSessionDaemonChanged;
+        _session.SettingsReplaced += ResetEditorInput;
+        _session.PropertyChanged += (_, _) => OnPropertyChanged(nameof(PageInputEnabled));
         RebuildTablets();
 
         CurrentPage = Dashboard;
@@ -371,10 +353,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var page = leaf.Page;
             list.Add((Slugify(leaf.Label), () => CurrentPage = page));
         }
-        // Walk the tab LISTS, not the enums, and skip what's hidden — the same IsVisible filter the leaf
-        // loop above uses. Enumerating SettingsTab included PerAppPresets even with the feature gated off,
-        // and selecting a hidden tab coerces back to the first visible one, so Presets was captured twice
-        // under two names (#690).
+        // Capture the visible tabs only.
         foreach (var tab in Advanced.Tabs.Where(t => t.IsVisible))
         {
             var t = tab.Tab;
@@ -444,7 +423,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             settings.Profiles.Remove(profile);
             // Reload rebuilds the list + prunes the VM; the TABLET page reselects a survivor (or shows the
             // no-tablet placeholder) in RebuildTablets.
-            await _session.ApplyAndSaveSettingsAsync(settings);
+            await _session.ApplySettingsAsync(settings);
         }
     }
 
@@ -508,37 +487,96 @@ public partial class MainViewModel : ObservableObject, IDisposable
         PenPage.SyncSelection(name, force);
     }
 
-    /// <summary>After each session data load, reconcile any cached tablet page with the freshly-loaded
-    /// settings so a change made outside OTA (e.g. in the OTD UX) is picked up rather than showing stale
-    /// values. Runs after <see cref="RebuildTablets"/>, which has already dropped VMs for gone tablets.</summary>
-    /// <summary>
-    /// Tells every cached editor when the connected daemon is replaced, so none of them carries a held
-    /// change across to a daemon it was never compared with (#905).
-    /// </summary>
-    /// <remarks>
-    /// The source path is the identity worth watching here: it moves when a different OpenTabletDriver
-    /// answers, which is precisely the boundary a held draft must not cross. An ordinary reload does not
-    /// change it, so this does not fire on every poll.
-    /// </remarks>
-    private void OnSessionDaemonChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    /// <summary>Drop debounced input before replacing the editable document.</summary>
+    private void ResetEditorInput()
     {
-        if (e.PropertyName != nameof(AppSession.DaemonSourcePath)) return;
-
-        foreach (var vm in _tabletDetails.Values) vm.DaemonReplaced();
+        if (HasPendingInput)
+            _session.DiscardedChangeNotice = "Pending local input was discarded when the settings workspace was replaced.";
+        foreach (var editor in _tabletDetails.Values) editor.ResetPendingEdits();
     }
 
-    /// <summary>
-    /// Hands every open editor what this session is publishing, snapshot and stamp from one read (#910).
-    /// </summary>
-    /// <remarks>
-    /// The settings and the stamp used to be read separately, which is two publications' worth of
-    /// opportunity for a reload to land in between. The editors would then be holding an older snapshot
-    /// labelled with a newer stamp — and an acceptance naming that stamp is honoured, because it matches
-    /// what the session is publishing, while the artist is looking at something else. That is precisely
-    /// the substitution the stamp argument exists to prevent, arranged by the caller instead.
-    /// </remarks>
     private void ReconcileOpenTabletDetails() =>
-        EditorReconciliation.Forward(_session.CurrentPublication, _tabletDetails);
+        EditorReconciliation.Forward(_session.CurrentSettings, _tabletDetails);
+
+    public AppSession SettingsSession => _session;
+    public bool PageInputEnabled => !_session.SettingsBusy &&
+        (CurrentPage is not (TabletPageViewModel or PenPageViewModel or TabletDetailViewModel)
+            || _session.CanEditSettings);
+
+    private bool HasPendingInput => _tabletDetails.Values.Any(e => e.HasPendingEdits);
+
+    [RelayCommand]
+    private async Task SaveSettings() => await SaveNowAsync();
+
+    private async Task<bool> SaveNowAsync()
+    {
+        if (_session.SettingsBusy) return false;
+        _session.SettingsBusy = true;
+        try
+        {
+            foreach (var editor in _tabletDetails.Values.ToArray())
+                await editor.FlushPendingEditsAsync();
+            return await _session.SaveSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Couldn't finish pending edits before saving.", ex);
+            _session.SaveState = SettingsSaveState.ApplyFailed;
+            return false;
+        }
+        finally { _session.SettingsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task RevertSettings() => await _profileSwitch.RestoreDefaultAsync();
+
+    private async Task<bool> ConfirmRevertAsync()
+    {
+        if (_session.SettingsBusy || _prompting) return false;
+        _prompting = true;
+        try
+        {
+            if (!await _dialogs.ShowConfirmAsync("Revert to saved settings?",
+                "This replaces the driver's live settings with its saved file and discards unsaved edits. Nothing is saved."))
+                return false;
+            ResetEditorInput();
+            return true;
+        }
+        finally { _prompting = false; }
+    }
+
+    [RelayCommand]
+    private async Task ReloadSettings()
+    {
+        if (_session.SettingsBusy) return;
+        if ((HasPendingInput || _session.SettingsPaused) && !await _dialogs.ShowConfirmAsync(
+            "Reload current driver settings?",
+            "Pending local edits will be discarded. This reads the driver's live settings; it does not restore the saved file or save anything."))
+            return;
+        _session.SettingsBusy = true;
+        try
+        {
+            ResetEditorInput();
+            await _session.ReloadSettingsAsync();
+        }
+        finally { _session.SettingsBusy = false; }
+    }
+
+    private bool _prompting;
+
+    public async Task<bool> ResolveUnsavedSettingsAsync()
+    {
+        if (_prompting || _session.SettingsBusy) return false;
+        if (!_session.HasUnsavedChanges && !HasPendingInput) return true;
+        Helpers.UnsavedSettingsChoice choice;
+        _prompting = true;
+        try { choice = await Helpers.Dialogs.ShowUnsavedSettingsAsync(); }
+        finally { _prompting = false; }
+        if (choice == Helpers.UnsavedSettingsChoice.Cancel) return false;
+        if (choice == Helpers.UnsavedSettingsChoice.Save) return await SaveNowAsync();
+        ResetEditorInput();
+        return true;
+    }
 
     // Throttle so rapid focus flicker doesn't spam the daemon; the reload itself is coalesced anyway.
     private long _lastActivationReloadTick;
@@ -570,14 +608,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else if (ReferenceEquals(oldValue, Test) && !ReferenceEquals(newValue, Test))
             _ = Test.DeactivateAsync();
 
-        // Rescan the Hotkeys + Per-App snapshot lists when SETTINGS opens — both are tabs there now
-        // (#571) — so a snapshot saved on the Presets page shows up in their pickers. Selecting either
-        // tab rescans it too (SettingsViewModel.RefreshOnEnter); this covers arriving with one already
-        // selected, which changes no tab.
+        // Rescan hotkeys when the settings page opens so newly saved presets are available.
         if (ReferenceEquals(newValue, Settings))
         {
             _ = Hotkeys.RefreshAsync();
-            _ = PerApp.RefreshAsync();
         }
 
         // Refresh the page-menu highlight — every page highlights via its own IsSelected.
@@ -585,6 +619,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             section.IsSelected = ReferenceEquals(CurrentPage, section.Page);
         OnPropertyChanged(nameof(ContentScrollBarVisibility));
         OnPropertyChanged(nameof(ShowTabletSwitcher));
+        OnPropertyChanged(nameof(PageInputEnabled));
     }
 
     /// <summary>Whether the shell's top bar shows the tablet switcher (#switcher-in-shell): on the three
@@ -603,7 +638,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _session.DataLoaded -= RebuildTablets;
         _session.DataLoaded -= ReconcileOpenTabletDetails;
-        _session.PropertyChanged -= OnSessionDaemonChanged;
+        _session.SettingsReplaced -= ResetEditorInput;
         _autoMapper.Dispose();    // unsubscribes DataLoaded (first-detection auto-mapping)
         _winInkAutoSetup.Dispose(); // unsubscribes DataLoaded (Windows Ink auto-setup)
         Daemon.Dispose();         // stops the connection card's uptime timer + unsubscribes
@@ -613,7 +648,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Dashboard.Dispose();      // cancels VMulti install/uninstall token + unsubscribes
         Presets.Dispose();        // unsubscribes DataLoaded
         Hotkeys.Dispose();        // unsubscribes DataLoaded
-        PerApp.Dispose();         // unsubscribes DataLoaded + spike events
         Test.Dispose();           // stops the daemon debug stream if running
         Log.Dispose();        // unsubscribes the daemon log stream + connection sync
         Plugins.Dispose();        // unsubscribes DataLoaded
@@ -625,7 +659,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _profileHotkeys.Dispose(); // drops its registrations + event hook (shared service, not disposed here)
         _monitorHotkeys.Dispose(); // drops its registration + event hook
         _globalHotkeys.Dispose();  // destroys the shared message-only hotkey window
-        _perAppSwitcher.Dispose(); // stops the foreground watcher + pen stream
 
         // Last, after everything that unsubscribes from it. It used to sit above DriverCleanup, the
         // conflict monitor and the health service, all of which detach handlers from a session that had

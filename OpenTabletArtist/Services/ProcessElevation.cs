@@ -6,7 +6,7 @@ namespace OpenTabletArtist.Services;
 /// <summary>
 /// Reports whether this process is running elevated (as Administrator). OpenTabletArtist should run
 /// as a normal user — running elevated breaks Windows Ink pointer sync and prevents reading foreground
-/// apps' executable paths for per-app switching. Evaluated once (elevation can't change at runtime) and
+/// other processes' executable paths. Evaluated once (elevation can't change at runtime) and
 /// surfaced as a health recommendation on Home.
 /// </summary>
 public static class ProcessElevation

@@ -25,7 +25,7 @@ public class AppSessionLifecycleTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
-        public string? Launch() { LaunchCount++; return null; }                 // no real process — never connects
+        public string? Launch(string? executablePath = null) { LaunchCount++; return null; }                 // no real process — never connects
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
@@ -43,7 +43,7 @@ public class AppSessionLifecycleTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => null;
         public bool IsRunning() => false;
-        public string? Launch() { LaunchCount++; return null; }
+        public string? Launch(string? executablePath = null) { LaunchCount++; return null; }
         public int StopPidCount { get; private set; }
         public bool Stop(int processId) { StopPidCount++; return true; }
         public void StopAll() => StopAllCount++;
@@ -60,7 +60,7 @@ public class AppSessionLifecycleTests
         public bool HasBundledDaemon() => false;
         public string? FindExe() => "fake-daemon.exe";
         public bool IsRunning() => false;
-        public string? Launch() => Problem;
+        public string? Launch(string? executablePath = null) => Problem;
         public bool Stop(int processId) => true;
         public void StopAll() { }
         public string? PathOf(int processId) => null;

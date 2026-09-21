@@ -28,7 +28,7 @@ public sealed class AppTray : IDisposable
     private readonly IConnectionState _conn;
     private readonly IDeviceData _deviceData;
     private readonly ISettingsCoordinator _settingsCoord;
-    private readonly Func<Task>? _onQuitAsync; // restore per-app default before exit (#167)
+    private readonly Func<Task<bool>>? _onQuitAsync; // resolve unsaved settings before exit
     private readonly Func<TimeSpan, Task<bool>>? _onCloseAsync; // settle settings work before exit (#828)
     private readonly Func<Task<Func<Task>?>>? _onPrepareStopAsync; // capture the stop target (#828)
 
@@ -52,7 +52,7 @@ public sealed class AppTray : IDisposable
 
     public AppTray(IClassicDesktopStyleApplicationLifetime desktop, MainWindow window,
         IConnectionState conn, IDeviceData deviceData, ISettingsCoordinator settingsCoord,
-        Func<Task>? onQuitAsync = null, Func<TimeSpan, Task<bool>>? onCloseAsync = null,
+        Func<Task<bool>>? onQuitAsync = null, Func<TimeSpan, Task<bool>>? onCloseAsync = null,
         Func<Task<Func<Task>?>>? onPrepareStopAsync = null)
     {
         _desktop = desktop;
@@ -240,7 +240,7 @@ public sealed class AppTray : IDisposable
         var activeName = _deviceData.ActiveTabletName;
         if (settings == null || string.IsNullOrEmpty(activeName)) return;
 
-        // Mutate the live profile inside CurrentSettings, then persist the whole settings object —
+        // Mutate the live profile inside CurrentSettings, then apply the settings —
         // same path the tablet dialog's "Apply mapping" uses.
         var profile = settings.Profiles.FirstOrDefault(p => p.Tablet == activeName);
         if (profile == null) return;
@@ -251,7 +251,7 @@ public sealed class AppTray : IDisposable
         var displays = DisplayEnumerator.Enumerate();
         if (!DisplayMappingApplier.ApplyToProfile(profile, digitizer, display, displays)) return;
 
-        try { await _settingsCoord.ApplyAndSaveSettingsAsync(settings); }
+        try { await _settingsCoord.ApplySettingsAsync(settings); }
         catch { /* best-effort; the next data load will resync the menu's checkmark */ }
     }
 
@@ -259,6 +259,7 @@ public sealed class AppTray : IDisposable
 
     private async void Quit(bool stopDaemon = false)
     {
+        if (_onQuitAsync is not null && !await _onQuitAsync()) return;
         _window.AllowCloseForQuit();
 
         // Decided here, while the daemon is still connected, and performed by the sequence after the
@@ -268,7 +269,6 @@ public sealed class AppTray : IDisposable
 
         // The order matters and is documented where it lives, in QuitSequence.
         await QuitSequence.RunAsync(
-            restorePerApp: _onQuitAsync,
             closeSession: _onCloseAsync,
             stopDaemon: stop,
             warn: message => Trace.TraceWarning(message));

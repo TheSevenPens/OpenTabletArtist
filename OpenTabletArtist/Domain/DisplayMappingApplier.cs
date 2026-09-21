@@ -167,35 +167,7 @@ public static class DisplayMappingApplier
         return fullyOnScreen ? DisplayMappingValidity.Custom : DisplayMappingValidity.OffScreen;
     }
 
-    /// <summary>
-    /// Copy the Absolute-mode area mapping (the Display <em>and</em> Tablet areas — the two are
-    /// aspect-locked) from <paramref name="source"/> into <paramref name="target"/> for each matching
-    /// tablet profile, leaving every other setting in <paramref name="target"/> untouched. Used so a
-    /// per-app profile switch keeps the tablet on the monitor the user currently has it on, instead of
-    /// the one frozen into the snapshot when it was saved (#167). Which monitor is governed by the user's
-    /// live settings (the tablet page / the cycle-monitor hotkey), not by each snapshot.
-    /// </summary>
-    public static void PreserveAreaMapping(Settings target, Settings source)
-    {
-        foreach (var tp in target.Profiles)
-        {
-            var sp = source.Profiles.FirstOrDefault(p =>
-                string.Equals(p.Tablet, tp.Tablet, StringComparison.OrdinalIgnoreCase));
-            if (sp?.AbsoluteModeSettings is not { } sAbs || tp.AbsoluteModeSettings is not { } tAbs) continue;
-            CopyArea(sAbs.Display, tAbs.Display);
-            CopyArea(sAbs.Tablet, tAbs.Tablet);
-        }
 
-        static void CopyArea(AreaSettings? from, AreaSettings? to)
-        {
-            if (from == null || to == null) return;
-            to.X = from.X;
-            to.Y = from.Y;
-            to.Width = from.Width;
-            to.Height = from.Height;
-            to.Rotation = from.Rotation;
-        }
-    }
 }
 
 /// <summary>The stored display-output rectangle in 0-based virtual-desktop coordinates (top-left origin,

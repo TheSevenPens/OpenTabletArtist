@@ -26,7 +26,6 @@ public partial class MainWindow : Window
     private bool _trayHintShown = Program.LaunchInBackground || AppSettings.Get("TrayHintShown") == "true";
     private ProfileSwitchService? _switchSub;  // tracked so we can unsubscribe on DataContext change / close
     private MonitorCycleService? _cycleSub;    // ditto, for the monitor-cycle toast (#89)
-    private PerAppSwitcher? _perAppSub;        // ditto, for the automatic per-app switch toast (#167)
 
     public MainWindow()
     {
@@ -47,28 +46,22 @@ public partial class MainWindow : Window
         {
             if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; _switchSub.RestoreFailed -= OnProfileRestoreFailed; }
             if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
-            if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
             ProfileToast.Dismiss();
             (DataContext as MainViewModel)?.Dispose();
         };
     }
 
-    // Follow the VM's switch services so a hotkey-driven profile switch (#320), monitor cycle (#89), or an
-    // automatic per-app switch (#167) pops a transient toast, even when the app is in the tray / behind
-    // the drawing app.
+    // Report manual preset and monitor hotkey actions even while the app is in the tray.
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_switchSub != null) { _switchSub.Switched -= OnProfileSwitched; _switchSub.SwitchFailed -= OnProfileSwitchFailed; _switchSub.RestoreFailed -= OnProfileRestoreFailed; }
         if (_cycleSub != null) _cycleSub.Cycled -= OnMonitorCycled;
-        if (_perAppSub != null) _perAppSub.ActiveProfileChanged -= OnPerAppSwitched;
 
         var vm = DataContext as MainViewModel;
         _switchSub = vm?.ProfileSwitch;
         _cycleSub = vm?.MonitorCycle;
-        _perAppSub = vm?.PerAppSwitch;
         if (_switchSub != null) { _switchSub.Switched += OnProfileSwitched; _switchSub.SwitchFailed += OnProfileSwitchFailed; _switchSub.RestoreFailed += OnProfileRestoreFailed; }
         if (_cycleSub != null) _cycleSub.Cycled += OnMonitorCycled;
-        if (_perAppSub != null) _perAppSub.ActiveProfileChanged += OnPerAppSwitched;
     }
 
     private void OnProfileSwitched(string? snapshot)
@@ -92,23 +85,15 @@ public partial class MainWindow : Window
     private void OnProfileRestoreFailed(SettingsRestoreStatus status) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(status switch
         {
-            SettingsRestoreStatus.SourceUnavailable => "Couldn't restore — saved settings unreadable, preset still active",
-            SettingsRestoreStatus.Disconnected => "Couldn't restore — not connected, preset still active",
+            SettingsRestoreStatus.SourceUnavailable => "Couldn't restore — saved settings unreadable",
+            SettingsRestoreStatus.Disconnected => "Couldn't restore — not connected",
             // The daemon changed under the restore, so the preset it would have ended belonged to the
             // daemon that has gone — saying "preset still active" about the new one would be wrong (#803).
-            SettingsRestoreStatus.Superseded => "Didn't restore — the daemon changed while restoring",
-            _ => "Couldn't restore your saved settings — preset still active",
+            _ => "Couldn't restore your saved settings",
         }));
 
     private void OnMonitorCycled(string message) =>
         Dispatcher.UIThread.Post(() => ProfileToast.Show(message));
-
-    // Automatic per-app switch: same transient toast as the hotkey paths, with an app-window icon so it
-    // reads as an app-triggered change rather than a keyboard one. The switcher dedupes by target, so this
-    // only fires when the applied profile actually changes — not on every focus flip.
-    private void OnPerAppSwitched(string? snapshot) =>
-        Dispatcher.UIThread.Post(() => ProfileToast.Show(
-            snapshot == null ? "Restored saved settings" : $"Switched to “{snapshot}”", iconKey: "IconApplication"));
 
     /// <summary>Permit a real close — used by the tray's Quit. Without it, closing hides to the tray.</summary>
     public void AllowCloseForQuit() => _allowClose = true;

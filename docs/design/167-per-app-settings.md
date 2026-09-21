@@ -1,5 +1,7 @@
 # Feasibility — per-application settings (#167)
 
+> Historical design. OTA's current behavior is described in [OTD settings workspace and explicit Save](otd-interop-settings-workspace.md). The autosave, per-app, and conflict-reconciliation behavior below has been superseded; upstream protocol observations remain useful.
+
 > **See also:** [167-per-app-settings-design.md](167-per-app-settings-design.md) — the concrete
 > implementation design (components, switch policy, live-apply path, data model, UI, tests) that
 > builds on this feasibility note, including an agent review (2026-06-30).

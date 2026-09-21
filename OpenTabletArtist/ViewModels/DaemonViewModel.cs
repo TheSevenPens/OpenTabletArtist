@@ -166,6 +166,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasUserDaemonPathProblem))]
     private string _userDaemonPathProblem = "";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDaemonSelectionNotice))]
+    private string _daemonSelectionNotice = "";
+    public bool HasDaemonSelectionNotice => !string.IsNullOrEmpty(DaemonSelectionNotice);
+
     public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
 
     partial void OnUserDaemonPathChanged(string value)
@@ -179,13 +184,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
     }
 
-    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect
-    /// through it. Rejections are reported rather than stored.</summary>
+    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it for the next application launch. Rejections are reported rather than stored.</summary>
     public async Task ChooseDaemonPathAsync(string? rawPath)
     {
         var result = DaemonExePaths.ValidateUserPath(rawPath, File.Exists);
         if (!result.Accepted)
         {
+            DaemonSelectionNotice = "";
             UserDaemonPathProblem = result.Problem ?? "";
             return;
         }
@@ -193,7 +198,8 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         UserDaemonPathProblem = "";
         UserDaemonPath = result.Path!;
         AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
-        await Status.RefreshCommand.ExecuteAsync(null);
+        DaemonSelectionNotice = "Selection saved for the next OpenTabletArtist launch. Stop the current driver first if a different copy is running.";
+        await Task.CompletedTask;
     }
 
     // --- "Install it for me": fetch the pinned official release -----------------------------------
@@ -340,7 +346,7 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
             // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
             // and nothing has to be remembered.
             InstallGuidance = OtdInstaller.GatekeeperGuidance;
-            await Status.RefreshCommand.ExecuteAsync(null);
+            InstallGuidance += " Restart OpenTabletArtist to use this installation.";
         }
         finally
         {
@@ -365,7 +371,8 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         AppSettings.Remove(DaemonExePaths.UserPathSettingKey);
         UserDaemonPath = "";
         UserDaemonPathProblem = "";
-        await Status.RefreshCommand.ExecuteAsync(null);
+        DaemonSelectionNotice = "The default selection takes effect after restarting OpenTabletArtist. Stop the current driver first if a different copy is running.";
+        await Task.CompletedTask;
     }
 
     /// <summary>Reveal a daemon executable's folder in the OS file manager.

@@ -10,7 +10,7 @@ namespace OpenTabletArtist.ViewModels;
 
 /// <summary>One tab in the SETTINGS rail: its label, which subpage it selects, the content view model the
 /// host shows when it's active, a selection flag the rail highlights, and a visibility flag (gated tabs
-/// like Developer and Per-App Presets hide themselves).</summary>
+/// like Developer hide themselves).</summary>
 public partial class SettingsTabItem : ObservableObject
 {
     public SettingsTabItem(string label, SettingsTab tab, object content, bool isVisible = true)
@@ -34,22 +34,19 @@ public partial class SettingsTabItem : ObservableObject
 /// <b>flat</b> tab rail hosting OpenTabletArtist's preference subpages. Split out of the ADVANCED page so
 /// those OTA-owned settings live under their own node. Mirrors <see cref="AdvancedViewModel"/> (data-driven
 /// rail + shared subpage VMs, deep-linkable via <see cref="SelectedTab"/>), but flat — there are no owner
-/// sections here. Presets/Per-App/Developer folded in from top-level nav nodes (#571/#572); Per-App is
-/// feature-gated via its tab's IsVisible. See docs/design/ux-terminology.md.
+/// sections here. Presets and Developer live here (#571/#572). See docs/design/ux-terminology.md.
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsTabItem[] _allTabs;
-    // Kept for RefreshOnEnter — the two tabs whose contents are built from the presets folder.
+    // Kept for RefreshOnEnter — the tab whose contents are built from the presets folder.
     private readonly HotkeysViewModel _hotkeys;
-    private readonly PerAppViewModel _perApp;
 
     public SettingsViewModel(StartupViewModel startup, HotkeysViewModel hotkeys, ThemeViewModel theme,
         ShortcutViewModel shortcut, DesktopEntryViewModel desktopEntry, DriverCleanupViewModel driverCleanup,
-        VMultiViewModel vmulti, PresetsViewModel presets, PerAppViewModel perApp, DeveloperViewModel developer)
+        VMultiViewModel vmulti, PresetsViewModel presets, DeveloperViewModel developer)
     {
         _hotkeys = hotkeys;
-        _perApp = perApp;
         // The "System" pivot holds each OS's own integration capabilities, kept deliberately separate so
         // Windows and Linux each do their native thing (no shared abstraction). On Windows it's Startup +
         // Shortcut stacked; on Linux it's the single application-menu-entry (.desktop) card, the counterpart
@@ -71,7 +68,6 @@ public partial class SettingsViewModel : ObservableObject
         var tabs = new SettingsTabItem[]
         {
             new("PRESETS", SettingsTab.Presets, presets),
-            new("PER-APP PRESETS", SettingsTab.PerAppPresets, perApp, isVisible: FeatureFlags.PerAppProfiles),
             new("HOTKEYS", SettingsTab.Hotkeys, hotkeys),
             new("THEME", SettingsTab.Theme, theme),
             new("SYSTEM", SettingsTab.System, system),
@@ -149,14 +145,13 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (!TabRescansPresets(tab)) return;
         if (tab == SettingsTab.Hotkeys) _ = _hotkeys.RefreshAsync();
-        else _ = _perApp.RefreshAsync();
     }
 
     /// <summary>Which tabs are built from the presets folder, and so go stale when a preset is saved or
     /// deleted while SETTINGS is already open. A pure predicate, like <see cref="TabAppliesToOs"/>, so the
     /// rule is testable without constructing the whole view-model graph.</summary>
     public static bool TabRescansPresets(SettingsTab tab) =>
-        tab is SettingsTab.Hotkeys or SettingsTab.PerAppPresets;
+        tab is SettingsTab.Hotkeys;
 
     private void UpdateSelection()
     {

@@ -11,8 +11,7 @@ namespace OpenTabletArtist.Services;
 /// <summary>
 /// Session-level setup helpers that apply a fix across the connected tablets, independent of any open
 /// tablet page — so a one-click "fix" can be offered from the pages that surface the problem (e.g. the
-/// Windows Ink plugin install flow, #361). Mutates the coordinator's current settings and applies +
-/// persists through it, so the change is live and saved.
+/// Windows Ink plugin install flow, #361). Mutates the coordinator's current settings and applies through it; persistence is an explicit Save.
 /// </summary>
 public sealed class SetupActions
 {
@@ -55,7 +54,7 @@ public sealed class SetupActions
             WinInkAutoOptOut.Clear(name); // now on Windows Ink → no longer opted out (keeps the set fresh)
             changed++;
         }
-        if (changed > 0) await _settings.ApplyAndSaveSettingsAsync(settings);
+        if (changed > 0) await _settings.ApplySettingsAsync(settings);
         return changed;
     }
 
@@ -74,7 +73,7 @@ public sealed class SetupActions
             .ToList();
     }
 
-    /// <summary>Maps the named tablet to the primary display (aspect-locked) and applies + persists.</summary>
+    /// <summary>Maps the named tablet to the primary display (aspect-locked) and applies live.</summary>
     public async Task<bool> MapTabletToPrimaryAsync(string tablet)
     {
         if (_settings.CurrentSettings is not { } settings) return false;
@@ -88,7 +87,7 @@ public sealed class SetupActions
 
         if (!DisplayMappingApplier.ApplyToProfile(prof, _device.GetTabletDigitizer(tablet), primary, displays))
             return false;
-        await _settings.ApplyAndSaveSettingsAsync(settings);
+        await _settings.ApplySettingsAsync(settings);
         return true;
     }
 }

@@ -74,7 +74,7 @@ public class PresetsViewModelTests
         try
         {
             var coordinator = new FakeSettingsCoordinator { CurrentSettings = new Settings { LockUsableAreaTablet = true } };
-            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), NewSwitch()) { PresetDirectory = dir };
+            var vm = new PresetsViewModel(new PresetStore(NullOtdLog.Instance), coordinator, new FakeDeviceData(), new FakeDialogService(), new FakeProfileHotkeys(), new ProfileSwitchService(coordinator, new PresetStore(NullOtdLog.Instance), () => dir)) { PresetDirectory = dir };
 
             await vm.SavePresetCommand.ExecuteAsync(null);   // writes Preset.json
             await vm.LoadPresetCommand.ExecuteAsync("Preset");

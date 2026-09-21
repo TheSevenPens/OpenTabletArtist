@@ -127,7 +127,7 @@ public class BorrowedCapabilitiesTests
         daemon.Tablets.Add(new Newtonsoft.Json.Linq.JObject());
 
         var session = OtdSession.ForTesting(daemon, store: null, NullOtdLog.Instance,
-            NoPolicy.Instance, new FakeProcessLocator());
+            new FakeProcessLocator());
         daemon.Reconnect();
 
         return (session, daemon);
