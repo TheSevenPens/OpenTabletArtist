@@ -375,4 +375,31 @@ public class ExplicitSettingsTests
         Assert.True((await applying).IsLive);
         Assert.True(editing.StillCurrent);
     }
+
+    /// <summary>
+    /// A released hold cannot still write (#925).
+    /// </summary>
+    /// <remarks>
+    /// Disposal gave back the reservation and left everything else about the scope working, so a dialog
+    /// that had been closed and released could still reach the settings through the object it had been
+    /// handed. Giving up the hold and losing the ability to use it are the same event.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AReleasedScopeCannotStillWrite()
+    {
+        var (app, daemon, store) = await Open();
+        using var lifetime = app;
+
+        var editing = app.ReserveEditing();
+        var captured = app.CurrentSettings!;
+        captured.Profiles[0].BindingSettings.DisablePressure = true;
+
+        editing.Dispose();
+
+        Assert.False(editing.StillCurrent, "a released scope still claimed the document");
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere,
+            (await editing.ApplyProfileAsync(captured.Profiles[0])).Status);
+        Assert.Empty(daemon.Applied);
+        Assert.Equal(0, store.Attempts);
+    }
 }

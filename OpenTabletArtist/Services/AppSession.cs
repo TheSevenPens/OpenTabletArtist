@@ -356,8 +356,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         private bool _closed;
         private int _generation = generation;
 
+        /// <summary>
+        /// Whether this scope may still submit. A released one may not (#925).
+        /// </summary>
+        /// <remarks>
+        /// Disposal gave up the reservation and left the scope able to write, so a dialog that had been
+        /// closed and released could still reach the settings through it. Releasing the hold and losing
+        /// the ability to use it are the same event.
+        /// </remarks>
         public bool StillCurrent =>
-            workspace is not null
+            !_closed
+            && workspace is not null
             && ReferenceEquals(workspace, session._workspace)
             && workspace.Generation == _generation;
 
