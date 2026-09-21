@@ -129,7 +129,10 @@ public sealed class SettingsWorkspace
     /// </param>
     public async Task<SettingsReloadOutcome> RefreshAsync(Func<bool> editingIsIdle)
     {
-        var pausedBefore = _session.IsPaused;
+        // This workspace's pause, not the library's (#923). A pause raised here because input arrived
+        // during an adoption is invisible to the library -- it has already taken the driver's values and
+        // cleared its own -- so asking the library let a second outside change adopt straight over it.
+        var pausedBefore = IsPaused;
         var editBefore = _edit;
 
         var observed = await _session.RefreshAsync();

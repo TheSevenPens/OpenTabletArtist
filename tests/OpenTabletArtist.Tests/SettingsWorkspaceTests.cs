@@ -215,6 +215,65 @@ public class SettingsWorkspaceTests
         Assert.False(workspace.IsPaused);
     }
 
+    /// <summary>
+    /// And that pause is not cleared by a later refresh either (#923).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The eligibility test asked the library whether it was paused, which is not the same question as
+    /// whether the <em>workspace</em> is: a pause the host raised because input arrived during adoption
+    /// lives here, and the library has long since taken the driver's values and cleared its own. So a
+    /// second outside change found everything apparently in order and adopted over the pause.
+    /// </para>
+    /// <para>
+    /// Input stopping being pending is not an answer. The editor's debounce clears its pending bit before
+    /// it submits, so the quiet moment this used to adopt in is a moment the artist is still mid-edit.
+    /// The only thing that ends one of these pauses is the artist asking for it, the same as every other.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ThePauseFromAnInterruptedAdoption_SurvivesALaterRefresh()
+    {
+        var (session, daemon, _) = await Connected();
+        using var lifetime = session;
+        var workspace = new SettingsWorkspace(session.Settings!, false);
+
+        var theirs = SettingsCodec.Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        var editing = false;
+        var reads = 0;
+        var held = new TaskCompletionSource<Settings?>();
+        daemon.GetSettingsHandler = () =>
+        {
+            if (++reads != 2) return Task.FromResult<Settings?>(SettingsCodec.Clone(daemon.Settings!));
+            editing = true;              // a hand reaches the slider while the adoption read is out
+            return held.Task;
+        };
+
+        var refreshing = workspace.RefreshAsync(() => !editing);
+        held.SetResult(SettingsCodec.Clone(theirs));
+        await refreshing;
+        Assert.True(workspace.IsPaused);
+
+        // The debounce fires and the pending bit clears. Nobody has decided anything.
+        editing = false;
+        daemon.GetSettingsHandler = null;
+
+        // The driver changes again, which is what brings the refresh back to this decision.
+        var later = SettingsCodec.Clone(daemon.Settings!);
+        later.Profiles[1].BindingSettings.DisablePressure = true;
+        daemon.Settings = later;
+
+        Assert.NotEqual(SettingsReloadStatus.Adopted, (await workspace.RefreshAsync(Idle)).Status);
+        Assert.True(workspace.IsPaused, "a later refresh cleared a pause the artist never answered");
+
+        // Explicit Reload is the way out, as everywhere else.
+        Assert.Equal(SettingsReloadStatus.Adopted, (await workspace.ReloadAsync()).Status);
+        Assert.False(workspace.IsPaused);
+    }
+
     /// <summary>A pause already on the board is never cleared by a background refresh.</summary>
     /// <remarks>
     /// Answering it is the artist's. A poll quietly resolving it is how a protection becomes a
