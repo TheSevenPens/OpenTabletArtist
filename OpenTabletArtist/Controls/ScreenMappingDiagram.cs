@@ -298,6 +298,13 @@ public sealed class ScreenMappingDiagram : Control
         // Three of them, which is what a box drawn from outside shows — the fourth edge is the one
         // behind, and drawing it would turn a solid into a wireframe.
         //
+        // WHICH top edge is the visible one depends on where the display sits. Both bottom rails always
+        // show, because the active area is below the display and we are looking at the underside; of the
+        // two top rails, the visible one is on the side the active area is displaced TOWARDS — that is
+        // the side whose face we can see. Hardcoding the right-hand one was right for a display left of
+        // the active area and wrong the moment the display was to its right, where the left edge is the
+        // one on show and the right one is buried in the solid.
+        //
         // Clipped out of the display, like the beams. The third rail starts at a corner of the display
         // rather than below it, and when the active area is narrower than the display it runs down
         // across the display's face on its way to the matching corner — which is the thing the beams
@@ -318,7 +325,11 @@ public sealed class ScreenMappingDiagram : Control
                 new RectangleGeometry(railBox)));
             ctx.DrawLine(rail, railBox.BottomLeft, effRect.BottomLeft);
             ctx.DrawLine(rail, railBox.BottomRight, effRect.BottomRight);
-            ctx.DrawLine(rail, railBox.TopRight, effRect.TopRight);
+
+            if (effRect.Center.X >= railBox.Center.X)
+                ctx.DrawLine(rail, railBox.TopRight, effRect.TopRight);
+            else
+                ctx.DrawLine(rail, railBox.TopLeft, effRect.TopLeft);
         }
 
         // The selected display, drawn after the beams — which are also clipped out of it, so its
