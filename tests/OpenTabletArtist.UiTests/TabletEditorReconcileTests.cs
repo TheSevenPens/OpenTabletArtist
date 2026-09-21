@@ -1076,6 +1076,66 @@ public class TabletEditorReconcileTests
     }
 
     /// <summary>
+    /// A draft whose hold the session can no longer use is given up, not held for ever (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Refusing an unusable hold is right in the library, and it leaves the editor somewhere it has to be
+    /// got out of: every route in presents the same hold, so a draft that keeps one the session rejects
+    /// can never be submitted again by any means. A reconnect to the <em>same</em> daemon does not go
+    /// through <c>DaemonReplaced</c> — the source path has not moved — so nothing else would ever clear
+    /// it either.
+    /// </para>
+    /// <para>
+    /// The draft goes, on #905's terms: losing an edit is bad, and writing it over settings it was never
+    /// compared with is worse. What the editor then shows is what the daemon last gave it.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ADraftWhoseHoldTheSessionRefuses_IsGivenUpRatherThanStranded()
+    {
+        var settings = SettingsWithForeignFilter();
+        var answer = SettingsApplyOutcome.CouldNotCheck;
+        var submissions = 0;
+
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => { submissions++; return Task.FromResult(answer); },
+            resubmitAction: (_, _) => { submissions++; return Task.FromResult(answer); });
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.HasExternalChange, "the change should be held to begin with");
+
+        // The session now refuses the hold this draft carries.
+        answer = SettingsApplyOutcome.HoldNotApplicable;
+        vm.RetryHeldChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.False(vm.HasExternalChange, "the orphaned draft should have been given up");
+        Assert.False(vm.CanRetryHeldChange);
+
+        // Given up means the next reload is taken rather than refused, which is how the editor comes
+        // back to showing the daemon's settings. Nothing is restored at the moment of giving up: the
+        // draft lives in this editor's own profile, and what replaces it arrives with reconciliation.
+        var theirs = SettingsWithForeignFilter();
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(theirs, theirs.Profiles[0], new SettingsStamp(1, 1));
+
+        Assert.True(vm.DisableTilt, "the daemon's settings should have been adopted");
+        Assert.False(vm.DisablePressure, "and the orphaned draft is not still showing over them");
+
+        // And the editor works again: an ordinary edit submits.
+        answer = SettingsApplyOutcome.Saved;
+        var before = submissions;
+        vm.DisableWindowsInk = !vm.DisableWindowsInk;
+        await Settle();
+
+        Assert.True(submissions > before, "the editor was left unable to submit anything");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
     /// An overwrite refused because the world moved again leaves the draft held, and still held against
     /// what it was first held against (#906).
     /// </summary>
@@ -1152,13 +1212,21 @@ public class TabletEditorReconcileTests
     }
 
     /// <summary>
-    /// Two real editors over one real session, wired as the shell wires them.
+    /// Two real editors over one real session, built the way the shell builds them.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Real on both sides on purpose. The hole these tests are about lived in what the editors and the
     /// session shared, so a fake on either side of that boundary is a fake of the thing under test: one
     /// editor with a stubbed session cannot collide with anybody, and a stubbed editor cannot hold a
     /// draft of its own.
+    /// </para>
+    /// <para>
+    /// Scope, precisely: this constructs the two editors through <see cref="DialogService"/> directly. It
+    /// does not drive <c>MainViewModel</c>'s cache or navigation, so what the tests below establish is
+    /// that two editors sharing a session cannot resolve each other's drafts — not that the shell's cache
+    /// produces two of them. That it does is the premise, and it is covered where the cache lives.
+    /// </para>
     /// </remarks>
     private static async Task<TwoEditors> TwoRealEditors()
     {

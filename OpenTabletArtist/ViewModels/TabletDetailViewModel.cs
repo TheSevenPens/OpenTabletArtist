@@ -1275,6 +1275,24 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // puts on screen.
         if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
 
+        // The session cannot use the hold this draft was submitted with, so the draft is orphaned: it was
+        // weighed against a connection that has been replaced, and this editor has no way to reason about
+        // it any more (#906). Kept, it would be refused for ever — every route in submits the same hold,
+        // and a reconnect to the same daemon does not go through DaemonReplaced, so nothing else would
+        // ever clear it.
+        //
+        // Given up, on #905's terms and for #905's reason: losing an edit is bad, and writing it over
+        // settings it was never compared with is worse. Telling the artist it went is #906's remaining
+        // work, tracked there rather than guessed at here.
+        if (outcome.Status is SettingsApplyStatus.HoldNotApplicable)
+        {
+            _heldChange = false;
+            _heldConflict = null;
+            _heldHold = null;
+            ClearExternalChange();
+            return false;   // refresh from the profile, which is what the daemon last gave us
+        }
+
         if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
         {
             _heldChange = true;

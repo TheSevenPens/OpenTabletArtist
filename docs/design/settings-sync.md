@@ -134,6 +134,18 @@ If OTD's UX (or the OTDWindowsHelper) changes settings while OTA is open:
   refusing with a fresh conflict otherwise. An authorised write that does not land resolves nothing, and
   neither does a refusal: the hold stands until something the artist did actually settles it.
 
+  A hold names the session that issued it and the connection it was taken on. One that matches neither is
+  **refused** (`HoldNotApplicable`) rather than ignored: falling back to this session's own baseline reads
+  as the careful choice, but that baseline can match the daemon exactly while the draft belongs somewhere
+  else — so the check passes and a foreign draft is written. The editor gives such a draft up, on the
+  same terms as a daemon switch (#905).
+
+  What a hold guarantees is narrower than it first looks. It is **not** that a hold only ever makes a
+  write harder: if the daemon moves away from the expected state and back again, the held draft is taken
+  while an ordinary submission of the same edit is held, because a reload advanced the ordinary baseline
+  in between. The invariant is *compare this draft against its own unchanged expectation*. A hold belongs
+  to one draft, is dropped when that draft is resolved or replaced, and is never attached to a later one.
+
   The hold lives on the draft rather than on the session because editors are cached and two can be live
   at once. With one shared expectation, whichever artist resolved first cleared it, and the other's
   draft — still built on the older state — was then found to agree with the daemon and written. There is

@@ -147,6 +147,17 @@ public interface ISettingsCoordinator
 
     /// <summary>The stamp of what this session is publishing now, for naming a snapshot taken (#910).</summary>
     SettingsStamp CurrentStamp { get; }
+
+    /// <summary>
+    /// What this session is publishing, settings and stamp together, in one read (#910).
+    /// </summary>
+    /// <remarks>
+    /// For anyone who needs both. Reading <see cref="CurrentSettings"/> and <see cref="CurrentStamp"/>
+    /// separately is two publications' worth of opportunity: a reload landing between them hands out
+    /// older settings under a newer stamp, and a caller that later accepts that stamp is agreeing to
+    /// something it was never shown.
+    /// </remarks>
+    PreparedSettings? CurrentPublication { get; }
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.
     /// False means it never reached the daemon, so callers must not announce a switch (#766).</summary>
@@ -1055,6 +1066,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
 
     public SettingsStamp CurrentStamp => _coordinator.GetCurrent()?.Stamp ?? SettingsStamp.None;
+
+    public PreparedSettings? CurrentPublication => _coordinator.GetCurrent();
 
     private async Task<SettingsApplyOutcome> ApplyThroughAsync(Func<Task<SettingsApplyOutcome>> apply)
     {

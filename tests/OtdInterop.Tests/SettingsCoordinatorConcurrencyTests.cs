@@ -688,6 +688,28 @@ public class SettingsCoordinatorConcurrencyTests
         Assert.Equal("TheirsAgain", Tablet(daemon.Settings));
     }
 
+    /// <summary>
+    /// A stamp naming a version this session has not reached is refused too (#910).
+    /// </summary>
+    /// <remarks>
+    /// The test used to be "not superseded by the current stamp", which is loose in one direction: a
+    /// stamp ahead of this session is superseded by nothing, so it passed. Whatever produced such a
+    /// stamp — a caller that built one, a snapshot from somewhere else — this session cannot vouch for
+    /// it, and "I am looking at what you are publishing" is an equality rather than an inequality.
+    /// </remarks>
+    [Fact]
+    public async Task AcceptingAStampThisSessionHasNotReached_IsRefused()
+    {
+        var (coordinator, _, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var current = coordinator.GetCurrent()!.Stamp;
+        var ahead = current with { Version = current.Version + 1 };
+
+        Assert.False(coordinator.AcceptCurrentState(ahead), "a stamp from nowhere should be refused");
+        Assert.True(coordinator.AcceptCurrentState(current), "and the real one still accepted");
+    }
+
     /// <summary>Accepting what is actually current is answered yes, and the draft then lands.</summary>
     /// <remarks>
     /// The other direction, without which refusing would simply be a way of never letting the artist work
@@ -711,6 +733,142 @@ public class SettingsCoordinatorConcurrencyTests
         var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
 
         Assert.True(afterwards.ChangedTheDaemon, $"the edit was held: {afterwards.Status}");
+        Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A hold from another session is refused, not quietly downgraded to an ordinary apply (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The dangerous part is what the fallback looked like. An unusable hold used to be ignored, which
+    /// fell back to this session's own baseline — and that reads as the conservative choice until you
+    /// notice the baseline can match the daemon exactly. Then the ordinary check passes, and a draft
+    /// belonging to a different session is written into this one.
+    /// </para>
+    /// <para>
+    /// Refusing is not a judgement about the other session. It is this one saying it cannot speak for an
+    /// observation it never made.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AHoldFromAnotherSession_IsRefusedRatherThanIgnored()
+    {
+        // Somewhere else, a draft is held and given a hold.
+        var elsewhere = Make();
+        await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+        elsewhere.daemon.Settings = SettingsFor("Theirs", locked: false);
+        var theirHold = (await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("Old", locked: false)))
+            .Held;
+        Assert.NotNull(theirHold);
+
+        // Here, everything agrees: the baseline is what the daemon holds, so an ordinary apply would go
+        // straight through. That is exactly what made the old fallback dangerous.
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Ours", locked: false));
+
+        var refused = await coordinator.ResubmitAsync(SettingsFor("Old", locked: false), theirHold!);
+
+        Assert.Equal(SettingsApplyStatus.HoldNotApplicable, refused.Status);
+        Assert.Equal("Ours", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// And so is one taken on a connection that has since been replaced (#906).
+    /// </summary>
+    /// <remarks>
+    /// The same hole by the other route, and the more reachable of the two: one session, one editor, a
+    /// reconnect in between. The hold names an incarnation that is gone, so the state it describes is
+    /// not a state this connection was ever compared with.
+    /// </remarks>
+    [Fact]
+    public async Task AHoldTakenOnAConnectionThatHasBeenReplaced_IsRefused()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.NotNull(held.Held);
+
+        // The connection is replaced, and the new one happens to hold what this session last read.
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("A", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        var refused = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
+
+        Assert.Equal(SettingsApplyStatus.HoldNotApplicable, refused.Status);
+        Assert.Equal("A", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// The control: after that reconnect an ordinary edit still lands (#906).
+    /// </summary>
+    /// <remarks>
+    /// Without this the refusal above would be satisfied by a session that had simply stopped writing,
+    /// and the two tests together would say nothing about where the line is.
+    /// </remarks>
+    [Fact]
+    public async Task AfterAReconnect_AnOrdinaryEditStillLands()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("A", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        var landed = await coordinator.ApplyAndSaveAsync(SettingsFor("Fresh", locked: false));
+
+        Assert.True(landed.ChangedTheDaemon, $"a fresh edit was refused: {landed.Status}");
+        Assert.Equal("Fresh", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A draft is weighed against its own expectation, which is not the same as "never easier" (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The invariant I first wrote down for a hold was that it can only ever make a write harder. That is
+    /// wrong, and this is the sequence that shows it: the daemon holds A, moves to B, and comes back to
+    /// exactly A. An ordinary submission compares A against the reloaded baseline B and holds; the held
+    /// draft, carrying its expectation of A, compares A against A and writes.
+    /// </para>
+    /// <para>
+    /// Which is correct, and worth pinning precisely because it contradicts the tidier claim. The draft
+    /// was built on A and the daemon is holding A, so nothing the artist has not seen is being replaced.
+    /// The invariant is <b>compare this draft against its own unchanged expectation</b> — a hold is
+    /// neither a weakening nor a strengthening of the check, but a statement of whose state the check is
+    /// about. Comparing state is all this can ever do; it does not detect every edit in between.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADaemonThatReturnsToWhatTheDraftExpected_TakesTheDraft()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // What the daemon actually ended up holding, which is the request after policy edited it. A
+        // freshly built "A" is not the same bytes, and putting that back would be testing the
+        // normalisation rather than the hold.
+        var actuallyA = Clone(daemon.Settings!);
+
+        // Somebody else writes B, and this session's draft is held against A.
+        daemon.Settings = SettingsFor("B", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+
+        // A reload adopts B as the ordinary baseline, and then they undo themselves.
+        await coordinator.ReloadFromDaemonAsync();
+        daemon.Settings = actuallyA;
+
+        var resubmitted = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
+
+        Assert.True(resubmitted.ChangedTheDaemon, $"the draft was held against its own state: {resubmitted.Status}");
         Assert.Equal("Mine", Tablet(daemon.Settings));
     }
 

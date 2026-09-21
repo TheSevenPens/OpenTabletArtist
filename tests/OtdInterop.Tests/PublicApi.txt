@@ -136,6 +136,7 @@ struct OtdInterop.SettingsApplyOutcome : System.IEquatable<OtdInterop.SettingsAp
     static readonly OtdInterop.SettingsApplyOutcome ChangedElsewhere
     static readonly OtdInterop.SettingsApplyOutcome CouldNotCheck
     static readonly OtdInterop.SettingsApplyOutcome Disconnected
+    static readonly OtdInterop.SettingsApplyOutcome HoldNotApplicable
     static readonly OtdInterop.SettingsApplyOutcome Live
     static readonly OtdInterop.SettingsApplyOutcome NoChange
     static readonly OtdInterop.SettingsApplyOutcome Saved
@@ -151,6 +152,7 @@ enum OtdInterop.SettingsApplyStatus : System.IComparable, System.IConvertible, S
     ChangedElsewhere = 8
     CouldNotCheck = 9
     Disconnected = 3
+    HoldNotApplicable = 10
     NoChange = 5
     Skipped = 6
     Superseded = 7

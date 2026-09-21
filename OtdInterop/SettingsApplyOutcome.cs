@@ -89,6 +89,30 @@ public enum SettingsApplyStatus
     /// the same terms and the caller is told which of the two happened.
     /// </remarks>
     CouldNotCheck,
+
+    /// <summary>
+    /// The change was submitted with a <see cref="SettingsHold"/> this session cannot use, so nothing was
+    /// sent (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Either the hold came from a different session, or it was taken on a connection that has since been
+    /// replaced. Both mean the same thing: the observation the draft is asking to be weighed against is
+    /// not one this session can speak for.
+    /// </para>
+    /// <para>
+    /// Refused rather than quietly downgraded to an ordinary apply. Falling back to this session's own
+    /// baseline looks conservative and is not: that baseline can match the daemon exactly while the draft
+    /// belongs to somewhere else entirely, so the check passes and the foreign draft is written. A
+    /// submission that names an expectation nobody here can honour gets an answer, not a different
+    /// question.
+    /// </para>
+    /// <para>
+    /// The draft is not lost and nothing is decided: it is the caller's, to resolve against the
+    /// connection it is actually on.
+    /// </para>
+    /// </remarks>
+    HoldNotApplicable,
 }
 
 /// <summary>The result of an apply: what happened, the failure if there was one, and what was actually
@@ -147,6 +171,10 @@ public readonly record struct SettingsApplyOutcome(
     /// <summary>Nothing was sent: the daemon never said what it holds (#905).</summary>
     public static readonly SettingsApplyOutcome CouldNotCheck =
         new(SettingsApplyStatus.CouldNotCheck);
+
+    /// <summary>A submission presenting a hold this session cannot use (#906).</summary>
+    public static readonly SettingsApplyOutcome HoldNotApplicable =
+        new(SettingsApplyStatus.HoldNotApplicable);
     /// <summary>The daemon was reachable but the change failed. Not live, not saved.</summary>
     /// <param name="ex">The failure, when one was thrown.</param>
     public static SettingsApplyOutcome Failed(Exception? ex) => new(SettingsApplyStatus.ApplyFailed, ex);

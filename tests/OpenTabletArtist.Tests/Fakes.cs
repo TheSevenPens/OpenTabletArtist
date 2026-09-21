@@ -343,12 +343,35 @@ internal sealed class FakeSettingsCoordinator : ISettingsCoordinator
     public SettingsStamp CurrentStamp { get; set; } = new(1, 1);
 
     /// <summary>
+    /// Settings and stamp as one publication, and a hook to make a reload land mid-read (#910).
+    /// </summary>
+    /// <remarks>
+    /// The hook is the point. A fake that simply returned today's two values could not tell a caller
+    /// that reads them together from one that reads them twice — which is the whole difference this is
+    /// here to observe. <see cref="WhileReadingPublication"/> runs between the two reads a split caller
+    /// would make, so a test can advance this fake exactly where the race lives.
+    /// </remarks>
+    public Action? WhileReadingPublication { get; set; }
+
+    public PreparedSettings? CurrentPublication
+    {
+        get
+        {
+            var settings = CurrentSettings;
+            WhileReadingPublication?.Invoke();
+            return settings is null ? null : new PreparedSettings(settings, CurrentStamp);
+        }
+    }
+
+    /// <summary>
     /// Refuses a stale acceptance the way the real one does. A fake that accepted anything would let a
     /// view model name a snapshot nobody is showing and still look right (#910).
     /// </summary>
     public bool AcceptCurrentSettings(SettingsStamp accepted)
     {
-        if (accepted.IsNone || accepted.SupersededBy(CurrentStamp)) return false;
+        // Exact equality, as the real one does since #910: a stamp naming a version this session has
+        // not reached is superseded by nothing, and a fake that took it would hide that.
+        if (accepted.IsNone || accepted != CurrentStamp) return false;
 
         Accepted = accepted;
         return true;

@@ -383,7 +383,12 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <returns>True when the snapshot is still current; false when something has since replaced it.</returns>
     public bool AcceptCurrentState(SettingsStamp accepted)
     {
-        if (accepted.IsNone || accepted.SupersededBy(StampFor(Revision)))
+        // Exactly the current stamp, not merely "not superseded by it" (#910). Those differ in one
+        // direction and it is the wrong one to be loose about: a stamp naming a version this session has
+        // not reached is not superseded by anything, so the looser test accepted a snapshot that does not
+        // exist here. Whatever produced it, this session cannot vouch for it, and "I am looking at what
+        // you are publishing" is an equality.
+        if (accepted.IsNone || accepted != StampFor(Revision))
         {
             _log.Warn("A caller accepted settings that are no longer the current ones; the change it was "
                       + "holding stays held, because agreeing to something out of date is not agreeing to "
@@ -723,18 +728,14 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         Origin origin, SettingsHold? held)
     {
         // A draft that is being held is compared against what IT was held against, carried in its own
-        // hold rather than in a field this session shares between every editor (#906). A hold from
-        // another session, or from a connection that has been replaced, is not this one's to honour --
-        // ignoring it falls back to the ordinary comparison rather than to writing blind.
-        var expected = held is { } h && h.Issuer == _issuer && h.Channel == origin.Channel.Incarnation
-            ? h.Expected
-            : null;
-
+        // hold rather than in a field this session shares between every editor (#906). Applicability was
+        // settled before this apply did anything at all, so anything still here is this session's own
+        // observation on this connection.
         string baseline;
-        if (expected is { } theirs)
+        if (held?.Expected is { } theirs)
         {
-            // No channel test: the hold was matched on this connection's incarnation above, which is the
-            // same question asked of a value that knows its own answer.
+            // No channel test here: an inapplicable hold never reaches this point, and the hold that
+            // does carries the connection it was taken on, so there is nothing further to ask.
             baseline = theirs;
         }
         else if (_lastLoadedSettingsJson is { } loaded &&
@@ -1366,6 +1367,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             System.Diagnostics.Debug.WriteLine(
                 "SettingsCoordinator: apply-loop breaker tripped — skipping ApplyAndSave to avoid a hang (a UI binding is looping).");
             return SettingsApplyOutcome.Skipped;
+        }
+
+        // A hold this session cannot use is refused here, in front of the no-op guard and everything
+        // after it (#906). Checking it down in the comparison was not enough: an inapplicable hold fell
+        // back to this session's own baseline, and that baseline can match the daemon exactly while the
+        // draft belongs to another session or to a connection that has been replaced — so the check
+        // passed and a foreign draft was written. The library knows the observation is not its own; it
+        // must say so rather than silently ask an easier question.
+        if (held is { } presented
+            && (presented.Issuer != _issuer || presented.Channel != origin.Channel.Incarnation))
+        {
+            _log.Warn("A change was submitted holding an observation this session cannot use — it came "
+                      + "from another session or from a connection that has been replaced. Nothing was "
+                      + "sent; the draft has to be resolved against the connection it is actually on.");
+            return SettingsApplyOutcome.HoldNotApplicable;
         }
 
         // `settings` is this operation's private working copy, so policy edits it freely — but the

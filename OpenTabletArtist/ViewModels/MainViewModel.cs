@@ -550,15 +550,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var vm in _tabletDetails.Values) vm.DaemonReplaced();
     }
 
+    /// <summary>
+    /// Hands every open editor what this session is publishing, snapshot and stamp from one read (#910).
+    /// </summary>
+    /// <remarks>
+    /// The settings and the stamp used to be read separately, which is two publications' worth of
+    /// opportunity for a reload to land in between. The editors would then be holding an older snapshot
+    /// labelled with a newer stamp — and an acceptance naming that stamp is honoured, because it matches
+    /// what the session is publishing, while the artist is looking at something else. That is precisely
+    /// the substitution the stamp argument exists to prevent, arranged by the caller instead.
+    /// </remarks>
     private void ReconcileOpenTabletDetails()
     {
-        var settings = _session.CurrentSettings;
-        if (settings == null) return;
+        if (_session.CurrentPublication is not { } published) return;
+
         foreach (var (name, vm) in _tabletDetails)
         {
-            var profile = settings.Profiles.FirstOrDefault(p =>
+            var profile = published.Settings.Profiles.FirstOrDefault(p =>
                 string.Equals(p.Tablet, name, StringComparison.OrdinalIgnoreCase));
-            vm.ReconcileExternalChange(settings, profile, _session.CurrentStamp);
+            vm.ReconcileExternalChange(published.Settings, profile, published.Stamp);
         }
     }
 
