@@ -475,7 +475,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 var tablet = p.Tablet;
                 var mapping = DisplayMappingApplier.DescribeMapping(p.Profile, displays);
                 return new TabletOverviewItemViewModel(tablet, p.IsDetected, p.StatusText,
-                    p.LastSeenDetail, mapping.Text, mapping.NeedsAttention,
+                    p.StatusDetail, mapping.Text, mapping.NeedsAttention,
                     () => NavigateToTabletByName(tablet),
                     () => ForgetTabletByNameAsync(tablet));
             })

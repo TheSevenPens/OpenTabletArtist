@@ -65,10 +65,12 @@
                                     <TextBlock Text="{Binding MappingText}" Margin="0,2,0,0" TextWrapping="Wrap"
                                                IsVisible="{Binding MappingNeedsAttention}"
                                                Foreground="{DynamicResource TextPrimaryBrush}" />
-                                    <!-- The quiet end of the ramp (TextBlock.Detail): a timestamp is
-                                         context, not something you read the card for. -->
-                                    <TextBlock Text="{Binding LastSeenDetail}" Margin="0,2,0,0" Classes="Detail"
-                                               IsVisible="{Binding HasLastSeenDetail}"
+                                    <!-- The quiet end of the ramp (TextBlock.Detail): CONNECTED, or when
+                                         this tablet was last seen. A timestamp is context, not something
+                                         you read the card for; and a connected tablet has no timestamp, so
+                                         this line used to go blank and the card lost a row. -->
+                                    <TextBlock Text="{Binding StatusDetail}" Margin="0,2,0,0" Classes="Detail"
+                                               IsVisible="{Binding HasStatusDetail}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"

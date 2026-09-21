@@ -2635,8 +2635,14 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Width-to-height aspect ratio of the full tablet area / the effective (active) area. A
     /// mismatch means the active area is shaped differently from the tablet — expected when it's mapped to
     /// a display whose aspect differs from the tablet's.</summary>
-    public string FullAspectText => TabletArea is { FullHeight: > 0 } a ? (a.FullWidth / a.FullHeight).ToString("0.00") : "—";
-    public string UsedAspectText => TabletArea is { EffHeight: > 0 } a ? (a.EffWidth / a.EffHeight).ToString("0.00") : "—";
+    /// <remarks>
+    /// Three decimals, because two cannot tell you what this table exists to tell you. The comparison
+    /// people make here is between the two columns, and at two decimals a 16:10 tablet and a 1.602 active
+    /// area both read "1.60" — so a real mismatch, which is the thing worth noticing, looks like a match.
+    /// The About tab's ratio already uses three for the same reason.
+    /// </remarks>
+    public string FullAspectText => TabletArea is { FullHeight: > 0 } a ? (a.FullWidth / a.FullHeight).ToString("0.000") : "—";
+    public string UsedAspectText => TabletArea is { EffHeight: > 0 } a ? (a.EffWidth / a.EffHeight).ToString("0.000") : "—";
 
     // Length display helpers: OTD's areas are millimetres; inches = mm / 25.4. Metric shows one decimal
     // (e.g. "269 mm"), imperial two (inches are ~25× larger, so a decimal buys real precision, "10.59 in").

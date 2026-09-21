@@ -29,13 +29,13 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     private readonly Func<Task> _forget;
 
     public TabletOverviewItemViewModel(string name, bool isDetected, string statusText,
-        string? lastSeenDetail, string mappingText, bool mappingNeedsAttention,
+        string? statusDetail, string mappingText, bool mappingNeedsAttention,
         Action navigate, Func<Task> forget)
     {
         Name = name;
         IsDetected = isDetected;
         StatusText = statusText;
-        LastSeenDetail = lastSeenDetail;
+        StatusDetail = statusDetail;
         MappingText = mappingText;
         MappingNeedsAttention = mappingNeedsAttention;
         _navigate = navigate;
@@ -45,8 +45,9 @@ public partial class TabletOverviewItemViewModel : ObservableObject
     public string Name { get; }
     public bool IsDetected { get; }
     public string StatusText { get; }
-    public string? LastSeenDetail { get; }
-    public bool HasLastSeenDetail => !string.IsNullOrEmpty(LastSeenDetail);
+    /// <summary>The card's third line: CONNECTED, or when the tablet was last seen.</summary>
+    public string? StatusDetail { get; }
+    public bool HasStatusDetail => !string.IsNullOrEmpty(StatusDetail);
 
     /// <summary>Where this tablet's active area is mapped, e.g. "Mapped to Display 1", or a short
     /// "needs attention" phrase when it isn't a standard single-display mapping (#tablet-card-mapping).

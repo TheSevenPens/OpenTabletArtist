@@ -218,9 +218,19 @@ public sealed class ScreenMappingDiagram : Control
         // ── Connector: two gradient "beams" mapping like edges together — the active area's LEFT edge to
         //    the display's LEFT edge, and RIGHT edge to RIGHT edge (the two side faces of the frustum), so
         //    the left↔left / right↔right correspondence is obvious. Brighter at each box, fading across the
-        //    gap; the selected display is drawn afterwards so it sits above the beams. ──
+        //    gap. ──
         if (selectedBox is { } selBox)
         {
+            // Clipped out of the selected display, so the display is in front of the beams rather than
+            // merely painted after them. Drawing order alone was not enough: the beams' quads reach the
+            // display's far corners and so cross its interior, and its fill is a translucent tint — so
+            // they showed straight through the box they were supposed to be arriving at, and the display
+            // read as the thing behind the picture instead of the thing the picture points to.
+            using var _beamsStopAtTheDisplay = ctx.PushGeometryClip(new CombinedGeometry(
+                GeometryCombineMode.Exclude,
+                new RectangleGeometry(new Rect(Bounds.Size)),
+                new RectangleGeometry(selBox)));
+
             void Beam(IBrush brush, Point a1, Point a2, Point b2, Point b1)
             {
                 var geo = new StreamGeometry();
@@ -280,7 +290,8 @@ public sealed class ScreenMappingDiagram : Control
                  effRect.BottomLeft, effRect.BottomRight, selBox.BottomRight, selBox.BottomLeft);
         }
 
-        // The selected display, drawn last so it sits above the connector beams.
+        // The selected display, drawn after the beams — which are also clipped out of it, so its
+        // translucent fill shows the page behind rather than the beams.
         if (selectedBox is { } sbx && selDisplay is { } sdd)
         {
             ctx.DrawRectangle(pal.SelFill, pal.SelBorder, new RoundedRect(sbx), pal.Glow);
