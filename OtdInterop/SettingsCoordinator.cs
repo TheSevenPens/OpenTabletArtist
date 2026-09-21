@@ -371,9 +371,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// exchange lose (#910).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The retry path is the whole of what makes <see cref="Republish"/> correct, and nothing reaches it
     /// without a publication landing in a window a few instructions wide. A test that raced for it would
-    /// be a test that usually proved nothing. Null in every build that is not a test's.
+    /// be a test that usually proved nothing.
+    /// </para>
+    /// <para>
+    /// It is compiled into every build and is simply never assigned outside a test, so the cost in
+    /// production is one null check per exchange. Not conditional compilation: a hook that existed only
+    /// in test builds would be a hook the shipped code had never run past.
+    /// </para>
+    /// <para>
+    /// Deliberately narrow, and not a general host callback. A test that reuses a coordinator must clear
+    /// it — the one here clears it before publishing, which is also what keeps it from re-entering
+    /// itself.
+    /// </para>
     /// </remarks>
     internal Action? BeforePublishExchange { get; set; }
 
