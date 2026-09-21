@@ -1473,15 +1473,11 @@ public class TabletEditorReconcileTests
         Assert.NotNull(first);
         Assert.NotNull(second);
 
-        session.DataLoaded += () =>
-        {
-            var current = session.CurrentSettings;
-            var stamp = session.CurrentStamp;
-            first!.ReconcileExternalChange(
-                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"), stamp);
-            second!.ReconcileExternalChange(
-                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "U"), stamp);
-        };
+        // Through the same forwarder the shell uses, so this harness cannot be more careful about
+        // pairing the snapshot with its stamp than the thing it stands in for.
+        session.DataLoaded += () => EditorReconciliation.Forward(
+            session.CurrentPublication,
+            new Dictionary<string, TabletDetailViewModel> { ["T"] = first!, ["U"] = second! });
 
         return new TwoEditors(daemon, session, first!, second!);
     }
@@ -1610,14 +1606,11 @@ public class TabletEditorReconcileTests
 
         var vm = new DialogService(session).CreateTabletDetail("T", () => Task.CompletedTask);
         Assert.NotNull(vm);
-        session.DataLoaded += () =>
-        {
-            var current = session.CurrentSettings;
-            // With the stamp, as the shell passes it: an acceptance has to name the snapshot it took,
-            // and a harness that omitted it would make every acceptance stale (#910).
-            vm!.ReconcileExternalChange(
-                current, current?.Profiles.FirstOrDefault(p => p.Tablet == "T"), session.CurrentStamp);
-        };
+        // Through the same forwarder the shell uses. An acceptance has to name the snapshot it took, so
+        // a harness that paired them by hand could get that right where the shell got it wrong (#910).
+        session.DataLoaded += () => EditorReconciliation.Forward(
+            session.CurrentPublication,
+            new Dictionary<string, TabletDetailViewModel> { ["T"] = vm! });
         return new ReadHarness(daemon, session, vm!);
     }
 

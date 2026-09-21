@@ -145,17 +145,20 @@ public interface ISettingsCoordinator
     /// </summary>
     bool AcceptCurrentSettings(SettingsStamp accepted);
 
-    /// <summary>The stamp of what this session is publishing now, for naming a snapshot taken (#910).</summary>
-    SettingsStamp CurrentStamp { get; }
-
     /// <summary>
     /// What this session is publishing, settings and stamp together, in one read (#910).
     /// </summary>
     /// <remarks>
-    /// For anyone who needs both. Reading <see cref="CurrentSettings"/> and <see cref="CurrentStamp"/>
+    /// <para>
+    /// There is deliberately no stamp property beside <see cref="CurrentSettings"/>. Reading the two
     /// separately is two publications' worth of opportunity: a reload landing between them hands out
     /// older settings under a newer stamp, and a caller that later accepts that stamp is agreeing to
-    /// something it was never shown.
+    /// something it was never shown — which is exactly what the stamp is checked to prevent.
+    /// </para>
+    /// <para>
+    /// There was such a property, and both callers that needed both halves used it that way. Taking it
+    /// away is what stops the next one, which a comment would not have.
+    /// </para>
     /// </remarks>
     PreparedSettings? CurrentPublication { get; }
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
@@ -1064,8 +1067,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         ApplyThroughAsync(() => _coordinator.ResubmitAsync(settings, held));
 
     public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
-
-    public SettingsStamp CurrentStamp => _coordinator.GetCurrent()?.Stamp ?? SettingsStamp.None;
 
     public PreparedSettings? CurrentPublication => _coordinator.GetCurrent();
 

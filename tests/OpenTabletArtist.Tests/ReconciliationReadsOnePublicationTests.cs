@@ -28,8 +28,13 @@ namespace OpenTabletArtist.Tests;
 /// <para>
 /// <b>What this does not prove.</b> It reads the source of one method rather than running it, so it
 /// cannot show the publication is used correctly once read — only that the method does not go back to
-/// reading the two halves independently. The behaviour built on top of the stamp is covered where it
-/// lives, in the acceptance tests.
+/// reading the two halves independently. What the editors actually receive is covered behaviourally, by
+/// the forwarding tests; what an acceptance then means is covered where the stamp is checked.
+/// </para>
+/// <para>
+/// Supplementary now rather than load-bearing. The session no longer offers a stamp property beside its
+/// settings, so there is nothing for a caller to pair up by hand — which is a better guarantee than this
+/// scan and is why the scan is worth keeping only as a cheap second opinion.
 /// </para>
 /// </remarks>
 public class ReconciliationReadsOnePublicationTests
@@ -45,7 +50,6 @@ public class ReconciliationReadsOnePublicationTests
         Assert.False(string.IsNullOrWhiteSpace(body),
             "ReconcileOpenTabletDetails was not found; this guard is no longer checking anything");
 
-        Assert.DoesNotContain("CurrentStamp", body, StringComparison.Ordinal);
         Assert.DoesNotContain("CurrentSettings", body, StringComparison.Ordinal);
         Assert.Contains("CurrentPublication", body, StringComparison.Ordinal);
     }
@@ -71,7 +75,7 @@ public class ReconciliationReadsOnePublicationTests
         var refresh = body[body.IndexOf("refreshAction", StringComparison.Ordinal)..];
         refresh = refresh[..refresh.IndexOf("tabletDigitizer", StringComparison.Ordinal)];
 
-        Assert.DoesNotContain("CurrentStamp", refresh, StringComparison.Ordinal);
+        Assert.DoesNotContain("CurrentSettings", refresh, StringComparison.Ordinal);
         Assert.Contains("CurrentPublication", refresh, StringComparison.Ordinal);
     }
 
