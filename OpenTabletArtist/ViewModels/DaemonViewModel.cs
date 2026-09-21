@@ -375,6 +375,31 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// OpenTabletDriver's own settings window, if the connected driver ships one (#otd-ux-button).
+    /// </summary>
+    /// <remarks>
+    /// Read through the daemon OTA is connected to, so the window that opens belongs to the driver on
+    /// this page rather than to some other copy on the machine. Absent for a daemon running from a build
+    /// tree or a packaged install without a UX, which is why this is a property rather than a button
+    /// that is always shown and sometimes does nothing.
+    /// </remarks>
+    public string? OtdUxPath => DaemonExePaths.UxBeside(Status.DaemonSourcePath);
+
+    public bool CanOpenOtdUx => OtdUxPath is not null;
+
+    /// <summary>
+    /// Opens OpenTabletDriver's own settings window.
+    /// </summary>
+    /// <remarks>
+    /// Worth knowing what this invites: OTD's UX is a second settings editor on the same daemon, and
+    /// this app's whole model is that there is one. Editing there will make OTA notice an outside change
+    /// and pause until the artist reloads — which is correct behaviour rather than a malfunction, and
+    /// the tooltip says so rather than letting it look like one.
+    /// </remarks>
+    [RelayCommand]
+    private void OpenOtdUx() => PlatformShell.RunApp(OtdUxPath);
+
     /// <summary>Reveal a daemon executable's folder in the OS file manager.
     ///
     /// Takes the FILE path the page shows and opens its DIRECTORY. Handing explorer.exe an .exe would run
