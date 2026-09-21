@@ -62,12 +62,20 @@ foreach ($p in @($appExe, $daemonExe)) {
     if (-not (Test-Path $p)) { throw "Not found: $p. Point -BundlePath at an unpacked release." }
 }
 
+# Settle on one absolute, separator-normalised form before anything measures against it. The file names
+# below are cut out of a resolved path by length, and a caller may pass a relative path or a trailing
+# backslash -- this file's own help suggests both. Measuring a resolved path against an unresolved
+# prefix silently mis-slices the name, and a relative path longer than the resolved one makes it throw
+# outright, which with $ErrorActionPreference = 'Stop' ends the run on the throwaway machine built to
+# host it.
+$BundleRoot = (Resolve-Path $BundlePath).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+
 # What was actually verified. A report that doesn't identify the bundle is evidence about nothing --
 # the next person cannot tell whether it covers the build they are about to ship (#803).
 $bundleFacts = foreach ($p in @($appExe, $daemonExe)) {
     $item = Get-Item $p
     [pscustomobject]@{
-        File    = (Resolve-Path $p).Path.Substring($BundlePath.TrimEnd('').Length + 1)
+        File    = (Resolve-Path $p).Path.Substring($BundleRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar)
         Version = $item.VersionInfo.FileVersion
         Size    = $item.Length
         Sha256  = (Get-FileHash $p -Algorithm SHA256).Hash
@@ -193,7 +201,7 @@ $lines += '# Runtime recovery on a clean machine'
 $lines += ''
 $lines += "- Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 $lines += "- Windows: $((Get-CimInstance Win32_OperatingSystem).Caption) ($([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture))"
-$lines += "- Bundle: $BundlePath"
+$lines += "- Bundle: $BundleRoot"
 $lines += "- Runtimes present at start: $(if ($installed) { $installed -join ', ' } else { 'none' })"
 $lines += ''
 $lines += '| File | Version | Size | SHA256 |'
