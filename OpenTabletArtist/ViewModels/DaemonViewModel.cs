@@ -53,6 +53,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ShowDriverCard));
                 OnPropertyChanged(nameof(ShowInstallRuntime));
             }
+
+            // Both read it, and it is what decides whether there is anything to switch away from.
+            if (e.PropertyName is nameof(DaemonStatusViewModel.ShowForeignDaemonWarning))
+            {
+                OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
+                OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
+            }
         };
     }
 
@@ -94,6 +101,43 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     public bool HasUserDaemonPath => !string.IsNullOrEmpty(UserDaemonPath);
 
+    /// <summary>
+    /// Offer the way back to the bundled daemon only when pressing it would actually get there (#725).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The switch is a restart, and a restart launches <c>ExpectedExePath()</c>, whose ladder is
+    /// user-chosen → bundled → an installed OTD → the dev tree. So the bundled copy is what comes next
+    /// only when no location has been chosen; with one stored, a restart relaunches <em>that</em>, and a
+    /// button saying otherwise would be telling the user something untrue.
+    /// </para>
+    /// <para>
+    /// The button this replaces got that wrong. It asked only whether a foreign daemon was connected and
+    /// whether a bundled copy existed, so with a chosen location it offered to switch and then restarted
+    /// the very daemon the user was trying to leave. It was removed in 660b49a for being duplication;
+    /// this is the same offer, made only when it is true. The blocked case is <see cref="BundledIsBehindAChosenLocation"/>.
+    /// </para>
+    /// </remarks>
+    public bool CanSwitchToBundledDaemon =>
+        Offer == DaemonExePaths.BundledOffer.Switch;
+
+    /// <summary>
+    /// The bundled copy exists and is not what a restart would reach, because a location is chosen.
+    /// </summary>
+    /// <remarks>
+    /// Said rather than hidden: a user looking for the daemon their app ships should not be left with a
+    /// card that silently omits it. Clear is already on this card, and is the one action that puts the
+    /// bundled copy back at the front of the ladder.
+    /// </remarks>
+    public bool BundledIsBehindAChosenLocation =>
+        Offer == DaemonExePaths.BundledOffer.ClearTheChosenLocationFirst;
+
+    /// <summary>The decision itself, kept pure and tested in <c>DaemonExePathsTests</c>.</summary>
+    private DaemonExePaths.BundledOffer Offer => DaemonExePaths.OfferBundled(
+        onForeignDaemon: Status.ShowForeignDaemonWarning,
+        hasBundled: Status.HasBundledDaemon,
+        hasChosenLocation: HasUserDaemonPath);
+
     /// <summary>Show the locate card when there's nothing to connect to (the case it solves), whenever a
     /// location has been chosen (so the choice stays visible and reversible), and on any build that
     /// doesn't ship its own daemon — there, "which OpenTabletDriver?" is a standing question rather than
@@ -118,6 +162,11 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(ShowLocateCard));
         OnPropertyChanged(nameof(ShowDriverCard));
+
+        // Choosing or clearing a location moves the bundled copy's place in the ladder, which is the
+        // whole of what these two say (#725).
+        OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
+        OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
     }
 
     /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it and reconnect

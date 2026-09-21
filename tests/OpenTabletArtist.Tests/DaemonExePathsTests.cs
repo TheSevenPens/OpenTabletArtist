@@ -225,4 +225,30 @@ public class DaemonExePathsTests
         Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), installed));
         Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), null));
     }
+
+    /// <summary>
+    /// What the driver card may offer about the bundled daemon, in every combination (#725).
+    /// </summary>
+    /// <remarks>
+    /// The whole table, because the interesting row is the one the removed button got wrong: a foreign
+    /// daemon, a bundled copy present, and a chosen location in front of it. That button offered the
+    /// switch there, and pressing it restarted the daemon the user was trying to leave.
+    /// </remarks>
+    [Theory]
+    // on a foreign daemon, a copy is bundled, nothing chosen: a restart lands on the bundled copy.
+    [InlineData(true, true, false, DaemonExePaths.BundledOffer.Switch)]
+    // the same, with a chosen location ahead of it: say so rather than offer what would not happen.
+    [InlineData(true, true, true, DaemonExePaths.BundledOffer.ClearTheChosenLocationFirst)]
+    // nothing bundled (every macOS build today): there is no such option to offer or explain.
+    [InlineData(true, false, false, DaemonExePaths.BundledOffer.Nothing)]
+    [InlineData(true, false, true, DaemonExePaths.BundledOffer.Nothing)]
+    // already on ours: nothing to switch away from, whatever else is true.
+    [InlineData(false, true, false, DaemonExePaths.BundledOffer.Nothing)]
+    [InlineData(false, true, true, DaemonExePaths.BundledOffer.Nothing)]
+    [InlineData(false, false, false, DaemonExePaths.BundledOffer.Nothing)]
+    [InlineData(false, false, true, DaemonExePaths.BundledOffer.Nothing)]
+    public void OfferBundled_OffersTheSwitchOnlyWhenARestartWouldReachIt(
+        bool onForeignDaemon, bool hasBundled, bool hasChosenLocation, DaemonExePaths.BundledOffer expected)
+        => Assert.Equal(
+            expected, DaemonExePaths.OfferBundled(onForeignDaemon, hasBundled, hasChosenLocation));
 }
