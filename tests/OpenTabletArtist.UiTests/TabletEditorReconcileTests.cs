@@ -40,6 +40,206 @@ public class TabletEditorReconcileTests
 {
     private const string ThirdPartyFilter = "OpenTabletDriver.Filters.Noise.NoiseReduction";
 
+    /// <summary>
+    /// An edit held because the daemon changed elsewhere is not thrown away by the next reload (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// #491 made an apply capable of deliberately sending nothing: the daemon holds somebody else's edit,
+    /// so this one is held rather than written over it. That only means anything if the held edit then
+    /// survives. It did not. `HasUnsavedEdit` was hardcoded false — correctly, until #491, because every
+    /// edit applied immediately and nothing could be outstanding — so the next focus or poll reload
+    /// adopted the daemon's version straight over the top, and the artist lost the change without anyone
+    /// choosing to lose it.
+    /// </para>
+    /// <para>
+    /// The reload here is the automatic one, not the banner's Reload. That is the whole point: taking the
+    /// daemon's version is a decision the artist is entitled to make, and this is what happens when
+    /// nobody made it.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AnEditHeldBecauseSettingsChangedElsewhere_SurvivesTheNextAutomaticReload()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere));
+
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.DisablePressure, "the held edit should still be on screen");
+
+        // What the daemon holds, arriving on an ordinary reload. It does not have the artist's change,
+        // and it differs from this editor in its own right.
+        var fresh = SettingsWithForeignFilter();
+        fresh.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+
+        Assert.True(vm.DisablePressure, "the reload replaced an edit nobody agreed to give up");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// And once the artist takes the daemon's version, the editor stops holding anything.
+    /// </summary>
+    /// <remarks>
+    /// The other half: a flag that protects a held edit for ever would make every later reload a no-op,
+    /// which is a slower way of showing the artist something untrue.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task OnceTheDaemonsVersionIsTakenUp_NothingIsHeldAnyMore()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        // The artist takes theirs, which is what the banner's Reload does.
+        var theirs = SettingsWithForeignFilter();
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(theirs, theirs.Profiles[0]);
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+
+        Assert.False(vm.DisablePressure, "their version should be showing now");
+        Assert.True(vm.DisableTilt);
+
+        // A later reload is free to reconcile again, because nothing is outstanding.
+        var later = SettingsWithForeignFilter();
+        later.Profiles[0].BindingSettings.DisableTilt = false;
+        vm.ReconcileExternalChange(later, later.Profiles[0]);
+
+        Assert.False(vm.DisableTilt, "the editor is holding nothing, so a reload should land");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// A curve edit held by the daemon is protected like any other (#905).
+    /// </summary>
+    /// <remarks>
+    /// The curve and hover tabs apply through their own methods rather than through the shared one, and
+    /// the held-state assignment lived only in the shared path. So a smoothing edit the session declined
+    /// to send was left unprotected and the next reload took it, while the identical situation one tab
+    /// over was safe. Every apply path now reports its outcome to the same place.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ACurveEditHeldBecauseSettingsChangedElsewhere_SurvivesTheNextReload()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.ChangedElsewhere));
+
+        vm.PressureSmoothing = 0.42;
+        await Settle();
+        Assert.Equal(0.42, vm.PressureSmoothing, 3);
+
+        var fresh = SettingsWithForeignFilter();
+        fresh.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+
+        Assert.Equal(0.42, vm.PressureSmoothing, 3);
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// A later apply that fails for its own reasons does not release an earlier held edit (#905).
+    /// </summary>
+    /// <remarks>
+    /// The assignment released protection for every outcome that was not itself held, including
+    /// disconnected and rejected. None of those is evidence that the held edit reached the daemon, so a
+    /// tilt edit that could not be sent discarded a pressure edit that was being kept safe. Protection
+    /// now ends only when something shows the draft actually landed.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AnUnrelatedFailedApply_DoesNotReleaseAnEarlierHeldEdit()
+    {
+        var settings = SettingsWithForeignFilter();
+        var outcome = SettingsApplyOutcome.ChangedElsewhere;
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(outcome));
+
+        vm.DisablePressure = true;                       // held
+        await Settle();
+
+        outcome = SettingsApplyOutcome.Disconnected;     // the next edit cannot be sent at all
+        vm.DisableTilt = true;
+        await Settle();
+
+        var fresh = SettingsWithForeignFilter();
+        vm.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+
+        Assert.True(vm.DisablePressure, "a failure elsewhere gave away an edit it knew nothing about");
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    /// And an apply that does reach the daemon ends the hold, whichever tab it came from (#905).
+    /// </summary>
+    /// <remarks>
+    /// The other direction: protection that never ends would make every later reload a no-op, which is a
+    /// slower way of showing the artist something untrue. The curve path is used here because it is one
+    /// of the two that used to bypass this entirely.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task ACurveApplyThatReachesTheDaemon_EndsAnEarlierHold()
+    {
+        var settings = SettingsWithForeignFilter();
+        var sent = new List<Settings>();
+        var outcome = SettingsApplyOutcome.ChangedElsewhere;
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: draft =>
+            {
+                if (outcome.Status != SettingsApplyStatus.AppliedAndSaved) return Task.FromResult(outcome);
+                var revision = Clone(draft);
+                sent.Add(revision);
+                return Task.FromResult(new SettingsApplyOutcome(
+                    SettingsApplyStatus.AppliedAndSaved, null,
+                    new PreparedSettings(revision, new SettingsStamp(1, 1))));
+            });
+
+        vm.DisablePressure = true;                       // held
+        await Settle();
+
+        outcome = SettingsApplyOutcome.Saved;            // a curve edit that does land
+        vm.PressureSmoothing = 0.3;
+        await Settle();
+        Assert.NotEmpty(sent);
+
+        var later = SettingsWithForeignFilter();
+        later.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(later, later.Profiles[0]);
+
+        Assert.True(vm.DisableTilt, "nothing is held any more, so the reload should land");
+
+        vm.Dispose();
+    }
+
+    /// <summary>An edit held because the daemon could not be asked is protected on the same terms.</summary>
+    [AvaloniaFact]
+    public async Task AnEditHeldBecauseTheDaemonCouldNotBeAsked_AlsoSurvivesTheNextReload()
+    {
+        var settings = SettingsWithForeignFilter();
+        var vm = new TabletDetailViewModel(settings.Profiles[0], settings,
+            applyAction: _ => Task.FromResult(SettingsApplyOutcome.CouldNotCheck));
+
+        vm.DisablePressure = true;
+        await Settle();
+
+        var fresh = SettingsWithForeignFilter();
+        fresh.Profiles[0].BindingSettings.DisableTilt = true;
+        vm.ReconcileExternalChange(fresh, fresh.Profiles[0]);
+
+        Assert.True(vm.DisablePressure);
+
+        vm.Dispose();
+    }
+
     private static Settings SettingsWithForeignFilter(string tablet = "T")
     {
         var profile = new Profile { Tablet = tablet };
@@ -393,6 +593,65 @@ public class TabletEditorReconcileTests
     // reload is still held. Awaiting everything first lets that reload repair the editor, and the defect
     // disappears before any assertion can see it.
 
+    /// <summary>
+    /// Reload-and-redo is a way out, not a loop: after taking the daemon's version the redone edit lands.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With no overwrite action yet, this is the only path an artist has out of a held edit, and the docs
+    /// say so. It only works if the reload moves the baseline the next apply compares against — otherwise
+    /// the redo meets the same stale comparison and is held again, and the documented way forward is a
+    /// circle.
+    /// </para>
+    /// <para>
+    /// Driven through a real session rather than a supplied snapshot, because the baseline lives in the
+    /// coordinator: an editor test that hands the view model a fresh profile proves adoption and proves
+    /// nothing about what the next apply will be compared with (#905).
+    /// </para>
+    /// <para>
+    /// The last assertion is the one that matters most. Taking their version and redoing the edit must
+    /// not quietly undo the rest of what they changed.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task AfterTakingTheDaemonsVersion_TheRedoneEditLandsWithoutUndoingTheirs()
+    {
+        var (daemon, session, vm) = await RealEditor();
+        using var _s = session;
+
+        // Somebody else changes the daemon behind this session's back.
+        var theirs = Clone(daemon.Settings!);
+        theirs.Profiles[0].BindingSettings.DisableTilt = true;
+        daemon.Settings = theirs;
+
+        // The artist's edit is held rather than written over it.
+        vm.DisablePressure = true;
+        await Settle();
+        Assert.True(vm.DisablePressure, "the held edit should still be on screen");
+        Assert.False(Pressure(daemon.Settings!), "nothing should have been sent");
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt, "and theirs is untouched");
+
+        // An ordinary reload: the session adopts what the daemon holds, which also moves the baseline.
+        await session.ReloadAsync();
+        await Settle();
+
+        // The artist takes their version, which is what the banner's Reload does.
+        vm.ReloadExternalChangeCommand.Execute(null);
+        await Settle();
+        Assert.False(vm.DisablePressure, "their version is showing now");
+        Assert.True(vm.DisableTilt, "including the change they made");
+
+        // Redo the edit. This is the step that was a loop if the baseline had not moved.
+        vm.DisablePressure = true;
+        await PumpUntil(() => Pressure(daemon.Settings!), "the redone edit to reach the daemon");
+
+        Assert.True(Pressure(daemon.Settings!), "the redone edit never landed");
+        Assert.True(daemon.Settings!.Profiles[0].BindingSettings.DisableTilt,
+            "the redo undid the change the artist had just accepted");
+
+        vm.Dispose();
+    }
+
     private sealed record ReadHarness(
         FakeDaemonTransport Daemon,
         AppSession Session,
@@ -438,7 +697,16 @@ public class TabletEditorReconcileTests
         var first = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var second = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var reads = 0;
-        daemon.GetSettingsHandler = () => ++reads == 1 ? first.Task : second.Task;
+
+        // Only the two reload reads are choreographed. Since #491 an apply reads the daemon before it
+        // writes, to see whether anyone else has, and that read is served immediately -- holding it would
+        // stall the very apply this test inspects, and it is not the read the test is about.
+        daemon.GetSettingsHandler = () => ++reads switch
+        {
+            1 => first.Task,
+            2 => second.Task,
+            _ => Task.FromResult<Settings?>(daemon.Settings is { } now ? Clone(now) : null),
+        };
 
         try
         {

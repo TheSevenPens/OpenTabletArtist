@@ -302,7 +302,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private SettingsSaveState _saveState;
     public bool ShowSaveStatus => SaveState != SettingsSaveState.None;
     public bool SaveFailed => SaveState is SettingsSaveState.Failed
-        or SettingsSaveState.ApplyFailed or SettingsSaveState.Disconnected;
+        or SettingsSaveState.ApplyFailed or SettingsSaveState.Disconnected
+        // Not a failure, but it needs the same attention: the change is being held, not applied, and
+        // nothing further happens until the artist decides (#491).
+        or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
     public string SaveStatusText => SaveState switch
     {
         SettingsSaveState.Saving => "Saving…",
@@ -312,6 +315,15 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         SettingsSaveState.Failed => "Couldn't save — your change is live but won't survive a restart",
         SettingsSaveState.ApplyFailed => "Couldn't apply — your change didn't reach the tablet",
         SettingsSaveState.Disconnected => "Not connected — your change wasn't applied or saved",
+        // Says what happened, and stops there. Taking the daemon's version is the editor's Reload; there
+        // is no "apply again to overwrite" to point at, because re-applying the same edit is held again
+        // for the same reason (#905). Promising one before it exists is worse than saying nothing.
+        SettingsSaveState.ChangedElsewhere =>
+            "Settings changed outside OpenTabletArtist — your change wasn't applied",
+        // Different from the line above on purpose: nothing is known to be waiting on the other side, so
+        // trying again shortly may be all this needs (#905).
+        SettingsSaveState.CouldNotCheck =>
+            "Couldn't check the current settings — your change wasn't applied",
         _ => "",
     };
 

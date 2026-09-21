@@ -59,6 +59,36 @@ public enum SettingsApplyStatus
     /// (there was a change; it simply no longer has a destination).
     /// </summary>
     Superseded,
+
+    /// <summary>
+    /// Someone else changed the daemon's settings since this session last read them, so nothing was sent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not a failure and not <see cref="NoChange"/>: the change was wanted, it is well-formed, and it
+    /// would have gone through. What stopped it is that sending it would have overwritten an edit made
+    /// somewhere else — OpenTabletDriver's own UX, or a helper — because <c>SetSettings</c> replaces
+    /// the whole object and keeps no version (#491, docs/design/settings-sync.md).
+    /// </para>
+    /// <para>
+    /// The caller's change is still theirs: not applied, not saved, and not discarded. What to do next is
+    /// a decision only they can make, because reloading drops their edit and applying anyway drops the
+    /// other one.
+    /// </para>
+    /// </remarks>
+    ChangedElsewhere,
+
+    /// <summary>
+    /// The daemon could not say what it holds, so nothing was sent rather than written over an answer
+    /// nobody has (#905).
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="ChangedElsewhere"/>, which is a conflict this session observed. This is
+    /// the absence of an observation: the read failed, timed out, or came back empty. Writing anyway
+    /// would abandon the protection exactly where the state is least certain, so the change is held on
+    /// the same terms and the caller is told which of the two happened.
+    /// </remarks>
+    CouldNotCheck,
 }
 
 /// <summary>The result of an apply: what happened, the failure if there was one, and what was actually
@@ -97,6 +127,12 @@ public readonly record struct SettingsApplyOutcome(
     public static readonly SettingsApplyOutcome Skipped = new(SettingsApplyStatus.Skipped);
     /// <summary>The daemon changed while this was queued or in flight; it belongs to a session that has ended.</summary>
     public static readonly SettingsApplyOutcome Superseded = new(SettingsApplyStatus.Superseded);
+    /// <summary>Nothing was sent: the daemon's settings moved under this session (#491).</summary>
+    public static readonly SettingsApplyOutcome ChangedElsewhere =
+        new(SettingsApplyStatus.ChangedElsewhere);
+    /// <summary>Nothing was sent: the daemon never said what it holds (#905).</summary>
+    public static readonly SettingsApplyOutcome CouldNotCheck =
+        new(SettingsApplyStatus.CouldNotCheck);
     /// <summary>The daemon was reachable but the change failed. Not live, not saved.</summary>
     /// <param name="ex">The failure, when one was thrown.</param>
     public static SettingsApplyOutcome Failed(Exception? ex) => new(SettingsApplyStatus.ApplyFailed, ex);

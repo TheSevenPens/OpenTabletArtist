@@ -165,6 +165,147 @@ public class SettingsCoordinatorConcurrencyTests
 
     private static readonly TimeSpan Bound = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// An edit made somewhere else since this session last read is not overwritten (#491).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>SetSettings</c> replaces the whole object and keeps no version, so an apply built on a stale
+    /// read overwrites whatever OpenTabletDriver's own UX put there, in the daemon and on disk, with
+    /// nothing to notice it by. The window is small — a focus reload and a 30 s poll bound it — but it was
+    /// unbounded in the sense that mattered: nothing looked.
+    /// </para>
+    /// <para>
+    /// Holding the change is the deliberate choice (#491). Both ways out lose an edit, so which one goes
+    /// is the artist's decision rather than this library's.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AnApplyThatWouldOverwriteSomebodyElsesEdit_IsHeldInstead()
+    {
+        var (coordinator, daemon, store, states) = Make();
+
+        // A baseline first: this session has to have read the daemon before it can notice a change. An
+        // apply records what the daemon accepted, which is the same thing a load would have left.
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+        states.Clear();
+
+        // Someone else writes, and this session does not know.
+        daemon.Settings = SettingsFor("TheirEdit", locked: false);
+
+        Settings? sent = null;
+        daemon.SetSettingsHandler = s =>
+        {
+            sent = s;
+            return Task.FromResult(true);
+        };
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, outcome.Status);
+        Assert.Null(sent);                                   // nothing reached the daemon
+        Assert.Equal("TheirEdit", Tablet(daemon.Settings));  // and theirs is still there
+        Assert.Equal("Baseline", Tablet(store.OnDisk));      // nor did it reach the file
+        Assert.Contains(SettingsSaveState.ChangedElsewhere, states);
+    }
+
+    /// <summary>Nobody else wrote, so the apply goes through exactly as before.</summary>
+    /// <remarks>
+    /// The case that must not regress: every apply now asks the daemon what it holds first, and if that
+    /// question answered "changed" too easily, every ordinary edit would be refused.
+    /// </remarks>
+    [Fact]
+    public async Task WithNobodyElseWriting_TheApplyGoesThrough()
+    {
+        var (coordinator, daemon, store, _) = Make();
+
+        // With a baseline in place, so the comparison actually runs rather than being skipped for want
+        // of anything to compare against.
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.AppliedAndSaved, outcome.Status);
+        Assert.Equal("MyEdit", Tablet(daemon.Settings));
+        Assert.Equal("MyEdit", Tablet(store.OnDisk));
+    }
+
+    /// <summary>
+    /// A check that cannot be made holds the change too, and says which of the two happened (#905).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This asserted the opposite until the review of #904. Proceeding on an inconclusive read abandons
+    /// the protection exactly where the state is least certain: "the daemon would not tell me what it
+    /// holds" is not evidence that it holds what we last saw. The reported status is distinct from a
+    /// confirmed conflict, because the artist's next move differs — there is nothing known to be
+    /// waiting on the other side, and trying again shortly may be all it needs.
+    /// </para>
+    /// <para>
+    /// The cost is real and was weighed: a daemon that answers writes but not reads now refuses edits it
+    /// would previously have taken. Against that, the whole point of holding a change is that it is not
+    /// written over somebody else's, and a read nobody answered cannot establish that.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task WhenTheDaemonCannotBeAsked_TheChangeIsHeldToo()
+    {
+        var (coordinator, daemon, store, states) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+        states.Clear();
+
+        daemon.GetSettingsHandler = () => throw new InvalidOperationException("no answer");
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, outcome.Status);
+        Assert.Equal("Baseline", Tablet(daemon.Settings));
+        Assert.Equal("Baseline", Tablet(store.OnDisk));
+        Assert.Contains(SettingsSaveState.CouldNotCheck, states);
+    }
+
+    /// <summary>A daemon that answers the read with nothing has told us nothing either.</summary>
+    [Fact]
+    public async Task WhenTheDaemonAnswersWithNothing_TheChangeIsHeld()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+
+        daemon.GetSettingsHandler = () => Task.FromResult<Settings?>(null);
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, outcome.Status);
+        Assert.Equal("Baseline", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A read that never answers is abandoned on its budget rather than holding the gate open (#905).
+    /// </summary>
+    /// <remarks>
+    /// The budget exists because this runs inside the mutation gate: a read that hangs does not only
+    /// delay its own apply, it holds every queued edit and persistence retry behind it. The wait is
+    /// abandoned; the read itself is not cancellable and may still be out there, which is why nothing it
+    /// returns afterwards is allowed to reach a decision this apply has already made.
+    /// </remarks>
+    [Fact]
+    public async Task WhenTheDaemonNeverAnswersTheRead_TheChangeIsHeldOnTheBudget()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Baseline", locked: false));
+
+        var never = new TaskCompletionSource<Settings?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        daemon.GetSettingsHandler = () => never.Task;
+
+        var outcome = await coordinator.ApplyAndSaveAsync(SettingsFor("MyEdit", locked: false));
+
+        Assert.Equal(SettingsApplyStatus.CouldNotCheck, outcome.Status);
+        Assert.Equal("Baseline", Tablet(daemon.Settings));
+        Assert.False(never.Task.IsCompleted);   // the read was left running, not resolved by the wait
+
+        never.TrySetResult(null);
+    }
+
     private static string Json(Settings? s) => JsonConvert.SerializeObject(s);
 
     private static Settings SettingsFor(string tablet, bool locked) => new()

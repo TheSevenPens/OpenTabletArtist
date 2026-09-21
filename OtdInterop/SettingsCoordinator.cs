@@ -146,6 +146,9 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // stops a runaway apply↔reload loop from hanging the app (a safety net behind the #433 class of bug).
     private string? _lastLoadedSettingsJson;
 
+    /// <summary>The channel <see cref="_lastLoadedSettingsJson"/> was read from (#491).</summary>
+    private int? _lastLoadedChannel;
+
     /// <summary>
     /// The comparison baseline, for a test that needs to see it directly.
     /// </summary>
@@ -361,8 +364,15 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// here would now make the guard less accurate, not safer.
     /// </para>
     /// </remarks>
-    private void RecordBaseline(Settings? readOrAccepted) =>
+    private void RecordBaseline(Settings? readOrAccepted)
+    {
         _lastLoadedSettingsJson = SerializeForCompare(readOrAccepted);
+
+        // Whose settings these were. A baseline only means "what was there last time we looked" for the
+        // daemon we were looking at; against a different one it is just another daemon's file, and
+        // comparing across the two would read an ordinary reconnect as somebody editing behind us (#491).
+        _lastLoadedChannel = _daemon.Incarnation;
+    }
 
     /// <summary>
     /// Runs <paramref name="operation"/> with no other mutating operation in flight, and only while it
@@ -477,6 +487,100 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// admission that never got one, and the reset's own announcement — deliberately do not.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Whether the daemon now holds something other than what this session last read (#491).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Null means the question could not be asked, which is deliberately different from "no". There is
+    /// nothing to compare against before the first load, and a read that fails or returns nothing tells
+    /// us nothing about whether anyone else has written. In both cases the apply proceeds: this is a
+    /// mitigation for a window that is already small, and refusing a user's edit because a probe failed
+    /// would trade a rare silent overwrite for a common visible obstruction.
+    /// </para>
+    /// <para>
+    /// Compared through <see cref="SerializeForCompare"/>, the same normalisation the no-op guard uses, so
+    /// a re-serialisation that changes only formatting cannot read as somebody else's edit.
+    /// </para>
+    /// </remarks>
+    /// <summary>How long the pre-write read may take before the apply gives up on asking (#491, #905).</summary>
+    /// <remarks>
+    /// Bounded because this runs inside the mutation gate: a read that hangs does not merely delay its own
+    /// apply, it holds every queued edit and persistence retry behind it. The write has no such budget,
+    /// and that asymmetry is deliberate — the write is work the artist asked for, and this is not.
+    /// </remarks>
+    internal static readonly TimeSpan ConflictCheckBudget = TimeSpan.FromSeconds(2);
+
+    /// <summary>What a pre-write read of the daemon established.</summary>
+    private enum ConflictCheck
+    {
+        /// <summary>The daemon still holds what this session last read. Safe to write.</summary>
+        Unchanged,
+
+        /// <summary>It holds something else. Writing would overwrite whoever put it there.</summary>
+        Changed,
+
+        /// <summary>The question could not be asked or answered, so nothing is known either way.</summary>
+        Unknown,
+
+        /// <summary>There was nothing to compare against, so the check does not apply here.</summary>
+        NotApplicable,
+    }
+
+    /// <summary>
+    /// Whether the daemon now holds something other than what this session last read (#491).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ConflictCheck.NotApplicable"/> and <see cref="ConflictCheck.Unknown"/> are kept apart on
+    /// purpose. The first is "there is no question here" — before the first read, or against a daemon
+    /// this baseline never came from — and an apply proceeds. The second is "the question went
+    /// unanswered", and an apply does not: writing after an inconclusive read abandons the protection
+    /// exactly where the state is least certain (#905).
+    /// </para>
+    /// <para>
+    /// Compared through <see cref="SerializeForCompare"/>, the same normalisation the no-op guard uses, so
+    /// a re-serialisation that changes only formatting cannot read as somebody else's edit.
+    /// </para>
+    /// </remarks>
+    private async Task<ConflictCheck> DaemonMovedUnderUsAsync(Origin origin)
+    {
+        if (_lastLoadedSettingsJson is not { } baseline) return ConflictCheck.NotApplicable;
+
+        // Only against the daemon the baseline came from. A reconnect legitimately brings different
+        // settings, and calling that a conflict would refuse the first apply after every reconnect.
+        if (_lastLoadedChannel != origin.Channel.Incarnation) return ConflictCheck.NotApplicable;
+
+        Settings? current;
+        try
+        {
+            // The timeout abandons the WAIT, not the call: the read is still out there and may yet fail.
+            // Observed rather than dropped, so a late failure cannot surface as an unhandled task, and so
+            // that nothing it returns can reach a decision this apply has already made without it.
+            var reading = origin.Channel.GetSettingsAsync();
+            current = await reading.WaitAsync(ConflictCheckBudget).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            _log.Warn("The daemon did not say what it holds within the check budget; holding the change "
+                      + "rather than writing over an answer nobody has.");
+            return ConflictCheck.Unknown;
+        }
+        catch (Exception ex)
+        {
+            _log.Warn("Couldn't read the daemon's settings before applying; holding the change.", ex);
+            return ConflictCheck.Unknown;
+        }
+
+        // Nothing to compare against is not the same as "unchanged": a daemon that answers null has told
+        // us nothing about what it holds.
+        if (current is null) return ConflictCheck.Unknown;
+
+        return SerializeForCompare(current) is { } now && now != baseline
+            ? ConflictCheck.Changed
+            : ConflictCheck.Unchanged;
+    }
+
     private void TellTheHost(SettingsSaveState state, Origin origin)
     {
         if (!StillCurrent(origin)) return;
@@ -1083,6 +1187,30 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // admitted before anyone had identified the new daemon wrote into the OLD daemon's file, which is
         // the half #828 was still owed.
         var path = DestinationFor(origin);
+
+        // Detect before clobbering (#491). SetSettings replaces the whole object and keeps no version, so
+        // an edit made in OpenTabletDriver's own UX between this session's last read and this send would
+        // be overwritten with no trace. Asking first is the only check available without a daemon change.
+        var checked_ = await DaemonMovedUnderUsAsync(origin).ConfigureAwait(false);
+
+        // The read is a call-out, so nothing learned before it still holds (#845) -- and that is true of
+        // a read that failed or timed out as much as one that answered, because a replacement can span
+        // either (#905). Superseded takes precedence: a conflict with a daemon that has since been
+        // replaced is not a conflict at all.
+        if (!StillCurrent(origin)) return SettingsApplyOutcome.Superseded;
+
+        switch (checked_)
+        {
+            case ConflictCheck.Changed:
+                _log.Warn("Settings changed outside this application since it last read them; holding the "
+                          + "change rather than overwriting it.");
+                TellTheHost(SettingsSaveState.ChangedElsewhere, origin);
+                return SettingsApplyOutcome.ChangedElsewhere;
+
+            case ConflictCheck.Unknown:
+                TellTheHost(SettingsSaveState.CouldNotCheck, origin);
+                return SettingsApplyOutcome.CouldNotCheck;
+        }
 
         TellTheHost(SettingsSaveState.Saving, origin);
         bool applied;
