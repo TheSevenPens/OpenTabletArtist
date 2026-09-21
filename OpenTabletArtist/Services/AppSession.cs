@@ -275,9 +275,14 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public string SaveStatusText => !string.IsNullOrEmpty(_session.SettingsProblem) ? _session.SettingsProblem : SaveState switch
     {
         SettingsSaveState.Applying => "Applying…",
-        SettingsSaveState.Unsaved => "Applied — not saved",
+        SettingsSaveState.Unsaved => "Unsaved changes",
         SettingsSaveState.Saving => "Saving…",
-        SettingsSaveState.Saved => "Saved",
+        // Saved says nothing, because there is nothing to say: every edit is already live on the driver,
+        // and the only question this line answers is whether anything would be lost by a restart. An
+        // artist who has just pressed Save watches "Saving…" turn into silence, which is the answer.
+        // "Applied — not saved" tried to explain the whole model in four words and mostly raised the
+        // question of what "applied" meant; "Unsaved changes" names the one thing at stake.
+        SettingsSaveState.Saved => "",
         SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
         SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
         SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
