@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletArtist.Helpers;
+using OtdInterop;
 using OpenTabletArtist.ViewModels;
 
 namespace OpenTabletArtist.Services;
@@ -75,18 +76,25 @@ public class DialogService : IDialogService
             applyAction: async updated => await _session.ApplyAndSaveSettingsAsync(updated),
             overwriteAction: async (updated, conflict) =>
                 await _session.OverwriteSettingsAsync(updated, conflict),
+            resubmitAction: async (updated, held) => await _session.ResubmitSettingsAsync(updated, held),
             acceptCurrentAction: accepted => _session.AcceptCurrentSettings(accepted),
             refreshAction: async () =>
             {
                 // Authoritative reload through the session so its cache stays coherent; return the
                 // reloaded settings + this tablet's profile (a reference inside them) together (#124).
                 await _session.ReloadAsync();
-                var settings = _session.CurrentSettings;
+
                 // The stamp travels with the snapshot, so an editor resolving a held change names the
-                // one it actually took rather than whatever is current by the time it asks (#910).
-                return (settings,
-                    settings?.Profiles.FirstOrDefault(p => p.Tablet == tabletName),
-                    _session.CurrentStamp);
+                // one it actually took rather than whatever is current by the time it asks (#910). One
+                // read for both: asking for the settings and then for the stamp is a window in which a
+                // publication can land, and the pair that comes out of it describes no snapshot that
+                // ever existed — which is the substitution the stamp is here to prevent, performed by
+                // the caller. The other adoption route, MainViewModel's reconciliation, reads the same
+                // way and for the same reason.
+                var published = _session.CurrentPublication;
+                return (published?.Settings,
+                    published?.Settings.Profiles.FirstOrDefault(p => p.Tablet == tabletName),
+                    published?.Stamp ?? SettingsStamp.None);
             },
             tabletDigitizer: _session.GetTabletDigitizer(tabletName),
             penInput: _session.Daemon, // live pen-pressure dot on the Dynamics tab (#102)

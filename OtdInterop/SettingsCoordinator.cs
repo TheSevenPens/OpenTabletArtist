@@ -155,24 +155,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     private readonly Guid _issuer = Guid.NewGuid();
 
     /// <summary>
-    /// What an unresolved held change is compared against, pinned when the hold began (#910).
+    /// Superseded by <see cref="SettingsHold"/>, which each draft carries for itself (#906).
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Without it, a held draft is silently rebased onto every reload. The sequence is ordinary: a change
-    /// is held, an automatic reload learns what the daemon actually holds, and the next submission of
-    /// that same draft is compared against the state it was never weighed against — finds it unchanged,
-    /// and writes over the external edit the reload had just discovered. Learning somebody's settings is
-    /// not consent to replace them.
-    /// </para>
-    /// <para>
-    /// Released only by something the caller did: a write that succeeded, or
-    /// <see cref="AcceptCurrentState"/> when they take what the daemon holds. Never by a reload, which is
-    /// the whole point.
-    /// </para>
-    /// </remarks>
-    private string? _heldAgainst;
-
     private string? _lastLoadedSettingsJson;
 
     /// <summary>The channel <see cref="_lastLoadedSettingsJson"/> was read from (#491).</summary>
@@ -226,7 +210,29 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     // so a permission problem stops warning in the log eventually, not to ration attempts.
     private const int MaxAutomaticRetries = 10;
 
-    private Settings? _settings;
+    /// <summary>
+    /// What this session publishes, settings and stamp as one value (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One field, replaced whole, so no reader can see half of a publication. They used to be a settings
+    /// field and a revision counter written one after the other, and read the same way — which meant a
+    /// reader between the two writes, or a publication between the two reads, came away with one
+    /// publication's settings under another's stamp. A caller that later accepts that stamp is agreeing
+    /// to something it was never shown, and the stamp exists to stop exactly that.
+    /// </para>
+    /// <para>
+    /// The session generation is inside the stamp rather than added when one is asked for, so a reset
+    /// moves both halves together too.
+    /// </para>
+    /// </remarks>
+    private Publication _published = new(null, new SettingsStamp(1, 0));
+
+    /// <summary>The settings this session publishes and the stamp they were published under.</summary>
+    private sealed record Publication(Settings? Settings, SettingsStamp Stamp);
+
+    /// <summary>Read once. Every caller that needs both halves must take them from one of these.</summary>
+    private Publication Published => Volatile.Read(ref _published);
 
     /// <summary>
     /// One mutating operation at a time (#775). Every path here reads shared state, awaits the daemon,
@@ -271,7 +277,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// happens BEFORE the call that changes the daemon, so a read starting in between would otherwise
     /// carry an epoch that looks current while returning state from before the change.
     ///
-    /// Deliberately not the same counter as <see cref="_revision"/>. This one answers "could a read I
+    /// Deliberately not the same counter as the published revision. This one answers "could a read I
     /// started still be trusted"; that one answers "which published settings is this". An override moves
     /// this and not that, and an apply moves this twice while publishing once.
     /// </summary>
@@ -295,20 +301,93 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// changing what this session publishes — a per-app override — produces no revision of its own and
     /// must not borrow this one.
     /// </summary>
-    private int _revision;
-
-    /// <summary>The revision <see cref="CurrentSettings"/> is at right now.</summary>
-    private int Revision => Volatile.Read(ref _revision);
-
     /// <summary>The single place the published settings change, so no assignment can forget the version.</summary>
-    /// <returns>The revision the published state is now at, for stamping whatever produced it.</returns>
-    private int Publish(Settings? settings)
+    /// <returns>The stamp the published state is now at, for stamping whatever produced it.</returns>
+    /// <remarks>
+    /// <para>
+    /// The next publication is built and then swapped in, rather than assembled in place. Assembling in
+    /// place is what let a reader see a new settings object under the old stamp.
+    /// </para>
+    /// <para>
+    /// Swapped with a compare-and-exchange rather than a plain write, because publishing is not confined
+    /// to the one-at-a-time section: <see cref="ResetForNewDaemon"/> runs outside it, on whichever thread
+    /// noticed the daemon change. Reading the version and writing the successor as two steps would let
+    /// two publications take the same number — two different settings under one stamp, which the exact
+    /// stamp check then cannot tell apart, and that check is what stands between an acceptance and the
+    /// snapshot it is about. The retry also keeps the versions in order: a loser recomputes from the
+    /// winner rather than overwriting it.
+    /// </para>
+    /// </remarks>
+    /// <summary>Publishing, reachable from a test (#910).</summary>
+    /// <remarks>
+    /// The only way to establish that two publications cannot share a stamp is to run two that are not
+    /// serialized against each other, which is what <c>ResetForNewDaemon</c> already does against a
+    /// running apply. Exposed internally rather than approximated through the public paths, because
+    /// those serialize and so cannot ask the question.
+    /// </remarks>
+    internal SettingsStamp PublishForTest(Settings? settings) => Publish(settings);
+
+    private SettingsStamp Publish(Settings? settings) => Exchange(_ => settings);
+
+    /// <summary>
+    /// Publishes what is already published, under a new stamp — for a change of identity rather than of
+    /// settings (#910).
+    /// </summary>
+    /// <remarks>
+    /// Its own operation because the settings must be taken from the publication the exchange is racing
+    /// against, and taken again on every retry. Written as <c>Publish(Published.Settings)</c> it read the
+    /// settings once, before the loop: a publication winning in between would then be overwritten by the
+    /// older settings this had already picked up, under a version high enough to look like the newer
+    /// one. Unique, increasing stamps do not make that safe — they make it harder to see.
+    /// </remarks>
+    private SettingsStamp Republish() => Exchange(current => current.Settings);
+
+    /// <summary>
+    /// Swaps in the next publication, deriving it from whichever one this is actually replacing.
+    /// </summary>
+    /// <param name="nextSettings">
+    /// What to publish, given the publication being replaced. Called inside the loop, so an operation
+    /// defined in terms of the current settings sees the winner's rather than a stale capture.
+    /// </param>
+    private SettingsStamp Exchange(Func<Publication, Settings?> nextSettings)
     {
-        _settings = settings;
-        // A new baseline is also something a read in flight can no longer be trusted against.
-        Interlocked.Increment(ref _observationEpoch);
-        return Interlocked.Increment(ref _revision);
+        while (true)
+        {
+            var current = Volatile.Read(ref _published);
+            BeforePublishExchange?.Invoke();
+            var next = new Publication(nextSettings(current), StampFor(current.Stamp.Version + 1));
+
+            if (!ReferenceEquals(Interlocked.CompareExchange(ref _published, next, current), current))
+                continue;
+
+            // A new baseline is also something a read in flight can no longer be trusted against.
+            Interlocked.Increment(ref _observationEpoch);
+            return next.Stamp;
+        }
     }
+
+    /// <summary>
+    /// Runs between reading the publication to replace and exchanging it, so a test can make that
+    /// exchange lose (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The retry path is the whole of what makes <see cref="Republish"/> correct, and nothing reaches it
+    /// without a publication landing in a window a few instructions wide. A test that raced for it would
+    /// be a test that usually proved nothing.
+    /// </para>
+    /// <para>
+    /// It is compiled into every build and is simply never assigned outside a test, so the cost in
+    /// production is one null check per exchange. Not conditional compilation: a hook that existed only
+    /// in test builds would be a hook the shipped code had never run past.
+    /// </para>
+    /// <para>
+    /// Deliberately narrow, and not a general host callback. A test that reuses a coordinator must clear
+    /// it — the one here clears it before publishing, which is also what keeps it from re-entering
+    /// itself.
+    /// </para>
+    /// </remarks>
+    internal Action? BeforePublishExchange { get; set; }
 
     /// <summary>
     /// A result a caller may keep: a copy of its own, stamped, or null when the copy cannot be made.
@@ -326,7 +405,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// The session is offset by one so a stamp from a freshly-created session is never equal to
     /// <see cref="SettingsStamp.None"/>, which means no session at all.
     /// </summary>
-    private SettingsStamp StampFor(int revision) =>
+    private SettingsStamp StampFor(long revision) =>
         new(Volatile.Read(ref _sessionGeneration) + 1, revision);
 
     /// <summary>
@@ -377,6 +456,45 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     }
 
     /// <summary>
+    /// Whether a snapshot a caller is about to accept is still the one this session published (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Names what was accepted rather than meaning "whatever you hold now". An editor can be showing a
+    /// snapshot while a later read advances this session underneath it, and treating that as acceptance
+    /// would turn a decision about the older state into permission concerning the newer.
+    /// </para>
+    /// <para>
+    /// It answers and changes nothing. Releasing is the caller dropping the <see cref="SettingsHold"/>
+    /// it was given, which is what keeps one editor's decision from resolving another's draft (#906):
+    /// there is no shared hold here for an answer to clear. A caller told false is looking at something
+    /// out of date — a fresh decision for them to make, not one to make on their behalf by substituting
+    /// the current state silently.
+    /// </para>
+    /// </remarks>
+    /// <param name="accepted">
+    /// The stamp of the snapshot taken, as it came from <see cref="GetCurrent"/>.
+    /// </param>
+    /// <returns>True when the snapshot is still current; false when something has since replaced it.</returns>
+    public bool AcceptCurrentState(SettingsStamp accepted)
+    {
+        // Exactly the current stamp, not merely "not superseded by it" (#910). Those differ in one
+        // direction and it is the wrong one to be loose about: a stamp naming a version this session has
+        // not reached is not superseded by anything, so the looser test accepted a snapshot that does not
+        // exist here. Whatever produced it, this session cannot vouch for it, and "I am looking at what
+        // you are publishing" is an equality.
+        if (accepted.IsNone || accepted != Published.Stamp)
+        {
+            _log.Warn("A caller accepted settings that are no longer the current ones; the change it was "
+                      + "holding stays held, because agreeing to something out of date is not agreeing to "
+                      + "what is there now.");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// The no-op guard's baseline: what this session has actually read, or had the daemon accept.
     /// </summary>
     /// <remarks>
@@ -393,50 +511,6 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// here would now make the guard less accurate, not safer.
     /// </para>
     /// </remarks>
-    /// <summary>
-    /// The caller has taken what the daemon holds, so a held change is no longer waiting on them (#910).
-    /// </summary>
-    /// <remarks>
-    /// Explicit because nothing else can stand for it. A reload tells this session what is there; only
-    /// the caller can say they have accepted it, and until they do, a draft they have not resolved goes
-    /// on being compared against the state it was held against rather than against whatever arrived
-    /// since.
-    /// </remarks>
-    /// <summary>
-    /// The caller has taken a snapshot this session published, so a held change is no longer waiting on
-    /// them (#910).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Names what was accepted rather than meaning "whatever you hold now". Taking no argument, this
-    /// released a hold against a state the caller may never have seen: an editor can be showing a
-    /// snapshot while a later read advances this session underneath it, and a blind release would turn a
-    /// draft built on the older one into permission to overwrite the newer.
-    /// </para>
-    /// <para>
-    /// A stale acceptance is refused rather than honoured, and the hold stands. The caller is then
-    /// looking at something that is no longer current, which is a fresh decision for them to make, not
-    /// one to make on their behalf by substituting the latest state silently.
-    /// </para>
-    /// </remarks>
-    /// <param name="accepted">
-    /// The stamp of the snapshot taken, as it came from <see cref="GetCurrent"/>.
-    /// </param>
-    /// <returns>True when the hold was released; false when the snapshot is no longer current.</returns>
-    public bool AcceptCurrentState(SettingsStamp accepted)
-    {
-        if (accepted.IsNone || accepted.SupersededBy(StampFor(Revision)))
-        {
-            _log.Warn("A caller accepted settings that are no longer the current ones; the change it was "
-                      + "holding stays held, because agreeing to something out of date is not agreeing to "
-                      + "what is there now.");
-            return false;
-        }
-
-        _heldAgainst = null;
-        return true;
-    }
-
     private void RecordBaseline(Settings? readOrAccepted)
     {
         _lastLoadedSettingsJson = SerializeForCompare(readOrAccepted);
@@ -668,13 +742,32 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         return null;
     }
 
+    /// <summary>The hold to hand back: what this decision was actually made against (#906).</summary>
+    /// <remarks>
+    /// <para>
+    /// Built from the comparison rather than reissued against today's baseline, which is what stops a
+    /// draft's expectation walking forward one submission at a time until it protects nothing. A draft
+    /// held twice was weighed against its own expectation the second time too, so that is what comes
+    /// back — the same value the caller presented, not whatever has arrived since.
+    /// </para>
+    /// <para>
+    /// No separate "keep the one they gave us" branch, because there is nothing for it to do: when a
+    /// hold applied, the comparison used its expectation, so a hold built here holds the same value. A
+    /// guard for that case looked careful and decided nothing, and a branch no input can distinguish is
+    /// a branch no test can hold to account.
+    /// </para>
+    /// </remarks>
+    private SettingsHold? HoldFor(Origin origin, string? compared) =>
+        compared is null ? null : new SettingsHold(_issuer, origin.Channel.Incarnation, compared);
+
     /// <summary>
     /// Holds an ordinary apply unless the daemon still holds what this session last read, or null to go
     /// ahead (#491).
     /// </summary>
-    private async Task<SettingsApplyOutcome?> HoldUnlessUnchangedAsync(Origin origin)
+    private async Task<SettingsApplyOutcome?> HoldUnlessUnchangedAsync(Origin origin, SettingsHold? held)
     {
-        var (checkResult, seen, compared) = await DaemonMovedUnderUsAsync(origin).ConfigureAwait(false);
+        var (checkResult, seen, compared) =
+            await DaemonMovedUnderUsAsync(origin, held).ConfigureAwait(false);
 
         // True of a read that failed or timed out as much as one that answered: a replacement can span
         // either (#905). Superseded takes precedence -- a conflict with a daemon that has since been
@@ -686,21 +779,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             case ConflictCheck.Changed:
                 _log.Warn("Settings changed outside this application since it last read them; holding the "
                           + "change rather than overwriting it.");
-                // The state this decision was actually made against, carried through the await (#910).
-                // Reading the baseline again here meant a reload that landed during the read became what
-                // the hold protected -- which is the very state nobody had agreed to.
-                _heldAgainst ??= compared;
                 TellTheHost(SettingsSaveState.ChangedElsewhere, origin);
                 return new SettingsApplyOutcome(
                     SettingsApplyStatus.ChangedElsewhere,
                     Conflict: seen is null
                         ? null
-                        : new SettingsConflict(_issuer, origin.Channel.Incarnation, seen));
+                        : new SettingsConflict(_issuer, origin.Channel.Incarnation, seen),
+                    Held: HoldFor(origin, compared));
 
             case ConflictCheck.Unknown:
-                _heldAgainst ??= compared;
                 TellTheHost(SettingsSaveState.CouldNotCheck, origin);
-                return SettingsApplyOutcome.CouldNotCheck;
+                return new SettingsApplyOutcome(
+                    SettingsApplyStatus.CouldNotCheck,
+                    Held: HoldFor(origin, compared));
 
             default:
                 return null;
@@ -729,17 +820,30 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     }
 
     private async Task<(ConflictCheck Result, string? Seen, string? Compared)> DaemonMovedUnderUsAsync(
-        Origin origin)
+        Origin origin, SettingsHold? held)
     {
-        // An unresolved hold compares against what it was held against, not against whatever the last
-        // reload learned (#910).
-        if ((_heldAgainst ?? _lastLoadedSettingsJson) is not { } baseline)
+        // A draft that is being held is compared against what IT was held against, carried in its own
+        // hold rather than in a field this session shares between every editor (#906). Applicability was
+        // settled before this apply did anything at all, so anything still here is this session's own
+        // observation on this connection.
+        string baseline;
+        if (held?.Expected is { } theirs)
+        {
+            // No channel test here: an inapplicable hold never reaches this point, and the hold that
+            // does carries the connection it was taken on, so there is nothing further to ask.
+            baseline = theirs;
+        }
+        else if (_lastLoadedSettingsJson is { } loaded &&
+                 _lastLoadedChannel == origin.Channel.Incarnation)
+        {
+            // Only against the daemon the baseline came from. A reconnect legitimately brings different
+            // settings, and calling that a conflict would refuse the first apply after every reconnect.
+            baseline = loaded;
+        }
+        else
+        {
             return (ConflictCheck.NotApplicable, null, null);
-
-        // Only against the daemon the baseline came from. A reconnect legitimately brings different
-        // settings, and calling that a conflict would refuse the first apply after every reconnect.
-        if (_lastLoadedChannel != origin.Channel.Incarnation)
-            return (ConflictCheck.NotApplicable, null, null);
+        }
 
         Settings? current;
         try
@@ -1086,7 +1190,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     ///
     /// Each read copies, so hold the result rather than re-reading it in a loop.
     /// </summary>
-    public Settings? CurrentSettings => _settings is { } s ? Snapshot(s) : null;
+    public Settings? CurrentSettings => Published.Settings is { } s ? Snapshot(s) : null;
 
     /// <summary>
     /// The settings this session is editing, detached and stamped.
@@ -1100,7 +1204,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// set is deliberately not what the daemon is running.
     /// </summary>
     public PreparedSettings? GetCurrent() =>
-        _settings is { } current ? Detach(current, StampFor(Revision)) : null;
+        Published is { Settings: { } current } now ? Detach(current, now.Stamp) : null;
 
     /// <summary>
     /// True while the daemon is running something other than <see cref="CurrentSettings"/> — a transient
@@ -1260,16 +1364,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // unadoptable rather than merely wrong.
         Interlocked.Increment(ref _observationEpoch);
 
+        // The generation is half of every stamp, so republish to carry it into the published one (#910).
+        // Recomputing the generation whenever a stamp was asked for hid this: the published stamp would
+        // silently start reading as the new session's while naming a revision from the old one, so a
+        // stamp handed out before the reset compared equal to one handed out after it.
+        //
+        // Republish rather than Publish(Published.Settings): this changes identity and must not change
+        // what is published, which means taking the settings from whatever this exchange actually
+        // replaces rather than from a read made before the attempt.
+        Republish();
+
         if (!keepPending) DiscardPendingPersist();
         _lastPersistedSettingsJson = null;
         _lastLoadedSettingsJson = null;
-
-        // The pin belongs to the daemon that has gone (#910). Left standing, it would be compared against
-        // the NEW daemon's settings once a reload gave this session a baseline again -- never matching,
-        // so every apply held, for ever, with neither release reachable: no write can succeed to clear
-        // it, and the editor has already given its draft up under #905 so it will never accept anything
-        // either.
-        _heldAgainst = null;
 
         HasEphemeralOverride = false;
 
@@ -1304,7 +1411,19 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// <summary>Applies to the daemon and persists to disk. Reports what actually happened rather than
     /// collapsing apply and persist into one result (#734). Does NOT reload — the caller does.</summary>
     public Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings) =>
-        ApplyAndSaveAsync(settings, authorised: null);
+        ApplyAndSaveAsync(settings, authorised: null, held: null);
+
+    /// <summary>
+    /// Applies a change that this session declined to send earlier, weighed against what it was declined
+    /// against (#906).
+    /// </summary>
+    /// <remarks>
+    /// The caller presents the hold it was given. Without it the draft would be compared against whatever
+    /// this session has learned since -- so a reload that discovered somebody else's edit, or another
+    /// editor resolving its own conflict, would quietly become permission to overwrite this one.
+    /// </remarks>
+    public Task<SettingsApplyOutcome> ResubmitAsync(Settings settings, SettingsHold held) =>
+        ApplyAndSaveAsync(settings, authorised: null, held: held);
 
     /// <summary>
     /// Applies a change the caller has chosen to write over a conflict this session reported (#906).
@@ -1323,9 +1442,10 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
     /// </para>
     /// </remarks>
     public Task<SettingsApplyOutcome> OverwriteAsync(Settings settings, SettingsConflict conflict) =>
-        ApplyAndSaveAsync(settings, conflict);
+        ApplyAndSaveAsync(settings, conflict, held: null);
 
-    private Task<SettingsApplyOutcome> ApplyAndSaveAsync(Settings settings, SettingsConflict? authorised)
+    private Task<SettingsApplyOutcome> ApplyAndSaveAsync(
+        Settings settings, SettingsConflict? authorised, SettingsHold? held)
     {
         if (Admit(settings, out var error) is not { } working)
         {
@@ -1337,13 +1457,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             TellTheHost(SettingsSaveState.ApplyFailed);
             return Task.FromResult(SettingsApplyOutcome.Failed(error));
         }
-        return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin, authorised),
+        return SerializedAsync(origin => ApplyAndSaveCoreAsync(working, origin, authorised, held),
             () => SettingsApplyOutcome.Superseded,
             closed: () => SettingsApplyOutcome.Disconnected);
     }
 
     private async Task<SettingsApplyOutcome> ApplyAndSaveCoreAsync(
-        Settings settings, Origin origin, SettingsConflict? authorised = null)
+        Settings settings, Origin origin, SettingsConflict? authorised = null, SettingsHold? held = null)
     {
         // (b) Circuit-breaker: if applies are firing faster than any legitimate use, a binding loop is
         // running — skip to break it (no reload → the loop can't re-trigger) instead of hanging the app.
@@ -1352,6 +1472,21 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             System.Diagnostics.Debug.WriteLine(
                 "SettingsCoordinator: apply-loop breaker tripped — skipping ApplyAndSave to avoid a hang (a UI binding is looping).");
             return SettingsApplyOutcome.Skipped;
+        }
+
+        // A hold this session cannot use is refused here, in front of the no-op guard and everything
+        // after it (#906). Checking it down in the comparison was not enough: an inapplicable hold fell
+        // back to this session's own baseline, and that baseline can match the daemon exactly while the
+        // draft belongs to another session or to a connection that has been replaced — so the check
+        // passed and a foreign draft was written. The library knows the observation is not its own; it
+        // must say so rather than silently ask an easier question.
+        if (held is { } presented
+            && (presented.Issuer != _issuer || presented.Channel != origin.Channel.Incarnation))
+        {
+            _log.Warn("A change was submitted holding an observation this session cannot use — it came "
+                      + "from another session or from a connection that has been replaced. Nothing was "
+                      + "sent; the draft has to be resolved against the connection it is actually on.");
+            return SettingsApplyOutcome.HoldNotApplicable;
         }
 
         // `settings` is this operation's private working copy, so policy edits it freely — but the
@@ -1428,8 +1563,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         }
         else
         {
-            if (await HoldUnlessUnchangedAsync(origin).ConfigureAwait(false) is { } held)
-                return held;
+            if (await HoldUnlessUnchangedAsync(origin, held).ConfigureAwait(false) is { } refusal)
+                return refusal;
         }
 
         TellTheHost(SettingsSaveState.Saving, origin);
@@ -1454,10 +1589,6 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         {
             NoteDaemonAccepted(revision, origin);
 
-            // The change reached the daemon, so there is nothing left held against anything (#910).
-            // Behind its own currency check: NoteDaemonAccepted makes that judgement internally, and it
-            // does not cover an assignment that merely follows it.
-            if (StillCurrent(origin)) _heldAgainst = null;
         }
 
         if (!applied)
@@ -1495,7 +1626,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
         // Accepted, and by a daemon still ours to speak for -- so now it is a revision. Before the disk
         // write on purpose: an accepted baseline must not be reverted by a persistence failure, which is
         // a separate outcome and a separate retry.
-        var stamp = StampFor(Publish(revision));
+        var stamp = Publish(revision);
 
         // A real apply puts the daemon on these settings, so any per-app override is over (#737). Moved
         // here with the publication: clearing it on an attempt ended an override the daemon was still
@@ -1798,8 +1929,8 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
             return SettingsApplyOutcome.Superseded;
         }
 
-        var stamp = StampFor(Publish(revision));
-        HasEphemeralOverride = false;   // the daemon is on _settings again (#737)
+        var stamp = Publish(revision);
+        HasEphemeralOverride = false;   // the daemon is on the published settings again (#737)
         return SettingsApplyOutcome.Live with { Prepared = Detach(revision, stamp) };
     }
 
@@ -1880,7 +2011,13 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
     private async Task<SettingsApplyOutcome> ClearEphemeralOverrideCoreAsync(Origin origin)
     {
-        if (_settings is not { } baseline)
+        // The whole publication, once, before anything is awaited (#910). Reading the settings here and
+        // the stamp after the send is the separated read again, wearing the new type: a reload landing
+        // while the send is out publishes something else, and the result then describes settings that
+        // were never published under the stamp it carries. Which is what an acceptance is checked
+        // against — so the caller agrees to a snapshot nobody ever had.
+        var published = Published;
+        if (published.Settings is not { } baseline)
         {
             // Nothing to return to, so nothing is overriding anything.
             HasEphemeralOverride = false;
@@ -1909,9 +2046,11 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession
 
         HasEphemeralOverride = false;
         // The baseline was already published; putting the daemon back on it creates no new revision, so
-        // the stamp is the one it already had. Unlike the per-app apply above, the result IS the
-        // published settings, so handing it back says something true.
-        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, StampFor(Revision)) };
+        // the stamp is the one it had when this operation read it. Unlike the per-app apply above, the
+        // result IS those published settings, so handing them back with their own stamp says something
+        // true — and borrowing whatever the latest stamp happens to be by now never would, whether or
+        // not anything had moved.
+        return SettingsApplyOutcome.Live with { Prepared = Detach(baseline, published.Stamp) };
     }
 
     /// <summary>

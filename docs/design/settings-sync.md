@@ -122,10 +122,49 @@ If OTD's UX (or the OTDWindowsHelper) changes settings while OTA is open:
   last saw. The cost is deliberate — a daemon answering writes but not reads now refuses edits it used
   to take.
 
-  **There is no "apply again to overwrite" yet.** The baseline does not move when a change is held, so
-  re-applying the same edit is held again; an explicit "replace what is there with mine" action is
-  still to be built. Until then the way forward is Reload and redo, which is a real cost and is why the
-  action is worth building.
+  **Resolving it is the artist's, and it is per draft (#906).** A held change comes back with a
+  `SettingsHold`: what that draft was weighed against. Every later submission of the same draft — the
+  banner's **Try again**, and equally just carrying on editing, which submits by another route —
+  presents that hold, so the draft is compared against the state it was held against rather than against
+  whatever a reload has learned since. Learning somebody's settings is not consent to replace them.
+
+  Two ways out, both decisions the artist makes. **Reload** takes the daemon's version, and the editor
+  then drops its hold. **Keep my change** sends the draft back with the `SettingsConflict` it was shown;
+  the session re-reads the daemon and writes only if what is there is still what the artist looked at,
+  refusing with a fresh conflict otherwise. An authorised write that does not land resolves nothing, and
+  neither does a refusal: the hold stands until something the artist did actually settles it.
+
+  A hold names the session that issued it and the connection it was taken on. One that matches neither is
+  **refused** (`HoldNotApplicable`) rather than ignored: falling back to this session's own baseline reads
+  as the careful choice, but that baseline can match the daemon exactly while the draft belongs somewhere
+  else — so the check passes and a foreign draft is written.
+
+  The reachable case is a **reconnect to the same daemon**, which moves the connection without moving the
+  daemon's identity, so it does not go through the #905 daemon-switch path. The editor keeps the draft and
+  **stops submitting anything** until the artist has seen the current settings and taken them; the banner
+  says so. Neither of the other two ways out applies — trying again would be the ordinary apply that must
+  not run, and the conflict the editor was holding belonged to the connection that has gone. Clearing the
+  protection instead would let the next edit through against a baseline the reconnect's reload has already
+  brought level with the daemon, which is the original hole; discarding the draft would lose the artist's
+  work for a reason #905 does not supply, since that is a *different* daemon and this is the same one.
+
+  What a hold guarantees is narrower than it first looks. It is **not** that a hold only ever makes a
+  write harder: if the daemon moves away from the expected state and back again, the held draft is taken
+  while an ordinary submission of the same edit is held, because a reload advanced the ordinary baseline
+  in between. The invariant is *compare this draft against its own unchanged expectation*. A hold belongs
+  to one draft, is dropped when that draft is resolved or replaced, and is never attached to a later one.
+
+  **Snapshot and stamp are one published value.** An editor quotes its stamp back when the artist accepts
+  what it is showing, and the session honours an acceptance whose stamp is the one it is publishing — so
+  reading the settings and the stamp separately, at either end, hands out an older snapshot under a newer
+  stamp and makes that acceptance an agreement to something nobody was shown. The coordinator replaces one
+  field whole (including on a daemon switch, since the session generation is half of every stamp), and
+  both adoption routes — reconciliation and an editor's own Refresh — read it once.
+
+  The hold lives on the draft rather than on the session because editors are cached and two can be live
+  at once. With one shared expectation, whichever artist resolved first cleared it, and the other's
+  draft — still built on the older state — was then found to agree with the daemon and written. There is
+  now nothing shared for a decision to clear.
 
   **Which writes are covered:** the ordinary apply-and-save path. `ApplyLiveOnlyAsync` and the
   restore-default path deliberately do not check — restoring a saved default is an intentional

@@ -69,6 +69,9 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     /// <summary>Applies over a conflict the artist has chosen to overwrite (#906).</summary>
     private readonly Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? _overwriteAction;
 
+    /// <summary>Submits a draft that is being held, presenting the hold it was held under (#906).</summary>
+    private readonly Func<Settings, SettingsHold, Task<SettingsApplyOutcome>>? _resubmitAction;
+
     /// <summary>
     /// Says the artist has taken a named snapshot, releasing a held comparison (#910). False when that
     /// snapshot is no longer the current one.
@@ -748,6 +751,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public TabletDetailViewModel(Profile profile, Settings? settings,
         Func<Settings, Task<SettingsApplyOutcome>>? applyAction = null,
         Func<Settings, SettingsConflict, Task<SettingsApplyOutcome>>? overwriteAction = null,
+        Func<Settings, SettingsHold, Task<SettingsApplyOutcome>>? resubmitAction = null,
         Func<SettingsStamp, bool>? acceptCurrentAction = null,
         Func<Task<(Settings? Settings, Profile? Profile, SettingsStamp Stamp)>>? refreshAction = null,
         (float Width, float Height)? tabletDigitizer = null,
@@ -769,6 +773,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             "The profile must be a reference inside the settings the editor will submit.");
         _applyAction = applyAction;
         _overwriteAction = overwriteAction;
+        _resubmitAction = resubmitAction;
         _acceptCurrentAction = acceptCurrentAction;
         _editBinding = editBinding;
         _refreshAction = refreshAction;
@@ -1041,6 +1046,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             }
 
             _heldConflict = null;
+
+            // This editor's draft is resolved, and only this editor's. Dropping the hold is the whole of
+            // the release under #906 -- the session keeps nothing to clear, so another editor holding its
+            // own draft is untouched by a decision that was never about it.
+            _heldHold = null;
+
+            // And this is the decision a replaced connection was waiting for: the artist has taken a
+            // snapshot the session vouched for, so submission is safe again.
+            _needsFreshDecision = false;
         }
 
         _heldChange = false;
@@ -1097,7 +1111,12 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var freshFp = ProfileFingerprint.Compute(freshProfile);
         var ownFp = ProfileFingerprint.Compute(_profile);
         if (freshFp.Length == 0 || ownFp.Length == 0) return; // can't compare → don't risk a false positive
-        if (freshFp == ownFp) { ClearExternalChange(); return; } // in sync (covers our own applies)
+        // In sync (covers our own applies) — unless a decision is owed, in which case agreeing with the
+        // settings on offer is not the same as having accepted them. Clearing here left an editor whose
+        // draft happened to match the daemon silently blocked: the banner went, the block stayed, and
+        // every edit after it did nothing with nothing on screen to say why. A draft that agrees is the
+        // easiest possible decision, not the absence of one.
+        if (freshFp == ownFp && !_needsFreshDecision) { ClearExternalChange(); return; }
 
         if (HasUnsavedEdit)
         {
@@ -1105,9 +1124,15 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
             _pendingExternalProfile = freshProfile;
             _pendingExternalStamp = stamp;
             OnPropertyChanged(nameof(CanReloadExternalChange));
-            ExternalChangeText =
-                "These settings were changed outside OpenTabletArtist (for example in the OpenTabletDriver " +
-                "UX). Reload to use the current values — your unsaved change here will be discarded.";
+
+            // Which banner, because the two say different things. A replaced connection is not somebody
+            // having edited the settings, and telling the artist it was would invent a culprit.
+            if (_needsFreshDecision) SayTheConnectionChangedUnderTheChange();
+            else
+                ExternalChangeText =
+                    "These settings were changed outside OpenTabletArtist (for example in the "
+                    + "OpenTabletDriver UX). Reload to use the current values — your unsaved change here "
+                    + "will be discarded.";
         }
         else
         {
@@ -1140,6 +1165,8 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (!_heldChange) return;
 
         _heldChange = false;
+        _heldHold = null;
+        _needsFreshDecision = false;
         ClearExternalChange();
     }
 
@@ -1197,7 +1224,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null) return;
         var draft = NoteDraftEdit();
         modify(_profile);
-        var outcome = await _applyAction(_settings);
+        var outcome = await SubmitAsync(_settings);
 
         // The user has edited since this started. Their change is newer than anything this apply can say
         // about the world, so neither adopting the result nor refreshing from the profile is allowed to
@@ -1264,16 +1291,45 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // puts on screen.
         if (draft != _draftGeneration || _unsubmitted != DraftGroup.None) return false;
 
+        // The session cannot use the hold this draft was submitted with: it was weighed against a
+        // connection that has been replaced, and nothing here can speak for that observation any more
+        // (#906).
+        //
+        // The draft is kept and submission stops until the artist decides. Clearing the hold and
+        // carrying on was the first thing I wrote and it reopened the hole this whole change exists to
+        // close: the editor's next edit went out as an ordinary apply, met a baseline the reconnect's
+        // reload had made equal to the daemon, and wrote over the external change. Protection that is
+        // dropped rather than resolved is not protection.
+        //
+        // Not given up either, which was the second thing I wrote. #905 discards a draft when a
+        // DIFFERENT daemon answers, where the edit is meaningless; this is the same daemon one
+        // connection later, where the edit is merely unverified. Losing an artist's work silently is not
+        // the cheaper option just because it is the simpler code.
+        if (outcome.Status is SettingsApplyStatus.HoldNotApplicable)
+        {
+            _heldChange = true;
+            _heldConflict = null;   // bound to the connection that has gone, so it authorises nothing
+            _heldHold = null;
+            _needsFreshDecision = true;
+            SayTheConnectionChangedUnderTheChange();
+            return false;
+        }
+
         if (outcome.Status is SettingsApplyStatus.ChangedElsewhere or SettingsApplyStatus.CouldNotCheck)
         {
             _heldChange = true;
             _heldConflict = outcome.Conflict;
+
+            // Kept if the session handed none back, so a held draft never loses the expectation it was
+            // first weighed against (#906).
+            _heldHold = outcome.Held ?? _heldHold;
             SayTheChangeIsHeld(outcome.Status);
         }
         else if (outcome.ChangedTheDaemon || outcome.Status is SettingsApplyStatus.NoChange)
         {
             _heldChange = false;
             _heldConflict = null;
+            _heldHold = null;
             ClearExternalChange();
         }
 
@@ -1282,6 +1338,67 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
 
     /// <summary>The conflict the session reported, and the thing an overwrite is authorised with.</summary>
     private SettingsConflict? _heldConflict;
+
+    /// <summary>
+    /// What this editor's held draft was weighed against, to present with every later submission of it
+    /// (#906).
+    /// </summary>
+    /// <remarks>
+    /// Held here rather than in the session because two editors can be holding two drafts at once: a
+    /// single shared expectation made one artist's decision resolve the other's draft, and cached editors
+    /// mean both are live at the same time rather than one at a time.
+    /// </remarks>
+    private SettingsHold? _heldHold;
+
+    /// <summary>
+    /// Submits the draft: as a resubmission while something is held, as an ordinary apply otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Every route in, not just the Retry button. An artist whose change is held goes on touching the
+    /// page, and each of those edits submits the same draft by another name — so if carrying the hold
+    /// were the button's job, editing on would be the way past the check.
+    /// </remarks>
+    private Task<SettingsApplyOutcome> SubmitAsync(Settings settings)
+    {
+        // Nothing goes out while the artist owes a decision (#906). Their draft was weighed against a
+        // connection that has gone, so submitting it now would be an ordinary apply against a baseline
+        // the reconnect's reload has already brought level with the daemon — it would pass the check and
+        // overwrite whatever the reconnect revealed. Editing on is the likeliest route into that, since
+        // an artist whose change is held does not stop touching the page.
+        if (_needsFreshDecision) return Task.FromResult(SettingsApplyOutcome.HoldNotApplicable);
+
+        return _heldHold is { } hold && _resubmitAction is { } resubmit
+            ? resubmit(settings, hold)
+            : _applyAction!(settings);
+    }
+
+    /// <summary>
+    /// The connection this editor's held draft was weighed against has been replaced (#906).
+    /// </summary>
+    /// <remarks>
+    /// True until the artist resolves it, and nothing this editor submits leaves the machine while it is.
+    /// Cleared by taking the settings on offer, which is a decision about what is actually there.
+    /// </remarks>
+    private bool _needsFreshDecision;
+
+    /// <summary>
+    /// Says the connection moved under a change that was already being held (#906).
+    /// </summary>
+    /// <remarks>
+    /// Neither of the usual two offers applies. Trying again would be an ordinary apply, which is the
+    /// thing that must not happen; keeping the change would need a conflict, and the one this editor was
+    /// holding belonged to the connection that has gone. What is left is taking what is there now, which
+    /// is the one decision that can be made about the connection the artist actually has.
+    /// </remarks>
+    private void SayTheConnectionChangedUnderTheChange()
+    {
+        CanRetryHeldChange = false;
+        CanOverwriteHeldChange = false;
+        ExternalChangeText =
+            "The connection to OpenTabletDriver was replaced while your change was waiting, so it "
+            + "hasn't been applied and can't be until you've seen the current settings. Reload to take "
+            + "them — your change here will be replaced.";
+    }
 
     /// <summary>
     /// Says so in the editor, at once, rather than waiting for a reload that may never differ (#906).
@@ -1341,7 +1458,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         if (_applyAction == null || _settings == null) return;
 
         var draft = _draftGeneration;
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     /// <summary>
@@ -2554,7 +2671,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         // The write mutated _profile.Filters (added/enabled/disabled the DynamicsFilter); reflect that
         // in the Filters tab and JSON view immediately rather than waiting for a manual Refresh.
         UpdateFiltersDisplay();
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     // ── Hover limit tab (#188) ──────────────────────────────────
@@ -2600,7 +2717,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         var draft = _draftGeneration;
         HoverProfile.Write(_settings, _profile.Tablet ?? "", (int)MaxHoverDistance, HoverLimitEnabled, NearProximityOnly);
         UpdateFiltersDisplay();
-        TakeOutcome(await _applyAction(_settings), draft);
+        TakeOutcome(await SubmitAsync(_settings), draft);
     }
 
     /// <summary>

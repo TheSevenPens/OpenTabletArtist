@@ -134,13 +134,33 @@ public interface ISettingsCoordinator
     Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict);
 
     /// <summary>
+    /// Re-submits a held change, presenting what it was held against so it is weighed against that and
+    /// not against whatever has arrived since (#906).
+    /// </summary>
+    Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held);
+
+    /// <summary>
     /// The artist has taken the snapshot they were shown, so nothing is waiting on them (#910). False
     /// when that snapshot is no longer current, which leaves the held change held.
     /// </summary>
     bool AcceptCurrentSettings(SettingsStamp accepted);
 
-    /// <summary>The stamp of what this session is publishing now, for naming a snapshot taken (#910).</summary>
-    SettingsStamp CurrentStamp { get; }
+    /// <summary>
+    /// What this session is publishing, settings and stamp together, in one read (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// There is deliberately no stamp property beside <see cref="CurrentSettings"/>. Reading the two
+    /// separately is two publications' worth of opportunity: a reload landing between them hands out
+    /// older settings under a newer stamp, and a caller that later accepts that stamp is agreeing to
+    /// something it was never shown — which is exactly what the stamp is checked to prevent.
+    /// </para>
+    /// <para>
+    /// There was such a property, and both callers that needed both halves used it that way. Taking it
+    /// away is what stops the next one, which a comment would not have.
+    /// </para>
+    /// </remarks>
+    PreparedSettings? CurrentPublication { get; }
     /// <summary>Applies settings to the daemon and reloads, but does NOT persist to disk — a temporary
     /// live override (profile switching, #320). The saved <c>settings.json</c> default is untouched.
     /// False means it never reached the daemon, so callers must not announce a switch (#766).</summary>
@@ -1043,9 +1063,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Task<SettingsApplyOutcome> OverwriteSettingsAsync(Settings settings, SettingsConflict conflict) =>
         ApplyThroughAsync(() => _coordinator.OverwriteAsync(settings, conflict));
 
+    public Task<SettingsApplyOutcome> ResubmitSettingsAsync(Settings settings, SettingsHold held) =>
+        ApplyThroughAsync(() => _coordinator.ResubmitAsync(settings, held));
+
     public bool AcceptCurrentSettings(SettingsStamp accepted) => _coordinator.AcceptCurrentState(accepted);
 
-    public SettingsStamp CurrentStamp => _coordinator.GetCurrent()?.Stamp ?? SettingsStamp.None;
+    public PreparedSettings? CurrentPublication => _coordinator.GetCurrent();
 
     private async Task<SettingsApplyOutcome> ApplyThroughAsync(Func<Task<SettingsApplyOutcome>> apply)
     {

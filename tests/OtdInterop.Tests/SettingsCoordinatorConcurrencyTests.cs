@@ -594,10 +594,14 @@ public class SettingsCoordinatorConcurrencyTests
         await coordinator.ReloadFromDaemonAsync();
 
         reading.SetResult(SettingsFor("B", locked: false));
-        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, (await applying).Status);
 
-        // The same draft again. It was held against A, and must still be.
-        var second = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        var first = await applying;
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, first.Status);
+        Assert.NotNull(first.Held);
+
+        // The same draft again, presenting the hold it came back with. It was held against A, and the
+        // hold must still say A rather than the B the reload adopted while the read was out.
+        var second = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), first.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, second.Status);
         Assert.Equal("B", Tablet(daemon.Settings));
@@ -620,6 +624,7 @@ public class SettingsCoordinatorConcurrencyTests
         daemon.Settings = SettingsFor("B", locked: false);
         var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
         Assert.NotNull(held.Conflict);
+        Assert.NotNull(held.Held);
 
         // An ordinary reload learns B. Without this the hold's absence would not show: the ordinary
         // baseline would still be A, so the resubmission below would meet a conflict either way and the
@@ -631,9 +636,10 @@ public class SettingsCoordinatorConcurrencyTests
         var failed = await coordinator.OverwriteAsync(SettingsFor("Mine", locked: false), held.Conflict!);
         Assert.NotEqual(SettingsApplyStatus.AppliedAndSaved, failed.Status);
 
-        // Sending works again, and the artist's draft is submitted the ordinary way.
+        // Sending works again, and the artist submits their draft again, still holding it: nothing they
+        // did resolved it, so the hold goes with it.
         daemon.SetSettingsHandler = null;
-        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        var afterwards = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
         Assert.Equal("B", Tablet(daemon.Settings));
@@ -665,9 +671,9 @@ public class SettingsCoordinatorConcurrencyTests
         var shown = coordinator.GetCurrent()!.Stamp;
 
         daemon.Settings = SettingsFor("Theirs", locked: false);
-        Assert.Equal(
-            SettingsApplyStatus.ChangedElsewhere,
-            (await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false))).Status);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+        Assert.NotNull(held.Held);
 
         // The session moves on while that editor is still showing the older snapshot.
         daemon.Settings = SettingsFor("TheirsAgain", locked: false);
@@ -675,17 +681,226 @@ public class SettingsCoordinatorConcurrencyTests
 
         Assert.False(coordinator.AcceptCurrentState(shown), "a stale acceptance should be refused");
 
-        // And the hold stands, so the draft cannot be resubmitted over what nobody agreed to.
-        var afterwards = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        // Refused, so the caller keeps its hold and the draft cannot go over what nobody agreed to.
+        var afterwards = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
 
         Assert.Equal(SettingsApplyStatus.ChangedElsewhere, afterwards.Status);
         Assert.Equal("TheirsAgain", Tablet(daemon.Settings));
     }
 
-    /// <summary>Accepting what is actually current does release it.</summary>
+    /// <summary>
+    /// A publication is captured whole: the stamp that comes back names the settings that come with it
+    /// (#910).
+    /// </summary>
     /// <remarks>
-    /// The other direction, without which refusing would simply be a way of never letting the artist
-    /// work again.
+    /// <para>
+    /// The settings and the revision used to be two fields, assigned one after the other and read the
+    /// same way. Nothing about that is visibly wrong until you ask what a reader between the two writes
+    /// sees, or what a publication landing between the two reads does — either way, one publication's
+    /// settings come back under another's stamp. A caller that accepts that stamp is agreeing to
+    /// something it was never shown, which is the whole thing the stamp was added to prevent.
+    /// </para>
+    /// <para>
+    /// Checked by making each publication identifiable: the settings carry the version they were
+    /// published at, so a mismatched pair is visible in the pair itself rather than inferred from
+    /// timing. No thread and no sleep — what is being established is that capture is coherent, and
+    /// coherence is a property of a single read.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task EveryPublication_ComesBackAsTheSettingsAndStampThatBelongTogether()
+    {
+        var (coordinator, _, _, _) = Make();
+
+        for (var i = 0; i < 5; i++)
+        {
+            await coordinator.ApplyAndSaveAsync(SettingsFor($"rev{i}", locked: false));
+
+            var published = coordinator.GetCurrent();
+            Assert.NotNull(published);
+
+            // The pair names itself: these settings were published at this revision, or they were not.
+            Assert.Equal($"rev{i}", Tablet(published!.Settings));
+            Assert.Equal(coordinator.GetCurrent()!.Stamp, published.Stamp);
+        }
+    }
+
+    /// <summary>
+    /// Ending an override returns the settings it read with the stamp <em>they</em> were published
+    /// under (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The separated read again, wearing the new type. This operation reads the published settings, sends
+    /// them, and then built its result by reading the stamp a second time — so a reload landing while the
+    /// send was out published something else, and the result described settings that had never been
+    /// published under the stamp it carried. A caller accepting that stamp agrees to a snapshot nobody
+    /// ever had, which is the whole of what the stamp is checked for.
+    /// </para>
+    /// <para>
+    /// No race and nothing fabricated: the send is simply held open, which is a thing a daemon does.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task EndingAnOverride_ReturnsTheStampTheSettingsItReadWerePublishedUnder()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var whenItRead = coordinator.GetCurrent()!;
+        Assert.Equal("A", Tablet(whenItRead.Settings));
+
+        var hold = HoldNextSetSettings(daemon);
+        var clearing = coordinator.ClearEphemeralOverrideAsync();
+
+        // A reload publishes something else while the send is still out. Clearing without a recorded
+        // override is supported, so nothing here is out of bounds.
+        daemon.Settings = SettingsFor("B", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+        Assert.NotEqual(whenItRead.Stamp, coordinator.GetCurrent()!.Stamp);
+
+        hold.SetResult(true);
+        var outcome = await clearing;
+
+        Assert.NotNull(outcome.Prepared);
+        Assert.Equal("A", Tablet(outcome.Prepared!.Settings));
+        Assert.Equal(whenItRead.Stamp, outcome.Prepared.Stamp);
+    }
+
+    /// <summary>
+    /// A reset that loses its exchange republishes the winner's settings, not the ones it had read
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The reset changes identity and must not change what is published. Written as
+    /// <c>Publish(Published.Settings)</c> it read the settings once, before the exchange loop: a
+    /// publication winning in between was then overwritten by the older settings this had already picked
+    /// up, under a version high enough to look like the newer one. Unique, increasing stamps do not make
+    /// that safe — they make it harder to see, which is why the stamp-uniqueness test passes either way.
+    /// </para>
+    /// <para>
+    /// The interleaving is placed rather than raced. The hook runs between reading the publication to
+    /// replace and exchanging it, which is a window a few instructions wide; a test that waited for it to
+    /// happen by itself would be a test that usually proved nothing.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AResetThatLosesItsExchange_KeepsTheSettingsThatWon()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // Exactly once, between the reset reading what it means to replace and exchanging it.
+        coordinator.BeforePublishExchange = () =>
+        {
+            coordinator.BeforePublishExchange = null;
+            coordinator.PublishForTest(SettingsFor("B won the race", locked: false));
+        };
+
+        daemon.ReconnectSilently();
+        coordinator.ResetForNewDaemon(daemon.Incarnation);
+
+        Assert.Equal("B won the race", Tablet(coordinator.GetCurrent()!.Settings));
+    }
+
+    /// <summary>
+    /// Two publications never share a stamp, even when they are not serialized against each other
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Publishing is not confined to the one-at-a-time section: <c>ResetForNewDaemon</c> runs outside it,
+    /// on whichever thread noticed the daemon change, while an apply may be publishing on another. Making
+    /// the settings and the stamp one value cost the atomic increment the version used to get, and a
+    /// read-then-write of the successor lets two publications take the same number — two different
+    /// settings under one stamp, which the exact stamp check cannot tell apart, and that check is what
+    /// stands between an acceptance and the snapshot it is about.
+    /// </para>
+    /// <para>
+    /// Threads here rather than a scripted seam, because what is being established is that concurrent
+    /// publication is safe, and there is no way to say that without concurrency. It is not a timing
+    /// test: every stamp issued is collected and the duplicates are counted, so the assertion is exact
+    /// and a failure is a real duplicate rather than a slow machine. Under the read-then-write version
+    /// it fails immediately.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ConcurrentPublications_NeverShareAStamp()
+    {
+        var (coordinator, _, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        const int PerThread = 200;
+        var issued = new System.Collections.Concurrent.ConcurrentBag<SettingsStamp>();
+
+        // Two publishers that are not serialized against each other: ResetForNewDaemon is exactly this
+        // shape, and it is the one the library genuinely permits.
+        var publishers = Enumerable.Range(0, 2).Select(_ => Task.Run(() =>
+        {
+            for (var i = 0; i < PerThread; i++) issued.Add(coordinator.PublishForTest(SettingsFor("x", locked: false)));
+        }));
+
+        await Task.WhenAll(publishers);
+
+        var all = issued.ToList();
+        Assert.Equal(2 * PerThread, all.Count);
+        Assert.Equal(all.Count, all.Distinct().Count());
+    }
+
+    /// <summary>
+    /// A stamp handed out before a daemon switch does not compare equal to one handed out after it
+    /// (#910).
+    /// </summary>
+    /// <remarks>
+    /// The session generation is half of a stamp. While it was added when a stamp was asked for rather
+    /// than when one was published, the published stamp silently started reading as the new session's
+    /// while still naming the old session's revision — so a snapshot taken before a switch could be
+    /// accepted afterwards, against a daemon it had never described.
+    /// </remarks>
+    [Fact]
+    public async Task AStampFromBeforeADaemonSwitch_IsNotTheSameAsOneFromAfterIt()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var before = coordinator.GetCurrent()!.Stamp;
+
+        SwitchDaemon(coordinator, daemon);
+
+        Assert.NotEqual(before, coordinator.GetCurrent()!.Stamp);
+        Assert.False(coordinator.AcceptCurrentState(before),
+            "a snapshot from the previous daemon was accepted against this one");
+    }
+
+    /// <summary>
+    /// A stamp naming a version this session has not reached is refused too (#910).
+    /// </summary>
+    /// <remarks>
+    /// The test used to be "not superseded by the current stamp", which is loose in one direction: a
+    /// stamp ahead of this session is superseded by nothing, so it passed. Whatever produced such a
+    /// stamp — a caller that built one, a snapshot from somewhere else — this session cannot vouch for
+    /// it, and "I am looking at what you are publishing" is an equality rather than an inequality.
+    /// </remarks>
+    [Fact]
+    public async Task AcceptingAStampThisSessionHasNotReached_IsRefused()
+    {
+        var (coordinator, _, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        var current = coordinator.GetCurrent()!.Stamp;
+        var ahead = current with { Version = current.Version + 1 };
+
+        Assert.False(coordinator.AcceptCurrentState(ahead), "a stamp from nowhere should be refused");
+        Assert.True(coordinator.AcceptCurrentState(current), "and the real one still accepted");
+    }
+
+    /// <summary>Accepting what is actually current is answered yes, and the draft then lands.</summary>
+    /// <remarks>
+    /// The other direction, without which refusing would simply be a way of never letting the artist work
+    /// again. Since #906 the release itself is the caller dropping its hold rather than anything this
+    /// session clears — so what is checked here is that acceptance answers yes, and that a submission
+    /// made without a hold is weighed against the ordinary baseline and lands.
     /// </remarks>
     [Fact]
     public async Task AcceptingTheCurrentSnapshot_ReleasesTheHold()
@@ -704,6 +919,159 @@ public class SettingsCoordinatorConcurrencyTests
 
         Assert.True(afterwards.ChangedTheDaemon, $"the edit was held: {afterwards.Status}");
         Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A hold from another session is refused, not quietly downgraded to an ordinary apply (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The dangerous part is what the fallback looked like. An unusable hold used to be ignored, which
+    /// fell back to this session's own baseline — and that reads as the conservative choice until you
+    /// notice the baseline can match the daemon exactly. Then the ordinary check passes, and a draft
+    /// belonging to a different session is written into this one.
+    /// </para>
+    /// <para>
+    /// Refusing is not a judgement about the other session. It is this one saying it cannot speak for an
+    /// observation it never made.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task AHoldFromAnotherSession_IsRefusedRatherThanIgnored()
+    {
+        // Somewhere else, a draft is held and given a hold.
+        var elsewhere = Make();
+        await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+        elsewhere.daemon.Settings = SettingsFor("Theirs", locked: false);
+        var theirHold = (await elsewhere.coordinator.ApplyAndSaveAsync(SettingsFor("Old", locked: false)))
+            .Held;
+        Assert.NotNull(theirHold);
+
+        // Here, everything agrees: the baseline is what the daemon holds, so an ordinary apply would go
+        // straight through. That is exactly what made the old fallback dangerous.
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Ours", locked: false));
+
+        var refused = await coordinator.ResubmitAsync(SettingsFor("Old", locked: false), theirHold!);
+
+        Assert.Equal(SettingsApplyStatus.HoldNotApplicable, refused.Status);
+        Assert.Equal("Ours", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// And so is one taken on a connection that has since been replaced (#906).
+    /// </summary>
+    /// <remarks>
+    /// The same hole by the other route, and the more reachable of the two: one session, one editor, a
+    /// reconnect in between. The hold names an incarnation that is gone, so the state it describes is
+    /// not a state this connection was ever compared with.
+    /// </remarks>
+    [Fact]
+    public async Task AHoldTakenOnAConnectionThatHasBeenReplaced_IsRefused()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.NotNull(held.Held);
+
+        // The connection is replaced, and the new one happens to hold what this session last read.
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("A", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        var refused = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
+
+        Assert.Equal(SettingsApplyStatus.HoldNotApplicable, refused.Status);
+        Assert.Equal("A", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// The control: after that reconnect an ordinary edit still lands (#906).
+    /// </summary>
+    /// <remarks>
+    /// Without this the refusal above would be satisfied by a session that had simply stopped writing,
+    /// and the two tests together would say nothing about where the line is.
+    /// </remarks>
+    [Fact]
+    public async Task AfterAReconnect_AnOrdinaryEditStillLands()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        daemon.Settings = SettingsFor("Theirs", locked: false);
+        await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+
+        SwitchDaemon(coordinator, daemon);
+        daemon.Settings = SettingsFor("A", locked: false);
+        await coordinator.ReloadFromDaemonAsync();
+
+        var landed = await coordinator.ApplyAndSaveAsync(SettingsFor("Fresh", locked: false));
+
+        Assert.True(landed.ChangedTheDaemon, $"a fresh edit was refused: {landed.Status}");
+        Assert.Equal("Fresh", Tablet(daemon.Settings));
+    }
+
+    /// <summary>
+    /// A draft is weighed against its own expectation, which is not the same as "never easier" (#906).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The invariant I first wrote down for a hold was that it can only ever make a write harder. That is
+    /// wrong, and this is the sequence that shows it: the daemon holds A, moves to B, and comes back to
+    /// exactly A. An ordinary submission compares A against the reloaded baseline B and holds; the held
+    /// draft, carrying its expectation of A, compares A against A and writes.
+    /// </para>
+    /// <para>
+    /// Which is correct, and worth pinning precisely because it contradicts the tidier claim. The draft
+    /// was built on A and the daemon is holding A, so nothing the artist has not seen is being replaced.
+    /// The invariant is <b>compare this draft against its own unchanged expectation</b> — a hold is
+    /// neither a weakening nor a strengthening of the check, but a statement of whose state the check is
+    /// about. Comparing state is all this can ever do; it does not detect every edit in between.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task ADaemonThatReturnsToWhatTheDraftExpected_TakesTheDraft()
+    {
+        var (coordinator, daemon, _, _) = Make();
+        await coordinator.ApplyAndSaveAsync(SettingsFor("A", locked: false));
+
+        // What the daemon actually ended up holding, which is the request after policy edited it. A
+        // freshly built "A" is not the same bytes, and putting that back would be testing the
+        // normalisation rather than the hold.
+        var actuallyA = Clone(daemon.Settings!);
+
+        // Somebody else writes B, and this session's draft is held against A.
+        daemon.Settings = SettingsFor("B", locked: false);
+        var held = await coordinator.ApplyAndSaveAsync(SettingsFor("Mine", locked: false));
+        Assert.Equal(SettingsApplyStatus.ChangedElsewhere, held.Status);
+
+        // A reload adopts B as the ordinary baseline, and then they undo themselves.
+        await coordinator.ReloadFromDaemonAsync();
+        daemon.Settings = actuallyA;
+
+        var resubmitted = await coordinator.ResubmitAsync(SettingsFor("Mine", locked: false), held.Held!);
+
+        Assert.True(resubmitted.ChangedTheDaemon, $"the draft was held against its own state: {resubmitted.Status}");
+        Assert.Equal("Mine", Tablet(daemon.Settings));
+    }
+
+    /// <summary>Nor does a hold, which carries somebody's settings for the same reasons (#906).</summary>
+    /// <remarks>
+    /// The same question asked of the other opaque value. It is worth asking twice rather than assuming
+    /// the answer carries across: these are separate types, and the compiler's generated
+    /// <c>PrintMembers</c> is decided per type by what that type happens to expose.
+    /// </remarks>
+    [Fact]
+    public void AHoldDoesNotPrintWhatItHolds()
+    {
+        var hold = new SettingsHold(Guid.NewGuid(), 7, "{\"secret\":\"settings\"}");
+
+        var printed = hold.ToString();
+
+        Assert.DoesNotContain("secret", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("7", printed, StringComparison.Ordinal);
     }
 
     /// <summary>The token prints nothing about the settings it describes (#910).</summary>
