@@ -266,7 +266,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private SettingsSaveState _saveState;
     [ObservableProperty] private bool _settingsBusy;
     public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
-    public bool SettingsPaused => _workspace?.IsPaused == true;
+    public bool SettingsPaused => _workspace?.IsPaused == true
+        || DeveloperSettings.Instance.ForcePaused;
+
     public bool CanEditSettings => !SettingsBusy && _session.CanEditSettings && !SettingsPaused;
     public bool SaveFailed => SaveState is SettingsSaveState.Failed or SettingsSaveState.ApplyFailed
         or SettingsSaveState.Disconnected or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
@@ -429,6 +431,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     partial void OnSaveStateChanged(SettingsSaveState value) => NotifySettingsState();
     partial void OnSettingsBusyChanged(bool value) => NotifySettingsState();
 
+    private void OnDeveloperSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DeveloperSettings.ForcePaused)) NotifySettingsState();
+    }
+
     private void NotifySettingsState()
     {
         OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -552,6 +559,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         _session = session;
         _daemonLifecycle = daemonLifecycle;
+
+        // An asserted pause has to move the same properties a real one does, or the page would not
+        // follow it (#developer-pause).
+        DeveloperSettings.Instance.PropertyChanged += OnDeveloperSettingsChanged;
 
         _session.Connected += change => Dispatcher.UIThread.Post(() =>
         {
@@ -1108,6 +1119,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task ReloadSettingsAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
+
+        // An asserted pause is answered by the same button as a real one, so the way out can be tried.
+        DeveloperSettings.Instance.ForcePaused = false;
+
         if (_workspace is not { } workspace)
         {
             await _session.InitializeAsync();
@@ -1624,6 +1639,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (_disposed) return;
 
         _disposed = true;
+
+        DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
 
         _cts.Cancel();
         _cts.Dispose();

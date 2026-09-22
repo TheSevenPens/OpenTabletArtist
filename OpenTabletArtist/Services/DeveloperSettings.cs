@@ -91,6 +91,25 @@ public sealed partial class DeveloperSettings : ObservableObject
                              or nameof(ShowCutBelowMinimum) or nameof(ShowCardRoleTags)
                              or nameof(ScreenshotFormat));
 
+    /// <summary>
+    /// Assert the settings pause, to look at how one renders (#developer-pause).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Asserted rather than caused, unlike the config-error buttons beside it. A pause needs the
+    /// driver's settings to differ from what this app is showing, and the interop boundary exists to
+    /// stop OTA writing settings behind its own workspace's back {D} so causing one for real means a
+    /// second settings editor, which is not something a button can arrange.
+    /// </para>
+    /// <para>
+    /// It reaches the real <c>AppSession.SettingsPaused</c>, so everything downstream is genuine: the
+    /// panel, the emptied footer, the inert pages. Reload clears it, so the way out can be tried too.
+    /// Session-only, like the induced warnings, so an asserted pause cannot survive a restart and be
+    /// mistaken for a real one.
+    /// </para>
+    /// </remarks>
+    [ObservableProperty] private bool _forcePaused;
+
     /// <summary>Any induce/force flag is on, so the health list currently contains a synthetic issue.
     /// Lets the health service skip the extra "what's real" pass in the normal (no-override) case.</summary>
     public bool HasActiveHealthOverride =>
