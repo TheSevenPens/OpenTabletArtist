@@ -68,7 +68,6 @@ public interface IConnectionState : INotifyPropertyChanged
 
     // Live application and explicit persistence share one visible status.
     /// <summary>The save indicator should be shown (Saving / Saved / failed).</summary>
-    bool ShowSaveStatus { get; }
     /// <summary>The last settings save failed to write to disk (change is live but not persisted).</summary>
     bool SaveFailed { get; }
     /// <summary>Text for the save indicator.</summary>
@@ -269,15 +268,19 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
     public bool SettingsPaused => _workspace?.IsPaused == true;
     public bool CanEditSettings => !SettingsBusy && _session.CanEditSettings && !SettingsPaused;
-    public bool ShowSaveStatus => SaveState != SettingsSaveState.None || !string.IsNullOrEmpty(_session.SettingsProblem);
     public bool SaveFailed => SaveState is SettingsSaveState.Failed or SettingsSaveState.ApplyFailed
         or SettingsSaveState.Disconnected or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
     public string SaveStatusText => !string.IsNullOrEmpty(_session.SettingsProblem) ? _session.SettingsProblem : SaveState switch
     {
         SettingsSaveState.Applying => "Applying…",
-        SettingsSaveState.Unsaved => "Applied — not saved",
+        SettingsSaveState.Unsaved => "Unsaved changes",
         SettingsSaveState.Saving => "Saving…",
-        SettingsSaveState.Saved => "Saved",
+        // Saved says nothing, because there is nothing to say: every edit is already live on the driver,
+        // and the only question this line answers is whether anything would be lost by a restart. An
+        // artist who has just pressed Save watches "Saving…" turn into silence, which is the answer.
+        // "Applied — not saved" tried to explain the whole model in four words and mostly raised the
+        // question of what "applied" meant; "Unsaved changes" names the one thing at stake.
+        SettingsSaveState.Saved => "",
         SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
         SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
         SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
@@ -429,7 +432,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(SettingsPaused));
         OnPropertyChanged(nameof(CanEditSettings));
-        OnPropertyChanged(nameof(ShowSaveStatus));
         OnPropertyChanged(nameof(SaveFailed));
         OnPropertyChanged(nameof(SaveStatusText));
     }

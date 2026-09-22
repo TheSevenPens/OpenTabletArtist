@@ -1,0 +1,50 @@
+<UserControl x:Class="OpenTabletArtist.Views.SettingsFooterView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The settings footer: what the session has to say on the left, what can be done about it on the
+         right. Its own view rather than markup inside MainWindow so it can be built with an inert
+         DataContext and asserted on as a real control; MainWindow constructs a live MainViewModel,
+         daemon connection loop and all, which no headless test can hold still (#footer-split). -->
+    <Border Padding="24,10" Background="{DynamicResource GlassBgBrush}"
+            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
+                           IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
+                <!-- The driver changed its own settings while nothing was half-edited, so the page
+                     followed along. Quiet: nothing was lost and nothing is being asked (#920). -->
+                <TextBlock Text="{Binding Connection.SettingsRefreshedNotice}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
+            </StackPanel>
+
+            <!-- Three buttons, ranked rather than equal. Save is wanted almost every time and reads
+                 first (affirmative first/left, #502); the other two are occasional and recede.
+                 Ordering and weight were the actual complaint, and they are all this needs.
+
+                 A SplitButton was tried and withdrawn. Save and Revert need an editable session;
+                 Reload does NOT, and a paused session is exactly when it is needed, since it is the way
+                 out. Binding a SplitButton's IsEnabled takes the chevron with it, and so does letting
+                 its command report it cannot execute; disabling only the primary template part leaves
+                 the keyboard and automation paths still firing Save, which Codex reproduced and I
+                 confirmed. Independent buttons have none of that: each carries its own availability. -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                        IsEnabled="{Binding !SettingsSession.SettingsBusy}">
+                <Button Content="Save" Command="{Binding SaveSettingsCommand}"
+                        Theme="{StaticResource AccentButton}" Padding="22,8"
+                        IsEnabled="{Binding SettingsSession.CanEditSettings}"
+                        ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
+                <!-- Never gated on CanEditSettings: this is the way out of a pause. -->
+                <Button Content="Reload driver settings" Command="{Binding ReloadSettingsCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="16,8"
+                        ToolTip.Tip="Read current live settings. Pending local edits will be discarded; nothing is saved." />
+                <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
+                        Theme="{StaticResource GhostButton}" Padding="16,8"
+                        IsEnabled="{Binding SettingsSession.CanEditSettings}"
+                        ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

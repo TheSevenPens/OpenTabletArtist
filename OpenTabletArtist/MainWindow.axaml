@@ -139,32 +139,7 @@
             </Border>
         </ScrollViewer>
 
-        <Border Grid.Row="2" Padding="24,10" Background="{DynamicResource GlassBgBrush}"
-                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                    <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
-                               IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
-                    <!-- The driver changed its own settings while nothing was half-edited, so the page
-                         followed along. Quiet: nothing was lost and nothing is being asked (#920). -->
-                    <TextBlock Text="{Binding Connection.SettingsRefreshedNotice}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                            IsEnabled="{Binding !SettingsSession.SettingsBusy}">
-                    <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
-                            IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                            ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
-                    <Button Content="Reload driver settings" Command="{Binding ReloadSettingsCommand}"
-                            ToolTip.Tip="Read current live settings. Pending local edits will be discarded; nothing is saved." />
-                    <Button Content="Save" Command="{Binding SaveSettingsCommand}"
-                            IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                            ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
-                </StackPanel>
-            </Grid>
-        </Border>
+        <views:SettingsFooterView Grid.Row="2" />
     </Grid>
 
     <!-- Title-bar drag strip (#titlebar): the top edge is app-colored now, so this transparent strip

@@ -402,4 +402,31 @@ public class ExplicitSettingsTests
         Assert.Empty(daemon.Applied);
         Assert.Equal(0, store.Attempts);
     }
+
+    /// <summary>
+    /// What the footer says as an edit is made and saved.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The line has one job: say whether anything would be lost if the driver restarted. "Unsaved
+    /// changes" names that. Its predecessor, "Applied — not saved", tried to explain the whole model in
+    /// four words and mostly raised the question of what "applied" meant.
+    /// </para>
+    /// <para>
+    /// And a saved session says nothing at all. A standing "Saved" is a label for the ordinary state of
+    /// the app, which is the state that needs no label; silence after "Saving…" is the confirmation.
+    /// </para>
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task TheFooterNamesUnsavedChangesAndIsSilentOnceSaved()
+    {
+        var (app, _, _) = await Open();
+        using var lifetime = app;
+
+        Assert.True((await app.ApplySettingsAsync(Document(true))).IsLive);
+        Assert.Equal("Unsaved changes", app.SaveStatusText);
+
+        Assert.True(await app.SaveSettingsAsync());
+        Assert.Equal("", app.SaveStatusText);
+    }
 }

@@ -316,7 +316,7 @@ public partial class WindowsInkViewModel : ObservableObject, IDisposable
 
         var confirmed = await _dialogs.ShowConfirmAsync(
             "Uninstall Windows Ink Plugin",
-            "This removes Kuuube's Windows Ink plugin from OpenTabletDriver.\n\n" +
+            "This removes the Windows Ink plugin from OpenTabletDriver.\n\n" +
             "Any tablet using a Windows Ink output mode will fall back to a standard " +
             "pointer mode, and pen pressure/tilt will stop working until you reinstall it.\n\n" +
             "Do you want to proceed?");
