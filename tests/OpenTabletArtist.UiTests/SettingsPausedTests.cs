@@ -105,7 +105,7 @@ public class SettingsPausedTests
         Assert.Contains(said, text);
 
         var reload = Assert.Single(buttons);
-        Assert.Equal("Reload driver settings", reload.Content);
+        Assert.Equal("Reload settings", reload.Content);
         Assert.True(reload.IsEffectivelyEnabled);
 
         reload.Command!.Execute(null);
@@ -117,7 +117,8 @@ public class SettingsPausedTests
     /// </summary>
     /// <remarks>
     /// Reloading takes the driver's current values, so an edit typed and not yet submitted goes with it.
-    /// A few words at the bottom of the window had nowhere to put that.
+    /// A few words at the bottom of the window had nowhere to put that, and after the status lines were
+    /// cut to a glance's worth, nowhere to put what caused the pause either.
     /// </remarks>
     [AvaloniaFact]
     public void ItSaysWhatReloadingCosts()
@@ -129,6 +130,9 @@ public class SettingsPausedTests
 
         Assert.Contains("had not submitted yet will go", prose);
         Assert.Contains("editing stays off across the whole app", prose);
+
+        // And what caused it, which the footer line no longer has room for.
+        Assert.Contains("Attaching a new tablet can cause this", prose);
     }
 
     /// <summary>The one action still waits for an operation already running.</summary>

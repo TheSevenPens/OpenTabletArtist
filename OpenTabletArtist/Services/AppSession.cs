@@ -281,18 +281,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // "Applied — not saved" tried to explain the whole model in four words and mostly raised the
         // question of what "applied" meant; "Unsaved changes" names the one thing at stake.
         SettingsSaveState.Saved => "",
-        SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
+        SettingsSaveState.Failed => "Save failed",
         SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
-        SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
+        SettingsSaveState.Disconnected => "Disconnected",
+        // Short lines, because this one shares a row with the other save states and is read at a glance.
+        // What caused the pause, and what leaving it costs, is SettingsPausedView's to say -- it is on
+        // screen for exactly these states and has room for a sentence.
+        //
         // Not "somebody else edited them": the driver does this to itself. Attaching a tablet it has not
         // seen before makes it generate a profile and write its own settings back (DetectTablets then
         // SetSettings, and ProfileCollection.GetProfile adds the missing one), which the next observation
         // reads as a difference like any other. Naming an editor would be wrong most of the time and
         // would send the artist looking for an application that is not running (#919).
-        SettingsSaveState.ChangedElsewhere =>
-            "Driver settings changed. Reload to continue. Attaching a new tablet can cause this, "
-            + "as can another settings app.",
-        SettingsSaveState.CouldNotCheck => "Couldn't check current settings. Reload to try again.",
+        SettingsSaveState.ChangedElsewhere => "Reload settings to continue",
+        SettingsSaveState.CouldNotCheck => "Reload settings",
         _ => "",
     };
     [ObservableProperty]

@@ -429,4 +429,44 @@ public class ExplicitSettingsTests
         Assert.True(await app.SaveSettingsAsync());
         Assert.Equal("", app.SaveStatusText);
     }
+
+    /// <summary>
+    /// What the footer says in each settings state, at a glance.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This line shares one row with the buttons and is read in passing, so each state gets about as
+    /// many words as a glance carries. They were sentences: "Couldn't save — changes may be lost when
+    /// the driver restarts", "Driver settings changed. Reload to continue. Attaching a new tablet can
+    /// cause this, as can another settings app."
+    /// </para>
+    /// <para>
+    /// The two that ask for a reload name the button that does it, in the words on the button. They used
+    /// to say "Reload" while the control said "Reload driver settings" — one action under two names,
+    /// with the control not even in the same part of the window.
+    /// </para>
+    /// <para>
+    /// What was cut is not gone: <c>SettingsPausedView</c> is on screen for both paused states and says
+    /// what caused the pause and what leaving it costs, with room to do it.
+    /// </para>
+    /// </remarks>
+    [AvaloniaTheory]
+    [InlineData(SettingsSaveState.None, "")]
+    [InlineData(SettingsSaveState.Saved, "")]
+    [InlineData(SettingsSaveState.Unsaved, "Unsaved changes")]
+    [InlineData(SettingsSaveState.Applying, "Applying…")]
+    [InlineData(SettingsSaveState.Saving, "Saving…")]
+    [InlineData(SettingsSaveState.Failed, "Save failed")]
+    [InlineData(SettingsSaveState.Disconnected, "Disconnected")]
+    [InlineData(SettingsSaveState.ChangedElsewhere, "Reload settings to continue")]
+    [InlineData(SettingsSaveState.CouldNotCheck, "Reload settings")]
+    public async Task TheFooterSaysEachStateInAGlance(SettingsSaveState state, string expected)
+    {
+        var (app, _, _) = await Open();
+        using var lifetime = app;
+
+        app.SaveState = state;
+
+        Assert.Equal(expected, app.SaveStatusText);
+    }
 }
