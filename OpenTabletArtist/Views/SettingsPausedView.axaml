@@ -34,13 +34,13 @@
                  attaching a tablet it has not seen is the commonest way. This sentence used to live in
                  the footer line, which is now four words. -->
             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"
-                       Text="Something changed the driver's settings while you were working. Attaching a new tablet can cause this, as can another settings app." />
+                       Text="Something changed the OTD daemon's settings while you were working. Attaching a new tablet can cause this, as can another settings app." />
 
             <!-- And what pressing the button will cost, which never fitted in the footer at all.
                  Reloading takes the driver's current values: anything typed and not yet submitted goes,
                  and an edit another editor has already overwritten cannot come back. -->
             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
-                       Text="Nothing you have applied is lost from the driver — but reloading takes its current values, so any edit you had not submitted yet will go, and anything another settings app overwrote is already gone. Until then, editing stays off across the whole app." />
+                       Text="Nothing you have applied is lost from the OTD daemon — but reloading takes its current values, so any edit you had not submitted yet will go, and anything another settings app overwrote is already gone. Until then, editing stays off across the whole app." />
 
             <Button Content="Reload settings" HorizontalAlignment="Left" Margin="0,4,0,0"
                     Command="{Binding ReloadSettingsCommand}"

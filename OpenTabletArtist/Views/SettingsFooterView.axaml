@@ -41,11 +41,11 @@
                 <Button Content="Save" Command="{Binding SaveSettingsCommand}"
                         Theme="{StaticResource AccentButton}" Padding="22,8"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                        ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
+                        ToolTip.Tip="Save settings so they survive an OTD daemon restart (Ctrl+S)." />
                 <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
                         Theme="{StaticResource GhostButton}" Padding="16,8"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                        ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
+                        ToolTip.Tip="Replace live settings with the OTD daemon’s saved file, discarding unsaved changes." />
             </StackPanel>
         </Grid>
     </Border>

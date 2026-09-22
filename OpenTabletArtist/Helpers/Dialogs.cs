@@ -37,7 +37,7 @@ public static class Dialogs
                 {
                     new TextBlock
                     {
-                        Text = "Save your current settings before continuing? Unsaved changes may be lost when the driver restarts or another preset is loaded. Continuing does not undo changes already running on the driver.",
+                        Text = "Save your current settings before continuing? Unsaved changes may be lost when the OTD daemon restarts or another preset is loaded. Continuing does not undo changes already running on the driver.",
                         TextWrapping = TextWrapping.Wrap,
                     },
                     new StackPanel

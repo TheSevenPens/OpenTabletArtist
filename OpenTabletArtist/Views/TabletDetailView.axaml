@@ -956,7 +956,7 @@
                                                        TextWrapping="Wrap" VerticalAlignment="Center" />
                                             <!-- Stale leftover from an older app/plugin name: inert, should be cleaned. -->
                                             <ctrl:Chip Text="Legacy" Kind="Warning" IsVisible="{Binding IsLegacy}"
-                                                       ToolTip.Tip="Left over from an older version. The driver has no plugin for this type, so it does nothing — it will be removed automatically." />
+                                                       ToolTip.Tip="Left over from an older version. The OTD daemon has no plugin for this type, so it does nothing — it will be removed automatically." />
                                         </StackPanel>
                                         <TextBlock Text="{Binding FullPath}"
                                                    Foreground="{DynamicResource TextMutedBrush}"

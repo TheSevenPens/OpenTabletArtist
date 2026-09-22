@@ -79,7 +79,7 @@ public sealed class OtdSession : IDisposable
     private string _problem = "";
     /// <summary>Why settings are unavailable, or an empty string.</summary>
     public string SettingsProblem => _settings is { HasUnconfirmedWrite: true }
-        ? "The last apply could not be confirmed. Restart the driver before editing or saving." : _problem;
+        ? "The last apply could not be confirmed. Restart the OTD daemon before editing or saving." : _problem;
 
     /// <summary>Retry initialization; useful once an abandoned write has finally completed.</summary>
     internal bool HasOutstandingWrite => WriteStillOutstanding();
@@ -125,8 +125,8 @@ public sealed class OtdSession : IDisposable
         {
             _outstandingWrite = write;
             _outstandingWritePid = _connection.GetServerProcessId() ?? _connectedPid;
-            _log.Warn("A settings write was never confirmed by the driver. Editing stays disabled until "
-                      + "it finishes or that driver process is gone, because it would replace whatever is "
+            _log.Warn("A settings write was never confirmed by the OTD daemon. Editing stays disabled until "
+                      + "it finishes or that daemon process is gone, because it would replace whatever is "
                       + "applied in the meantime.");
         }
     }
@@ -173,14 +173,14 @@ public sealed class OtdSession : IDisposable
             _connectedPath = path;
             _connectedPid = _connection.GetServerProcessId();
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(info?.SettingsFile))
-                _problem = "The driver or its settings location could not be identified. Settings are read-only.";
+                _problem = "The OTD daemon or its settings location could not be identified. Settings are read-only.";
             else if ((_targetPath is not null && !PathEquality.Same(_targetPath, path))
                 || (_targetSettingsPath is not null && !PathEquality.Same(_targetSettingsPath, info.SettingsFile)))
                 _problem = "A different OpenTabletDriver is connected. Restart OpenTabletArtist to use it.";
             else if (WriteStillOutstanding())
             {
-                _problem = "A settings change sent to this driver was never confirmed. Editing is "
-                    + "disabled until it finishes or the driver is restarted, so it cannot overwrite "
+                _problem = "A settings change sent to this OTD daemon was never confirmed. Editing is "
+                    + "disabled until it finishes or the daemon is restarted, so it cannot overwrite "
                     + "anything you do now.";
             }
             else
@@ -202,7 +202,7 @@ public sealed class OtdSession : IDisposable
                 else
                 {
                     settings.Dispose();
-                    _problem = "Couldn't read the driver's settings. Refresh to try again.";
+                    _problem = "Couldn't read the OTD daemon's settings. Refresh to try again.";
                     if (loaded.Error is not null) _log.Warn(SettingsProblem, loaded.Error);
                 }
             }
@@ -211,7 +211,7 @@ public sealed class OtdSession : IDisposable
         catch (Exception ex)
         {
             if (_disposed || channel != _channel.Incarnation) return;
-            _problem = "Couldn't read the driver's settings location. Refresh to try again.";
+            _problem = "Couldn't read the OTD daemon's settings location. Refresh to try again.";
             _log.Warn(SettingsProblem, ex);
             Connected?.Invoke(new DaemonChange(_connectedPath, channel));
         }

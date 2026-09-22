@@ -576,7 +576,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             ApplyDaemonIdentity(change);
             if (_workspace is not null && HasUnsavedChanges)
-                DiscardedChangeNotice = "Reconnected to the driver. Its current settings replaced the previous unsaved workspace.";
+                DiscardedChangeNotice = "Reconnected to the OTD daemon. Its current settings replaced the previous unsaved workspace.";
             _workspace = session.Settings is { } settings ? new SettingsWorkspace(settings, IsAppOwnedDaemon) : null;
             if (_workspace is null) Profiles = [];
             SettingsReplaced?.Invoke();
@@ -589,7 +589,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             if (Abandoned || session.ConnectionId != 0) return;
             if (HasUnsavedChanges)
-                DiscardedChangeNotice = "The driver disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
+                DiscardedChangeNotice = "The OTD daemon disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
             _workspace = null;
             SettingsReplaced?.Invoke();
             ConnectionStatus = "Disconnected";
@@ -924,7 +924,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                     if (refreshed.ChangedTheBaseline)
                     {
                         SettingsRefreshedNotice =
-                            "Driver settings refreshed. The driver changed them and you had nothing unsaved "
+                            "OTD daemon settings refreshed. It changed them and you had nothing unsaved "
                             + "in progress, so this page now shows what it holds.";
                         SettingsReplaced?.Invoke();
                         PublishSettings();
@@ -1450,7 +1450,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (_daemonPath is not null && _session.ConnectedExecutablePath is { } actual
             && !PathEquality.Same(_daemonPath, actual))
         {
-            DaemonOperationError = "A different driver is running. Restart OpenTabletArtist to use it.";
+            DaemonOperationError = "A different OTD daemon is running. Restart OpenTabletArtist to use it.";
             return;
         }
         if (ResolveUnsavedChanges is { } resolve && !await resolve()) return;
