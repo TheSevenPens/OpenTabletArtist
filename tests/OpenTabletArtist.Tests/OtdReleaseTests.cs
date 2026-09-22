@@ -52,17 +52,6 @@ public class OtdReleaseTests
             OtdRelease.InstalledBundlePath);
     }
 
-    // The install has to land where the ladder looks *first*. Anywhere lower and OTA's own install could
-    // be shadowed later by whatever turned up in a higher tier — the reason /Applications was chosen over
-    // a per-user location.
-    [Fact]
-    public void TheInstalledDaemonIsTheLaddersFirstInstalledCandidate()
-    {
-        var installed = DaemonExePaths.InstalledMacPaths(Path.Combine("/", "Users", "someone")).ToList();
-
-        Assert.Equal(OtdRelease.InstalledDaemonPath, installed.First());
-    }
-
     // --- The OTD version must not come from a linked assembly ---------------------------
 
     /// <summary>

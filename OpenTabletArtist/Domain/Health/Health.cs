@@ -504,17 +504,20 @@ public static class HealthEvaluator
         // true of every daemon including its own bundled one, and distinguished nothing.
         //
         // Two different facts reach here as ForeignDaemon, and saying the wrong one is worse than saying
-        // nothing. A daemon the user installed elsewhere is not the bundled copy; a daemon that IS the
-        // bundled copy, answering while the user's selection points somewhere else, is also External --
-        // and telling that user "not the bundled copy" is false, and points them at the very thing they
-        // are already running (#882). The classification is the same; the sentence must not be.
+        // nothing. A daemon the artist installed elsewhere is not the bundled copy; a daemon that IS one
+        // of OTA's own, but not the one OTA would start, is also External -- and telling that person
+        // "not the bundled copy" is false, and points them at the very thing they are already running
+        // (#882). The classification is the same; the sentence must not be.
+        //
+        // Since #daemon-bundled-only there is no chosen location, so the second case is now a second
+        // copy of OTA's own daemon: a dev tree beside a bundled release, or Debug beside Release.
         if (i.ForeignDaemon)
             rows.Add(new HealthLink(
                 // Short on purpose: the row clips at roughly this width, and the previous wording lost
                 // its last word to that. A sentence whose meaning lives in the clipped part is worse
                 // than a short one -- "a different one is answering" became "a different one is a".
                 i.DaemonIsManagedButNotSelected
-                    ? "Not the OpenTabletDriver you chose"
+                    ? "Another copy of the driver this app ships"
                     : "An OpenTabletDriver you installed, not the bundled copy",
                 "", RemediationArea.Daemon));
 

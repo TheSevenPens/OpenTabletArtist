@@ -32,180 +32,25 @@ public class DaemonExePathsTests
         Assert.Contains(candidates, c => c.Contains(Path.Combine("bin", "Release", "net8.0")));
     }
 
-    // --- The adoption ladder (docs/design/official-otd-release.md) ---
-
+    /// <summary>
+    /// Only OTA's own copy is ever launched (#daemon-bundled-only).
+    /// </summary>
+    /// <remarks>
+    /// The ladder used to start with a location the artist had chosen, then consider an OpenTabletDriver
+    /// found installed on the system. Both are gone: a driver someone else installed is reached by
+    /// starting it, because OTA connects to whatever holds the pipe. This is the whole ladder now, and
+    /// its length is the assertion — an entry creeping back in is exactly what would go unnoticed.
+    /// </remarks>
     [Fact]
-    public void UserChosenPathOutranksEverything()
-    {
-        var chosen = Path.Combine("C:", "elsewhere", "OTD", Exe);
-        var candidates = DaemonExePaths.Candidates(
-            Path.Combine("C:", "app"),
-            userPath: chosen,
-            installed: [Path.Combine("C:", "installed", Exe)]).ToList();
-
-        Assert.Equal(Path.GetFullPath(chosen), candidates[0]);
-    }
-
-    // The point of the tier: on macOS a granted, already-installed OTD must beat a freshly built daemon
-    // that has never held an Input Monitoring grant.
-    [Fact]
-    public void InstalledOtdComesBeforeTheDevBuildTree()
-    {
-        var installed = Path.Combine("/", "Applications", "OpenTabletDriver.app", "Contents", "MacOS", "OpenTabletDriver.Daemon");
-        var candidates = DaemonExePaths.Candidates(
-            Path.Combine("C:", "repo", "OpenTabletArtist", "bin", "Debug", "net10.0"),
-            installed: [installed]).ToList();
-
-        var installedAt = candidates.FindIndex(c => c == Path.GetFullPath(installed));
-        var devAt = candidates.FindIndex(c => c.Contains(Path.Combine("bin", "Debug", "net8.0")));
-
-        Assert.True(installedAt >= 0, "the installed OTD should be a candidate");
-        Assert.True(installedAt < devAt, "an installed OTD should outrank the dev build tree");
-    }
-
-    [Fact]
-    public void BundledStillOutranksAnInstalledOtd()
+    public void TheLadderHoldsNothingButOtasOwnCopy()
     {
         var baseDir = Path.Combine("C:", "app");
-        var candidates = DaemonExePaths.Candidates(
-            baseDir,
-            installed: [Path.Combine("C:", "installed", Exe)]).ToList();
+        var candidates = DaemonExePaths.Candidates(baseDir).ToList();
 
+        Assert.Equal(3, candidates.Count);   // bundled, dev Debug, dev Release
         Assert.Equal(Path.GetFullPath(Path.Combine(baseDir, "Daemon", Exe)), candidates[0]);
+        Assert.All(candidates.Skip(1), c => Assert.Contains("external", c));
     }
-
-    [Fact]
-    public void NoInstalledPathsLeavesTheOriginalOrderUnchanged()
-    {
-        var baseDir = Path.Combine("C:", "repo", "OpenTabletArtist", "bin", "Debug", "net10.0");
-
-        Assert.Equal(
-            DaemonExePaths.Candidates(baseDir).ToList(),
-            DaemonExePaths.Candidates(baseDir, userPath: null, installed: null).ToList());
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    public void BlankUserPathIsIgnored(string? userPath)
-    {
-        var baseDir = Path.Combine("C:", "app");
-        var candidates = DaemonExePaths.Candidates(baseDir, userPath).ToList();
-
-        Assert.Equal(Path.GetFullPath(Path.Combine(baseDir, "Daemon", Exe)), candidates[0]);
-    }
-
-    // --- What the user can point at ---
-
-    [Fact]
-    public void UserPathAcceptsAnAppBundle()
-    {
-        var normalized = DaemonExePaths.NormalizeUserPath(Path.Combine("/", "Applications", "OpenTabletDriver.app"));
-
-        Assert.NotNull(normalized);
-        Assert.EndsWith(Path.Combine("Contents", "MacOS", "OpenTabletDriver.Daemon"), normalized);
-    }
-
-    [Fact]
-    public void UserPathAcceptsTheExeItself()
-    {
-        var exe = Path.GetFullPath(Path.Combine("C:", "otd", Exe));
-
-        Assert.Equal(exe, DaemonExePaths.NormalizeUserPath(exe));
-    }
-
-    [Fact]
-    public void UserPathAcceptsAContainingDirectory()
-    {
-        var dir = Path.Combine("C:", "otd");
-
-        Assert.Equal(
-            Path.Combine(Path.GetFullPath(dir), Exe),
-            DaemonExePaths.NormalizeUserPath(dir));
-    }
-
-    // --- macOS install locations ---
-
-    [Fact]
-    public void MacPathsCoverSystemAndUserApplications()
-    {
-        var paths = DaemonExePaths.InstalledMacPaths(Path.Combine("/", "Users", "someone")).ToList();
-
-        Assert.Equal(2, paths.Count);
-        Assert.All(paths, p => Assert.EndsWith(
-            Path.Combine("OpenTabletDriver.app", "Contents", "MacOS", "OpenTabletDriver.Daemon"), p));
-        Assert.StartsWith(Path.GetFullPath(Path.Combine("/", "Applications")), paths[0]);
-        Assert.Contains(Path.Combine("Users", "someone"), paths[1]);
-    }
-
-    [Fact]
-    public void MacPathsSkipTheUserFolderWhenHomeIsUnknown()
-    {
-        Assert.Single(DaemonExePaths.InstalledMacPaths(null));
-    }
-
-    // --- The bundled copy ---
-
-    [Fact]
-    public void BundledPathIsTheFirstCandidate()
-    {
-        var baseDir = Path.Combine("C:", "app");
-
-        Assert.Equal(
-            DaemonExePaths.BundledPath(baseDir),
-            DaemonExePaths.Candidates(baseDir).First());
-    }
-
-    // --- Vetting a path the user chose ---
-
-    [Fact]
-    public void AChosenPathIsAcceptedWhenADaemonIsActuallyThere()
-    {
-        var chosen = Path.Combine("C:", "otd", Exe);
-
-        var result = DaemonExePaths.ValidateUserPath(chosen, _ => true);
-
-        Assert.True(result.Accepted);
-        Assert.Equal(Path.GetFullPath(chosen), result.Path);
-        Assert.Null(result.Problem);
-    }
-
-    // Storing a path with no daemon at it would lose the ladder race silently, long after the picker
-    // closed — refuse it while the user is still looking at the dialog.
-    [Fact]
-    public void AChosenPathWithNoDaemonIsRefusedWithAReason()
-    {
-        var result = DaemonExePaths.ValidateUserPath(Path.Combine("C:", "nope"), _ => false);
-
-        Assert.False(result.Accepted);
-        Assert.Null(result.Path);
-        Assert.Contains(Exe, result.Problem);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void ABlankChoiceIsRefused(string? raw)
-    {
-        var result = DaemonExePaths.ValidateUserPath(raw, _ => true);
-
-        Assert.False(result.Accepted);
-        Assert.NotNull(result.Problem);
-    }
-
-    [Fact]
-    public void AChosenAppBundleIsResolvedToTheDaemonInside()
-    {
-        var result = DaemonExePaths.ValidateUserPath(
-            Path.Combine("/", "Applications", "OpenTabletDriver.app"), _ => true);
-
-        Assert.True(result.Accepted);
-        Assert.EndsWith(Path.Combine("Contents", "MacOS", "OpenTabletDriver.Daemon"), result.Path);
-    }
-
-    // --- Provenance: adopted installs are not "ours" ---
 
     [Fact]
     public void OwnBuildRecognizesTheBundledCopy()
@@ -225,30 +70,4 @@ public class DaemonExePathsTests
         Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), installed));
         Assert.False(DaemonExePaths.IsAppManaged(Path.Combine("C:", "app"), null));
     }
-
-    /// <summary>
-    /// What the driver card may offer about the bundled daemon, in every combination (#725).
-    /// </summary>
-    /// <remarks>
-    /// The whole table, because the interesting row is the one the removed button got wrong: a foreign
-    /// daemon, a bundled copy present, and a chosen location in front of it. That button offered the
-    /// switch there, and pressing it restarted the daemon the user was trying to leave.
-    /// </remarks>
-    [Theory]
-    // on a foreign daemon, a copy is bundled, nothing chosen: a restart lands on the bundled copy.
-    [InlineData(true, true, false, DaemonExePaths.BundledOffer.Switch)]
-    // the same, with a chosen location ahead of it: say so rather than offer what would not happen.
-    [InlineData(true, true, true, DaemonExePaths.BundledOffer.ClearTheChosenLocationFirst)]
-    // nothing bundled (every macOS build today): there is no such option to offer or explain.
-    [InlineData(true, false, false, DaemonExePaths.BundledOffer.Nothing)]
-    [InlineData(true, false, true, DaemonExePaths.BundledOffer.Nothing)]
-    // already on ours: nothing to switch away from, whatever else is true.
-    [InlineData(false, true, false, DaemonExePaths.BundledOffer.Nothing)]
-    [InlineData(false, true, true, DaemonExePaths.BundledOffer.Nothing)]
-    [InlineData(false, false, false, DaemonExePaths.BundledOffer.Nothing)]
-    [InlineData(false, false, true, DaemonExePaths.BundledOffer.Nothing)]
-    public void OfferBundled_OffersTheSwitchOnlyWhenARestartWouldReachIt(
-        bool onForeignDaemon, bool hasBundled, bool hasChosenLocation, DaemonExePaths.BundledOffer expected)
-        => Assert.Equal(
-            expected, DaemonExePaths.OfferBundled(onForeignDaemon, hasBundled, hasChosenLocation));
 }

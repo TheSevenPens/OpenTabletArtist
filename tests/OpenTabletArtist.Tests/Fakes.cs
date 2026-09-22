@@ -187,7 +187,7 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool IsDaemonRunning => _isConnected;
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
     public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
-    public string DaemonSourcePath => "";
+    public string DaemonSourcePath { get; set; } = "";
     public string DaemonVersion => "";
     public bool HasDaemonVersion => false;
     public bool SaveFailed => false;

@@ -164,11 +164,13 @@ public class HealthEvaluatorTests
             Assert.Single(issue.Links!).Setting);
     }
 
-    // A daemon that IS the bundled copy, answering while the user's selection points elsewhere, is also
-    // External -- and telling that user "not the bundled copy" is a false sentence about the very thing
-    // they are running (#882). The classification is unchanged; only what it says is.
+    // A daemon that IS one of OTA's own, but not the one OTA would start, is also External -- and
+    // telling that person "not the bundled copy" is a false sentence about the very thing they are
+    // running (#882). The classification is unchanged; only what it says is. Since #daemon-bundled-only
+    // this is a second copy of OTA's own daemon rather than a chosen location: a dev tree beside a
+    // bundled release, or Debug beside Release.
     [Fact]
-    public void TheBundledDaemonAnsweringWhileAnotherIsSelected_IsNotDescribedAsSomethingElse()
+    public void OneOfOtasOwnCopiesThatIsNotTheOneItWouldStart_IsNotDescribedAsSomethingElse()
     {
         var issue = Assert.Single(HealthEvaluator.Evaluate(
             Healthy() with { ForeignDaemon = true, DaemonIsManagedButNotSelected = true }));
@@ -176,7 +178,7 @@ public class HealthEvaluatorTests
         var row = Assert.Single(issue.Links!).Setting;
 
         Assert.DoesNotContain("not the bundled copy", row);
-        Assert.Equal("Not the OpenTabletDriver you chose", row);
+        Assert.Equal("Another copy of the driver this app ships", row);
 
         // Short enough to survive the row's clipping: the first attempt lost "is answering" on screen,
         // which is the half that explained it. Checked against the widest row already shipping.

@@ -71,22 +71,11 @@ public class DaemonLifecycleService : IDaemonLifecycleService
 {
     private const string ProcessName = "OpenTabletDriver.Daemon";
 
-    private readonly string? _startupPath = DaemonExePaths.Candidates(
-        AppContext.BaseDirectory, AppSettings.Get(DaemonExePaths.UserPathSettingKey), InstalledOtdPaths())
-        .FirstOrDefault(File.Exists);
+    private readonly string? _startupPath =
+        DaemonExePaths.Candidates(AppContext.BaseDirectory).FirstOrDefault(File.Exists);
     public string? ExpectedExePath() => _startupPath;
 
     public bool IsAppManaged(string? path) => DaemonExePaths.IsAppManaged(AppContext.BaseDirectory, path);
-
-    /// <summary>Installed-OTD locations to adopt. macOS only for now: it is where adoption is forced (a
-    /// rebuilt daemon can't hold its Input Monitoring grant) and therefore where the model is being
-    /// proven. Windows keeps its bundled-then-dev-tree order until Phase D of
-    /// docs/design/official-otd-release.md.</summary>
-    private static IEnumerable<string> InstalledOtdPaths() =>
-        OperatingSystem.IsMacOS()
-            ? DaemonExePaths.InstalledMacPaths(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
-            : [];
 
     public string? FindExe()
     {
