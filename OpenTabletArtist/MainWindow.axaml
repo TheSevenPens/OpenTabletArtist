@@ -22,16 +22,6 @@
          edge instead of a gray system caption bar. The native min/max/close buttons stay (top-right);
          a drag strip below provides window move/maximize. OffScreenMargin keeps content on-screen when
          maximized (Windows over-sizes an extended-chrome window by the frame width). -->
-    <Window.Styles>
-        <!-- Only the primary half follows CanEditSettings (#footer-split). Binding the SplitButton's own
-             IsEnabled, or letting the command report it cannot execute, disables the whole control
-             — chevron included — which would hide Reload at the one moment it is the way out. Checked
-             rather than assumed: a refused command takes the control with it in Avalonia 12. -->
-        <Style Selector="SplitButton.settingsActions /template/ Button#PART_PrimaryButton">
-            <Setter Property="IsEnabled" Value="{Binding SettingsSession.CanEditSettings}" />
-        </Style>
-    </Window.Styles>
-
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSettingsCommand}" />
         <KeyBinding Gesture="Meta+S" Command="{Binding SaveSettingsCommand}" />
@@ -149,52 +139,7 @@
             </Border>
         </ScrollViewer>
 
-        <Border Grid.Row="2" Padding="24,10" Background="{DynamicResource GlassBgBrush}"
-                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                    <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Connection.DiscardedChangeNotice}" TextWrapping="Wrap"
-                               IsVisible="{Binding Connection.HasDiscardedChangeNotice}" />
-                    <!-- The driver changed its own settings while nothing was half-edited, so the page
-                         followed along. Quiet: nothing was lost and nothing is being asked (#920). -->
-                    <TextBlock Text="{Binding Connection.SettingsRefreshedNotice}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
-                </StackPanel>
-                <!-- One button for the three settings actions. Save is the one an artist wants almost
-                     every time and the only one with a shortcut; the other two are occasional and were
-                     taking equal width beside it, with the rarest of the three reading first. Save is
-                     the default action, and the chevron lists all three (#footer-split).
-
-                     Save and Revert need an editable session. Reload does NOT: a paused session is
-                     exactly when it is needed, since it is the way out. Disabling the SplitButton would
-                     take the chevron with it and strand the artist, so the enabled state lives on the
-                     primary half alone (see Window.Styles) and the menu items carry their own. -->
-                <SplitButton Grid.Column="1" Classes="settingsActions" Content="Save"
-                             Command="{Binding SaveSettingsCommand}"
-                             IsEnabled="{Binding !SettingsSession.SettingsBusy}"
-                             ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S).">
-                    <SplitButton.Flyout>
-                        <!-- Opens upward: this sits in the footer, against the bottom edge. -->
-                        <MenuFlyout Placement="TopEdgeAlignedRight">
-                            <MenuItem Header="Save" Command="{Binding SaveSettingsCommand}"
-                                      IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                                      ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
-                            <MenuItem Header="Reload driver settings" Command="{Binding ReloadSettingsCommand}"
-                                      ToolTip.Tip="Read current live settings. Pending local edits will be discarded; nothing is saved." />
-                            <Separator />
-                            <!-- Last, and marked: it discards unsaved work, and it is the only one here
-                                 that asks before doing so. -->
-                            <MenuItem Header="Revert to saved" Command="{Binding RevertSettingsCommand}"
-                                      IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                                      Foreground="{DynamicResource ErrorBrush}"
-                                      ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
-                        </MenuFlyout>
-                    </SplitButton.Flyout>
-                </SplitButton>
-            </Grid>
-        </Border>
+        <views:SettingsFooterView Grid.Row="2" />
     </Grid>
 
     <!-- Title-bar drag strip (#titlebar): the top edge is app-colored now, so this transparent strip

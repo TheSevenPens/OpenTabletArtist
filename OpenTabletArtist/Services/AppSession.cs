@@ -68,7 +68,6 @@ public interface IConnectionState : INotifyPropertyChanged
 
     // Live application and explicit persistence share one visible status.
     /// <summary>The save indicator should be shown (Saving / Saved / failed).</summary>
-    bool ShowSaveStatus { get; }
     /// <summary>The last settings save failed to write to disk (change is live but not persisted).</summary>
     bool SaveFailed { get; }
     /// <summary>Text for the save indicator.</summary>
@@ -269,7 +268,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
     public bool SettingsPaused => _workspace?.IsPaused == true;
     public bool CanEditSettings => !SettingsBusy && _session.CanEditSettings && !SettingsPaused;
-    public bool ShowSaveStatus => SaveState != SettingsSaveState.None || !string.IsNullOrEmpty(_session.SettingsProblem);
     public bool SaveFailed => SaveState is SettingsSaveState.Failed or SettingsSaveState.ApplyFailed
         or SettingsSaveState.Disconnected or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
     public string SaveStatusText => !string.IsNullOrEmpty(_session.SettingsProblem) ? _session.SettingsProblem : SaveState switch
@@ -434,7 +432,6 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(SettingsPaused));
         OnPropertyChanged(nameof(CanEditSettings));
-        OnPropertyChanged(nameof(ShowSaveStatus));
         OnPropertyChanged(nameof(SaveFailed));
         OnPropertyChanged(nameof(SaveStatusText));
     }
