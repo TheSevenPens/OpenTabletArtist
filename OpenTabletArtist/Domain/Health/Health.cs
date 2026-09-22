@@ -239,14 +239,14 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue("winink.notInstalled", HealthSeverity.Broken,
                     "Windows Ink plugin not installed",
-                    "It delivers pen pressure and tilt to your apps; without it you only get basic cursor movement.",
+                    "Without the plugin, you will not get pressure or tilt",
                     new Remediation("Fix", RemediationArea.WindowsInk)));
             }
             else if (i.WinInkVersionMismatch)
             {
                 issues.Add(new HealthIssue("winink.versionMismatch", HealthSeverity.Misconfigured,
                     "Windows Ink plugin may be incompatible",
-                    "It doesn't declare support for the running driver version — update it to keep pressure and tilt working.",
+                    "Not the plugin version OTA expected",
                     new Remediation("Fix", RemediationArea.WindowsInk)));
 
                 // Per-tablet: a detected tablet not using a Windows Ink output mode won't get pressure/tilt.
@@ -264,7 +264,7 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
                     "VMulti driver not installed",
-                    "The virtual pen device that pressure and tilt are injected through; without it they won't reach your apps.",
+                    "Without VMulti you will not be able to use Windows Ink and get pressure and tilt",
                     new Remediation("Fix", RemediationArea.VMulti)));
             }
         }
@@ -293,7 +293,7 @@ public static class HealthEvaluator
             issues.Add(new HealthIssue("driver.conflict",
                 i.BlockingDriverConflict ? HealthSeverity.Broken : HealthSeverity.Misconfigured,
                 "Conflicting tablet driver detected",
-                "A manufacturer driver (Wacom, Huion, XP-Pen, …) can block OpenTabletDriver from detecting your tablet.",
+                "Another tablet driver is installed and may interfere with OpenTabletDriver",
                 new Remediation("Fix", RemediationArea.DriverCleanup)));
         }
 
@@ -303,7 +303,7 @@ public static class HealthEvaluator
         {
             issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
                 "Running as administrator",
-                "This can break Windows Ink pressure/tilt — reopen it normally, not elevated.",
+                "OpenTabletDriver does not work correctly if it is running with Administrator permissions",
                 Remediation: null));
         }
 
@@ -352,8 +352,9 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue("linux.hidAccess", HealthSeverity.Broken,
                     "No permission to read tablet devices",
-                    "The HID devices tablets appear as can't be opened by your user. Adding yourself to " +
-                    "the \"input\" group grants that: sudo usermod -aG input $USER, then reboot.",
+                    "The HID devices tablets appear as can't be opened by your user account. Adding " +
+                    "yourself to the \"input\" group grants that: sudo usermod -aG input $USER, then " +
+                    "reboot.",
                     Remediation: null));
             }
             else if (i.LinuxHidAccess == LinuxHidAccess.PendingReboot)
@@ -391,10 +392,10 @@ public static class HealthEvaluator
         if (i.SettingsLoad == SettingsLoadStatus.Preserved)
         {
             issues.Add(new HealthIssue("settings.unreadable", HealthSeverity.Misconfigured,
-                "Your settings couldn't be read",
+                "Could not read saved settings",
                 "OpenTabletArtist couldn't read its saved settings, so it started with defaults. The " +
-                $"unreadable file was set aside as \"{i.SettingsBackupName}\" next to settings.json, so nothing " +
-                "was lost — restore that backup to recover your settings, or ignore this if the defaults are fine.",
+                $"unreadable file was set aside as \"{i.SettingsBackupName}\" next to settings.json, " +
+                "Restore that backup to recover your settings.",
                 Remediation: null));
         }
         else if (i.SettingsLoad == SettingsLoadStatus.Recovered)
@@ -405,7 +406,7 @@ public static class HealthEvaluator
                 "Your settings were recovered from a backup",
                 "OpenTabletArtist couldn't read its saved settings, so it loaded the last copy it saved " +
                 $"successfully (\"{i.SettingsBackupName}\"). Your preferences are intact; anything changed " +
-                "since that copy was written is not. This clears itself on the next save.",
+                "since that copy was written is not.",
                 Remediation: null));
         }
         else if (i.SettingsLoad == SettingsLoadStatus.NotPreserved)
@@ -426,8 +427,7 @@ public static class HealthEvaluator
         {
             issues.Add(new HealthIssue("otd.permissionsMissing", HealthSeverity.Broken,
                 "OpenTabletDriver can't read your tablet",
-                "Your tablet is connected, but OpenTabletDriver hasn't been allowed to read it. Grant it "
-                    + "Input Monitoring, then start the driver again.",
+                "Grant Input Monitoring permission to allow OpenTabletDriver to connect to your tablet",
                 new Remediation("Open Settings", RemediationArea.InputMonitoring)));
         }
 
@@ -472,8 +472,7 @@ public static class HealthEvaluator
                     // just a heads-up that this fundamentally changes how the pen behaves.
                     issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Information,
                         $"{t.Name}: Windows Ink is off (mouse-compatibility mode)",
-                        "Pressure and tilt are disabled for this tablet. Turn Windows Ink back on from the " +
-                        "tablet's Pen Behavior tab to restore pressure and tilt.",
+                        "Pressure and tilt are disabled for this tablet.",
                         new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
                 }
                 else
@@ -481,7 +480,7 @@ public static class HealthEvaluator
                     issues.Add(new HealthIssue($"tablet.notWinInk:{t.Name}", HealthSeverity.Misconfigured,
                         $"{t.Name}: not using Windows Ink",
                         "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
-                        "won't reach your apps. Fix switches it to Windows Ink, or Review to change it yourself.",
+                        "won't work.",
                         new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
                         Secondary: new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
                 }
@@ -546,8 +545,8 @@ public static class HealthEvaluator
         if (rows.Count == 0) return;
 
         issues.Add(new HealthIssue("otd.driver", severity,
-            "OTD Daemon version",
-            "Worth knowing about the driver this app is using. Nothing here stops it working.",
+            "User-supplied OTD Daemon",
+            "OTA using a user-supplied OTD daemon",
             new Remediation("Review", RemediationArea.Daemon),
             Links: rows));
     }
@@ -560,9 +559,7 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue($"tablet.dynamicsOff:{t.Name}", HealthSeverity.Recommendation,
                     $"{t.Name}: Pen Dynamics filter is off",
-                    "OpenTabletArtist keeps the Pen Dynamics filter enabled so your pressure curve and " +
-                    "smoothing always apply. It's currently off or missing on this tablet, so those " +
-                    "settings won't take effect. Fixing re-enables it (no effect until you customize it).",
+                    "The Pen Dynamics filter is required for pressure curve and smoothing.",
                     new Remediation("Fix", RemediationArea.TabletPenDynamics, t.Name)));
             }
         }
@@ -612,8 +609,8 @@ public static class HealthEvaluator
 
             issues.Add(new HealthIssue($"tablet.penBehavior:{t.Name}", HealthSeverity.Recommendation,
                 $"{t.Name}: pen isn't set up for drawing",
-                "Settings artists rely on are turned off — and each lives in a different place. Restore them " +
-                "all in one click, or review each below.",
+                "Settings artists rely on are turned off. Restore them all in one click, or review each " +
+                "below.",
                 new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
                 Links: links));
         }
@@ -628,18 +625,15 @@ public static class HealthEvaluator
                 case DisplayMappingValidity.OffScreen:
                     issues.Add(new HealthIssue($"tablet.mappingOffScreen:{t.Name}", HealthSeverity.Misconfigured,
                         $"{t.Name}: mapped area is partly off-screen",
-                        "This tablet's mapped area extends beyond your displays, so part of the tablet maps " +
-                        "to space with no screen there and the pen reaches dead zones. Fix re-maps it cleanly " +
-                        "to your primary display, or Review to adjust the mapping yourself.",
+                        "This tablet's mapped area extends beyond your displays.",
                         new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
                         Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
                     break;
                 case DisplayMappingValidity.Custom:
                     issues.Add(new HealthIssue($"tablet.mappingCustom:{t.Name}", HealthSeverity.Recommendation,
                         $"{t.Name}: custom display mapping",
-                        "This tablet isn't mapped to a single whole display (a custom or multi-display area). " +
-                        "Fix re-maps it cleanly to your primary display for a standard, undistorted 1:1 setup, " +
-                        "or Review to adjust the mapping yourself.",
+                        "This tablet isn't mapped to a single whole display (a custom or multi-display " +
+                        "area).",
                         new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
                         Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
                     break;
@@ -651,9 +645,7 @@ public static class HealthEvaluator
             {
                 issues.Add(new HealthIssue($"tablet.mappingRotation:{t.Name}", HealthSeverity.Misconfigured,
                     $"{t.Name}: unusual active-area rotation",
-                    "This tablet's active area is rotated by an angle that isn't 0°, 90°, 180°, or 270°, so the " +
-                    "pen axes don't line up with the screen and strokes come out skewed. Fix snaps it to the " +
-                    "nearest standard angle, or Review to set it yourself.",
+                    "This tablet's active area is rotated by an angle that isn't 0°, 90°, 180°, or 270°",
                     new Remediation("Fix", RemediationArea.TabletResetRotation, t.Name),
                     Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
             }
