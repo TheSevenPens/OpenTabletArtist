@@ -457,6 +457,7 @@ public class ExplicitSettingsTests
     [InlineData(SettingsSaveState.Applying, "Applying…")]
     [InlineData(SettingsSaveState.Saving, "Saving…")]
     [InlineData(SettingsSaveState.Failed, "Save failed")]
+    [InlineData(SettingsSaveState.ApplyFailed, "Change not applied")]
     [InlineData(SettingsSaveState.Disconnected, "Disconnected")]
     [InlineData(SettingsSaveState.ChangedElsewhere, "Reload settings to continue")]
     [InlineData(SettingsSaveState.CouldNotCheck, "Reload settings")]

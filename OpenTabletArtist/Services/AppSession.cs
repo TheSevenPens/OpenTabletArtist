@@ -282,7 +282,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // question of what "applied" meant; "Unsaved changes" names the one thing at stake.
         SettingsSaveState.Saved => "",
         SettingsSaveState.Failed => "Save failed",
-        SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
+        SettingsSaveState.ApplyFailed => "Change not applied",
         SettingsSaveState.Disconnected => "Disconnected",
         // Short lines, because this one shares a row with the other save states and is read at a glance.
         // What caused the pause, and what leaving it costs, is SettingsPausedView's to say -- it is on
