@@ -27,17 +27,20 @@ public static class Dialogs
         var save = new Button { Content = "Save" };
         var dialog = new AppWindow
         {
-            Title = "Unsaved driver settings", Width = 520,
-            SizeToContent = SizeToContent.Height, CanResize = false,
+            Title = "Unsaved OTD daemon settings",
+            Width = 520,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new StackPanel
             {
-                Margin = new Thickness(24), Spacing = 20,
+                Margin = new Thickness(24),
+                Spacing = 20,
                 Children =
                 {
                     new TextBlock
                     {
-                        Text = "Save your current settings before continuing? Unsaved changes may be lost when the driver restarts or another preset is loaded. Continuing does not undo changes already running on the driver.",
+                        Text = "Save your current settings before continuing? Unsaved changes may be lost when the OTD daemon restarts or another preset is loaded. Continuing does not undo changes already running on the OTD daemon.",
                         TextWrapping = TextWrapping.Wrap,
                     },
                     new StackPanel

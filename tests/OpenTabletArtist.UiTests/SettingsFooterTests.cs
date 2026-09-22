@@ -63,6 +63,7 @@ public class SettingsFooterTests
     {
         public bool CanEditSettings { get; init; }
         public bool SettingsBusy { get; init; }
+        public bool SettingsPaused { get; init; }
         public string SaveStatusText { get; init; } = "";
     }
 
@@ -75,7 +76,7 @@ public class SettingsFooterTests
     }
 
     private static (Window Window, FooterState State, Button[] Buttons) Footer(
-        bool canEdit, bool busy = false, string status = "", double width = 1100)
+        bool canEdit, bool busy = false, bool paused = false, string status = "", double width = 1100)
     {
         var state = new FooterState
         {
@@ -83,6 +84,7 @@ public class SettingsFooterTests
             {
                 CanEditSettings = canEdit,
                 SettingsBusy = busy,
+                SettingsPaused = paused,
                 SaveStatusText = status,
             },
         };
@@ -101,31 +103,50 @@ public class SettingsFooterTests
         buttons.Single(b => (b.Content as string) == content);
 
     /// <summary>Ranked, and in the order the app uses everywhere else: affirmative first (#502).</summary>
+    /// <remarks>
+    /// Two, not three. Reload moved to <c>SettingsPausedView</c>, where the pause it answers is
+    /// explained — it is the way out of a pause and nothing else, and it was taking a third of the
+    /// footer to say so in the state where it does nothing.
+    /// </remarks>
     [AvaloniaFact]
-    public void TheThreeActionsReadInOrderOfHowOftenTheyAreWanted()
+    public void TheTwoActionsReadInOrderOfHowOftenTheyAreWanted()
     {
         var (_, _, buttons) = Footer(canEdit: true);
 
-        Assert.Equal(["Save", "Reload driver settings", "Revert to saved"],
-            buttons.Select(b => b.Content as string));
+        Assert.Equal(["Save", "Revert to saved"], buttons.Select(b => b.Content as string));
     }
 
     /// <summary>
-    /// A paused session offers Reload and nothing else.
+    /// A paused footer offers nothing at all.
     /// </summary>
     /// <remarks>
-    /// The one that matters. Reload is how an artist leaves a pause; if it goes dark with Save, the page
-    /// is a dead end.
+    /// Neither of these can run while paused — Save is refused by the coordinator, Revert needs an
+    /// editable session — so leaving them greyed would be two dead controls competing for attention
+    /// with the one live one above. The way out of a pause is in <c>SettingsPausedView</c>, beside the
+    /// explanation of what it costs.
     /// </remarks>
     [AvaloniaFact]
-    public void WhenSettingsCannotBeEdited_OnlyReloadIsOffered()
+    public void WhilePaused_TheFooterOffersNothing()
+    {
+        var (_, _, buttons) = Footer(canEdit: false, paused: true);
+
+        Assert.All(buttons, b => Assert.False(b.IsEffectivelyVisible));
+    }
+
+    /// <summary>
+    /// Unavailable is not the same as paused: a disconnected session still shows what it cannot do.
+    /// </summary>
+    /// <remarks>
+    /// Hiding a control teaches nothing, so it is reserved for the state where there is a better place
+    /// to look. Disconnected has no such place, and a greyed Save is the honest answer there.
+    /// </remarks>
+    [AvaloniaFact]
+    public void WhenSettingsCannotBeEditedButAreNotPaused_TheActionsStayVisibleAndDark()
     {
         var (_, _, buttons) = Footer(canEdit: false);
 
-        Assert.False(Named(buttons, "Save").IsEffectivelyEnabled);
-        Assert.False(Named(buttons, "Revert to saved").IsEffectivelyEnabled);
-        Assert.True(Named(buttons, "Reload driver settings").IsEffectivelyEnabled,
-            "the way out of a pause went dark with the rest");
+        Assert.All(buttons, b => Assert.True(b.IsEffectivelyVisible));
+        Assert.All(buttons, b => Assert.False(b.IsEffectivelyEnabled));
     }
 
     /// <summary>
@@ -194,8 +215,8 @@ public class SettingsFooterTests
     /// <para>
     /// The status column takes what it needs and the actions take the rest, so a long message is the
     /// thing that can squeeze them. The longest is the one that appears when the driver's settings
-    /// change underneath the artist — which is also the moment Reload has to be clickable, so a message
-    /// that pushed it off the edge would take the way out with it.
+    /// change underneath the artist; the footer's own actions are hidden by then, but the message is
+    /// still the widest thing this row is ever asked to hold beside them.
     /// </para>
     /// <para>
     /// 800 is <c>MainWindow.MinWidth</c>. Below that the window cannot go, so this is the worst case

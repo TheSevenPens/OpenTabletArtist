@@ -1,0 +1,51 @@
+<UserControl x:Class="OpenTabletArtist.Views.SettingsPausedView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- What a pause looks like when it happens (#920).
+
+         A pause stops every settings edit in the app until the artist reloads, and it used to be
+         announced by one line in the footer, next to routine save status. The hands-on pass found
+         exactly that: "it paused, but the only thing that indicates this happened is the text at the
+         very bottom".
+
+         This goes in the page area because that is the space a pause frees up: the editing pages are
+         already inert (PageInputEnabled is false for them), so there is room here for the sentence a
+         status line cannot hold. It is not a dialog on purpose — the pause is detected by a background
+         refresh, so OTA is often not the focused app, and a modal would steal focus for something the
+         artist did not ask for. It would also stack on the calibration overlay, which is a modal window
+         with its own interrupted state. -->
+    <Border IsVisible="{Binding SettingsSession.SettingsPaused}"
+            Background="{DynamicResource WarningMutedBrush}"
+            BorderBrush="{DynamicResource WarningBrush}"
+            BorderThickness="1" CornerRadius="6"
+            Padding="20,16" Margin="0,0,0,16">
+        <StackPanel Spacing="10">
+            <TextBlock Text="Editing paused" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+
+            <!-- The state-specific sentence, the same one the footer carries. Which pause this is
+                 matters: settings changed underneath, a read that failed, a write that could not be
+                 confirmed. -->
+            <TextBlock Text="{Binding SettingsSession.SaveStatusText}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+
+            <!-- What caused it. Not "somebody else edited them": the driver does this to itself, and
+                 attaching a tablet it has not seen is the commonest way. This sentence used to live in
+                 the footer line, which is now four words. -->
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"
+                       Text="Something changed the OTD daemon's settings while you were working. Attaching a new tablet can cause this, as can another settings app." />
+
+            <!-- And what pressing the button will cost, which never fitted in the footer at all.
+                 Reloading takes the driver's current values: anything typed and not yet submitted goes,
+                 and an edit another editor has already overwritten cannot come back. -->
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"
+                       Text="Nothing you have applied is lost from the OTD daemon — but reloading takes its current values, so any edit you had not submitted yet will go, and anything another settings app overwrote is already gone. Until then, editing stays off across the whole app." />
+
+            <Button Content="Reload settings" HorizontalAlignment="Left" Margin="0,4,0,0"
+                    Command="{Binding ReloadSettingsCommand}"
+                    IsEnabled="{Binding !SettingsSession.SettingsBusy}"
+                    Theme="{StaticResource AccentButton}" Padding="22,8" />
+        </StackPanel>
+    </Border>
+</UserControl>

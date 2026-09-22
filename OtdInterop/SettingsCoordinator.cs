@@ -124,7 +124,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
     {
         var settings = await _channel.GetSettingsAsync().WaitAsync(_timeout, _lifetime.Token)
             .ConfigureAwait(false);
-        if (!IsConnected || settings is null) throw new IOException("The driver connection is unavailable.");
+        if (!IsConnected || settings is null) throw new IOException("The OTD daemon connection is unavailable.");
         return SettingsCodec.Clone(settings);
     }
 
@@ -219,7 +219,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
             _unconfirmed = true;
             Dispose();
             return SettingsApplyOutcome.Failed(new IOException(
-                "The apply could not be confirmed. Restart the driver before editing or saving.", refused!));
+                "The apply could not be confirmed. Restart the OTD daemon before editing or saving.", refused!));
         }
         Settle(admitted, write);
         try
@@ -237,7 +237,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
             _unconfirmed = true;
             Dispose();
             return SettingsApplyOutcome.Failed(new IOException(
-                "The apply could not be confirmed. Restart the driver before editing or saving.", ex));
+                "The apply could not be confirmed. Restart the OTD daemon before editing or saving.", ex));
         }
 
         try
@@ -249,7 +249,7 @@ internal sealed class SettingsCoordinator : IOtdSettingsSession, IDisposable
             {
                 _paused = true;
                 return SettingsApplyOutcome.Failed(new InvalidOperationException(
-                    "The driver changed or rejected part of the settings. Reload and review its current values."));
+                    "The OTD daemon changed or rejected part of the settings. Reload and review its current values."));
             }
             return SettingsApplyOutcome.Live with { Prepared = GetCurrent() };
         }

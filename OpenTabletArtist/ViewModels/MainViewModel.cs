@@ -182,7 +182,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 : "";
 
             return dialogs.ShowConfirmAsync(
-                verb == "restart" ? "Restart the driver?" : "Stop this daemon?",
+                verb == "restart" ? "Restart the OTD daemon?" : "Stop this daemon?",
                 $"{subject}\n\n{consequence}{breadth}");
         };
         TabletsOverview = new TabletsOverviewViewModel();
@@ -549,7 +549,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             if (!await _dialogs.ShowConfirmAsync("Revert to saved settings?",
-                "This replaces the driver's live settings with its saved file and discards unsaved edits. Nothing is saved."))
+                "This replaces the OTD daemon's live settings with its saved file and discards unsaved edits. Nothing is saved."))
                 return false;
             ResetEditorInput();
             return true;
@@ -562,13 +562,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_session.SettingsBusy) return;
         if ((HasPendingInput || _session.SettingsPaused) && !await _dialogs.ShowConfirmAsync(
-            "Reload current driver settings?",
+            "Reload current OTD daemon settings?",
             // "your applied changes survive this" was a promise this cannot keep: another editor, the
-            // driver's own recovery, or a write nobody waited for may have replaced them already. Reload
+            // daemon's own recovery, or a write nobody waited for may have replaced them already. Reload
             // shows what is there; it cannot vouch for how it got there.
-            "Pending local edits will be discarded. Reload reads the driver's current live settings. It "
-            + "does not restore the saved file or save anything. Applied changes are retained only if "
-            + "they are still present in the driver."))
+            "Pending local edits will be discarded. Reload reads the OTD daemon's current live "
+            + "settings. It does not restore the saved file or save anything. Applied changes are "
+            + "retained only if they are still present in the OTD daemon."))
             return;
         _session.SettingsBusy = true;
         try

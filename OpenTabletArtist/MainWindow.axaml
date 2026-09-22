@@ -130,12 +130,18 @@
             <!-- L/R/bottom padding stays above the Sakura cards' glow extent (16px blur, see CardShadow)
                  so the soft glow isn't clipped by the scroll viewport on those edges. -->
             <Border Padding="24,0,24,18">
-                <!-- Top-level page switches snap (no transition). A crossfade here superimposed the two
-                     pages for ~180ms, which read as a glitch when their content differed a lot (worst
-                     Settings → Scribble, whose big flat canvas ghosted over Settings' cards). Sub-page
-                     pivots keep their own PageFade. -->
-                <TransitioningContentControl Content="{Binding CurrentPage}" IsEnabled="{Binding PageInputEnabled}"
-                                             PageTransition="{x:Null}" />
+                <StackPanel>
+                    <!-- A pause stops editing everywhere, so it is announced above the page it stopped
+                         rather than in the footer alone (#920). Hidden the rest of the time. -->
+                    <views:SettingsPausedView />
+
+                    <!-- Top-level page switches snap (no transition). A crossfade here superimposed the two
+                         pages for ~180ms, which read as a glitch when their content differed a lot (worst
+                         Settings → Scribble, whose big flat canvas ghosted over Settings' cards). Sub-page
+                         pivots keep their own PageFade. -->
+                    <TransitioningContentControl Content="{Binding CurrentPage}" IsEnabled="{Binding PageInputEnabled}"
+                                                 PageTransition="{x:Null}" />
+                </StackPanel>
             </Border>
         </ScrollViewer>
 

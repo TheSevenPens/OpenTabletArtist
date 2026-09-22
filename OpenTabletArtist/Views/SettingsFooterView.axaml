@@ -20,30 +20,32 @@
                            IsVisible="{Binding Connection.HasSettingsRefreshedNotice}" />
             </StackPanel>
 
-            <!-- Three buttons, ranked rather than equal. Save is wanted almost every time and reads
-                 first (affirmative first/left, #502); the other two are occasional and recede.
-                 Ordering and weight were the actual complaint, and they are all this needs.
+            <!-- Two buttons, ranked rather than equal. Save is wanted almost every time and reads
+                 first (affirmative first/left, #502); Revert is occasional and recedes.
 
-                 A SplitButton was tried and withdrawn. Save and Revert need an editable session;
-                 Reload does NOT, and a paused session is exactly when it is needed, since it is the way
-                 out. Binding a SplitButton's IsEnabled takes the chevron with it, and so does letting
-                 its command report it cannot execute; disabling only the primary template part leaves
-                 the keyboard and automation paths still firing Save, which Codex reproduced and I
-                 confirmed. Independent buttons have none of that: each carries its own availability. -->
+                 Reload is not here. It is the way out of a pause and nothing else, so it belongs with
+                 the explanation of the pause, in SettingsPausedView, where there is room to say what
+                 reloading costs. A footer with one unexplained button is the state this replaces.
+
+                 And these two go away entirely while paused: neither can run then — Save is refused
+                 by the coordinator, Revert needs an editable session — so leaving them greyed would
+                 be two dead controls competing with the one live one above.
+
+                 A SplitButton was tried and withdrawn. Binding a SplitButton's IsEnabled takes the
+                 chevron with it, and so does letting its command report it cannot execute; disabling
+                 only the primary template part leaves the keyboard and automation paths still firing
+                 Save, which Codex reproduced and I confirmed. Independent buttons have none of that. -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                        IsVisible="{Binding !SettingsSession.SettingsPaused}"
                         IsEnabled="{Binding !SettingsSession.SettingsBusy}">
                 <Button Content="Save" Command="{Binding SaveSettingsCommand}"
                         Theme="{StaticResource AccentButton}" Padding="22,8"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                        ToolTip.Tip="Save settings so they survive a driver restart (Ctrl+S)." />
-                <!-- Never gated on CanEditSettings: this is the way out of a pause. -->
-                <Button Content="Reload driver settings" Command="{Binding ReloadSettingsCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="16,8"
-                        ToolTip.Tip="Read current live settings. Pending local edits will be discarded; nothing is saved." />
+                        ToolTip.Tip="Save settings so they survive an OTD daemon restart (Ctrl+S)." />
                 <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
                         Theme="{StaticResource GhostButton}" Padding="16,8"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
-                        ToolTip.Tip="Replace live settings with the driver’s saved file, discarding unsaved changes." />
+                        ToolTip.Tip="Replace live settings with the OTD daemon’s saved file, discarding unsaved changes." />
             </StackPanel>
         </Grid>
     </Border>

@@ -116,6 +116,19 @@
                                 HorizontalAlignment="Left" Margin="0,4,0,0" />
                     </StackPanel>
 
+                    <!-- Asserted, not caused, unlike everything above it: a pause needs the driver's
+                         settings to differ from what the app is showing, and the interop boundary is
+                         there to stop OTA writing settings behind its own workspace. What it reaches is
+                         the real paused state, so the panel, the emptied footer and the inert pages are
+                         all genuine. Reload clears it. -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Pause settings editing (asserted)" FontWeight="SemiBold" />
+                        <ToggleButton Content="Pause settings editing"
+                                      IsChecked="{Binding Settings.ForcePaused}"
+                                      Padding="12,6"
+                                      HorizontalAlignment="Left" Margin="0,4,0,0" />
+                    </StackPanel>
+
                     <TextBlock Text="{Binding ConfigErrorStatus}" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"
                                IsVisible="{Binding HasConfigErrorStatus}" Margin="0,2,0,0" />

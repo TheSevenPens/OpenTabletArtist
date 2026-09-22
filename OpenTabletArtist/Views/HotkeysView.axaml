@@ -139,7 +139,7 @@
                 <TextBlock TextWrapping="Wrap"
                            Text="These are global shortcuts: they work whenever OpenTabletArtist is running, even when another application is focused." />
                 <TextBlock TextWrapping="Wrap"
-                           Text="Loading a preset replaces the live settings. Unsaved changes prompt you first. Use Save in OpenTabletArtist to keep the loaded settings after the driver restarts." />
+                           Text="Loading a preset replaces the live settings. Unsaved changes prompt you first. Use Save in OpenTabletArtist to keep the loaded settings after the OTD daemon restarts." />
                 <TextBlock TextWrapping="Wrap"
                            Text="Presets come from Settings → Presets. Delete a preset there and its shortcut goes with it." />
             </StackPanel>

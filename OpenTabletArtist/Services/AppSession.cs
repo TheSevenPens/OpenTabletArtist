@@ -266,7 +266,9 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     [ObservableProperty] private SettingsSaveState _saveState;
     [ObservableProperty] private bool _settingsBusy;
     public bool HasUnsavedChanges => _workspace?.HasUnsavedChanges == true;
-    public bool SettingsPaused => _workspace?.IsPaused == true;
+    public bool SettingsPaused => _workspace?.IsPaused == true
+        || DeveloperSettings.Instance.ForcePaused;
+
     public bool CanEditSettings => !SettingsBusy && _session.CanEditSettings && !SettingsPaused;
     public bool SaveFailed => SaveState is SettingsSaveState.Failed or SettingsSaveState.ApplyFailed
         or SettingsSaveState.Disconnected or SettingsSaveState.ChangedElsewhere or SettingsSaveState.CouldNotCheck;
@@ -281,18 +283,20 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         // "Applied — not saved" tried to explain the whole model in four words and mostly raised the
         // question of what "applied" meant; "Unsaved changes" names the one thing at stake.
         SettingsSaveState.Saved => "",
-        SettingsSaveState.Failed => "Couldn't save — changes may be lost when the driver restarts",
-        SettingsSaveState.ApplyFailed => "Couldn't confirm the change — reload and review the driver's settings",
-        SettingsSaveState.Disconnected => "Disconnected — settings changes are unavailable",
+        SettingsSaveState.Failed => "Save failed",
+        SettingsSaveState.ApplyFailed => "Change not applied",
+        SettingsSaveState.Disconnected => "Disconnected",
+        // Short lines, because this one shares a row with the other save states and is read at a glance.
+        // What caused the pause, and what leaving it costs, is SettingsPausedView's to say -- it is on
+        // screen for exactly these states and has room for a sentence.
+        //
         // Not "somebody else edited them": the driver does this to itself. Attaching a tablet it has not
         // seen before makes it generate a profile and write its own settings back (DetectTablets then
         // SetSettings, and ProfileCollection.GetProfile adds the missing one), which the next observation
         // reads as a difference like any other. Naming an editor would be wrong most of the time and
         // would send the artist looking for an application that is not running (#919).
-        SettingsSaveState.ChangedElsewhere =>
-            "Driver settings changed. Reload to continue. Attaching a new tablet can cause this, "
-            + "as can another settings app.",
-        SettingsSaveState.CouldNotCheck => "Couldn't check current settings. Reload to try again.",
+        SettingsSaveState.ChangedElsewhere => "Reload settings to continue",
+        SettingsSaveState.CouldNotCheck => "Reload settings",
         _ => "",
     };
     [ObservableProperty]
@@ -427,6 +431,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     partial void OnSaveStateChanged(SettingsSaveState value) => NotifySettingsState();
     partial void OnSettingsBusyChanged(bool value) => NotifySettingsState();
 
+    private void OnDeveloperSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DeveloperSettings.ForcePaused)) NotifySettingsState();
+    }
+
     private void NotifySettingsState()
     {
         OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -551,6 +560,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         _session = session;
         _daemonLifecycle = daemonLifecycle;
 
+        // An asserted pause has to move the same properties a real one does, or the page would not
+        // follow it (#developer-pause).
+        DeveloperSettings.Instance.PropertyChanged += OnDeveloperSettingsChanged;
+
         _session.Connected += change => Dispatcher.UIThread.Post(() =>
         {
             if (Abandoned || change.ConnectionId != session.ConnectionId) return;
@@ -563,7 +576,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
             ApplyDaemonIdentity(change);
             if (_workspace is not null && HasUnsavedChanges)
-                DiscardedChangeNotice = "Reconnected to the driver. Its current settings replaced the previous unsaved workspace.";
+                DiscardedChangeNotice = "Reconnected to the OTD daemon. Its current settings replaced the previous unsaved workspace.";
             _workspace = session.Settings is { } settings ? new SettingsWorkspace(settings, IsAppOwnedDaemon) : null;
             if (_workspace is null) Profiles = [];
             SettingsReplaced?.Invoke();
@@ -576,7 +589,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         {
             if (Abandoned || session.ConnectionId != 0) return;
             if (HasUnsavedChanges)
-                DiscardedChangeNotice = "The driver disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
+                DiscardedChangeNotice = "The OTD daemon disconnected. Reconnecting reloads its current settings; unsaved changes may be lost.";
             _workspace = null;
             SettingsReplaced?.Invoke();
             ConnectionStatus = "Disconnected";
@@ -911,7 +924,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
                     if (refreshed.ChangedTheBaseline)
                     {
                         SettingsRefreshedNotice =
-                            "Driver settings refreshed. The driver changed them and you had nothing unsaved "
+                            "OTD daemon settings refreshed. It changed them and you had nothing unsaved "
                             + "in progress, so this page now shows what it holds.";
                         SettingsReplaced?.Invoke();
                         PublishSettings();
@@ -1106,6 +1119,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public async Task ReloadSettingsAsync()
     {
         Dispatcher.UIThread.VerifyAccess();
+
+        // An asserted pause is answered by the same button as a real one, so the way out can be tried.
+        DeveloperSettings.Instance.ForcePaused = false;
+
         if (_workspace is not { } workspace)
         {
             await _session.InitializeAsync();
@@ -1433,7 +1450,7 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (_daemonPath is not null && _session.ConnectedExecutablePath is { } actual
             && !PathEquality.Same(_daemonPath, actual))
         {
-            DaemonOperationError = "A different driver is running. Restart OpenTabletArtist to use it.";
+            DaemonOperationError = "A different OTD daemon is running. Restart OpenTabletArtist to use it.";
             return;
         }
         if (ResolveUnsavedChanges is { } resolve && !await resolve()) return;
@@ -1622,6 +1639,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
         if (_disposed) return;
 
         _disposed = true;
+
+        DeveloperSettings.Instance.PropertyChanged -= OnDeveloperSettingsChanged;
 
         _cts.Cancel();
         _cts.Dispose();

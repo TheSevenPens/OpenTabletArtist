@@ -286,9 +286,9 @@ public partial class CalibrationViewModel : ObservableObject
         Instruction = outcome.Status == SettingsApplyStatus.ChangedElsewhere
             ? "Something else changed these settings while calibration was open, so this calibration "
               + "was not applied. Close this and start it again."
-            : "This calibration could not be confirmed with the driver, so it may or may not be in "
-              + "effect. Close this and check the connection status on the tablet's page; once the "
-              + "settings have been reloaded, its Calibration tab shows what the driver actually holds.";
+            : "This calibration could not be confirmed with the OTD daemon, so it may or may not be "
+              + "in effect. Close this and check the connection status on the tablet's page; once the "
+              + "settings have been reloaded, its Calibration tab shows what the daemon actually holds.";
         return false;
     }
 
