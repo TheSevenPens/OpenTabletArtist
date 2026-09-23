@@ -517,7 +517,7 @@ public static class HealthEvaluator
                 // its last word to that. A sentence whose meaning lives in the clipped part is worse
                 // than a short one -- "a different one is answering" became "a different one is a".
                 i.DaemonIsManagedButNotSelected
-                    ? "Another copy of the driver this app ships"
+                    ? "Another copy of the OTD daemon this app ships"
                     : "An OpenTabletDriver you installed, not the bundled copy",
                 "", RemediationArea.Daemon));
 

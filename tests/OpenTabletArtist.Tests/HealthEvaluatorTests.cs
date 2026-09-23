@@ -178,7 +178,7 @@ public class HealthEvaluatorTests
         var row = Assert.Single(issue.Links!).Setting;
 
         Assert.DoesNotContain("not the bundled copy", row);
-        Assert.Equal("Another copy of the driver this app ships", row);
+        Assert.Equal("Another copy of the OTD daemon this app ships", row);
 
         // Short enough to survive the row's clipping: the first attempt lost "is answering" on screen,
         // which is the half that explained it. Checked against the widest row already shipping.
