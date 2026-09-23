@@ -43,10 +43,26 @@
 
          This package is what pins the major: it is compiled against xunit.v3.extensibility.core 3.2.2,
          and 4.x changed TestIntrospectionHelper.GetTestCaseDetails. Its NuGet dependency is a floor,
-         not a pin, so restore will happily resolve 4.x and every test then fails at discovery with
-         MissingMethodException - a build that warns about nothing. Do not bump past 3.x until Avalonia
-         ships a headless package built against xunit.v3 4.x. Checked when the MTP move landed:
+         not a pin, so restore resolves 4.x happily and the build stays clean while 106 of the 110
+         tests here fail at discovery with:
+
+             MissingMethodException: Method not found:
+             'ValueTuple`8<...> Xunit.v3.TestIntrospectionHelper.GetTestCaseDetails(...)'
+
+         Measured, not predicted: the bump to 4.0.1 was tried and that is what came back. Only the four
+         tests that do not use AvaloniaFact/AvaloniaTheory survive it.
+
+         Tracked upstream at AvaloniaUI/Avalonia#22072, where a maintainer has marked it a feature
+         request rather than a bug: bumping Avalonia's own dependency would break users not ready to
+         move, so shims for both versions are the likely route. There is no date to wait for.
          Avalonia.Headless.XUnit 12.1.3, the newest published, still declares 3.2.2.
+
+         When it does land, the opt-in moves with it: on .NET 10 with MTP 2.x the property above stops
+         being enough, and `dotnet test` wants a runner named in global.json instead:
+
+             "test": { "runner": "Microsoft.Testing.Platform" }
+
+         which is the error #756 first hit when Dependabot proposed the majors together.
 
          #935 no longer waits on that. The flake there was the VSTest adapter rejecting the assembly-
          info JSON after 3.2.2's in-process runner appended a shutdown message to it (xunit/xunit#3576,
