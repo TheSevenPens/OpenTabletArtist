@@ -400,18 +400,14 @@ public sealed class ScreenMappingDiagram : Control
     // rather than a saturated fill, both boxes take the same ink.
     private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, Palette pal)
     {
+        // The number and nothing else. Resolution, refresh rate and port already live in the per-display
+        // list below the diagram (#570), and "Primary" now joins them: it is a fact about the desktop,
+        // not about this mapping, and the list beside it says so on the display's own row. Inside the box
+        // it was a second line of text asking to be read every time the artist looked for the number.
         double numSize = Math.Clamp(Math.Min(box.Height * 0.34, box.Width * 0.4), 12, 30);
         var num = DiagramDrawing.Text(d.Number.ToString(), numSize, pal.Text);
-        var subBrush = pal.SubText;
-        bool roomy = box.Height > numSize + 24 && box.Width > 70;
-        // Number + a "Primary" marker only; resolution/refresh and port live in the per-display list
-        // below the diagram, so the boxes stay uncluttered (#570).
-        var res = roomy && d.IsPrimary ? DiagramDrawing.Text("Primary", 10, subBrush) : null;
 
-        double totalH = num.Height + (res != null ? res.Height + 1 : 0);
-        double y = box.Y + (box.Height - totalH) / 2, cx = box.Center.X;
-        ctx.DrawText(num, new Point(cx - num.Width / 2, y));
-        if (res != null) ctx.DrawText(res, new Point(cx - res.Width / 2, y + num.Height + 1));
+        ctx.DrawText(num, new Point(box.Center.X - num.Width / 2, box.Y + (box.Height - num.Height) / 2));
     }
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
