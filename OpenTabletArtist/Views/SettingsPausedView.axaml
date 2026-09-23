@@ -21,7 +21,7 @@
             BorderThickness="1" CornerRadius="6"
             Padding="20,16" Margin="0,0,0,16">
         <StackPanel Spacing="10">
-            <TextBlock Text="Editing paused" FontSize="16" FontWeight="SemiBold"
+            <TextBlock Text="Editing paused" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}" />
 
             <!-- The state-specific sentence, the same one the footer carries. Which pause this is

@@ -32,15 +32,15 @@
                 <!-- Fit quality (#461): the pre-calibration pointing error the taps recorded. Post-
                      correction residual is ~0 by construction (the homography/grid fit their points
                      exactly), so this reads the parallax that was corrected. -->
-                <TextBlock Text="{Binding CalibrationFitText}" FontSize="12"
+                <TextBlock Text="{Binding CalibrationFitText}" FontSize="{DynamicResource TypeDetailSize}"
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            IsVisible="{Binding HasCalibrationFit}"
                            ToolTip.Tip="How far the uncorrected pen landed from each target, across all taps. This is the parallax the calibration removes — the post-correction residual is essentially zero." />
-                <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="12" FontStyle="Italic"
+                <TextBlock Text="{Binding CalibrationFitWarning}" FontSize="{DynamicResource TypeDetailSize}" FontStyle="Italic"
                            Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding HasCalibrationFitWarning}" />
                 <!-- Average natural pen tilt across the taps (#481). -->
-                <TextBlock Text="{Binding CalibrationTiltText}" FontSize="12"
+                <TextBlock Text="{Binding CalibrationTiltText}" FontSize="{DynamicResource TypeDetailSize}"
                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding HasCalibrationTilt}"
                            ToolTip.Tip="The average angle you held the pen at during calibration (altitude = angle above the tablet surface, 90° is straight up). Calibrating at your natural drawing tilt makes the result match how you actually draw." />

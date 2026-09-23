@@ -68,7 +68,7 @@
     <DockPanel Margin="24">
         <!-- Heading -->
         <StackPanel DockPanel.Dock="Top" Spacing="3" Margin="0,0,0,14">
-            <TextBlock Text="Assign a global hotkey" FontSize="18" FontWeight="SemiBold"
+            <TextBlock Text="Assign a global hotkey" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}" />
             <TextBlock Text="Hold one or more modifiers, then pick a key — or just press the shortcut on your keyboard."
                        Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />

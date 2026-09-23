@@ -20,6 +20,9 @@
                         HorizontalAlignment="Right" Theme="{StaticResource GhostButton}"
                         Padding="10,4"
                         ToolTip.Tip="Switch the calibration overlay between light and dark (does not change the app theme)" />
+                <!-- Off the type ramp on purpose, here and in the tip below: this is a full-screen
+                     overlay on the tablet's own display, white on a dimmed ground, read at arm's
+                     length with a pen in hand. The app's reading sizes are for a window. -->
                 <!-- Progress readout so the user can see how far through the capture they are. -->
                 <TextBlock x:Name="ProgressLabel" Text="{Binding ProgressText}" Foreground="White"
                            FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"

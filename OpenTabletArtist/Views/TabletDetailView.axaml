@@ -132,7 +132,12 @@
             <ctrl:ComplexHeader Margin="0">
                 <ctrl:ComplexHeader.TitleContent>
                     <!-- model (rest) large, over the brand (first word) small — the PageTitle look
-                         (Inter Light, uppercase) split across two lines. -->
+                         (Inter Light, uppercase) split across two lines.
+
+                         Off the type ramp on purpose: these two are a proportioned pair rather
+                         than two independent sizes, and the ramp has no step between its nav
+                         size and its display size for a header this shape. Move them together
+                         or not at all. -->
                     <StackPanel VerticalAlignment="Center" MaxWidth="360">
                         <TextBlock Text="{Binding TabletModel, Converter={x:Static otac:UpperCaseConverter.Instance}}"
                                    FontFamily="{DynamicResource DisplayFontFamily}" FontSize="30" FontWeight="Light"
@@ -153,7 +158,8 @@
                             VerticalAlignment="Center">
                     <Border Classes="tabletStatusChip" Classes.connected="{Binding IsTabletDetected}"
                             Width="{Binding #RefreshBtn.Bounds.Width, Converter={x:Static otac:MultiplyConverter.Instance}, ConverterParameter=1.5}">
-                        <TextBlock Text="{Binding DetectionText}" FontWeight="SemiBold" FontSize="12"
+                        <TextBlock Text="{Binding DetectionText}" FontWeight="SemiBold"
+                                   FontSize="{DynamicResource TypeCaptionSize}"
                                    Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <Button x:Name="RefreshBtn" Content="Refresh" Command="{Binding RefreshCommand}"

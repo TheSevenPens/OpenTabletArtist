@@ -29,7 +29,7 @@
         <!-- Header: title + count, search, column labels -->
         <StackPanel DockPanel.Dock="Top" Spacing="10">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="Supported tablets" FontSize="17" FontWeight="SemiBold"
+                <TextBlock Grid.Column="0" Text="Supported tablets" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
                            VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" />
                 <Border Grid.Column="1" Background="{DynamicResource AccentMutedBrush}" CornerRadius="0"
                         Padding="10,3" VerticalAlignment="Center">

@@ -7,11 +7,14 @@
          straight over the sakura backdrop (no card), so the drifting petals read behind the big light
          headline. Only the Description differs between the two pages. -->
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Spacing="12" Margin="4,24,0,0">
+        <!-- Off the type ramp on purpose: a hero on an otherwise empty page, between the nav
+             size and the display size, where neither reads right. Light and letterspaced to
+             match the page-title look rather than a section heading. -->
         <TextBlock Text="No tablet yet" FontFamily="{DynamicResource DisplayFontFamily}"
                    FontSize="36" FontWeight="Light" LetterSpacing="-0.3"
                    Foreground="{DynamicResource TextPrimaryBrush}" />
         <TextBlock Text="{Binding #Root.Description}"
-                   FontSize="14" TextWrapping="Wrap" MaxWidth="540"
+                   TextWrapping="Wrap" MaxWidth="540"
                    Foreground="{DynamicResource TextSecondaryBrush}" />
     </StackPanel>
 </UserControl>
