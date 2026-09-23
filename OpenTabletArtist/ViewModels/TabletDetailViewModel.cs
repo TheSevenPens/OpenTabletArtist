@@ -37,6 +37,10 @@ public enum TabletDetailTab
 /// are "—" for legacy reports captured before the pixel-equivalent was recorded.</summary>
 public sealed record CalibrationReportRow(string Index, string Target, string Measured, string Delta, string Raw, string Samples);
 
+/// <summary>One choice in the Display Mapping tab's Rotation dropdown: the angle, and how it reads.
+/// <c>None</c> rather than "0°" because not rotating is the normal state, not a measurement.</summary>
+public sealed record RotationOption(int Degrees, string Label);
+
 /// <summary>
 /// View model for a single tablet's settings — the tabbed editor (Screen Mapping, Pen Switches,
 /// ExpressKeys, Dynamics, Hover, Filters, JSON). Hosted either as an in-app page (the Tablets nav)
@@ -1988,27 +1992,37 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // ── Active-area rotation (#199) ──────────────────────────────────────────────────────────────
     // Rotating the tablet's active area to match physically turning the tablet. OTD applies the TABLET
     // (input) area's Rotation about its centre, and OTA's mapper already honours it — so this is just
-    // writing Tablet.Rotation through the normal apply path. Phase 1 supports 0° and 180° only; 90°/270°
-    // need the fit-to-swapped-aspect resize and are disabled in the UI for now.
+    // writing Tablet.Rotation through the normal apply path.
 
-    /// <summary>Current active-area rotation in degrees, normalised to 0/90/180/270 (other angles set by
-    /// OTD's own UX read back as the nearest and simply leave no option selected).</summary>
+    /// <summary>Current active-area rotation in degrees, normally 0/90/180/270 (other angles set by
+    /// OTD's own UX read back as they are and leave the dropdown empty).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsRotation0), nameof(IsRotation90), nameof(IsRotation180), nameof(IsRotation270))]
+    [NotifyPropertyChangedFor(nameof(SelectedRotation))]
     private int _tabletRotation;
 
-    public bool IsRotation0 => TabletRotation == 0;
-    public bool IsRotation90 => TabletRotation == 90;
-    public bool IsRotation180 => TabletRotation == 180;
-    public bool IsRotation270 => TabletRotation == 270;
+    private static readonly RotationOption[] Rotations =
+        [new(0, "None"), new(90, "90°"), new(180, "180°"), new(270, "270°")];
+
+    /// <summary>What the Rotation dropdown lists. An instance property because that is what Avalonia's
+    /// bindings look for.</summary>
+    public IReadOnlyList<RotationOption> RotationOptions => Rotations;
+
+    /// <summary>The dropdown's selection, which is <see cref="TabletRotation"/> read as one of the four
+    /// choices — null, and so an empty box, for any other angle. Setting it applies immediately, as
+    /// ticking one of the radio buttons this replaced used to; the write-back the following refresh
+    /// causes lands on the value already stored, which <see cref="ApplyRotationAsync"/> ignores.</summary>
+    public RotationOption? SelectedRotation
+    {
+        get => Rotations.FirstOrDefault(o => o.Degrees == TabletRotation);
+        set { if (value is { } option) _ = ApplyRotationAsync(option.Degrees); }
+    }
 
     /// <summary>Set the active-area rotation (0/90/180/270) and apply it, re-fitting the area to the
     /// mapped display so it stays undistorted — for 90/270 the area shrinks to fit the rotated tablet
     /// (#199). Ignores other values defensively.</summary>
-    [RelayCommand]
-    private async Task SetRotation(string? degrees)
+    private async Task ApplyRotationAsync(int deg)
     {
-        if (!int.TryParse(degrees, out var deg) || deg is not (0 or 90 or 180 or 270) || deg == TabletRotation) return;
+        if (deg is not (0 or 90 or 180 or 270) || deg == TabletRotation) return;
         var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
         await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, deg, Displays));
     }
@@ -2054,7 +2068,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         UpdateActiveAreaSizePercent();
     }
 
-    // ── Active-area editing (#199): interactive resize/move (from the diagram) + a Size slider + Maximize ──
+    // ── Active-area editing (#199): interactive resize/move (from the diagram) + a Size slider ──
 
     /// <summary>Persist an interactive active-area edit from the diagram (it has already clamped the
     /// values to the tablet + rotation). Keeps the aspect lock on.</summary>
@@ -2067,14 +2081,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
                 t.X = (float)centerX; t.Y = (float)centerY;
             }
         });
-
-    /// <summary>Reset the active area to the largest centred fit for the mapped display + current rotation.</summary>
-    [RelayCommand]
-    private async Task MaximizeActiveArea()
-    {
-        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
-        await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, TabletRotation, Displays));
-    }
 
     /// <summary>Active-area size as a percent (10–100) of the maximum that fits — the Size slider. User
     /// changes are debounced and applied (resizing about the current centre); reads back from the stored
