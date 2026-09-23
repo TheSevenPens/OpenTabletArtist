@@ -49,9 +49,11 @@ public sealed class ScreenMappingDiagram : Control
             UnselBorder: new Pen(DiagramDrawing.Neutral(ink, 0x24), 1),
             Text: DiagramDrawing.Neutral(ink, 0xF0),
             SubText: DiagramDrawing.Neutral(ink, 0xA6),
-            // Kept white rather than ink: this is a lightened *hole* in the tablet body, so it has to
-            // read brighter than the neutral around it in every theme.
-            EffFill: new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)));
+            // The accent, at the same weight the Active Area diagram fills its area with. These two
+            // diagrams sit side by side showing the same rectangle, and this one used to draw it as a
+            // lightened hole in the tablet body -- pale grey beside the other's pink, which read as two
+            // different things rather than one seen twice. The accent already outlines it here.
+            EffFill: new SolidColorBrush(accent, 0.22));
     }
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
