@@ -384,9 +384,11 @@
                                  are what a dropdown is for — and collapsing them frees the row this now
                                  shares with Size.
 
-                                 Maximize was a third control on the size row and is gone with them: the
-                                 slider at 100% is the same "as large as it fits", and it was the only
-                                 caller of the command behind it. -->
+                                 Maximize was a third control on the size row and is gone with them. It
+                                 was the only caller of the command behind it, and what goes with it is the
+                                 one-click centred fit: the slider at 100% grows the area to the same
+                                 maximum but about its current centre, so it is not the same operation.
+                                 Dragging on the diagram is how the area is centred now. -->
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="12" Margin="0,10,0,0">
                                 <TextBlock Grid.Column="0" Text="Size" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextMutedBrush}" />
@@ -400,6 +402,7 @@
                                 <ComboBox Grid.Column="4" MinWidth="104" VerticalAlignment="Center"
                                           ItemsSource="{Binding RotationOptions}"
                                           SelectedItem="{Binding SelectedRotation, Mode=TwoWay}"
+                                          IsEnabled="{Binding !RotationApplyRunning}"
                                           ToolTip.Tip="Rotate the active area to match how you physically turn the tablet — 180° puts the express keys on the opposite side; 90°/270° is portrait (the area shrinks to fit, keeping the display filled and undistorted). Re-run calibration after rotating.">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
@@ -427,17 +430,26 @@
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Dimensions"
                                            Foreground="{DynamicResource TextMutedBrush}" />
+                                <!-- These four carry both units, so they are the widest cells in the table and
+                                     the ones that stop fitting first. At MainWindow.MinWidth (800) this
+                                     column is ~139px against ~182px of text, so they wrap: the double space
+                                     the formatter puts before the bracket is where they break, which puts
+                                     the millimetres on one line and the inches on the next. -->
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ActiveAreaFullText}"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ActiveAreaUsedText}"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
 
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Diagonal"
                                            Foreground="{DynamicResource TextMutedBrush}" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding FullDiagonalText}"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding UsedDiagonalText}"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
 
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="Aspect ratio"
                                            Foreground="{DynamicResource TextMutedBrush}" />

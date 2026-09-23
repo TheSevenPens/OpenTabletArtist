@@ -1994,8 +1994,10 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     // (input) area's Rotation about its centre, and OTA's mapper already honours it — so this is just
     // writing Tablet.Rotation through the normal apply path.
 
-    /// <summary>Current active-area rotation in degrees, normally 0/90/180/270 (other angles set by
-    /// OTD's own UX read back as they are and leave the dropdown empty).</summary>
+    /// <summary>Current active-area rotation in degrees, normally 0/90/180/270. OTD's own UX can store
+    /// any angle, and <see cref="RefreshTabletArea"/> rounds what it finds to whole degrees and
+    /// normalises it into 0–359 — so a stored -90 arrives here as 270 and selects it, while a stored
+    /// 45.4 arrives as 45 and leaves the dropdown empty.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedRotation))]
     private int _tabletRotation;
@@ -2017,14 +2019,43 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         set { if (value is { } option) _ = ApplyRotationAsync(option.Degrees); }
     }
 
+    /// <summary>True while a rotation apply is in flight; the dropdown binds it and is unavailable
+    /// until the apply lands.</summary>
+    ///
+    /// <remarks>
+    /// This is the radio buttons' behaviour, kept. They were bound to an <c>AsyncRelayCommand</c>, which
+    /// reports it cannot execute while it is running and so greyed them out for the duration — a gate
+    /// that disappeared when the command became a property setter, and whose absence was a real defect
+    /// rather than a tidiness point:
+    ///
+    /// <para>
+    /// <see cref="ApplySettingsChange"/> mutates the profile before awaiting, but
+    /// <see cref="TabletRotation"/> is only refreshed once the apply lands. So a second choice made in
+    /// that window is compared against the <em>pre-apply</em> rotation: pick 90°, then change your mind
+    /// back to None before the first apply returns, and the guard below reads 0 == 0 and drops it. The
+    /// refresh then snaps the dropdown to 90°, and the artist's last choice was never submitted.
+    /// </para>
+    /// </remarks>
+    [ObservableProperty] private bool _rotationApplyRunning;
+
     /// <summary>Set the active-area rotation (0/90/180/270) and apply it, re-fitting the area to the
     /// mapped display so it stays undistorted — for 90/270 the area shrinks to fit the rotated tablet
-    /// (#199). Ignores other values defensively.</summary>
+    /// (#199). Ignores other values defensively, and a value arriving while an apply is still running
+    /// (see <see cref="RotationApplyRunning"/>) — the dropdown is disabled by then, so that is a
+    /// programmatic write or a queued one, and the refresh will correct what it shows.</summary>
     private async Task ApplyRotationAsync(int deg)
     {
-        if (deg is not (0 or 90 or 180 or 270) || deg == TabletRotation) return;
-        var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
-        await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, deg, Displays));
+        if (RotationApplyRunning || deg is not (0 or 90 or 180 or 270) || deg == TabletRotation) return;
+        RotationApplyRunning = true;
+        try
+        {
+            var dig = _deviceData?.GetTabletDigitizer(_profile.Tablet ?? "") ?? _tabletDigitizer;
+            await ApplySettingsChange(p => DisplayMappingApplier.ApplyRotation(p, dig, deg, Displays));
+        }
+        finally
+        {
+            RotationApplyRunning = false;
+        }
     }
 
     private void RefreshTabletArea()
