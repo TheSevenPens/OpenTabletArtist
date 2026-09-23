@@ -41,6 +41,10 @@ public class MappingTabTests
         return settings;
     }
 
+    /// <summary>MainWindow's page padding. The view is never the full width of the window, so a
+    /// layout check that puts it there measures a page 48px wider than the real one.</summary>
+    private const double ShellPadding = 24;
+
     private static (Window Window, TabletDetailView View, TabletDetailViewModel Vm) MappingTab(
         Settings settings, System.Func<Settings, Task<SettingsApplyOutcome>> apply, double width = 1100)
     {
@@ -53,7 +57,8 @@ public class MappingTabTests
         vm.RequestTab(TabletDetailTab.DisplayMapping);
 
         var view = new TabletDetailView { DataContext = vm };
-        var window = new Window { Content = view, Width = width, Height = 900 };
+        var page = new Border { Child = view, Padding = new Thickness(ShellPadding, 0) };
+        var window = new Window { Content = page, Width = width, Height = 900 };
         window.Show();
         window.Measure(new Size(width, 900));
         window.Arrange(new Rect(0, 0, width, 900));
@@ -70,14 +75,14 @@ public class MappingTabTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every cell carries both units now, which made the two widest rows — dimensions and diagonal —
-    /// about 182px of text in a column that is ~139px at <c>MainWindow.MinWidth</c>. They were clipped,
-    /// and nothing noticed: a binding that resolves to a string too long for its cell is a perfectly
-    /// good binding.
+    /// Every cell carries both units now, which made the widest of them about 182px of text in a column
+    /// that is ~127px at <c>MainWindow.MinWidth</c> once the page padding is taken off. They were
+    /// clipped, and nothing noticed: a binding that resolves to a string too long for its cell is a
+    /// perfectly good binding.
     /// </para>
     /// <para>
-    /// 800 is that minimum, so it is the worst case rather than an arbitrary narrow one. 1100 is a
-    /// control: it must still be a single line where there is room.
+    /// 800 is that minimum, so it is the worst case rather than an arbitrary narrow one. 1100 is the
+    /// control: there is room for one line there, and it must still be one line.
     /// </para>
     /// </remarks>
     [AvaloniaTheory]
@@ -88,19 +93,37 @@ public class MappingTabTests
         var settings = Mapped("T");
         var (_, view, _) = MappingTab(settings, _ => Task.FromResult(SettingsApplyOutcome.Live), width);
 
-        // The dual-unit cells, found by the unit they end with rather than by position in the grid.
+        // The dual-unit cells, found by the unit they end with rather than by position in the grid:
+        // tablet and active-area dimensions, and the two diagonals.
         var cells = view.GetVisualDescendants().OfType<TextBlock>()
             .Where(t => (t.Text ?? "").Contains(" in)"))
             .ToList();
 
-        Assert.NotEmpty(cells);
+        // Named so that a table that stops producing them fails here rather than passing vacuously.
+        Assert.Equal(4, cells.Count);
+
         foreach (var cell in cells)
         {
             // TextLayout is what was actually laid out, so this reads the wrapping rather than assuming
-            // it: the widest line against the space the cell was given.
+            // it: the widest line against the space the cell was given, and the block of lines against
+            // the height the row gave it.
             Assert.True(cell.Bounds.Width + 0.5 >= cell.TextLayout.Width,
                 $"at {width}px, '{cell.Text}' has {cell.Bounds.Width:0.#}px for "
                 + $"{cell.TextLayout.Width:0.#}px of laid-out text");
+            Assert.True(cell.Bounds.Height + 0.5 >= cell.TextLayout.Height,
+                $"at {width}px, '{cell.Text}' has {cell.Bounds.Height:0.#}px of height for "
+                + $"{cell.TextLayout.Height:0.#}px of laid-out text");
+        }
+
+        if (width >= 1100)
+        {
+            Assert.All(cells, c => Assert.Equal(1, c.TextLayout.TextLines.Count));
+        }
+        else
+        {
+            // And the narrow case is really the narrow case: at least one of them has to wrap, or this
+            // test would pass just as well against a table that never needed to.
+            Assert.Contains(cells, c => c.TextLayout.TextLines.Count > 1);
         }
     }
 

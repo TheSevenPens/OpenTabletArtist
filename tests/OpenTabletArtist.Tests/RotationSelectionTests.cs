@@ -157,15 +157,19 @@ public class RotationSelectionTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the contract, not an accident, and it is older than the dropdown:
+    /// This describes the view model on its own, not a promise the app makes.
     /// <c>ApplySettingsChange</c> mutates the local profile before it awaits, and the refresh that
-    /// follows a refusal rereads that same local profile. So there is no rollback to observe — what
-    /// tells the artist the edit did not reach the OTD daemon is the session's own state, the paused
-    /// panel and the footer, not this control reverting.
+    /// follows a refusal rereads that same local profile — so with a delegate that refuses without
+    /// publishing authoritative settings, as here, there is no rollback to observe. A live session can
+    /// replace that profile when it reconciles, and this fixture has no session, no paused panel and no
+    /// footer.
     /// </para>
     /// <para>
-    /// Written down because the obvious assumption — "the next refresh will correct it" — is false, and
-    /// a future change that tries to rely on it should fail here rather than in front of an artist.
+    /// Written down because the obvious assumption — "the next refresh will correct it" — is false of
+    /// this path, and a change that quietly starts relying on it should fail here. What the app owes the
+    /// artist is narrower and lives elsewhere: a refusal must not look like a success, editing follows
+    /// the session, and reloading adopts the OTD daemon's values. A deliberate rollback later is free to
+    /// change this assertion.
     /// </para>
     /// </remarks>
     [Theory]

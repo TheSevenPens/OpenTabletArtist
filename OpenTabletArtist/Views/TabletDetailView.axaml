@@ -430,11 +430,13 @@
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Dimensions"
                                            Foreground="{DynamicResource TextMutedBrush}" />
-                                <!-- These four carry both units, so they are the widest cells in the table and
-                                     the ones that stop fitting first. At MainWindow.MinWidth (800) this
-                                     column is ~139px against ~182px of text, so they wrap: the double space
-                                     the formatter puts before the bracket is where they break, which puts
-                                     the millimetres on one line and the inches on the next. -->
+                                <!-- These four carry both units, so they are the widest cells in the table
+                                     and the ones that stop fitting first: at MainWindow.MinWidth (800)
+                                     the column is ~127px against ~182px of text for the dimensions, which
+                                     were clipped. They wrap normally — no break point is reserved, and in
+                                     practice the space before the bracket is the one that gets used, so a
+                                     wrapped cell reads as millimetres over inches. The diagonals are
+                                     shorter and still fit on one line at 800. -->
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ActiveAreaFullText}"
                                            FontWeight="SemiBold" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
