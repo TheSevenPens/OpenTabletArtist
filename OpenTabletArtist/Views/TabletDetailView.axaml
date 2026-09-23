@@ -414,10 +414,11 @@
                             </StackPanel>
                             <!-- Full-tablet vs. active-area comparison table (#area-table): a row per metric,
                                  a TABLET column (the whole digitizer) and an ACTIVE AREA column (the effective
-                                 mapped region). The Units toggle sits to the right of the table. -->
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,14,0,0">
-                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                                  ColumnSpacing="16" RowSpacing="7">
+                                 mapped region). Every measurement carries both units, as the About tab's do
+                                 (#mapping-units) — there was a metric/imperial toggle to the right of this
+                                 table, and it made the artist set a switch in order to read a number. -->
+                            <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  Margin="0,14,0,0" ColumnSpacing="16" RowSpacing="7">
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="TABLET" Classes="SectionLabel" />
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="ACTIVE AREA" Classes="SectionLabel" />
 
@@ -448,19 +449,6 @@
                                            FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding UsedAspectText}"
                                            FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
-                            </Grid>
-
-                            <!-- Units toggle (display-only read-out units; OTD works in mm), to the right
-                                 of the table. -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                        VerticalAlignment="Top" Margin="16,0,0,0">
-                                <TextBlock Text="Units:" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
-                                <ToggleSwitch IsChecked="{Binding UseImperialUnits}" MinWidth="0"
-                                              OnContent="Inches" OffContent="Millimeters"
-                                              ToolTip.Tip="Switch the active-area measurements between metric and imperial"
-                                              VerticalAlignment="Center" />
-                            </StackPanel>
                             </Grid>
                         </StackPanel>
 

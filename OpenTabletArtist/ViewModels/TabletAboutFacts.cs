@@ -33,10 +33,9 @@ public static class TabletAboutFacts
         var facts = new System.Collections.Generic.List<TabletFact>();
         if (a.WidthMm > 0 && a.HeightMm > 0)
         {
-            facts.Add(new("Size",
-                $"{a.WidthMm:0.#} × {a.HeightMm:0.#} mm  ({a.WidthMm / 25.4:0.0} × {a.HeightMm / 25.4:0.0} in)"));
+            facts.Add(new("Size", TabletAboutInfo.FormatSize(a.WidthMm, a.HeightMm)));
             double diag = System.Math.Sqrt(a.WidthMm * a.WidthMm + a.HeightMm * a.HeightMm);
-            facts.Add(new("Diagonal", $"{diag:0.#} mm  ({diag / 25.4:0.0} in)"));
+            facts.Add(new("Diagonal", TabletAboutInfo.FormatLength(diag)));
             facts.Add(new("Aspect ratio", TabletAboutInfo.FormatAspectRatio(a.WidthMm, a.HeightMm)));
         }
         return facts;

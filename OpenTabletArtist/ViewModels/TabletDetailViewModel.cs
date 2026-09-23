@@ -2146,18 +2146,6 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(UsedAspectText));
     }
 
-    /// <summary>Show active-area lengths in inches instead of millimetres (the tab's unit toggle). A
-    /// view-only display preference — OTD stores everything in mm, so nothing is converted on disk.</summary>
-    [ObservableProperty] private bool _useImperialUnits;
-
-    partial void OnUseImperialUnitsChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ActiveAreaFullText));
-        OnPropertyChanged(nameof(ActiveAreaUsedText));
-        OnPropertyChanged(nameof(FullDiagonalText));
-        OnPropertyChanged(nameof(UsedDiagonalText));
-    }
-
     public string ActiveAreaFullText => TabletArea is { } a ? FormatSize(a.FullWidth, a.FullHeight) : "—";
     public string ActiveAreaUsedText => TabletArea is { } a ? FormatSize(a.EffWidth, a.EffHeight) : "—";
 
@@ -2180,14 +2168,11 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public string FullAspectText => TabletArea is { FullHeight: > 0 } a ? (a.FullWidth / a.FullHeight).ToString("0.000") : "—";
     public string UsedAspectText => TabletArea is { EffHeight: > 0 } a ? (a.EffWidth / a.EffHeight).ToString("0.000") : "—";
 
-    // Length display helpers: OTD's areas are millimetres; inches = mm / 25.4. Metric shows one decimal
-    // (e.g. "269 mm"), imperial two (inches are ~25× larger, so a decimal buys real precision, "10.59 in").
-    private const double MmPerInch = 25.4;
-    private string UnitLabel => UseImperialUnits ? "in" : "mm";
-    private string Num(double mm) =>
-        (UseImperialUnits ? mm / MmPerInch : mm).ToString(UseImperialUnits ? "0.##" : "0.#");
-    private string FormatLength(double mm) => $"{Num(mm)} {UnitLabel}";
-    private string FormatSize(double wMm, double hMm) => $"{Num(wMm)} × {Num(hMm)} {UnitLabel}";
+    // Both units, every time (#mapping-units). These used to switch on a toggle beside the table; the
+    // format now lives on TabletAboutInfo so this tab and the About tab cannot drift apart.
+    private static string FormatLength(double mm) => Domain.TabletAboutInfo.FormatLength(mm);
+    private static string FormatSize(double wMm, double hMm) =>
+        Domain.TabletAboutInfo.FormatSize(wMm, hMm);
 
     /// <summary>Share of the full digitizer area covered by the effective area (width×height) — the
     /// ACTIVE AREA column of the "Area" row (the TABLET column is always 100%).</summary>
