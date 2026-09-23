@@ -42,7 +42,10 @@ public sealed class ScreenMappingDiagram : Control
             SelBorder: new Pen(new SolidColorBrush(accent), 2),
             Glow: new BoxShadows(new BoxShadow
             {
-                OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 1,
+                OffsetX = 0,
+                OffsetY = 0,
+                Blur = 16,
+                Spread = 1,
                 Color = Color.FromArgb(0x73, accent.R, accent.G, accent.B),
             }),
             UnselFill: DiagramDrawing.Neutral(ink, 0x0D),
@@ -254,7 +257,7 @@ public sealed class ScreenMappingDiagram : Control
             {
                 double bl = quad.Min(p => p.X), bt = quad.Min(p => p.Y);
                 double bw = Math.Max(1e-6, quad.Max(p => p.X) - bl), bh = Math.Max(1e-6, quad.Max(p => p.Y) - bt);
-                RelativePoint Rel(Point p) => new(( p.X - bl) / bw, (p.Y - bt) / bh, RelativeUnit.Relative);
+                RelativePoint Rel(Point p) => new((p.X - bl) / bw, (p.Y - bt) / bh, RelativeUnit.Relative);
                 return new LinearGradientBrush
                 {
                     StartPoint = Rel(start),
