@@ -140,6 +140,46 @@ To reach the state where a chosen location sits in front of the bundled copy, ei
 dotnet test OpenTabletArtist.slnx
 ```
 
+Three suites run: `OtdInterop.Tests` (the library, no app and no Avalonia), `OpenTabletArtist.Tests`
+(logic) and `OpenTabletArtist.UiTests` (views on Avalonia's headless platform, no display needed).
+
+### They run on Microsoft Testing Platform, not VSTest
+
+xUnit v3 test projects are executables that host their own runner, and `global.json` names that runner:
+
+```json
+"test": { "runner": "Microsoft.Testing.Platform" }
+```
+
+Two things follow, both of which will bite before anyone reads this:
+
+**VSTest options are rejected, not ignored.** `--filter`, `--logger`, `--collect` and friends belong to
+the runner that is no longer in the path. Passing one fails the command with `Unknown option` and exit 5
+*before any test runs*, which is the behaviour we want — a filter that silently matched nothing and
+exited 0 would look like a pass.
+
+**Filtering uses the platform's own options**, after the usual arguments:
+
+```bash
+dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj --no-build --filter-class OtdInterop.Tests.BoundaryDependencyTests
+dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj --no-build --filter-method OpenTabletArtist.Tests.RotationSelectionTests.OneSelection_IsOneApply
+```
+
+`--filter-namespace` and the negating forms (`--filter-class-`, and so on) work the same way. Running the
+built test executable directly also works and takes xUnit's own switches (`-class`, `-method`).
+
+**Coverage is not collected.** `coverlet.collector` was a VSTest data collector that nothing ever ran —
+no workflow passed `--collect` and there is no `.runsettings` — so it was removed rather than replaced.
+If coverage is wanted, `Microsoft.Testing.Extensions.CodeCoverage` is the platform's equivalent and
+should arrive with a workflow that consumes it.
+
+**In an IDE**, test discovery needs the Testing Platform support switched on: Visual Studio's Test
+Explorer has an MTP setting, and Rider has *Settings | Build, Execution, Deployment | Unit Testing |
+Testing Platform*. Without it the panes may look empty even though the command line is green.
+
+The remaining piece of [#756](https://github.com/TheSevenPens/OpenTabletArtist/issues/756) is xUnit 4,
+which is blocked by `Avalonia.Headless.XUnit` — see the note in that project's `.csproj`.
+
 ## Troubleshooting
 
 **App sits at "Not connected" / the daemon page says `OpenTabletDriver.Daemon.exe` wasn't found.** The
