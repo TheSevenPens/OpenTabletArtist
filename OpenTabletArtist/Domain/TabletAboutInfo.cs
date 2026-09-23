@@ -29,6 +29,30 @@ public sealed record TabletAboutInfo
     public int? VendorId { get; init; }
     public int? ProductId { get; init; }
 
+    /// <summary>Millimetres per inch. OTD stores every length in mm; inches are display only.</summary>
+    private const double MmPerInch = 25.4;
+
+    /// <summary>
+    /// A length in millimetres, with inches after it — the app's one way of writing a measurement.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both units, always, rather than a unit toggle. The toggle it replaces on the mapping tab made the
+    /// artist choose in order to read, and then made the answer depend on a switch they had set on some
+    /// other visit. A tablet's own spec sheet is in one unit and the display it maps to is quoted in the
+    /// other, so whichever the toggle was on, half the comparisons needed it flipped.
+    /// </para>
+    /// <para>
+    /// Shared so the two places that print measurements cannot drift apart. They already had: the About
+    /// tab wrote both units inline, the mapping tab wrote one and switched.
+    /// </para>
+    /// </remarks>
+    public static string FormatLength(double mm) => $"{mm:0.#} mm  ({mm / MmPerInch:0.0} in)";
+
+    /// <summary>A width × height pair in both units, as <see cref="FormatLength"/> does for one.</summary>
+    public static string FormatSize(double widthMm, double heightMm) =>
+        $"{widthMm:0.#} × {heightMm:0.#} mm  ({widthMm / MmPerInch:0.0} × {heightMm / MmPerInch:0.0} in)";
+
     /// <summary>
     /// Format the active-area aspect ratio normalized to 16 in the numerator (e.g. "16:10"; a square →
     /// "16:16"), with the raw W/H division in parentheses. A ratio that lands near — but not exactly on —

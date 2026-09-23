@@ -752,14 +752,29 @@
         <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
 
-    <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning titles,
-         daemon status, option choices). Now a size step above body rather than the same size in a heavier
-         weight: with the three text brushes split apart (#text-hierarchy) the primary ink carries the
-         prominence, so the weight can come back down to Normal and stop shouting. -->
+    <!-- Card Title — a card's prominent content/identity title (tablet & profile names, warning
+         titles, daemon status, option choices). Body size, in SemiBold.
+
+         The weight has been round the houses and is back where it started. It was SemiBold at body
+         size; #text-hierarchy took it to a size step above body in Normal weight, on the argument that
+         with the three text brushes split apart the primary ink carries the prominence and the weight
+         could stop shouting.
+
+         That argument holds on a plain card and does not on a health alert, where the tinted ground
+         closes some of the gap between the ink tiers — Colors.axaml retuned those tiers for that
+         ground and still notes that below the middle tier, separation has to come from size rather than
+         tone. Worse when a title wraps: its second line lands directly above the description, and 17
+         over 13 with no weight difference is not a step the eye catches.
+
+         So the separation is weight again, and the title sits level with the text under it. The ink
+         tiers still do their share; this is the part they could not do on a tint.
+
+         SemiBold is real here, not synthesised: asked for it, Avalonia resolves an actual
+         'Inter SemiBold' face (checked, because a bad font name still "succeeds" — see #718). -->
     <Style Selector="TextBlock.CardTitle">
         <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}" />
-        <Setter Property="FontSize" Value="{DynamicResource TypeTitleSize}" />
-        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontSize" Value="{DynamicResource ContentFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 

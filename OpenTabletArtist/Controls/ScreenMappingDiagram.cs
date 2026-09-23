@@ -42,16 +42,21 @@ public sealed class ScreenMappingDiagram : Control
             SelBorder: new Pen(new SolidColorBrush(accent), 2),
             Glow: new BoxShadows(new BoxShadow
             {
-                OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 1,
+                OffsetX = 0,
+                OffsetY = 0,
+                Blur = 16,
+                Spread = 1,
                 Color = Color.FromArgb(0x73, accent.R, accent.G, accent.B),
             }),
             UnselFill: DiagramDrawing.Neutral(ink, 0x0D),
             UnselBorder: new Pen(DiagramDrawing.Neutral(ink, 0x24), 1),
             Text: DiagramDrawing.Neutral(ink, 0xF0),
             SubText: DiagramDrawing.Neutral(ink, 0xA6),
-            // Kept white rather than ink: this is a lightened *hole* in the tablet body, so it has to
-            // read brighter than the neutral around it in every theme.
-            EffFill: new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)));
+            // The accent, at the same weight the Active Area diagram fills its area with. These two
+            // diagrams sit side by side showing the same rectangle, and this one used to draw it as a
+            // lightened hole in the tablet body -- pale grey beside the other's pink, which read as two
+            // different things rather than one seen twice. The accent already outlines it here.
+            EffFill: new SolidColorBrush(accent, 0.22));
     }
 
     private readonly List<(DisplayInfo Display, Rect Box)> _hitRects = new();
@@ -252,7 +257,7 @@ public sealed class ScreenMappingDiagram : Control
             {
                 double bl = quad.Min(p => p.X), bt = quad.Min(p => p.Y);
                 double bw = Math.Max(1e-6, quad.Max(p => p.X) - bl), bh = Math.Max(1e-6, quad.Max(p => p.Y) - bt);
-                RelativePoint Rel(Point p) => new(( p.X - bl) / bw, (p.Y - bt) / bh, RelativeUnit.Relative);
+                RelativePoint Rel(Point p) => new((p.X - bl) / bw, (p.Y - bt) / bh, RelativeUnit.Relative);
                 return new LinearGradientBrush
                 {
                     StartPoint = Rel(start),
@@ -398,18 +403,14 @@ public sealed class ScreenMappingDiagram : Control
     // rather than a saturated fill, both boxes take the same ink.
     private void DrawDisplayLabels(DrawingContext ctx, Rect box, DisplayInfo d, Palette pal)
     {
+        // The number and nothing else. Resolution, refresh rate and port already live in the per-display
+        // list below the diagram (#570), and "Primary" now joins them: it is a fact about the desktop,
+        // not about this mapping, and the list beside it says so on the display's own row. Inside the box
+        // it was a second line of text asking to be read every time the artist looked for the number.
         double numSize = Math.Clamp(Math.Min(box.Height * 0.34, box.Width * 0.4), 12, 30);
         var num = DiagramDrawing.Text(d.Number.ToString(), numSize, pal.Text);
-        var subBrush = pal.SubText;
-        bool roomy = box.Height > numSize + 24 && box.Width > 70;
-        // Number + a "Primary" marker only; resolution/refresh and port live in the per-display list
-        // below the diagram, so the boxes stay uncluttered (#570).
-        var res = roomy && d.IsPrimary ? DiagramDrawing.Text("Primary", 10, subBrush) : null;
 
-        double totalH = num.Height + (res != null ? res.Height + 1 : 0);
-        double y = box.Y + (box.Height - totalH) / 2, cx = box.Center.X;
-        ctx.DrawText(num, new Point(cx - num.Width / 2, y));
-        if (res != null) ctx.DrawText(res, new Point(cx - res.Width / 2, y + num.Height + 1));
+        ctx.DrawText(num, new Point(box.Center.X - num.Width / 2, box.Y + (box.Height - num.Height) / 2));
     }
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;

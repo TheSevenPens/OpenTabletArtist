@@ -5,8 +5,13 @@
     <!-- The settings footer: what the session has to say on the left, what can be done about it on the
          right. Its own view rather than markup inside MainWindow so it can be built with an inert
          DataContext and asserted on as a real control; MainWindow constructs a live MainViewModel,
-         daemon connection loop and all, which no headless test can hold still (#footer-split). -->
-    <Border Padding="24,10" Background="{DynamicResource GlassBgBrush}"
+         daemon connection loop and all, which no headless test can hold still (#footer-split).
+
+         The padding here and on the two buttons is tighter than the app's usual: this strip is pinned
+         across the bottom of every page, so its height comes off the page above it on every screen, and
+         it holds one line of text next to two buttons. The buttons keep their generous *horizontal*
+         padding — it is the vertical that was buying nothing. -->
+    <Border Padding="24,6" Background="{DynamicResource GlassBgBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
@@ -39,11 +44,11 @@
                         IsVisible="{Binding !SettingsSession.SettingsPaused}"
                         IsEnabled="{Binding !SettingsSession.SettingsBusy}">
                 <Button Content="Save" Command="{Binding SaveSettingsCommand}"
-                        Theme="{StaticResource AccentButton}" Padding="22,8"
+                        Theme="{StaticResource AccentButton}" Padding="22,5"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
                         ToolTip.Tip="Save settings so they survive an OTD daemon restart (Ctrl+S)." />
                 <Button Content="Revert to saved" Command="{Binding RevertSettingsCommand}"
-                        Theme="{StaticResource GhostButton}" Padding="16,8"
+                        Theme="{StaticResource GhostButton}" Padding="16,5"
                         IsEnabled="{Binding SettingsSession.CanEditSettings}"
                         ToolTip.Tip="Replace live settings with the OTD daemon’s saved file, discarding unsaved changes." />
             </StackPanel>

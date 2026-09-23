@@ -70,7 +70,7 @@
     <DockPanel Margin="24">
         <!-- Heading -->
         <StackPanel DockPanel.Dock="Top" Spacing="3" Margin="0,0,0,14">
-            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold"
+            <TextBlock Text="{Binding Title}" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
             <TextBlock Text="Pick a type, set it, then Save. Clear removes the binding."
                        Foreground="{DynamicResource TextMutedBrush}" />

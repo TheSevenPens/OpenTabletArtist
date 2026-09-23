@@ -68,6 +68,9 @@
                         <RotateTransform Angle="-90" />
                     </LayoutTransformControl.LayoutTransform>
                 <Viewbox MaxWidth="440" MaxHeight="86">
+                    <!-- The button numbers below are off the type ramp on purpose: they are
+                         annotations on a drawing, sized to the boxes they sit in rather than to
+                         anything else on the page. -->
                     <Canvas Width="400" Height="80">
                         <Rectangle Canvas.Left="342" Canvas.Top="31" Width="26" Height="18" RadiusX="6" RadiusY="6"
                                    Fill="{DynamicResource PenDiagramFillBrush}" Stroke="{DynamicResource PenDiagramStrokeBrush}" StrokeThickness="1.5" />

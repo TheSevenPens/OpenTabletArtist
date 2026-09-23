@@ -105,7 +105,8 @@
                  rhythm — the full Zune hero lives on the TABLET page). -->
             <StackPanel Spacing="4" Margin="0,0,0,6" IsVisible="{Binding !TabletsOverview.HasTablets}">
                 <TextBlock Text="No tablets connected or remembered"
-                           FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                           FontSize="{DynamicResource TypeTitleSize}"
+                           Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock Text="Connect a tablet and it'll appear here."
                            Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
             </StackPanel>
