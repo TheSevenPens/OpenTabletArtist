@@ -8,33 +8,52 @@
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <RootNamespace>OpenTabletArtist.UiTests</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Microsoft Testing Platform, not VSTest (#756). xunit v3 test projects are executables that
+         host their own runner; TestingPlatformDotnetTestSupport tells `dotnet test` to run that host
+         instead of going through the VSTest bridge, and OutputType=Exe is what xunit v3 requires once
+         Microsoft.NET.Test.Sdk is no longer there to set it.
+
+         So xunit.runner.visualstudio, Microsoft.NET.Test.Sdk and coverlet.collector are gone: the
+         first two are the VSTest path, and coverlet.collector is a VSTest data collector that nothing
+         collected — no workflow ran with coverage and there is no .runsettings in the tree.
+
+         One gotcha for local use: passing a VSTest filter to `dotnet test` no longer filters anything.
+         It warns (MTP0001, "VSTest-specific properties ... will be ignored"), runs the whole suite and
+         exits 0, which is easy to miss in a wall of output. Filter by running the test exe directly,
+         which takes xunit's own switches:
+
+             bin/Debug/net10.0/<suite>.exe -class Namespace.ClassName
+             bin/Debug/net10.0/<suite>.exe -method Namespace.ClassName.MethodName
+
+         CI is unaffected: it runs `dotnet test <csproj>` in its usual no-build form with no filter,
+         which works unchanged, and a failing test still exits non-zero (checked, not assumed). -->
+
     <!-- Avalonia.Headless.XUnit 12.x is built on xunit v3, which is why this project moved there first.
-         The logic suite followed (#756), so both now sit on one major and share one runner.
+         The logic suite followed (#756), so all three suites now sit on one major and one runner.
 
-         This package is also what pins the major: it is compiled against xunit.v3.extensibility.core
-         3.2.2, and 4.x changed TestIntrospectionHelper.GetTestCaseDetails. Its NuGet dependency is a
-         floor, not a pin, so restore will happily resolve 4.x and every test then fails at discovery
-         with MissingMethodException - a build that warns about nothing. Do not bump past 3.x until
-         Avalonia ships a headless package built against xunit.v3 4.x.
+         This package is what pins the major: it is compiled against xunit.v3.extensibility.core 3.2.2,
+         and 4.x changed TestIntrospectionHelper.GetTestCaseDetails. Its NuGet dependency is a floor,
+         not a pin, so restore will happily resolve 4.x and every test then fails at discovery with
+         MissingMethodException - a build that warns about nothing. Do not bump past 3.x until Avalonia
+         ships a headless package built against xunit.v3 4.x. Checked when the MTP move landed:
+         Avalonia.Headless.XUnit 12.1.3, the newest published, still declares 3.2.2.
 
-         That bump also closes #935: 3.2.2 prints a shutdown message onto the stdout the VSTest
-         adapter parses as JSON when asking the test exe for assembly info, so a slow probe fails the
-         lane with "no tests available" and no failing test (xunit/xunit#3576, fixed in 4.0.0). 3.2.2
-         is the last 3.x, so there is no backport to take instead. Checked while writing that issue:
-         Avalonia.Headless.XUnit 12.1.3, the newest published, still declares 3.2.2. -->
+         #935 no longer waits on that. The flake there was the VSTest adapter rejecting the assembly-
+         info JSON after 3.2.2's in-process runner appended a shutdown message to it (xunit/xunit#3576,
+         fixed upstream in 4.0.0) - and that adapter is no longer in the path at all, so the failure
+         mode is gone rather than mitigated. -->
     <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.2" />
-    <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 
   <ItemGroup>

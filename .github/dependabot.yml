@@ -42,8 +42,6 @@ updates:
       test-tooling:
         patterns:
           - "xunit*"
-          - "Microsoft.NET.Test.Sdk"
-          - "coverlet*"
       other:
         patterns:
           - "*"
@@ -55,21 +53,20 @@ updates:
           - "MessagePack*"
           - "Newtonsoft.Json"
           - "xunit*"
-          - "Microsoft.NET.Test.Sdk"
-          - "coverlet*"
 
     ignore:
-      # The next majors of these move the whole stack to Microsoft Testing Platform, and on the .NET 10
-      # SDK that drops the VSTest bridge `dotnet test` relies on — so they cannot be taken as a version
-      # bump, only as the migration tracked in #756. Left ungated, Dependabot regenerates the same
-      # unmergeable PR every month and it becomes noise people learn to ignore.
+      # xunit 4 cannot be taken until Avalonia.Headless.XUnit is built against it: that package is
+      # compiled against xunit.v3.extensibility.core 3.2.2, its NuGet dependency is a floor rather than
+      # a pin, and 4.x changed a method it calls — so restore resolves 4.x happily and every UI test
+      # then fails at discovery with MissingMethodException, in a build that warns about nothing.
+      # See the note in tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj.
       #
-      # Minor and patch updates still come through. Remove this block when #756 lands.
+      # This used to also cover Microsoft.NET.Test.Sdk and coverlet.collector, because the majors moved
+      # the stack to Microsoft Testing Platform together. That move has landed (#756) and those two
+      # packages are gone from the tree, so only the xunit line is still gated.
+      #
+      # Minor and patch updates still come through. Remove this when the Avalonia package catches up.
       - dependency-name: "xunit*"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "Microsoft.NET.Test.Sdk"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "coverlet*"
         update-types: ["version-update:semver-major"]
 
       # SkiaSharp tracks whatever Avalonia.Skia pulls — that is the entire reason the pin exists (see

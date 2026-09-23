@@ -2,18 +2,37 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <RootNamespace>OtdInterop.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Microsoft Testing Platform, not VSTest (#756). xunit v3 test projects are executables that
+         host their own runner; TestingPlatformDotnetTestSupport tells `dotnet test` to run that host
+         instead of going through the VSTest bridge, and OutputType=Exe is what xunit v3 requires once
+         Microsoft.NET.Test.Sdk is no longer there to set it.
+
+         So xunit.runner.visualstudio, Microsoft.NET.Test.Sdk and coverlet.collector are gone: the
+         first two are the VSTest path, and coverlet.collector is a VSTest data collector that nothing
+         collected — no workflow ran with coverage and there is no .runsettings in the tree.
+
+         One gotcha for local use: passing a VSTest filter to `dotnet test` no longer filters anything.
+         It warns (MTP0001, "VSTest-specific properties ... will be ignored"), runs the whole suite and
+         exits 0, which is easy to miss in a wall of output. Filter by running the test exe directly,
+         which takes xunit's own switches:
+
+             bin/Debug/net10.0/<suite>.exe -class Namespace.ClassName
+             bin/Debug/net10.0/<suite>.exe -method Namespace.ClassName.MethodName
+
+         CI is unaffected: it runs `dotnet test <csproj>` in its usual no-build form with no filter,
+         which works unchanged, and a failing test still exits non-zero (checked, not assumed). -->
+
     <!-- xunit v3, the same line as the other two suites (#756). -->
-    <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 
   <ItemGroup>
