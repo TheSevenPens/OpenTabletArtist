@@ -19,7 +19,10 @@ internal sealed class FakeLifecycle : IDaemonLifecycleService
     public bool IsAppManaged(string? path) => true;
     public bool HasBundledDaemon() => false;
     public string? FindExe() => "daemon.exe";
-    public bool IsRunning() => true;
+    /// <summary>Whether a daemon process exists, which is the cheap question #912 turns on: settable,
+    /// because "no daemon is running" is the state the refresh has to tell apart.</summary>
+    public bool Running { get; set; } = true;
+    public bool IsRunning() => Running;
     public string? Launch(string? executablePath = null)
     { Launched = executablePath; LaunchAction?.Invoke(); return null; }
     public bool Stop(int processId)

@@ -115,6 +115,10 @@ public interface IConnectionState : INotifyPropertyChanged
 
     /// <summary>Connects to a daemon, for one that is not.</summary>
     Task ConnectAsync();
+
+    /// <summary>What the daemon menu's re-check does: reload when connected, reconnect when there is a
+    /// daemon to reconnect to, and say so rather than waiting when there is not (#912).</summary>
+    Task RefreshAsync();
 }
 
 /// <summary>The shared editable settings workspace. Applying never persists.</summary>
@@ -810,6 +814,44 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // --- Data load (IDeviceData) + settings apply (ISettingsCoordinator) ---
 
     /// <summary>Reloads device data + settings from the daemon. UI-thread only.</summary>
+    /// <summary>
+    /// The daemon menu's re-check, and the Retry beside a stalled connect.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Connected, this is a cheap reload. Disconnected it was a connection attempt, and a connection
+    /// attempt against a machine with no daemon process on it is thirty seconds of waiting for an answer
+    /// that cannot come — during which <see cref="ShowStartButton"/> is false, because
+    /// <see cref="IsConnecting"/> is true, so the one action that would have helped is hidden for the
+    /// duration (#912).
+    /// </para>
+    /// <para>
+    /// The process list is the cheap authority on whether there is anything to reach, and
+    /// <see cref="IsDaemonRunning"/> is not it: that mirrors the connection, so it is false in exactly
+    /// the state this needs to tell apart. So the probe goes to the lifecycle service, the same one
+    /// <see cref="DaemonReachable"/> already asks about the executable.
+    /// </para>
+    /// </remarks>
+    public async Task RefreshAsync()
+    {
+        if (IsConnected) { await ReloadAsync(); return; }
+
+        if (!_daemonLifecycle.IsRunning())
+        {
+            ConnectStalled = false;
+            DaemonOperationError = NoDaemonToReachMessage;
+            return;
+        }
+
+        if (DaemonOperationError == NoDaemonToReachMessage) DaemonOperationError = "";
+        await ConnectAsync();
+    }
+
+    /// <summary>Said instead of waiting. Names Start because that is the action that works from here,
+    /// and it is in the same menu.</summary>
+    public static readonly string NoDaemonToReachMessage =
+        "No OpenTabletDriver daemon is running, so there is nothing to reconnect to. Use Start.";
+
     public Task ReloadAsync()
     {
         Dispatcher.UIThread.VerifyAccess();

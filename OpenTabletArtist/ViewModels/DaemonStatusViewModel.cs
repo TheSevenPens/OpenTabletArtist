@@ -110,13 +110,10 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     /// <summary>"Fix" = start the daemon if needed and (re)connect. Same as the Start control.</summary>
     public IAsyncRelayCommand FixCommand => _session.StartDaemonCommand;
 
-    /// <summary>Re-check the daemon: reload when connected, otherwise (re)connect.</summary>
+    /// <summary>Re-check the daemon. The decision lives on the session, which is the only thing that
+    /// can say why it declined to wait — see <c>AppSession.RefreshAsync</c> (#912).</summary>
     [RelayCommand]
-    private async System.Threading.Tasks.Task Refresh()
-    {
-        if (_session.IsConnected) await _session.ReloadAsync();
-        else await _session.ConnectAsync();
-    }
+    private System.Threading.Tasks.Task Refresh() => _session.RefreshAsync();
 
     /// <summary>Navigate to the Daemon page (Advanced → OpenTabletDriver → Daemon).</summary>
     [RelayCommand]

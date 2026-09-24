@@ -236,7 +236,11 @@
                                                       AutomationProperties.Name="Daemon process actions">
                                             <c:IconButton.Flyout>
                                                 <MenuFlyout>
-                                                    <MenuItem Header="Refresh status"
+                                                    <!-- "Reconnect", not "Refresh status": connected it
+                                                         reloads, but disconnected it opens a connection,
+                                                         and the old name promised something cheaper than
+                                                         what it does (#912). -->
+                                                    <MenuItem Header="Reconnect"
                                                               Command="{Binding Status.RefreshCommand}"
                                                               IsEnabled="{Binding !Status.IsDaemonBusy}" />
                                                     <Separator />

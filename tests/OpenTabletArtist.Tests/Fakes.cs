@@ -284,6 +284,16 @@ internal sealed class FakeConnectionState : IConnectionState
         return Task.CompletedTask;
     }
 
+    public int Refreshes { get; private set; }
+
+    /// <summary>The real one decides between reload, reconnect and neither (#912); this only records
+    /// that the page asked, because the deciding is what <c>AppSession</c>'s own tests cover.</summary>
+    public Task RefreshAsync()
+    {
+        Refreshes++;
+        return Task.CompletedTask;
+    }
+
     private void Set<T>(ref T field, T value, string name)
     {
         field = value;
