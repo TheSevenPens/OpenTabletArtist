@@ -140,6 +140,56 @@ To reach the state where a chosen location sits in front of the bundled copy, ei
 dotnet test OpenTabletArtist.slnx
 ```
 
+Three suites run: `OtdInterop.Tests` (the library, no app and no Avalonia), `OpenTabletArtist.Tests`
+(logic) and `OpenTabletArtist.UiTests` (views on Avalonia's headless platform, no display needed).
+
+### They run on Microsoft Testing Platform, not VSTest
+
+xUnit v3 test projects are executables that host their own runner, and `global.json` names that runner:
+
+```json
+"test": { "runner": "Microsoft.Testing.Platform" }
+```
+
+Two things follow, both of which will bite before anyone reads this:
+
+**Run them from this checkout.** `dotnet test` picks its runner from `global.json`, and `global.json` is
+resolved from the **current directory**, not from the project path you pass. So an absolute path is not
+enough: run from somewhere else and no platform runner is selected, nothing runs, and the command exits
+**0**. `scripts/build.ps1` does this for you (it pushes to the repository root and pops back), but an
+IDE task or a script of your own that shells out to `dotnet test` has to do the same.
+
+That failure is silent, so it is worth knowing what it looks like: no output at all, and success.
+
+**VSTest options are rejected, not ignored.** `--filter`, `--logger`, `--collect` and friends belong to
+the runner that is no longer in the path. Passing one fails the command with `Unknown option` and exit 5
+*before any test runs*, which is the behaviour we want — a filter that silently matched nothing and
+exited 0 would look like a pass.
+
+**Filtering uses the platform's own options**, after the usual arguments:
+
+```bash
+dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj --no-build --filter-class OtdInterop.Tests.BoundaryDependencyTests
+dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj --no-build --filter-method OpenTabletArtist.Tests.RotationSelectionTests.OneSelection_IsOneApply
+```
+
+`--filter-namespace` selects a namespace. The negating forms are `--filter-not-class`,
+`--filter-not-method` and `--filter-not-namespace` — **not** a trailing hyphen, which is xUnit's own
+console spelling and is rejected here with `Unknown option`. Running the built test executable directly
+is the other route, and that one does take xUnit's switches (`-class`, `-method`, `-class-`).
+
+**Coverage is not collected.** `coverlet.collector` was a VSTest data collector that nothing ever ran —
+no workflow passed `--collect` and there is no `.runsettings` — so it was removed rather than replaced.
+If coverage is wanted, `Microsoft.Testing.Extensions.CodeCoverage` is the platform's equivalent and
+should arrive with a workflow that consumes it.
+
+**In an IDE**, test discovery needs the Testing Platform support switched on: Visual Studio's Test
+Explorer has an MTP setting, and Rider has *Settings | Build, Execution, Deployment | Unit Testing |
+Testing Platform*. Without it the panes may look empty even though the command line is green.
+
+The remaining piece of [#756](https://github.com/TheSevenPens/OpenTabletArtist/issues/756) is xUnit 4,
+which is blocked by `Avalonia.Headless.XUnit` — see the note in that project's `.csproj`.
+
 ## Troubleshooting
 
 **App sits at "Not connected" / the daemon page says `OpenTabletDriver.Daemon.exe` wasn't found.** The

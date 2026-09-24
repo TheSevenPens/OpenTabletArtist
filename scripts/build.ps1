@@ -76,67 +76,83 @@ $lockingProcesses = @('OpenTabletArtist', 'OpenTabletDriver.Daemon', 'OpenTablet
 
 function Write-Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 
-# --- 1. Sanity: solution present, submodule checked out ---
-if (-not (Test-Path $solution)) { throw "Solution not found at $solution" }
+# Everything below runs from the repository root.
+#
+# Not cosmetic: `dotnet test` chooses its runner from global.json, and global.json is resolved from
+# the CURRENT DIRECTORY rather than from the project path. This script passes absolute paths, so
+# before this it ran happily from anywhere -- and from anywhere but the checkout it found no
+# Microsoft.Testing.Platform runner, ran no tests, and exited 0. `build.ps1 -Test` reported success
+# having tested nothing (#942). A deliberately failing test showed it plainly: inside the checkout
+# `failed: 1` and exit 2; outside, no output and exit 0.
+#
+# The whole body is inside this rather than just the test call, so a dotnet command added later
+# cannot bring the problem back. Pop-Location is in a finally because a throw here would otherwise
+# leave the caller's shell in a directory it did not choose.
+Push-Location $repo
+try {
+    # --- 1. Sanity: solution present, submodule checked out ---
+    if (-not (Test-Path $solution)) { throw "Solution not found at $solution" }
 
-$daemonProj = Join-Path $daemonDir 'OpenTabletDriver.Daemon.csproj'
-if (-not (Test-Path $daemonProj)) {
-    Write-Step 'OpenTabletDriver submodule missing — running git submodule update --init --recursive'
-    & git -C $repo submodule update --init --recursive
-    if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize the OpenTabletDriver submodule.' }
-}
-
-# --- 2. Release file locks by stopping stale processes ---
-$running = @(Get-Process -Name $lockingProcesses -ErrorAction SilentlyContinue)
-if ($running.Count -gt 0) {
-    $list = ($running | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ', '
-    if ($NoStop) {
-        Write-Warning "Running and may lock build outputs: $list. Re-run without -NoStop to stop them."
+    $daemonProj = Join-Path $daemonDir 'OpenTabletDriver.Daemon.csproj'
+    if (-not (Test-Path $daemonProj)) {
+        Write-Step 'OpenTabletDriver submodule missing — running git submodule update --init --recursive'
+        & git -C $repo submodule update --init --recursive
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize the OpenTabletDriver submodule.' }
     }
-    else {
-        foreach ($p in $running) {
-            Write-Step "Stopping $($p.ProcessName) (PID $($p.Id)) to release locked build outputs"
-            try { $p | Stop-Process -Force -ErrorAction Stop }
-            catch { Write-Warning "Could not stop $($p.ProcessName) (PID $($p.Id)): $_" }
+
+    # --- 2. Release file locks by stopping stale processes ---
+    $running = @(Get-Process -Name $lockingProcesses -ErrorAction SilentlyContinue)
+    if ($running.Count -gt 0) {
+        $list = ($running | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ', '
+        if ($NoStop) {
+            Write-Warning "Running and may lock build outputs: $list. Re-run without -NoStop to stop them."
         }
-        Start-Sleep -Milliseconds 800   # let Windows release the file handles
+        else {
+            foreach ($p in $running) {
+                Write-Step "Stopping $($p.ProcessName) (PID $($p.Id)) to release locked build outputs"
+                try { $p | Stop-Process -Force -ErrorAction Stop }
+                catch { Write-Warning "Could not stop $($p.ProcessName) (PID $($p.Id)): $_" }
+            }
+            Start-Sleep -Milliseconds 800   # let Windows release the file handles
+        }
     }
-}
 
-# --- 3. Optional clean ---
-if ($Clean) {
-    Write-Step "dotnet clean ($Configuration)"
-    & dotnet clean $solution -c $Configuration
-    if ($LASTEXITCODE -ne 0) { throw "clean failed (exit $LASTEXITCODE)." }
-}
+    # --- 3. Optional clean ---
+    if ($Clean) {
+        Write-Step "dotnet clean ($Configuration)"
+        & dotnet clean $solution -c $Configuration
+        if ($LASTEXITCODE -ne 0) { throw "clean failed (exit $LASTEXITCODE)." }
+    }
 
-# --- 4. Build the solution (app + daemon + tests) ---
-Write-Step "dotnet build OpenTabletArtist.slnx ($Configuration)"
-& dotnet build $solution -c $Configuration
-if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
+    # --- 4. Build the solution (app + daemon + tests) ---
+    Write-Step "dotnet build OpenTabletArtist.slnx ($Configuration)"
+    & dotnet build $solution -c $Configuration
+    if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
 
-# --- 5. Build the daemon (not part of the solution any more -- see the notes above) ---
-if ($SkipDaemon) {
-    Write-Host "Skipping the daemon build (-SkipDaemon). The app will need an OTD you already have." -ForegroundColor Yellow
-}
-else {
-    Write-Step "dotnet build OpenTabletDriver.Daemon ($Configuration)"
-    & dotnet build $daemonProj -c $Configuration
-    if ($LASTEXITCODE -ne 0) { throw "Daemon build failed (exit $LASTEXITCODE)." }
-
-    if (Test-Path $daemonExe) {
-        Write-Host "Daemon exe: $daemonExe" -ForegroundColor Green
+    # --- 5. Build the daemon (not part of the solution any more -- see the notes above) ---
+    if ($SkipDaemon) {
+        Write-Host "Skipping the daemon build (-SkipDaemon). The app will need an OTD you already have." -ForegroundColor Yellow
     }
     else {
-        Write-Warning "The daemon build succeeded but the exe was not found at $daemonExe -- the app may sit at 'Not connected'."
+        Write-Step "dotnet build OpenTabletDriver.Daemon ($Configuration)"
+        & dotnet build $daemonProj -c $Configuration
+        if ($LASTEXITCODE -ne 0) { throw "Daemon build failed (exit $LASTEXITCODE)." }
+
+        if (Test-Path $daemonExe) {
+            Write-Host "Daemon exe: $daemonExe" -ForegroundColor Green
+        }
+        else {
+            Write-Warning "The daemon build succeeded but the exe was not found at $daemonExe -- the app may sit at 'Not connected'."
+        }
     }
-}
 
-# --- 6. Optional tests ---
-if ($Test) {
-    Write-Step 'dotnet test (--no-build)'
-    & dotnet test $testProj -c $Configuration --no-build
-    if ($LASTEXITCODE -ne 0) { throw "Tests failed (exit $LASTEXITCODE)." }
-}
+    # --- 6. Optional tests ---
+    if ($Test) {
+        Write-Step 'dotnet test (--no-build)'
+        & dotnet test $testProj -c $Configuration --no-build
+        if ($LASTEXITCODE -ne 0) { throw "Tests failed (exit $LASTEXITCODE)." }
+    }
 
-Write-Host "`nBuild succeeded ($Configuration)." -ForegroundColor Green
+    Write-Host "`nBuild succeeded ($Configuration)." -ForegroundColor Green
+}
+finally { Pop-Location }

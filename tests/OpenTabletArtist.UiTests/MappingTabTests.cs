@@ -117,7 +117,7 @@ public class MappingTabTests
 
         if (width >= 1100)
         {
-            Assert.All(cells, c => Assert.Equal(1, c.TextLayout.TextLines.Count));
+            Assert.All(cells, c => Assert.Single(c.TextLayout.TextLines));
         }
         else
         {

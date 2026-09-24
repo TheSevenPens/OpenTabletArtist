@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -9,13 +10,34 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Microsoft Testing Platform, not VSTest (#756). xunit v3 test projects are executables that
+         host their own runner, and OutputType=Exe is what xunit v3 requires once Microsoft.NET.Test.Sdk
+         is no longer there to set it. Which runner `dotnet test` uses is named once for the repo, in
+         global.json, rather than per project:
+
+             "test": { "runner": "Microsoft.Testing.Platform" }
+
+         So xunit.runner.visualstudio, Microsoft.NET.Test.Sdk and coverlet.collector are gone: the
+         first two are the VSTest path, and coverlet.collector is a VSTest data collector that nothing
+         collected — no workflow ran with coverage and there is no .runsettings in the tree.
+
+         The global.json route rather than the per-project TestingPlatformDotnetTestSupport property,
+         because the two differ in a way that matters (#939). Under the property, `dotnet test` accepts
+         a VSTest option such as a filter, warns MTP0001 that it is being ignored, runs the WHOLE suite
+         and exits 0 — so narrowing to one test gives a green result for a run nobody asked for, and a
+         script requesting coverage or a logger gets the same false success. Under the runner named
+         here the same option is refused outright: "Unknown option", exit 5, and no tests run.
+
+         Filtering then uses the platform's own options (filter-class, filter-method, filter-namespace)
+         through `dotnet test`. docs/dev/BUILDING.md has the commands and what IDE discovery needs.
+
+         CI is unaffected: it runs `dotnet test <csproj>` in its usual no-build form with no filter, a
+         failing test exits 2, and a bad option exits 5 (all checked, not assumed). -->
+
     <!-- xunit v3, matching the UI suite (#756). The two used to sit on different majors, which meant
          two runners to migrate rather than one; they now share this line. Held at 3.x by
          Avalonia.Headless.XUnit - see the note in the UI test project. -->
-    <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 
   <ItemGroup>
