@@ -517,11 +517,22 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// running (#296) so a slow connect reads as progress.
     /// </summary>
     /// <remarks>
-    /// A connect also says how long it is prepared to wait. Elapsed seconds alone tell you time is
-    /// passing without telling you whether to keep waiting, which is the complaint in #912: the artist
-    /// has no basis for deciding, because nothing states the bound. A lifecycle operation is left as it
-    /// was — Start, Stop and Restart are bounded by the same timeout, but they are acts the artist
-    /// chose knowing something would happen, not a wait they were dropped into.
+    /// A connect also says what the wait is bounded by. Elapsed seconds alone tell you time is passing
+    /// without telling you whether to keep waiting, which is the complaint in #912: the artist has no
+    /// basis for deciding, because nothing states the bound.
+    ///
+    /// <para>
+    /// It says what the bound <em>does</em>, because it is not a deadline. At the timeout
+    /// <see cref="MonitorConnectAttemptAsync"/> drops the spinner and marks the attempt stalled while
+    /// the transport goes on retrying, so "of up to 30s" would read as "then it gives up", which is
+    /// the opposite of what happens (#955).
+    /// </para>
+    ///
+    /// <para>
+    /// A lifecycle operation is left as it was — Start, Stop and Restart are bounded by the same
+    /// timeout, but they are acts the artist chose knowing something would happen, not a wait they were
+    /// dropped into.
+    /// </para>
     /// </remarks>
     public string DaemonActivityText
     {
@@ -535,27 +546,32 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             var phase = string.IsNullOrEmpty(ConnectPhase) ? "Connecting…" : ConnectPhase;
             if (ConnectElapsedSeconds <= 0) return phase;
 
-            return $"{phase}  ·  {ConnectElapsedSeconds}s of up to {DaemonOperationTimeout.TotalSeconds:0}s";
+            return $"{phase}  ·  {ConnectElapsedSeconds}s · after {DaemonOperationTimeout.TotalSeconds:0}s we keep trying in the background";
         }
     }
 
     /// <summary>
-    /// Offer "Start" only when not connected and not already mid-connect.
+    /// Offer "Start" whenever there is no connection.
     /// </summary>
     /// <remarks>
-    /// #912 asked for Start to stay available during a connect, on the grounds that being busy
-    /// connecting is no reason to withhold the remedy. It is not the remedy here. Every path into the
-    /// connecting state either launches the daemon first (<see cref="StartAndConnectAsync"/>, Start,
-    /// Restart) or, since #948, has already confirmed a daemon process exists
-    /// (<see cref="RefreshAsync"/>). So a daemon is running or about to be, and pressing Start would ask
-    /// for a second one that OTD's singleton refuses. Hiding it says something true.
-    ///
     /// <para>
-    /// The case that made the ask reasonable — a connect running against nothing, with Start hidden for
-    /// the whole timeout — is the one #948 removed.
+    /// It used to be withheld while connecting, and #912 asked for that to stop. I argued the ask was
+    /// obsolete: every path into the connecting state either launches the daemon first or, since #948,
+    /// has confirmed a process exists, so Start could not be the remedy. **That reasoning was wrong,
+    /// and the counterexample is simple** (#955): the process observed at entry need not still be there.
+    /// A daemon that dies mid-connect — before any pipe connection exists, so no disconnect event can
+    /// fire, because there was never a connection to lose — leaves OTA connecting against nothing. The
+    /// next re-check then says "No OpenTabletDriver daemon is running. Use Start" with Start hidden.
+    /// </para>
+    /// <para>
+    /// So the entry-time observation is not a fact about the whole wait, and the honest rule is the
+    /// simple one: if nothing is connected, offer the thing that connects. Pressing it while an attempt
+    /// is genuinely in flight is harmless — <see cref="StartDaemon"/> connects to a daemon already
+    /// running rather than launching a second, and the lifecycle-busy gate still stops two operations
+    /// overlapping.
     /// </para>
     /// </remarks>
-    public bool ShowStartButton => !IsConnected && !IsConnecting;
+    public bool ShowStartButton => !IsConnected;
 
     // --- Device data (IDeviceData) — populated by the data load ---
     [ObservableProperty] private JToken? _tablets;
@@ -816,6 +832,17 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     public Task ConnectAsync()
     {
         if (!DaemonReachable()) { SetDaemonExeMissing(); return Task.CompletedTask; }
+
+        // Already trying: coalesce rather than start a second attempt. Each call bumps the monitor and
+        // so starts a fresh deadline, while SyncActivityTimer leaves the stopwatch alone because the
+        // activity flag never goes false -- so the indicator ends up showing one attempt's elapsed
+        // against another's bound, which read as "3s of up to 2s" at a short timeout (#955).
+        //
+        // Coalescing rather than resetting both: a second attempt was never wanted. The first is still
+        // running, the transport is still retrying, and the honest answer to asking again is that
+        // nothing new needs to happen.
+        if (IsConnecting) return Task.CompletedTask;
+
         IsDaemonExeMissing = false;
         ConnectStalled = false;
         ConnectPhase = "Connecting to the daemon…";
@@ -1372,15 +1399,27 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             if (!DaemonReachable()) { SetDaemonExeMissing(); return; }
             IsDaemonExeMissing = false;
 
-            DaemonOperationStatus = "Starting daemon…";
             _session.AutoReconnect = true;
-            if (_daemonLifecycle.Launch(_daemonPath) is { } launchProblem)
+
+            // Launch only what is not already there. Start is now offered during a connect (#955), so a
+            // second press is an ordinary thing to do — and launching unconditionally turns that into
+            // OTD's singleton refusing, which surfaces as a launch failure for a daemon that is running
+            // perfectly well. Connecting to it is what the artist meant either way.
+            if (_daemonLifecycle.IsRunning())
             {
-                // It died on the spot. Waiting out the 30s connect timeout would replace a precise
-                // explanation with a generic one.
-                DaemonOperationError = launchProblem;
-                ConnectionStatus = "Disconnected";
-                return;
+                DaemonOperationStatus = "Connecting to the running daemon…";
+            }
+            else
+            {
+                DaemonOperationStatus = "Starting daemon…";
+                if (_daemonLifecycle.Launch(_daemonPath) is { } launchProblem)
+                {
+                    // It died on the spot. Waiting out the 30s connect timeout would replace a precise
+                    // explanation with a generic one.
+                    DaemonOperationError = launchProblem;
+                    ConnectionStatus = "Disconnected";
+                    return;
+                }
             }
             OnPropertyChanged(nameof(CanStartDaemon));
 
