@@ -47,22 +47,31 @@ public static class OtdRelease
     public static string MacDownloadUrl =>
         $"https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/{Tag}/{MacAssetName}";
 
-    /// <summary>Where an assisted install puts OpenTabletDriver: the system <c>/Applications</c>.
-    ///
-    /// It is where macOS users look for and remove apps, where OpenTabletDriver's own instructions put it,
-    /// and — the deciding reason — the first entry on the daemon search ladder
-    /// (<see cref="DaemonExePaths.InstalledMacPaths"/>). Installing anywhere lower would leave OTA's own
-    /// install permanently shadowable by whatever appeared here later.
-    ///
+    /// <summary>
+    /// Where an assisted install puts OpenTabletDriver: the system <c>/Applications</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is where macOS users look for and remove apps, and where OpenTabletDriver's own instructions
+    /// put it. Those are now the whole of the argument. The deciding reason used to be that it was the
+    /// first entry on the daemon search ladder, so installing lower would leave the install shadowable
+    /// by whatever appeared here later — but #930 cut that ladder back to OTA's own copy, and an
+    /// OpenTabletDriver installed here is one OTA connects to rather than one it launches. There is no
+    /// candidate left for this path to line up with.
+    /// </para>
+    /// <para>
     /// <c>/Applications</c> is <c>drwxrwxr-x root:admin</c>, so an admin account — the default on a
     /// personal Mac — writes here with no authorization prompt. A standard account cannot; that case
     /// fails with an explanation rather than falling back to a per-user location, and is deliberately
-    /// left for later.</summary>
-    ///
-    /// Normalized with <see cref="Path.GetFullPath(string)"/>, the same way
-    /// <see cref="DaemonExePaths.InstalledMacPaths"/> builds it — the install target and the ladder's
-    /// first installed candidate have to be the SAME string, and a drive-less "/Applications" is not one
-    /// off macOS.</summary>
+    /// left for later.
+    /// </para>
+    /// <para>
+    /// Normalized with <see cref="Path.GetFullPath(string)"/> because it is compared and shown, not just
+    /// joined: <c>OtdInstaller</c> tests it for writability and checks
+    /// <see cref="InstalledBundlePath"/> for an install already there, and the Daemon page prints it.
+    /// A drive-less "/Applications" is not a full path off macOS.
+    /// </para>
+    /// </remarks>
     public static string InstallDirectory => Path.GetFullPath(Path.Combine("/", "Applications"));
 
     /// <summary>Full path of the installed bundle.</summary>
