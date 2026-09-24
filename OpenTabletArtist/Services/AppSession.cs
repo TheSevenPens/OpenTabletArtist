@@ -582,7 +582,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             IsDaemonExeMissing = false;
             ConnectStalled = false;
             ConnectPhase = "";
-            if (DaemonOperationError == DaemonExeMissingMessage) DaemonOperationError = "";
+            // Both of these are statements about not being able to reach a daemon, and a daemon is
+            // now answering. Cleared by value rather than wholesale: an operation error from a failed
+            // Stop is about something else and is not this callback's to discard (#949).
+            if (DaemonOperationError == DaemonExeMissingMessage
+                || DaemonOperationError == NoDaemonToReachMessage) DaemonOperationError = "";
             ApplyDaemonIdentity(change);
             if (_workspace is not null && HasUnsavedChanges)
                 DiscardedChangeNotice = "Reconnected to the OTD daemon. Its current settings replaced the previous unsaved workspace.";
@@ -836,6 +840,12 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     {
         if (IsConnected) { await ReloadAsync(); return; }
 
+        // The check is a process-name lookup, so it knows about the daemon as this package ships it.
+        // A renamed executable, or one hosted as "dotnet OpenTabletDriver.Daemon.dll", would not match
+        // and would be told to press Start instead of being reconnected to. That is a narrowing of the
+        // old behaviour for setups OTA does not ship, and it is deliberate rather than overlooked:
+        // upstream exposes Instance.Exists("OpenTabletDriver.Daemon"), which is independent of the
+        // executable name and is where to start if those hosts ever need supporting (#949).
         if (!_daemonLifecycle.IsRunning())
         {
             ConnectStalled = false;

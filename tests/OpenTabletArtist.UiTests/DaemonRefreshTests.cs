@@ -84,6 +84,61 @@ public class DaemonRefreshTests
         Assert.Equal("", session.DaemonOperationError);
     }
 
+    /// <summary>The refusal goes when the daemon turns up on its own.</summary>
+    /// <remarks>
+    /// The case the first version missed. A stalled attempt keeps retrying in the background, so the
+    /// artist can be told "nothing to reconnect to", start the daemon outside OTA, and have the
+    /// connection land by itself — with the refusal still on screen, and Home's daemon problem card
+    /// still showing, because nothing on the success path cleared it (#949).
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhenTheDaemonTurnsUpByItself_TheRefusalGoes()
+    {
+        var (session, daemon, lifecycle) = Session();
+        using var lifetime = session;
+
+        lifecycle.Running = false;
+        await session.RefreshAsync();
+        Assert.Equal(AppSession.NoDaemonToReachMessage, session.DaemonOperationError);
+
+        // Started outside OTA; the background retry reaches it.
+        lifecycle.Running = true;
+        daemon.Reconnect();
+        await PumpUntil(() => session.IsConnected);
+
+        Assert.Equal("", session.DaemonOperationError);
+    }
+
+    /// <summary>And connected, it reloads rather than reopening the connection.</summary>
+    /// <remarks>
+    /// The branch none of the first three tests touched, and the one the menu spends most of its life
+    /// in.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhenConnected_ItReloadsWithoutReconnecting()
+    {
+        var (session, daemon, _) = Session();
+        using var lifetime = session;
+
+        daemon.Reconnect();
+        await PumpUntil(() => session.IsConnected);
+        var connectsBefore = daemon.ConnectCalls;
+
+        await session.RefreshAsync();
+
+        Assert.Equal(connectsBefore, daemon.ConnectCalls);
+    }
+
+    private static async Task PumpUntil(System.Func<bool> done)
+    {
+        for (var i = 0; i < 200 && !done(); i++)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            await Task.Delay(5);
+        }
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    }
+
     private static (AppSession Session, FakeDaemonTransport Daemon, FakeLifecycle Lifecycle) Session()
     {
         var daemon = new FakeDaemonTransport();

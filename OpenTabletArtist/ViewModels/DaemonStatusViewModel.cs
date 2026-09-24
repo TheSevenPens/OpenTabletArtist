@@ -44,6 +44,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
             OnPropertyChanged(nameof(HomeProblemText));
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity))
             OnPropertyChanged(nameof(ShowDisconnectedLabel));
+        if (e.PropertyName is nameof(IsConnected)) OnPropertyChanged(nameof(RefreshActionLabel));
     }
 
     // --- Forwarded session state (see AppSession) ---
@@ -109,6 +110,11 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
 
     /// <summary>"Fix" = start the daemon if needed and (re)connect. Same as the Start control.</summary>
     public IAsyncRelayCommand FixCommand => _session.StartDaemonCommand;
+
+    /// <summary>What the re-check will actually do, for the menu item that runs it. Connected it
+    /// reloads settings without reopening the connection; disconnected it opens one. One label for both
+    /// described only the expensive half (#949).</summary>
+    public string RefreshActionLabel => IsConnected ? "Refresh status" : "Reconnect";
 
     /// <summary>Re-check the daemon. The decision lives on the session, which is the only thing that
     /// can say why it declined to wait — see <c>AppSession.RefreshAsync</c> (#912).</summary>
