@@ -58,6 +58,11 @@ public class IgnoredDaemonPathHealthTests
         Assert.Contains("has not moved or deleted your previous OpenTabletDriver files", row.Detail);
         Assert.Contains("If that installation is still there", row.Detail);
 
+        // The policy is about what OTA launches, not about what is answering: this row can be on screen
+        // while a third OpenTabletDriver holds the pipe, and "it starts the copy it ships" read as a
+        // claim about the present would be wrong there (#946).
+        Assert.StartsWith("When no OpenTabletDriver daemon is running", row.Detail);
+
         // And why their settings may look different, which is the symptom that sends them looking.
         Assert.Contains("plugins", row.Detail);
     }
@@ -75,12 +80,18 @@ public class IgnoredDaemonPathHealthTests
     {
         var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
 
-        // "Quit and stop the daemon", not "close the window": closing hides OTA to the tray and
-        // relaunching brings the same instance forward, so the ordinary reading of "close and reopen"
-        // never produces the fresh session this needs (#941, #72).
-        Assert.Contains("Quit and stop the daemon", row!.Detail);
+        // "Quit", not "close the window": closing hides OTA to the tray and relaunching brings the same
+        // instance forward, so the ordinary reading of "close and reopen" never produces the fresh
+        // session this needs (#941, #72).
+        Assert.Contains("quit OpenTabletArtist from its tray menu", row!.Detail);
         Assert.Contains("launch OpenTabletArtist again", row.Detail);
         Assert.Contains("only one daemon can run at a time", row.Detail);
+
+        // And it cannot only name "Quit and stop the daemon": AppTray hides that item while
+        // disconnected, which is one of the states this row appears in (#946). The plain Quit route has
+        // to be there too, with the manual stop it implies.
+        Assert.Contains("if it is offered", row.Detail);
+        Assert.Contains("stop any running OpenTabletDriver yourself", row.Detail);
     }
 
     /// <summary>Doing what it says finishes it — no click required.</summary>
@@ -143,14 +154,20 @@ public class IgnoredDaemonPathHealthTests
     }
 
     /// <summary>
-    /// A recommendation, not a fault: nothing is broken, and OTA is doing what it now intends.
+    /// Information, not a recommendation.
     /// </summary>
+    /// <remarks>
+    /// Recommendation means the setup works but is not the configuration we would advise, and nothing
+    /// here says that: the artist's current arrangement may be exactly right. This explains a rule that
+    /// changed. It renders in the same list with the same action either way, so the demotion costs the
+    /// explanation nothing (#946).
+    /// </remarks>
     [Fact]
-    public void ItIsARecommendationRatherThanAFault()
+    public void ItIsInformationRatherThanARecommendation()
     {
         var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
 
-        Assert.Equal(HealthSeverity.Recommendation, row!.Severity);
+        Assert.Equal(HealthSeverity.Information, row!.Severity);
     }
 
     /// <summary>

@@ -327,15 +327,22 @@ public static class HealthEvaluator
             && !OtdInterop.PathEquality.Same(i.ConnectedDaemonPath, i.IgnoredDaemonPath))
         {
             issues.Add(new HealthIssue("daemon.ignoredPath",
-                HealthSeverity.Recommendation,
+                // Information, not Recommendation: nothing about the current setup is undesirable, and
+                // Recommendation says it is. This explains a changed rule; it does not ask for a fix.
+                HealthSeverity.Information,
                 "OpenTabletArtist no longer starts the driver you chose",
-                $"It starts the copy it ships. OpenTabletArtist has not moved or deleted your "
-                + $"previous OpenTabletDriver files — {i.IgnoredDaemonPath} and its settings are "
-                + "untouched. If that installation is still there and you would rather use it, pick "
-                + "\"Quit and stop the daemon\" from the tray menu, start it yourself, then launch "
-                + "OpenTabletArtist again: only one daemon can run at a time, so yours cannot start "
-                + "while this one is up. A portable OpenTabletDriver keeps its settings and plugins "
-                + "beside itself, so those may look different until you do.",
+                // "When no daemon is running" rather than a bare "it starts": this row can be on screen
+                // while some other OpenTabletDriver is answering, and the policy being described is about
+                // what OTA launches, not about what is running now (#946).
+                "When no OpenTabletDriver daemon is running, OpenTabletArtist starts the copy it ships. "
+                + "It has not moved or deleted your previous OpenTabletDriver files — "
+                + $"{i.IgnoredDaemonPath} and its settings are untouched. If that installation is still "
+                + "there and you would rather use it, quit OpenTabletArtist from its tray menu: choose "
+                + "\"Quit and stop the daemon\" if it is offered, otherwise choose \"Quit\" and stop any "
+                + "running OpenTabletDriver yourself. Then start the one you want and launch "
+                + "OpenTabletArtist again — only one daemon can run at a time, so yours cannot start "
+                + "while another is up. A portable OpenTabletDriver keeps its settings and plugins beside "
+                + "itself, so those may look different until you do.",
                 new Remediation("Got it", RemediationArea.AcknowledgeLegacyDaemonPath)));
         }
 
