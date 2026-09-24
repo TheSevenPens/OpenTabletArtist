@@ -1405,7 +1405,8 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             // second press is an ordinary thing to do — and launching unconditionally turns that into
             // OTD's singleton refusing, which surfaces as a launch failure for a daemon that is running
             // perfectly well. Connecting to it is what the artist meant either way.
-            if (_daemonLifecycle.IsRunning())
+            var attachingToExisting = _daemonLifecycle.IsRunning();
+            if (attachingToExisting)
             {
                 DaemonOperationStatus = "Connecting to the running daemon…";
             }
@@ -1423,7 +1424,10 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
             }
             OnPropertyChanged(nameof(CanStartDaemon));
 
-            DaemonOperationStatus = "Connecting…";
+            // Only when something was launched. "Connecting…" after a launch says the daemon is coming
+            // up; said after attaching it would overwrite the one piece of information that press
+            // carried -- that Start started nothing, because a daemon was already there (#956).
+            if (!attachingToExisting) DaemonOperationStatus = "Connecting…";
             ConnectionStatus = "Connecting...";
             _connectAttempt++; // invalidate any pending startup/Refresh monitor
             await _session.ConnectAsync(_cts.Token);

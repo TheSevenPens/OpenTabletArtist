@@ -133,12 +133,22 @@ public sealed class AppTray : IDisposable
     {
         var connected = _conn.IsConnected;
 
-        // Daemon controls (unchanged): Start only when stopped AND not mid-connect; Stop/Restart
-        // only when connected.
+        // Daemon controls: Start whenever nothing is connected (#955), Stop/Restart only when it is.
         _startItem.IsVisible = _conn.ShowStartButton;
         _restartItem.IsVisible = connected;
         _stopItem.IsVisible = connected;
         _quitStopItem.IsVisible = connected; // only offer "quit + stop" when there's a daemon to stop
+
+        // And the same busy gate the Daemon page applies. Without it the tray offered an enabled Start
+        // while a Restart was mid-flight: pressing it did nothing, because StartDaemon returns early
+        // when IsDaemonBusy, so the menu was advertising an action it would silently decline (#956).
+        //
+        // "Quit and stop the daemon" is deliberately not gated. It is a way out of the application, and
+        // a busy operation is not a reason to make leaving unavailable.
+        var busy = _conn.IsDaemonBusy;
+        _startItem.IsEnabled = !busy;
+        _restartItem.IsEnabled = !busy;
+        _stopItem.IsEnabled = !busy;
         _tray.ToolTipText = $"OpenTabletArtist — {_conn.DaemonStatusText}";
 
         UpdateTabletItems(connected);

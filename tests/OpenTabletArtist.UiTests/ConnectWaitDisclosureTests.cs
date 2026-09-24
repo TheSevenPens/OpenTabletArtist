@@ -122,6 +122,31 @@ public class ConnectWaitDisclosureTests
         Assert.Equal(afterFirst, daemon.ConnectCalls);
     }
 
+    /// <summary>
+    /// Pressing Start with a daemon already running says so, and keeps saying so.
+    /// </summary>
+    /// <remarks>
+    /// Start no longer launches a second daemon when one is there, and the status is the only place
+    /// that difference is visible. It was being set and then overwritten by the generic "Connecting…"
+    /// a few lines later, so the one piece of information that press carried — that Start started
+    /// nothing — never reached the screen (#956).
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task StartingWithADaemonAlreadyRunning_SaysItIsAttachingRatherThanLaunching()
+    {
+        var lifecycle = new FakeLifecycle { Running = true };
+        using var session = new AppSession(
+            FakeSession.Over(new FakeDaemonTransport(), new MemorySettingsFileStore()), lifecycle);
+
+        var start = session.StartDaemonCommand.ExecuteAsync(null);
+
+        Assert.Equal("Connecting to the running daemon…", session.DaemonOperationStatus);
+        Assert.Null(lifecycle.Launched);
+
+        session.Dispose();
+        await Task.WhenAny(start, Task.Delay(2000));
+    }
+
     private static AppSession Session() =>
         new(FakeSession.Over(new FakeDaemonTransport(), new MemorySettingsFileStore()), new FakeLifecycle());
 }
