@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.Tests;
 using OpenTabletArtist.ViewModels;
@@ -62,12 +63,19 @@ public class LegacyDaemonPathNoticeTests
 
         Assert.DoesNotContain(health.Issues, i => i.Id == "daemon.ignoredPath");
 
-        // On disk, not merely in the cache the writer holds.
-        var settings = Path.Combine(AppPaths.LocalAppData, "settings.json");
-        Assert.Contains("daemon.legacyPathNoticeAcknowledged", File.ReadAllText(settings));
+        // Read back off disk, by value.
+        //
+        // This asserted only that the key was PRESENT, which the setup above had already written as an
+        // empty string — so skipping the production write entirely still passed, because the row had
+        // gone from the in-memory state (#947). The same shape as a probe that cannot fail, in the test
+        // whose whole job was to prove the write reached the file.
+        var saved = JObject.Parse(File.ReadAllText(Path.Combine(AppPaths.LocalAppData, "settings.json")));
 
-        // And the location they chose is still there for a downgrade to find.
-        Assert.Equal(OldDaemon, AppSettings.Get(LegacyPathKey));
+        Assert.Equal("true", saved[HealthService.LegacyPathNoticeAcknowledgedKey]?.ToString());
+
+        // And the location they chose is still there for a downgrade to find — also from the file,
+        // rather than from the cache the writer holds.
+        Assert.Equal(OldDaemon, saved[LegacyPathKey]?.ToString());
     }
 
     /// <summary>Someone who never used the picker is never shown it.</summary>
