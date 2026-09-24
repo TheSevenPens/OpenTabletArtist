@@ -81,6 +81,7 @@
     <!-- The logic suite's stand-ins, compiled here rather than copied: IConnectionState has 36 members,
          and a second hand-written stub would drift from the first the day the interface changes (#936). -->
     <Compile Include="..\OpenTabletArtist.Tests\Fakes.cs" Link="Fakes.cs" />
+    <Compile Include="..\OpenTabletArtist.Tests\TestAppDataRoot.cs" Link="TestAppDataRoot.cs" />
 
     <!-- The library suite owns these now; both app suites compile them from there so there is one copy. -->
     <Compile Include="..\OtdInterop.Tests\MemorySettingsFileStore.cs" Link="MemorySettingsFileStore.cs" />

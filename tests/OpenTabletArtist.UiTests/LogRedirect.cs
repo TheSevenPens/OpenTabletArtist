@@ -29,7 +29,15 @@ namespace OpenTabletArtist.UiTests;
 internal static class LogRedirect
 {
     [ModuleInitializer]
-    internal static void SendLogsToTemp() =>
+    internal static void SendLogsToTemp()
+    {
+        // See the note in the logic suite's copy: this has to happen before AppLog is touched, because
+        // AppPaths.LocalAppData is resolved once and AppLog reads it in a static field. Nothing in this
+        // suite writes a preference today, and this is here so that it is safe when something does
+        // (#947).
+        OpenTabletArtist.Tests.TestAppDataRoot.Ensure();
+
         AppLog.RedirectTo(Path.Combine(
             Path.GetTempPath(), "ota-tests", $"{Environment.ProcessId}-{Guid.NewGuid():N}"));
+    }
 }
