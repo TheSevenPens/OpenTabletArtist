@@ -25,6 +25,18 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     internal static string ExpectedOtdVersion { get; } =
         OtdRelease.Version.ToString();
 
+    /// <summary>The settings key that held a daemon location the artist chose, before #930 made OTA
+    /// start only the copy it ships.</summary>
+    /// <remarks>
+    /// Nothing writes this any more and nothing removes it: an unknown key survives a settings write, so
+    /// leaving it costs nothing and keeps a downgrade working. It is read here so the artist can be told
+    /// their choice is no longer being acted on, which is otherwise invisible until their settings look
+    /// wrong (see <see cref="Domain.Health.HealthInputs.IgnoredDaemonPath"/>).
+    /// </remarks>
+    private const string LegacyUserPathKey = "daemon.userPath";
+
+    private static string LegacyDaemonPath() => AppSettings.Get(LegacyUserPathKey) ?? "";
+
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
@@ -191,6 +203,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             IsWindows = OperatingSystem.IsWindows(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
+            IgnoredDaemonPath = LegacyDaemonPath(),
             DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
             DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,

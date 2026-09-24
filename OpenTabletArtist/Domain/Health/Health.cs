@@ -142,6 +142,21 @@ public sealed record HealthInputs
     public bool ForeignDaemon { get; init; }
 
     /// <summary>
+    /// A daemon location the artist chose before #930, which OTA no longer starts from ("" when there
+    /// is none, which is everyone who never used the picker).
+    /// </summary>
+    /// <remarks>
+    /// Kept as a health row rather than a startup notice because the consequence outlives the moment.
+    /// OpenTabletDriver prefers a <c>userdata</c> folder beside its own executable when one exists, and
+    /// a portable install has one; the copy OTA ships does not, so it reads the shared location. An
+    /// artist whose chosen path was a portable install therefore sees a different set of settings and
+    /// plugins, with their own files present but unused — and they may not connect that to an OTA
+    /// upgrade days later. A row that stays while the situation does is findable then; a notice shown
+    /// once is not.
+    /// </remarks>
+    public string IgnoredDaemonPath { get; init; } = "";
+
+    /// <summary>
     /// The daemon answering is in a location this app manages, but is not the one selected (#882).
     /// </summary>
     public bool DaemonIsManagedButNotSelected { get; init; }
@@ -285,6 +300,21 @@ public static class HealthEvaluator
         //     pen useless for drawing (Windows Ink off, pen tip / pressure / tilt disabled). Bundled into
         //     one card because there's no single place to fix or review them (#artist-pen-health). ---
         AddTabletPenBehaviorIssues(issues, i);
+
+        // --- A daemon location chosen before #930, which OTA no longer launches from. Not conditional
+        //     on being connected: the artist most likely to be confused is the one whose chosen daemon
+        //     is not running, because that is when OTA starts its own instead. ---
+        if (!string.IsNullOrWhiteSpace(i.IgnoredDaemonPath))
+        {
+            issues.Add(new HealthIssue("daemon.ignoredPath",
+                HealthSeverity.Recommendation,
+                "OpenTabletArtist no longer starts the driver you chose",
+                $"It starts the copy it ships. Your choice ({i.IgnoredDaemonPath}) is still on disk and "
+                + "still works — start it yourself and OpenTabletArtist will connect to it. Settings and "
+                + "plugins may look different until you do, because a portable OpenTabletDriver keeps its "
+                + "own alongside itself.",
+                new Remediation("Review", RemediationArea.Daemon)));
+        }
 
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —
         //     this parses OTD's Windows manufacturer-driver warnings and the fix runs a Windows tool (#140). ---
