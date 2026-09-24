@@ -67,7 +67,7 @@
          info JSON after 3.2.2's in-process runner appended a shutdown message to it (xunit/xunit#3576,
          fixed upstream in 4.0.0) - and that adapter is no longer in the path at all, so the failure
          mode is gone rather than mitigated. -->
-    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.3" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
 
