@@ -44,6 +44,7 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
             OnPropertyChanged(nameof(HomeProblemText));
         if (e.PropertyName is nameof(IsConnected) or nameof(ShowDaemonActivity))
             OnPropertyChanged(nameof(ShowDisconnectedLabel));
+        if (e.PropertyName is nameof(IsConnected)) OnPropertyChanged(nameof(RefreshActionLabel));
     }
 
     // --- Forwarded session state (see AppSession) ---
@@ -110,13 +111,15 @@ public sealed partial class DaemonStatusViewModel : ObservableObject, IDisposabl
     /// <summary>"Fix" = start the daemon if needed and (re)connect. Same as the Start control.</summary>
     public IAsyncRelayCommand FixCommand => _session.StartDaemonCommand;
 
-    /// <summary>Re-check the daemon: reload when connected, otherwise (re)connect.</summary>
+    /// <summary>What the re-check will actually do, for the menu item that runs it. Connected it
+    /// reloads settings without reopening the connection; disconnected it opens one. One label for both
+    /// described only the expensive half (#949).</summary>
+    public string RefreshActionLabel => IsConnected ? "Refresh status" : "Reconnect";
+
+    /// <summary>Re-check the daemon. The decision lives on the session, which is the only thing that
+    /// can say why it declined to wait — see <c>AppSession.RefreshAsync</c> (#912).</summary>
     [RelayCommand]
-    private async System.Threading.Tasks.Task Refresh()
-    {
-        if (_session.IsConnected) await _session.ReloadAsync();
-        else await _session.ConnectAsync();
-    }
+    private System.Threading.Tasks.Task Refresh() => _session.RefreshAsync();
 
     /// <summary>Navigate to the Daemon page (Advanced → OpenTabletDriver → Daemon).</summary>
     [RelayCommand]
