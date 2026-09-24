@@ -512,19 +512,49 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     /// <summary>Show the indeterminate activity indicator for either a lifecycle op or the initial connect.</summary>
     public bool ShowDaemonActivity => IsDaemonBusy || IsConnecting;
 
-    /// <summary>Phase text for the activity indicator, with the elapsed seconds appended once the
-    /// counter is running (#296) so a slow connect reads as progress.</summary>
+    /// <summary>
+    /// Phase text for the activity indicator, with the elapsed seconds appended once the counter is
+    /// running (#296) so a slow connect reads as progress.
+    /// </summary>
+    /// <remarks>
+    /// A connect also says how long it is prepared to wait. Elapsed seconds alone tell you time is
+    /// passing without telling you whether to keep waiting, which is the complaint in #912: the artist
+    /// has no basis for deciding, because nothing states the bound. A lifecycle operation is left as it
+    /// was — Start, Stop and Restart are bounded by the same timeout, but they are acts the artist
+    /// chose knowing something would happen, not a wait they were dropped into.
+    /// </remarks>
     public string DaemonActivityText
     {
         get
         {
-            var phase = IsDaemonBusy ? DaemonOperationStatus
-                      : string.IsNullOrEmpty(ConnectPhase) ? "Connecting…" : ConnectPhase;
-            return ConnectElapsedSeconds > 0 ? $"{phase}  ·  {ConnectElapsedSeconds}s" : phase;
+            if (IsDaemonBusy)
+                return ConnectElapsedSeconds > 0
+                    ? $"{DaemonOperationStatus}  ·  {ConnectElapsedSeconds}s"
+                    : DaemonOperationStatus;
+
+            var phase = string.IsNullOrEmpty(ConnectPhase) ? "Connecting…" : ConnectPhase;
+            if (ConnectElapsedSeconds <= 0) return phase;
+
+            return $"{phase}  ·  {ConnectElapsedSeconds}s of up to {DaemonOperationTimeout.TotalSeconds:0}s";
         }
     }
 
-    /// <summary>Offer "Start" only when not connected and not already mid-connect.</summary>
+    /// <summary>
+    /// Offer "Start" only when not connected and not already mid-connect.
+    /// </summary>
+    /// <remarks>
+    /// #912 asked for Start to stay available during a connect, on the grounds that being busy
+    /// connecting is no reason to withhold the remedy. It is not the remedy here. Every path into the
+    /// connecting state either launches the daemon first (<see cref="StartAndConnectAsync"/>, Start,
+    /// Restart) or, since #948, has already confirmed a daemon process exists
+    /// (<see cref="RefreshAsync"/>). So a daemon is running or about to be, and pressing Start would ask
+    /// for a second one that OTD's singleton refuses. Hiding it says something true.
+    ///
+    /// <para>
+    /// The case that made the ask reasonable — a connect running against nothing, with Start hidden for
+    /// the whole timeout — is the one #948 removed.
+    /// </para>
+    /// </remarks>
     public bool ShowStartButton => !IsConnected && !IsConnecting;
 
     // --- Device data (IDeviceData) — populated by the data load ---
