@@ -177,8 +177,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var consequence = verb == "restart"
                 ? known
                     ? "Restarting stops it and starts the same one again."
+                    // "which is not the one running now" claims to know what is running, and this is
+                    // the branch where OTA could not read that. May, not is.
                     : "Restarting stops it, then starts the OpenTabletDriver this app ships — "
-                      + "which is not the one running now."
+                      + "which may be a different copy."
                 : "Stopping it affects anything else using it.";
 
             // Off Windows there's no pipe-to-process lookup, so Stop can only stop them all.

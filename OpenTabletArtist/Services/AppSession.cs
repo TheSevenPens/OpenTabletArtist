@@ -247,8 +247,11 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // act on and that points away from the actual fix.
     public static readonly string DaemonExeMissingMessage =
         OperatingSystem.IsMacOS()
-            ? "OpenTabletDriver isn't installed. Install it, then start it — OpenTabletArtist "
-              + "connects to whichever copy is running."
+            // Not "it isn't installed": with the installed-path tier gone (#930), an OpenTabletDriver
+            // that is installed but not running reaches this too, and telling that person to install it
+            // is both wrong and a dead end.
+            ? "No OpenTabletDriver is running. Start your installed copy, or install one — "
+              + "OpenTabletArtist connects to whichever copy is running."
             // Not "build the solution": the daemon left it in #786/#790, so that advice now cannot work.
             // And not "point OTA at one" either: since #daemon-bundled-only OTA starts only the copy it
             // ships, so the two routes that work are repairing that copy or starting another yourself.

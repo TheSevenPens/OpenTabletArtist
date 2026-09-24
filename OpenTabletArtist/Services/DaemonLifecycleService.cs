@@ -146,7 +146,8 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             }
 
             return $"The daemon at {daemonPath} started and exited immediately (exit code {proc.ExitCode}). "
-                 + "It may be an incomplete install — try a different OpenTabletDriver on the Daemon page.";
+                 + "It may be an incomplete install — reinstall or repair OpenTabletArtist, or start an "
+                 + "OpenTabletDriver yourself and OTA will connect to it.";
         }
         catch (Exception ex)
         {

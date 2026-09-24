@@ -41,7 +41,7 @@ public class IgnoredDaemonPathHealthTests
         Assert.Null(Row(stored));
     }
 
-    /// <summary>With one stored, the row says what happened, and what still works.</summary>
+    /// <summary>With one stored, the row says what happened, and what to do about it.</summary>
     [Fact]
     public void WithAChosenLocation_ItSaysWhatChangedAndWhatToDo()
     {
@@ -54,24 +54,88 @@ public class IgnoredDaemonPathHealthTests
         // remember a year later.
         Assert.Contains(chosen, row!.Detail);
 
-        // It still works, and starting it is the way back. This is the part that stops the row reading
-        // as "your setup is broken".
-        Assert.Contains("start it yourself", row.Detail);
+        // Nothing was taken. Not "it still works": OTA cannot know that, the folder may be long gone.
+        Assert.Contains("Nothing has been deleted", row.Detail);
 
         // And why their settings may look different, which is the symptom that sends them looking.
         Assert.Contains("plugins", row.Detail);
     }
 
     /// <summary>
+    /// The way back has to be a sequence that works, and "just start it" is not one.
+    /// </summary>
+    /// <remarks>
+    /// OpenTabletDriver is single-instance. By the time this row is read, OTA has started the copy it
+    /// ships, so the old one cannot start alongside it — the advice has to stop this daemon and close
+    /// OTA first, in that order, because closing OTA alone leaves its daemon running.
+    /// </remarks>
+    [Fact]
+    public void TheWayBackAccountsForTheDaemonBeingSingleInstance()
+    {
+        var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
+
+        Assert.Contains("stop the daemon", row!.Detail);
+        Assert.Contains("close OpenTabletArtist", row.Detail);
+        Assert.Contains("only one daemon can run at a time", row.Detail);
+    }
+
+    /// <summary>Doing what it says finishes it — no click required.</summary>
+    /// <remarks>
+    /// Starting the old daemon and letting OTA connect to it is the situation resolving itself. A row
+    /// that kept insisting afterwards would be telling the artist their settings may look different
+    /// while they are looking at the very settings it meant.
+    /// </remarks>
+    [Fact]
+    public void OnceTheOldDaemonIsTheOneAnswering_TheRowIsGone()
+    {
+        const string chosen = @"D:\portable-otd\OpenTabletDriver.Daemon.exe";
+
+        var issues = HealthEvaluator.Evaluate(new HealthInputs
+        {
+            DaemonConnected = true,
+            IgnoredDaemonPath = chosen,
+            ConnectedDaemonPath = chosen,
+        });
+
+        Assert.DoesNotContain(issues, x => x.Id == "daemon.ignoredPath");
+    }
+
+    /// <summary>And so does saying the bundled copy is fine.</summary>
+    /// <remarks>
+    /// The other way out, and the reason the row carries an action rather than a link: without one it is
+    /// a recommendation that can never be satisfied by the artist who is content, which is a permanent
+    /// entry in "Needs attention" for a decision they already made.
+    /// </remarks>
+    [Fact]
+    public void OnceTheBundledCopyIsAccepted_TheRowIsGone()
+    {
+        var issues = HealthEvaluator.Evaluate(new HealthInputs
+        {
+            IgnoredDaemonPath = @"D:\portable-otd\OpenTabletDriver.Daemon.exe",
+            IgnoredDaemonPathAccepted = true,
+        });
+
+        Assert.DoesNotContain(issues, x => x.Id == "daemon.ignoredPath");
+    }
+
+    /// <summary>The action is the acceptance, not a trip to another page.</summary>
+    [Fact]
+    public void TheRowOffersAWayToBeDoneWithIt()
+    {
+        var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
+
+        Assert.Equal(RemediationArea.AcceptBundledDaemon, row!.Remediation!.Area);
+    }
+
+    /// <summary>
     /// A recommendation, not a fault: nothing is broken, and OTA is doing what it now intends.
     /// </summary>
     [Fact]
-    public void ItIsARecommendationPointingAtTheDaemonPage()
+    public void ItIsARecommendationRatherThanAFault()
     {
         var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
 
         Assert.Equal(HealthSeverity.Recommendation, row!.Severity);
-        Assert.Equal(RemediationArea.Daemon, row.Remediation!.Area);
     }
 
     /// <summary>

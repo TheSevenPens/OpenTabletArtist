@@ -49,6 +49,11 @@ public enum RemediationArea
     Configs,
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
+
+    /// <summary>Answers the upgrade row about a daemon location OTA no longer starts from: the artist
+    /// is content with the bundled copy, so remember that and stop saying it. Acts rather than
+    /// navigates — there is nowhere useful to go, the decision is the whole of the fix.</summary>
+    AcceptBundledDaemon,
     /// <summary>One-click fix for the artist-pen-behavior bundle: re-enable Windows Ink + pen tip + pressure
     /// + tilt on the tablet in a single apply (#artist-pen-health).</summary>
     RestorePenBehavior,
@@ -155,6 +160,15 @@ public sealed record HealthInputs
     /// once is not.
     /// </remarks>
     public string IgnoredDaemonPath { get; init; } = "";
+
+    /// <summary>The artist has said they are content with the copy OTA ships, so the row above has
+    /// been answered and does not come back.</summary>
+    public bool IgnoredDaemonPathAccepted { get; init; }
+
+    /// <summary>The daemon actually answering, if its path could be read ("" otherwise). The row is
+    /// also finished when this <em>is</em> the old location: they started it, which is the other way the
+    /// situation resolves, and no click should be needed to notice that.</summary>
+    public string ConnectedDaemonPath { get; init; } = "";
 
     /// <summary>
     /// The daemon answering is in a location this app manages, but is not the one selected (#882).
@@ -304,16 +318,20 @@ public static class HealthEvaluator
         // --- A daemon location chosen before #930, which OTA no longer launches from. Not conditional
         //     on being connected: the artist most likely to be confused is the one whose chosen daemon
         //     is not running, because that is when OTA starts its own instead. ---
-        if (!string.IsNullOrWhiteSpace(i.IgnoredDaemonPath))
+        if (!string.IsNullOrWhiteSpace(i.IgnoredDaemonPath)
+            && !i.IgnoredDaemonPathAccepted
+            && !OtdInterop.PathEquality.Same(i.ConnectedDaemonPath, i.IgnoredDaemonPath))
         {
             issues.Add(new HealthIssue("daemon.ignoredPath",
                 HealthSeverity.Recommendation,
                 "OpenTabletArtist no longer starts the driver you chose",
-                $"It starts the copy it ships. Your choice ({i.IgnoredDaemonPath}) is still on disk and "
-                + "still works — start it yourself and OpenTabletArtist will connect to it. Settings and "
-                + "plugins may look different until you do, because a portable OpenTabletDriver keeps its "
-                + "own alongside itself.",
-                new Remediation("Review", RemediationArea.Daemon)));
+                $"It starts the copy it ships. Nothing has been deleted: {i.IgnoredDaemonPath} and its "
+                + "settings are where you left them. To go back to it, stop the daemon on the Daemon "
+                + "page, close OpenTabletArtist, start that OpenTabletDriver yourself, then reopen "
+                + "OpenTabletArtist — only one daemon can run at a time, so it cannot start while this "
+                + "one is up. A portable OpenTabletDriver keeps its settings and plugins beside itself, "
+                + "so those may look different until you do.",
+                new Remediation("Use the bundled one", RemediationArea.AcceptBundledDaemon)));
         }
 
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —

@@ -37,6 +37,12 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     private static string LegacyDaemonPath() => AppSettings.Get(LegacyUserPathKey) ?? "";
 
+    /// <summary>Set when the artist answers the upgrade row by keeping the bundled daemon. Separate from
+    /// <see cref="LegacyUserPathKey"/> so the old location survives for a downgrade: acknowledging is
+    /// not the same as discarding, and deleting their choice to silence a message would be the app
+    /// helping itself.</summary>
+    internal const string BundledDaemonAcceptedKey = "daemon.bundledAccepted";
+
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
@@ -204,6 +210,8 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
             IgnoredDaemonPath = LegacyDaemonPath(),
+            IgnoredDaemonPathAccepted = AppSettings.Get(BundledDaemonAcceptedKey) == "true",
+            ConnectedDaemonPath = _connection.DaemonSourcePath,
             DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
             DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,

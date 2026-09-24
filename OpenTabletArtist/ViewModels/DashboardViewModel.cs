@@ -143,6 +143,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
                 // Open the CONFIGS page so the user can review/remove the override.
                 _openConfigs?.Invoke();
                 break;
+            case RemediationArea.AcceptBundledDaemon:
+                // The whole fix is the decision, so record it and let the row go. The old location stays
+                // in settings.json untouched, so a downgrade still finds it.
+                Services.AppSettings.Set(Services.HealthService.BundledDaemonAcceptedKey, "true");
+                Health.Refresh();
+                break;
             case RemediationArea.DeveloperInducedWarning:
                 // Synthetic warning from the Developer tab — "fixing" it just clears the induced flag.
                 Services.DeveloperSettings.Instance.ClearInduced(issue.Severity);
