@@ -451,7 +451,8 @@
                          the restart would reach the bundled copy, and when a chosen location is in front of
                          it the card says so and points at Clear rather than hiding the option. -->
                     <!-- One block for both answers to "which driver?", because they are the same
-                         question: install the official release, or point OTA at one you already have.
+                         question: install the official release, or open the settings window of the
+                         driver that is already answering.
                          They were two sections with two headings and two paragraphs saying so. -->
                     <c:Section MaxWidth="440" HorizontalAlignment="Left" VerticalAlignment="Top"
                                IsVisible="{Binding ShowDriverCard}">

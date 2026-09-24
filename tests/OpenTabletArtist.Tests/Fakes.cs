@@ -187,7 +187,14 @@ internal sealed class FakeConnectionState : IConnectionState
     public bool IsDaemonRunning => _isConnected;
     public bool IsAppOwnedDaemon => Ownership == DaemonOwnership.Owned;
     public bool IsForeignDaemon => Ownership == DaemonOwnership.External;
-    public string DaemonSourcePath { get; set; } = "";
+    /// <summary>Which daemon is answering. Raises a change, because the page's driver card is computed
+    /// from it and a silent setter cannot show that the card fails to follow (#936).</summary>
+    public string DaemonSourcePath
+    {
+        get => _daemonSourcePath;
+        set { _daemonSourcePath = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DaemonSourcePath))); }
+    }
+    private string _daemonSourcePath = "";
     public string DaemonVersion => "";
     public bool HasDaemonVersion => false;
     public bool SaveFailed => false;

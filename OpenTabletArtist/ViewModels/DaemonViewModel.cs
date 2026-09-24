@@ -53,6 +53,16 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ShowInstallRuntime));
             }
 
+            // Which daemon is answering decides whether there is a settings window to offer, and so
+            // whether the card holding that button has anything in it at all. Without this the card is
+            // decided once and then keeps its answer: connect to a daemon that ships its own window and
+            // the button never appears; disconnect from one and an empty card stays on screen (#936).
+            if (e.PropertyName is nameof(DaemonStatusViewModel.DaemonSourcePath))
+            {
+                OnPropertyChanged(nameof(OtdUxPath));
+                OnPropertyChanged(nameof(CanOpenOtdUx));
+                OnPropertyChanged(nameof(ShowDriverCard));
+            }
         };
     }
 
@@ -235,10 +245,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
-            // and nothing has to be remembered.
+            // Installed into /Applications, which OTA does NOT launch from: since #daemon-bundled-only
+            // the launch ladder is OTA's own copy only, and nothing is bundled on macOS yet (Phase C of
+            // docs/design/official-otd-release.md). So restarting OTA does nothing for this install; the
+            // artist has to start it, after which OTA connects to it like any other running daemon.
             InstallGuidance = OtdInstaller.GatekeeperGuidance;
-            InstallGuidance += " Restart OpenTabletArtist to use this installation.";
+            InstallGuidance += " Then open OpenTabletDriver to start it — OpenTabletArtist connects "
+                             + "to it once it is running, and does not launch it for you.";
         }
         finally
         {

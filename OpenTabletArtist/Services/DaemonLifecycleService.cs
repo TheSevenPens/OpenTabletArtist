@@ -140,8 +140,9 @@ public class DaemonLifecycleService : IDaemonLifecycleService
             {
                 return $"The daemon at {daemonPath} needs the .NET {Domain.DotnetRuntime.DaemonMajor} "
                      + "runtime, and this machine doesn't have it. Install \".NET Runtime "
-                     + $"{Domain.DotnetRuntime.DaemonMajor}.0\" (x64) from Microsoft and try again, or "
-                     + "point OTA at a different OpenTabletDriver on the Daemon page.";
+                     + $"{Domain.DotnetRuntime.DaemonMajor}.0\" (x64) from Microsoft and try again. If "
+                     + "you have another OpenTabletDriver that runs, start it yourself and OTA will "
+                     + "connect to it.";
             }
 
             return $"The daemon at {daemonPath} started and exited immediately (exit code {proc.ExitCode}). "

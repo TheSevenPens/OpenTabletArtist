@@ -54,15 +54,15 @@ public sealed class OtdInstaller
         var bundlePath = OtdRelease.InstalledBundlePath;
         if (Directory.Exists(bundlePath))
             return new Result(null,
-                $"OpenTabletDriver is already installed at {bundlePath}. Remove it first, or point OTA at "
-                + "it with Locate OpenTabletDriver.");
+                $"OpenTabletDriver is already installed at {bundlePath}. Start it and OpenTabletArtist "
+                + "will connect to it; to install a different copy, remove that one first.");
 
         // /Applications is writable by admin accounts without a prompt, but not by standard ones. Say so
         // plainly rather than failing halfway through with a raw permissions error.
         if (!CanWriteTo(OtdRelease.InstallDirectory))
             return new Result(null,
                 $"This account can't write to {OtdRelease.InstallDirectory}. Install OpenTabletDriver "
-                + "yourself, then use Locate OpenTabletDriver to point OTA at it.");
+                + "yourself and start it; OpenTabletArtist connects to whichever copy is running.");
 
         var work = Directory.CreateTempSubdirectory("ota-otd-install-");
         try
@@ -80,7 +80,7 @@ public sealed class OtdInstaller
             if (!Directory.Exists(extractedBundle))
                 return new Result(null,
                     $"The download didn't contain {OtdRelease.MacBundleName}. The release may have changed "
-                    + "shape — install OpenTabletDriver yourself and use Locate OpenTabletDriver.");
+                    + "shape — install OpenTabletDriver yourself and start it.");
 
             StatusChanged?.Invoke("Installing…");
             Directory.Move(extractedBundle, bundlePath);

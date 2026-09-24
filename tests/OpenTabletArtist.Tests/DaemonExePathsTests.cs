@@ -45,11 +45,16 @@ public class DaemonExePathsTests
     public void TheLadderHoldsNothingButOtasOwnCopy()
     {
         var baseDir = Path.Combine("C:", "app");
-        var candidates = DaemonExePaths.Candidates(baseDir).ToList();
 
-        Assert.Equal(3, candidates.Count);   // bundled, dev Debug, dev Release
-        Assert.Equal(Path.GetFullPath(Path.Combine(baseDir, "Daemon", Exe)), candidates[0]);
-        Assert.All(candidates.Skip(1), c => Assert.Contains("external", c));
+        // The whole sequence in one assertion: contents, order and count together. Three overlapping
+        // assertions said the same thing less clearly, and a failure named only the half it checked.
+        string Dev(string config) => Path.GetFullPath(Path.Combine(
+            baseDir, "..", "..", "..", "..",
+            "external", "OpenTabletDriver", "OpenTabletDriver.Daemon", "bin", config, "net8.0", Exe));
+
+        Assert.Equal(
+            [Path.GetFullPath(Path.Combine(baseDir, "Daemon", Exe)), Dev("Debug"), Dev("Release")],
+            DaemonExePaths.Candidates(baseDir));
     }
 
     [Fact]
