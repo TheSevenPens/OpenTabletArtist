@@ -118,17 +118,19 @@ first rather than assuming this separates them.
 
 ### Reaching the foreign-daemon states
 
-`YOURS`, and the offer of a way back to the bundled copy, need a daemon the app did not start and does not
-manage. Start one from anywhere outside the app's folder, then launch the app and let it adopt:
+`YOURS` needs a daemon the app did not start and does not manage. Start one from anywhere outside the
+app's folder, then launch the app: a running daemon owns the pipe, so OTA connects to it whatever it is.
 
 ```powershell
 Copy-Item -Recurse <a daemon folder> $env:TEMP\foreign-otd
 Start-Process $env:TEMP\foreign-otd\OpenTabletDriver.Daemon.exe -WindowStyle Hidden
 ```
 
-To reach the state where a chosen location sits in front of the bundled copy, either pick one through
-**Use a different one…** on the driver card, or write `daemon.userPath` straight into the redirected
-`settings.json` and relaunch.
+That is now the only route, and it is the route a user takes too. OTA launches nothing but the copy it
+ships, so there is no chosen location to set and no `daemon.userPath` to write: the picker, the setting
+and the offered way back to the bundled copy all went with #930. Starting a second copy of OTA's *own*
+daemon (a dev tree beside a release, or Debug beside Release) reaches the other external case, the one
+the driver card calls "another copy of the OTD daemon this app ships".
 
 > **What none of this gives you** is a machine without the .NET 8 runtime the shipped daemon needs. That
 > is #878, and it wants a clean VM or a Windows Sandbox session (#902) — not a dev box with a folder moved

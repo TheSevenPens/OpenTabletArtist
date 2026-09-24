@@ -49,6 +49,14 @@ public enum RemediationArea
     Configs,
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
+
+    /// <summary>Answers the upgrade row about a daemon location OTA no longer starts from: it has been
+    /// read, so remember that and stop saying it. An acknowledgement and nothing more — it selects no
+    /// daemon and starts none, which is why it is not called "use the bundled one": that row can appear
+    /// while OTA is connected to some other external copy, and a button promising a switch would then be
+    /// promising something this does not do (#941). Acts rather than navigates; there is nowhere useful
+    /// to go.</summary>
+    AcknowledgeLegacyDaemonPath,
     /// <summary>One-click fix for the artist-pen-behavior bundle: re-enable Windows Ink + pen tip + pressure
     /// + tilt on the tablet in a single apply (#artist-pen-health).</summary>
     RestorePenBehavior,
@@ -140,6 +148,31 @@ public sealed record HealthInputs
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
     public bool ForeignDaemon { get; init; }
+
+    /// <summary>
+    /// A daemon location the artist chose before #930, which OTA no longer starts from ("" when there
+    /// is none, which is everyone who never used the picker).
+    /// </summary>
+    /// <remarks>
+    /// Kept as a health row rather than a startup notice because the consequence outlives the moment.
+    /// OpenTabletDriver prefers a <c>userdata</c> folder beside its own executable when one exists, and
+    /// a portable install has one; the copy OTA ships does not, so it reads the shared location. An
+    /// artist whose chosen path was a portable install therefore sees a different set of settings and
+    /// plugins, with their own files present but unused — and they may not connect that to an OTA
+    /// upgrade days later. A row that stays while the situation does is findable then; a notice shown
+    /// once is not.
+    /// </remarks>
+    public string IgnoredDaemonPath { get; init; } = "";
+
+    /// <summary>The artist has read the row above and said so, which is all the button does — it
+    /// chooses no daemon and starts nothing, because there is nothing for it to choose between. Durable,
+    /// so the explanation does not come back every launch.</summary>
+    public bool LegacyPathNoticeAcknowledged { get; init; }
+
+    /// <summary>The daemon actually answering, if its path could be read ("" otherwise). The row is
+    /// also finished when this <em>is</em> the old location: they started it, which is the other way the
+    /// situation resolves, and no click should be needed to notice that.</summary>
+    public string ConnectedDaemonPath { get; init; } = "";
 
     /// <summary>
     /// The daemon answering is in a location this app manages, but is not the one selected (#882).
@@ -285,6 +318,33 @@ public static class HealthEvaluator
         //     pen useless for drawing (Windows Ink off, pen tip / pressure / tilt disabled). Bundled into
         //     one card because there's no single place to fix or review them (#artist-pen-health). ---
         AddTabletPenBehaviorIssues(issues, i);
+
+        // --- A daemon location chosen before #930, which OTA no longer launches from. Not conditional
+        //     on being connected: the artist most likely to be confused is the one whose chosen daemon
+        //     is not running, because that is when OTA starts its own instead. ---
+        if (!string.IsNullOrWhiteSpace(i.IgnoredDaemonPath)
+            && !i.LegacyPathNoticeAcknowledged
+            && !OtdInterop.PathEquality.Same(i.ConnectedDaemonPath, i.IgnoredDaemonPath))
+        {
+            issues.Add(new HealthIssue("daemon.ignoredPath",
+                // Information, not Recommendation: nothing about the current setup is undesirable, and
+                // Recommendation says it is. This explains a changed rule; it does not ask for a fix.
+                HealthSeverity.Information,
+                "OpenTabletArtist no longer starts the driver you chose",
+                // "When no daemon is running" rather than a bare "it starts": this row can be on screen
+                // while some other OpenTabletDriver is answering, and the policy being described is about
+                // what OTA launches, not about what is running now (#946).
+                "When no OpenTabletDriver daemon is running, OpenTabletArtist starts the copy it ships. "
+                + "It has not moved or deleted your previous OpenTabletDriver files — "
+                + $"{i.IgnoredDaemonPath} and its settings are untouched. If that installation is still "
+                + "there and you would rather use it, quit OpenTabletArtist from its tray menu: choose "
+                + "\"Quit and stop the daemon\" if it is offered, otherwise choose \"Quit\" and stop any "
+                + "running OpenTabletDriver yourself. Then start the one you want and launch "
+                + "OpenTabletArtist again — only one daemon can run at a time, so yours cannot start "
+                + "while another is up. A portable OpenTabletDriver keeps its settings and plugins beside "
+                + "itself, so those may look different until you do.",
+                new Remediation("Got it", RemediationArea.AcknowledgeLegacyDaemonPath)));
+        }
 
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —
         //     this parses OTD's Windows manufacturer-driver warnings and the fix runs a Windows tool (#140). ---
@@ -504,17 +564,20 @@ public static class HealthEvaluator
         // true of every daemon including its own bundled one, and distinguished nothing.
         //
         // Two different facts reach here as ForeignDaemon, and saying the wrong one is worse than saying
-        // nothing. A daemon the user installed elsewhere is not the bundled copy; a daemon that IS the
-        // bundled copy, answering while the user's selection points somewhere else, is also External --
-        // and telling that user "not the bundled copy" is false, and points them at the very thing they
-        // are already running (#882). The classification is the same; the sentence must not be.
+        // nothing. A daemon the artist installed elsewhere is not the bundled copy; a daemon that IS one
+        // of OTA's own, but not the one OTA would start, is also External -- and telling that person
+        // "not the bundled copy" is false, and points them at the very thing they are already running
+        // (#882). The classification is the same; the sentence must not be.
+        //
+        // Since #daemon-bundled-only there is no chosen location, so the second case is now a second
+        // copy of OTA's own daemon: a dev tree beside a bundled release, or Debug beside Release.
         if (i.ForeignDaemon)
             rows.Add(new HealthLink(
                 // Short on purpose: the row clips at roughly this width, and the previous wording lost
                 // its last word to that. A sentence whose meaning lives in the clipped part is worse
                 // than a short one -- "a different one is answering" became "a different one is a".
                 i.DaemonIsManagedButNotSelected
-                    ? "Not the OpenTabletDriver you chose"
+                    ? "Another copy of the OTD daemon this app ships"
                     : "An OpenTabletDriver you installed, not the bundled copy",
                 "", RemediationArea.Daemon));
 

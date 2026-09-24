@@ -1,121 +1,94 @@
+using System;
+using System.IO;
+using OpenTabletArtist.Domain;
 using OpenTabletArtist.ViewModels;
 using Xunit;
 
 namespace OpenTabletArtist.Tests;
 
 /// <summary>
-/// That the card holding the way back to the bundled daemon is on screen when the offer is (#725, #900).
+/// That the driver card is on screen exactly when it has something in it (#725, #900).
 /// </summary>
 ///
 /// <remarks>
 /// <para>
-/// The offer shipped inside a card whose own condition excluded it. <c>ShowDriverCard</c> was
-/// <c>ShowLocateCard || ShowInstallCard</c>, and <c>ShowLocateCard</c> is false exactly when a bundled
-/// copy exists, no location is chosen and the exe is not missing — which is precisely when the switch
-/// applies. So the button rendered never, and the sentence saying the offer cannot be taken yet rendered
-/// always. Both halves were unit-tested and correct; the composition was not.
+/// This exists because of a composition bug, and the bug is worth keeping in mind even though the
+/// feature that carried it is gone. The card's condition was <c>ShowLocateCard || ShowInstallCard</c>,
+/// and the offer it was meant to hold applied in exactly the state that made both false. So the button
+/// rendered never, and the sentence saying the offer could not be taken yet rendered always. Both
+/// halves were unit-tested and correct; nothing tested the two together.
 /// </para>
 /// <para>
-/// Reached through the state the page reads rather than through an <c>AppSession</c> (#900). Until that
-/// seam existed this needed a session built over four fakes and an async reload, which is why the daemon
-/// page had no tests and why both defects in this one feature were found by eye.
-/// </para>
-/// <para>
-/// Every case sets <c>UserDaemonPath</c> explicitly. The view model initialises it from
-/// <c>AppSettings</c> — this machine's own <c>settings.json</c> — so a case that leaves it alone is
-/// testing the developer's configuration rather than the code. That is not hypothetical: the machine
-/// this was written on has a stored path, and the one case that omitted it failed there and nowhere else.
+/// Most of what this file used to cover went with the daemon picker (#daemon-bundled-only): OTA launches
+/// only the copy it ships, so there is no chosen location, nothing to clear, and no way back to the
+/// bundled copy to offer. What is left is the same question asked of a much smaller card.
 /// </para>
 /// </remarks>
 public class DriverCardVisibilityTests
 {
-    /// <summary>On someone else's daemon with nothing chosen: the offer, and a card to hold it.</summary>
-    [Fact]
-    public void WithNoChosenLocation_TheOfferAndItsCardAreBothOnScreen()
-    {
-        using var page = PageOn(onForeignDaemon: true, hasBundled: true, chosenLocation: "");
-
-        Assert.True(page.CanSwitchToBundledDaemon, "the switch applies here");
-        Assert.True(page.ShowDriverCard, "and the card that holds it has to be on screen for it to render");
-        Assert.False(page.BundledIsBehindAChosenLocation);
-    }
-
-    /// <summary>With a location chosen, the offer becomes an explanation — and still has a card.</summary>
-    [Fact]
-    public void WithAChosenLocation_TheExplanationTakesItsPlace()
-    {
-        using var page = PageOn(
-            onForeignDaemon: true, hasBundled: true, chosenLocation: "C:/elsewhere/OpenTabletDriver.Daemon.exe");
-
-        Assert.False(page.CanSwitchToBundledDaemon, "a restart would relaunch the chosen one, not ours");
-        Assert.True(page.BundledIsBehindAChosenLocation);
-        Assert.True(page.ShowDriverCard);
-    }
-
-    /// <summary>On our own daemon there is nothing to switch away from, so neither state applies.</summary>
-    [Fact]
-    public void OnTheAppsOwnDaemon_NeitherIsOffered()
-    {
-        using var page = PageOn(onForeignDaemon: false, hasBundled: true, chosenLocation: "");
-
-        Assert.False(page.CanSwitchToBundledDaemon);
-        Assert.False(page.BundledIsBehindAChosenLocation);
-    }
-
-    /// <summary>
-    /// A build that bundles nothing has no such offer to make — which is every macOS build today.
-    /// </summary>
+    /// <summary>A card with nothing to say is not on screen.</summary>
     /// <remarks>
-    /// Also the state a developer sees by default: a dev tree ships no daemon under <c>Daemon/</c>, so
-    /// this is the branch the running app takes from <c>bin/Debug</c> (#901).
+    /// On Windows the install offer is never made (it is macOS-only), so a daemon that ships no settings
+    /// window of its own leaves the card empty. An empty bordered card reads as something that failed to
+    /// load.
     /// </remarks>
     [Fact]
-    public void WithNothingBundled_ThereIsNoOfferToMake()
+    public void WithNothingToOffer_TheCardIsHidden()
     {
-        using var page = PageOn(onForeignDaemon: true, hasBundled: false, chosenLocation: "");
+        using var install = new TempInstall();
+        using var page = PageOn(install.Daemon);
 
-        Assert.False(page.CanSwitchToBundledDaemon);
-        Assert.False(page.BundledIsBehindAChosenLocation);
+        Assert.False(page.CanOpenOtdUx, "this daemon ships no settings window");
+        Assert.False(page.ShowDriverCard);
     }
 
-    /// <summary>The offer follows the daemon: adopting someone else's makes it appear, live.</summary>
-    /// <remarks>
-    /// Through the notification rather than by rebuilding the page, because that is the wiring: the card
-    /// has to move when the connected daemon changes, without a reload.
-    /// </remarks>
+    /// <summary>And a card with one thing in it is.</summary>
     [Fact]
-    public void WhenAForeignDaemonIsAdopted_TheOfferAppearsWithoutARebuild()
+    public void WhenTheDriverShipsItsOwnWindow_TheCardIsOnScreen()
     {
-        var connection = new FakeConnectionState { IsConnected = true, HasBundledDaemon = true };
+        using var install = new TempInstall();
+        install.Add(DaemonExePaths.UxExeName);
+        using var page = PageOn(install.Daemon);
 
-        // UserDaemonPath is set explicitly even though "" is what this test means, because the view
-        // model's field initializer reads AppSettings -- the real machine's settings.json. Left to
-        // default, this passes or fails according to whether whoever runs it has ever pointed the app at
-        // a daemon of their own. It did fail that way here.
-        using var page = new DaemonViewModel(new DaemonStatusViewModel(connection)) { UserDaemonPath = "" };
-
-        Assert.False(page.CanSwitchToBundledDaemon);
-
-        connection.ShowForeignDaemonWarning = true;
-
-        Assert.True(page.CanSwitchToBundledDaemon);
-        Assert.True(page.ShowDriverCard);
+        Assert.True(page.CanOpenOtdUx);
+        Assert.True(page.ShowDriverCard, "the button has nowhere to render without its card");
     }
 
-    private static DaemonViewModel PageOn(bool onForeignDaemon, bool hasBundled, string chosenLocation)
+    private static DaemonViewModel PageOn(string daemonPath)
     {
         var connection = new FakeConnectionState
         {
             IsConnected = true,
-            ShowForeignDaemonWarning = onForeignDaemon,
-            HasBundledDaemon = hasBundled,
+            DaemonSourcePath = daemonPath,
         };
+        return new DaemonViewModel(new DaemonStatusViewModel(connection));
+    }
 
-        return new DaemonViewModel(new DaemonStatusViewModel(connection))
+    /// <summary>A folder holding a daemon, and whatever else a test wants beside it.</summary>
+    private sealed class TempInstall : IDisposable
+    {
+        private readonly string _root;
+
+        public TempInstall()
         {
-            // What the picker would have stored. Set here rather than through AppSettings so the test
-            // does not depend on this machine's settings file.
-            UserDaemonPath = chosenLocation,
-        };
+            _root = Path.Combine(Path.GetTempPath(), $"ota-drivercard-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(_root);
+            Daemon = Add(DaemonExePaths.DaemonExeName);
+        }
+
+        public string Daemon { get; }
+
+        public string Add(string fileName)
+        {
+            var path = Path.Combine(_root, fileName);
+            File.WriteAllText(path, "");
+            return path;
+        }
+
+        public void Dispose()
+        {
+            try { Directory.Delete(_root, recursive: true); }
+            catch (IOException) { /* a temp folder that outlives the test is not a failure */ }
+        }
     }
 }

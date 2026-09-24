@@ -39,7 +39,7 @@ public class HealthServiceDaemonCardTests
         // External, so ownership does not move -- only this does.
         connection.DaemonIsManagedButNotSelected = true;
 
-        Assert.Equal("Not the OpenTabletDriver you chose", DriverRow(health));
+        Assert.Equal("Another copy of the OTD daemon this app ships", DriverRow(health));
     }
 
     /// <summary>And back, so the wording is not one-way.</summary>
@@ -50,7 +50,7 @@ public class HealthServiceDaemonCardTests
         using var lifetime = health;
 
         connection.DaemonIsManagedButNotSelected = true;
-        Assert.Equal("Not the OpenTabletDriver you chose", DriverRow(health));
+        Assert.Equal("Another copy of the OTD daemon this app ships", DriverRow(health));
 
         connection.DaemonIsManagedButNotSelected = false;
         Assert.Equal("An OpenTabletDriver you installed, not the bundled copy", DriverRow(health));

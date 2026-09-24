@@ -245,7 +245,7 @@
                                                               IsVisible="{Binding Status.ShowStartButton}"
                                                               IsEnabled="{Binding !Status.IsDaemonBusy}" />
                                                     <MenuItem Header="Restart"
-                                                              Command="{Binding ClearDaemonPathCommand}"
+                                                              Command="{Binding Status.RestartDaemonCommand}"
                                                               IsVisible="{Binding Status.IsConnected}"
                                                               IsEnabled="{Binding !Status.IsDaemonBusy}" />
                                                     <MenuItem Header="Stop"
@@ -451,7 +451,8 @@
                          the restart would reach the bundled copy, and when a chosen location is in front of
                          it the card says so and points at Clear rather than hiding the option. -->
                     <!-- One block for both answers to "which driver?", because they are the same
-                         question: install the official release, or point OTA at one you already have.
+                         question: install the official release, or open the settings window of the
+                         driver that is already answering.
                          They were two sections with two headings and two paragraphs saying so. -->
                     <c:Section MaxWidth="440" HorizontalAlignment="Left" VerticalAlignment="Top"
                                IsVisible="{Binding ShowDriverCard}">
@@ -464,18 +465,6 @@
                                         Command="{Binding InstallOtdCommand}"
                                         IsEnabled="{Binding !IsInstalling}"
                                         Theme="{StaticResource AccentButton}" Padding="12,6" />
-                                <!-- Same picker, two framings: with nothing found the offer is "I have one
-                                     already"; with one connected it is "use a different one". -->
-                                <Button Content="I already have it&#8230;" Click="OnLocateDaemon"
-                                        IsVisible="{Binding ShowInstallCard}"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
-                                <Button Content="Use a different one&#8230;" Click="OnLocateDaemon"
-                                        IsVisible="{Binding !ShowInstallCard}"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6" />
-                                <Button Content="Clear" IsVisible="{Binding HasUserDaemonPath}"
-                                        Command="{Binding ClearDaemonPathCommand}"
-                                        Theme="{StaticResource GhostButton}" Padding="12,6"
-                                        ToolTip.Tip="Clear this selection for the next OpenTabletArtist launch" />
                             </StackPanel>
 
                             <!-- OpenTabletDriver's own settings window, when the connected driver ships
@@ -492,19 +481,6 @@
                                     Command="{Binding OpenOtdUxCommand}"
                                     Theme="{StaticResource GhostButton}" Padding="12,6"
                                     ToolTip.Tip="Opens the settings window that ships with this OpenTabletDriver. It edits the same driver, so changes made there will pause OpenTabletArtist until you reload." />
-
-                            <Button Content="Use bundled daemon next time" Margin="0,10,0,0"
-                                    HorizontalAlignment="Left"
-                                    IsVisible="{Binding CanSwitchToBundledDaemon}"
-                                    Command="{Binding ClearDaemonPathCommand}"
-                                    IsEnabled="{Binding !Status.IsDaemonBusy}"
-                                    Theme="{StaticResource GhostButton}" Padding="12,6"
-                                    ToolTip.Tip="Use the bundled copy after restarting OpenTabletArtist. Stop the current driver first if another copy is running." />
-
-                            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       IsVisible="{Binding BundledIsBehindAChosenLocation}"
-                                       Text="This app ships its own OpenTabletDriver. Clear the location above to use it." />
 
                             <!-- Says what pressing Install actually does — where the download comes from and
                                  where it lands. Only shown when Install is on offer. -->
@@ -531,14 +507,6 @@
                                        IsVisible="{Binding HasInstallGuidance}"
                                        Text="{Binding InstallGuidance}" />
 
-                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource ErrorBrush}"
-                                       IsVisible="{Binding HasUserDaemonPathProblem}"
-                                       Text="{Binding UserDaemonPathProblem}" />
-                            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       IsVisible="{Binding HasDaemonSelectionNotice}"
-                                       Text="{Binding DaemonSelectionNotice}" />
                         </StackPanel>
                     </c:Section>
 

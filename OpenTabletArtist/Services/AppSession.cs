@@ -247,13 +247,18 @@ public partial class AppSession : ObservableObject, IConnectionState, ISettingsC
     // act on and that points away from the actual fix.
     public static readonly string DaemonExeMissingMessage =
         OperatingSystem.IsMacOS()
-            ? "OpenTabletDriver isn't installed, or it's somewhere OpenTabletArtist didn't look. Install "
-              + "it, or point OTA at an existing copy on the Daemon page."
+            // Not "it isn't installed": with the installed-path tier gone (#930), an OpenTabletDriver
+            // that is installed but not running reaches this too, and telling that person to install it
+            // is both wrong and a dead end.
+            ? "No OpenTabletDriver is running. Start your installed copy, or install one — "
+              + "OpenTabletArtist connects to whichever copy is running."
             // Not "build the solution": the daemon left it in #786/#790, so that advice now cannot work.
-            // Offer the two routes that do, cheapest first.
-            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. Install "
-              + "OpenTabletDriver and point OTA at it on the Daemon page, or build the daemon from the "
-              + "submodule (scripts/build.ps1, or dotnet build "
+            // And not "point OTA at one" either: since #daemon-bundled-only OTA starts only the copy it
+            // ships, so the two routes that work are repairing that copy or starting another yourself.
+            : $"{Domain.DaemonExePaths.DaemonExeName} wasn't found and no daemon is running. The copy "
+              + "OpenTabletArtist ships is missing, so reinstall or repair OpenTabletArtist — or "
+              + "start any OpenTabletDriver yourself and OTA will connect to it. From a dev tree, build "
+              + "the daemon from the submodule (scripts/build.ps1, or dotnet build "
               + "external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj).";
 
     // --- Lifecycle-operation feedback (Start/Stop/Restart) ---

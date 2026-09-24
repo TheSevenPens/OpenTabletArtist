@@ -106,7 +106,16 @@ talking to, where does it live, and who started it."
 
 ## Setup experience
 
-### Detection *(shipped)*
+### Detection *(shipped, then narrowed — see below)*
+
+> **Superseded by #930.** The ladder described here was built and shipped, and then cut back to OTA's
+> own copy alone: the bundled artifact, or its dev-tree equivalent. A daemon that is already running
+> owns the OTD pipe and OTA connects to whatever holds it, so the ladder only ever decided *which
+> executable to start when nothing is running* — and for that, its own copy is the only answer that is
+> always right. The user-specified path, its picker and the installed-location tier are gone, along with
+> the `daemon.userPath` setting. What is written below is the design as it stood; the running-process
+> fallback and the adoption *model* survive it, because connecting to someone else's daemon never
+> depended on being able to launch it.
 
 [`DaemonExePaths.Candidates`](../../OpenTabletArtist/Domain/DaemonExePaths.cs) grows from two cases
 (bundled, dev tree) to an ordered ladder that includes real install locations — `/Applications/
@@ -126,6 +135,12 @@ answers:
 - **"Install it for me"** → assisted install of the official release.
 - **"It's already on my system"** → a path picker, validated before acceptance.
 - **"Use the copy that came with OTA"** → the bundled artifact (where we ship one).
+
+> **Superseded by #930**, the second and third answers. There is no picker and no choosing between
+> copies: OTA starts the one it ships, and an artist who wants their own starts it themselves, after
+> which OTA connects to it. On macOS, where nothing is bundled yet (Phase C), the assisted install still
+> installs — but OTA will not launch what it installed, so the guidance after a successful install now
+> says to open OpenTabletDriver.
 
 The question must be answerable by someone who does not know what a daemon is. Frame it in terms of the
 driver, not the process.

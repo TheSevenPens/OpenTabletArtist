@@ -48,19 +48,19 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
             if (e.PropertyName is nameof(DaemonStatusViewModel.IsDaemonExeMissing))
             {
-                OnPropertyChanged(nameof(ShowLocateCard));
                 OnPropertyChanged(nameof(ShowInstallCard));
                 OnPropertyChanged(nameof(ShowDriverCard));
                 OnPropertyChanged(nameof(ShowInstallRuntime));
             }
 
-            // Both read it, and it is what decides whether there is anything to switch away from.
-            if (e.PropertyName is nameof(DaemonStatusViewModel.ShowForeignDaemonWarning))
+            // Which daemon is answering decides whether there is a settings window to offer, and so
+            // whether the card holding that button has anything in it at all. Without this the card is
+            // decided once and then keeps its answer: connect to a daemon that ships its own window and
+            // the button never appears; disconnect from one and an empty card stays on screen (#936).
+            if (e.PropertyName is nameof(DaemonStatusViewModel.DaemonSourcePath))
             {
-                OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
-                OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
-
-                // The card itself now depends on the offer, so it has to move with it.
+                OnPropertyChanged(nameof(OtdUxPath));
+                OnPropertyChanged(nameof(CanOpenOtdUx));
                 OnPropertyChanged(nameof(ShowDriverCard));
             }
         };
@@ -93,114 +93,16 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
     /// <summary>The DAEMON PROCESS card: running state, which daemon + path, version-match, process uptime.</summary>
     public DaemonProcessViewModel Process { get; }
 
-    // --- "It's already on my system": pointing OTA at an OpenTabletDriver it didn't find ------------
-    // The chosen path is tier 0 of the search ladder, so it takes effect on the next connect with no
-    // other state to keep in step. See docs/design/official-otd-release.md.
-
-    /// <summary>The daemon location the user chose, or "" when they haven't chosen one.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUserDaemonPath))]
-    private string _userDaemonPath = AppSettings.Get(DaemonExePaths.UserPathSettingKey) ?? "";
-
-    public bool HasUserDaemonPath => !string.IsNullOrEmpty(UserDaemonPath);
-
     /// <summary>
-    /// Offer the way back to the bundled daemon only when pressing it would actually get there (#725).
+    /// The block answering "which OpenTabletDriver?", which is now a much smaller question (#daemon-bundled-only).
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// The switch is a restart, and a restart launches <c>ExpectedExePath()</c>, whose ladder is
-    /// user-chosen → bundled → an installed OTD → the dev tree. So the bundled copy is what comes next
-    /// only when no location has been chosen; with one stored, a restart relaunches <em>that</em>, and a
-    /// button saying otherwise would be telling the user something untrue.
-    /// </para>
-    /// <para>
-    /// The button this replaces got that wrong. It asked only whether a foreign daemon was connected and
-    /// whether a bundled copy existed, so with a chosen location it offered to switch and then restarted
-    /// the very daemon the user was trying to leave. It was removed in 660b49a for being duplication;
-    /// this is the same offer, made only when it is true. The blocked case is <see cref="BundledIsBehindAChosenLocation"/>.
-    /// </para>
+    /// OTA launches only the copy it ships. A driver the artist installed is reached by starting it —
+    /// OTA connects to whatever holds the pipe — so pointing OTA at a location, and clearing that
+    /// location again, no longer exist. What is left is the macOS install offer and the button that
+    /// opens the connected driver's own window.
     /// </remarks>
-    public bool CanSwitchToBundledDaemon =>
-        Offer == DaemonExePaths.BundledOffer.Switch;
-
-    /// <summary>
-    /// The bundled copy exists and is not what a restart would reach, because a location is chosen.
-    /// </summary>
-    /// <remarks>
-    /// Said rather than hidden: a user looking for the daemon their app ships should not be left with a
-    /// card that silently omits it. Clear is already on this card, and is the one action that puts the
-    /// bundled copy back at the front of the ladder.
-    /// </remarks>
-    public bool BundledIsBehindAChosenLocation =>
-        Offer == DaemonExePaths.BundledOffer.ClearTheChosenLocationFirst;
-
-    /// <summary>The decision itself, kept pure and tested in <c>DaemonExePathsTests</c>.</summary>
-    private DaemonExePaths.BundledOffer Offer => DaemonExePaths.OfferBundled(
-        onForeignDaemon: Status.ShowForeignDaemonWarning,
-        hasBundled: Status.HasBundledDaemon,
-        hasChosenLocation: HasUserDaemonPath);
-
-    /// <summary>Show the locate card when there's nothing to connect to (the case it solves), whenever a
-    /// location has been chosen (so the choice stays visible and reversible), and on any build that
-    /// doesn't ship its own daemon — there, "which OpenTabletDriver?" is a standing question rather than
-    /// an error state, and a card that only appeared once nothing worked would be undiscoverable to
-    /// someone with two installs. (docs/design/official-otd-release.md)</summary>
-    public bool ShowLocateCard =>
-        Status.IsDaemonExeMissing || HasUserDaemonPath || !Status.HasBundledDaemon;
-
-    /// <summary>The driver block covers the answers to "which OpenTabletDriver?" — install one, point at
-    /// one you have, or go back to the bundled copy — so it shows when any of them is on offer.</summary>
-    /// <remarks>
-    /// The third one had to be added here, and it was found by looking at the page rather than by any
-    /// test (#725). <see cref="CanSwitchToBundledDaemon"/> is true exactly when a bundled copy exists, no
-    /// location is chosen and the exe is not missing — which is the one combination that makes
-    /// <see cref="ShowLocateCard"/> false. So the offer lived inside a card that was hidden whenever the
-    /// offer applied, and visible only in the state that tells the user they cannot take it yet.
-    /// </remarks>
-    public bool ShowDriverCard => ShowLocateCard || ShowInstallCard || CanSwitchToBundledDaemon;
-
-    /// <summary>Why the last chosen path was refused, or "" — shown next to the picker so a rejection
-    /// explains itself instead of appearing to do nothing.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUserDaemonPathProblem))]
-    private string _userDaemonPathProblem = "";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasDaemonSelectionNotice))]
-    private string _daemonSelectionNotice = "";
-    public bool HasDaemonSelectionNotice => !string.IsNullOrEmpty(DaemonSelectionNotice);
-
-    public bool HasUserDaemonPathProblem => !string.IsNullOrEmpty(UserDaemonPathProblem);
-
-    partial void OnUserDaemonPathChanged(string value)
-    {
-        OnPropertyChanged(nameof(ShowLocateCard));
-        OnPropertyChanged(nameof(ShowDriverCard));
-
-        // Choosing or clearing a location moves the bundled copy's place in the ladder, which is the
-        // whole of what these two say (#725).
-        OnPropertyChanged(nameof(CanSwitchToBundledDaemon));
-        OnPropertyChanged(nameof(BundledIsBehindAChosenLocation));
-    }
-
-    /// <summary>Vet a path the user picked and, if it resolves to a daemon, remember it for the next application launch. Rejections are reported rather than stored.</summary>
-    public async Task ChooseDaemonPathAsync(string? rawPath)
-    {
-        var result = DaemonExePaths.ValidateUserPath(rawPath, File.Exists);
-        if (!result.Accepted)
-        {
-            DaemonSelectionNotice = "";
-            UserDaemonPathProblem = result.Problem ?? "";
-            return;
-        }
-
-        UserDaemonPathProblem = "";
-        UserDaemonPath = result.Path!;
-        AppSettings.Set(DaemonExePaths.UserPathSettingKey, result.Path!);
-        DaemonSelectionNotice = "Selection saved for the next OpenTabletArtist launch. Stop the current driver first if a different copy is running.";
-        await Task.CompletedTask;
-    }
+    public bool ShowDriverCard => ShowInstallCard || CanOpenOtdUx;
 
     // --- "Install it for me": fetch the pinned official release -----------------------------------
 
@@ -343,10 +245,13 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            // Installed into /Applications, the ladder's first entry — so connecting is all that's left,
-            // and nothing has to be remembered.
+            // Installed into /Applications, which OTA does NOT launch from: since #daemon-bundled-only
+            // the launch ladder is OTA's own copy only, and nothing is bundled on macOS yet (Phase C of
+            // docs/design/official-otd-release.md). So restarting OTA does nothing for this install; the
+            // artist has to start it, after which OTA connects to it like any other running daemon.
             InstallGuidance = OtdInstaller.GatekeeperGuidance;
-            InstallGuidance += " Restart OpenTabletArtist to use this installation.";
+            InstallGuidance += " Then open OpenTabletDriver to start it — OpenTabletArtist connects "
+                             + "to it once it is running, and does not launch it for you.";
         }
         finally
         {
@@ -362,18 +267,6 @@ public sealed partial class DaemonViewModel : ObservableObject, IDisposable
 
     private void OnInstallProgress(int percent) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => InstallProgress = percent);
-
-    /// <summary>Forget the chosen location and fall back to the rest of the ladder (bundled copy, an
-    /// installed OpenTabletDriver, the dev tree).</summary>
-    [RelayCommand]
-    private async Task ClearDaemonPath()
-    {
-        AppSettings.Remove(DaemonExePaths.UserPathSettingKey);
-        UserDaemonPath = "";
-        UserDaemonPathProblem = "";
-        DaemonSelectionNotice = "The default selection takes effect after restarting OpenTabletArtist. Stop the current driver first if a different copy is running.";
-        await Task.CompletedTask;
-    }
 
     /// <summary>
     /// OpenTabletDriver's own settings window, if the connected driver ships one (#otd-ux-button).

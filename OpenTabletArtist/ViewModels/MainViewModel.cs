@@ -169,11 +169,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 ? $"OpenTabletArtist didn't build the OpenTabletDriver that's running:\n\n{_session.DaemonSourcePath}"
                 : "OpenTabletArtist can't read where the running OpenTabletDriver lives.";
 
-            // Restart is the sharper one: it doesn't just stop that daemon, it starts another in its place.
-            // Which one is the ladder's business, not necessarily a copy we ship — on macOS we don't ship one.
+            // Restart is the sharper one: it doesn't just stop that daemon, it starts one in its place.
+            // Which one is not a guess. AppSession pins the executable it first connected to, and restart
+            // relaunches exactly that; only when the path could not be read does it fall back to OTA's own
+            // copy. Saying "whichever OpenTabletArtist finds" was true of the old four-tier ladder and is
+            // now wrong in the case the artist is most likely to be in (#936).
             var consequence = verb == "restart"
-                ? "Restarting stops it, then starts whichever OpenTabletDriver OpenTabletArtist finds — "
-                  + "which may not be this one."
+                ? known
+                    ? "Restarting stops it and starts the same one again."
+                    // "which is not the one running now" claims to know what is running, and this is
+                    // the branch where OTA could not read that. May, not is.
+                    : "Restarting stops it, then starts the OpenTabletDriver this app ships — "
+                      + "which may be a different copy."
                 : "Stopping it affects anything else using it.";
 
             // Off Windows there's no pipe-to-process lookup, so Stop can only stop them all.

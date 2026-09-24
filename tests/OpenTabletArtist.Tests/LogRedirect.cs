@@ -29,7 +29,16 @@ namespace OpenTabletArtist.Tests;
 internal static class LogRedirect
 {
     [ModuleInitializer]
-    internal static void SendLogsToTemp() =>
+    internal static void SendLogsToTemp()
+    {
+        // Before AppLog is touched at all, not merely before it is used. AppLog builds its log directory
+        // from AppPaths.LocalAppData in a static field, and that path is resolved once — so the first
+        // mention of AppLog decides where OTA's data lives for the whole run. Module initializer order
+        // within an assembly is unspecified, which is why this is a call and not a second attribute
+        // (#947).
+        TestAppDataRoot.Ensure();
+
         AppLog.RedirectTo(Path.Combine(
             Path.GetTempPath(), "ota-tests", $"{Environment.ProcessId}-{Guid.NewGuid():N}"));
+    }
 }

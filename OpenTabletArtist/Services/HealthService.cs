@@ -25,6 +25,25 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     internal static string ExpectedOtdVersion { get; } =
         OtdRelease.Version.ToString();
 
+    /// <summary>The settings key that held a daemon location the artist chose, before #930 made OTA
+    /// start only the copy it ships.</summary>
+    /// <remarks>
+    /// Nothing writes this any more and nothing removes it: an unknown key survives a settings write, so
+    /// leaving it costs nothing and keeps a downgrade working. It is read here so the artist can be told
+    /// their choice is no longer being acted on, which is otherwise invisible until their settings look
+    /// wrong (see <see cref="Domain.Health.HealthInputs.IgnoredDaemonPath"/>).
+    /// </remarks>
+    private const string LegacyUserPathKey = "daemon.userPath";
+
+    private static string LegacyDaemonPath() => AppSettings.Get(LegacyUserPathKey) ?? "";
+
+    /// <summary>Set when the artist says they have read the row about the daemon location OTA no longer
+    /// starts from. Deliberately a notice preference rather than a second launch setting, and named to
+    /// say so: <see cref="LegacyUserPathKey"/> is kept for rollback, this only remembers that the
+    /// explanation landed. It can be retired when the notice is; what happens to the old path is a
+    /// separate decision (#941).</summary>
+    internal const string LegacyPathNoticeAcknowledgedKey = "daemon.legacyPathNoticeAcknowledged";
+
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
     private readonly WindowsInkPluginService _winInk;
@@ -191,6 +210,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             IsWindows = OperatingSystem.IsWindows(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
+            IgnoredDaemonPath = LegacyDaemonPath(),
+            LegacyPathNoticeAcknowledged = AppSettings.Get(LegacyPathNoticeAcknowledgedKey) == "true",
+            ConnectedDaemonPath = _connection.DaemonSourcePath,
             DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
             DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,
