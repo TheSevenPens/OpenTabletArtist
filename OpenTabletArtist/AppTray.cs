@@ -143,12 +143,24 @@ public sealed class AppTray : IDisposable
         // while a Restart was mid-flight: pressing it did nothing, because StartDaemon returns early
         // when IsDaemonBusy, so the menu was advertising an action it would silently decline (#956).
         //
-        // "Quit and stop the daemon" is deliberately not gated. It is a way out of the application, and
-        // a busy operation is not a reason to make leaving unavailable.
+        // "Quit and stop the daemon" takes the gate too, and that one is not cosmetic. It stops the PID
+        // captured when the quit began, and a Restart in flight replaces that PID part-way through:
+        //
+        //     Restart: stop PID 1  ->  close session  ->  Restart: launch PID 2
+        //     Quit and stop: stop captured PID 1  ->  quit returns, PID 2 still running
+        //
+        // So the action that exists to leave nothing behind leaves the replacement running (#957). The
+        // gate closes the window; the underlying fault is that RestartDaemon launches even after its
+        // stop wait is cancelled, which is its own correction.
+        //
+        // Plain Quit is not gated, so this does not trap anyone in the application: there is still a
+        // way out while an operation runs, it just does not also promise to stop a daemon it cannot
+        // reliably identify yet.
         var busy = _conn.IsDaemonBusy;
         _startItem.IsEnabled = !busy;
         _restartItem.IsEnabled = !busy;
         _stopItem.IsEnabled = !busy;
+        _quitStopItem.IsEnabled = !busy;
         _tray.ToolTipText = $"OpenTabletArtist — {_conn.DaemonStatusText}";
 
         UpdateTabletItems(connected);
