@@ -149,9 +149,12 @@ public sealed class AppTray : IDisposable
         //     Restart: stop PID 1  ->  close session  ->  Restart: launch PID 2
         //     Quit and stop: stop captured PID 1  ->  quit returns, PID 2 still running
         //
-        // So the action that exists to leave nothing behind leaves the replacement running (#957). The
-        // gate closes the window; the underlying fault is that RestartDaemon launches even after its
-        // stop wait is cancelled, which is its own correction.
+        // So the action that exists to leave nothing behind leaves the replacement running (#957).
+        //
+        // This gate removes the OFFERED path and nothing more. UpdateMenu is posted, so between a busy
+        // state changing and the dispatcher running this, the menu still shows what it showed before --
+        // which is correct presentation updating and not an atomic safeguard. The fault underneath is
+        // that RestartDaemon launches even after its stop wait is cancelled, and that is #958.
         //
         // Plain Quit is not gated, so this does not trap anyone in the application: there is still a
         // way out while an operation runs, it just does not also promise to stop a daemon it cannot
