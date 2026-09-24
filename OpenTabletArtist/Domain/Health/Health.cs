@@ -50,10 +50,13 @@ public enum RemediationArea
     /// <summary>A synthetic warning induced from the Developer tab; "fixing" it clears the induced flag.</summary>
     DeveloperInducedWarning,
 
-    /// <summary>Answers the upgrade row about a daemon location OTA no longer starts from: the artist
-    /// is content with the bundled copy, so remember that and stop saying it. Acts rather than
-    /// navigates — there is nowhere useful to go, the decision is the whole of the fix.</summary>
-    AcceptBundledDaemon,
+    /// <summary>Answers the upgrade row about a daemon location OTA no longer starts from: it has been
+    /// read, so remember that and stop saying it. An acknowledgement and nothing more — it selects no
+    /// daemon and starts none, which is why it is not called "use the bundled one": that row can appear
+    /// while OTA is connected to some other external copy, and a button promising a switch would then be
+    /// promising something this does not do (#941). Acts rather than navigates; there is nowhere useful
+    /// to go.</summary>
+    AcknowledgeLegacyDaemonPath,
     /// <summary>One-click fix for the artist-pen-behavior bundle: re-enable Windows Ink + pen tip + pressure
     /// + tilt on the tablet in a single apply (#artist-pen-health).</summary>
     RestorePenBehavior,
@@ -161,9 +164,10 @@ public sealed record HealthInputs
     /// </remarks>
     public string IgnoredDaemonPath { get; init; } = "";
 
-    /// <summary>The artist has said they are content with the copy OTA ships, so the row above has
-    /// been answered and does not come back.</summary>
-    public bool IgnoredDaemonPathAccepted { get; init; }
+    /// <summary>The artist has read the row above and said so, which is all the button does — it
+    /// chooses no daemon and starts nothing, because there is nothing for it to choose between. Durable,
+    /// so the explanation does not come back every launch.</summary>
+    public bool LegacyPathNoticeAcknowledged { get; init; }
 
     /// <summary>The daemon actually answering, if its path could be read ("" otherwise). The row is
     /// also finished when this <em>is</em> the old location: they started it, which is the other way the
@@ -319,19 +323,20 @@ public static class HealthEvaluator
         //     on being connected: the artist most likely to be confused is the one whose chosen daemon
         //     is not running, because that is when OTA starts its own instead. ---
         if (!string.IsNullOrWhiteSpace(i.IgnoredDaemonPath)
-            && !i.IgnoredDaemonPathAccepted
+            && !i.LegacyPathNoticeAcknowledged
             && !OtdInterop.PathEquality.Same(i.ConnectedDaemonPath, i.IgnoredDaemonPath))
         {
             issues.Add(new HealthIssue("daemon.ignoredPath",
                 HealthSeverity.Recommendation,
                 "OpenTabletArtist no longer starts the driver you chose",
-                $"It starts the copy it ships. Nothing has been deleted: {i.IgnoredDaemonPath} and its "
-                + "settings are where you left them. To go back to it, stop the daemon on the Daemon "
-                + "page, close OpenTabletArtist, start that OpenTabletDriver yourself, then reopen "
-                + "OpenTabletArtist — only one daemon can run at a time, so it cannot start while this "
-                + "one is up. A portable OpenTabletDriver keeps its settings and plugins beside itself, "
-                + "so those may look different until you do.",
-                new Remediation("Use the bundled one", RemediationArea.AcceptBundledDaemon)));
+                $"It starts the copy it ships. OpenTabletArtist has not moved or deleted your "
+                + $"previous OpenTabletDriver files — {i.IgnoredDaemonPath} and its settings are "
+                + "untouched. If that installation is still there and you would rather use it, pick "
+                + "\"Quit and stop the daemon\" from the tray menu, start it yourself, then launch "
+                + "OpenTabletArtist again: only one daemon can run at a time, so yours cannot start "
+                + "while this one is up. A portable OpenTabletDriver keeps its settings and plugins "
+                + "beside itself, so those may look different until you do.",
+                new Remediation("Got it", RemediationArea.AcknowledgeLegacyDaemonPath)));
         }
 
         // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —

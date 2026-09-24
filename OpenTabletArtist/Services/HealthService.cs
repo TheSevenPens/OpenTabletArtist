@@ -37,11 +37,12 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     private static string LegacyDaemonPath() => AppSettings.Get(LegacyUserPathKey) ?? "";
 
-    /// <summary>Set when the artist answers the upgrade row by keeping the bundled daemon. Separate from
-    /// <see cref="LegacyUserPathKey"/> so the old location survives for a downgrade: acknowledging is
-    /// not the same as discarding, and deleting their choice to silence a message would be the app
-    /// helping itself.</summary>
-    internal const string BundledDaemonAcceptedKey = "daemon.bundledAccepted";
+    /// <summary>Set when the artist says they have read the row about the daemon location OTA no longer
+    /// starts from. Deliberately a notice preference rather than a second launch setting, and named to
+    /// say so: <see cref="LegacyUserPathKey"/> is kept for rollback, this only remembers that the
+    /// explanation landed. It can be retired when the notice is; what happens to the old path is a
+    /// separate decision (#941).</summary>
+    internal const string LegacyPathNoticeAcknowledgedKey = "daemon.legacyPathNoticeAcknowledged";
 
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
@@ -210,7 +211,7 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
             IgnoredDaemonPath = LegacyDaemonPath(),
-            IgnoredDaemonPathAccepted = AppSettings.Get(BundledDaemonAcceptedKey) == "true",
+            LegacyPathNoticeAcknowledged = AppSettings.Get(LegacyPathNoticeAcknowledgedKey) == "true",
             ConnectedDaemonPath = _connection.DaemonSourcePath,
             DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
             DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,

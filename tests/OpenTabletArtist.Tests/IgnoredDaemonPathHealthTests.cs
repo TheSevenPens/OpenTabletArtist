@@ -54,8 +54,9 @@ public class IgnoredDaemonPathHealthTests
         // remember a year later.
         Assert.Contains(chosen, row!.Detail);
 
-        // Nothing was taken. Not "it still works": OTA cannot know that, the folder may be long gone.
-        Assert.Contains("Nothing has been deleted", row.Detail);
+        // What OTA did, not what is true of the disk: it cannot know the folder still exists.
+        Assert.Contains("has not moved or deleted your previous OpenTabletDriver files", row.Detail);
+        Assert.Contains("If that installation is still there", row.Detail);
 
         // And why their settings may look different, which is the symptom that sends them looking.
         Assert.Contains("plugins", row.Detail);
@@ -74,8 +75,11 @@ public class IgnoredDaemonPathHealthTests
     {
         var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
 
-        Assert.Contains("stop the daemon", row!.Detail);
-        Assert.Contains("close OpenTabletArtist", row.Detail);
+        // "Quit and stop the daemon", not "close the window": closing hides OTA to the tray and
+        // relaunching brings the same instance forward, so the ordinary reading of "close and reopen"
+        // never produces the fresh session this needs (#941, #72).
+        Assert.Contains("Quit and stop the daemon", row!.Detail);
+        Assert.Contains("launch OpenTabletArtist again", row.Detail);
         Assert.Contains("only one daemon can run at a time", row.Detail);
     }
 
@@ -100,31 +104,42 @@ public class IgnoredDaemonPathHealthTests
         Assert.DoesNotContain(issues, x => x.Id == "daemon.ignoredPath");
     }
 
-    /// <summary>And so does saying the bundled copy is fine.</summary>
+    /// <summary>And so does saying you have read it.</summary>
     /// <remarks>
     /// The other way out, and the reason the row carries an action rather than a link: without one it is
     /// a recommendation that can never be satisfied by the artist who is content, which is a permanent
     /// entry in "Needs attention" for a decision they already made.
     /// </remarks>
     [Fact]
-    public void OnceTheBundledCopyIsAccepted_TheRowIsGone()
+    public void OnceTheNoticeIsAcknowledged_TheRowIsGone()
     {
         var issues = HealthEvaluator.Evaluate(new HealthInputs
         {
             IgnoredDaemonPath = @"D:\portable-otd\OpenTabletDriver.Daemon.exe",
-            IgnoredDaemonPathAccepted = true,
+            LegacyPathNoticeAcknowledged = true,
         });
 
         Assert.DoesNotContain(issues, x => x.Id == "daemon.ignoredPath");
     }
 
-    /// <summary>The action is the acceptance, not a trip to another page.</summary>
+    /// <summary>
+    /// The action acknowledges and nothing else, and its label has to match that.
+    /// </summary>
+    /// <remarks>
+    /// It was "Use the bundled one", which promises a switch this does not perform: the row can appear
+    /// while OTA is connected to some <em>other</em> external copy, because its condition only excludes
+    /// the old saved path. Pressing it then cleared the row and selected nothing, which is a button that
+    /// lies about what it did (#941).
+    /// </remarks>
     [Fact]
     public void TheRowOffersAWayToBeDoneWithIt()
     {
         var row = Row(@"D:\portable-otd\OpenTabletDriver.Daemon.exe");
 
-        Assert.Equal(RemediationArea.AcceptBundledDaemon, row!.Remediation!.Area);
+        Assert.Equal(RemediationArea.AcknowledgeLegacyDaemonPath, row!.Remediation!.Area);
+
+        // The label is the promise, so it is asserted rather than left to the area's name.
+        Assert.Equal("Got it", row.Remediation.ActionLabel);
     }
 
     /// <summary>
