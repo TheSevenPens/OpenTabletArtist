@@ -60,12 +60,8 @@
          move, so shims for both versions are the likely route. There is no date to wait for.
          Avalonia.Headless.XUnit 12.1.3, the newest published, still declares 3.2.2.
 
-         When it does land, the opt-in moves with it: on .NET 10 with MTP 2.x the property above stops
-         being enough, and `dotnet test` wants a runner named in global.json instead:
-
-             "test": { "runner": "Microsoft.Testing.Platform" }
-
-         which is the error #756 first hit when Dependabot proposed the majors together.
+         The runner is already named in global.json, so nothing about the opt-in has to change when it
+         does land: what blocked the upgrade was only ever this package's compiled dependency.
 
          #935 no longer waits on that. The flake there was the VSTest adapter rejecting the assembly-
          info JSON after 3.2.2's in-process runner appended a shutdown message to it (xunit/xunit#3576,
