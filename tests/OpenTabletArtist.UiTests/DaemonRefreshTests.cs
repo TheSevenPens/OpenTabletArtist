@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
 using Avalonia.Headless.XUnit;
 using OpenTabletArtist.Services;
+using OpenTabletDriver.Desktop;
+using OpenTabletDriver.Desktop.Profiles;
 using OtdInterop.Tests;
 using Xunit;
 
@@ -112,7 +114,9 @@ public class DaemonRefreshTests
     /// <summary>And connected, it reloads rather than reopening the connection.</summary>
     /// <remarks>
     /// The branch none of the first three tests touched, and the one the menu spends most of its life
-    /// in.
+    /// in. Both halves are asserted: that no connection was opened, <em>and</em> that a read happened.
+    /// Checking only the first would pass just as well against a connected branch that did nothing at
+    /// all, which is the same shape of hole as the three it was written to fill (#950).
     /// </remarks>
     [AvaloniaFact]
     public async Task WhenConnected_ItReloadsWithoutReconnecting()
@@ -121,14 +125,25 @@ public class DaemonRefreshTests
         using var lifetime = session;
 
         daemon.Reconnect();
-        await PumpUntil(() => session.IsConnected);
+        await PumpUntil(() => session.CurrentSettings is not null);
+
         var connectsBefore = daemon.ConnectCalls;
+        var readsBefore = daemon.GetSettingsCalls;
 
         await session.RefreshAsync();
+        await PumpUntil(() => daemon.GetSettingsCalls > readsBefore);
 
         Assert.Equal(connectsBefore, daemon.ConnectCalls);
+        Assert.True(daemon.GetSettingsCalls > readsBefore, "a reload has to actually read");
     }
 
+    /// <summary>
+    /// Pumps the dispatcher until something is true, and <b>fails if it never is</b>.
+    /// </summary>
+    /// <remarks>
+    /// Without the assertion an expired wait reads as completed setup, and whatever the test asserts
+    /// next is asserted against a state that never arrived (#950).
+    /// </remarks>
     private static async Task PumpUntil(System.Func<bool> done)
     {
         for (var i = 0; i < 200 && !done(); i++)
@@ -137,11 +152,16 @@ public class DaemonRefreshTests
             await Task.Delay(5);
         }
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.True(done(), "the state this test needs never arrived");
     }
 
     private static (AppSession Session, FakeDaemonTransport Daemon, FakeLifecycle Lifecycle) Session()
     {
-        var daemon = new FakeDaemonTransport();
+        // Real settings, so a reload has something to read and can be seen to have read it.
+        var daemon = new FakeDaemonTransport
+        {
+            Settings = new Settings { Profiles = new ProfileCollection { new Profile { Tablet = "T" } } },
+        };
         var store = new MemorySettingsFileStore();
         var lifecycle = new FakeLifecycle();
         return (new AppSession(FakeSession.Over(daemon, store), lifecycle), daemon, lifecycle);
