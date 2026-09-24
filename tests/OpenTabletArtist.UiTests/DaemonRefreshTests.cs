@@ -155,6 +155,35 @@ public class DaemonRefreshTests
         Assert.True(done(), "the state this test needs never arrived");
     }
 
+    /// <summary>
+    /// A daemon that dies mid-connect must not leave OTA telling the artist to press a hidden button.
+    /// </summary>
+    /// <remarks>
+    /// Codex's counterexample to the argument that Start is never the remedy during a connect (#955).
+    /// The lifecycle reports a daemon running, the refresh begins connecting, the process disappears
+    /// before any pipe connection exists — so no disconnect event fires, because there was never a
+    /// connection to lose — and the next refresh says "No OpenTabletDriver daemon is running. Use Start"
+    /// while <c>IsConnecting</c> is still true and Start is hidden.
+    /// </remarks>
+    [AvaloniaFact]
+    public async Task WhenTheDaemonDiesMidConnect_StartIsStillOffered()
+    {
+        var (session, _, lifecycle) = Session();
+        using var lifetime = session;
+
+        lifecycle.Running = true;
+        await session.RefreshAsync();
+        Assert.True(session.IsConnecting);
+
+        // It goes away before anything answers.
+        lifecycle.Running = false;
+        await session.RefreshAsync();
+
+        Assert.Equal(AppSession.NoDaemonToReachMessage, session.DaemonOperationError);
+        Assert.True(session.ShowStartButton,
+            "the message names Start, so Start has to be there to press");
+    }
+
     private static (AppSession Session, FakeDaemonTransport Daemon, FakeLifecycle Lifecycle) Session()
     {
         // Real settings, so a reload has something to read and can be seen to have read it.

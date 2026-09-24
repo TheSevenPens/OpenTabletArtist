@@ -133,12 +133,37 @@ public sealed class AppTray : IDisposable
     {
         var connected = _conn.IsConnected;
 
-        // Daemon controls (unchanged): Start only when stopped AND not mid-connect; Stop/Restart
-        // only when connected.
+        // Daemon controls: Start whenever nothing is connected (#955), Stop/Restart only when it is.
         _startItem.IsVisible = _conn.ShowStartButton;
         _restartItem.IsVisible = connected;
         _stopItem.IsVisible = connected;
         _quitStopItem.IsVisible = connected; // only offer "quit + stop" when there's a daemon to stop
+
+        // And the same busy gate the Daemon page applies. Without it the tray offered an enabled Start
+        // while a Restart was mid-flight: pressing it did nothing, because StartDaemon returns early
+        // when IsDaemonBusy, so the menu was advertising an action it would silently decline (#956).
+        //
+        // "Quit and stop the daemon" takes the gate too, and that one is not cosmetic. It stops the PID
+        // captured when the quit began, and a Restart in flight replaces that PID part-way through:
+        //
+        //     Restart: stop PID 1  ->  close session  ->  Restart: launch PID 2
+        //     Quit and stop: stop captured PID 1  ->  quit returns, PID 2 still running
+        //
+        // So the action that exists to leave nothing behind leaves the replacement running (#957).
+        //
+        // This gate removes the OFFERED path and nothing more. UpdateMenu is posted, so between a busy
+        // state changing and the dispatcher running this, the menu still shows what it showed before --
+        // which is correct presentation updating and not an atomic safeguard. The fault underneath is
+        // that RestartDaemon launches even after its stop wait is cancelled, and that is #958.
+        //
+        // Plain Quit is not gated, so this does not trap anyone in the application: there is still a
+        // way out while an operation runs, it just does not also promise to stop a daemon it cannot
+        // reliably identify yet.
+        var busy = _conn.IsDaemonBusy;
+        _startItem.IsEnabled = !busy;
+        _restartItem.IsEnabled = !busy;
+        _stopItem.IsEnabled = !busy;
+        _quitStopItem.IsEnabled = !busy;
         _tray.ToolTipText = $"OpenTabletArtist — {_conn.DaemonStatusText}";
 
         UpdateTabletItems(connected);

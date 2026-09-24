@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -91,10 +92,31 @@ public class DocCommentsAreWellFormedTests
         if (run.Count > 0) yield return (start, string.Join("\n", run));
     }
 
-    private static IEnumerable<string> SourceFiles() =>
-        Directory.EnumerateFiles(RepoRoot(), "*.cs", SearchOption.AllDirectories)
-            .Where(f => !Skipped.Any(skip =>
-                f.Contains($"{Path.DirectorySeparatorChar}{skip}{Path.DirectorySeparatorChar}")));
+    /// <summary>
+    /// Every <c>.cs</c> under the checkout that is ours to hold to this.
+    /// </summary>
+    /// <remarks>
+    /// The exclusion is matched on the path <b>relative to the checkout</b>, not the absolute one. It
+    /// used to match the absolute path, so a checkout living under any directory called <c>bin</c>,
+    /// <c>obj</c> or <c>external</c> excluded every file in the repository and the scan silently found
+    /// nothing. Codex hit exactly that in a review checkout whose parent was <c>tools/bin</c> (#955).
+    ///
+    /// <para>
+    /// The count assertion in the test caught it rather than letting it pass, which is what that
+    /// assertion is for — but a guard firing is not a reason to leave the thing it guards wrong.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<string> SourceFiles()
+    {
+        var root = RepoRoot();
+        return Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(f =>
+            {
+                var relative = Path.GetRelativePath(root, f);
+                return !relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Any(segment => Skipped.Contains(segment, StringComparer.OrdinalIgnoreCase));
+            });
+    }
 
     private static string Relative(string file) =>
         Path.GetRelativePath(RepoRoot(), file).Replace('\\', '/');
