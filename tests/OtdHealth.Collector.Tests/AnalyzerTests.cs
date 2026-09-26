@@ -43,15 +43,18 @@ public class AnalyzerTests
         Assert.Equal(saved, File.ReadAllText(path));
     }
 
-    [Fact]
-    public async Task SnapshotWithZeroFindingsStillHasUnknownCompleteness()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SnapshotFindingsNeverCertifyCollectionCompleteness(bool actionable)
     {
         using var files = new TemporaryDirectory(); var path = Path.Combine(files.Path, "snapshot.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new HealthSnapshot()));
+        File.WriteAllText(path, JsonSerializer.Serialize(Report(true, actionable).Snapshot));
         var result = await Execute("--snapshot", path, "--json");
         Assert.Equal(2, result.Exit);
         using var json = JsonDocument.Parse(result.Output);
         Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("IsComplete").ValueKind);
+        Assert.Equal(actionable ? 2 : 0, json.RootElement.GetProperty("Findings").GetArrayLength());
         var text = await Execute("--snapshot", path);
         Assert.Contains("completeness is unavailable", text.Output);
     }
@@ -104,27 +107,34 @@ public class AnalyzerTests
     [Fact]
     public async Task MissingDaemonProducesMachineReadableIncompleteOutput()
     {
-        var result = await Execute("--pipe", "missing-" + Guid.NewGuid(), "--coverage", "Daemon,Profiles", "--timeout", "0.08", "--json");
+        var result = await Execute("--pipe", TestPipeName.Create(), "--coverage", "Daemon,Profiles", "--timeout", "0.08", "--json");
         Assert.Equal(2, result.Exit);
         using var json = JsonDocument.Parse(result.Output); Assert.False(json.RootElement.GetProperty("IsComplete").GetBoolean());
+        var probes = json.RootElement.GetProperty("Probes").EnumerateArray().ToArray();
+        var daemon = probes.Single(p => p.GetProperty("Id").GetString() == "Daemon");
+        // An invalid socket path also exits 2, but does not exercise a bounded connection attempt.
+        Assert.Equal("Timeout", daemon.GetProperty("Failure").GetProperty("Code").GetString());
+        Assert.Equal("Unavailable", probes.Single(p => p.GetProperty("Id").GetString() == "Profiles").GetProperty("Outcome").GetString());
     }
 
     [Fact]
     public void CollectorAndExecutableHaveNoUiDependencies()
     {
-        foreach (var assembly in new[] { typeof(HealthCollector).Assembly, typeof(AnalyzerCommand).Assembly })
-        {
-            var file = Path.ChangeExtension(assembly.Location, ".deps.json");
-            // The executable dependency manifest contains the full restored transitive graph.
-            if (assembly == typeof(AnalyzerCommand).Assembly) Assert.True(File.Exists(file), "Missing analyzer dependency manifest.");
-            if (!File.Exists(file)) continue;
-            var deps = File.ReadAllText(file);
-            foreach (var forbidden in new[] { "Avalonia", "OpenTabletArtist/", "SkiaSharp", "CommunityToolkit.Mvvm" })
-                Assert.DoesNotContain(forbidden, deps);
-        }
+        // A referenced library has no manifest of its own. Inspect the entry assembly's complete
+        // transitive graph and require the collector to be present so this cannot pass vacuously.
+        var file = Path.ChangeExtension(typeof(AnalyzerCommand).Assembly.Location, ".deps.json");
+        Assert.True(File.Exists(file), "Missing analyzer dependency manifest.");
+        using var deps = JsonDocument.Parse(File.ReadAllText(file));
+        var names = deps.RootElement.GetProperty("libraries").EnumerateObject()
+            .Select(p => p.Name.Split('/')[0]).ToArray();
+        Assert.Contains("OtdHealth.Collector", names);
+        Assert.Contains("OtdHealth", names);
+        Assert.Contains("OtdInterop", names);
+        foreach (var forbidden in new[] { "Avalonia", "OpenTabletArtist", "SkiaSharp", "CommunityToolkit.Mvvm" })
+            Assert.DoesNotContain(names, name => name.StartsWith(forbidden, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static async Task<(int Exit, string Output, string Error)> Execute(params string[] arguments)
+    internal static async Task<(int Exit, string Output, string Error)> Execute(params string[] arguments)
     {
         var psi = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
         psi.ArgumentList.Add(typeof(AnalyzerCommand).Assembly.Location);

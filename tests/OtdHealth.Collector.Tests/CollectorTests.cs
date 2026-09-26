@@ -108,6 +108,43 @@ public class CollectorTests
         Assert.All(report.Probes, p => Assert.Equal(ProbeOutcome.NotApplicable, p.Outcome));
     }
 
+    [Theory]
+    [InlineData(HealthPlatform.Linux)]
+    [InlineData(HealthPlatform.MacOS)]
+    public async Task UnsupportedVersionKeepsDefaultCoverageIncomplete(HealthPlatform platform)
+    {
+        using var files = new TemporaryDirectory();
+        var report = await HealthCollector.CollectAsync(new()
+        {
+            Platform = platform,
+            Connect = _ => Task.FromResult(true),
+            Version = _ => throw new ProbeUnavailableException("Server binary identity is unsupported.", true),
+            Profiles = _ => Profiles(Profile()),
+            Displays = _ => Task.FromResult<IReadOnlyList<DisplayBounds>>([new(0, 0, 1920, 1080)]),
+            ConfigurationDirectory = _ => Task.FromResult(files.Path),
+            Conflicts = _ => Task.FromResult(new ConflictObservation(false, false)),
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.False(report.IsComplete);
+        Assert.Empty(report.Findings);
+        Assert.Contains(ProbeId.DaemonVersion, report.RequestedCoverage);
+        var incomplete = Assert.Single(report.Probes, p => p.Outcome is not (ProbeOutcome.Completed or ProbeOutcome.NotApplicable));
+        Assert.Equal(ProbeId.DaemonVersion, incomplete.Id);
+        Assert.Equal(ProbeOutcome.Unsupported, incomplete.Outcome);
+    }
+
+    [Theory]
+    [InlineData(HealthPlatform.Windows)]
+    [InlineData(HealthPlatform.Linux)]
+    [InlineData(HealthPlatform.MacOS)]
+    public void DaemonVersionCannotBePassedOffAsNotApplicable(HealthPlatform platform)
+    {
+        var report = new HealthAnalysisReport(new() { Platform = platform, DaemonConnected = true },
+            [ProbeId.Daemon, ProbeId.DaemonVersion],
+            [new(ProbeId.Daemon, true, true, ProbeOutcome.Completed),
+             new(ProbeId.DaemonVersion, true, false, ProbeOutcome.NotApplicable)]);
+        Assert.False(report.IsComplete);
+    }
+
     [Fact]
     public async Task FailedProfilesCannotBecomeAMacPermissionFinding()
     {

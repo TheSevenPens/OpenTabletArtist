@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO.Pipes;
+using System.Text.Json;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Plugin.Logging;
@@ -20,7 +21,7 @@ public class DiagnosticsTests
 
     private static async Task ReadOnlyRoundTrip(CancellationToken ct)
     {
-        string pipe = "health-test-" + Guid.NewGuid();
+        string pipe = TestPipeName.Create();
         using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         var target = new ReadOnlyServer();
         var accept = server.WaitForConnectionAsync(ct);
@@ -42,7 +43,7 @@ public class DiagnosticsTests
     [Fact]
     public async Task MissingPipeDoesNotStartADaemonAndIsBounded()
     {
-        using var client = new DiagnosticsConnection("no-daemon-" + Guid.NewGuid());
+        using var client = new DiagnosticsConnection(TestPipeName.Create());
         var report = await HealthCollector.CollectAsync(LiveHealthSource.Create(client), options: new()
         {
             Coverage = [ProbeId.Daemon],
@@ -53,8 +54,38 @@ public class DiagnosticsTests
         Assert.Equal("Timeout", Assert.Single(report.Probes).Failure!.Code);
     }
 
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task ExplicitLiveCoverageCanCompleteOnEveryPlatform(bool conflict, int exit)
+    {
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        limit.CancelAfter(TimeSpan.FromSeconds(10));
+        string pipe = TestPipeName.Create();
+        using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1,
+            PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var target = new ReadOnlyServer { ReportConflict = conflict };
+        var accept = server.WaitForConnectionAsync(limit.Token);
+        using var rpc = new JsonRpc(server);
+        rpc.AddLocalRpcTarget(target);
+        var process = AnalyzerTests.Execute("--pipe", pipe, "--coverage", "Daemon,Profiles,DriverConflicts", "--json");
+        await accept;
+        rpc.StartListening();
+        var result = await process;
+        Assert.Equal(exit, result.Exit);
+        Assert.Empty(result.Error);
+        using var json = JsonDocument.Parse(result.Output);
+        Assert.True(json.RootElement.GetProperty("IsComplete").GetBoolean());
+        Assert.Equal(HostProbes.Platform.ToString(), json.RootElement.GetProperty("Snapshot").GetProperty("Platform").GetString());
+        Assert.Equal(new[] { "Daemon", "Profiles", "DriverConflicts" },
+            json.RootElement.GetProperty("RequestedCoverage").EnumerateArray().Select(p => p.GetString()));
+        Assert.Equal(conflict ? 1 : 0, json.RootElement.GetProperty("Findings").GetArrayLength());
+        Assert.Equal(new[] { "GetSettings", "GetTablets", "GetCurrentLog" }, target.Calls);
+    }
+
     public sealed class ReadOnlyServer
     {
+        public bool ReportConflict { get; init; } = true;
         public ConcurrentQueue<string> Calls { get; } = new();
         public Settings GetSettings()
         {
@@ -69,7 +100,9 @@ public class DiagnosticsTests
         public List<LogMessage> GetCurrentLog()
         {
             Calls.Enqueue(nameof(GetCurrentLog));
-            return [new LogMessage { Group = "Detect", Message = "'Wacom' driver is detected. It will block detection of tablets." }];
+            return ReportConflict
+                ? [new LogMessage { Group = "Detect", Message = "'Wacom' driver is detected. It will block detection of tablets." }]
+                : [];
         }
     }
 }

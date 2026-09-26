@@ -21,6 +21,7 @@ namespace OpenTabletArtist.Services;
 /// data load and connection-state change, so it self-heals when settings change underneath us (e.g.
 /// OTD's own UX editing the same daemon).
 /// </summary>
+// Construction, refresh, event delivery and disposal are owned by the UI thread.
 public sealed partial class HealthService : ObservableObject, IDisposable
 {
     /// <summary>The OpenTabletDriver release OTA was compiled against — the version of the linked OTD
@@ -139,8 +140,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     {
         if (_disposed) return;
         if (!_connection.IsConnected) { _dataLoaded = false; Analysis = null; }
-        // Ownership and app notices are already known and should react immediately. Collected facts
-        // arrive asynchronously; keep all collection off the UI thread and discard obsolete results.
+        // Ownership and app notices react immediately. Capture detaches profiles and reads display
+        // bounds on the UI thread; the collector then runs its probe delegates on worker threads.
+        // Discard obsolete results before publishing them back on the captured UI context.
         PublishIssues();
         _collectionCancellation?.Cancel();
         _collectionCancellation = new CancellationTokenSource();

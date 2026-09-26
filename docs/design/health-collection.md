@@ -42,12 +42,18 @@ computed `IsComplete`. Each probe records its ID, requested/applicable flags, ou
 failure code/message/type. Outcomes are `Completed`, `NotApplicable`, `Unavailable`, `Unsupported`,
 `Failed`, and `Cancelled`. Completion requires every requested applicable observation to complete;
 absence of findings is never used as evidence of completion. Missing daemon access leaves independent
-host checks available. Unknown Ink/VMulti installation remains null. Defaults in the snapshot do not
-certify that other probes succeeded; always inspect the report.
+host checks available. Unknown Ink/VMulti installation remains null. Other snapshot fields retain the
+pure evaluator's non-nullable defaults: for example, a failed elevation read leaves `RunningElevated`
+false. That value is not an observation. Inspect the corresponding `ProbeResult` and `IsComplete`;
+evaluating the detached snapshot alone cannot establish that these checks succeeded.
 
 Coverage can be restricted. Daemon-dependent probes require `Daemon`; mapping, overrides and macOS
 access additionally require `Profiles`. The complete flag refers only to the explicitly listed coverage.
 Reports do not certify the authenticity or freshness of evidence supplied by another caller.
+`IsComplete` means every requested applicable probe completed; it does not certify an atomic snapshot
+or a common daemon-session identity. OTA combines captured session profiles with fresh diagnostic
+pipe reads, so a restart between those observations can mix evidence from different sessions. Its
+latest-result gate prevents superseded collections from publishing, but is not a provenance check.
 
 ## Probe inventory and limits
 
@@ -68,7 +74,8 @@ Reports do not certify the authenticity or freshness of evidence supplied by ano
 | MacOSAccess | Supported VID/PID visible to the daemon with no detected tablet: the existing Input Monitoring inference, not a direct macOS permission query. The catalog is the pinned OTD build. |
 
 Linux prerequisites only apply when no tablet is detected. Windows-only probes are inapplicable on
-other platforms. Failures are not converted to “installed,” “not installed,” or “no conflict.” The live
+other platforms. A failed probe does not certify installation state or absence of conflicts; its
+snapshot's default flags must be interpreted alongside the probe outcome. The live
 Windows smoke test was exercised; Linux/macOS CI exercises portable logic and the protocol with fake
 sources, not native device/permission integration. Unsupported coverage remains explicit.
 
@@ -106,9 +113,27 @@ overall deadline remains 30 seconds). `--pipe NAME` supports alternate/test daem
 defaults to the pinned OTD release `0.6.7.0`; it is policy and does not imply the connected version.
 Supply numeric versions. Live-only flags cannot silently override a saved input.
 
+Default live coverage requests every probe. On Linux/macOS it currently exits 2 because daemon-version
+discovery is unsupported; display discovery can also be unsupported when a tablet is detected. These
+checks remain applicable diagnostics even where this collector cannot perform them. Marking them
+`NotApplicable`, or counting `Unsupported` as complete, would hide missing requested evidence.
+
+For automation on any platform, explicitly choose a narrower scope when that scope answers the task:
+
+```powershell
+dotnet publish/health-check/OtdHealthCheck.dll --coverage Daemon,Profiles,DriverConflicts --json
+```
+
+This can exit 0 or 1 on Linux/macOS when the three requested observations complete. It evaluates the
+daemon connection, profile facts and existing conflict log; it does not certify daemon-version,
+display, driver-installation or other omitted checks. The exact scope remains in `RequestedCoverage`.
+Omission is an explicit caller choice, never an automatic downgrade after a probe fails.
+
 `--snapshot` accepts an `OtdHealth.HealthSnapshot` JSON object. It evaluates its supplied facts without
 touching a daemon or host probes. Completeness is **unavailable**, JSON `IsComplete` is null, and the
-exit code is 2 even if there are no findings. `--report` accepts a saved collector/CLI report containing
+exit code is 2 both with and without actionable findings. Scripts that gate on snapshot findings must
+inspect `--json`'s `Findings`/`Severity`; that gate does not certify successful collection. `--report`
+accepts a saved collector/CLI report containing
 snapshot, coverage and probe outcomes; it re-evaluates findings and recomputes completion, rather than
 trusting saved `Findings` or `IsComplete`. JSON uses enum names, separate tablet name/ID, evidence,
 coverage, probe failures and the underlying snapshot. Text prints the same findings and probe outcomes.
