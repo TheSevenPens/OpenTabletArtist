@@ -63,6 +63,7 @@
        OtdInterop never references this project. -->
   <ItemGroup>
     <ProjectReference Include="..\OtdInterop\OtdInterop.csproj" />
+    <ProjectReference Include="..\OtdHealth\OtdHealth.csproj" />
   </ItemGroup>
 
   <!-- OTD library references (via git submodule at external/OpenTabletDriver) -->

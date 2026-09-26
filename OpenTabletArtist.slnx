@@ -2,6 +2,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj" />
     <Project Path="tests/OtdInterop.Tests/OtdInterop.Tests.csproj" />
+    <Project Path="tests/OtdHealth.Tests/OtdHealth.Tests.csproj" />
     <Project Path="tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
@@ -11,5 +12,6 @@
     <Project Path="plugins/OpenTabletArtist.Dynamics/OpenTabletArtist.Dynamics.csproj" />
   </Folder>
   <Project Path="OtdInterop/OtdInterop.csproj" />
+  <Project Path="OtdHealth/OtdHealth.csproj" />
   <Project Path="OpenTabletArtist/OpenTabletArtist.csproj" />
 </Solution>

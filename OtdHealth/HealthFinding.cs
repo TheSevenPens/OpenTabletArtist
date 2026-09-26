@@ -1,0 +1,43 @@
+namespace OtdHealth;
+
+/// <summary>Increasing diagnostic severity. Information describes context, not a failure.</summary>
+public enum HealthSeverity
+{
+    /// <summary>Context about a deliberate choice or a pending transition.</summary>
+    Information,
+    /// <summary>Works, but is not the recommended configuration.</summary>
+    Recommendation,
+    /// <summary>A feature will not behave as expected.</summary>
+    Misconfigured,
+    /// <summary>A missing prerequisite prevents core functionality.</summary>
+    Broken,
+}
+
+/// <summary>Additional observed values for daemon and Linux findings; unused fields are null.</summary>
+public sealed record HealthEvidence
+{
+    /// <summary>Observed daemon version, for a version mismatch.</summary>
+    public string? ActualVersion { get; init; }
+    /// <summary>The release the consumer expected.</summary>
+    public string? ExpectedVersion { get; init; }
+    /// <summary>Whether a foreign daemon is another consumer-managed copy.</summary>
+    public bool? ManagedButNotSelected { get; init; }
+    /// <summary>Whether a systemd user manager makes a reboot preferable to a re-login.</summary>
+    public bool? UserManagerRunning { get; init; }
+    /// <summary>Whether loaded conflicting modules can return at the next boot.</summary>
+    public bool? ModulesNotBlacklisted { get; init; }
+    /// <summary>Names of the loaded conflicting kernel modules, copied from the input.</summary>
+    public IReadOnlyList<string>? Modules { get; init; }
+}
+
+/// <summary>A diagnostic fact, without text, navigation, grouping, or executable remediation.</summary>
+/// <param name="Code">A stable value from <see cref="HealthCheckCodes"/>.</param>
+/// <param name="Severity">Impact of the finding.</param>
+/// <param name="TabletName">Subject of a per-tablet finding; null for process/daemon/system findings.</param>
+/// <param name="Evidence">Additional observations needed to explain the finding.</param>
+public sealed record HealthFinding(
+    string Code, HealthSeverity Severity, string? TabletName = null, HealthEvidence? Evidence = null)
+{
+    /// <summary>Stable instance key. Consumers can also address Code and TabletName separately.</summary>
+    public string Id => TabletName is null ? Code : $"{Code}:{TabletName}";
+}
