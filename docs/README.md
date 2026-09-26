@@ -11,6 +11,7 @@ Start with the **[Overview](OVERVIEW.md)** for what OpenTabletArtist is and who 
 ## [`dev/`](dev/) — building & contributing
 - **[Building from source](dev/BUILDING.md)**
 - **[Architecture](dev/ARCHITECTURE.md)** — codebase layout, daemon communication, releases.
+- [Health library boundary](design/health-library.md) — shared diagnostic rules, OTA presentation, and headless consumers.
 - [Diagnostics reference](dev/DIAGNOSTICS.md) · [Futures / roadmap](dev/FUTURES.md) · [OTD suggestions](dev/OTD-SUGGESTIONS.md)
 
 ## [`design/`](design/) — design docs

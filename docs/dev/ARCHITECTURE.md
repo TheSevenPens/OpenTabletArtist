@@ -316,9 +316,11 @@ OTD Daemon (built from submodule, .NET 8)
 ```
 OpenTabletArtist.slnx
   ├── OtdInterop/OtdInterop.csproj                               (the OTD boundary; no UI, no app)
+  ├── OtdHealth/OtdHealth.csproj                                 (pure diagnostic rules; no dependencies)
   ├── OpenTabletArtist/OpenTabletArtist.csproj                   (this app)
   ├── plugins/OpenTabletArtist.Dynamics/...                      (our OTD filter plugin, net8)
-  ├── tests/OtdInterop.Tests/OtdInterop.Tests.csproj             (the library's own suite)
+  ├── tests/OtdInterop.Tests/OtdInterop.Tests.csproj             (interop tests)
+  ├── tests/OtdHealth.Tests/OtdHealth.Tests.csproj               (independent diagnostic tests)
   ├── tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj (the app's logic tests)
   ├── tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj (headless Avalonia)
   ├── tools/OtdDaemonSwitchCheck/...                             (hand-run daemon-switch check)
@@ -328,6 +330,16 @@ OpenTabletArtist.slnx
 The submodule's `OpenTabletDriver.Daemon.exe` is what our app auto-launches when there isn't an OTD daemon already running.
 
 > **The daemon is not in the solution (#786).** A common failure mode ("Disconnected" / "No tablet detected") is having no daemon exe at all: neither `dotnet build OpenTabletArtist.slnx` nor a test run produces one. Use `./scripts/build.ps1`, build `external/OpenTabletDriver/OpenTabletDriver.Daemon/OpenTabletDriver.Daemon.csproj` directly, or let the app adopt an installed OpenTabletDriver. See [BUILDING.md](BUILDING.md).
+
+### The OtdHealth boundary (#963)
+
+`OtdHealth.HealthEvaluator` evaluates supplied snapshots into individual findings with stable codes,
+severity, subjects, and structured evidence. It references only the .NET framework. OTA collects the
+facts, translates findings into its existing cards through `HealthIssuePresenter`, and retains app-only
+notices, event wiring, and remediation. `OtdInterop` has no dependency on health policy.
+
+See [health-library.md](../design/health-library.md) for the public contract, consumer example, tests,
+and the remaining work on live headless collection. An empty finding list is not a completeness report.
 
 ### The OtdInterop contracts (#807 Phase 7)
 
@@ -364,9 +376,9 @@ call is not evidence the values took. A mismatch pauses the session rather than 
 whose outcome could not be established at all closes the session, because a late arrival must not race a
 later reload or save.
 
-**Assemblies.** Seven projects: the app, `OtdInterop`, the pen-dynamics plugin, the `OtdDaemonSwitchCheck`
-diagnostic tool, and three test projects. `OtdInterop` grants `InternalsVisibleTo` to the three test
-projects — shared fakes and `ForTesting` — which is a deliberate seam, not a migration bridge; none
+**Assemblies.** Nine projects: the app, `OtdInterop`, `OtdHealth`, the pen-dynamics plugin, the
+`OtdDaemonSwitchCheck` diagnostic tool, and four test projects. `OtdInterop` grants `InternalsVisibleTo`
+to its own suite and the two application test projects — shared fakes and `ForTesting` — which is a deliberate seam, not a migration bridge; none
 remain. The diagnostic tool no longer needs it.
 
 **Test commands.**
@@ -376,6 +388,9 @@ dotnet build OpenTabletArtist.slnx -c Debug
 ```
 ```bash
 dotnet test tests/OtdInterop.Tests/OtdInterop.Tests.csproj -c Debug
+```
+```bash
+dotnet test tests/OtdHealth.Tests/OtdHealth.Tests.csproj -c Debug
 ```
 ```bash
 dotnet test tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj -c Debug

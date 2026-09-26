@@ -142,8 +142,10 @@ the driver card calls "another copy of the OTD daemon this app ships".
 dotnet test OpenTabletArtist.slnx
 ```
 
-Three suites run: `OtdInterop.Tests` (the library, no app and no Avalonia), `OpenTabletArtist.Tests`
-(logic) and `OpenTabletArtist.UiTests` (views on Avalonia's headless platform, no display needed).
+Four suites run: `OtdInterop.Tests` (OTD integration), `OtdHealth.Tests` (pure diagnostics),
+`OpenTabletArtist.Tests` (app logic and health presentation), and `OpenTabletArtist.UiTests`
+(views on Avalonia's headless platform, no display needed). Both library suites run without the app
+or Avalonia. See [the health library boundary](../design/health-library.md) for standalone commands.
 
 ### They run on Microsoft Testing Platform, not VSTest
 

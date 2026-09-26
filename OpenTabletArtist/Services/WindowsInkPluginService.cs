@@ -31,20 +31,10 @@ public class WindowsInkPluginService
     /// </summary>
     public PluginMetadata? ReadInstalled(string? pluginDirectory)
     {
-        if (string.IsNullOrEmpty(pluginDirectory))
-            return null;
-
-        var path = Path.Combine(pluginDirectory, PluginName, "metadata.json");
-        if (!File.Exists(path))
-            return null;
-
-        try
-        {
-            return JsonConvert.DeserializeObject<PluginMetadata>(File.ReadAllText(path));
-        }
+        try { return OtdHealth.Collector.FileProbes.ReadWindowsInk(pluginDirectory ?? ""); }
         catch (Exception ex)
         {
-            AppLog.Warn($"Couldn't read the installed Windows Ink plugin metadata at {path}.", ex);
+            AppLog.Warn("Couldn't read installed Windows Ink metadata.", ex);
             return null;
         }
     }
