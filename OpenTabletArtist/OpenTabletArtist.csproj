@@ -21,6 +21,14 @@
          required). Revisit later to opt back in per-view for compile-time
          type checking. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- A referenced project's XML documentation is not part of what ships. OtdInterop turns
+         GenerateDocumentationFile on because its contracts live in doc comments, and the publish then
+         copied OtdInterop.xml next to the exe — which the release workflow's bundle check refuses,
+         correctly: the single-file root is meant to hold one file so people can tell what to run.
+         It broke the release the first time a tag was cut after the library landed, because nothing
+         outside that workflow publishes this way. The doc file is still generated for development;
+         this only keeps referenced projects' copies out of the published output. -->
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <!-- Exe + window/tray icon (#72). -->
     <ApplicationIcon>Assets\appicon.ico</ApplicationIcon>
   </PropertyGroup>
