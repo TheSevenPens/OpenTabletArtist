@@ -43,22 +43,8 @@ public static class TabletConfigInspector
     /// any read error (best-effort; a warning must never break health evaluation).</summary>
     public static IReadOnlySet<string> OverriddenBaseNames(string? configDir)
     {
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrEmpty(configDir) || !Directory.Exists(configDir)) return result;
-
-        var baseNames = BaseConfigNames;
-        if (baseNames.Count == 0) return result;
-
-        IEnumerable<string> files;
-        try { files = Directory.EnumerateFiles(configDir, "*.json", SearchOption.AllDirectories); }
-        catch { return result; }
-
-        foreach (var file in files)
-        {
-            var name = TryReadConfigName(file);
-            if (name != null && baseNames.Contains(name)) result.Add(name);
-        }
-        return result;
+        try { return OtdHealth.Collector.FileProbes.ConfigurationOverrides(configDir ?? "", tolerateInvalidFiles: true); }
+        catch { return new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
     }
 
     /// <summary>Read a config file's <c>Name</c> property, or null if unreadable / not a config.</summary>

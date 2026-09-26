@@ -1,7 +1,7 @@
 # Health diagnostics library
 
 Tracked by [#963](https://github.com/TheSevenPens/OpenTabletArtist/issues/963).
-This first delivery covers evaluator extraction (#964) and validation (#965).
+The evaluator extraction (#964) and validation (#965) are complemented by collection (#966) and the console consumer (#967).
 
 ## Dependency direction
 
@@ -9,8 +9,8 @@ This first delivery covers evaluator extraction (#964) and validation (#965).
 submodule, and performs no I/O. `OpenTabletArtist` references it alongside `OtdInterop`.
 `OtdInterop` remains independent of health policy. There is no extra runtime in the OTA distribution.
 
-The application still collects snapshots in `HealthService`. Its `Domain.Health.HealthEvaluator`
-translates those facts into `OtdHealth.HealthSnapshot`, presents shared findings through
+The application collects reports through `OtdHealth.Collector`, with `HealthService` supplying its
+session observations and policy. Its `Domain.Health.HealthEvaluator` presents shared findings through
 `HealthIssuePresenter`, and adds app-only notices: legacy daemon paths, app-settings recovery,
 tray availability, and developer-induced warnings. OTA owns text, card grouping, navigation,
 buttons, event subscriptions, observable collections, and every fix.
@@ -52,13 +52,14 @@ undetected tablets. Evaluation rejects an ambiguous snapshot rather than silentl
 
 For two tablets named `Tablet A`, supply distinct IDs, such as `Id: "device:one"` and `Id: "device:two"`.
 Findings preserve the display name and expose that identity as `TabletId`; their `Id` combines code and
-identity. Keep IDs stable across snapshots when correlating findings. The OTA adapter assigns positions
-as IDs for a single evaluation, so same-named profiles and developer samples retain separate cards. It
-does not persist those IDs. Existing UI card IDs and name-based remediation destinations are unchanged.
+identity. Keep IDs stable across snapshots when correlating findings. The OTA adapter preserves the
+collector's profile IDs; only developer samples and older callers use evaluation-local positions.
+Existing UI card IDs and name-based remediation destinations are unchanged. See the
+[collector identity contract](health-collection.md) for the limits of OTD's config-slot identities.
 
 The four public enums carry System.Text.Json string converters. Default serialization writes names
 (for example `"Broken"` and `"MacOS"`); callers do not need to install a converter. This is the default
-wire representation for future JSON consumers. A caller that deliberately supplies overriding serializer
+wire representation used by the console JSON consumer. A caller that deliberately supplies overriding serializer
 options owns that alternative representation.
 Results sort by descending severity and ordinal ID. Keep input collections stable during evaluation;
 the evaluator never mutates them and copies the module names included in output evidence.
@@ -98,9 +99,8 @@ codes share OTA's existing `linux.hidAccess` card ID. These presentation IDs are
 ## Collection report contract for #966
 
 Keep `HealthEvaluator.Evaluate(HealthSnapshot)` as a pure function returning findings. Do not change its
-return type to introduce completeness. The collector's separate asynchronous analysis entry point will
-return a `HealthAnalysisReport` containing the collected `Snapshot`, evaluated `Findings`, per-probe
-`Probes`, and aggregate `IsComplete`. These are planned collector types, not APIs shipped in this PR.
+return type to introduce completeness. The collector's separate asynchronous analysis entry point returns a `HealthAnalysisReport` containing the collected `Snapshot`, evaluated `Findings`, per-probe
+`Probes`, and aggregate `IsComplete`. These types are now implemented by `OtdHealth.Collector`; see [collection and CLI](health-collection.md).
 
 Each probe result must carry its identity, requested/applicable coverage, an outcome (`Completed`,
 `NotApplicable`, `Unavailable`, `Unsupported`, `Failed`, or `Cancelled`), and structured failure context
@@ -110,7 +110,7 @@ not-applicable probes do not. Completeness is relative to the requested diagnost
 be included in the report; it is not inferred from finding count or default snapshot values.
 
 A disconnected daemon makes daemon-dependent collection incomplete. Partial findings are still useful
-and remain in the report. #967 must derive success/incomplete exit status from the report as well as
+and remain in the report. #967 derives success/incomplete exit status from the report as well as
 findings; zero findings with incomplete collection cannot mean healthy. This separate report lets the
 collector add completeness without breaking existing snapshot evaluation or inventing a passed result
 for an unobserved fact.
@@ -131,13 +131,14 @@ unknown installation states, version semantics, separate findings, ordering, evi
 consumption. OTA tests retain text/action/service coverage and verify complete presenter coverage.
 Build and release workflows explicitly run the new suite.
 
-## Remaining pieces
+## Collection and console consumer
 
-- [#966](https://github.com/TheSevenPens/OpenTabletArtist/issues/966): shared read-only evidence collection,
-  explicit unavailable/unsupported/failed observations, cancellation, partial reports, and platform validation.
-- [#967](https://github.com/TheSevenPens/OpenTabletArtist/issues/967): console analyzer with text/JSON output
-  and documented exit codes, usable from PowerShell. It will use the shared collection layer for live analysis.
+[#966](https://github.com/TheSevenPens/OpenTabletArtist/issues/966) adds `OtdHealth.Collector`, a separate
+headless library with read-only probes, explicit completeness, partial reports, and cancellation.
+[#967](https://github.com/TheSevenPens/OpenTabletArtist/issues/967) adds `tools/OtdHealthCheck`, a console
+consumer supporting live, snapshot, and saved-report input plus text/JSON output and documented exits.
+See [health collection and analyzer](health-collection.md) for examples, coverage, and platform limits.
 
-No console analyzer or public NuGet package ships in this first extraction. The library currently requires
-a .NET 10 host; invoking a future console executable from PowerShell does not require loading its DLL into
-the PowerShell runtime. Direct module hosting and broader framework support need separate validation.
+There is no public NuGet package. The libraries and console require .NET 10; the console can be invoked
+from PowerShell without loading its DLL into the PowerShell runtime. Direct module hosting and broader
+framework support remain separate validation work.

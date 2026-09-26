@@ -84,6 +84,9 @@ jobs:
       - name: Health library tests
         run: dotnet test tests/OtdHealth.Tests/OtdHealth.Tests.csproj -c Debug
 
+      - name: Health collector and analyzer tests
+        run: dotnet test tests/OtdHealth.Collector.Tests/OtdHealth.Collector.Tests.csproj -c Debug
+
       # Self-contained so end users need no .NET runtime installed. (Debug symbols are stripped from the
       # whole bundle just before zipping — see the "Strip debug symbols" step below.)
       #

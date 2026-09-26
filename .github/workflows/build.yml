@@ -86,6 +86,9 @@ jobs:
       - name: Health library tests
         run: dotnet test tests/OtdHealth.Tests/OtdHealth.Tests.csproj -c Debug --no-build
 
+      - name: Health collector and analyzer tests
+        run: dotnet test tests/OtdHealth.Collector.Tests/OtdHealth.Collector.Tests.csproj -c Debug --no-build
+
       # The unit tests are headless — they exercise Domain/ViewModel logic without creating windows or
       # rendering, so no display/xvfb is needed (they run the same way on the Windows lane).
       - name: Test
