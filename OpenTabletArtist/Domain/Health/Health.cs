@@ -144,6 +144,8 @@ public sealed record HealthInputs
     /// about VMulti / Windows Ink / driver conflicts would be noise for things the user can't (and needn't)
     /// fix (#140). Defaults true so Windows behaviour and existing tests are unchanged. (#317)</summary>
     public bool IsWindows { get; init; } = true;
+    /// <summary>The host is macOS, so its Input Monitoring permission inference is applicable.</summary>
+    public bool IsMacOS { get; init; }
     /// <summary>Connected to the daemon right now.</summary>
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
@@ -353,7 +355,8 @@ public static class HealthEvaluator
     private static OtdHealth.HealthSnapshot ToSnapshot(HealthInputs i) => new()
     {
         Platform = i.IsWindows ? OtdHealth.HealthPlatform.Windows
-            : i.IsLinux ? OtdHealth.HealthPlatform.Linux : OtdHealth.HealthPlatform.Unspecified,
+            : i.IsLinux ? OtdHealth.HealthPlatform.Linux
+            : i.IsMacOS ? OtdHealth.HealthPlatform.MacOS : OtdHealth.HealthPlatform.Unspecified,
         DaemonConnected = i.DaemonConnected,
         ForeignDaemon = i.ForeignDaemon,
         DaemonIsManagedButNotSelected = i.DaemonIsManagedButNotSelected,
@@ -377,7 +380,9 @@ public static class HealthEvaluator
         LinuxUserManagerRunning = i.LinuxUserManagerRunning,
         LinuxConflictingModulesLoaded = i.LinuxConflictingModulesLoaded,
         LinuxConflictingModulesNotBlacklisted = i.LinuxConflictingModulesNotBlacklisted,
-        Tablets = i.Tablets.Select(t => new OtdHealth.TabletHealthSnapshot(
+        // Profiles and developer samples can share a display name. Their index identifies each input
+        // within this evaluation; OTA does not persist the library's subject IDs across snapshots.
+        Tablets = i.Tablets.Select((t, index) => new OtdHealth.TabletHealthSnapshot(
             t.Name, t.Detected, t.OutputModeIsWinInk,
             t.Mapping switch
             {
@@ -386,7 +391,8 @@ public static class HealthEvaluator
                 DisplayMappingValidity.OffScreen => OtdHealth.DisplayMappingStatus.OffScreen,
                 _ => OtdHealth.DisplayMappingStatus.None,
             },
-            t.NonCardinalRotation, t.DynamicsFilterActive, t.ConfigIsOverride, t.WinInkOptedOut,
-            t.PenTipDisabled, t.PressureDisabled, t.TiltDisabled)).ToArray(),
+            t.NonCardinalRotation, !t.DynamicsFilterActive, t.ConfigIsOverride, t.WinInkOptedOut,
+            t.PenTipDisabled, t.PressureDisabled, t.TiltDisabled,
+            Id: index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray(),
     };
 }

@@ -26,7 +26,6 @@ Reference `OtdHealth/OtdHealth.csproj` from a .NET 10 consumer:
 ```csharp
 using OtdHealth;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var snapshot = new HealthSnapshot
 {
@@ -41,14 +40,26 @@ var findings = HealthEvaluator.Evaluate(snapshot);
 var options = new JsonSerializerOptions
 {
     WriteIndented = true,
-    Converters = { new JsonStringEnumConverter() },
 };
 Console.WriteLine(JsonSerializer.Serialize(findings, options));
 ```
 
 This yields `vmulti.notInstalled` (Broken) and `tablet.pressureDisabled` (Recommendation, subject
-`Tablet A`). A caller can inspect `Code`, `Severity`, `TabletName`, and typed `Evidence` without
-parsing prose. `Id` combines code and tablet name; callers must supply unique tablet names.
+`Tablet A`). A caller can inspect `Code`, `Severity`, `TabletId`, `TabletName`, and typed `Evidence`
+without parsing prose. `TabletHealthSnapshot.Id` is an optional consumer-assigned identity; the display
+name is used when it is omitted. Effective identities must be nonblank and ordinally unique, including
+undetected tablets. Evaluation rejects an ambiguous snapshot rather than silently merging subjects.
+
+For two tablets named `Tablet A`, supply distinct IDs, such as `Id: "device:one"` and `Id: "device:two"`.
+Findings preserve the display name and expose that identity as `TabletId`; their `Id` combines code and
+identity. Keep IDs stable across snapshots when correlating findings. The OTA adapter assigns positions
+as IDs for a single evaluation, so same-named profiles and developer samples retain separate cards. It
+does not persist those IDs. Existing UI card IDs and name-based remediation destinations are unchanged.
+
+The four public enums carry System.Text.Json string converters. Default serialization writes names
+(for example `"Broken"` and `"MacOS"`); callers do not need to install a converter. This is the default
+wire representation for future JSON consumers. A caller that deliberately supplies overriding serializer
+options owns that alternative representation.
 Results sort by descending severity and ordinal ID. Keep input collections stable during evaluation;
 the evaluator never mutates them and copies the module names included in output evidence.
 
@@ -66,11 +77,15 @@ codes share OTA's existing `linux.hidAccess` card ID. These presentation IDs are
   retain the current catalog's observation semantics; complete probe-status modeling is #966.
 - `Platform` refers to the machine being analyzed, independent of the evaluator's host. Windows stack
   checks require Windows; Linux prerequisite proxies require Linux and no detected tablet. macOS
-  permission inference is supplied by the caller and gated on connection, as in the existing catalog.
-  It is not a direct permission query; live verification remains [#721](https://github.com/TheSevenPens/OpenTabletArtist/issues/721).
+  permission inference requires both an explicit MacOS platform and a connection. OTA now supplies
+  `IsMacOS` rather than leaving that host unspecified. A true inference flag on Windows, Linux, or an
+  unspecified platform cannot produce macOS advice. This tightens the library contract while preserving
+  real OTA inputs (the probe already runs only on macOS). It is not a direct permission query; live verification remains [#721](https://github.com/TheSevenPens/OpenTabletArtist/issues/721).
 - Expected daemon release, ownership, deliberate Windows Ink opt-out, and dynamics expectations are
   consumer policy. The library does not discover OTA installations or read OTA preferences. OTA still
-  suppresses dynamics warnings on foreign daemons before supplying the snapshot.
+  suppresses dynamics warnings on foreign daemons before supplying the snapshot. The library's
+  `DynamicsWarningRequired` explicitly carries that decision: false does not claim a dynamics filter
+  exists or is enabled, and another consumer must choose its own dynamics policy.
 - Tablet checks apply to detected tablets. The app already excludes stale mapping facts on undetected
   profiles; the library enforces that boundary for independent consumers too.
 - Release matching intentionally preserves numeric major/minor/patch comparison, ignoring revision
@@ -79,6 +94,26 @@ codes share OTA's existing `linux.hidAccess` card ID. These presentation IDs are
   A headless collector/tool must report inability to collect daemon facts as incomplete analysis (#966).
 - The evaluator does not manage daemon reachability UI or execute remediation. It does not start or
   stop OTD, grant permissions, install drivers, or write configuration.
+
+## Collection report contract for #966
+
+Keep `HealthEvaluator.Evaluate(HealthSnapshot)` as a pure function returning findings. Do not change its
+return type to introduce completeness. The collector's separate asynchronous analysis entry point will
+return a `HealthAnalysisReport` containing the collected `Snapshot`, evaluated `Findings`, per-probe
+`Probes`, and aggregate `IsComplete`. These are planned collector types, not APIs shipped in this PR.
+
+Each probe result must carry its identity, requested/applicable coverage, an outcome (`Completed`,
+`NotApplicable`, `Unavailable`, `Unsupported`, `Failed`, or `Cancelled`), and structured failure context
+where relevant. `IsComplete` requires a completed observation for every required applicable probe;
+unavailable, unsupported, failed, or cancelled required probes make the report incomplete. Explicitly
+not-applicable probes do not. Completeness is relative to the requested diagnostic coverage, which must
+be included in the report; it is not inferred from finding count or default snapshot values.
+
+A disconnected daemon makes daemon-dependent collection incomplete. Partial findings are still useful
+and remain in the report. #967 must derive success/incomplete exit status from the report as well as
+findings; zero findings with incomplete collection cannot mean healthy. This separate report lets the
+collector add completeness without breaking existing snapshot evaluation or inventing a passed result
+for an unobserved fact.
 
 ## Validation
 

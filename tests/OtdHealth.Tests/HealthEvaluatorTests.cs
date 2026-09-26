@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace OtdHealth.Tests;
 
@@ -66,7 +65,7 @@ public class HealthEvaluatorTests
         yield return [tablet with { PenTipDisabled = true }, "tablet.penTipDisabled", HealthSeverity.Recommendation];
         yield return [tablet with { PressureDisabled = true }, "tablet.pressureDisabled", HealthSeverity.Recommendation];
         yield return [tablet with { TiltDisabled = true }, "tablet.tiltDisabled", HealthSeverity.Recommendation];
-        yield return [tablet with { DynamicsFilterActive = false }, "tablet.dynamicsOff", HealthSeverity.Recommendation];
+        yield return [tablet with { DynamicsWarningRequired = true }, "tablet.dynamicsOff", HealthSeverity.Recommendation];
         yield return [tablet with { ConfigIsOverride = true }, "tablet.configOverride", HealthSeverity.Recommendation];
         yield return [tablet with { Mapping = DisplayMappingStatus.Custom }, "tablet.mappingCustom", HealthSeverity.Recommendation];
         yield return [tablet with { Mapping = DisplayMappingStatus.OffScreen }, "tablet.mappingOffScreen", HealthSeverity.Misconfigured];
@@ -252,7 +251,6 @@ public class HealthEvaluatorTests
     [Fact]
     public void JsonConsumerCanRoundTripSnapshotAndFindingsWithoutAppTypes()
     {
-        var options = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
         var input = new HealthSnapshot
         {
             Platform = HealthPlatform.Linux,
@@ -262,9 +260,9 @@ public class HealthEvaluatorTests
             LinuxConflictingModulesLoaded = ["wacom"],
             LinuxConflictingModulesNotBlacklisted = true,
         };
-        var snapshot = JsonSerializer.Deserialize<HealthSnapshot>(JsonSerializer.Serialize(input, options), options)!;
-        var json = JsonSerializer.Serialize(HealthEvaluator.Evaluate(snapshot), options);
-        var findings = JsonSerializer.Deserialize<HealthFinding[]>(json, options)!;
+        var snapshot = JsonSerializer.Deserialize<HealthSnapshot>(JsonSerializer.Serialize(input))!;
+        var json = JsonSerializer.Serialize(HealthEvaluator.Evaluate(snapshot));
+        var findings = JsonSerializer.Deserialize<HealthFinding[]>(json)!;
         Assert.Equal(2, findings.Length);
         Assert.Equal("0.6.6", Assert.Single(findings, f => f.Code == "daemon.versionMismatch").Evidence!.ActualVersion);
         Assert.Equal(["wacom"], Assert.Single(findings, f => f.Code == "linux.conflictingModules").Evidence!.Modules);

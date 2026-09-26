@@ -12,8 +12,8 @@ internal static class HealthIssuePresenter
             or HealthCheckCodes.DaemonSourceUnknown or HealthCheckCodes.DaemonVersionMismatch).ToList();
         if (daemon.Count > 0) issues.Add(DaemonCard(daemon));
 
-        foreach (var tablet in findings.Where(f => IsPenBehavior(f.Code)).GroupBy(f => f.TabletName))
-            issues.Add(PenBehaviorCard(tablet.Key!, tablet.ToList()));
+        foreach (var tablet in findings.Where(f => IsPenBehavior(f.Code)).GroupBy(f => f.TabletId ?? f.TabletName))
+            issues.Add(PenBehaviorCard(tablet.First().TabletName!, tablet.ToList()));
 
         foreach (var f in findings)
         {

@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace OtdHealth;
 
 /// <summary>The platform being analyzed, independent of the evaluator's host OS.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<HealthPlatform>))]
 public enum HealthPlatform
 {
     /// <summary>No platform-specific checks are enabled.</summary>
@@ -14,6 +17,7 @@ public enum HealthPlatform
 }
 
 /// <summary>Classification of an absolute mapping against the observed display layout.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<DisplayMappingStatus>))]
 public enum DisplayMappingStatus
 {
     /// <summary>No mapping could be assessed.</summary>
@@ -27,6 +31,7 @@ public enum DisplayMappingStatus
 }
 
 /// <summary>The collector's Linux HID access observation.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<HidAccessStatus>))]
 public enum HidAccessStatus
 {
     /// <summary>No access problem was reported; this is not proof that a probe ran.</summary>
@@ -38,27 +43,33 @@ public enum HidAccessStatus
 }
 
 /// <summary>Observed tablet facts and caller-supplied policy. Checks only apply to detected tablets.</summary>
-/// <param name="Name">Tablet identity used by the caller; must be unique within a snapshot.</param>
+/// <param name="Name">Display name; may repeat when distinct Id values are supplied.</param>
 /// <param name="Detected">Whether the daemon detected this tablet.</param>
 /// <param name="OutputModeIsWinInk">Whether its output mode uses Windows Ink.</param>
 /// <param name="Mapping">Mapping classification, or None if not assessed.</param>
 /// <param name="NonCardinalRotation">The observed rotation is not within tolerance of a multiple of 90 degrees.</param>
-/// <param name="DynamicsFilterActive">False only when the caller's dynamics policy requires a warning.</param>
+/// <param name="DynamicsWarningRequired">True when the consumer's policy requires a warning about a
+/// disabled dynamics filter. This is a policy decision, not an observation of filter presence. False
+/// does not certify that a filter is installed, active, or even required by the consumer.</param>
 /// <param name="ConfigIsOverride">A user configuration shadows a built-in configuration.</param>
 /// <param name="WinInkOptedOut">The caller knows that Windows Ink was deliberately disabled.</param>
 /// <param name="PenTipDisabled">No pen tip binding is configured.</param>
 /// <param name="PressureDisabled">Pressure delivery is disabled.</param>
 /// <param name="TiltDisabled">Tilt delivery is disabled.</param>
+/// <param name="Id">Optional consumer-assigned identity, independent of the display name. When omitted,
+/// Name is the identity. Effective identities must be nonblank and ordinally unique within a snapshot,
+/// including undetected tablets. Keep IDs stable across snapshots when correlating findings.</param>
 public sealed record TabletHealthSnapshot(
     string Name, bool Detected, bool OutputModeIsWinInk,
     DisplayMappingStatus Mapping = DisplayMappingStatus.None,
     bool NonCardinalRotation = false,
-    bool DynamicsFilterActive = true,
+    bool DynamicsWarningRequired = false,
     bool ConfigIsOverride = false,
     bool WinInkOptedOut = false,
     bool PenTipDisabled = false,
     bool PressureDisabled = false,
-    bool TiltDisabled = false);
+    bool TiltDisabled = false,
+    string? Id = null);
 
 /// <summary>
 /// Facts supplied by a consumer. Evaluation does not collect evidence or certify completeness.
@@ -83,7 +94,7 @@ public sealed record HealthSnapshot
     public string ExpectedOtdVersion { get; init; } = "";
     /// <summary>
     /// Caller inferred a macOS Input Monitoring problem: a supported device is visible but not detected.
-    /// This is an observation supplied by the caller, not an independent permission check.
+    /// Only evaluated for MacOS. This is a supplied inference, not an independent permission check.
     /// </summary>
     public bool DaemonCannotOpenTablet { get; init; }
     /// <summary>Windows Ink installation observation. Null means it has not been established.</summary>

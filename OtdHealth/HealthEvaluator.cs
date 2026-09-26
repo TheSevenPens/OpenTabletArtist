@@ -7,12 +7,23 @@ public static class HealthEvaluator
     /// Returns independent findings, sorted by descending severity then ordinal instance ID.
     /// An empty list means no findings in the supplied evidence, not that collection was complete.
     /// </summary>
+    /// <exception cref="ArgumentException">Tablet identities are blank or duplicate. Supply distinct
+    /// Id values when display names repeat; the evaluator never silently combines distinct subjects.</exception>
     public static IReadOnlyList<HealthFinding> Evaluate(HealthSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        var identities = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tablet in snapshot.Tablets)
+        {
+            string identity = tablet.Id ?? tablet.Name;
+            if (string.IsNullOrWhiteSpace(identity) || !identities.Add(identity))
+                throw new ArgumentException("Tablet identities must be nonblank and unique. " +
+                    "Supply distinct Id values for tablets with the same display name.", nameof(snapshot));
+        }
+
         var findings = new List<HealthFinding>();
-        void Add(string code, HealthSeverity severity, string? tablet = null, HealthEvidence? evidence = null) =>
-            findings.Add(new HealthFinding(code, severity, tablet, evidence));
+        void Add(string code, HealthSeverity severity, TabletHealthSnapshot? tablet = null, HealthEvidence? evidence = null) =>
+            findings.Add(new HealthFinding(code, severity, tablet?.Name, evidence, tablet?.Id ?? tablet?.Name));
 
         bool windows = snapshot.Platform == HealthPlatform.Windows;
         if (windows)
@@ -33,8 +44,7 @@ public static class HealthEvaluator
 
         if (snapshot.DaemonConnected)
         {
-            // Platform applicability for this inference is the collector's responsibility, matching OTA.
-            if (snapshot.DaemonCannotOpenTablet)
+            if (snapshot.Platform == HealthPlatform.MacOS && snapshot.DaemonCannotOpenTablet)
                 Add(HealthCheckCodes.DaemonPermissionsMissing, HealthSeverity.Broken);
             if (snapshot.ForeignDaemon)
                 Add(HealthCheckCodes.ForeignDaemon, HealthSeverity.Information,
@@ -55,25 +65,25 @@ public static class HealthEvaluator
         {
             if (!tablet.Detected) continue;
             if (windows && snapshot.WinInkInstalled == true && !tablet.OutputModeIsWinInk && !tablet.WinInkOptedOut)
-                Add(HealthCheckCodes.TabletNotWinInk, HealthSeverity.Misconfigured, tablet.Name);
+                Add(HealthCheckCodes.TabletNotWinInk, HealthSeverity.Misconfigured, tablet);
             if (windows && tablet.WinInkOptedOut)
-                Add(HealthCheckCodes.TabletWinInkOff, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletWinInkOff, HealthSeverity.Recommendation, tablet);
             if (tablet.PenTipDisabled)
-                Add(HealthCheckCodes.TabletPenTipDisabled, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletPenTipDisabled, HealthSeverity.Recommendation, tablet);
             if (tablet.PressureDisabled)
-                Add(HealthCheckCodes.TabletPressureDisabled, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletPressureDisabled, HealthSeverity.Recommendation, tablet);
             if (tablet.TiltDisabled)
-                Add(HealthCheckCodes.TabletTiltDisabled, HealthSeverity.Recommendation, tablet.Name);
-            if (!tablet.DynamicsFilterActive)
-                Add(HealthCheckCodes.TabletDynamicsOff, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletTiltDisabled, HealthSeverity.Recommendation, tablet);
+            if (tablet.DynamicsWarningRequired)
+                Add(HealthCheckCodes.TabletDynamicsOff, HealthSeverity.Recommendation, tablet);
             if (tablet.ConfigIsOverride)
-                Add(HealthCheckCodes.TabletConfigOverride, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletConfigOverride, HealthSeverity.Recommendation, tablet);
             if (tablet.Mapping == DisplayMappingStatus.OffScreen)
-                Add(HealthCheckCodes.TabletMappingOffScreen, HealthSeverity.Misconfigured, tablet.Name);
+                Add(HealthCheckCodes.TabletMappingOffScreen, HealthSeverity.Misconfigured, tablet);
             else if (tablet.Mapping == DisplayMappingStatus.Custom)
-                Add(HealthCheckCodes.TabletMappingCustom, HealthSeverity.Recommendation, tablet.Name);
+                Add(HealthCheckCodes.TabletMappingCustom, HealthSeverity.Recommendation, tablet);
             if (tablet.NonCardinalRotation)
-                Add(HealthCheckCodes.TabletMappingRotation, HealthSeverity.Misconfigured, tablet.Name);
+                Add(HealthCheckCodes.TabletMappingRotation, HealthSeverity.Misconfigured, tablet);
         }
 
         // These probes are proxies. A detected tablet is stronger evidence that prerequisites are met.

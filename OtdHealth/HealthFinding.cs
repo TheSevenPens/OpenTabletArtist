@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace OtdHealth;
 
 /// <summary>Increasing diagnostic severity. Information describes context, not a failure.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<HealthSeverity>))]
 public enum HealthSeverity
 {
     /// <summary>Context about a deliberate choice or a pending transition.</summary>
@@ -35,9 +38,13 @@ public sealed record HealthEvidence
 /// <param name="Severity">Impact of the finding.</param>
 /// <param name="TabletName">Subject of a per-tablet finding; null for process/daemon/system findings.</param>
 /// <param name="Evidence">Additional observations needed to explain the finding.</param>
+/// <param name="TabletId">The effective snapshot subject identity, separate from its display name.
+/// Null for findings without a tablet subject. Evaluator-produced tablet findings always populate it.</param>
 public sealed record HealthFinding(
-    string Code, HealthSeverity Severity, string? TabletName = null, HealthEvidence? Evidence = null)
+    string Code, HealthSeverity Severity, string? TabletName = null, HealthEvidence? Evidence = null,
+    string? TabletId = null)
 {
-    /// <summary>Stable instance key. Consumers can also address Code and TabletName separately.</summary>
-    public string Id => TabletName is null ? Code : $"{Code}:{TabletName}";
+    /// <summary>Finding key formed from Code and subject identity. Stability across evaluations depends
+    /// on stable caller-supplied identities. A manually constructed finding may fall back to TabletName.</summary>
+    public string Id => (TabletId ?? TabletName) is { } subject ? $"{Code}:{subject}" : Code;
 }
