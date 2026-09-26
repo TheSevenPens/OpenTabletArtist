@@ -4,6 +4,10 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using OtdHealth.Collector;
+using OtdInterop;
 using CommunityToolkit.Mvvm.ComponentModel;
 using OpenTabletArtist.Domain;
 using OpenTabletArtist.Domain.Health;
@@ -46,11 +50,16 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     private readonly IConnectionState _connection;
     private readonly IDeviceData _device;
-    private readonly WindowsInkPluginService _winInk;
+    private CancellationTokenSource? _collectionCancellation;
+    private bool _disposed;
+    private bool _dataLoaded;
+    private readonly Func<CancellationToken, Task<HealthAnalysisReport>>? _collectForTest;
+    internal Task CurrentCollection { get; private set; } = Task.CompletedTask;
+    /// <summary>The last real collection report, before developer overrides or presentation.</summary>
+    public HealthAnalysisReport? Analysis { get; private set; }
     private readonly DriverConflictMonitor _conflicts;
 
-    // VMulti detection is async P/Invoke owned by the VMulti page, so it's pushed in rather than read
-    // here. Null until the first detection reports, so no false "not installed" on startup.
+    // Avoid duplicate refreshes from the VMulti page. The collector owns the authoritative probe.
     private bool? _vmultiInstalled;
 
     /// <summary>Active issues, worst severity first (see <see cref="HealthEvaluator"/>).</summary>
@@ -58,15 +67,18 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _hasIssues;
 
-    public HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts,
-        WindowsInkPluginService? winInk = null)
+    public HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts)
+        : this(connection, device, conflicts, null) { }
+
+    internal HealthService(IConnectionState connection, IDeviceData device, DriverConflictMonitor conflicts,
+        Func<CancellationToken, Task<HealthAnalysisReport>>? collectForTest)
     {
+        _collectForTest = collectForTest;
         _connection = connection;
         _device = device;
         _conflicts = conflicts;
-        _winInk = winInk ?? new WindowsInkPluginService();
 
-        _device.DataLoaded += Reevaluate;
+        _device.DataLoaded += OnDataLoaded;
         _connection.PropertyChanged += OnConnectionChanged;
         _conflicts.PropertyChanged += OnConflictsChanged;
         _conflicts.Drivers.CollectionChanged += OnConflictDriversChanged;
@@ -121,7 +133,48 @@ public sealed partial class HealthService : ObservableObject, IDisposable
             && r.Area == area
             && (tabletName == null || string.Equals(r.TabletName, tabletName, StringComparison.OrdinalIgnoreCase)));
 
+    private void OnDataLoaded() { _dataLoaded = true; Reevaluate(); }
+
     private void Reevaluate()
+    {
+        if (_disposed) return;
+        if (!_connection.IsConnected) { _dataLoaded = false; Analysis = null; }
+        // Ownership and app notices are already known and should react immediately. Collected facts
+        // arrive asynchronously; keep all collection off the UI thread and discard obsolete results.
+        PublishIssues();
+        _collectionCancellation?.Cancel();
+        _collectionCancellation = new CancellationTokenSource();
+        CurrentCollection = CollectAsync(_collectionCancellation);
+    }
+
+    private async Task CollectAsync(CancellationTokenSource cancellation)
+    {
+        using (cancellation)
+        using (var diagnostics = new DiagnosticsConnection())
+        {
+            try
+            {
+                HealthAnalysisReport report;
+                if (_collectForTest != null) report = await _collectForTest(cancellation.Token);
+                else
+                {
+                    var (sources, policy) = HealthCollectionAdapter.Capture(_connection, _device, _dataLoaded, diagnostics);
+                    report = await HealthCollector.CollectAsync(sources, policy, cancellationToken: cancellation.Token);
+                }
+                if (_disposed || cancellation.IsCancellationRequested) return;
+                Analysis = report;
+                OnPropertyChanged(nameof(Analysis));
+                PublishIssues();
+            }
+            catch (Exception ex) { AppLog.Warn("Health collection failed.", ex); }
+            finally
+            {
+                if (ReferenceEquals(_collectionCancellation, cancellation)) _collectionCancellation = null;
+            }
+        }
+    }
+
+    private void PublishIssues()
     {
         var shown = HealthEvaluator.Evaluate(GatherInputs(applyDeveloper: true));
 
@@ -152,95 +205,25 @@ public sealed partial class HealthService : ObservableObject, IDisposable
     // synthetic); true layers the Developer-tab induce/force overrides on top.
     private HealthInputs GatherInputs(bool applyDeveloper)
     {
-        bool installed = false, mismatch = false;
-        var meta = _winInk.ReadInstalled(_device.PluginDirectory);
-        if (meta != null)
+        var collected = HealthCollectionAdapter.ToInputs(Analysis?.Snapshot ?? new OtdHealth.HealthSnapshot
         {
-            installed = true;
-            mismatch = !WindowsInkPluginService.IsCompatible(meta);
-        }
-
-        // Enumerate monitors once so each tablet's mapping is classified against the same live display set.
-        var displays = DisplayEnumerator.Enumerate();
-        // The dynamics filter is app-owned-only; on a foreign daemon we don't flag it (report it as active
-        // to suppress the check), same as the other app-owned-daemon features. A profile with no filter at
-        // all is fine (dynamics are simply inert) — only a filter that's present but *disabled* is flagged,
-        // i.e. the always-on invariant regressed (someone turned it off, so configured dynamics won't apply).
-        // Only judge a daemon OTA owns. On someone else's — or one it can't identify — a disabled
-        // dynamics filter is not a regression OTA is entitled to report (#742).
-        bool notOurs = !_connection.IsAppOwnedDaemon;
-        static bool DynamicsOk(ProfileItem p) =>
-            PressureCurveProfile.ReadProfile(p.Profile) is null or { Enabled: true };
-        // A non-cardinal active-area rotation (not a multiple of 90°): the app only offers 0/90/180/270,
-        // so anything else was set by external tooling and skews the pen off the screen (#health-rotation).
-        static bool IsNonCardinalRotation(ProfileItem p)
+            Platform = HostProbes.Platform,
+        });
+        var tablets = collected.Tablets.ToList();
+        var inputs = collected with
         {
-            if (p.Profile.AbsoluteModeSettings?.Tablet is not { } tablet) return false;
-            double n = ((tablet.Rotation % 360f) + 360f) % 360f;
-            return System.Math.Abs(n - System.Math.Round(n / 90.0) * 90.0) > 0.5;
-        }
-        // Which built-in configs are shadowed by a user override file in the daemon's config folder (#467).
-        var overriddenConfigs = TabletConfigInspector.OverriddenBaseNames(_device.ConfigurationDirectory);
-        var tablets = _device.Profiles
-            .Select(p => new TabletHealthInput(
-                p.Tablet,
-                Detected: p.IsDetected,
-                OutputModeIsWinInk: (p.Profile.OutputMode?.Path ?? "")
-                    .Contains("WinInk", StringComparison.OrdinalIgnoreCase),
-                // Only flag a mapping for a detected tablet — a mapping warning for an unplugged tablet
-                // would be noise. ClassifyMapping is None when there's no Absolute area to assess.
-                Mapping: p.IsDetected
-                    ? DisplayMappingApplier.ClassifyMapping(p.Profile, displays)
-                    : DisplayMappingValidity.None,
-                NonCardinalRotation: p.IsDetected && IsNonCardinalRotation(p),
-                DynamicsFilterActive: notOurs || DynamicsOk(p),
-                ConfigIsOverride: overriddenConfigs.Contains(p.Tablet),
-                // A non-WinInk mode is intentional (mouse-compatibility) when the tablet is opted out (#549).
-                WinInkOptedOut: WinInkAutoOptOut.IsOptedOut(p.Tablet),
-                // Artist-pen-behavior offenders read straight off the profile's binding settings
-                // (#artist-pen-health). The tip is "disabled" when it has no binding (#493).
-                PenTipDisabled: p.Profile.BindingSettings.TipButton?.Path == null,
-                PressureDisabled: p.Profile.BindingSettings.DisablePressure,
-                TiltDisabled: p.Profile.BindingSettings.DisableTilt))
-            .ToList();
-
-        var linux = LinuxInputEnvironment.Current;
-        var inputs = new HealthInputs
-        {
-            IsWindows = OperatingSystem.IsWindows(),
-            IsMacOS = OperatingSystem.IsMacOS(),
             DaemonConnected = _connection.IsConnected,
             ForeignDaemon = _connection.IsForeignDaemon,
+            DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
+            DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
+            DaemonVersion = _connection.DaemonVersion,
+            ExpectedOtdVersion = ExpectedOtdVersion,
             IgnoredDaemonPath = LegacyDaemonPath(),
             LegacyPathNoticeAcknowledged = AppSettings.Get(LegacyPathNoticeAcknowledgedKey) == "true",
             ConnectedDaemonPath = _connection.DaemonSourcePath,
-            DaemonIsManagedButNotSelected = _connection.DaemonIsManagedButNotSelected,
-            DaemonSourceUnknown = _connection.ShowDaemonSourceUnknown,
-            DaemonCannotOpenTablet = _connection.DaemonCannotOpenTablet,
-            DaemonVersion = _connection.DaemonVersion,
-            // Same source the Daemon page's "Build match" row uses: the linked OTD assembly's version,
-            // i.e. the pinned submodule release OTA was compiled against.
-            ExpectedOtdVersion = ExpectedOtdVersion,
-            WinInkInstalled = installed,
-            WinInkVersionMismatch = mismatch,
-            VMultiInstalled = _vmultiInstalled,
-            HasDriverConflict = _conflicts.HasConflicts,
-            BlockingDriverConflict = _conflicts.Drivers.Any(d => d.Blocking),
-            RunningElevated = ProcessElevation.IsElevated,
             TrayHostUnavailable = DesktopTrayEnvironment.TrayHostUnavailable,
-            // Linux tablet prerequisites (#779). The probe caches internally — health re-evaluates every
-            // 3 seconds and this reads files and opens device nodes.
-            IsLinux = OperatingSystem.IsLinux(),
-            LinuxUdevRulesMissing = !linux.UdevRulesInstalled,
-            LinuxHidAccess = linux.HidAccess,
-            LinuxUserManagerRunning = LinuxInputEnvironment.UserManagerRunning(),
-            LinuxConflictingModulesLoaded = linux.LoadedConflictingModules,
-            LinuxConflictingModulesNotBlacklisted = !linux.ConflictingModulesBlacklisted,
-            // A corrupt/unreadable settings file detected on startup (#21) — surface it with the exact
-            // outcome (preserved to a named backup, or not) so the Home copy is truthful.
             SettingsLoad = AppSettings.LoadOutcome.Status,
             SettingsBackupName = AppSettings.LoadOutcome.BackupName,
-            Tablets = tablets,
         };
         if (!applyDeveloper) return inputs;
 
@@ -273,9 +256,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
         {
             DaemonConnected = inputs.DaemonConnected || dev.ForceForeignDaemon,
             ForeignDaemon = inputs.ForeignDaemon || dev.ForceForeignDaemon,
-            WinInkInstalled = installed && !dev.ForceWinInkNotInstalled,
-            WinInkVersionMismatch = mismatch || dev.ForceWinInkVersionMismatch,
-            VMultiInstalled = dev.ForceVMultiNotInstalled ? false : _vmultiInstalled,
+            WinInkInstalled = dev.ForceWinInkNotInstalled ? false : inputs.WinInkInstalled,
+            WinInkVersionMismatch = inputs.WinInkVersionMismatch || dev.ForceWinInkVersionMismatch,
+            VMultiInstalled = dev.ForceVMultiNotInstalled ? false : inputs.VMultiInstalled,
             HasDriverConflict = inputs.HasDriverConflict || dev.ForceDriverConflict,
             RunningElevated = inputs.RunningElevated || dev.ForceRunningElevated,
             TrayHostUnavailable = inputs.TrayHostUnavailable || dev.ForceTrayHostUnavailable,
@@ -286,7 +269,9 @@ public sealed partial class HealthService : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _device.DataLoaded -= Reevaluate;
+        _disposed = true;
+        _collectionCancellation?.Cancel();
+        _device.DataLoaded -= OnDataLoaded;
         _connection.PropertyChanged -= OnConnectionChanged;
         _conflicts.PropertyChanged -= OnConflictsChanged;
         _conflicts.Drivers.CollectionChanged -= OnConflictDriversChanged;

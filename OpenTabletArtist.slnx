@@ -3,15 +3,18 @@
     <Project Path="tests/OpenTabletArtist.Tests/OpenTabletArtist.Tests.csproj" />
     <Project Path="tests/OtdInterop.Tests/OtdInterop.Tests.csproj" />
     <Project Path="tests/OtdHealth.Tests/OtdHealth.Tests.csproj" />
+    <Project Path="tests/OtdHealth.Collector.Tests/OtdHealth.Collector.Tests.csproj" />
     <Project Path="tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OtdDaemonSwitchCheck/OtdDaemonSwitchCheck.csproj" />
+    <Project Path="tools/OtdHealthCheck/OtdHealthCheck.csproj" />
   </Folder>
   <Folder Name="/plugins/">
     <Project Path="plugins/OpenTabletArtist.Dynamics/OpenTabletArtist.Dynamics.csproj" />
   </Folder>
   <Project Path="OtdInterop/OtdInterop.csproj" />
   <Project Path="OtdHealth/OtdHealth.csproj" />
+  <Project Path="OtdHealth.Collector/OtdHealth.Collector.csproj" />
   <Project Path="OpenTabletArtist/OpenTabletArtist.csproj" />
 </Solution>

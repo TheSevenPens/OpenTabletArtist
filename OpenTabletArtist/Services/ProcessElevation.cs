@@ -21,8 +21,7 @@ public static class ProcessElevation
         if (!OperatingSystem.IsWindows()) return false;
         try
         {
-            using var identity = WindowsIdentity.GetCurrent();
-            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            return OtdHealth.Collector.HostProbes.IsElevated();
         }
         catch
         {
