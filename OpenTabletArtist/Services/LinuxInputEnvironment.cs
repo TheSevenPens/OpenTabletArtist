@@ -79,161 +79,37 @@ public static class LinuxInputEnvironment
     {
         try
         {
+            var modules = OtdHealth.Collector.HostProbes.LinuxModules();
+            var access = OtdHealth.Collector.HostProbes.LinuxAccess();
             return new LinuxInputStatus
             {
-                UdevRulesInstalled = File.Exists(UdevRulesPath) || File.Exists(PackagedUdevRulesPath),
-                ConflictingModulesBlacklisted = ProbeBlacklisted(),
-                LoadedConflictingModules = ProbeLoadedModules(),
-                HidAccess = ProbeHidAccess(),
+                UdevRulesInstalled = OtdHealth.Collector.HostProbes.LinuxUdev(),
+                ConflictingModulesBlacklisted = !modules.NotBlacklisted,
+                LoadedConflictingModules = modules.Loaded,
+                HidAccess = access.Access switch
+                {
+                    OtdHealth.HidAccessStatus.Blocked => LinuxHidAccess.Blocked,
+                    OtdHealth.HidAccessStatus.PendingRestart => LinuxHidAccess.PendingReboot,
+                    _ => LinuxHidAccess.Ok,
+                },
             };
         }
         catch (Exception ex)
         {
-            // An unreadable /proc or /etc is not evidence of a misconfigured machine.
-            AppLog.Warn("Couldn't probe the Linux tablet prerequisites; reporting nothing.", ex);
+            AppLog.Warn("Couldn't probe the Linux tablet prerequisites.", ex);
             return LinuxInputStatus.Fine;
         }
     }
 
-    private static bool ProbeBlacklisted()
-    {
-        string[] paths = ["/etc/modprobe.d/99-opentabletdriver.conf", "/etc/modprobe.d/blacklist.conf"];
-        foreach (var path in paths)
-        {
-            try
-            {
-                if (File.Exists(path) && AllModulesBlacklisted(File.ReadAllText(path), ConflictingModules))
-                    return true;
-            }
-            catch { /* unreadable file: try the next */ }
-        }
-        return false;
-    }
-
-    private static IReadOnlyList<string> ProbeLoadedModules()
-    {
-        try { return LoadedFrom(File.ReadAllText("/proc/modules"), ConflictingModules); }
-        catch { return []; }
-    }
-
-    private static LinuxHidAccess ProbeHidAccess()
-    {
-        string[] devices;
-        try { devices = Directory.GetFiles("/dev", "hidraw*"); }
-        catch { return LinuxHidAccess.Ok; }
-
-        // No HID devices at all means nothing to be denied — "plug in a tablet" is not a permissions fault.
-        if (devices.Length == 0) return LinuxHidAccess.Ok;
-        if (devices.Any(CanOpen)) return LinuxHidAccess.Ok;
-
-        // Nothing openable. If the group is already granted on disk, the grant just isn't live in this
-        // session yet, which is a different message and a much less alarming one.
-        return UserIsInGroupOnDisk("input") && !ProcessIsInGroup("input")
-            ? LinuxHidAccess.PendingReboot
-            : LinuxHidAccess.Blocked;
-    }
-
-    private static bool CanOpen(string device)
-    {
-        try
-        {
-            // Share read/write: the daemon holds these open too, and hidraw allows multiple readers. We
-            // only want to know whether the open is permitted, so nothing is read.
-            using var _ = new FileStream(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1,
-                FileOptions.None);
-            return true;
-        }
-        catch { return false; }
-    }
-
-    private static bool UserIsInGroupOnDisk(string group)
-    {
-        try { return GroupContains(File.ReadAllText("/etc/group"), group, Environment.UserName); }
-        catch { return false; }
-    }
-
-    private static bool ProcessIsInGroup(string group)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo("id", "-Gn")
-            {
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null) return false;
-            var output = proc.StandardOutput.ReadToEnd();
-            if (!proc.WaitForExit(3000)) return false;
-            return output.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-                .Any(g => g == group);
-        }
-        catch { return false; }
-    }
-
-    /// <summary>
-    /// True while a per-user systemd manager is running, which is why the pending-grant message says
-    /// reboot rather than log out: the manager survives a logout and hands its stale group set to every
-    /// app it launches afterwards, so the new group never takes effect. This detail cost someone a
-    /// confusing afternoon once; it is the main thing worth carrying over from the old tool.
-    /// </summary>
     public static bool UserManagerRunning()
     {
-        try
-        {
-            // $XDG_RUNTIME_DIR/systemd exists exactly while the user manager is up.
-            var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
-            return !string.IsNullOrEmpty(runtimeDir)
-                   && Directory.Exists(Path.Combine(runtimeDir, "systemd"));
-        }
+        try { return OtdHealth.Collector.HostProbes.UserManagerRunning(); }
         catch { return false; }
     }
-
-    // --- Pure parsers, separated so they can be tested off Linux --------------------------------
-
-    /// <summary>True when every one of <paramref name="modules"/> is blacklisted by
-    /// <paramref name="modprobeConf"/>. Matches whole words, so "blacklist wacom_foo" does not count as
-    /// blacklisting "wacom", and tolerates the leading whitespace and comments real files carry.</summary>
-    public static bool AllModulesBlacklisted(string modprobeConf, IEnumerable<string> modules)
-    {
-        var blacklisted = modprobeConf
-            .Split('\n')
-            .Select(line => line.Trim())
-            .Where(line => !line.StartsWith('#'))
-            .Select(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-            .Where(parts => parts.Length == 2 && parts[0] == "blacklist")
-            .Select(parts => parts[1])
-            .ToHashSet(StringComparer.Ordinal);
-
-        return modules.All(blacklisted.Contains);
-    }
-
-    /// <summary>Which of <paramref name="modules"/> appear in <c>/proc/modules</c> content. The module
-    /// name is the first field of each line; substring matching would report "wacom" for "wacom_w8001"
-    /// and for any module merely listing it as a dependency.</summary>
-    public static IReadOnlyList<string> LoadedFrom(string procModules, IEnumerable<string> modules)
-    {
-        var loaded = procModules
-            .Split('\n')
-            .Select(line => line.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
-            .Where(name => !string.IsNullOrEmpty(name))
-            .ToHashSet(StringComparer.Ordinal!);
-
-        return modules.Where(loaded.Contains).ToList();
-    }
-
-    /// <summary>True when <paramref name="user"/> is a member of <paramref name="group"/> per the
-    /// <c>/etc/group</c> content given.</summary>
-    public static bool GroupContains(string etcGroup, string group, string user)
-    {
-        foreach (var line in etcGroup.Split('\n'))
-        {
-            var parts = line.TrimEnd('\r').Split(':');
-            if (parts.Length < 4 || parts[0] != group) continue;
-            return parts[3].Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Any(m => m.Trim() == user);
-        }
-        return false;
-    }
+    public static bool AllModulesBlacklisted(string text, IEnumerable<string> modules) =>
+        OtdHealth.Collector.HostProbes.AllModulesBlacklisted(text, modules);
+    public static IReadOnlyList<string> LoadedFrom(string text, IEnumerable<string> modules) =>
+        OtdHealth.Collector.HostProbes.LoadedFrom(text, modules);
+    public static bool GroupContains(string text, string group, string user) =>
+        OtdHealth.Collector.HostProbes.GroupContains(text, group, user);
 }

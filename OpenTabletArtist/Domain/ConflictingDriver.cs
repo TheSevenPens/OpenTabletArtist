@@ -41,35 +41,7 @@ public static class ConflictingDriverParser
 {
     public static DetectedDriver? TryParse(LogMessage? message)
     {
-        var msg = message?.Message;
-        if (message == null || string.IsNullOrEmpty(msg)) return null;
-        if (!string.Equals(message.Group, "Detect", StringComparison.OrdinalIgnoreCase)) return null;
-        if (!msg.Contains("driver is detected", StringComparison.OrdinalIgnoreCase)) return null;
-
-        // Driver name is the text inside the first pair of single quotes.
-        int open = msg.IndexOf('\'');
-        int close = open >= 0 ? msg.IndexOf('\'', open + 1) : -1;
-        if (open < 0 || close <= open + 1) return null;
-        var name = msg.Substring(open + 1, close - open - 1);
-
-        return new DetectedDriver(
-            Name: name,
-            Blocking: msg.Contains("block detection", StringComparison.OrdinalIgnoreCase),
-            Flaky: msg.Contains("flaky", StringComparison.OrdinalIgnoreCase),
-            Uncertain: msg.Contains("false positive", StringComparison.OrdinalIgnoreCase),
-            Processes: Between(msg, "Processes found: [", "]"),
-            WikiUrl: Between(msg, "visit '", "'"),
-            Detail: msg);
-    }
-
-    /// <summary>The text between the first <paramref name="start"/> and the next <paramref name="end"/>
-    /// after it, or "" if not found.</summary>
-    private static string Between(string s, string start, string end)
-    {
-        int a = s.IndexOf(start, StringComparison.OrdinalIgnoreCase);
-        if (a < 0) return "";
-        a += start.Length;
-        int b = s.IndexOf(end, a, StringComparison.Ordinal);
-        return b > a ? s.Substring(a, b - a) : "";
+        var d = OtdHealth.Collector.ConflictingDriverParser.TryParse(message);
+        return d == null ? null : new(d.Name, d.Blocking, d.Flaky, d.Uncertain, d.Processes, d.WikiUrl, d.Detail);
     }
 }

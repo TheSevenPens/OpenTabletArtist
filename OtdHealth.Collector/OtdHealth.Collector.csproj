@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OtdHealth/OtdHealth.csproj" />
+    <ProjectReference Include="../OtdInterop/OtdInterop.csproj" />
+  </ItemGroup>
+</Project>

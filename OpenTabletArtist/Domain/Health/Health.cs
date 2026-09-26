@@ -129,7 +129,7 @@ public sealed record TabletHealthInput(
     // leave the pen useless for drawing. All default false so existing tests/inputs are unchanged.
     bool PenTipDisabled = false,     // the pen tip has no binding, so tapping does nothing (#493)
     bool PressureDisabled = false,   // BindingSettings.DisablePressure — flat, pressure-less strokes (#494)
-    bool TiltDisabled = false);      // BindingSettings.DisableTilt — apps receive no tilt
+    bool TiltDisabled = false, string? Id = null);      // BindingSettings.DisableTilt — apps receive no tilt
 
 /// <summary>
 /// Snapshot of everything the health checks read. The Dashboard already holds all of this state, so it
@@ -196,7 +196,7 @@ public sealed record HealthInputs
     /// looks like from outside the daemon.</summary>
     public bool DaemonCannotOpenTablet { get; init; }
     /// <summary>The Windows Ink plugin is installed in the daemon's plugin directory.</summary>
-    public bool WinInkInstalled { get; init; }
+    public bool? WinInkInstalled { get; init; } = false;
     /// <summary>The installed Windows Ink plugin doesn't declare support for the running driver version.</summary>
     public bool WinInkVersionMismatch { get; init; }
     /// <summary>The VMulti virtual-pen driver is installed. Null = not yet detected (no issue raised until
@@ -380,8 +380,7 @@ public static class HealthEvaluator
         LinuxUserManagerRunning = i.LinuxUserManagerRunning,
         LinuxConflictingModulesLoaded = i.LinuxConflictingModulesLoaded,
         LinuxConflictingModulesNotBlacklisted = i.LinuxConflictingModulesNotBlacklisted,
-        // Profiles and developer samples can share a display name. Their index identifies each input
-        // within this evaluation; OTA does not persist the library's subject IDs across snapshots.
+        // Preserve collector subject IDs. Only developer samples and legacy callers use evaluation-local indices.
         Tablets = i.Tablets.Select((t, index) => new OtdHealth.TabletHealthSnapshot(
             t.Name, t.Detected, t.OutputModeIsWinInk,
             t.Mapping switch
@@ -393,6 +392,6 @@ public static class HealthEvaluator
             },
             t.NonCardinalRotation, !t.DynamicsFilterActive, t.ConfigIsOverride, t.WinInkOptedOut,
             t.PenTipDisabled, t.PressureDisabled, t.TiltDisabled,
-            Id: index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray(),
+            Id: t.Id ?? index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray(),
     };
 }

@@ -19,33 +19,11 @@ public static class DaemonVersion
     /// metadata (e.g. "+abc123").</summary>
     public static string Read(string executablePath, string siblingAssemblyName = SiblingAssemblyName)
     {
-        var version = FromFile(executablePath);
-        if (!string.IsNullOrEmpty(version)) return version;
-
-        var dir = Path.GetDirectoryName(executablePath);
-        if (dir == null) return "";
-        var sibling = Path.Combine(dir, siblingAssemblyName);
-        // Don't re-read the same file (e.g. when the executable already *is* the managed .dll on Windows).
-        if (string.Equals(sibling, executablePath, StringComparison.OrdinalIgnoreCase) || !File.Exists(sibling))
-            return "";
-        return FromFile(sibling);
+        try { return OtdHealth.Collector.FileProbes.DaemonVersion(executablePath, siblingAssemblyName); }
+        catch { return ""; }
     }
 
     /// <summary>Compare numeric major.minor.patch, ignoring the fourth component and suffixes.</summary>
     public static bool SameRelease(string a, string b) => OtdHealth.OtdVersion.SameRelease(a, b);
 
-    private static string FromFile(string path)
-    {
-        try
-        {
-            var info = FileVersionInfo.GetVersionInfo(path);
-            var version = (info.ProductVersion ?? info.FileVersion ?? "").Trim();
-            var plus = version.IndexOf('+');
-            return plus >= 0 ? version[..plus] : version;
-        }
-        catch
-        {
-            return "";
-        }
-    }
 }
