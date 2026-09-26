@@ -57,14 +57,14 @@ public class DiagnosticsTests
     [Theory]
     [InlineData(false, 0)]
     [InlineData(true, 1)]
-    public async Task ExplicitLiveCoverageCanCompleteOnEveryPlatform(bool conflict, int exit)
+    public async Task ExplicitLiveCoverageCanCompleteOnEveryPlatform(bool pressureDisabled, int exit)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         limit.CancelAfter(TimeSpan.FromSeconds(10));
         string pipe = TestPipeName.Create();
         using var server = new NamedPipeServerStream(pipe, PipeDirection.InOut, 1,
             PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-        var target = new ReadOnlyServer { ReportConflict = conflict };
+        var target = new ReadOnlyServer { ReportConflict = false, PressureDisabled = pressureDisabled };
         var accept = server.WaitForConnectionAsync(limit.Token);
         using var rpc = new JsonRpc(server);
         rpc.AddLocalRpcTarget(target);
@@ -79,18 +79,23 @@ public class DiagnosticsTests
         Assert.Equal(HostProbes.Platform.ToString(), json.RootElement.GetProperty("Snapshot").GetProperty("Platform").GetString());
         Assert.Equal(new[] { "Daemon", "Profiles", "DriverConflicts" },
             json.RootElement.GetProperty("RequestedCoverage").EnumerateArray().Select(p => p.GetString()));
-        Assert.Equal(conflict ? 1 : 0, json.RootElement.GetProperty("Findings").GetArrayLength());
+        Assert.Equal(pressureDisabled ? 1 : 0, json.RootElement.GetProperty("Findings").GetArrayLength());
         Assert.Equal(new[] { "GetSettings", "GetTablets", "GetCurrentLog" }, target.Calls);
     }
 
     public sealed class ReadOnlyServer
     {
         public bool ReportConflict { get; init; } = true;
+        public bool PressureDisabled { get; init; }
         public ConcurrentQueue<string> Calls { get; } = new();
         public Settings GetSettings()
         {
             Calls.Enqueue(nameof(GetSettings));
-            var settings = new Settings(); settings.Profiles.Add(CollectorTests.Profile()); return settings;
+            var settings = new Settings();
+            var profile = CollectorTests.Profile();
+            profile.BindingSettings.DisablePressure = PressureDisabled;
+            settings.Profiles.Add(profile);
+            return settings;
         }
         public JArray GetTablets()
         {
