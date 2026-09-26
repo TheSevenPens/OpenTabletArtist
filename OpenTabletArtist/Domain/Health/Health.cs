@@ -144,6 +144,8 @@ public sealed record HealthInputs
     /// about VMulti / Windows Ink / driver conflicts would be noise for things the user can't (and needn't)
     /// fix (#140). Defaults true so Windows behaviour and existing tests are unchanged. (#317)</summary>
     public bool IsWindows { get; init; } = true;
+    /// <summary>The host is macOS, so its Input Monitoring permission inference is applicable.</summary>
+    public bool IsMacOS { get; init; }
     /// <summary>Connected to the daemon right now.</summary>
     public bool DaemonConnected { get; init; }
     /// <summary>Connected, but to a daemon this app didn't launch.</summary>
@@ -248,76 +250,12 @@ public sealed record HealthInputs
     public IReadOnlyList<HealthSeverity> InducedSeverities { get; init; } = new List<HealthSeverity>();
 }
 
-/// <summary>
-/// Pure evaluation of the health-check catalog: inputs in, ordered issue list out (worst severity
-/// first, then by id for stability). No UI, no I/O — see <c>HealthService</c> for the live wiring.
-/// </summary>
+/// <summary>OTA's presentation boundary: shared findings plus app-only notices, ordered as cards.</summary>
 public static class HealthEvaluator
 {
     public static IReadOnlyList<HealthIssue> Evaluate(HealthInputs i)
     {
-        var issues = new List<HealthIssue>();
-
-        // --- Daemon reachability (not-connected / exe-missing) is surfaced by the Home daemon problem
-        //     card + the Daemon page, not here, so it can morph through the connecting state and offer
-        //     an "Open daemon page" action. Only the "external daemon" recommendation stays a health
-        //     item (see below). ---
-
-        // --- Windows-only pen-delivery stack (Windows Ink plugin + VMulti). Skipped off-Windows, where the
-        //     daemon delivers pen input through its own native output and neither concept applies (#140). ---
-        if (i.IsWindows)
-        {
-            // --- Windows Ink plugin: installed + compatible + actually used ---
-            if (!i.WinInkInstalled)
-            {
-                issues.Add(new HealthIssue("winink.notInstalled", HealthSeverity.Broken,
-                    "Windows Ink plugin not installed",
-                    "Without the plugin, you will not get pressure or tilt",
-                    new Remediation("Fix", RemediationArea.WindowsInk)));
-            }
-            else if (i.WinInkVersionMismatch)
-            {
-                issues.Add(new HealthIssue("winink.versionMismatch", HealthSeverity.Misconfigured,
-                    "Windows Ink plugin may be incompatible",
-                    "Not the plugin version OTA expected",
-                    new Remediation("Fix", RemediationArea.WindowsInk)));
-
-                // Per-tablet: a detected tablet not using a Windows Ink output mode won't get pressure/tilt.
-                AddTabletWinInkIssues(issues, i);
-            }
-            else
-            {
-                AddTabletWinInkIssues(issues, i);
-            }
-
-            // --- VMulti virtual-pen driver: a prerequisite for the Windows Ink output mode ---
-            // Independent of the Windows Ink plugin — both prerequisites surface at once when missing.
-            // Only fires on a definitive "not installed" (null = not yet detected).
-            if (i.VMultiInstalled == false)
-            {
-                issues.Add(new HealthIssue("vmulti.notInstalled", HealthSeverity.Broken,
-                    "VMulti driver not installed",
-                    "Without VMulti you will not be able to use Windows Ink and get pressure and tilt",
-                    new Remediation("Fix", RemediationArea.VMulti)));
-            }
-        }
-
-        // --- Per-tablet display mapping: flag anything that isn't a clean single-display mapping, so the
-        //     pointer lands where the user expects. Off-screen (dead zones) is worse than a custom area. ---
-        AddTabletMappingIssues(issues, i);
-
-        // --- Per-tablet Pen Dynamics: the filter should always be enabled (inert until customized). If a
-        //     detected tablet's profile has it off/missing, the pen-dynamics settings won't apply. ---
-        AddTabletDynamicsIssues(issues, i);
-
-        // --- Per-tablet config override: the tablet is running a custom config that shadows OTD's vetted
-        //     built-in. Often deliberate, but worth surfacing (support / odd-behaviour context). ---
-        AddTabletConfigOverrideIssues(issues, i);
-
-        // --- Per-tablet artist-pen-behavior bundle: several settings that each work but together make the
-        //     pen useless for drawing (Windows Ink off, pen tip / pressure / tilt disabled). Bundled into
-        //     one card because there's no single place to fix or review them (#artist-pen-health). ---
-        AddTabletPenBehaviorIssues(issues, i);
+        var issues = HealthIssuePresenter.Present(OtdHealth.HealthEvaluator.Evaluate(ToSnapshot(i))).ToList();
 
         // --- A daemon location chosen before #930, which OTA no longer launches from. Not conditional
         //     on being connected: the artist most likely to be confused is the one whose chosen daemon
@@ -346,27 +284,6 @@ public static class HealthEvaluator
                 new Remediation("Got it", RemediationArea.AcknowledgeLegacyDaemonPath)));
         }
 
-        // --- Conflicting manufacturer driver: interferes with OTD detecting the tablet. Windows-only —
-        //     this parses OTD's Windows manufacturer-driver warnings and the fix runs a Windows tool (#140). ---
-        if (i.IsWindows && i.HasDriverConflict)
-        {
-            issues.Add(new HealthIssue("driver.conflict",
-                i.BlockingDriverConflict ? HealthSeverity.Broken : HealthSeverity.Misconfigured,
-                "Conflicting tablet driver detected",
-                "Another tablet driver is installed and may interfere with OpenTabletDriver",
-                new Remediation("Fix", RemediationArea.DriverCleanup)));
-        }
-
-        // --- Running elevated: no in-app fix (relaunching unelevated is a manual step), so it's an
-        //     informational recommendation with no Fix button. ---
-        if (i.RunningElevated)
-        {
-            issues.Add(new HealthIssue("app.elevated", HealthSeverity.Misconfigured,
-                "Running as administrator",
-                "OpenTabletDriver does not work correctly if it is running with Administrator permissions",
-                Remediation: null));
-        }
-
         // --- Tray host missing (Linux/GNOME with no StatusNotifierItem host): the tray icon is published
         //     to the bus but nothing renders it, so closing the window hides the app with no visible icon to
         //     bring it back. Informational — tablet input is unaffected; it's a heads-up plus how to restore
@@ -380,70 +297,6 @@ public static class HealthEvaluator
                 "window back). Install the \"AppIndicator and KStatusNotifierItem Support\" GNOME extension to " +
                 "restore the tray icon.",
                 Remediation: null));
-        }
-
-        // --- Linux tablet prerequisites (#779), folded in from the standalone tools/OtdLinuxSetup app.
-        //
-        //     Gated on no tablet having been detected, because that is what makes them a problem. Every one
-        //     of these is a proxy: rules can live somewhere this doesn't look, a distro can grant HID access
-        //     by a route other than the input group, and a loaded wacom module only matters if it actually
-        //     claimed the device. When the daemon has a tablet, the prerequisites are met however they were
-        //     met, and saying otherwise would be nagging about a machine that works.
-        //
-        //     Detection only: the fixes write udev rules, blacklist kernel modules, regenerate the initramfs
-        //     and change group membership. Doing that from the app is a separate decision from telling the
-        //     user about it, so the copy says what to run. ---
-        bool noTabletDetected = i.Tablets.Count == 0 || i.Tablets.All(t => !t.Detected);
-        if (i.IsLinux && noTabletDetected)
-        {
-            if (i.LinuxUdevRulesMissing)
-            {
-                issues.Add(new HealthIssue("linux.udevRules", HealthSeverity.Broken,
-                    "Tablet access rules aren't installed",
-                    "Linux only lets a program read a tablet if a udev rule grants access to it, and " +
-                    "OpenTabletDriver's rules aren't installed — so no tablet will be detected no matter " +
-                    "what else is set up. Installing OpenTabletDriver from your distribution's package " +
-                    "manager puts them in place; otherwise run its generate-rules.sh and install the output " +
-                    "to /etc/udev/rules.d/, then replug the tablet.",
-                    Remediation: null));
-            }
-
-            if (i.LinuxHidAccess == LinuxHidAccess.Blocked)
-            {
-                issues.Add(new HealthIssue("linux.hidAccess", HealthSeverity.Broken,
-                    "No permission to read tablet devices",
-                    "The HID devices tablets appear as can't be opened by your user account. Adding " +
-                    "yourself to the \"input\" group grants that: sudo usermod -aG input $USER, then " +
-                    "reboot.",
-                    Remediation: null));
-            }
-            else if (i.LinuxHidAccess == LinuxHidAccess.PendingReboot)
-            {
-                // Not a fault — the grant exists, it just isn't live. Saying "permission denied" here would
-                // send someone to re-run a command that already worked.
-                issues.Add(new HealthIssue("linux.hidAccess", HealthSeverity.Information,
-                    "Tablet permissions need a restart to take effect",
-                    "You're in the \"input\" group, but this session started before that was granted, so it " +
-                    "isn't active yet. " + (i.LinuxUserManagerRunning
-                        ? "Reboot to pick it up — logging out likely won't be enough, because your systemd " +
-                          "user manager keeps running and hands its old group list to everything it starts."
-                        : "Log out and back in, or reboot, to pick it up."),
-                    Remediation: null));
-            }
-
-            if (i.LinuxConflictingModulesLoaded.Count > 0)
-            {
-                var names = string.Join(" and ", i.LinuxConflictingModulesLoaded);
-                issues.Add(new HealthIssue("linux.conflictingModules", HealthSeverity.Misconfigured,
-                    "A kernel driver may have claimed your tablet",
-                    $"The {names} kernel module is loaded. These bind tablets before OpenTabletDriver can, " +
-                    "which is a common reason a tablet is plugged in and still not detected. " +
-                    $"sudo rmmod {string.Join(" ", i.LinuxConflictingModulesLoaded)} unloads them for now; " +
-                    (i.LinuxConflictingModulesNotBlacklisted
-                        ? "blacklisting them in /etc/modprobe.d/ keeps them from returning on the next boot."
-                        : "they're already blacklisted, so they won't be back after a reboot."),
-                    Remediation: null));
-            }
         }
 
         // --- Settings file couldn't be read (#21): the app started with defaults. Two cases, with copy that
@@ -480,23 +333,6 @@ public static class HealthEvaluator
                 Remediation: null));
         }
 
-        // The tablet is plugged in and the driver can see it but cannot read it. Broken, because the pen
-        // does not work at all until the grant is given, and OTA cannot give it — only say what to do.
-        // macOS-only by construction: nothing else sets the input.
-        if (i.DaemonConnected && i.DaemonCannotOpenTablet)
-        {
-            issues.Add(new HealthIssue("otd.permissionsMissing", HealthSeverity.Broken,
-                "OpenTabletDriver can't read your tablet",
-                "Grant Input Monitoring permission to allow OpenTabletDriver to connect to your tablet",
-                new Remediation("Open Settings", RemediationArea.InputMonitoring)));
-        }
-
-        // --- The OpenTabletDriver you're connected to ---
-        // One card, not three. These all describe the same subject and all lead to the same page, so as
-        // separate issues they stacked up on Home saying "Review" three times over. Same shape as the
-        // artist-pen-behavior bundle (#artist-pen-health): a short line, then a row per thing that's true.
-        AddDaemonIssue(issues, i);
-
         // --- Developer-induced synthetic warnings (Advanced → Developer): one per requested severity, so
         //     the "Needs attention" cards can be reviewed at each tier. The Fix just clears the flag. ---
         foreach (var sev in i.InducedSeverities)
@@ -510,208 +346,53 @@ public static class HealthEvaluator
 
         issues.Sort((a, b) =>
         {
-            int bySeverity = ((int)b.Severity).CompareTo((int)a.Severity);
+            int bySeverity = b.Severity.CompareTo(a.Severity);
             return bySeverity != 0 ? bySeverity : string.CompareOrdinal(a.Id, b.Id);
         });
         return issues;
     }
 
-    private static void AddTabletWinInkIssues(List<HealthIssue> issues, HealthInputs i)
+    private static OtdHealth.HealthSnapshot ToSnapshot(HealthInputs i) => new()
     {
-        foreach (var t in i.Tablets)
+        Platform = i.IsWindows ? OtdHealth.HealthPlatform.Windows
+            : i.IsLinux ? OtdHealth.HealthPlatform.Linux
+            : i.IsMacOS ? OtdHealth.HealthPlatform.MacOS : OtdHealth.HealthPlatform.Unspecified,
+        DaemonConnected = i.DaemonConnected,
+        ForeignDaemon = i.ForeignDaemon,
+        DaemonIsManagedButNotSelected = i.DaemonIsManagedButNotSelected,
+        DaemonSourceUnknown = i.DaemonSourceUnknown,
+        DaemonVersion = i.DaemonVersion,
+        ExpectedOtdVersion = i.ExpectedOtdVersion,
+        DaemonCannotOpenTablet = i.DaemonCannotOpenTablet,
+        WinInkInstalled = i.WinInkInstalled,
+        WinInkVersionMismatch = i.WinInkVersionMismatch,
+        VMultiInstalled = i.VMultiInstalled,
+        HasDriverConflict = i.HasDriverConflict,
+        BlockingDriverConflict = i.BlockingDriverConflict,
+        RunningElevated = i.RunningElevated,
+        LinuxUdevRulesMissing = i.LinuxUdevRulesMissing,
+        LinuxHidAccess = i.LinuxHidAccess switch
         {
-            if (t.Detected && !t.OutputModeIsWinInk)
+            LinuxHidAccess.Blocked => OtdHealth.HidAccessStatus.Blocked,
+            LinuxHidAccess.PendingReboot => OtdHealth.HidAccessStatus.PendingRestart,
+            _ => OtdHealth.HidAccessStatus.NoProblemReported,
+        },
+        LinuxUserManagerRunning = i.LinuxUserManagerRunning,
+        LinuxConflictingModulesLoaded = i.LinuxConflictingModulesLoaded,
+        LinuxConflictingModulesNotBlacklisted = i.LinuxConflictingModulesNotBlacklisted,
+        // Profiles and developer samples can share a display name. Their index identifies each input
+        // within this evaluation; OTA does not persist the library's subject IDs across snapshots.
+        Tablets = i.Tablets.Select((t, index) => new OtdHealth.TabletHealthSnapshot(
+            t.Name, t.Detected, t.OutputModeIsWinInk,
+            t.Mapping switch
             {
-                if (t.WinInkOptedOut)
-                {
-                    // Absorbed into the artist-pen-behavior bundle when that fires (it always does once
-                    // Windows Ink is off), so the two don't double up on Home (#artist-pen-health).
-                    if (ArtistBundleFires(t, i.IsWindows)) continue;
-
-                    // Deliberate: the "Don't use Windows Ink" sub-option is on (#549). Not a problem to fix —
-                    // just a heads-up that this fundamentally changes how the pen behaves.
-                    issues.Add(new HealthIssue($"tablet.winInkOff:{t.Name}", HealthSeverity.Information,
-                        $"{t.Name}: Windows Ink is off (mouse-compatibility mode)",
-                        "Pressure and tilt are disabled for this tablet.",
-                        new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
-                }
-                else
-                {
-                    issues.Add(new HealthIssue($"tablet.notWinInk:{t.Name}", HealthSeverity.Misconfigured,
-                        $"{t.Name}: not using Windows Ink",
-                        "This tablet's pen behavior isn't set to a Windows Ink mode, so pressure and tilt " +
-                        "won't work.",
-                        new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
-                        Secondary: new Remediation("Review", RemediationArea.TabletPenBehavior, t.Name)));
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// The single card describing the connected OpenTabletDriver. Each row is one thing that is true of
-    /// it; the card only appears when at least one is. Severity is the worst of the contributing rows, so
-    /// an adopted install on its own stays a quiet Information while a version difference lifts it.
-    /// </summary>
-    private static void AddDaemonIssue(List<HealthIssue> issues, HealthInputs i)
-    {
-        if (!i.DaemonConnected) return;
-
-        var rows = new List<HealthLink>();
-        var severity = HealthSeverity.Information;
-
-        // Not "Not built by OpenTabletArtist" any more: since #794 OTA builds no daemon, so that was
-        // true of every daemon including its own bundled one, and distinguished nothing.
-        //
-        // Two different facts reach here as ForeignDaemon, and saying the wrong one is worse than saying
-        // nothing. A daemon the artist installed elsewhere is not the bundled copy; a daemon that IS one
-        // of OTA's own, but not the one OTA would start, is also External -- and telling that person
-        // "not the bundled copy" is false, and points them at the very thing they are already running
-        // (#882). The classification is the same; the sentence must not be.
-        //
-        // Since #daemon-bundled-only there is no chosen location, so the second case is now a second
-        // copy of OTA's own daemon: a dev tree beside a bundled release, or Debug beside Release.
-        if (i.ForeignDaemon)
-            rows.Add(new HealthLink(
-                // Short on purpose: the row clips at roughly this width, and the previous wording lost
-                // its last word to that. A sentence whose meaning lives in the clipped part is worse
-                // than a short one -- "a different one is answering" became "a different one is a".
-                i.DaemonIsManagedButNotSelected
-                    ? "Another copy of the OTD daemon this app ships"
-                    : "An OpenTabletDriver you installed, not the bundled copy",
-                "", RemediationArea.Daemon));
-
-        if (i.DaemonSourceUnknown)
-        {
-            rows.Add(new HealthLink("Location couldn't be read", "", RemediationArea.Daemon));
-            severity = HealthSeverity.Recommendation;
-        }
-
-        // The declared support policy (#786, D3): exactly the pinned OpenTabletDriver release, in both
-        // directions. Anything else is untested rather than known-broken, so it says so and stays a
-        // Recommendation — the card's own text already promises "nothing here stops it working", and a
-        // user running a newer OTD than this app was built against has usually done nothing wrong.
-        //
-        // This nags the day OpenTabletDriver ships a release, until the submodule is bumped. That is
-        // inherent in pinning, and otd-release-watch.yml is what keeps the window short.
-        if (!string.IsNullOrEmpty(i.DaemonVersion)
-            && !string.IsNullOrEmpty(i.ExpectedOtdVersion)
-            && !Domain.DaemonVersion.SameRelease(i.DaemonVersion, i.ExpectedOtdVersion))
-        {
-            rows.Add(new HealthLink(
-                $"Version {i.DaemonVersion}, untested with this app — it was built against "
-                + $"{i.ExpectedOtdVersion}",
-                "", RemediationArea.Daemon));
-            severity = HealthSeverity.Recommendation;
-        }
-
-        if (rows.Count == 0) return;
-
-        issues.Add(new HealthIssue("otd.driver", severity,
-            "User-supplied OTD Daemon",
-            "OTA using a user-supplied OTD daemon",
-            new Remediation("Review", RemediationArea.Daemon),
-            Links: rows));
-    }
-
-    private static void AddTabletDynamicsIssues(List<HealthIssue> issues, HealthInputs i)
-    {
-        foreach (var t in i.Tablets)
-        {
-            if (t.Detected && !t.DynamicsFilterActive)
-            {
-                issues.Add(new HealthIssue($"tablet.dynamicsOff:{t.Name}", HealthSeverity.Recommendation,
-                    $"{t.Name}: Pen Dynamics filter is off",
-                    "The Pen Dynamics filter is required for pressure curve and smoothing.",
-                    new Remediation("Fix", RemediationArea.TabletPenDynamics, t.Name)));
-            }
-        }
-    }
-
-    private static void AddTabletConfigOverrideIssues(List<HealthIssue> issues, HealthInputs i)
-    {
-        foreach (var t in i.Tablets)
-        {
-            if (t.Detected && t.ConfigIsOverride)
-            {
-                issues.Add(new HealthIssue($"tablet.configOverride:{t.Name}", HealthSeverity.Recommendation,
-                    $"{t.Name}: using a custom tablet config",
-                    "This tablet is driven by a custom configuration file that replaces OpenTabletDriver's " +
-                    "built-in, vetted config of the same name. That's fine if you did it on purpose, but if " +
-                    "the pen behaves oddly, removing the override to restore the built-in is worth trying.",
-                    new Remediation("Review", RemediationArea.Configs, t.Name)));
-            }
-        }
-    }
-
-    // The artist-pen-behavior bundle fires for a detected tablet as soon as any one of its offenders —
-    // Windows Ink off, or the pen tip / pressure / tilt disabled — is active. Each is individually enough
-    // to noticeably hurt drawing, so even a lone one is worth surfacing (#artist-pen-health).
-    private static bool ArtistBundleFires(TabletHealthInput t, bool isWindows)
-    {
-        if (!t.Detected) return false;
-        bool winInkOff = isWindows && t.WinInkOptedOut;
-        return winInkOff || t.PenTipDisabled || t.PressureDisabled || t.TiltDisabled;
-    }
-
-    private static void AddTabletPenBehaviorIssues(List<HealthIssue> issues, HealthInputs i)
-    {
-        foreach (var t in i.Tablets)
-        {
-            if (!ArtistBundleFires(t, i.IsWindows)) continue;
-
-            var links = new List<HealthLink>();
-            if (i.IsWindows && t.WinInkOptedOut)
-                links.Add(new HealthLink("Windows Ink is off", "Pen › basics", RemediationArea.TabletPenBehavior, t.Name));
-            if (t.PenTipDisabled)
-                links.Add(new HealthLink("Pen tip is disabled", "Pen › basics", RemediationArea.TabletPenInputs, t.Name));
-            if (t.PressureDisabled)
-                links.Add(new HealthLink("Pressure sensitivity is off", "Pen › basics", RemediationArea.TabletPenInputs, t.Name));
-            if (t.TiltDisabled)
-                links.Add(new HealthLink("Tilt is disabled", "Pen › pressure", RemediationArea.TabletPenTilt, t.Name));
-
-            issues.Add(new HealthIssue($"tablet.penBehavior:{t.Name}", HealthSeverity.Recommendation,
-                $"{t.Name}: pen isn't set up for drawing",
-                "Settings artists rely on are turned off. Restore them all in one click, or review each " +
-                "below.",
-                new Remediation("Fix", RemediationArea.RestorePenBehavior, t.Name),
-                Links: links));
-        }
-    }
-
-    private static void AddTabletMappingIssues(List<HealthIssue> issues, HealthInputs i)
-    {
-        foreach (var t in i.Tablets)
-        {
-            switch (t.Mapping)
-            {
-                case DisplayMappingValidity.OffScreen:
-                    issues.Add(new HealthIssue($"tablet.mappingOffScreen:{t.Name}", HealthSeverity.Misconfigured,
-                        $"{t.Name}: mapped area is partly off-screen",
-                        "This tablet's mapped area extends beyond your displays.",
-                        new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
-                        Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
-                    break;
-                case DisplayMappingValidity.Custom:
-                    issues.Add(new HealthIssue($"tablet.mappingCustom:{t.Name}", HealthSeverity.Recommendation,
-                        $"{t.Name}: custom display mapping",
-                        "This tablet isn't mapped to a single whole display (a custom or multi-display " +
-                        "area).",
-                        new Remediation("Fix", RemediationArea.TabletMapToPrimary, t.Name),
-                        Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
-                    break;
-            }
-
-            // Independent of the mapping-validity classification: a non-cardinal active-area rotation
-            // (anything but 0/90/180/270) skews the pen axes off the screen, so strokes come out slanted.
-            if (t.NonCardinalRotation)
-            {
-                issues.Add(new HealthIssue($"tablet.mappingRotation:{t.Name}", HealthSeverity.Misconfigured,
-                    $"{t.Name}: unusual active-area rotation",
-                    "This tablet's active area is rotated by an angle that isn't 0°, 90°, 180°, or 270°",
-                    new Remediation("Fix", RemediationArea.TabletResetRotation, t.Name),
-                    Secondary: new Remediation("Review", RemediationArea.TabletDisplayMapping, t.Name)));
-            }
-        }
-    }
+                DisplayMappingValidity.Clean => OtdHealth.DisplayMappingStatus.Clean,
+                DisplayMappingValidity.Custom => OtdHealth.DisplayMappingStatus.Custom,
+                DisplayMappingValidity.OffScreen => OtdHealth.DisplayMappingStatus.OffScreen,
+                _ => OtdHealth.DisplayMappingStatus.None,
+            },
+            t.NonCardinalRotation, !t.DynamicsFilterActive, t.ConfigIsOverride, t.WinInkOptedOut,
+            t.PenTipDisabled, t.PressureDisabled, t.TiltDisabled,
+            Id: index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray(),
+    };
 }

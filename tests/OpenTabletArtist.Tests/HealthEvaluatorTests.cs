@@ -97,6 +97,8 @@ public class HealthEvaluatorTests
     {
         var issue = Assert.Single(HealthEvaluator.Evaluate(Healthy() with
         {
+            IsWindows = false,
+            IsMacOS = true,
             Tablets = [],                       // nothing detected...
             DaemonCannotOpenTablet = true,      // ...but the daemon can see one
         }));
@@ -121,6 +123,8 @@ public class HealthEvaluatorTests
     {
         Assert.Empty(HealthEvaluator.Evaluate(Healthy() with
         {
+            IsWindows = false,
+            IsMacOS = true,
             DaemonConnected = false,
             Tablets = [],
             DaemonCannotOpenTablet = true,
