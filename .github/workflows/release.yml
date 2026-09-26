@@ -357,6 +357,11 @@ jobs:
           # PublishSingleFile the root quietly fills with runtime DLLs again and the complaint that
           # prompted it — "252 files, which one do I run?" — comes back with nothing to catch it.
           # Runs after the .pdb strip, so debug symbols are already gone.
+          #
+          # scripts/verify-publish-layout.ps1 makes the same assertion in build.yml, so a stray file is
+          # caught on a pull request rather than here (#962). This copy stays the authoritative gate:
+          # it checks the bundle that is actually about to be uploaded. If the two are ever unified,
+          # validate it with a throwaway tag — nothing else exercises this file.
           $loose = Get-ChildItem $root -File | Where-Object { $_.Name -ne 'OpenTabletArtist.exe' }
           if ($loose) {
             Write-Host "::error::The release root should hold only OpenTabletArtist.exe, but also has: $($loose.Name -join ', ')"
