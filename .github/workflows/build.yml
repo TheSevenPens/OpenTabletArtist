@@ -95,6 +95,22 @@ jobs:
       - name: UI smoke tests
         run: dotnet test tests/OpenTabletArtist.UiTests/OpenTabletArtist.UiTests.csproj -c Debug --no-build
 
+      # The release bundle unpacks to one visible file, so somebody who downloads the zip can tell what to
+      # run (#586). release.yml asserts that — but release.yml runs only on a `v*` tag, so the assertion
+      # caught nothing until a release was already being cut, and OtdInterop.xml sat in the publish root
+      # from #807 until v0.77.0 failed on it weeks later (#962). This is the same check, here, on the
+      # branch, where the cost of the fix is one line instead of an abandoned release and a re-pointed tag.
+      #
+      # Windows only: it is a self-contained win-x64 single-file publish, which is what the release does.
+      #
+      # Deliberately NOT gated on which files changed. Gating would cut a minute off most runs and would
+      # also have skipped the very change that caused this — #807 added a project without touching the
+      # app's csproj — and a check that stops running is worth less than a check that costs a minute.
+      - name: Verify the publish layout
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ./scripts/verify-publish-layout.ps1
+
       # Formatting, on CHANGED files only (#741). The existing tree disagrees with `dotnet format` in
       # thousands of places — almost all of it aligned continuations that read better than what the
       # formatter would produce — and reformatting it wholesale would bury real history under whitespace.
