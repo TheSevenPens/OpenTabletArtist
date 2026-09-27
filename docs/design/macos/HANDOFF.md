@@ -48,7 +48,7 @@ Use it to see how a capability was done; re-implement as a fresh, reviewed, Wind
 ## Packaging — Phase 6 (unblocked) then Phase 7 (deferred)
 
 Split so the part that needs no Apple account can proceed. See
-[implementation-plan.md → Phase 6](implementation-plan.md#phase-6--packaging-otd-compatible-no-apple-account).
+[implementation-plan.md → Phase 6](implementation-plan.md#phase-6-packaging-otd-compatible-no-apple-account).
 
 **Phase 6 — OTD-compatible packaging (no Apple account, doable now).** Bring OTA to the level OTD itself ships
 at: a self-contained `.app` with the **daemon bundled**, **ad-hoc / `rcodesign` signed** (OTD's
