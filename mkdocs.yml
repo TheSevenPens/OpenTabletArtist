@@ -1,9 +1,6 @@
 site_name: OpenTabletArtist
 site_description: Setup, user guides, and troubleshooting for OpenTabletArtist.
 site_url: https://thesevenpens.github.io/OpenTabletArtist/
-repo_url: https://github.com/TheSevenPens/OpenTabletArtist
-repo_name: TheSevenPens/OpenTabletArtist
-edit_uri: edit/master/docs/user/
 docs_dir: docs/user
 site_dir: site
 
@@ -36,7 +33,6 @@ theme:
     - navigation.footer
     - search.suggest
     - search.highlight
-    - content.action.edit
     - content.code.copy
 
 plugins:
