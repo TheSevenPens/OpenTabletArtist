@@ -1,10 +1,10 @@
 # OpenTabletArtist documentation
 
-The documentation has two audiences. **[User documentation](user/README.md)** is
+The documentation has two audiences. **[User documentation](user/index.md)** is
 published to [GitHub Pages](https://thesevenpens.github.io/OpenTabletArtist/).
 Developer guides, design notes, and release-note source files stay in this repository.
 
-Start with the **[Overview](user/OVERVIEW.md)** for what OpenTabletArtist is and who it's for.
+Start with the **[Overview](user/index.md)** for what OpenTabletArtist is and who it's for.
 
 New to OTA? Follow the **[install guide](user/INSTALL.md)**. For a problem with your setup,
 start with **[Troubleshooting](user/TROUBLESHOOTING.md)**.
@@ -31,5 +31,5 @@ These are working and historical documents; use the user guides above for curren
 
 ## Other
 
-- [Third-party notices](user/THIRD_PARTY_NOTICES.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Release notes](release-notes/README.md)

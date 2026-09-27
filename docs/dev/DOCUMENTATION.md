@@ -14,8 +14,9 @@ and published independently of an application release.
 | `docs/design/` | Contributors investigating and designing changes | No |
 | `docs/release-notes/` | Release-note sources and release preparation | No |
 | `docs/README.md` | Repository index for both audiences | No |
+| `docs/THIRD_PARTY_NOTICES.md` | Third-party attribution and licenses | No |
 
-The site's home page is `docs/user/README.md`. The `docs_dir` setting in
+The site's home page is About OTA, in `docs/user/index.md`. The `docs_dir` setting in
 `mkdocs.yml` defines the publication boundary: files outside `docs/user/` are
 absent from the generated site and its search index. Keep contributor material
 outside that folder. Advanced features that help people use OTA still belong in
@@ -76,15 +77,16 @@ width. `docs/user/stylesheets/navigation.css` adapts Material's smaller-screen
 drawer into a sidebar; check desktop, narrow-window, and phone layouts when
 updating the theme. Navigation links still come from `mkdocs.yml`.
 
-- `docs/user/README.md` is the site's home page; `docs/README.md` stays in the repo.
+- `docs/user/index.md` is the site's About OTA landing page; `docs/README.md` stays in the repo.
+- `docs/user/OVERVIEW/index.html` redirects the former About OTA URL to the landing page.
 - `mkdocs.yml` defines the sidebar. Add new user guides there so readers can find them.
 - Link to other documentation using relative Markdown paths, such as
   `[Pen](PEN.md)`. MkDocs converts these to site URLs, while GitHub keeps
   them readable in the repository.
 - Keep links to building, contributing, design notes, and site maintenance in
   the repository documentation. User guides should link to user-facing help.
-- The site's Releases link opens GitHub Releases, where users can download OTA
-  and read about changes. Release-note preparation instructions stay in the repo.
+- The install guide links to GitHub Releases for downloads. Release-note preparation
+  instructions and third-party notices stay in the repo.
 - A strict build checks that user guides appear in the sidebar, plus document
   links and heading anchors. It does not verify
   the availability of external websites.

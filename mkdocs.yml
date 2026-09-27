@@ -67,9 +67,8 @@ validation:
     unrecognized_links: warn
 
 nav:
-  - Documentation: README.md
   - Get started:
-      - About OTA: OVERVIEW.md
+      - About OTA: index.md
       - Install on Windows: INSTALL.md
   - Use OTA:
       - Home: HOME.md
@@ -85,5 +84,3 @@ nav:
       - Ask for help: HELP.md
       - Advanced information: ADVANCED-INFORMATION.md
       - Uninstall OTA: UNINSTALL.md
-  - Releases: https://github.com/TheSevenPens/OpenTabletArtist/releases
-  - Third-party notices: THIRD_PARTY_NOTICES.md

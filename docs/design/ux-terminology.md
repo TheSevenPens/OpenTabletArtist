@@ -1,7 +1,7 @@
 # UX & navigation terminology
 
 > Status: **canonical.** This is the agreed vocabulary for the app's navigation and page structure.
-> Use these terms in code, comments, and docs. The [user guides](../user/README.md) describe
+> Use these terms in code, comments, and docs. The [user guides](../README.md#using-the-app) describe
 > the shipped app's behavior.
 
 ## The shape

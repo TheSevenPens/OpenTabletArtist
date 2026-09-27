@@ -7,7 +7,7 @@
 > been renamed, split, merged and moved since, so reading them as current will send you to tabs that no
 > longer exist.
 >
-> For what the app actually has today: **[user guides](../user/README.md)** for the pages and
+> For what the app actually has today: **[user guides](../README.md#using-the-app)** for the pages and
 > tabs, **[ux-terminology.md](ux-terminology.md)** for the vocabulary and the page/tab/subtab inventory.
 > Keep those two current; leave the tables below as the record of their moment.
 
