@@ -13,7 +13,7 @@ start with **[Troubleshooting](user/TROUBLESHOOTING.md)**.
 
 - **[Install guide](user/INSTALL.md)** — download, run, and set up on Windows.
 - Per-page guides: [Home](user/HOME.md) · [Tablet](user/TABLET.md) · [Pen](user/PEN.md) · [Scribble](user/SCRIBBLE.md) · [Settings](user/SETTINGS.md) · [Advanced](user/ADVANCED.md)
-- [Presets](user/PRESETS.md) · [Troubleshooting](user/TROUBLESHOOTING.md)
+- [Troubleshooting](user/TROUBLESHOOTING.md)
 
 ## Building and contributing
 
