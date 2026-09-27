@@ -27,6 +27,7 @@ theme:
         name: Switch to light mode
   features:
     - navigation.sections
+    - navigation.expand
     - navigation.top
     - navigation.footer
     - search.suggest
@@ -36,6 +37,9 @@ theme:
 
 plugins:
   - search
+
+extra_css:
+  - stylesheets/navigation.css
 
 markdown_extensions:
   - admonition

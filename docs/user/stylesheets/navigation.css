@@ -1,0 +1,100 @@
+/* Keep Material's desktop navigation beside the article at smaller widths too.
+   The theme normally replaces it with a fixed, layered drawer below 76.25em. */
+@media screen and (max-width: 76.234375em) {
+  .md-header__button[for="__drawer"],
+  .md-overlay[for="__drawer"] {
+    display: none;
+  }
+
+  [dir] .md-sidebar--primary {
+    position: sticky;
+    inset: 2.4rem auto auto;
+    flex: 0 0 12.1rem;
+    height: auto;
+    /* The drawer's checked state must never turn this into an overlay. */
+    transform: none !important;
+    transition: none;
+    box-shadow: none !important;
+    z-index: 1;
+  }
+
+  .md-sidebar--primary .md-sidebar__scrollwrap {
+    position: static;
+    margin: 0 .2rem;
+    /* Material's drawer script otherwise supplies a viewport-sized height. */
+    height: auto !important;
+    max-height: calc(100dvh - 4.8rem);
+    overflow-y: auto;
+  }
+
+  [dir] .md-sidebar--primary .md-sidebar__inner {
+    padding: 0;
+  }
+
+  .md-nav--primary,
+  .md-nav--primary .md-nav {
+    position: static;
+    display: block;
+    height: auto;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: none;
+  }
+
+  .md-nav--primary .md-nav__title,
+  .md-nav--primary .md-nav__source,
+  .md-nav--primary .md-nav__icon,
+  .md-nav--primary .md-nav__link[for="__toc"] ~ .md-nav--secondary,
+  .md-nav--primary .md-nav__link[for="__toc"] {
+    display: none;
+  }
+
+  .md-nav--primary .md-nav__link[for="__toc"] + .md-nav__link {
+    display: flex;
+  }
+
+  .md-nav--primary .md-nav__list,
+  .md-nav--primary .md-nav__title ~ .md-nav__list {
+    overflow: visible;
+    box-shadow: none;
+  }
+
+  .md-nav--primary .md-nav__item {
+    border: 0;
+    font-size: .7rem;
+    line-height: 1.4;
+  }
+
+  .md-nav--primary .md-nav__link {
+    margin: 0;
+    padding: .3rem .6rem;
+  }
+
+  .md-nav--primary .md-nav__item--nested > .md-nav__link {
+    margin-top: .6rem;
+    color: var(--md-default-fg-color--light);
+    font-weight: 700;
+    pointer-events: none;
+  }
+}
+
+/* Reserve more room for the article in narrow windows without hiding the menu. */
+@media screen and (max-width: 37.5em) {
+  [dir] .md-sidebar--primary {
+    flex-basis: 7rem;
+    width: 7rem;
+  }
+
+  .md-nav--primary .md-nav__link {
+    padding-inline: .4rem;
+  }
+
+  .md-content__inner {
+    margin-inline: .6rem;
+  }
+
+  .md-typeset h1 {
+    font-size: 1.1rem;
+  }
+}
