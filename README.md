@@ -21,6 +21,9 @@ Platforms:
 
 ## Install & use
 
+**[Read the documentation](https://thesevenpens.github.io/OpenTabletArtist/)**
+for setup, user guides, and troubleshooting.
+
 Download the latest Windows build and run it — no .NET install needed. See the
 **[install guide](docs/user/INSTALL.md)** for the full walkthrough, or the **[User Manual](docs/user/USERMANUAL.md)**
 for the interface in depth.

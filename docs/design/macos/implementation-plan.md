@@ -40,7 +40,7 @@ V2 pickup in [HANDOFF.md](HANDOFF.md).
   verification on top). It is **byte-identical for the common Windows-Ink case** and changes behaviour **only**
   for the uncommon config of a Windows tablet on OTD's *native* absolute mode — clicking *Absolute* no longer
   force-swaps it to Windows Ink (only *Fix output mode* does). That's an improvement, not a regression, and the
-  0.3 PR must lock it with a Windows regression test (see [Phase 0.3](#phase-0--prepare-the-windows-codebase-no-macos-behaviour-yet)).
+  0.3 PR must lock it with a Windows regression test (see [Phase 0.3](#phase-0-prepare-the-windows-codebase-no-macos-behaviour-yet)).
 - **Verification is per-phase and mandatory.** The branch was built verify-first; keep that discipline. The
   tooling is in [dev-environment.md](dev-environment.md).
 

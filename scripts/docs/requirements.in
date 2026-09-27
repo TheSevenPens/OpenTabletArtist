@@ -1,0 +1,3 @@
+# Keep the site on the stable MkDocs 1 / Material 9 interfaces.
+mkdocs>=1.6,<2
+mkdocs-material>=9.7,<10

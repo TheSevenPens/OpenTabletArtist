@@ -12,7 +12,7 @@ and make **"drive the OTD that's already on this machine"** a first-class, suppo
 warning.
 
 Today OTA compiles the daemon from the pinned submodule and ships that build
-([`release.yml:61`](../../.github/workflows/release.yml:61)). The submodule is vanilla upstream at tag
+([`release.yml:61`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/.github/workflows/release.yml#L61)). The submodule is vanilla upstream at tag
 `v0.6.7` — no local commits, no patches — so what we ship is *the same source*, rebuilt. This document
 argues that "same source, our build" is the wrong unit to ship, and that the daemon should be an
 artifact we **obtain**, not one we **produce**.
@@ -34,13 +34,13 @@ Shipping their artifact converts every OTA bug report into a report against a ve
 Users have told us they like OTA's setup experience but stay on OTD because OTD exposes configuration OTA
 does not. Today that's an either/or: OTA treats an externally started daemon as a `daemon.foreign`
 *Recommendation* and tells the user to "restart it to use the bundled build"
-([`Health.cs:302`](../../OpenTabletArtist/Domain/Health/Health.cs:302)). That advice is backwards for
+([`Health.cs:302`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/Domain/Health/Health.cs#L302)). That advice is backwards for
 this group — it asks them to abandon the install they deliberately chose.
 
 Making an existing OTD a supported target turns OTA into a **configuration utility for OTD**, usable
 alongside OTD's own UX rather than instead of it. The groundwork is already there: OTA deliberately keeps
 the shared `settings.json` valid for OTD's UI
-([`AppSession.cs:749`](../../OpenTabletArtist/Services/AppSession.cs:749)), and the health model already
+([`AppSession.cs:749`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/Services/AppSession.cs#L749)), and the health model already
 re-validates on a timer because "OTD's own UX can change settings underneath us"
 ([`317-remediation-model.md`](317-remediation-model.md)).
 
@@ -63,7 +63,7 @@ else's OTD install, OTA is a diagnostic front-end for a driver that otherwise ha
 macOS ties Input Monitoring / Accessibility grants to a binary's identity. A daemon rebuilt on every CI
 run gets a new identity each time, so the grant does not survive. This is the catch-22 the port kept
 hitting and the reason the current macOS build tells the user to start OTD.app first
-([`build-macos-app.sh`](../../scripts/build-macos-app.sh)).
+([`build-macos-app.sh`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/scripts/build-macos-app.sh)).
 
 A fixed, official artifact — installed once at a stable path — has a stable identity. The grant is asked
 for once and then persists across OTA updates, because OTA updates no longer change the daemon.
@@ -81,10 +81,10 @@ They shape the design and must not be discovered again later.
 
 | Constraint | Evidence | Consequence |
 |---|---|---|
-| OTD's **Windows** release is framework-dependent | `SELF_CONTAINED` defaults to `false` ([`lib.sh:109`](../../external/OpenTabletDriver/eng/bash/lib.sh:109)); the `win-*` branch sets only `SINGLE_FILE` ([`package.sh:72`](../../external/OpenTabletDriver/eng/bash/package.sh:72)) | Using it introduces a **.NET 8 runtime prerequisite** where OTA is currently self-contained. Already noted in [`136-bundling-binaries.md`](136-bundling-binaries.md). |
+| OTD's **Windows** release is framework-dependent | `SELF_CONTAINED` defaults to `false` ([`lib.sh:109`](https://github.com/OpenTabletDriver/OpenTabletDriver/blob/736003ed72c8bbb28033b039d5a0bb76c344145c/eng/bash/lib.sh#L109)); the `win-*` branch sets only `SINGLE_FILE` ([`package.sh:72`](https://github.com/OpenTabletDriver/OpenTabletDriver/blob/736003ed72c8bbb28033b039d5a0bb76c344145c/eng/bash/package.sh#L72)) | Using it introduces a **.NET 8 runtime prerequisite** where OTA is currently self-contained. Already noted in [`136-bundling-binaries.md`](136-bundling-binaries.md). |
 | OTD's **macOS** release is **x64-only** | publish matrix is `runtime-suffix: [x64]` (`build-matrix.yml`) | On Apple Silicon the daemon runs under **Rosetta 2**. OTA itself stays native arm64; they're separate processes over RPC, so mixed arch is fine. |
-| OTD's **macOS** release is **unsigned** | `codesign -dvv` on the installed `OpenTabletDriver.Daemon` reports *"code object is not signed at all"*; `macos-signed` exists in the build wrapper but is **not** in the publish matrix | The Phase 6 premise that "OTD's *signed* daemon keeps its grant" ([`HANDOFF.md:59`](macos/HANDOFF.md:59)) is **wrong as stated**. Stability, not signature, is what makes the grant persist. |
-| OTA compiles **against** OTD libraries | `ProjectReference` to `OpenTabletDriver.Desktop`/`.Plugin`/`.Configurations` ([`OpenTabletArtist.csproj:56`](../../OpenTabletArtist/OpenTabletArtist.csproj:56)); RPC deserializes into `Settings`, `AppInfo`, `LogMessage` ([`DaemonClient.cs:158`](../../OpenTabletArtist/Services/DaemonClient.cs:158)) | Version skew between OTA's linked types and a user's daemon becomes **possible**. The wire protocol is loosely typed JSON-RPC with stringly-named methods, so skew fails at **runtime**, not build time. A compatibility policy is now mandatory, not optional. |
+| OTD's **macOS** release is **unsigned** | `codesign -dvv` on the installed `OpenTabletDriver.Daemon` reports *"code object is not signed at all"*; `macos-signed` exists in the build wrapper but is **not** in the publish matrix | The Phase 6 premise that "OTD's *signed* daemon keeps its grant" ([`HANDOFF.md:59`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/docs/design/macos/HANDOFF.md#L59)) is **wrong as stated**. Stability, not signature, is what makes the grant persist. |
+| OTA compiles **against** OTD libraries | `ProjectReference` to `OpenTabletDriver.Desktop`/`.Plugin`/`.Configurations` ([`OpenTabletArtist.csproj:56`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/OpenTabletArtist.csproj#L56)); RPC deserializes into `Settings`, `AppInfo`, `LogMessage` ([`DaemonClient.cs:158`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/Services/DaemonClient.cs#L158)) | Version skew between OTA's linked types and a user's daemon becomes **possible**. The wire protocol is loosely typed JSON-RPC with stringly-named methods, so skew fails at **runtime**, not build time. A compatibility policy is now mandatory, not optional. |
 
 Rosetta and the .NET prerequisite are real costs. They are accepted here because they are **exactly what
 an OTD user already lives with** — the goal is parity with the official experience, and the current Mac
@@ -117,14 +117,14 @@ talking to, where does it live, and who started it."
 > fallback and the adoption *model* survive it, because connecting to someone else's daemon never
 > depended on being able to launch it.
 
-[`DaemonExePaths.Candidates`](../../OpenTabletArtist/Domain/DaemonExePaths.cs) grows from two cases
+[`DaemonExePaths.Candidates`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/Domain/DaemonExePaths.cs) grows from two cases
 (bundled, dev tree) to an ordered ladder that includes real install locations — `/Applications/
 OpenTabletDriver.app` on macOS, the standard install and portable layouts on Windows — plus a
 **user-specified path** for people who keep OTD somewhere unusual. Detection stays a pure, ordered,
 unit-testable function; only the candidate list changes.
 
 Also detect a **running** daemon whose path we don't recognise. `FindExe` already falls back to a running
-process ([`DaemonLifecycleService.cs:62`](../../OpenTabletArtist/Services/DaemonLifecycleService.cs:62));
+process ([`DaemonLifecycleService.cs:62`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/Services/DaemonLifecycleService.cs#L62));
 that path becomes an adoption source rather than a curiosity.
 
 ### When OTD isn't found *(shipped)*
@@ -209,7 +209,7 @@ OTD's UX. Rules:
 ### Feature gating
 
 Per-app profile switching is currently disabled against a foreign daemon
-([`PerAppViewModel.cs:49`](../../OpenTabletArtist/ViewModels/PerAppViewModel.cs:49)) because snapshot
+([`PerAppViewModel.cs:49`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/OpenTabletArtist/ViewModels/PerAppViewModel.cs#L49)) because snapshot
 paths and filter stores may not match. That gate needs revisiting: with adoption supported, "foreign" is
 the normal case, and a feature that silently disables itself for most users is worse than one that states
 its requirement. Either make it work against an adopted install or give it an explicit,
@@ -228,7 +228,7 @@ Required once a user's own OTD can be the target.
   reports `0.6.7.0`; without that every healthy install would nag.
 - CI asserts the submodule sits on an **exact release tag** (`git -C external/OpenTabletDriver describe
   --exact-match`), so "we build against a real release" is enforced rather than remembered.
-  [`otd-release-watch.yml`](../../.github/workflows/otd-release-watch.yml) already tracks tags, not
+  [`otd-release-watch.yml`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6fa8ed5e6a4d992436143468eb720d3b014d1c58/.github/workflows/otd-release-watch.yml) already tracks tags, not
   branch tips — this closes the loop.
 - The packaged artifact's version and the pinned tag must match, checked at package time.
 

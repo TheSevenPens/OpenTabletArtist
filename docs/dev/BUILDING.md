@@ -9,8 +9,8 @@ for building and running from source.
 - **.NET 8 SDK** — the bundled OpenTabletDriver daemon (and our pen-dynamics plugin) target `net8.0`.
 - **Git** — OpenTabletDriver is a submodule, so clone recursively.
 - **Windows** for the full experience (VMulti / Windows Ink are Windows-only). The app builds and runs on
-  macOS/Linux too, with the Windows-only surface hidden; see [design/macos/](../design/macos/) and
-  [design/linux/](../design/linux/).
+  macOS/Linux too, with the Windows-only surface hidden; see the [macOS notes](../design/macos/HANDOFF.md) and
+  [Linux notes](../design/linux/dev-environment.md).
 
 No separate OpenTabletDriver install is needed — it's built from the submodule and the app auto-starts it.
 

@@ -50,5 +50,5 @@ placement (new page vs. folded into Custom Tablet Configs).
 ## Related
 
 - Custom Tablet Configs page (installed/override configs) — sibling, not a duplicate.
-- [otd_windows_configurations](../../) — installed OTD reads on-disk configs from the `Configurations`
+- [otd_windows_configurations](https://github.com/TheSevenPens/OpenTabletArtist) — installed OTD reads on-disk configs from the `Configurations`
   folder; the built-in catalog is embedded in the assembly.

@@ -10,7 +10,7 @@
 > V2**; a ~1% calibration drift is parked. See [macos/HANDOFF.md](macos/HANDOFF.md) for the full status. This
 > document is the historical feasibility record.
 
-This document is the **hub**. The detail lives in focused sub-documents under [`macos/`](macos/):
+This document is the **hub**. The detail lives in focused sub-documents under [`macos/`](macos/HANDOFF.md):
 
 | Document | What it's for |
 |---|---|

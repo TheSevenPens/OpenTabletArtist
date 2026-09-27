@@ -54,7 +54,7 @@ editing a per-app profile in place (you edit the underlying Saved Settings snaps
 
 ## Live-apply-only path (resolves feasibility Risk 3)
 
-Today [`AppSession.ApplyAndSaveSettingsAsync`](../../OpenTabletArtist/Services/AppSession.cs) does
+Today [`AppSession.ApplyAndSaveSettingsAsync`](https://github.com/TheSevenPens/OpenTabletArtist/blob/6f567230ba34d88aec4bc60e57e18c0aff6ac6da/OpenTabletArtist/Services/AppSession.cs) does
 `SetSettingsAsync` **+** `TrySave` **+** (during load) reload — so reusing it per focus change would
 overwrite the user's on-disk default. The switcher needs a path that touches **only** the daemon:
 

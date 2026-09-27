@@ -54,7 +54,7 @@ API. That gap is the entire risk of this feature (see Risks).
   self-contained "this app's config."
 - **We already implement the snapshot UX.** Our **Saved Settings** page (`PresetsViewModel`) saves,
   loads, renames, and deletes snapshot JSON and applies via
-  `AppSession.ApplyAndSaveSettingsAsync(Settings)` ([AppSession.cs:427](../../OpenTabletArtist/Services/AppSession.cs))
+  `AppSession.ApplyAndSaveSettingsAsync(Settings)` ([AppSession.cs:427](https://github.com/TheSevenPens/OpenTabletArtist/blob/6f567230ba34d88aec4bc60e57e18c0aff6ac6da/OpenTabletArtist/Services/AppSession.cs))
   → `SetSettingsAsync` + best-effort `TrySave`. The per-app feature should **reuse these snapshots**,
   not invent a new format or borrow OTD's console/tray code.
 - OTD's own ["Windows App-specific FAQ"](https://opentabletdriver.net/Wiki/FAQ/WindowsAppSpecific) is
@@ -102,7 +102,7 @@ Most of the building blocks already exist. The genuinely new code is the **foreg
 2. **Our app must be running.** OTD won't switch on its own; this only works while OpenTabletArtist is
    alive (tray/background mode #72 — done ✅). When the app is closed, the last-applied snapshot stays.
 3. **Persistence collision (concrete).** `ApplyAndSaveSettingsAsync` **always** persists via `TrySave`
-   ([AppSession.cs:435](../../OpenTabletArtist/Services/AppSession.cs)), so reusing it for every focus
+   ([AppSession.cs:435](https://github.com/TheSevenPens/OpenTabletArtist/blob/6f567230ba34d88aec4bc60e57e18c0aff6ac6da/OpenTabletArtist/Services/AppSession.cs)), so reusing it for every focus
    change would overwrite the user's on-disk default with whatever app is in front. The switcher needs
    a **live-apply-only** path (`SetSettingsAsync` *without* `TrySave`), plus restore-the-default on
    exit. Keep the exe→snapshot mapping in *our* AppSettings, never in OTD's settings file.
