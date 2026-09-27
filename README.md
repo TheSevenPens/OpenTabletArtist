@@ -27,7 +27,7 @@ for setup, user guides, and troubleshooting.
 Download the latest Windows build and run it — no .NET install needed. See the
 **[install guide](docs/user/INSTALL.md)** to get started.
 
-Also in [`docs/`](docs/README.md): [Overview](docs/user/OVERVIEW.md) · [Architecture](docs/dev/ARCHITECTURE.md) · [Diagnostics](docs/dev/DIAGNOSTICS.md)
+Also in [`docs/`](docs/README.md): [Overview](docs/user/index.md) · [Architecture](docs/dev/ARCHITECTURE.md) · [Diagnostics](docs/dev/DIAGNOSTICS.md)
 
 ## Build from source
 
