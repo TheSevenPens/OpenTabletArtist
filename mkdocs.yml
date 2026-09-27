@@ -68,13 +68,11 @@ nav:
       - Install on Windows: INSTALL.md
   - Use OTA:
       - Home: HOME.md
-      - Tablet and mapping: TABLET.md
-      - Pen and pressure: PEN.md
+      - Tablet: TABLET.md
+      - Pen: PEN.md
       - Scribble: SCRIBBLE.md
       - Settings: SETTINGS.md
-      - Presets: PRESETS.md
-      - Plugins: PLUGINS.md
-      - Advanced controls: ADVANCED.md
+      - Advanced: ADVANCED.md
   - Get help:
       - Troubleshooting: TROUBLESHOOTING.md
       - Ask for help: HELP.md
