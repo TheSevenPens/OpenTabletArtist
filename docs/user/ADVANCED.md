@@ -1,7 +1,5 @@
 # Advanced page
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 **Advanced** hosts OpenTabletDriver's own controls, divided into tabs: **Daemon** (connection status, version, and start/restart controls), **Console** (the daemon log), **Configs** (custom tablet compatibility), **Diagnostics**, and **Plugins**. *(The **VMulti** driver moved to [Settings → Drivers](SETTINGS.md#drivers), beside driver cleanup.)*
 
 ## Daemon

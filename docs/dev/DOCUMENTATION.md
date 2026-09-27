@@ -21,6 +21,10 @@ absent from the generated site and its search index. Keep contributor material
 outside that folder. Advanced features that help people use OTA still belong in
 the user documentation.
 
+`docs/user/USERMANUAL.md` is a compatibility link for existing app releases. Its former
+quick start and manual content has been removed. It points to the documentation home
+and is excluded from the published site and search index through `exclude_docs`.
+
 ## Publishing
 
 The `documentation` GitHub Actions workflow builds the site when `docs/user/`,

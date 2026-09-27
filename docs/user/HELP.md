@@ -1,7 +1,5 @@
 # Getting help
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 ## Try Troubleshooting first
 
 Most of what people run into is already covered in **[Troubleshooting](TROUBLESHOOTING.md)** — the daemon not connecting, a tablet not being detected, pressure not working in an art app, settings that won't stick.

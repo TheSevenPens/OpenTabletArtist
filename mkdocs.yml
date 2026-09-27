@@ -7,6 +7,10 @@ edit_uri: edit/master/docs/user/
 docs_dir: docs/user
 site_dir: site
 
+# Existing app releases link to this repository file; it only points to the docs home.
+exclude_docs: |
+  /USERMANUAL.md
+
 theme:
   name: material
   font: false
@@ -67,7 +71,6 @@ nav:
   - Get started:
       - About OTA: OVERVIEW.md
       - Install on Windows: INSTALL.md
-      - Quick start and user manual: USERMANUAL.md
   - Use OTA:
       - Home: HOME.md
       - Tablet and mapping: TABLET.md

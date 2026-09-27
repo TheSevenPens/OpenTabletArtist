@@ -1,7 +1,5 @@
 # Pen page
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 The **Pen** page's tabs are **basics** and **pressure** — each its own section below. It shares the [Tablet page](TABLET.md)'s linked switcher + Refresh, which sit at the right of the page menu.
 
 ## basics
