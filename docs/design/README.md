@@ -2,7 +2,7 @@
 
 These documents record feature proposals, implementation decisions, and platform
 investigations. Some describe historical or experimental behavior. For help using
-the current app, start with the [user manual](../user/USERMANUAL.md).
+the current app, start with the [user documentation](../user/README.md).
 
 ## Settings and driver integration
 

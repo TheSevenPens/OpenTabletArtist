@@ -1,7 +1,5 @@
 # Home page
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 Home is laid out in two columns. **Needs attention** is the right-hand column; **About** and **Your tablets** run down the left.
 
 The homepage will tell you if you need to do anything. **Needs attention** will provide a list of things you should be aware of, and most of the time, it will give you an option to either fix or review something that is unusual. This might be an unusual configuration of settings or something not being installed correctly. When there's nothing wrong, the column says **Nothing needs attention** — so an all-clear looks like an all-clear rather than like a column that failed to load. But if you do see something here, pay attention.

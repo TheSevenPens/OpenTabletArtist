@@ -1,10 +1,8 @@
 # UX & navigation terminology
 
 > Status: **canonical.** This is the agreed vocabulary for the app's navigation and page structure.
-> Use these terms in code, comments, and docs. The user manual's
-> [Using the Interface](../user/USERMANUAL.md#using-the-interface) says the same thing in the user's
-> words — if the two ever disagree, the manual describes what shipped and this file is the one that's
-> wrong.
+> Use these terms in code, comments, and docs. The [user guides](../user/README.md) describe
+> the shipped app's behavior.
 
 ## The shape
 

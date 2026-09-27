@@ -6,14 +6,12 @@ Developer guides, design notes, and release-note source files stay in this repos
 
 Start with the **[Overview](user/OVERVIEW.md)** for what OpenTabletArtist is and who it's for.
 
-New to OTA? Follow the **[install guide](user/INSTALL.md)**, then try the
-**[quick start](user/USERMANUAL.md#quick-start)**. For a problem with your setup,
+New to OTA? Follow the **[install guide](user/INSTALL.md)**. For a problem with your setup,
 start with **[Troubleshooting](user/TROUBLESHOOTING.md)**.
 
 ## Using the app
 
 - **[Install guide](user/INSTALL.md)** — download, run, and set up on Windows.
-- **[User manual](user/USERMANUAL.md)** — the interface in depth (start here once installed); indexes the per-page guides below.
 - Per-page guides: [Home](user/HOME.md) · [Tablet](user/TABLET.md) · [Pen](user/PEN.md) · [Scribble](user/SCRIBBLE.md) · [Settings](user/SETTINGS.md) · [Advanced](user/ADVANCED.md)
 - [Presets](user/PRESETS.md) · [Troubleshooting](user/TROUBLESHOOTING.md)
 

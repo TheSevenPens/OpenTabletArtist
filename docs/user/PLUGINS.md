@@ -1,7 +1,5 @@
 # Plugins
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 Plugins are an **OpenTabletDriver** feature, not an OpenTabletArtist one: they're small add-ons that load inside the driver's background process and change how your pen is handled. OpenTabletArtist ships the ones you need and installs them for you, so for most people this page is background reading rather than something to act on.
 
 **Advanced → Plugins** lists what's currently installed — see [Advanced page](ADVANCED.md#plugins).

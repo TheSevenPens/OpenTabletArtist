@@ -1,7 +1,5 @@
 # Settings page
 
-*(Part of the [User Manual](USERMANUAL.md).)*
-
 **Settings** holds OpenTabletArtist's own preferences, divided into tabs: **Presets**, **Hotkeys**, **Theme**, **System** (Startup + Shortcut), **Drivers** (Windows-only), and **Dev** *(debugging tools)*. (**Per-App Presets** is hidden while the feature is disabled.)
 
 ## Presets

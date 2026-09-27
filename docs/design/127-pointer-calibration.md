@@ -165,7 +165,7 @@ only if avoiding the plugin dependency becomes important.
 ## UX flow
 
 *(As shipped. The v1 design put the entry on the Screen-Mapping tab; it now lives on a dedicated
-**Calibration** tab — see [USERMANUAL.md](../user/USERMANUAL.md) → Calibration.)*
+**Calibration** tab — see [Tablet calibration](../user/TABLET.md#calibration).)*
 
 1. **Entry point:** the tablet's **Calibration** tab (Absolute mode only — Relative has no absolute
    position to correct, so the tab explains that instead). Three cards, one per density — **4 point**,

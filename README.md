@@ -25,8 +25,7 @@ Platforms:
 for setup, user guides, and troubleshooting.
 
 Download the latest Windows build and run it — no .NET install needed. See the
-**[install guide](docs/user/INSTALL.md)** for the full walkthrough, or the **[User Manual](docs/user/USERMANUAL.md)**
-for the interface in depth.
+**[install guide](docs/user/INSTALL.md)** to get started.
 
 Also in [`docs/`](docs/README.md): [Overview](docs/user/OVERVIEW.md) · [Architecture](docs/dev/ARCHITECTURE.md) · [Diagnostics](docs/dev/DIAGNOSTICS.md)
 

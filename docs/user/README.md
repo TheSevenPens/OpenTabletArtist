@@ -6,8 +6,6 @@ OpenTabletDriver. Start with [About OTA](OVERVIEW.md) to learn who it's for.
 ## Get started
 
 - [Install on Windows](INSTALL.md) — download OTA and set up your tablet.
-- [Quick start](USERMANUAL.md#quick-start) — get from download to your first stroke.
-- [User manual](USERMANUAL.md) — find your way around the app.
 
 ## Use your tablet
 
