@@ -24,6 +24,8 @@ its directions. OTA will:
 
 - Detect conflicting tablet drivers and guide you through removing them.
 - Help you install the **VMulti** driver, which is required for pressure sensitivity and tilt.
+- Provide a download link for the **.NET 8 runtime**, which OpenTabletDriver requires. You'll need
+  to download and install it yourself.
 
 ## Step 3 — Configure your drawing apps
 
