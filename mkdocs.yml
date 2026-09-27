@@ -1,10 +1,10 @@
 site_name: OpenTabletArtist
-site_description: Setup, user guides, and developer documentation for OpenTabletArtist.
+site_description: Setup, user guides, and troubleshooting for OpenTabletArtist.
 site_url: https://thesevenpens.github.io/OpenTabletArtist/
 repo_url: https://github.com/TheSevenPens/OpenTabletArtist
 repo_name: TheSevenPens/OpenTabletArtist
-edit_uri: edit/master/docs/
-docs_dir: docs
+edit_uri: edit/master/docs/user/
+docs_dir: docs/user
 site_dir: site
 
 theme:
@@ -48,11 +48,11 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
 
-# Design notes and past releases remain published and searchable, without adding
-# every historical page to the sidebar. Broken document links still fail CI.
+# Only docs/user is published. Every user guide should be discoverable in the
+# sidebar; missing pages, broken document links, and anchors fail the strict build.
 validation:
   nav:
-    omitted_files: ignore
+    omitted_files: warn
   links:
     not_found: warn
     anchors: warn
@@ -62,30 +62,19 @@ nav:
   - Documentation: README.md
   - Get started:
       - About OTA: OVERVIEW.md
-      - Install on Windows: user/INSTALL.md
-      - Quick start and user manual: user/USERMANUAL.md
+      - Install on Windows: INSTALL.md
+      - Quick start and user manual: USERMANUAL.md
   - Use OTA:
-      - Home: user/HOME.md
-      - Tablet and mapping: user/TABLET.md
-      - Pen and pressure: user/PEN.md
-      - Scribble: user/SCRIBBLE.md
-      - Settings: user/SETTINGS.md
-      - Presets: user/PRESETS.md
-      - Plugins: user/PLUGINS.md
-      - Advanced controls: user/ADVANCED.md
+      - Home: HOME.md
+      - Tablet and mapping: TABLET.md
+      - Pen and pressure: PEN.md
+      - Scribble: SCRIBBLE.md
+      - Settings: SETTINGS.md
+      - Presets: PRESETS.md
+      - Plugins: PLUGINS.md
+      - Advanced controls: ADVANCED.md
   - Get help:
-      - Troubleshooting: user/TROUBLESHOOTING.md
-      - Ask for help: user/HELP.md
-  - Development:
-      - Build from source: dev/BUILDING.md
-      - Architecture: dev/ARCHITECTURE.md
-      - Developer tools: user/DEVELOPER.md
-      - Diagnostics: dev/DIAGNOSTICS.md
-      - Device matrix: dev/DEVICE-MATRIX.md
-      - Roadmap: dev/FUTURES.md
-      - OTD suggestions: dev/OTD-SUGGESTIONS.md
-      - OTD defects: dev/OTD-DEFECTS.md
-      - Design notes: design/README.md
-      - Release notes: release-notes/README.md
-      - Maintain this site: dev/DOCUMENTATION.md
+      - Troubleshooting: TROUBLESHOOTING.md
+      - Ask for help: HELP.md
+  - Releases: https://github.com/TheSevenPens/OpenTabletArtist/releases
   - Third-party notices: THIRD_PARTY_NOTICES.md

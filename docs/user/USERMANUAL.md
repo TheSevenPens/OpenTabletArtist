@@ -1,7 +1,7 @@
 # User Manual
 
 This manual documents the interface in depth. For the full first-time setup walkthrough see the
-[Windows install guide](INSTALL.md); to build from source see [BUILDING.md](../dev/BUILDING.md).
+[Windows install guide](INSTALL.md).
 
 Each top-level page has its own guide — jump straight to one under [Per-page guides](#per-page-guides) below.
 
