@@ -80,5 +80,7 @@ nav:
   - Get help:
       - Troubleshooting: TROUBLESHOOTING.md
       - Ask for help: HELP.md
+      - Advanced information: ADVANCED-INFORMATION.md
+      - Uninstall OTA: UNINSTALL.md
   - Releases: https://github.com/TheSevenPens/OpenTabletArtist/releases
   - Third-party notices: THIRD_PARTY_NOTICES.md

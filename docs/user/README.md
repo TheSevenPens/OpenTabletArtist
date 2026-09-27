@@ -24,6 +24,8 @@ OpenTabletDriver. Start with [About OTA](OVERVIEW.md) to learn who it's for.
 
 - [Troubleshooting](TROUBLESHOOTING.md) — help with common problems.
 - [Ask for help](HELP.md) — where to get support and what information to include.
+- [Advanced information](ADVANCED-INFORMATION.md) — where your settings are stored.
+- [Uninstall OTA](UNINSTALL.md) — remove OTA, VMulti, and saved settings.
 - [Releases](https://github.com/TheSevenPens/OpenTabletArtist/releases) — downloads and what's changed.
 
 [Third-party notices](THIRD_PARTY_NOTICES.md)
