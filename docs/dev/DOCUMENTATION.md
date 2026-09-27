@@ -67,6 +67,11 @@ environment are ignored by Git.
 
 ## Pages and links
 
+The left navigation stays visible with its sections expanded at every screen
+width. `docs/user/stylesheets/navigation.css` adapts Material's smaller-screen
+drawer into a sidebar; check desktop, narrow-window, and phone layouts when
+updating the theme. Navigation links still come from `mkdocs.yml`.
+
 - `docs/user/README.md` is the site's home page; `docs/README.md` stays in the repo.
 - `mkdocs.yml` defines the sidebar. Add new user guides there so readers can find them.
 - Link to other documentation using relative Markdown paths, such as
