@@ -19,7 +19,7 @@ The app prefers the bundled copy when present; network download is the fallback 
 
 We are now a **redistributor** of third-party binaries. Release artifacts must include:
 
-- `docs/THIRD_PARTY_NOTICES.md` — attribution, licenses, and source offers
+- `docs/user/THIRD_PARTY_NOTICES.md` — attribution, licenses, and source offers
 - GPL-3.0 Windows Ink plugin: ship LICENSE + written offer / source link per plugin terms
 - VMulti: MIT driver core + Microsoft WDK tooling (document upstream origins)
 

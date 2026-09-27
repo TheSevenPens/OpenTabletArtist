@@ -84,4 +84,4 @@ VMulti is the virtual pen device the Windows Ink plugin injects pressure and til
 
 ## Dev
 
-Testing aids not needed for normal use — force/introduce *Needs attention* warnings, reveal the hidden tablet tabs, pin the window to an exact size, and screenshot every page. **See [Developer tools](DEVELOPER.md).**
+The **Dev** tab contains tools for developing and testing OTA. You do not need it for everyday use.

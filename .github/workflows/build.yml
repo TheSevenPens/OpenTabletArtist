@@ -3,7 +3,20 @@ name: build
 on:
   push:
     branches: [ master ]
+    # Documentation is checked and published by docs.yml on its own cadence.
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'mkdocs.yml'
+      - 'scripts/docs/**'
+      - '.github/workflows/docs.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'mkdocs.yml'
+      - 'scripts/docs/**'
+      - '.github/workflows/docs.yml'
 
 jobs:
   build-test:
