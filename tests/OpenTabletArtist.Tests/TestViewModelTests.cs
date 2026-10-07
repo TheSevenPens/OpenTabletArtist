@@ -227,6 +227,14 @@ public class TestViewModelTests
         Assert.Equal("0.500", vm.PressureText);
         Assert.Equal("4200, 3100", vm.RawText);
         Assert.Equal("12", vm.HoverText);
+        Assert.Equal("116.6°, 67.6°", vm.AzAltText); // tilt (20, -10): azimuth, altitude in one cell
+    }
+
+    [Fact]
+    public void AzAlt_ShowsADash_UntilThereIsAReading()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        Assert.Equal("—", vm.AzAltText);
     }
 
     [Fact]
@@ -280,5 +288,71 @@ public class TestViewModelTests
 
         Assert.Equal("0.500", vm.PressureText);
         Assert.Equal("—", vm.HoverText);
+    }
+
+    // --- Pipeline counters ---
+
+    [Fact]
+    public void Counters_AreOffByDefault_AndCountNothing()
+    {
+        Assert.Null(Environment.GetEnvironmentVariable("OTA_SCRIBBLE_COUNTERS")); // the default under test
+        using var vm = NewVm(new FakeDeviceData());
+        Assert.False(vm.CountersEnabled);
+
+        vm.NoteHandled(Sample(1000), 2000);
+        vm.NoteOutcome(TestViewModel.SampleOutcome.Drawn);
+        vm.PublishCounters(newLagWindow: true);
+
+        Assert.Equal("no reports yet", vm.CountersText);
+
+        vm.CountersEnabled = true; // and switching on starts from zero
+        vm.PublishCounters();
+        Assert.Equal("no reports yet", vm.CountersText);
+    }
+
+    [Fact]
+    public void Counters_StartEmpty()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.PublishCounters();
+        Assert.Equal("no reports yet", vm.CountersText);
+    }
+
+    [Fact]
+    public void Counters_SplitHandledSamplesByOutcome()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.CountersEnabled = true;
+        var freq = System.Diagnostics.Stopwatch.Frequency;
+        for (var i = 0; i < 6; i++)
+        {
+            vm.NoteHandled(Sample(1000), 1000 + freq / 1000 * 2); // 2 ms lag each
+            vm.NoteOutcome(i < 3 ? TestViewModel.SampleOutcome.Drawn
+                         : i < 5 ? TestViewModel.SampleOutcome.Hover
+                         : TestViewModel.SampleOutcome.OffCanvas);
+        }
+
+        vm.PublishCounters(newLagWindow: true);
+
+        Assert.Contains("drawn 3", vm.CountersText);
+        Assert.Contains("hover 2", vm.CountersText);
+        Assert.Contains("off-canvas 1", vm.CountersText);
+        Assert.Contains("lag avg/max 2.0 / 2.0 ms", vm.CountersText);
+    }
+
+    [Fact]
+    public void Clear_ResetsTheCounters()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.CountersEnabled = true;
+        vm.NoteHandled(Sample(1000), 2000);
+        vm.NoteOutcome(TestViewModel.SampleOutcome.Drawn);
+        vm.PublishCounters();
+        Assert.Contains("drawn 1", vm.CountersText);
+
+        vm.ClearCommand.Execute(null);
+        vm.PublishCounters();
+
+        Assert.Equal("no reports yet", vm.CountersText);
     }
 }

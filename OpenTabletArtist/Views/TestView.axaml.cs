@@ -42,17 +42,23 @@ public partial class TestView : UserControl
     {
         if (_vm is null) return;
         _vm.UpdateReadout(s);
-        if (!_vm.DriverPositioned) return; // disabled state: readouts only
+        if (!_vm.DriverPositioned) // disabled state: readouts only
+        {
+            _vm.NoteOutcome(TestViewModel.SampleOutcome.OffCanvas);
+            return;
+        }
 
         if (_vm.MapRawToDesktop(s.RawX, s.RawY) is not { } desktop
             || !PenSampleMapping.TryDesktopToCanvasNormalized(PaintCanvas, desktop, out var nx, out var ny)
             || nx < 0 || nx > 1 || ny < 0 || ny > 1)
         {
             PaintCanvas.EndStroke(); // pen points outside the canvas region — break the stroke
+            _vm.NoteOutcome(TestViewModel.SampleOutcome.OffCanvas);
             return;
         }
 
-        PaintCanvas.AddSample(s with { X = nx, Y = ny, IsDown = s.Pressure > 0 });
+        var inked = PaintCanvas.AddSample(s with { X = nx, Y = ny, IsDown = s.Pressure > 0 });
+        _vm.NoteOutcome(inked ? TestViewModel.SampleOutcome.Drawn : TestViewModel.SampleOutcome.Hover);
         _vm.UpdateCanvasPosition(nx * PaintCanvas.Bounds.Width, ny * PaintCanvas.Bounds.Height);
     }
 

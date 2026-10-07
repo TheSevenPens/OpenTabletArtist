@@ -35,6 +35,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
+        _driver.CountSamples = CountersEnabled; // the initializer doesn't go through OnCountersEnabledChanged
         _deviceData = deviceData;
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
@@ -116,8 +117,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _pressureText = "—";
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltXText = "—";
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(TiltText))] private string _tiltYText = "—";
-    [ObservableProperty] private string _azimuthText = "—";
-    [ObservableProperty] private string _altitudeText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(AzAltText))] private string _azimuthText = "—";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(AzAltText))] private string _altitudeText = "—";
     [ObservableProperty] private string _twistText = "—";
     /// <summary>Driver-reported hover height (0–255), or "—" before the pen is in range.</summary>
     [ObservableProperty] private string _hoverText = "—";
@@ -150,6 +151,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public string CanvasText => Pair(CanvasXText, CanvasYText);
     public string RawText => Pair(RawXText, RawYText);
     public string TiltText => Pair(TiltXText, TiltYText);
+    public string AzAltText => Pair(AzimuthText, AltitudeText);
     private static string Pair(string x, string y) => x == "—" && y == "—" ? "—" : $"{x}, {y}";
 
     /// <summary>Driver-mode samples; the view forwards these to the canvas.</summary>
@@ -158,7 +160,11 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public event Action? ClearRequested;
 
     [RelayCommand]
-    private void Clear() => ClearRequested?.Invoke();
+    private void Clear()
+    {
+        ResetCounters();
+        ClearRequested?.Invoke();
+    }
 
     /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).
     /// Shown on the next refresh tick.</summary>
@@ -236,7 +242,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         ClearIfOutOfRange(Stopwatch.GetTimestamp());
         PublishReadouts();
-        if (++_ticks % RateEveryTicks == 0) PublishRate();
+        _ticks++;
+        if (_ticks % RateEveryTicks == 0) PublishRate();
+        PublishCounters(newLagWindow: _ticks % (1000 / RefreshMs) == 0); // lag window ≈ 1 s
     }
 
     private void ResetReadouts()
@@ -251,7 +259,108 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _lastReportTicks = 0;
     }
 
-    private void OnDriverSample(PenSample s) => DriverSample?.Invoke(s);
+    private void OnDriverSample(PenSample s)
+    {
+        if (CountersEnabled) NoteHandled(s, Stopwatch.GetTimestamp());
+        DriverSample?.Invoke(s);
+    }
+
+    // --- Pipeline counters ---
+    // Where every pen report ends up, so "is every point used?" has a numeric answer at 1000 Hz:
+    //   parsed (queued to the UI thread) = handled + queued;  handled = drawn + hover + off-canvas.
+    // "queued" is the UI thread's backlog (parsed but not yet handled) — it stays near 0 when the UI keeps up.
+    // The lag is arrival-at-the-app → handled, averaged/maxed over the last second. Counted since the page
+    // opened or Clear was pressed.
+
+    /// <summary>What happened to a handled sample on the canvas.</summary>
+    public enum SampleOutcome
+    {
+        /// <summary>Put ink on the canvas.</summary>
+        Drawn,
+        /// <summary>On the canvas but no ink: pen up (hovering) or the pointer-only brush.</summary>
+        Hover,
+        /// <summary>Not on the canvas: the pen's mapped position is outside it (or the canvas is disabled).</summary>
+        OffCanvas,
+    }
+
+    // _handledEver never resets: it is the baseline for "parsed", so a report already queued when the counters
+    // reset is counted as parsed AND handled after it (parsed = handled + queued stays exact at any reset).
+    /// <summary>Whether the counters run at all. Off by default: with it off, the per-report path does no
+    /// counting or timing, the daemon source skips its counter, and the "Reports" line is hidden — so they
+    /// cost nothing until wanted. Set the environment variable <c>OTA_SCRIBBLE_COUNTERS=1</c> to turn them on.</summary>
+    [ObservableProperty] private bool _countersEnabled =
+        Environment.GetEnvironmentVariable("OTA_SCRIBBLE_COUNTERS") == "1";
+
+    partial void OnCountersEnabledChanged(bool value)
+    {
+        _driver.CountSamples = value;
+        ResetCounters();
+    }
+
+    private long _handled, _handledEver, _drawn, _hover, _offCanvas;
+    private double _lagSumMs, _lagMaxMs;
+    private long _lagCount;
+    private string _lagWindowText = "—";
+
+    /// <summary>One line summarising the counters; see the block comment above.</summary>
+    [ObservableProperty] private string _countersText = "no reports yet";
+
+    /// <summary>Counts a sample the UI thread has taken off the queue. <paramref name="nowTicks"/> is a
+    /// <see cref="Stopwatch.GetTimestamp"/> value; the lag is measured against the sample's arrival stamp.</summary>
+    public void NoteHandled(PenSample s, long nowTicks)
+    {
+        if (!CountersEnabled) return;
+        _handled++;
+        _handledEver++;
+        if (s.Timestamp == 0) return; // unstamped (hand-built) — no arrival time to measure from
+        var lagMs = (nowTicks - s.Timestamp) * 1000.0 / Stopwatch.Frequency;
+        _lagSumMs += lagMs;
+        _lagCount++;
+        if (lagMs > _lagMaxMs) _lagMaxMs = lagMs;
+    }
+
+    /// <summary>Counts what the canvas did with a handled sample.</summary>
+    public void NoteOutcome(SampleOutcome outcome)
+    {
+        if (!CountersEnabled) return;
+        switch (outcome)
+        {
+            case SampleOutcome.Drawn: _drawn++; break;
+            case SampleOutcome.Hover: _hover++; break;
+            default: _offCanvas++; break;
+        }
+    }
+
+    /// <summary>Formats the counters into <see cref="CountersText"/>. <paramref name="newLagWindow"/> closes the
+    /// current lag window (about once a second) so the lag figures are a recent average, not an all-time one.</summary>
+    public void PublishCounters(bool newLagWindow = false)
+    {
+        if (!CountersEnabled) return;
+        if (newLagWindow && _lagCount > 0)
+        {
+            _lagWindowText = $"{_lagSumMs / _lagCount:0.0} / {_lagMaxMs:0.0} ms";
+            _lagSumMs = _lagMaxMs = 0;
+            _lagCount = 0;
+        }
+
+        // Everything handled before the last reset is excluded from "parsed"; what was still queued then is not.
+        var parsed = _driver.PenSampleCount - (_handledEver - _handled);
+        if (parsed <= 0 && _handled == 0) { CountersText = "no reports yet"; return; }
+        var queued = parsed - _handled;
+        CountersText = $"parsed {parsed:N0} · queued {queued:N0} · drawn {_drawn:N0} · hover {_hover:N0} · " +
+                       $"off-canvas {_offCanvas:N0} · lag avg/max {_lagWindowText}";
+    }
+
+    /// <summary>Zeroes the counters (page opened, or Clear pressed). Reports already queued but not yet handled
+    /// still arrive afterwards; they stay counted as parsed, so the books keep balancing.</summary>
+    public void ResetCounters()
+    {
+        _handled = _drawn = _hover = _offCanvas = 0;
+        _lagSumMs = _lagMaxMs = 0;
+        _lagCount = 0;
+        _lagWindowText = "—";
+        CountersText = "no reports yet";
+    }
 
     // --- Driver-input position mapping (#95) ---
     // In Driver mode the canvas paints under the pen by mapping the daemon's raw tablet position
@@ -341,6 +450,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
         RecomputeMapping(); // data may already be loaded before the page is shown
         RefreshTabletStatus();
         ResetReadouts();
+        ResetCounters();
         RateText = "—";
         _refreshTimer.Start();
         await _driver.StartAsync();
