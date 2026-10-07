@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
 using OpenTabletDriver.Desktop.Profiles;
 using OpenTabletArtist.Domain;
+using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OtdInterop;
 
@@ -103,6 +104,10 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private PenBrushMode _brushMode = PenBrushMode.PressureToSize;
     public Array BrushModes { get; } = Enum.GetValues(typeof(PenBrushMode));
 
+    /// <summary>Mark every pen report that lands ink with a red dot (for judging strokes at high report rates).
+    /// Off by default.</summary>
+    [ObservableProperty] private bool _showReportDots;
+
     /// <summary>Pointer-only mode draws nothing, so active dynamics can't be seen — warn while both
     /// are true (the user can switch Mode to a pressure view). (#183)</summary>
     public bool PointerOnlyWithDynamics => BrushMode == PenBrushMode.PointerOnly && DynamicsActive;
@@ -162,8 +167,24 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Clear()
     {
+        SaveRecording();
         ResetCounters();
         ClearRequested?.Invoke();
+    }
+
+    // --- Report recording (opt-in) ---
+    // Set OTA_SCRIBBLE_RECORD to a file path and every report is kept until Clear (or leaving the page), when
+    // they're written there as CSV — for working out, offline, how fast position / pressure really update.
+    // Unset (the default): no recorder exists and the per-report path does nothing for it.
+    private readonly ReportRecorder? _recorder =
+        Environment.GetEnvironmentVariable("OTA_SCRIBBLE_RECORD") is { Length: > 0 } ? new ReportRecorder() : null;
+
+    private void SaveRecording()
+    {
+        if (_recorder is null) return;
+        var path = Environment.GetEnvironmentVariable("OTA_SCRIBBLE_RECORD")!;
+        try { _recorder.WriteAndReset(path); }
+        catch (Exception ex) { ProfileToast.Show($"Couldn't save the recording: {ex.Message}", "IconAlert"); }
     }
 
     /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).
@@ -178,6 +199,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// report-rate count. Cheap enough to call per report; the text is published on the next refresh tick.</summary>
     public void UpdateReadout(PenSample s)
     {
+        _recorder?.Add(s);
         _latest = s;
         _hasSample = true;
         // Only refresh hover when the report actually carried it, so reports without proximity data
@@ -459,6 +481,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public async Task DeactivateAsync()
     {
         _refreshTimer.Stop();
+        SaveRecording();
         await _driver.StopAsync();
     }
 

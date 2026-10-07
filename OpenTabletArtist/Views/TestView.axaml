@@ -90,6 +90,11 @@
                         <Button Content="Copy" Click="OnCopy"
                                 Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
                                 ToolTip.Tip="Copy the drawing to the clipboard as an image" />
+                        <!-- Marks every report that lands ink with a red dot, on a layer above the brush, so
+                             a stroke's individual reports are visible at high report rates. -->
+                        <CheckBox Content="Report dots" IsChecked="{Binding ShowReportDots}"
+                                  VerticalAlignment="Center" Margin="20,0,0,0"
+                                  ToolTip.Tip="Mark each pen report that lands ink with a red dot, to see where reports fall along a stroke" />
                     </WrapPanel>
 
                     <!-- Live readouts. Paired values share a cell (x/y, tilt x/y, az/al) so the panel is 4×2
@@ -159,7 +164,8 @@
         <c:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <Grid>
                 <c:PenTestCanvas x:Name="PaintCanvas"
-                                 BrushMode="{Binding BrushMode}" />
+                                 BrushMode="{Binding BrushMode}"
+                                 ShowReportDots="{Binding ShowReportDots}" />
                 <!-- Painting needs an Absolute output mode to map the pen's position; otherwise show why
                      the canvas is disabled (#95). -->
                 <Border IsVisible="{Binding DriverCanvasDisabled}"
