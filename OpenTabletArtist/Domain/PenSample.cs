@@ -8,6 +8,9 @@ namespace OpenTabletArtist.Domain;
 /// for App input) — shown in the readouts to help debug coordinate mapping.
 /// <see cref="HoverDistance"/> is the driver's 0–255 hover height (null for App input and for
 /// tablets/reports that don't carry proximity data).
+/// <see cref="Timestamp"/> is when the daemon event reached the app, in <c>Stopwatch</c> ticks (0 =
+/// unstamped) — taken before the sample is queued to the UI thread, so report-rate measurement isn't
+/// skewed by UI scheduling.
 /// </summary>
 public readonly record struct PenSample(
     double X,
@@ -19,7 +22,8 @@ public readonly record struct PenSample(
     double TiltY,
     double Twist,
     bool IsDown,
-    int? HoverDistance = null);
+    int? HoverDistance = null,
+    long Timestamp = 0);
 
 /// <summary>Where the Test canvas gets its pen data.</summary>
 public enum PenInputSourceKind

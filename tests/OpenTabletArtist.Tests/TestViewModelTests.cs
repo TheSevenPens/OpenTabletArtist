@@ -210,4 +210,75 @@ public class TestViewModelTests
         Assert.Equal("XP-Pen Deco L", vm.TabletStatusText);
         Assert.True(vm.TabletDetected);
     }
+
+    // --- Readout refresh + out-of-range ---
+
+    private static PenSample Sample(long timestamp, int? hover = 12) =>
+        new(0.5, 0.5, 4200, 3100, 0.5, 20, -10, 0, IsDown: true, HoverDistance: hover, Timestamp: timestamp);
+
+    [Fact]
+    public void Readouts_OnlyChangeWhenPublished()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.UpdateReadout(Sample(1000));
+        Assert.Equal("—", vm.PressureText); // stashed, not yet on screen
+
+        vm.PublishReadouts();
+        Assert.Equal("0.500", vm.PressureText);
+        Assert.Equal("4200, 3100", vm.RawText);
+        Assert.Equal("12", vm.HoverText);
+    }
+
+    [Fact]
+    public void PenLeavingRange_BlanksEveryReadout()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.UpdateCanvasPosition(10, 20);
+        vm.PublishReadouts();
+        vm.PublishRate();
+
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency); // a full second of silence
+
+        Assert.Equal("—", vm.CanvasText);
+        Assert.Equal("—", vm.RawText);
+        Assert.Equal("—", vm.TiltText);
+        Assert.Equal("—", vm.PressureText);
+        Assert.Equal("—", vm.AzimuthText);
+        Assert.Equal("—", vm.AltitudeText);
+        Assert.Equal("—", vm.TwistText);
+        Assert.Equal("—", vm.HoverText);
+        Assert.Equal("—", vm.RateText);
+    }
+
+    [Fact]
+    public void PenStillReporting_KeepsItsReadouts()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.PublishReadouts();
+
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency / 20); // 50 ms — still in range
+
+        Assert.Equal("0.500", vm.PressureText);
+    }
+
+    [Fact]
+    public void PenReturning_ShowsFreshValues_NotStaleOnes()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.PublishReadouts();
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency);
+
+        // Returns without a hover value: the old hover must not reappear.
+        vm.UpdateReadout(Sample(t + 2 * System.Diagnostics.Stopwatch.Frequency, hover: null));
+        vm.PublishReadouts();
+
+        Assert.Equal("0.500", vm.PressureText);
+        Assert.Equal("—", vm.HoverText);
+    }
 }

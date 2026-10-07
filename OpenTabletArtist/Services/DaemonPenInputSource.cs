@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Avalonia.Threading;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
@@ -88,12 +89,18 @@ public sealed class DaemonPenInputSource
 
     private void OnDeviceReport(JObject data)
     {
+        // Stamp on arrival, before any parsing or queueing, so rate measurement sees the daemon's cadence
+        // rather than the UI thread's.
+        var arrived = Stopwatch.GetTimestamp();
         if (_acceptReport != null && !_acceptReport(data)) return;
 
         // Reports arrive off the UI thread; marshal before raising (subscribers touch UI state).
         // Pen and aux state come on different report types, so parse/raise them independently.
         if (DeviceReportSample.TryParse(data, out var sample))
+        {
+            sample = sample with { Timestamp = arrived };
             Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
+        }
         if (DeviceReportSample.TryParseAuxButtons(data, out var aux))
             Dispatcher.UIThread.Post(() => AuxButtons?.Invoke(aux));
         if (DeviceReportSample.TryParseWheelButtons(data, out var wheelButtons))

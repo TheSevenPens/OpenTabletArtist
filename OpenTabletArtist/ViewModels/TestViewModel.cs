@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Newtonsoft.Json.Linq;
@@ -36,6 +38,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _deviceData = deviceData;
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RefreshMs) };
+        _refreshTimer.Tick += OnRefreshTick;
     }
 
     private void OnDataLoaded()
@@ -117,6 +121,30 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _twistText = "—";
     /// <summary>Driver-reported hover height (0–255), or "—" before the pen is in range.</summary>
     [ObservableProperty] private string _hoverText = "—";
+    /// <summary>Tablet reports per second while the pen is drawing or hovering, or "—" before any.</summary>
+    [ObservableProperty] private string _rateText = "—";
+
+    private readonly ReportRateMeter _rateMeter = new();
+
+    // --- Readout refresh ---
+    // Reports can arrive at 1000 Hz, which would set every readout ~1000×/s — a blur of digits and a pile of
+    // binding work. So the per-report path only stashes the latest values (cheap); a ~20 Hz timer formats and
+    // publishes them. The canvas is unaffected: it still gets every sample straight from DriverSample.
+    private const int RefreshMs = 50;
+    private const int RateEveryTicks = 3; // ≈7 rate refreshes a second — readable, still responsive
+
+    /// <summary>No report for this long means the pen has left range (tablets report continuously while the
+    /// pen is in range, even held still), so the readouts go back to "—". Same as the rate meter's pause.</summary>
+    private const double OutOfRangeMs = ReportRateMeter.PauseThresholdMs;
+
+    private readonly DispatcherTimer _refreshTimer;
+    private int _ticks;
+    private long _lastReportTicks;
+    private PenSample _latest;
+    private bool _hasSample;
+    private int? _latestHover;
+    private (double X, double Y)? _latestCanvas;
+    private bool _readoutDirty;
 
     // X and Y are shown paired in one readout cell ("x, y") to keep the panel compact (#scribble-readouts).
     public string CanvasText => Pair(CanvasXText, CanvasYText);
@@ -132,16 +160,62 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Clear() => ClearRequested?.Invoke();
 
-    /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).</summary>
+    /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).
+    /// Shown on the next refresh tick.</summary>
     public void UpdateCanvasPosition(double x, double y)
     {
-        CanvasXText = x.ToString("0.#");
-        CanvasYText = y.ToString("0.#");
+        _latestCanvas = (x, y);
+        _readoutDirty = true;
     }
 
-    /// <summary>Update the source-dependent readouts (raw coords, pressure, tilt) from a sample.</summary>
+    /// <summary>Takes a sample for the source-dependent readouts (raw coords, pressure, tilt, hover) and the
+    /// report-rate count. Cheap enough to call per report; the text is published on the next refresh tick.</summary>
     public void UpdateReadout(PenSample s)
     {
+        _latest = s;
+        _hasSample = true;
+        // Only refresh hover when the report actually carried it, so reports without proximity data
+        // don't blank out the last-known value mid-hover.
+        if (s.HoverDistance is { } hover) _latestHover = hover;
+        _readoutDirty = true;
+
+        // The daemon-side arrival time when we have it (0 = unstamped, e.g. a hand-built sample).
+        var ticks = s.Timestamp != 0 ? s.Timestamp : Stopwatch.GetTimestamp();
+        _lastReportTicks = ticks;
+        _rateMeter.Record(ticks * 1000.0 / Stopwatch.Frequency);
+    }
+
+    /// <summary>If the pen has been silent for <see cref="OutOfRangeMs"/> as of <paramref name="nowTicks"/>
+    /// (a <see cref="Stopwatch.GetTimestamp"/> value), it has left range: blank every readout to "—" instead of
+    /// leaving the last values on screen. Runs on the refresh timer; public so tests can drive it.</summary>
+    public void ClearIfOutOfRange(long nowTicks)
+    {
+        if (!_hasSample) return;
+        if ((nowTicks - _lastReportTicks) * 1000.0 / Stopwatch.Frequency <= OutOfRangeMs) return;
+
+        ResetReadouts();
+        const string none = "—";
+        CanvasXText = CanvasYText = RawXText = RawYText = none;
+        TiltXText = TiltYText = none;
+        PressureText = AzimuthText = AltitudeText = TwistText = HoverText = RateText = none;
+    }
+
+    /// <summary>Formats the latest stashed values into the readout text. Runs on the refresh timer; public so
+    /// tests can drive it without waiting on the clock.</summary>
+    public void PublishReadouts()
+    {
+        if (!_readoutDirty) return;
+        _readoutDirty = false;
+
+        if (_latestCanvas is { } c)
+        {
+            CanvasXText = c.X.ToString("0.#");
+            CanvasYText = c.Y.ToString("0.#");
+        }
+        if (_latestHover is { } hover) HoverText = hover.ToString("0");
+        if (!_hasSample) return;
+
+        var s = _latest;
         RawXText = s.RawX.ToString("0.#");
         RawYText = s.RawY.ToString("0.#");
         PressureText = s.Pressure.ToString("0.000");
@@ -150,9 +224,31 @@ public partial class TestViewModel : ObservableObject, IDisposable
         AzimuthText = DiagnosticsMath.TiltAzimuthDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
         AltitudeText = DiagnosticsMath.TiltAltitudeDegrees(s.TiltX, s.TiltY).ToString("0.0") + "°";
         TwistText = s.Twist.ToString("0.0") + "°";
-        // Only refresh hover when the report actually carried it, so reports without proximity data
-        // don't blank out the last-known value mid-hover.
-        if (s.HoverDistance is { } hover) HoverText = hover.ToString("0");
+    }
+
+    /// <summary>Publishes the report rate. Held at its last value while the pen is silent.</summary>
+    public void PublishRate()
+    {
+        if (_rateMeter.Hz is { } hz) RateText = $"{hz:0} /s";
+    }
+
+    private void OnRefreshTick(object? sender, EventArgs e)
+    {
+        ClearIfOutOfRange(Stopwatch.GetTimestamp());
+        PublishReadouts();
+        if (++_ticks % RateEveryTicks == 0) PublishRate();
+    }
+
+    private void ResetReadouts()
+    {
+        _rateMeter.Reset();
+        _latest = default;
+        _hasSample = false;
+        _latestHover = null;
+        _latestCanvas = null;
+        _readoutDirty = false;
+        _ticks = 0;
+        _lastReportTicks = 0;
     }
 
     private void OnDriverSample(PenSample s) => DriverSample?.Invoke(s);
@@ -239,11 +335,15 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         RecomputeMapping(); // data may already be loaded before the page is shown
         RefreshTabletStatus();
+        ResetReadouts();
+        RateText = "—";
+        _refreshTimer.Start();
         await _driver.StartAsync();
     }
 
     public async Task DeactivateAsync()
     {
+        _refreshTimer.Stop();
         await _driver.StopAsync();
     }
 
@@ -252,6 +352,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _deviceData.DataLoaded -= OnDataLoaded;
         _deviceData.PropertyChanged -= OnDeviceDataPropertyChanged;
         _driver.Sample -= OnDriverSample;
+        _refreshTimer.Stop();
+        _refreshTimer.Tick -= OnRefreshTick;
         _ = _driver.StopAsync();
     }
 }

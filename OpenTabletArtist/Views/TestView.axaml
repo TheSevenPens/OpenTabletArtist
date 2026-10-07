@@ -131,6 +131,13 @@
                             <TextBlock Text="Hover:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding HoverText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
+                        <!-- Tablet reports per second, live while the pen draws or hovers. Held at the last
+                             value when the pen leaves range; restarts on its return. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2"
+                                    ToolTip.Tip="How many reports per second the tablet is sending (its report rate), measured while the pen is drawing or hovering.">
+                            <TextBlock Text="Rate:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding RateText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                        </StackPanel>
                     </UniformGrid>
                 </StackPanel>
             </c:ControlPanel>
