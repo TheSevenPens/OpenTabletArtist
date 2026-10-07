@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Numerics;
 using OpenTabletDriver.Desktop;
 using OpenTabletDriver.Desktop.Profiles;
 
@@ -36,6 +37,18 @@ public static class DisplayMappingApplier
             display.X - minX + display.Width / 2f,
             display.Y - minY + display.Height / 2f);
     }
+
+    /// <summary>
+    /// The screen position of OTD's virtual-desktop origin: the top-left-most monitor corner. Everything OTD
+    /// stores or computes in its Absolute-mode space — the Display area, and
+    /// <see cref="AbsolutePositionMapper.MapToDesktop"/>'s result — is 0-based from this corner (see
+    /// <see cref="MappedCenter"/>), so add it to get a true screen coordinate (what
+    /// <c>Visual.PointToScreen</c> speaks). It is (0,0) unless a monitor sits left of / above the primary.
+    /// </summary>
+    public static Vector2 DesktopOrigin(IReadOnlyList<DisplayInfo> displays) =>
+        displays is { Count: > 0 }
+            ? new Vector2(displays.Min(d => d.X), displays.Min(d => d.Y))
+            : Vector2.Zero;
 
     /// <summary>
     /// Maps <paramref name="profile"/>'s active area to <paramref name="display"/>: the display area

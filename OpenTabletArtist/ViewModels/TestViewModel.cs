@@ -272,15 +272,20 @@ public partial class TestViewModel : ObservableObject, IDisposable
         "position, so the canvas is disabled — the readouts above still work. Set this tablet to an " +
         "Absolute output mode to draw here.";
 
-    /// <summary>Map a raw tablet point to a virtual-desktop pixel, or null if not mappable.</summary>
+    // Where OTD's 0-based virtual-desktop space starts on screen — non-zero when a monitor sits left of /
+    // above the primary. Without it a mapped point lands that far off the canvas and nothing draws.
+    private Vector2 _desktopOrigin;
+
+    /// <summary>Map a raw tablet point to a screen pixel (virtual-desktop coordinates), or null if not mappable.</summary>
     public Vector2? MapRawToDesktop(double rawX, double rawY) =>
         _mapping is { } m
-            ? AbsolutePositionMapper.MapToDesktop(new Vector2((float)rawX, (float)rawY), m.Digi, m.Input, m.Output, m.Clip, m.Limit)
+            ? AbsolutePositionMapper.MapToDesktop(new Vector2((float)rawX, (float)rawY), m.Digi, m.Input, m.Output, m.Clip, m.Limit) + _desktopOrigin
             : null;
 
     private void RecomputeMapping()
     {
         _mapping = BuildMapping();
+        _desktopOrigin = DisplayMappingApplier.DesktopOrigin(DisplayEnumerator.Enumerate());
         OnPropertyChanged(nameof(DriverPositioned));
         OnPropertyChanged(nameof(DriverCanvasDisabled));
     }

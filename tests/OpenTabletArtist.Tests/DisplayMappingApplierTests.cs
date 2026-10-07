@@ -210,4 +210,37 @@ public class DisplayMappingApplierTests
         Assert.Equal(2, mapped!.Number);
         Assert.Equal(2400f, p.AbsoluteModeSettings.Display.X, Precision); // documents the 0-based centre
     }
+
+    // --- Desktop origin (OTD's 0-based space → screen coordinates) ---
+
+    // A big monitor LEFT of the primary, so the desktop's top-left sits at a negative X.
+    private static DisplayInfo[] MonitorLeftOfPrimary() => new[]
+    {
+        Display(1, 0, 0, 1920, 1080, primary: true),
+        Display(2, -2880, 0, 2880, 1800),
+    };
+
+    [Fact]
+    public void DesktopOrigin_IsTheTopLeftMostMonitorCorner()
+        => Assert.Equal(new System.Numerics.Vector2(-2880, 0), DisplayMappingApplier.DesktopOrigin(MonitorLeftOfPrimary()));
+
+    [Fact]
+    public void DesktopOrigin_IsZero_WhenPrimaryIsTopLeft()
+    {
+        Assert.Equal(System.Numerics.Vector2.Zero, DisplayMappingApplier.DesktopOrigin(TwoMonitors()));
+        Assert.Equal(System.Numerics.Vector2.Zero, DisplayMappingApplier.DesktopOrigin(System.Array.Empty<DisplayInfo>()));
+    }
+
+    [Fact]
+    public void MappedCenterPlusOrigin_IsTheMonitorsScreenCentre()
+    {
+        // The pen at the middle of a primary-mapped tablet lands on the primary's screen centre (960, 540),
+        // not 2880 px to its right where the 0-based coordinate alone would put it.
+        var displays = MonitorLeftOfPrimary();
+        var (cx, cy) = DisplayMappingApplier.MappedCenter(displays[0], displays);
+        var screen = new System.Numerics.Vector2(cx, cy) + DisplayMappingApplier.DesktopOrigin(displays);
+
+        Assert.Equal(960f, screen.X, Precision);
+        Assert.Equal(540f, screen.Y, Precision);
+    }
 }
