@@ -83,7 +83,7 @@ public sealed record SegmentedTake(
 /// <remarks>
 /// <para>
 /// This is StrokeRecorder's capture policy (<c>Capturing.cs</c>) for a many-stroke take, applied after the
-/// fact to a list instead of reading by reading, so the same pen gives the same file from either tool:
+/// fact to a list instead of reading by reading, so that its strokes, approaches and departures are the recorder's. The files are not identical, see below:
 /// contact is pressure above zero; an approach is the hovering readings within a quarter second
 /// (<see cref="HoverKept"/>, host clock) before a landing; a departure is the hovering readings within a
 /// quarter second after the stroke's last contact reading; a hovering reading is only held as
@@ -97,9 +97,25 @@ public sealed record SegmentedTake(
 /// has no column here.
 /// </para>
 /// <para>
-/// One deliberate difference: the original reports "left out" as a raw count minus the number of
-/// approach/departure slots, which under-reports when one reading is both a departure and the next approach.
-/// Here each reading has one <see cref="ReadingFate"/>, so the columns are exact.
+/// Two deliberate differences, both corrections of the original:
+/// </para>
+/// <list type="number">
+/// <item>The original reports "left out" as a raw count minus the number of approach/departure slots, which
+/// under-reports when one reading is both a departure and the next approach. Here each reading has one
+/// <see cref="ReadingFate"/>, so the columns are exact.</item>
+/// <item>The original measures "how long before the landing was the pen last seen in the air" from the buffer of
+/// hover readings that <i>moved</i>. A pen resting in range repeats its position, so those readings are not kept,
+/// and the interval came out as the time since the pen last moved: hover at 0 ms, the same hover at 1000 ms and
+/// contact at 1001 ms was reported as 1001 ms, not 1. That number is published as how long the device was silent,
+/// and it was not. Here <see cref="SegmentedStroke.SinceLastSeenUs"/> is measured from the last airborne reading
+/// of any kind. Which readings are kept as approach and departure is unchanged.</item>
+/// </list>
+/// <para>
+/// Two smaller differences follow from how OpenTabletArtist records, and are not about the policy. The recording
+/// screen stops collecting at Stop, where StrokeRecorder goes on counting contact and collecting hover after it, so
+/// "after the stop" is normally 0 in files written here. And when airborne readings are kept but there were none,
+/// <see cref="SegmentedTake.KeptAirborne"/> is still true and the airborne record is empty; StrokeRecorder reports
+/// "kept" only once it has kept one. The file says what was asked for, and an empty record says there was nothing.
 /// </para>
 /// </remarks>
 public static class StrokeSegmenter
@@ -123,6 +139,7 @@ public static class StrokeSegmenter
         var fates = new ReadingFate[readings.Count];
         var aloft = new List<TabletReading>();
         var hover = new List<int>();               // indices of recent hovering readings that moved
+        var lastAirborne = -1;                     // the latest airborne reading of any kind, moved or not
         var strokes = new List<Open>();
         var phase = Phase.Armed;
 
@@ -148,6 +165,8 @@ public static class StrokeSegmenter
                     fates[i] = ReadingFate.ExcludedAirborne;
                 }
 
+                lastAirborne = i;
+
                 if (Moved(readings, hover, r)) Hovering(readings, hover, strokes, phase, i, keepAirborne, fates);
 
                 if (phase == Phase.Drawing) phase = Phase.Between;
@@ -159,7 +178,8 @@ public static class StrokeSegmenter
             {
                 case Phase.Armed:
                 case Phase.Between:
-                    strokes.Add(Land(readings, hover, i, keepAirborne, fates));
+                    strokes.Add(Land(readings, hover, lastAirborne, i, keepAirborne, fates));
+                    lastAirborne = -1;
                     strokes[^1].Readings.Add(r);
                     fates[i] = ReadingFate.Contact;
                     phase = Phase.Drawing;
@@ -243,7 +263,8 @@ public static class StrokeSegmenter
         Adopt(i, keepAirborne, fates);
     }
 
-    private static Open Land(IReadOnlyList<TabletReading> all, List<int> hover, int i, bool keepAirborne, ReadingFate[] fates)
+    private static Open Land(
+        IReadOnlyList<TabletReading> all, List<int> hover, int lastAirborne, int i, bool keepAirborne, ReadingFate[] fates)
     {
         var landing = all[i];
         var open = new Open();
@@ -258,7 +279,7 @@ public static class StrokeSegmenter
             Adopt(h, keepAirborne, fates);
         }
 
-        open.SinceLastSeenUs = hover.Count > 0 ? landing.ArrivedUs - all[hover[^1]].ArrivedUs : null;
+        open.SinceLastSeenUs = lastAirborne >= 0 ? landing.ArrivedUs - all[lastAirborne].ArrivedUs : null;
 
         hover.Clear();
         return open;

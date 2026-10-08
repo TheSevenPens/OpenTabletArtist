@@ -39,8 +39,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _driver.Sample += OnDriverSample;
         _driver.CountSamples = CountersEnabled; // the initializer doesn't go through OnCountersEnabledChanged
         _deviceData = deviceData;
-        Recording = new StrokeRecordingViewModel(() =>
-            StrokeRecordingContext.From(_deviceData.Tablets, DetectedProfile()?.Profile.Tablet, daemonVersion?.Invoke()));
+        Recording = new StrokeRecordingViewModel(
+            () => StrokeRecordingContext.From(_deviceData.Tablets, DetectedProfile()?.Profile.Tablet, daemonVersion?.Invoke()),
+            _driver.SetTap);
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RefreshMs) };
@@ -114,7 +115,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// Off by default.</summary>
     [ObservableProperty] private bool _showReportDots;
 
-    /// <summary>Record mode: keep every pen report and save them as a Stroke Corpus recording.</summary>
+    /// <summary>Record mode: keep every pen report and save them as a Stroke Corpus recording. It is fed from the
+    /// daemon's receive thread, not from <see cref="UpdateReadout"/>; see <see cref="StrokeRecordingViewModel"/>.</summary>
     public StrokeRecordingViewModel Recording { get; }
 
     /// <summary>Pointer-only mode draws nothing, so active dynamics can't be seen — warn while both
@@ -209,7 +211,6 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public void UpdateReadout(PenSample s)
     {
         _recorder?.Add(s);
-        Recording.Add(s);
         _latest = s;
         _hasSample = true;
         // Only refresh hover when the report actually carried it, so reports without proximity data
@@ -505,6 +506,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _driver.Sample -= OnDriverSample;
         _refreshTimer.Stop();
         _refreshTimer.Tick -= OnRefreshTick;
+        _driver.SetTap(null);
         _ = _driver.StopAsync();
     }
 }

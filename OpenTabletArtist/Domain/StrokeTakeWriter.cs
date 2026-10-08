@@ -67,10 +67,12 @@ public static class StrokeTakeWriter
     public const int Version = 8;
 
     public const string Clocks =
-        "'arrived' is this application's clock, in microseconds from the take's first reading in contact, "
-        + "stamped when each report reached OpenTabletArtist from the OpenTabletDriver daemon. Each report has its "
-        + "own value; they are not shared per batch. There is no pen timestamp in this recording: the driver does "
-        + "not provide one. Readings before the first contact (an approach) are negative.";
+        "'arrived' is this application's clock, in microseconds from the take's first reading in contact (or, if "
+        + "the pen never touched down, from the first reading in the airborne record), stamped when each report "
+        + "reached OpenTabletArtist from the OpenTabletDriver daemon. It records when the application received a "
+        + "report, not when the hardware measured it. Each report is stamped separately, though two stamps can be "
+        + "equal once rounded to a microsecond. There is no pen timestamp in this recording: the driver does not "
+        + "provide one. Readings before the first contact (an approach) are negative.";
 
     /// <summary>What a stroke's lack of a hover reading is put down to, when there was none at all.</summary>
     private const string NeverSeen = "the pen was not reported in the air at all";
@@ -86,7 +88,7 @@ public static class StrokeTakeWriter
         new("arrived", _ => true, (r, began, _) => Whole(r.ArrivedUs - began)),
         new("x", _ => true, (r, _, _) => Round(r.X, 3)),
         new("y", _ => true, (r, _, _) => Round(r.Y, 3)),
-        new("pressure", _ => true, (r, _, _) => Whole((long)Math.Round(r.Pressure))),
+        new("pressure", _ => true, (r, _, _) => Whole((long)Math.Round(Finite(r.Pressure)))),
         new("height", c => c.Height, (r, _, _) => r.Height is { } h
             ? Whole(h)
             : throw new InvalidOperationException("A reading has no height, but the recording says it measured one.")),
@@ -104,27 +106,53 @@ public static class StrokeTakeWriter
     {
         Directory.CreateDirectory(folder);
 
-        var path = Free(folder, name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? name : name + ".json");
-        var partial = path + ".writing";
+        // The name is claimed first, atomically: an empty file is created with CreateNew, which fails if anything
+        // is already there, so two saves cannot choose the same name. The id inside the file is the claimed name.
+        var path = Claim(folder, name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? name : name + ".json");
+        var staging = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}.{Guid.NewGuid():N}.writing");
+        var committed = false;
 
-        // Written beside the target and moved into place, so a failure part way leaves neither file half-made.
-        File.WriteAllText(partial, ToJson(take, description with { Id = Path.GetFileNameWithoutExtension(path) }), new UTF8Encoding(false));
-        File.Move(partial, path);
+        try
+        {
+            var json = ToJson(take, description with { Id = Path.GetFileNameWithoutExtension(path) });
 
-        return path;
+            // Written in full to a private file, then moved over the claim: the recording is either all there or
+            // not there, and a failure leaves nothing of ours behind (below).
+            using (var stream = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(new UTF8Encoding(false).GetBytes(json));
+            }
+
+            File.Move(staging, path, overwrite: true);
+            committed = true;
+
+            return path;
+        }
+        finally
+        {
+            if (File.Exists(staging)) File.Delete(staging);
+            if (!committed && File.Exists(path)) File.Delete(path);
+        }
     }
 
-    private static string Free(string folder, string name)
+    /// <summary>The first name in the folder that nobody has, created empty so that it stays ours.</summary>
+    private static string Claim(string folder, string name)
     {
         var stem = Path.GetFileNameWithoutExtension(name);
         var path = Path.Combine(folder, name);
 
-        for (var next = 2; File.Exists(path); next++)
+        for (var next = 2; ; next++)
         {
-            path = Path.Combine(folder, $"{stem}-{next}.json");
+            try
+            {
+                using (new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
+                return path;
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                path = Path.Combine(folder, $"{stem}-{next}.json");
+            }
         }
-
-        return path;
     }
 
     /// <summary>A file name nobody has to think about: the gesture, the tablet and the moment.</summary>
@@ -166,7 +194,9 @@ public static class StrokeTakeWriter
 
         using var stream = new MemoryStream();
         // Relaxed escaping: the default writes every apostrophe as ', which is valid and unreadable in the
-        // conventions text and in anything a person types. The output is UTF-8, so nothing needs escaping to be safe.
+        // conventions text and in anything a person types. This is a JSON file, still escaped wherever JSON requires
+        // it; it must not be pasted verbatim into HTML or a script, and nothing here does that (the corpus site fetches
+        // it as JSON and escapes what it shows).
         using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions
                {
                    Indented = true,
@@ -298,7 +328,13 @@ public static class StrokeTakeWriter
     }
 
     private static string Round(double value, int places) =>
-        Math.Round(value, places).ToString("R", CultureInfo.InvariantCulture);
+        Math.Round(Finite(value), places).ToString("R", CultureInfo.InvariantCulture);
+
+    /// <summary>Rows are written as raw text, which bypasses the JSON writer's checks: NaN or infinity would come out
+    /// as a bare word and make the whole file unreadable. Refuse it here, where the column is known.</summary>
+    private static double Finite(double value) => double.IsFinite(value)
+        ? value
+        : throw new InvalidOperationException($"A reading holds {value}, which cannot be written to a recording.");
 
     private static string Whole(long value) => value.ToString(CultureInfo.InvariantCulture);
 }

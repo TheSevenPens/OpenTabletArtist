@@ -221,6 +221,78 @@ public class StrokeSegmenterTests
     }
 
     [Fact]
+    public void HowLongAgoThePenWasLastSeenCountsAHoverThatDidNotMove()
+    {
+        // Hover at 0 ms, the same hover at 1000 ms, contact at 1001 ms. The pen was in the air 1 ms before it landed.
+        // Measured from the moving-hover buffer (StrokeRecorder's way) this came out as 1001 ms.
+        var stroke = Assert.Single(Seg(false, null, Air(0, 5), Air(1000, 5), Down(1001, 9)).Strokes);
+
+        Assert.Equal(1_000, stroke.SinceLastSeenUs);
+        Assert.Empty(stroke.Approach);   // which readings are kept as the approach is unchanged: the window is 250 ms
+    }
+
+    [Fact]
+    public void TheLastSeenIntervalStartsOverAfterEachLanding()
+    {
+        var take = Seg(false, null, Air(0, 1), Down(10, 2), Down(11, 3), Down(700, 4));
+
+        // The second contact run is part of the first stroke (no airborne reading in between), so one stroke.
+        Assert.Single(take.Strokes);
+
+        var two = Seg(false, null, Air(0, 1), Down(10, 2), Air(11, 3), Air(500, 3), Down(520, 4), Down(521, 5));
+        Assert.Equal(20_000, two.Strokes[1].SinceLastSeenUs);   // 500 -> 520, not the 11 ms hover before the first lift
+    }
+
+    [Fact]
+    public void EveryFateAgreesWithWhereTheReadingActuallyEndedUp()
+    {
+        // Each reading gets a unique Twist so identical measurements can be told apart, then the fate is checked
+        // against membership in the output lists, independently of how the fate was computed.
+        var rng = new Random(77);
+
+        foreach (var keep in new[] { false, true })
+        {
+            for (var trial = 0; trial < 300; trial++)
+            {
+                var n = rng.Next(0, 90);
+                var ms = 0.0;
+                var readings = new TabletReading[n];
+
+                for (var i = 0; i < n; i++)
+                {
+                    ms += rng.NextDouble() < 0.15 ? rng.Next(100, 700) : rng.Next(0, 4);
+                    var at = (long)(ms * 1000);
+                    readings[i] = rng.NextDouble() < 0.45
+                        ? new TabletReading(at, rng.Next(3), 0, 100, Twist: i)
+                        : new TabletReading(at, rng.Next(3), 0, 0, Lean: rng.Next(4) == 0 ? 5 : 0, Twist: i);
+                }
+
+                var stop = rng.Next(0, 3) == 0 ? rng.Next(0, n + 1) : (int?)null;
+                var take = StrokeSegmenter.Segment(readings, keep, stop);
+
+                var inStrokes = take.Strokes.SelectMany(s => s.Readings).Select(r => (int)r.Twist).ToHashSet();
+                var alongside = take.Strokes.SelectMany(s => s.Approach.Concat(s.Departure)).Select(r => (int)r.Twist).ToHashSet();
+                var aloft = take.Aloft.Select(r => (int)r.Twist).ToHashSet();
+
+                for (var i = 0; i < n; i++)
+                {
+                    var expected = readings[i].InContact
+                        ? (inStrokes.Contains(i) ? ReadingFate.Contact : ReadingFate.AfterTheStop)
+                        : aloft.Contains(i) ? ReadingFate.RetainedAirborne
+                        : alongside.Contains(i) ? ReadingFate.KeptAlongside
+                        : ReadingFate.ExcludedAirborne;
+
+                    Assert.Equal(expected, take.Fates[i]);
+                }
+
+                Assert.Equal(keep ? readings.Count(r => !r.InContact) : 0, aloft.Count);
+                Assert.Empty(inStrokes.Intersect(alongside));
+                Assert.Empty(inStrokes.Intersect(aloft));
+            }
+        }
+    }
+
+    [Fact]
     public void AStopOutsideTheRunIsRejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Seg(false, 3, Down(0, 1)));

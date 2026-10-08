@@ -145,6 +145,80 @@ public class StrokeRecordingSessionTests
 
         Assert.Equal(StrokeRecordingSession.MaxReadings, session.Count);
         Assert.True(session.Truncated);
+        Assert.Equal(5, session.Dropped);   // the reports turned away are counted, not just flagged
+    }
+
+    [Fact]
+    public void ALightTouchGivenOnlyAsAFractionStaysInContact()
+    {
+        // Rounding to even would make 0.0001 of 1023 (0.1 of a count) zero, and the pen would be "up".
+        var session = new StrokeRecordingSession(1023);
+        session.Add(new PenSample(0, 0, 1, 2, 0.0001, 0, 0, 0, true, 5, Timestamp: 100));
+        // Exactly half a count: ties-to-even gives 0; the touch is still a touch.
+        session.Add(new PenSample(0, 0, 1, 2, 0.0005, 0, 0, 0, true, 5, Timestamp: 200));
+
+        var take = new StrokeRecordingSession(1000);
+        take.Add(new PenSample(0, 0, 1, 2, 0.0005, 0, 0, 0, true, 5, Timestamp: 100));
+
+        Assert.Equal(2, session.Segment(false).Ledger.Contact);
+        Assert.Equal(1, take.Segment(false).Strokes[0].Readings[0].Pressure);
+    }
+
+    [Fact]
+    public void ARecordingWithAVeryLongGapStillGetsSensibleArrivals()
+    {
+        // 15 days between two reports. Multiplying ticks by 1,000,000 before dividing overflows a long here.
+        var session = new StrokeRecordingSession(1023);
+        session.Add(Report(0, rawPressure: 100, ticks: 5_000_000));
+        session.Add(Report(0, rawPressure: 100, ticks: 5_000_000 + 15L * 86_400 * Stopwatch.Frequency));
+
+        var readings = session.Segment(false).Strokes[0].Readings;
+
+        Assert.Equal(0, readings[0].ArrivedUs);
+        Assert.Equal(15L * 86_400 * 1_000_000, readings[1].ArrivedUs);
+    }
+
+    [Fact]
+    public void ElapsedTimeRunsFromTheStartWhetherOrNotThePenIsInRange()
+    {
+        var now = 1_000L;
+        var session = new StrokeRecordingSession(1023, () => now);
+
+        now += 2 * Stopwatch.Frequency;
+
+        Assert.Equal(2.0, session.ElapsedSeconds, 6);
+        Assert.Equal(0, session.Seconds);   // no reports yet: the span the data covers is nothing
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task EveryReportIsOnOneSideOfTheStopWhicheverThreadAddsIt()
+    {
+        var session = new StrokeRecordingSession(1023);
+        const int threads = 4, each = 5_000;
+        var ready = new System.Threading.Barrier(threads + 1);
+
+        var workers = Enumerable.Range(0, threads).Select(_ => System.Threading.Tasks.Task.Run(() =>
+        {
+            ready.SignalAndWait();
+            for (var i = 0; i < each; i++) session.Add(Report(0, rawPressure: 10, ticks: 1000 + i));
+        }, TestContext.Current.CancellationToken)).ToArray();
+
+        ready.SignalAndWait(TestContext.Current.CancellationToken);
+        session.Stop();   // somewhere in the middle of all that adding
+        await System.Threading.Tasks.Task.WhenAll(workers);
+
+        var ledger = session.Segment(false).Ledger;
+
+        Assert.Equal(threads * each, ledger.Routed);
+        Assert.Equal(threads * each, ledger.Contact + ledger.AfterTheStop);
+        Assert.True(ledger.Balances);
+    }
+
+    [Fact]
+    public void TheConventionsTextStatesTheLimitThatIsActuallyEnforced()
+    {
+        Assert.Contains(StrokeRecordingSession.MaxReadings.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+            StrokeRecordingSession.Conventions);
     }
 
     [Fact]

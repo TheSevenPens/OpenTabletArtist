@@ -21,24 +21,46 @@ public class StrokeRecordingViewModelTests : IDisposable
     }
 
     private static readonly StrokeRecordingContext Ptk470 = new(
-        "Wacom PTK-470", "OpenTabletDriver 0.6.5.0", 1023, new TabletSpace(15200, 9500, 152.0, 95.0));
+        TestReports.Tablet, "OpenTabletDriver 0.6.5.0", 1023, new TabletSpace(15200, 9500, 152.0, 95.0));
 
-    private StrokeRecordingViewModel NewVm(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null) =>
-        new(context ?? (() => Ptk470), () => _folder, () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero), reveal);
+    /// <summary>The view model, and the tap it attached to the stream, which is what the daemon thread would call.</summary>
+    private sealed class Rig
+    {
+        public StrokeRecordingViewModel Vm = null!;
+        public Action<JObject, PenSample>? Tap;
+
+        /// <summary>A report as the stream delivers it: if nothing is attached, it reaches nobody.</summary>
+        public void Feed(PenSample s, string tablet = TestReports.Tablet, double maxPressure = 1023) =>
+            Tap?.Invoke(TestReports.Json(s, tablet: tablet, maxPressure: maxPressure), s);
+    }
+
+    private Rig NewRig(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null)
+    {
+        var rig = new Rig();
+        rig.Vm = new StrokeRecordingViewModel(
+            context ?? (() => Ptk470),
+            tap => rig.Tap = tap,
+            () => _folder,
+            () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+            reveal);
+        return rig;
+    }
 
     private static PenSample Report(double ms, double pressure = 0, double x = 100) =>
         new(0, 0, x, x * 2, pressure / 1023, 4, -3, 0, pressure > 0, HoverDistance: pressure > 0 ? 0 : 9,
             Timestamp: 1_000_000 + (long)(ms * Ms), RawPressure: pressure, HasTilt: true);
 
     /// <summary>Hover, one stroke, hover, a second stroke.</summary>
-    private static void Draw(StrokeRecordingViewModel vm)
+    private static void Draw(Rig rig)
     {
         foreach (var (at, p, x) in new (double, double, double)[]
                  { (0, 0, 1), (5, 0, 2), (10, 200, 3), (11, 300, 4), (12, 250, 5), (13, 0, 6), (14, 0, 7), (500, 0, 8), (510, 100, 9), (511, 120, 10) })
         {
-            vm.Add(Report(at, p, x));
+            rig.Feed(Report(at, p, x));
         }
     }
+
+    private static JsonNode Saved(StrokeRecordingViewModel vm) => JsonNode.Parse(File.ReadAllText(vm.SavedPath))!;
 
     // ---- the tablet and driver ----
 
@@ -91,76 +113,109 @@ public class StrokeRecordingViewModelTests : IDisposable
     [Fact]
     public void WithoutATabletRecordingDoesNotStartAndSaysWhy()
     {
-        var vm = NewVm(() => null);
+        var rig = NewRig(() => null);
 
-        vm.StartCommand.Execute(null);
+        rig.Vm.StartCommand.Execute(null);
 
-        Assert.True(vm.IsIdle);
-        Assert.True(vm.HasError);
+        Assert.True(rig.Vm.IsIdle);
+        Assert.True(rig.Vm.HasError);
+        Assert.Null(rig.Tap);
     }
 
     [Fact]
-    public void ReportsAreIgnoredUnlessRecording()
+    public void RecordingAttachesToTheStreamAndStoppingDetachesIt()
     {
-        var vm = NewVm();
-        vm.Add(Report(0, 100));
-        vm.StartCommand.Execute(null);
-        vm.StopCommand.Execute(null);
-        vm.Add(Report(1, 100));
+        var rig = NewRig();
+        Assert.Null(rig.Tap);
 
-        Assert.True(vm.IsReview);
-        Assert.Contains("0 strokes", vm.LedgerText);
-        Assert.Contains("0 reports", vm.LedgerText);
+        rig.Vm.StartCommand.Execute(null);
+        Assert.NotNull(rig.Tap);
+
+        rig.Vm.StopCommand.Execute(null);
+        Assert.Null(rig.Tap);
+    }
+
+    [Fact]
+    public void ReportsOutsideARecordingReachNoRecording()
+    {
+        var rig = NewRig();
+        rig.Feed(Report(0, 100));
+        rig.Vm.StartCommand.Execute(null);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Feed(Report(1, 100));
+
+        Assert.True(rig.Vm.IsReview);
+        Assert.Contains("0 strokes", rig.Vm.LedgerText);
+        Assert.Contains("0 reports", rig.Vm.LedgerText);
+    }
+
+    [Fact]
+    public void AReportInFlightWhenStopIsPressedIsCountedAfterTheStopNotLost()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 100));
+        var inFlight = rig.Tap!;   // the receive thread had already picked the tap up
+
+        rig.Vm.StopCommand.Execute(null);
+        inFlight(TestReports.Json(Report(1, 100)), Report(1, 100));
+        rig.Vm.KeepAirborne = true;   // re-reads the recording
+
+        Assert.Contains("2 reports", rig.Vm.LedgerText);
+        Assert.Contains("1 after the stop", rig.Vm.LedgerText);
+        Assert.DoesNotContain("DOES NOT BALANCE", rig.Vm.LedgerText);
     }
 
     [Fact]
     public void WhileRecordingTheClockSaysHowFarItHasGot()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.Tick();
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.Tick();
 
-        Assert.True(vm.IsRecording);
-        Assert.Contains("2 strokes", vm.StatusText);
-        Assert.Contains("10 reports", vm.StatusText);
+        Assert.True(rig.Vm.IsRecording);
+        Assert.Contains("2 strokes", rig.Vm.StatusText);
+        Assert.Contains("10 reports", rig.Vm.StatusText);
     }
 
     [Fact]
     public void StoppingShowsWhereEveryReportWent()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
 
-        Assert.True(vm.IsReview);
-        Assert.Contains("2 strokes", vm.LedgerText);
-        Assert.Contains("10 reports: 5 in strokes", vm.LedgerText);
-        Assert.DoesNotContain("DOES NOT BALANCE", vm.LedgerText);
+        Assert.True(rig.Vm.IsReview);
+        Assert.Contains("2 strokes", rig.Vm.LedgerText);
+        Assert.Contains("10 reports: 5 in strokes", rig.Vm.LedgerText);
+        Assert.DoesNotContain("DOES NOT BALANCE", rig.Vm.LedgerText);
+        Assert.DoesNotContain("Not recorded", rig.Vm.LedgerText);
     }
 
     [Fact]
     public void KeepingAirborneAtReviewChangesWhatTheLedgerSaysNotWhatWasRecorded()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
-        Assert.Contains("0 hovering kept as the airborne record", vm.LedgerText);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        Assert.Contains("0 hovering kept as the airborne record", rig.Vm.LedgerText);
 
-        vm.KeepAirborne = true;
+        rig.Vm.KeepAirborne = true;
 
-        Assert.Contains("5 hovering kept as the airborne record", vm.LedgerText);
-        Assert.Contains("0 hovering left out", vm.LedgerText);
+        Assert.Contains("5 hovering kept as the airborne record", rig.Vm.LedgerText);
+        Assert.Contains("0 hovering left out", rig.Vm.LedgerText);
     }
 
     [Fact]
     public void SavingWritesAFileAndGoesBackToIdleShowingWhereItWent()
     {
-        var vm = NewVm();
+        var rig = NewRig();
+        var vm = rig.Vm;
         vm.StartCommand.Execute(null);
-        Draw(vm);
+        Draw(rig);
         vm.StopCommand.Execute(null);
         vm.Firmware = " 1.2.3 ";
         vm.Username = "tester";
@@ -174,7 +229,7 @@ public class StrokeRecordingViewModelTests : IDisposable
         Assert.Equal(_folder, Path.GetDirectoryName(vm.SavedPath));
         Assert.Equal("freeform-wacom-ptk-470-20261007-120000.json", Path.GetFileName(vm.SavedPath));
 
-        var file = JsonNode.Parse(File.ReadAllText(vm.SavedPath))!;
+        var file = Saved(vm);
         Assert.Equal(8, file["formatVersion"]!.GetValue<int>());
         Assert.Equal("tablet", file["coordinates"]!["space"]!.GetValue<string>());
         Assert.Equal(15200, file["coordinates"]!["maxX"]!.GetValue<double>());
@@ -192,118 +247,194 @@ public class StrokeRecordingViewModelTests : IDisposable
     public void TheTabletIsTheOneItWasWhenRecordingStarted()
     {
         var current = Ptk470;
-        var vm = NewVm(() => current);
-        vm.StartCommand.Execute(null);
-        Draw(vm);
+        var rig = NewRig(() => current);
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
         current = current with { Tablet = "Wacom PTK-670" };
-        vm.StopCommand.Execute(null);
+        rig.Vm.StopCommand.Execute(null);
 
-        vm.SaveCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
 
-        Assert.Equal("Wacom PTK-470", JsonNode.Parse(File.ReadAllText(vm.SavedPath))!["device"]!["tablet"]!.GetValue<string>());
+        Assert.Equal("Wacom PTK-470", Saved(rig.Vm)["device"]!["tablet"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void AnotherTabletsReportsAreLeftOutAndTheFileSaysSo()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 200, 1));
+        rig.Feed(Report(1, 4096, 2), tablet: "Wacom PTK-670", maxPressure: 8191);
+        rig.Feed(Report(2, 4096, 3), tablet: "Wacom PTK-670", maxPressure: 8191);
+        rig.Feed(Report(3, 210, 4));
+        rig.Vm.StopCommand.Execute(null);
+
+        Assert.Contains("2 reports", rig.Vm.LedgerText);
+        Assert.Contains("Not recorded: 2 from other devices", rig.Vm.LedgerText);
+
+        rig.Vm.SaveCommand.Execute(null);
+        var file = Saved(rig.Vm);
+
+        Assert.Contains("2 reports from other devices were ignored", file["notes"]!.GetValue<string>());
+        Assert.Equal(2, file["readingsHandedToTheRecorder"]!.GetValue<int>());
+        var pressures = file["strokes"]![0]!["readings"]!.AsArray().Select(r => r![3]!.GetValue<double>());
+        Assert.All(pressures, p => Assert.True(p < 1023));
+    }
+
+    [Fact]
+    public void AMouseReportIsLeftOutAndNotWrittenAsAHoveringPen()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 200, 1));
+        var mouse = Report(1, 0, 2);
+        rig.Tap!(TestReports.Json(mouse, pressure: false, tilt: false), mouse);
+        rig.Feed(Report(2, 210, 3));
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
+
+        var file = Saved(rig.Vm);
+
+        Assert.Contains("1 reports from this tablet were not complete pen measurements", file["notes"]!.GetValue<string>());
+        Assert.Equal(["arrived", "x", "y", "pressure", "height", "lean", "azimuth"], file["columns"]!.AsArray().Select(c => c!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void WhenTheTabletsSpecificationsChangeTheRecordingEndsAndSaysWhy()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 200, 1));
+        rig.Feed(Report(1, 200, 2), maxPressure: 8191);   // the same tablet, now on a different pressure scale
+        rig.Feed(Report(2, 200, 3));
+
+        rig.Vm.Tick();
+
+        Assert.True(rig.Vm.IsReview);
+        Assert.Contains("specifications changed", rig.Vm.ErrorText);
+        Assert.Null(rig.Tap);
+
+        rig.Vm.SaveCommand.Execute(null);   // what was recorded before the change is still a recording
+
+        Assert.Contains("specifications changed", Saved(rig.Vm)["notes"]!.GetValue<string>());
+        Assert.Equal(1, Saved(rig.Vm)["readingsHandedToTheRecorder"]!.GetValue<int>());
     }
 
     [Fact]
     public void ARecordingWithNothingDrawnIsNotSavedUnlessTheHoveringIsKept()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        vm.Add(Report(0, 0, 1));
-        vm.Add(Report(5, 0, 2));
-        vm.StopCommand.Execute(null);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 0, 1));
+        rig.Feed(Report(5, 0, 2));
+        rig.Vm.StopCommand.Execute(null);
 
-        vm.SaveCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
 
-        Assert.True(vm.IsReview);
-        Assert.True(vm.HasError);
+        Assert.True(rig.Vm.IsReview);
+        Assert.True(rig.Vm.HasError);
         Assert.False(Directory.Exists(_folder));
 
-        vm.KeepAirborne = true;
-        vm.SaveCommand.Execute(null);
+        rig.Vm.KeepAirborne = true;
+        rig.Vm.SaveCommand.Execute(null);
 
-        Assert.True(vm.IsIdle);
-        Assert.True(vm.HasSaved);
+        Assert.True(rig.Vm.IsIdle);
+        Assert.True(rig.Vm.HasSaved);
     }
 
     [Fact]
     public void AFileThatCannotBeWrittenLeavesTheRecordingWaitingToBeSavedAgain()
     {
         File.WriteAllText(_folder, "this is a file where the folder should be");   // Dispose deletes directories only
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
 
         try
         {
-            vm.SaveCommand.Execute(null);
+            rig.Vm.SaveCommand.Execute(null);
 
-            Assert.True(vm.IsReview);
-            Assert.StartsWith("Couldn't save the recording", vm.ErrorText);
-            Assert.False(vm.HasSaved);
+            Assert.True(rig.Vm.IsReview);
+            Assert.StartsWith("Couldn't save the recording", rig.Vm.ErrorText);
+            Assert.False(rig.Vm.HasSaved);
         }
         finally { File.Delete(_folder); }
     }
 
     [Fact]
-    public void DiscardingThrowsTheRecordingAway()
+    public void DiscardingThrowsTheRecordingAwayAndDetaches()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
 
-        vm.DiscardCommand.Execute(null);
+        rig.Vm.DiscardCommand.Execute(null);
 
-        Assert.True(vm.IsIdle);
-        Assert.Equal("", vm.LedgerText);
+        Assert.True(rig.Vm.IsIdle);
+        Assert.Equal("", rig.Vm.LedgerText);
+        Assert.Null(rig.Tap);
         Assert.False(Directory.Exists(_folder));
     }
 
     [Fact]
     public void StartingAgainClearsTheLastSavedFile()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
-        vm.SaveCommand.Execute(null);
-        Assert.True(vm.HasSaved);
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
+        Assert.True(rig.Vm.HasSaved);
 
-        vm.StartCommand.Execute(null);
+        rig.Vm.StartCommand.Execute(null);
 
-        Assert.False(vm.HasSaved);
-        Assert.True(vm.IsRecording);
+        Assert.False(rig.Vm.HasSaved);
+        Assert.True(rig.Vm.IsRecording);
     }
 
     [Fact]
-    public void ARecordingThatReachesTheLimitStopsItselfAndSaysSoInItsNotes()
+    public void ARecordingThatReachesTheLimitStopsItselfAndSaysHowManyWereDroppedInItsNotes()
     {
-        var vm = NewVm();
-        vm.StartCommand.Execute(null);
-        vm.Add(Report(0, 100));
-        for (var i = 0; i < StrokeRecordingSession.MaxReadings; i++) vm.Add(Report(1, 0, 2));
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        var s = Report(0, 100);
+        var json = TestReports.Json(s);   // one report, offered over and over: building 600,000 would only slow the test
+        for (var i = 0; i < StrokeRecordingSession.MaxReadings + 7; i++) rig.Tap!(json, s);
 
-        vm.Tick();
+        rig.Vm.Tick();
 
-        Assert.True(vm.IsReview);
+        Assert.True(rig.Vm.IsReview);
+        Assert.Contains("7 dropped at the limit", rig.Vm.LedgerText);
 
-        vm.SaveCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
 
-        Assert.Contains("report limit", JsonNode.Parse(File.ReadAllText(vm.SavedPath))!["notes"]!.GetValue<string>());
+        Assert.Contains("7 later reports were dropped", Saved(rig.Vm)["notes"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ThePanelTakesNoRoomUntilThereIsSomethingInIt()
+    {
+        var rig = NewRig(() => null);
+        Assert.False(rig.Vm.ShowPanel);
+
+        rig.Vm.StartCommand.Execute(null);   // fails: an error to show
+
+        Assert.True(rig.Vm.ShowPanel);
     }
 
     [Fact]
     public void ShowFolderOpensTheFolderTheFileIsIn()
     {
         string? revealed = null;
-        var vm = NewVm(reveal: path => revealed = path);
-        vm.StartCommand.Execute(null);
-        Draw(vm);
-        vm.StopCommand.Execute(null);
-        vm.SaveCommand.Execute(null);
+        var rig = NewRig(reveal: path => revealed = path);
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
 
-        vm.RevealFolderCommand.Execute(null);
+        rig.Vm.RevealFolderCommand.Execute(null);
 
         Assert.Equal(_folder, revealed);
     }

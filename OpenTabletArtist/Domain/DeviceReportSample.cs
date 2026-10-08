@@ -55,6 +55,43 @@ public static class DeviceReportSample
         return true;
     }
 
+    /// <summary>Who sent a report and what its digitizer and pen specifications say, so a recording can tell its own
+    /// tablet's reports from anyone else's. Null name / zero values when the report doesn't say.</summary>
+    public readonly record struct DeviceIdentity(string? Name, double MaxX, double MaxY, double MaxPressure);
+
+    public static DeviceIdentity Identity(JObject data) => new(
+        data.SelectToken("Tablet.Properties.Name")?.ToString(),
+        Number(data.SelectToken("Tablet.Properties.Specifications.Digitizer.MaxX")),
+        Number(data.SelectToken("Tablet.Properties.Specifications.Digitizer.MaxY")),
+        Number(data.SelectToken("Tablet.Properties.Specifications.Pen.MaxPressure")));
+
+    /// <summary>
+    /// Whether a report is a genuine pen measurement: a position, a pressure, and tilt and hover distance that are
+    /// either absent or complete. <see cref="TryParse"/> is deliberately forgiving (a missing pressure reads as 0, so
+    /// a mouse-type report that carries a position still moves the readouts), and that is wrong for a recording: it
+    /// would write a hovering pen with a pressure nobody measured. A recording admits only what passes this.
+    /// </summary>
+    public static bool IsPenMeasurement(JObject data)
+    {
+        if (data["Data"] is not JObject report) return false;
+        if (report["Position"] is not JObject pos || !IsNumber(pos["X"]) || !IsNumber(pos["Y"])) return false;
+        if (!IsNumber(report["Pressure"])) return false;
+
+        var tiltOk = report["Tilt"] switch
+        {
+            null or { Type: JTokenType.Null } => true,
+            JObject tilt => IsNumber(tilt["X"]) && IsNumber(tilt["Y"]),
+            _ => false,
+        };
+        if (!tiltOk) return false;
+
+        return report["HoverDistance"] is null or { Type: JTokenType.Null } || IsNumber(report["HoverDistance"]);
+    }
+
+    private static bool IsNumber(JToken? t) => t is { Type: JTokenType.Integer or JTokenType.Float };
+
+    private static double Number(JToken? t) => IsNumber(t) ? t!.Value<double>() : 0;
+
     /// <summary>Pulls the auxiliary-button (express key) states out of an OTD <c>DeviceReport</c>.
     /// Only aux reports carry <c>Data.AuxButtons</c>; returns false for pen-only reports so callers
     /// can ignore them and leave the last-known press state untouched.</summary>

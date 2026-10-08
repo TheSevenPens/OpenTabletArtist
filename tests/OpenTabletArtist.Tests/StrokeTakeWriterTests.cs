@@ -347,6 +347,124 @@ public class StrokeTakeWriterTests
     }
 
     [Fact]
+    public async System.Threading.Tasks.Task SavesThatChooseTheSameNameAtTheSameTimeEndUpWithTheirOwnFiles()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
+        try
+        {
+            const int writers = 8;
+            var ready = new System.Threading.Barrier(writers);
+
+            var paths = await System.Threading.Tasks.Task.WhenAll(Enumerable.Range(0, writers).Select(_ =>
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    ready.SignalAndWait();
+                    return StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "same-name");
+                }, TestContext.Current.CancellationToken)));
+
+            Assert.Equal(writers, paths.Distinct().Count());
+            Assert.Equal(writers, Directory.GetFiles(folder).Length);   // and no staging or placeholder files besides
+            Assert.Empty(Directory.GetFiles(folder, "*.writing"));
+
+            foreach (var path in paths)
+            {
+                // Each file is whole, valid, and says it is the file it is.
+                AssertValid(File.ReadAllText(path));
+                Assert.Equal(Path.GetFileNameWithoutExtension(path), Parse(File.ReadAllText(path))["id"]!.GetValue<string>());
+            }
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [Fact]
+    public void AFailedSaveLeavesNothingBehindAndDoesNotKeepTheName()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
+        try
+        {
+            var bad = StrokeSegmenter.Segment([new TabletReading(0, double.NaN, 1, 100, 3, 1, 1, 1)], false);
+
+            Assert.Throws<InvalidOperationException>(() => StrokeTakeWriter.Write(bad, Described, folder, "take"));
+            Assert.Empty(Directory.GetFiles(folder));
+
+            // The name was released, so the next save gets it.
+            Assert.Equal("take.json", Path.GetFileName(StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "take")));
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [Fact]
+    public void AStaleStagingFileFromAnEarlierCrashDoesNotBlockASaveAndIsNotDeleted()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(folder);
+            var stale = Path.Combine(folder, "take.writing");
+            File.WriteAllText(stale, "left behind by something that died");
+
+            var path = StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "take");
+
+            AssertValid(File.ReadAllText(path));
+            Assert.Equal("left behind by something that died", File.ReadAllText(stale));   // not ours to delete
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [Fact]
+    public void AMoveThatFailsLeavesNoStagingFileOrPlaceholder()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"ota-take-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(folder, "take.json"));   // a directory where the file would go
+
+            Assert.ThrowsAny<Exception>(() => StrokeTakeWriter.Write(TwoStrokes(), Described, folder, "take"));
+
+            Assert.Empty(Directory.GetFiles(folder, "*", SearchOption.TopDirectoryOnly));
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void ANumberThatIsNotFiniteIsRefusedNotWrittenAsABareWord(double bad)
+    {
+        var fine = new TabletReading(0, 1, 1, 100, 3, 1, 1, 1);
+
+        foreach (var reading in new[]
+                 {
+                     fine with { X = bad },
+                     fine with { Y = bad },
+                     fine with { Lean = bad },
+                     fine with { Azimuth = bad },
+                     fine with { Twist = bad },
+                 })
+        {
+            var take = StrokeSegmenter.Segment([reading], false);
+
+            Assert.Single(take.Strokes);   // it is a stroke reading, so it would be written
+            Assert.Throws<InvalidOperationException>(() => StrokeTakeWriter.ToJson(take, Described));
+        }
+
+        // Pressure above zero is contact, so infinity is written; NaN and -infinity are not contact and never are.
+        Assert.Throws<InvalidOperationException>(() =>
+            StrokeTakeWriter.ToJson(StrokeSegmenter.Segment([fine with { Pressure = double.PositiveInfinity }], false), Described));
+    }
+
+    [Fact]
+    public void TheClocksTextSaysItIsWhenTheApplicationReceivedTheReportNotWhenTheHardwareMeasuredIt()
+    {
+        var file = Parse(StrokeTakeWriter.ToJson(TwoStrokes(), Described));
+        var clocks = file["clocks"]!.GetValue<string>();
+
+        Assert.Contains("not when the hardware measured it", clocks);
+        Assert.Contains("airborne record", clocks);   // the origin on a take that never touched down
+    }
+
+    [Fact]
     public void ASuggestedNameSaysWhatMadeItAndWhen()
     {
         Assert.Equal(

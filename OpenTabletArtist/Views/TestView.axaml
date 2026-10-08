@@ -106,23 +106,27 @@
                             <Button Content="Stop" Command="{Binding StopCommand}" IsVisible="{Binding IsRecording}"
                                     Theme="{StaticResource AccentButton}" Padding="14,6" />
                             <TextBlock Text="{Binding StatusText}" IsVisible="{Binding IsRecording}"
-                                       VerticalAlignment="Center" Margin="12,0,0,0"
+                                       VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="420"
                                        FontFamily="{DynamicResource MonoFontFamily}"
                                        Foreground="{DynamicResource TextPrimaryBrush}" />
                         </StackPanel>
                     </WrapPanel>
 
                     <!-- Record mode, after a recording: what it came to, who made it, and Save. -->
-                    <StackPanel DataContext="{Binding Recording}" Margin="0,12,0,0" Spacing="8">
+                    <StackPanel DataContext="{Binding Recording}" Margin="0,12,0,0" Spacing="8"
+                                IsVisible="{Binding ShowPanel}">
                         <TextBlock Text="{Binding ErrorText}" IsVisible="{Binding HasError}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource ErrorBrush}" />
 
-                        <StackPanel Orientation="Horizontal" IsVisible="{Binding HasSaved}" Spacing="10">
-                            <TextBlock Text="{Binding SavedPath, StringFormat='Saved {0}'}" VerticalAlignment="Center"
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
-                            <Button Content="Show folder" Command="{Binding RevealFolderCommand}"
-                                    Theme="{StaticResource GhostButton}" Padding="14,6" />
-                        </StackPanel>
+                        <!-- A Grid, not a horizontal StackPanel: a StackPanel measures its children without a width
+                             limit, so a long path never wrapped and pushed "Show folder" out of the window. -->
+                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasSaved}">
+                            <TextBlock Grid.Column="0" Text="{Binding SavedPath, StringFormat='Saved {0}'}"
+                                       VerticalAlignment="Center" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Grid.Column="1" Content="Show folder" Command="{Binding RevealFolderCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6" Margin="10,0,0,0" />
+                        </Grid>
 
                         <StackPanel IsVisible="{Binding IsReview}" Spacing="8">
                             <TextBlock Text="{Binding LedgerText}" TextWrapping="Wrap"
