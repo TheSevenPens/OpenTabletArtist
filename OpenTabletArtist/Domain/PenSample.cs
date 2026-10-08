@@ -11,6 +11,9 @@ namespace OpenTabletArtist.Domain;
 /// <see cref="Timestamp"/> is when the daemon event reached the app, in <c>Stopwatch</c> ticks (0 =
 /// unstamped) — taken before the sample is queued to the UI thread, so report-rate measurement isn't
 /// skewed by UI scheduling.
+/// <see cref="RawPressure"/> is the device's own pressure count (<see cref="Pressure"/> is that over the tablet's
+/// maximum, clamped); <see cref="HasTilt"/> is whether the report carried tilt at all, so tilt 0 can be told apart
+/// from tilt the tablet does not measure. Both are 0/false for hand-built samples.
 /// </summary>
 public readonly record struct PenSample(
     double X,
@@ -23,7 +26,9 @@ public readonly record struct PenSample(
     double Twist,
     bool IsDown,
     int? HoverDistance = null,
-    long Timestamp = 0);
+    long Timestamp = 0,
+    double RawPressure = 0,
+    bool HasTilt = false);
 
 /// <summary>Where the Test canvas gets its pen data.</summary>
 public enum PenInputSourceKind

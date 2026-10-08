@@ -1,0 +1,86 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OpenTabletArtist.Views.StrokeRecordingDialog"
+        Title="Save recording"
+        Width="640" MinWidth="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBaseBrush}">
+
+    <!-- The height is the content's, not a number: a fixed height taller than the screen's usable area opened with its
+         title bar above the top and its buttons below the taskbar. The code-behind caps it to the screen the window is
+         on, and the ScrollViewer takes over when the form is taller than that.
+
+         DataContext is the StrokeRecordingViewModel for the recording that was just stopped. The Scribble page keeps
+         nothing of a finished recording: what it came to, who made it and where it went are all here, in two states.
+         Review is the form; Saved is the closing screen, which is the only place the file name is shown. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+
+            <!-- Review -->
+            <StackPanel x:Name="ReviewPanel" IsVisible="{Binding IsReview}" Spacing="14">
+                <TextBlock Text="Save recording" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                <!-- Where every report went. One line per place, numbers lined up, so the total can be checked by eye. -->
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Padding="12">
+                    <TextBlock Text="{Binding LedgerText}" TextWrapping="Wrap"
+                               FontFamily="{DynamicResource MonoFontFamily}"
+                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                </Border>
+
+                <CheckBox Content="Keep every airborne reading" IsChecked="{Binding KeepAirborne}"
+                          ToolTip.Tip="Also save everything the pen reported with the tip up, unfiltered. Off: only the hovering within a quarter second of each stroke is saved." />
+
+                <!-- Which tablet this is a recording of, as the file will name it. Fixed when Record was pressed. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tablet" Classes="SectionLabel" />
+                    <TextBox x:Name="TabletBox" Text="{Binding Tablet, Mode=OneWay}" IsReadOnly="True"
+                             ToolTip.Tip="The tablet this recording is of. It was fixed when you pressed Record, and is what the file will say." />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tablet firmware" Classes="SectionLabel" />
+                    <TextBox Text="{Binding Firmware}" PlaceholderText="For example 1.2.3, or &quot;modified&quot;" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Your name" Classes="SectionLabel" />
+                    <TextBox Text="{Binding Username}" PlaceholderText="How you want to be credited"
+                             ToolTip.Tip="Starts as your account name on this computer. Change it to whatever you want the recording to say." />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Notes" Classes="SectionLabel" />
+                    <TextBox Text="{Binding Notes}" PlaceholderText="Anything the recording can't say for itself (optional)"
+                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding ErrorText}" IsVisible="{Binding HasError}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource ErrorBrush}" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button Content="Discard" Click="OnDiscard"
+                            Theme="{StaticResource GhostButton}" Padding="18,7" />
+                    <Button Content="Save recording" Command="{Binding SaveCommand}"
+                            Theme="{StaticResource AccentButton}" Padding="18,7" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Saved -->
+            <StackPanel x:Name="SavedPanel" IsVisible="{Binding HasSaved}" Spacing="14">
+                <TextBlock Text="Recording saved" FontSize="{DynamicResource TypeTitleSize}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                <SelectableTextBlock Text="{Binding SavedPath}" TextWrapping="Wrap"
+                                     FontFamily="{DynamicResource MonoFontFamily}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button Content="Show folder" Command="{Binding RevealFolderCommand}"
+                            Theme="{StaticResource GhostButton}" Padding="18,7" />
+                    <Button Content="Done" Click="OnDone"
+                            Theme="{StaticResource AccentButton}" Padding="18,7" />
+                </StackPanel>
+            </StackPanel>
+
+        </Grid>
+    </ScrollViewer>
+</Window>

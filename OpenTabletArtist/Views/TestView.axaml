@@ -95,7 +95,23 @@
                         <CheckBox Content="Report dots" IsChecked="{Binding ShowReportDots}"
                                   VerticalAlignment="Center" Margin="20,0,0,0"
                                   ToolTip.Tip="Mark each pen report that lands ink with a red dot, to see where reports fall along a stroke" />
+
+                        <!-- Record mode: keep every pen report while you draw, then review and save them as a
+                             Stroke Corpus recording. Drawing works as usual while recording. -->
+                        <StackPanel Orientation="Horizontal" DataContext="{Binding Recording}" Margin="20,0,0,0"
+                                    VerticalAlignment="Center">
+                            <Button Content="Record" Command="{Binding StartCommand}" IsVisible="{Binding IsIdle}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6"
+                                    ToolTip.Tip="Record every pen report you make, to save as a Stroke Corpus recording" />
+                            <Button Content="Stop" Command="{Binding StopCommand}" IsVisible="{Binding IsRecording}"
+                                    Theme="{StaticResource AccentButton}" Padding="14,6" />
+                            <TextBlock Text="{Binding StatusText}" IsVisible="{Binding IsRecording}"
+                                       VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="420"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
                     </WrapPanel>
+
 
                     <!-- Live readouts. Paired values share a cell (x/y, tilt x/y, az/al) so the panel is 4×2
                          instead of a taller 5-wide grid; left-aligned + content-sized columns keep it

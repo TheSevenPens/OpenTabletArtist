@@ -42,6 +42,16 @@ public sealed class DaemonPenInputSource
     /// between this and what the UI has handled is the backlog.</summary>
     public long PenSampleCount => Interlocked.Read(ref _penSamples);
 
+    private volatile Action<JObject, PenSample>? _tap;
+
+    /// <summary>
+    /// Hands every parsed pen report, with the raw report it came from, to <paramref name="tap"/> on the thread that
+    /// received it, before it is queued to the UI. Pass null to detach. A stroke recording uses this so that its
+    /// boundary is the moment a report arrives: after the UI queue a report has lost which tablet it came from and
+    /// whether it arrived before or after Stop.
+    /// </summary>
+    public void SetTap(Action<JObject, PenSample>? tap) => _tap = tap;
+
     /// <summary>Raised on the UI thread when a report carries auxiliary-button (express key) state,
     /// with the current pressed/released state of each button. Pen-only reports don't fire it.</summary>
     public event Action<bool[]>? AuxButtons;
@@ -111,6 +121,7 @@ public sealed class DaemonPenInputSource
         if (DeviceReportSample.TryParse(data, out var sample))
         {
             sample = sample with { Timestamp = arrived };
+            _tap?.Invoke(data, sample);
             if (CountSamples) Interlocked.Increment(ref _penSamples);
             Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
         }
