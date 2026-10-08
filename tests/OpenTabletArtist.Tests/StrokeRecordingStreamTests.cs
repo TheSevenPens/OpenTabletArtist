@@ -48,7 +48,7 @@ public class StrokeRecordingStreamTests : IDisposable
         var source = new DaemonPenInputSource(daemon);
         await source.StartAsync();
 
-        var vm = new StrokeRecordingViewModel(() => Ptk470, source.SetTap, () => _folder);
+        var vm = new StrokeRecordingViewModel(() => Ptk470, source.SetTap, folder: () => _folder);
         return (daemon, source, vm);
     }
 
@@ -62,8 +62,9 @@ public class StrokeRecordingStreamTests : IDisposable
         vm.StopCommand.Execute(null);   // the dispatcher has queued all twenty and run none
 
         Assert.Contains("1 stroke", vm.LedgerText);
-        Assert.Contains("20 reports: 20 in strokes", vm.LedgerText);
-        Assert.Contains("0 after the stop", vm.LedgerText);
+        Assert.Equal(20, LedgerReader.Of(vm.LedgerText, "reports in total"));
+        Assert.Equal(20, LedgerReader.Of(vm.LedgerText, "in strokes"));
+        Assert.Equal(0, LedgerReader.Of(vm.LedgerText, "after the stop"));
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public class StrokeRecordingStreamTests : IDisposable
         daemon.Emit(TestReports.Json(Pen(101, 100)));
         vm.KeepAirborne = true;   // re-reads the recording
 
-        Assert.Contains("1 reports", vm.LedgerText);
+        Assert.Equal(1, LedgerReader.Of(vm.LedgerText, "reports in total"));
     }
 
     [Fact]
@@ -90,7 +91,7 @@ public class StrokeRecordingStreamTests : IDisposable
         daemon.Emit(TestReports.Json(Pen(101, 100)));
         vm.StopCommand.Execute(null);
 
-        Assert.Contains("1 reports", vm.LedgerText);
+        Assert.Equal(1, LedgerReader.Of(vm.LedgerText, "reports in total"));
     }
 
     [Fact]

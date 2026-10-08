@@ -1,3 +1,4 @@
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
 
@@ -42,5 +43,16 @@ internal static class TestReports
             },
             ["Data"] = data,
         };
+    }
+}
+
+/// <summary>Reads numbers off the review dialog's results text, which has one line per place a report can go.</summary>
+internal static class LedgerReader
+{
+    /// <summary>The number on the line that says <paramref name="what"/>.</summary>
+    public static int Of(string ledger, string what)
+    {
+        var line = ledger.Split('\n').Single(l => l.Contains(what));
+        return int.Parse(line.TrimStart().Split(' ')[0], System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.CurrentCulture);
     }
 }

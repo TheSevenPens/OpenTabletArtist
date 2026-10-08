@@ -49,6 +49,10 @@ public interface IDialogService
     /// <summary>Shows the built-in, searchable list of tablets OpenTabletDriver supports, highlighting
     /// the connected tablet when <paramref name="detectedName"/> matches one (#155).</summary>
     Task ShowSupportedTabletsAsync(string? detectedName);
+
+    /// <summary>Shows the review-and-save window for a recording that has just been stopped, and completes when it
+    /// is closed (after saving, discarding, or declining to). The recording's own view model carries everything.</summary>
+    Task ShowRecordingReviewAsync(StrokeRecordingViewModel recording);
 }
 
 /// <inheritdoc />
@@ -188,6 +192,16 @@ public class DialogService : IDialogService
     {
         var owner = Dialogs.GetMainWindow();
         if (owner != null) await Views.SupportedTabletsDialog.ShowAsync(owner, detectedName);
+    }
+
+    public async Task ShowRecordingReviewAsync(StrokeRecordingViewModel recording)
+    {
+        // With no window to hold it the dialog cannot be shown, which is an error: returning quietly would read as
+        // "closed without saving" and the recording would be discarded unseen.
+        var owner = Dialogs.GetMainWindow()
+                    ?? throw new InvalidOperationException("There is no window to show the recording over.");
+
+        await Views.StrokeRecordingDialog.ShowAsync(owner, recording);
     }
 
     public async Task ShowTextViewerAsync(string title, string content)

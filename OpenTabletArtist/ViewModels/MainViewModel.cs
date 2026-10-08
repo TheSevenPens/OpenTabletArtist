@@ -236,7 +236,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             () => OpenSettingsTab(SettingsTab.Drivers),  // VMulti → SETTINGS → DRIVERS (#vmulti-to-drivers)
             () => OpenAdvancedTab(AdvancedTab.CustomTabletConfigs),
             NavigateToPenByName);                        // pen-behaviour "Fix" → PEN page (#pen-split)
-        Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion);
+        Test = new TestViewModel(_session.Daemon, _session, () => _session.DaemonVersion,
+            showRecordingReview: dialogs.ShowRecordingReviewAsync,
+            showRecordingProblem: message => dialogs.ShowMessageAsync("Can't record", message));
         Log = new LogViewModel(_session.Daemon, _session);
         // Windows Ink moved to PLUGINS from the pivot now called VMULTI, so it is handed to that page —
         // and only

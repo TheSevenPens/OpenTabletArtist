@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Text.Json.Nodes;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
@@ -23,15 +26,22 @@ public class StrokeRecordingViewModelTests : IDisposable
     private static readonly StrokeRecordingContext Ptk470 = new(
         TestReports.Tablet, "OpenTabletDriver 0.6.5.0", 1023, new TabletSpace(15200, 9500, 152.0, 95.0));
 
-    /// <summary>The view model, and the tap it attached to the stream, which is what the daemon thread would call.</summary>
+    /// <summary>The view model, the tap it attached to the stream (which is what the daemon thread would call), and the
+    /// review dialog it asked for, which stays "open" until a test closes it.</summary>
     private sealed class Rig
     {
         public StrokeRecordingViewModel Vm = null!;
         public Action<JObject, PenSample>? Tap;
+        public readonly List<TaskCompletionSource> Reviews = new();
+        public readonly List<string> Problems = new();
+        public bool ReviewFails;
 
         /// <summary>A report as the stream delivers it: if nothing is attached, it reaches nobody.</summary>
         public void Feed(PenSample s, string tablet = TestReports.Tablet, double maxPressure = 1023) =>
             Tap?.Invoke(TestReports.Json(s, tablet: tablet, maxPressure: maxPressure), s);
+
+        /// <summary>The person closes the dialog, however they did it.</summary>
+        public void CloseDialog() => Reviews[^1].SetResult();
     }
 
     private Rig NewRig(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null)
@@ -40,10 +50,28 @@ public class StrokeRecordingViewModelTests : IDisposable
         rig.Vm = new StrokeRecordingViewModel(
             context ?? (() => Ptk470),
             tap => rig.Tap = tap,
-            () => _folder,
-            () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
-            reveal);
+            showReview: _ =>
+            {
+                var opened = new TaskCompletionSource();
+                rig.Reviews.Add(opened);
+                return rig.ReviewFails ? Task.FromException(new InvalidOperationException("no window")) : opened.Task;
+            },
+            showProblem: message =>
+            {
+                rig.Problems.Add(message);
+                return Task.CompletedTask;
+            },
+            folder: () => _folder,
+            now: () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
+            reveal: reveal);
         return rig;
+    }
+
+    /// <summary>The number on the ledger line that says <paramref name="what"/>.</summary>
+    private static int Of(string ledger, string what)
+    {
+        var line = ledger.Split('\n').Single(l => l.Contains(what));
+        return int.Parse(line.TrimStart().Split(' ')[0], NumberStyles.AllowThousands, CultureInfo.CurrentCulture);
     }
 
     private static PenSample Report(double ms, double pressure = 0, double x = 100) =>
@@ -146,7 +174,7 @@ public class StrokeRecordingViewModelTests : IDisposable
 
         Assert.True(rig.Vm.IsReview);
         Assert.Contains("0 strokes", rig.Vm.LedgerText);
-        Assert.Contains("0 reports", rig.Vm.LedgerText);
+        Assert.Equal(0, Of(rig.Vm.LedgerText, "reports in total"));
     }
 
     [Fact]
@@ -161,8 +189,8 @@ public class StrokeRecordingViewModelTests : IDisposable
         inFlight(TestReports.Json(Report(1, 100)), Report(1, 100));
         rig.Vm.KeepAirborne = true;   // re-reads the recording
 
-        Assert.Contains("2 reports", rig.Vm.LedgerText);
-        Assert.Contains("1 after the stop", rig.Vm.LedgerText);
+        Assert.Equal(2, Of(rig.Vm.LedgerText, "reports in total"));
+        Assert.Equal(1, Of(rig.Vm.LedgerText, "after the stop"));
         Assert.DoesNotContain("DOES NOT BALANCE", rig.Vm.LedgerText);
     }
 
@@ -189,7 +217,8 @@ public class StrokeRecordingViewModelTests : IDisposable
 
         Assert.True(rig.Vm.IsReview);
         Assert.Contains("2 strokes", rig.Vm.LedgerText);
-        Assert.Contains("10 reports: 5 in strokes", rig.Vm.LedgerText);
+        Assert.Equal(10, Of(rig.Vm.LedgerText, "reports in total"));
+        Assert.Equal(5, Of(rig.Vm.LedgerText, "in strokes"));
         Assert.DoesNotContain("DOES NOT BALANCE", rig.Vm.LedgerText);
         Assert.DoesNotContain("Not recorded", rig.Vm.LedgerText);
     }
@@ -201,12 +230,12 @@ public class StrokeRecordingViewModelTests : IDisposable
         rig.Vm.StartCommand.Execute(null);
         Draw(rig);
         rig.Vm.StopCommand.Execute(null);
-        Assert.Contains("0 hovering kept as the airborne record", rig.Vm.LedgerText);
+        Assert.Equal(0, Of(rig.Vm.LedgerText, "kept as the airborne record"));
 
         rig.Vm.KeepAirborne = true;
 
-        Assert.Contains("5 hovering kept as the airborne record", rig.Vm.LedgerText);
-        Assert.Contains("0 hovering left out", rig.Vm.LedgerText);
+        Assert.Equal(5, Of(rig.Vm.LedgerText, "kept as the airborne record"));
+        Assert.Equal(0, Of(rig.Vm.LedgerText, "left out"));
     }
 
     [Fact]
@@ -269,8 +298,9 @@ public class StrokeRecordingViewModelTests : IDisposable
         rig.Feed(Report(3, 210, 4));
         rig.Vm.StopCommand.Execute(null);
 
-        Assert.Contains("2 reports", rig.Vm.LedgerText);
-        Assert.Contains("Not recorded: 2 from other devices", rig.Vm.LedgerText);
+        Assert.Equal(2, Of(rig.Vm.LedgerText, "reports in total"));
+        Assert.Contains("Not recorded:", rig.Vm.LedgerText);
+        Assert.Equal(2, Of(rig.Vm.LedgerText, "from other devices"));
 
         rig.Vm.SaveCommand.Execute(null);
         var file = Saved(rig.Vm);
@@ -406,22 +436,146 @@ public class StrokeRecordingViewModelTests : IDisposable
         rig.Vm.Tick();
 
         Assert.True(rig.Vm.IsReview);
-        Assert.Contains("7 dropped at the limit", rig.Vm.LedgerText);
+        Assert.Equal(7, Of(rig.Vm.LedgerText, "dropped at the limit"));
 
         rig.Vm.SaveCommand.Execute(null);
 
         Assert.Contains("7 later reports were dropped", Saved(rig.Vm)["notes"]!.GetValue<string>());
     }
 
+    // ---- the review dialog ----
+
     [Fact]
-    public void ThePanelTakesNoRoomUntilThereIsSomethingInIt()
+    public void StoppingOpensTheReviewDialogOnce()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Empty(rig.Reviews);   // recording itself shows nothing but the clock
+
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.StopCommand.Execute(null);   // a second press does nothing
+
+        Assert.Single(rig.Reviews);
+        Assert.True(rig.Vm.IsReview);
+    }
+
+    [Fact]
+    public void ARecordingThatEndsItselfOpensTheDialogToo()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        rig.Feed(Report(0, 200, 1));
+        rig.Feed(Report(1, 200, 2), maxPressure: 8191);   // the tablet's specifications changed
+
+        rig.Vm.Tick();
+
+        Assert.Single(rig.Reviews);
+        Assert.Contains("specifications changed", rig.Vm.ErrorText);   // set before the dialog opens, so it is there to read
+    }
+
+    [Fact]
+    public void ClosingTheDialogWithoutSavingLeavesTheScribblePageAsItWas()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+
+        rig.CloseDialog();   // the dialog has already asked, and been told yes
+
+        Assert.True(rig.Vm.IsIdle);
+        Assert.Equal("", rig.Vm.LedgerText);
+        Assert.Equal("", rig.Vm.StatusText);
+        Assert.False(rig.Vm.HasSaved);
+        Assert.False(rig.Vm.HasError);
+        Assert.Null(rig.Tap);
+        Assert.False(Directory.Exists(_folder));   // and nothing was written
+    }
+
+    [Fact]
+    public void AfterSavingTheDialogClosesAndNothingOfTheRecordingStaysBehind()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
+        var saved = rig.Vm.SavedPath;
+
+        Assert.True(rig.Vm.HasSaved);   // the dialog's closing screen has the file name to show
+        Assert.True(File.Exists(saved));
+
+        rig.CloseDialog();
+
+        Assert.True(rig.Vm.IsIdle);
+        Assert.False(rig.Vm.HasSaved);   // the Scribble page never sees it
+        Assert.Equal("", rig.Vm.StatusText);
+        Assert.True(File.Exists(saved));   // closing the dialog does not undo the save
+    }
+
+    [Fact]
+    public void ADialogThatCannotBeShownDiscardsTheRecordingAndSaysSo()
+    {
+        var rig = NewRig();
+        rig.ReviewFails = true;
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+
+        rig.Vm.StopCommand.Execute(null);
+
+        Assert.True(rig.Vm.IsIdle);
+        Assert.Single(rig.Problems);
+        Assert.Contains("discarded", rig.Problems[0]);
+        Assert.Contains("no window", rig.Problems[0]);
+    }
+
+    [Fact]
+    public void WithoutATabletTheProblemIsSaidInAMessageNotOnThePage()
     {
         var rig = NewRig(() => null);
-        Assert.False(rig.Vm.ShowPanel);
 
-        rig.Vm.StartCommand.Execute(null);   // fails: an error to show
+        rig.Vm.StartCommand.Execute(null);
 
-        Assert.True(rig.Vm.ShowPanel);
+        Assert.Single(rig.Problems);
+        Assert.Contains("No tablet to record", rig.Problems[0]);
+        Assert.Empty(rig.Reviews);
+    }
+
+    [Fact]
+    public void ARecordingCanBeStartedAgainAfterTheDialogIsClosed()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
+        rig.CloseDialog();
+
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.True(rig.Vm.IsRecording);
+        Assert.NotNull(rig.Tap);
+    }
+
+    [Fact]
+    public void TheResultsAreOneLinePerPlaceAReportCanGo()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+
+        var lines = rig.Vm.LedgerText.Split('\n');
+
+        Assert.StartsWith("2 strokes over", lines[0]);
+        Assert.Equal(
+            ["reports in total", "in strokes", "hovering, kept with a stroke", "hovering, kept as the airborne record", "hovering, left out", "after the stop"],
+            lines.Skip(2).Select(l => l.TrimStart().Split("  ", 2)[1].Trim()));
+        // The parts add up to the whole, which is what the lined-up numbers are for.
+        Assert.Equal(
+            Of(rig.Vm.LedgerText, "reports in total"),
+            lines.Skip(3).Sum(l => int.Parse(l.Trim().Split(' ')[0], CultureInfo.CurrentCulture)));
     }
 
     [Fact]

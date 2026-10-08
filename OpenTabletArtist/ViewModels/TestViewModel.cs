@@ -33,7 +33,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
     private readonly IDeviceData _deviceData;
 
     /// <param name="daemonVersion">The connected daemon's version, for the driver line of a saved recording.</param>
-    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData, Func<string>? daemonVersion = null)
+    /// <param name="showRecordingReview">Opens the save window when a recording is stopped.</param>
+    /// <param name="showRecordingProblem">Says why Record could not start, in a message of its own.</param>
+    public TestViewModel(
+        IDaemonDebugSession daemon,
+        IDeviceData deviceData,
+        Func<string>? daemonVersion = null,
+        Func<StrokeRecordingViewModel, Task>? showRecordingReview = null,
+        Func<string, Task>? showRecordingProblem = null)
     {
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
@@ -41,7 +48,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _deviceData = deviceData;
         Recording = new StrokeRecordingViewModel(
             () => StrokeRecordingContext.From(_deviceData.Tablets, DetectedProfile()?.Profile.Tablet, daemonVersion?.Invoke()),
-            _driver.SetTap);
+            _driver.SetTap,
+            showRecordingReview,
+            showRecordingProblem);
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RefreshMs) };

@@ -82,6 +82,14 @@ internal sealed class FakeDialogService : IDialogService
         LastSupportedTabletsDetectedName = detectedName;
         return Task.CompletedTask;
     }
+
+    /// <summary>The recordings the review window was asked to show.</summary>
+    public List<OpenTabletArtist.ViewModels.StrokeRecordingViewModel> ReviewedRecordings { get; } = new();
+    public Task ShowRecordingReviewAsync(OpenTabletArtist.ViewModels.StrokeRecordingViewModel recording)
+    {
+        ReviewedRecordings.Add(recording);
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>Minimal <see cref="IDeviceData"/> with settable data and a manual DataLoaded trigger.</summary>
