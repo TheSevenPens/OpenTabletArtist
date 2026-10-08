@@ -32,12 +32,15 @@ public partial class TestViewModel : ObservableObject, IDisposable
     private readonly DaemonPenInputSource _driver;
     private readonly IDeviceData _deviceData;
 
-    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData)
+    /// <param name="daemonVersion">The connected daemon's version, for the driver line of a saved recording.</param>
+    public TestViewModel(IDaemonDebugSession daemon, IDeviceData deviceData, Func<string>? daemonVersion = null)
     {
         _driver = new DaemonPenInputSource(daemon);
         _driver.Sample += OnDriverSample;
         _driver.CountSamples = CountersEnabled; // the initializer doesn't go through OnCountersEnabledChanged
         _deviceData = deviceData;
+        Recording = new StrokeRecordingViewModel(() =>
+            StrokeRecordingContext.From(_deviceData.Tablets, DetectedProfile()?.Profile.Tablet, daemonVersion?.Invoke()));
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RefreshMs) };
@@ -80,11 +83,14 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Dynamics is enabled but nothing actually changes the pen (linear curve, no smoothing).</summary>
     [ObservableProperty] private bool _dynamicsNoOp;
 
+    /// <summary>The tablet this page follows: the active one when it's detected, else any detected one (#190 phase 3).</summary>
+    private ProfileItem? DetectedProfile() =>
+        _deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == _deviceData.ActiveTabletName)
+        ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
+
     private void RefreshTabletStatus()
     {
-        // Prefer the active tablet (when it's detected), else any detected one (#190 phase 3).
-        var detected = _deviceData.Profiles.FirstOrDefault(p => p.IsDetected && p.Profile.Tablet == _deviceData.ActiveTabletName)
-                       ?? _deviceData.Profiles.FirstOrDefault(p => p.IsDetected);
+        var detected = DetectedProfile();
         TabletDetected = detected != null;
         TabletStatusText = detected != null
             ? (string.IsNullOrEmpty(detected.Profile.Tablet) ? "Tablet detected" : detected.Profile.Tablet)
@@ -107,6 +113,9 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Mark every pen report that lands ink with a red dot (for judging strokes at high report rates).
     /// Off by default.</summary>
     [ObservableProperty] private bool _showReportDots;
+
+    /// <summary>Record mode: keep every pen report and save them as a Stroke Corpus recording.</summary>
+    public StrokeRecordingViewModel Recording { get; }
 
     /// <summary>Pointer-only mode draws nothing, so active dynamics can't be seen — warn while both
     /// are true (the user can switch Mode to a pressure view). (#183)</summary>
@@ -200,6 +209,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public void UpdateReadout(PenSample s)
     {
         _recorder?.Add(s);
+        Recording.Add(s);
         _latest = s;
         _hasSample = true;
         // Only refresh hover when the report actually carried it, so reports without proximity data
@@ -264,6 +274,7 @@ public partial class TestViewModel : ObservableObject, IDisposable
     {
         ClearIfOutOfRange(Stopwatch.GetTimestamp());
         PublishReadouts();
+        Recording.Tick();
         _ticks++;
         if (_ticks % RateEveryTicks == 0) PublishRate();
         PublishCounters(newLagWindow: _ticks % (1000 / RefreshMs) == 0); // lag window ≈ 1 s
@@ -481,6 +492,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     public async Task DeactivateAsync()
     {
         _refreshTimer.Stop();
+        // The driver stream goes off with the page, so a recording in progress ends here; it waits at review.
+        Recording.StopCommand.Execute(null);
         SaveRecording();
         await _driver.StopAsync();
     }

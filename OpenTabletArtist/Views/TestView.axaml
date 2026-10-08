@@ -95,7 +95,54 @@
                         <CheckBox Content="Report dots" IsChecked="{Binding ShowReportDots}"
                                   VerticalAlignment="Center" Margin="20,0,0,0"
                                   ToolTip.Tip="Mark each pen report that lands ink with a red dot, to see where reports fall along a stroke" />
+
+                        <!-- Record mode: keep every pen report while you draw, then review and save them as a
+                             Stroke Corpus recording. Drawing works as usual while recording. -->
+                        <StackPanel Orientation="Horizontal" DataContext="{Binding Recording}" Margin="20,0,0,0"
+                                    VerticalAlignment="Center">
+                            <Button Content="Record" Command="{Binding StartCommand}" IsVisible="{Binding IsIdle}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6"
+                                    ToolTip.Tip="Record every pen report you make, to save as a Stroke Corpus recording" />
+                            <Button Content="Stop" Command="{Binding StopCommand}" IsVisible="{Binding IsRecording}"
+                                    Theme="{StaticResource AccentButton}" Padding="14,6" />
+                            <TextBlock Text="{Binding StatusText}" IsVisible="{Binding IsRecording}"
+                                       VerticalAlignment="Center" Margin="12,0,0,0"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
                     </WrapPanel>
+
+                    <!-- Record mode, after a recording: what it came to, who made it, and Save. -->
+                    <StackPanel DataContext="{Binding Recording}" Margin="0,12,0,0" Spacing="8">
+                        <TextBlock Text="{Binding ErrorText}" IsVisible="{Binding HasError}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ErrorBrush}" />
+
+                        <StackPanel Orientation="Horizontal" IsVisible="{Binding HasSaved}" Spacing="10">
+                            <TextBlock Text="{Binding SavedPath, StringFormat='Saved {0}'}" VerticalAlignment="Center"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <Button Content="Show folder" Command="{Binding RevealFolderCommand}"
+                                    Theme="{StaticResource GhostButton}" Padding="14,6" />
+                        </StackPanel>
+
+                        <StackPanel IsVisible="{Binding IsReview}" Spacing="8">
+                            <TextBlock Text="{Binding LedgerText}" TextWrapping="Wrap"
+                                       FontFamily="{DynamicResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <CheckBox Content="Keep every airborne reading" IsChecked="{Binding KeepAirborne}"
+                                      ToolTip.Tip="Also save everything the pen reported with the tip up, unfiltered. Off: only the hovering within a quarter second of each stroke is saved." />
+                            <WrapPanel Orientation="Horizontal">
+                                <TextBox Text="{Binding Firmware}" PlaceholderText="Tablet firmware" Width="200" Margin="0,0,8,8" />
+                                <TextBox Text="{Binding Username}" PlaceholderText="Your name" Width="200" Margin="0,0,8,8" />
+                                <TextBox Text="{Binding Notes}" PlaceholderText="Notes (optional)" Width="320" Margin="0,0,8,8" />
+                            </WrapPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Save recording" Command="{Binding SaveCommand}"
+                                        Theme="{StaticResource AccentButton}" Padding="14,6" />
+                                <Button Content="Discard" Command="{Binding DiscardCommand}"
+                                        Theme="{StaticResource GhostButton}" Padding="14,6" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
 
                     <!-- Live readouts. Paired values share a cell (x/y, tilt x/y, az/al) so the panel is 4×2
                          instead of a taller 5-wide grid; left-aligned + content-sized columns keep it

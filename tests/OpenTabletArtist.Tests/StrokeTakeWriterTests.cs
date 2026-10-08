@@ -297,6 +297,41 @@ public class StrokeTakeWriterTests
     }
 
     [Fact]
+    public void ARecordingSessionIsAFileTheCorpusAccepts()
+    {
+        var ms = System.Diagnostics.Stopwatch.Frequency / 1000;
+        PenSample Report(double at, double x, double pressure) =>
+            new(0, 0, x, x * 2, pressure / 1023, 4, -3, 0, pressure > 0, HoverDistance: pressure > 0 ? 0 : 9,
+                Timestamp: 1_000_000 + (long)(at * ms), RawPressure: pressure, HasTilt: true);
+
+        var session = new StrokeRecordingSession(1023);
+        foreach (var (at, x, p) in new (double, double, double)[]
+                 { (0, 1, 0), (5, 2, 0), (10, 3, 200), (11, 4, 300), (12, 5, 250), (13, 6, 0), (14, 7, 0), (400, 8, 0), (410, 9, 100) })
+        {
+            session.Add(Report(at, x, p));
+        }
+
+        session.Stop();
+        session.Add(Report(420, 10, 0));
+
+        var json = StrokeTakeWriter.ToJson(
+            session.Segment(keepAirborne: true),
+            Described with
+            {
+                Device = Described.Device with { Conventions = StrokeRecordingSession.Conventions, FullScalePressure = 1023 },
+                Channels = session.Channels,
+            });
+
+        AssertValid(json);
+        var file = Parse(json);
+        Assert.Equal(["arrived", "x", "y", "pressure", "height", "lean", "azimuth"], file["columns"]!.AsArray().Select(c => c!.GetValue<string>()));
+        Assert.Equal(2, file["strokeCount"]!.GetValue<int>());
+        Assert.Equal("the recording was stopped mid-stroke", file["strokes"]![1]!["endedBy"]!.GetValue<string>());
+        Assert.Equal(6, file["aloft"]!.AsArray().Count);   // every airborne report, the one after the stop included
+        Assert.Equal(10, file["readingsHandedToTheRecorder"]!.GetValue<int>());
+    }
+
+    [Fact]
     public void ASuggestedNameSaysWhatMadeItAndWhen()
     {
         Assert.Equal(

@@ -49,7 +49,9 @@ public static class DeviceReportSample
             TiltY: tiltY,
             Twist: 0, // OTD device reports don't carry barrel twist
             IsDown: pressure > 0,
-            HoverDistance: hover);
+            HoverDistance: hover,
+            RawPressure: rawPressure,
+            HasTilt: tilt is { Type: not JTokenType.Null });
         return true;
     }
 
