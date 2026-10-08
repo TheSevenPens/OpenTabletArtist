@@ -187,24 +187,8 @@ public partial class TestViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Clear()
     {
-        SaveRecording();
         ResetCounters();
         ClearRequested?.Invoke();
-    }
-
-    // --- Report recording (opt-in) ---
-    // Set OTA_SCRIBBLE_RECORD to a file path and every report is kept until Clear (or leaving the page), when
-    // they're written there as CSV — for working out, offline, how fast position / pressure really update.
-    // Unset (the default): no recorder exists and the per-report path does nothing for it.
-    private readonly ReportRecorder? _recorder =
-        Environment.GetEnvironmentVariable("OTA_SCRIBBLE_RECORD") is { Length: > 0 } ? new ReportRecorder() : null;
-
-    private void SaveRecording()
-    {
-        if (_recorder is null) return;
-        var path = Environment.GetEnvironmentVariable("OTA_SCRIBBLE_RECORD")!;
-        try { _recorder.WriteAndReset(path); }
-        catch (Exception ex) { ProfileToast.Show($"Couldn't save the recording: {ex.Message}", "IconAlert"); }
     }
 
     /// <summary>Where the stroke is drawn on the canvas (always the pointer position, both modes).
@@ -219,7 +203,6 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// report-rate count. Cheap enough to call per report; the text is published on the next refresh tick.</summary>
     public void UpdateReadout(PenSample s)
     {
-        _recorder?.Add(s);
         _latest = s;
         _hasSample = true;
         // Only refresh hover when the report actually carried it, so reports without proximity data
@@ -504,7 +487,6 @@ public partial class TestViewModel : ObservableObject, IDisposable
         _refreshTimer.Stop();
         // The driver stream goes off with the page, so a recording in progress ends here; it waits at review.
         Recording.StopCommand.Execute(null);
-        SaveRecording();
         await _driver.StopAsync();
     }
 
