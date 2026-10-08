@@ -134,6 +134,30 @@ public class StrokeRecordingDialogTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void TheTabletIsShownReadOnlyAndTheNameStartsAsTheAccountName()
+    {
+        using var errors = BindingErrors.Capture();
+        var o = Record(agreeToDiscard: true, out var vm);
+        Dispatcher.UIThread.RunJobs();
+
+        var tablet = o.Dialog.FindControl<TextBox>("TabletBox")!;
+        Assert.Equal("Wacom PTK-470", tablet.Text);
+        Assert.True(tablet.IsReadOnly);
+
+        // Typing into it does nothing: the recording cannot be relabelled as another tablet from here.
+        tablet.Focus();
+        o.Dialog.KeyTextInput("x");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Wacom PTK-470", tablet.Text);
+        Assert.Equal("Wacom PTK-470", vm.Tablet);
+
+        var name = o.Dialog.GetVisualDescendants().OfType<TextBox>().First(t => t.PlaceholderText == "How you want to be credited");
+        Assert.Equal(Environment.UserName.Trim(), name.Text);
+        Assert.False(name.IsReadOnly);   // and the name, unlike the tablet, is theirs to change
+        errors.AssertNone("the tablet and name fields");
+    }
+
+    [AvaloniaFact]
     public void ItIsSizedToItsContentAndNeverTallerThanTheScreenItOpenedOn()
     {
         // A fixed height of 680 opened with its title bar above the top of a smaller screen and its buttons below the

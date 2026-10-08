@@ -79,8 +79,10 @@ public partial class StrokeRecordingViewModel : ObservableObject
         Func<string, Task>? showProblem = null,
         Func<string>? folder = null,
         Func<DateTimeOffset>? now = null,
-        Action<string>? reveal = null)
+        Action<string>? reveal = null,
+        Func<string>? accountName = null)
     {
+        _username = (accountName ?? AccountName)().Trim();
         _context = context;
         _setTap = setTap;
         _showReview = showReview;
@@ -124,11 +126,26 @@ public partial class StrokeRecordingViewModel : ObservableObject
 
     [ObservableProperty] private bool _keepAirborne;
 
+    /// <summary>
+    /// Which tablet this recording is of, as the file will name it. Read-only in the dialog: it is fixed when Record is
+    /// pressed, so that what the person sees is what is written, and a recording cannot be relabelled as another tablet.
+    /// </summary>
+    [ObservableProperty] private string _tablet = "";
+
     // Typed in by the person, as in the other recorder: the driver can't say which firmware the tablet runs, and
     // a recording says who made it. They stay filled between recordings; they are the same person on the same desk.
+    // The name starts as the account name of whoever is signed in (the short name, not their full name) and is theirs
+    // to change: the file is something they may publish, so what it says about them is their decision.
     [ObservableProperty] private string _firmware = "";
-    [ObservableProperty] private string _username = "";
+    [ObservableProperty] private string _username;
     [ObservableProperty] private string _notes = "";
+
+    /// <summary>The signed-in account's name. Anything that goes wrong reading it leaves the field empty to type in.</summary>
+    private static string AccountName()
+    {
+        try { return Environment.UserName ?? ""; }
+        catch (Exception) { return ""; }
+    }
 
     partial void OnKeepAirborneChanged(bool value) => Summarize();
 
@@ -170,6 +187,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
         }
 
         _recordedOn = context;
+        Tablet = context.Tablet;
         _session = new StrokeRecordingSession(context.FullScalePressure);
         _admission = new StrokeReportAdmission(context, _session);
         _startedAt = _now();
@@ -239,6 +257,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
         _session = null;
         _admission = null;
         _recordedOn = null;
+        Tablet = "";
         LedgerText = "";
         StatusText = "";
         ErrorText = "";

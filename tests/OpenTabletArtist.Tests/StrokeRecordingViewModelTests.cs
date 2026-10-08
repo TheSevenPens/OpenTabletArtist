@@ -44,7 +44,7 @@ public class StrokeRecordingViewModelTests : IDisposable
         public void CloseDialog() => Reviews[^1].SetResult();
     }
 
-    private Rig NewRig(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null)
+    private Rig NewRig(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null, string account = "account-name")
     {
         var rig = new Rig();
         rig.Vm = new StrokeRecordingViewModel(
@@ -63,7 +63,8 @@ public class StrokeRecordingViewModelTests : IDisposable
             },
             folder: () => _folder,
             now: () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
-            reveal: reveal);
+            reveal: reveal,
+            accountName: () => account);
         return rig;
     }
 
@@ -540,6 +541,81 @@ public class StrokeRecordingViewModelTests : IDisposable
         Assert.Single(rig.Problems);
         Assert.Contains("No tablet to record", rig.Problems[0]);
         Assert.Empty(rig.Reviews);
+    }
+
+    [Fact]
+    public void TheNameStartsAsTheAccountNameAndIsWrittenIfNobodyChangesIt()
+    {
+        var rig = NewRig(account: "  seven ");   // stray spaces are not part of a name
+        Assert.Equal("seven", rig.Vm.Username);
+
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Equal("seven", Saved(rig.Vm)["username"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ANameTheyTypeReplacesTheAccountNameAndIsKeptForTheNextRecording()
+    {
+        var rig = NewRig(account: "seven");
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Username = "TheSevenPens";
+        rig.Vm.SaveCommand.Execute(null);
+        Assert.Equal("TheSevenPens", Saved(rig.Vm)["username"]!.GetValue<string>());
+        rig.CloseDialog();
+
+        Assert.Equal("TheSevenPens", rig.Vm.Username);   // the same person on the same desk: not reset to the account name
+    }
+
+    [Fact]
+    public void AClearedNameStaysClearedRatherThanComingBack()
+    {
+        var rig = NewRig(account: "seven");
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Username = "";
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Equal("", Saved(rig.Vm)["username"]!.GetValue<string>());   // they chose to publish without one
+    }
+
+    [Fact]
+    public void WithNothingSuppliedTheNameIsTheSignedInAccountsShortName()
+    {
+        var vm = new StrokeRecordingViewModel(() => Ptk470, _ => { });
+
+        Assert.Equal(Environment.UserName.Trim(), vm.Username);
+    }
+
+    [Fact]
+    public void AnAccountNameThatCannotBeReadLeavesTheFieldEmptyToTypeIn()
+    {
+        Assert.Equal("", NewRig(account: "").Vm.Username);
+    }
+
+    [Fact]
+    public void TheTabletIsShownFromWhenRecordingStartsAndGoneWhenItIsDismissed()
+    {
+        var current = Ptk470;
+        var rig = NewRig(() => current);
+        Assert.Equal("", rig.Vm.Tablet);
+
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Equal("Wacom PTK-470", rig.Vm.Tablet);
+
+        current = current with { Tablet = "Wacom PTK-670" };   // the active tablet changes while recording
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        Assert.Equal("Wacom PTK-470", rig.Vm.Tablet);          // what the dialog shows is what is written
+
+        rig.CloseDialog();
+        Assert.Equal("", rig.Vm.Tablet);
     }
 
     [Fact]

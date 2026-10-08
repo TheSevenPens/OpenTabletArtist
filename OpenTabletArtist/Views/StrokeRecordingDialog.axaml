@@ -31,6 +31,13 @@
                 <CheckBox Content="Keep every airborne reading" IsChecked="{Binding KeepAirborne}"
                           ToolTip.Tip="Also save everything the pen reported with the tip up, unfiltered. Off: only the hovering within a quarter second of each stroke is saved." />
 
+                <!-- Which tablet this is a recording of, as the file will name it. Fixed when Record was pressed. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tablet" Classes="SectionLabel" />
+                    <TextBox x:Name="TabletBox" Text="{Binding Tablet, Mode=OneWay}" IsReadOnly="True"
+                             ToolTip.Tip="The tablet this recording is of. It was fixed when you pressed Record, and is what the file will say." />
+                </StackPanel>
+
                 <StackPanel Spacing="4">
                     <TextBlock Text="Tablet firmware" Classes="SectionLabel" />
                     <TextBox Text="{Binding Firmware}" PlaceholderText="For example 1.2.3, or &quot;modified&quot;" />
@@ -38,7 +45,8 @@
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="Your name" Classes="SectionLabel" />
-                    <TextBox Text="{Binding Username}" PlaceholderText="How you want to be credited" />
+                    <TextBox Text="{Binding Username}" PlaceholderText="How you want to be credited"
+                             ToolTip.Tip="Starts as your account name on this computer. Change it to whatever you want the recording to say." />
                 </StackPanel>
 
                 <StackPanel Spacing="4">
