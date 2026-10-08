@@ -50,7 +50,13 @@ public partial class TestViewModel : ObservableObject, IDisposable
             () => StrokeRecordingContext.From(_deviceData.Tablets, DetectedProfile()?.Profile.Tablet, daemonVersion?.Invoke()),
             _driver.SetTap,
             showRecordingReview,
-            showRecordingProblem);
+            showRecordingProblem,
+            rememberedFirmware: tablet => AppSettings.Get(FirmwareSettingKey(tablet)),
+            rememberFirmware: (tablet, firmware) =>
+            {
+                if (firmware is null) AppSettings.Remove(FirmwareSettingKey(tablet));
+                else AppSettings.Set(FirmwareSettingKey(tablet), firmware);
+            });
         _deviceData.DataLoaded += OnDataLoaded;
         _deviceData.PropertyChanged += OnDeviceDataPropertyChanged;
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(RefreshMs) };
@@ -123,6 +129,10 @@ public partial class TestViewModel : ObservableObject, IDisposable
     /// <summary>Mark every pen report that lands ink with a red dot (for judging strokes at high report rates).
     /// Off by default.</summary>
     [ObservableProperty] private bool _showReportDots;
+
+    /// <summary>Where the firmware last saved with a recording is kept, one entry per tablet: firmware belongs to a
+    /// tablet, and a different tablet must never open with another one's.</summary>
+    internal static string FirmwareSettingKey(string tablet) => $"recording.firmware.{tablet}";
 
     /// <summary>Record mode: keep every pen report and save them as a Stroke Corpus recording. It is fed from the
     /// daemon's receive thread, not from <see cref="UpdateReadout"/>; see <see cref="StrokeRecordingViewModel"/>.</summary>

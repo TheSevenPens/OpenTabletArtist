@@ -41,6 +41,11 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="Tablet firmware" Classes="SectionLabel" />
                     <TextBox Text="{Binding Firmware}" PlaceholderText="For example 1.2.3, or &quot;modified&quot;" />
+                    <!-- Says where the value came from (remembered from the last recording of this tablet) or that there is
+                         none. A remembered firmware can be stale after a flash and looks just like one typed a moment ago. -->
+                    <TextBlock Text="{Binding FirmwareNote}" IsVisible="{Binding HasFirmwareNote}" TextWrapping="Wrap"
+                               FontSize="{DynamicResource TypeCaptionSize}"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
                 </StackPanel>
 
                 <StackPanel Spacing="4">

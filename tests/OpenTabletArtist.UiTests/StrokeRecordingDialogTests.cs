@@ -158,6 +158,26 @@ public class StrokeRecordingDialogTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void AnEmptyFirmwareBoxSaysNotRecordedAndTheNoteGoesOnceThereIsSomethingTyped()
+    {
+        using var errors = BindingErrors.Capture();
+        var o = Record(agreeToDiscard: true, out var vm);
+        Dispatcher.UIThread.RunJobs();
+
+        TextBlock? Note() => o.Dialog.GetVisualDescendants().OfType<TextBlock>()
+            .FirstOrDefault(t => (t.Text ?? "").StartsWith("Not recorded."));
+
+        Assert.NotNull(Note());
+        Assert.True(Note()!.IsEffectivelyVisible);
+
+        vm.Firmware = "stock 1.0";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(Note() is null || !Note()!.IsEffectivelyVisible);
+        errors.AssertNone("the firmware note");
+    }
+
+    [AvaloniaFact]
     public void ItIsSizedToItsContentAndNeverTallerThanTheScreenItOpenedOn()
     {
         // A fixed height of 680 opened with its title bar above the top of a smaller screen and its buttons below the

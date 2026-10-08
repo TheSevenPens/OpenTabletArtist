@@ -44,7 +44,12 @@ public class StrokeRecordingViewModelTests : IDisposable
         public void CloseDialog() => Reviews[^1].SetResult();
     }
 
-    private Rig NewRig(Func<StrokeRecordingContext?>? context = null, Action<string>? reveal = null, string account = "account-name")
+    private Rig NewRig(
+        Func<StrokeRecordingContext?>? context = null,
+        Action<string>? reveal = null,
+        string account = "account-name",
+        Dictionary<string, string>? memory = null,
+        bool memoryFails = false)
     {
         var rig = new Rig();
         rig.Vm = new StrokeRecordingViewModel(
@@ -64,7 +69,15 @@ public class StrokeRecordingViewModelTests : IDisposable
             folder: () => _folder,
             now: () => new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero),
             reveal: reveal,
-            accountName: () => account);
+            accountName: () => account,
+            rememberedFirmware: memory is null ? null : tablet => memoryFails
+                ? throw new IOException("settings unreadable")
+                : memory.TryGetValue(tablet, out var firmware) ? firmware : null,
+            rememberFirmware: memory is null ? null : (tablet, firmware) =>
+            {
+                if (memoryFails) throw new IOException("settings unwritable");
+                if (firmware is null) memory.Remove(tablet); else memory[tablet] = firmware;
+            });
         return rig;
     }
 
@@ -616,6 +629,145 @@ public class StrokeRecordingViewModelTests : IDisposable
 
         rig.CloseDialog();
         Assert.Equal("", rig.Vm.Tablet);
+    }
+
+    // ---- the firmware, remembered per tablet ----
+
+    [Fact]
+    public void WithNoMemoryConfiguredTheFirmwareStaysAsTypedAndAnEmptyBoxSaysSo()
+    {
+        var rig = NewRig();
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Contains("Not recorded", rig.Vm.FirmwareNote);
+        Assert.True(rig.Vm.HasFirmwareNote);
+
+        rig.Vm.Firmware = "1.2.3";
+        Assert.Equal("", rig.Vm.FirmwareNote);   // typed just now: nothing to say
+        Assert.False(rig.Vm.HasFirmwareNote);
+    }
+
+    [Fact]
+    public void StartingOpensWithTheFirmwareLastSavedForThisTabletAndSaysWhereItCameFrom()
+    {
+        var memory = new Dictionary<string, string> { ["Wacom PTK-470"] = "stock 1.0" };
+        var rig = NewRig(memory: memory);
+
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Equal("stock 1.0", rig.Vm.Firmware);
+        Assert.Contains("Remembered from your last recording of this tablet", rig.Vm.FirmwareNote);
+    }
+
+    [Fact]
+    public void ChangingARememberedValueTakesTheRememberedNoteAway()
+    {
+        var rig = NewRig(memory: new Dictionary<string, string> { ["Wacom PTK-470"] = "stock 1.0" });
+        rig.Vm.StartCommand.Execute(null);
+
+        rig.Vm.Firmware = "modified";
+
+        Assert.False(rig.Vm.HasFirmwareNote);
+    }
+
+    [Fact]
+    public void ATabletNeverRecordedBeforeOpensEmptyEvenIfAnotherHasMemory()
+    {
+        var memory = new Dictionary<string, string> { ["Wacom PTK-670"] = "modified" };
+        var rig = NewRig(memory: memory);   // the tablet being recorded is the PTK-470
+
+        rig.Vm.Firmware = "left over in the box";
+        rig.Vm.StartCommand.Execute(null);
+
+        Assert.Equal("", rig.Vm.Firmware);   // not another tablet's firmware, and not a stale typed one
+        Assert.Contains("Not recorded", rig.Vm.FirmwareNote);
+    }
+
+    [Fact]
+    public void SavingRemembersTheFirmwareForThatTabletAndTheNextRecordingOpensWithIt()
+    {
+        var memory = new Dictionary<string, string>();
+        var rig = NewRig(memory: memory);
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Firmware = "  stock 1.0 ";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Equal("stock 1.0", memory["Wacom PTK-470"]);
+        Assert.Equal("stock 1.0", Saved(rig.Vm)["device"]!["firmware"]!.GetValue<string>());
+        rig.CloseDialog();   // after reading the file: closing the dialog dismisses the path
+
+        rig.Vm.StartCommand.Execute(null);
+        Assert.Equal("stock 1.0", rig.Vm.Firmware);
+    }
+
+    [Fact]
+    public void ClearingTheBoxAndSavingMakesItForgetRatherThanKeepTheOldValue()
+    {
+        var memory = new Dictionary<string, string> { ["Wacom PTK-470"] = "stock 1.0" };
+        var rig = NewRig(memory: memory);
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Firmware = "";
+
+        rig.Vm.SaveCommand.Execute(null);
+
+        Assert.Empty(memory);
+        Assert.Equal("", Saved(rig.Vm)["device"]!["firmware"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void DiscardingOrAFailedSaveRemembersNothing()
+    {
+        var memory = new Dictionary<string, string>();
+        var rig = NewRig(memory: memory);
+        rig.Vm.StartCommand.Execute(null);
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Firmware = "typed but never saved";
+        rig.Vm.DiscardCommand.Execute(null);
+        Assert.Empty(memory);
+
+        File.WriteAllText(_folder, "a file where the folder should be");
+        try
+        {
+            rig.Vm.StartCommand.Execute(null);
+            Draw(rig);
+            rig.Vm.StopCommand.Execute(null);
+            rig.Vm.Firmware = "also never saved";
+            rig.Vm.SaveCommand.Execute(null);
+
+            Assert.True(rig.Vm.HasError);
+            Assert.Empty(memory);
+        }
+        finally { File.Delete(_folder); }
+    }
+
+    [Fact]
+    public void SettingsThatCannotBeReadOrWrittenNeverStopRecordingOrSaving()
+    {
+        var rig = NewRig(memory: new Dictionary<string, string>(), memoryFails: true);
+
+        rig.Vm.StartCommand.Execute(null);   // reading fails: the box is simply empty
+        Assert.True(rig.Vm.IsRecording);
+        Assert.Equal("", rig.Vm.Firmware);
+
+        Draw(rig);
+        rig.Vm.StopCommand.Execute(null);
+        rig.Vm.Firmware = "1.2.3";
+        rig.Vm.SaveCommand.Execute(null);   // writing fails: the recording is saved all the same
+
+        Assert.True(rig.Vm.HasSaved);
+        Assert.Equal("1.2.3", Saved(rig.Vm)["device"]!["firmware"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void FirmwareIsKeptUnderTheTabletsOwnSettingsKey()
+    {
+        Assert.Equal("recording.firmware.Wacom PTK-670", OpenTabletArtist.ViewModels.TestViewModel.FirmwareSettingKey("Wacom PTK-670"));
     }
 
     [Fact]
