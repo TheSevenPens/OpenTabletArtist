@@ -165,7 +165,13 @@ public static class StrokeTakeWriter
                     ?? (take.Aloft.Count > 0 ? take.Aloft[0].ArrivedUs : 0);
 
         using var stream = new MemoryStream();
-        using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        // Relaxed escaping: the default writes every apostrophe as ', which is valid and unreadable in the
+        // conventions text and in anything a person types. The output is UTF-8, so nothing needs escaping to be safe.
+        using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions
+               {
+                   Indented = true,
+                   Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+               }))
         {
             json.WriteStartObject();
 

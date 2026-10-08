@@ -264,6 +264,21 @@ public class StrokeTakeWriterTests
     }
 
     [Fact]
+    public void TextPeopleTypeIsReadableInTheFileAndStillValid()
+    {
+        var json = StrokeTakeWriter.ToJson(TwoStrokes(), Described with
+        {
+            Username = "Zoë O'Brien",
+            Notes = "Pen's \"nib\" is worn <a href='x'>& done</a>",
+        });
+
+        AssertValid(json);
+        Assert.Contains("Zoë O'Brien", json);
+        Assert.DoesNotContain("\\u0027", json);
+        Assert.Equal("Pen's \"nib\" is worn <a href='x'>& done</a>", Parse(json)["notes"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void TheCorpusSchemaCanFailThisFile()
     {
         // The check above is only worth something if the schema rejects a recording that breaks a rule:
