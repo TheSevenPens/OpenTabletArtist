@@ -7,6 +7,8 @@ namespace OpenTabletArtist.Domain;
 /// One pen report as the stroke recorder keeps it: tablet-space position, the host clock, and the
 /// channels the stroke-field-guide format carries. <see cref="ArrivedUs"/> is a monotonic host clock in
 /// microseconds (the recorder policy ages approach and departure on it, never on a pen timestamp).
+/// <see cref="Pressure"/> is the device's own count, not normalized: only "above zero" matters to the
+/// segmenter, and the file stores the count.
 /// </summary>
 public readonly record struct TabletReading(
     long ArrivedUs,
@@ -71,7 +73,8 @@ public sealed record SegmentedTake(
     IReadOnlyList<TabletReading> Aloft,
     StrokeLedger Ledger,
     ReadingFate[] Fates,
-    string EndedBy);
+    string EndedBy,
+    bool KeptAirborne);
 
 /// <summary>
 /// Cuts a recorded run of pen reports into the strokes, approaches, departures and airborne record that
@@ -197,7 +200,8 @@ public static class StrokeSegmenter
             aloft,
             ledger,
             fates,
-            done.Count == 0 ? "the recording was stopped before anything was drawn" : "the recording was stopped");
+            done.Count == 0 ? "the recording was stopped before anything was drawn" : "the recording was stopped",
+            keepAirborne);
     }
 
     private sealed class Open

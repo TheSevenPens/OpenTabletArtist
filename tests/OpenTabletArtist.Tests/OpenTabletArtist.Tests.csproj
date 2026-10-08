@@ -38,10 +38,20 @@
          two runners to migrate rather than one; they now share this line. Held at 3.x by
          Avalonia.Headless.XUnit - see the note in the UI test project. -->
     <PackageReference Include="xunit.v3" Version="3.2.2" />
+
+    <!-- Test-only: validates what StrokeTakeWriter produces against the StrokeCorpus JSON Schema (a copy lives
+         in Fixtures/), so this writer cannot drift from the format the corpus accepts. -->
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A copy of StrokeCorpus's schema/take.schema.json, which StrokeTakeWriterTests validates the writer's
+         output against. Refresh it when the format changes; the corpus repository is the source of truth. -->
+    <None Include="Fixtures\take.schema.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

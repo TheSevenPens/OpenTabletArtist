@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thesevenpens.github.io/StrokeCorpus/schema/take.schema.json",
+  "title": "A Stroke Corpus recording",
+  "description": "One recording, in any of the eight format versions. A column a file does not carry is a real absence, not a field defaulting to zero, so this is not one schema with everything optional: each version declares exactly the columns and fields it carries, and anything else is an error. Row length, nulls and counts cannot be expressed in JSON Schema and are checked by tools/validate.py. The prose definition is FORMAT.md.",
+  "type": "object",
+  "required": ["format", "formatVersion"],
+  "properties": {
+    "format": { "const": "stroke-field-guide/take" },
+    "formatVersion": { "type": "integer", "minimum": 1, "maximum": 8 }
+  },
+  "allOf": [
+    { "if": { "properties": { "formatVersion": { "const": 1 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version1" } },
+    { "if": { "properties": { "formatVersion": { "const": 2 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version2" } },
+    { "if": { "properties": { "formatVersion": { "const": 3 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version3" } },
+    { "if": { "properties": { "formatVersion": { "const": 4 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version4" } },
+    { "if": { "properties": { "formatVersion": { "const": 5 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version5" } },
+    { "if": { "properties": { "formatVersion": { "const": 6 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version6" } },
+    { "if": { "properties": { "formatVersion": { "const": 7 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version7" } },
+    { "if": { "properties": { "formatVersion": { "const": 8 } }, "required": ["formatVersion"] }, "then": { "$ref": "#/$defs/version8" } }
+  ],
+
+  "$defs": {
+
+    "cell": {
+      "description": "One value in a reading row. Null only where the take has no host clock, in the arrived column; tools/validate.py enforces that.",
+      "type": ["number", "null"]
+    },
+    "row": {
+      "description": "A reading: an array whose slots are named by the file's own columns. Its length must equal the number of columns, which tools/validate.py checks.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/cell" },
+      "minItems": 3,
+      "maxItems": 10
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+
+    "columnsV1": { "const": ["at", "x", "y", "pressure", "lean", "azimuth", "twist"] },
+    "columnsV3": { "const": ["at", "x", "y", "pressure", "height", "lean", "azimuth", "twist"] },
+    "columnsV4": { "const": ["at", "x", "y", "pressure", "height", "status", "lean", "azimuth", "twist"] },
+    "columnsV5": { "const": ["at", "arrived", "x", "y", "pressure", "height", "status", "lean", "azimuth", "twist"] },
+    "columnsV8": {
+      "description": "From version 8 a file may carry any of the known columns, so long as it has a position and a pressure. The columns it declares are what it carries; a reader takes them from here, not from this list.",
+      "type": "array",
+      "items": { "enum": ["at", "arrived", "x", "y", "pressure", "height", "status", "lean", "azimuth", "twist"] },
+      "uniqueItems": true,
+      "minItems": 3,
+      "allOf": [
+        { "contains": { "const": "x" } },
+        { "contains": { "const": "y" } },
+        { "contains": { "const": "pressure" } }
+      ]
+    },
+
+    "placement": {
+      "description": "Where desktop positions came from, for a recording whose x and y are desktop positions.",
+      "type": "object",
+      "required": ["units", "note", "scaleX", "scaleY", "originX", "originY"],
+      "properties": {
+        "units": { "type": "string" },
+        "note": { "type": "string" },
+        "scaleX": { "type": "number" },
+        "scaleY": { "type": "number" },
+        "originX": { "type": "number" },
+        "originY": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "deviceCore": {
+      "type": "object",
+      "required": ["tablet", "driver", "api", "fullScalePressure", "conventions"],
+      "properties": {
+        "tablet": { "type": "string" },
+        "driver": { "type": "string" },
+        "api": { "type": "string" },
+        "fullScalePressure": { "type": "integer", "minimum": 1 },
+        "conventions": { "type": "string" }
+      }
+    },
+    "device": {
+      "description": "Before version 7 a recording did not ask for the firmware, so the field is unrecorded and must be absent.",
+      "allOf": [ { "$ref": "#/$defs/deviceCore" } ],
+      "unevaluatedProperties": false
+    },
+    "deviceWithFirmware": {
+      "description": "From version 7 the firmware is always present. An empty string means the person was asked and wrote nothing.",
+      "allOf": [ { "$ref": "#/$defs/deviceCore" }, { "required": ["firmware"], "properties": { "firmware": { "type": "string" } } } ],
+      "unevaluatedProperties": false
+    },
+
+    "ledger": {
+      "type": "object",
+      "required": ["packetsFromTheDriver", "packetsOutsideTheCaptureRegion", "pointsDelivered"],
+      "properties": {
+        "packetsFromTheDriver": { "type": "integer", "minimum": 0 },
+        "packetsOutsideTheCaptureRegion": { "type": "integer", "minimum": 0 },
+        "pointsDelivered": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+
+    "stroke": {
+      "type": "object",
+      "required": ["readings"],
+      "properties": {
+        "readings": { "$ref": "#/$defs/rows" },
+        "readingCount": { "type": "integer", "minimum": 0 },
+        "approach": { "$ref": "#/$defs/rows" },
+        "departure": { "$ref": "#/$defs/rows" },
+        "lastSeenInTheAirMs": { "type": "number" },
+        "lastSeenInTheAir": { "type": "string", "description": "Written instead of lastSeenInTheAirMs when the pen was not reported in the air at all before the landing; a statement, not a duration." },
+        "endedBy": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "identity": {
+      "description": "What every version says about itself.",
+      "type": "object",
+      "required": ["format", "formatVersion", "id", "gesture", "intent", "recordedAt", "endedBy", "columns", "device"],
+      "properties": {
+        "format": { "const": "stroke-field-guide/take" },
+        "formatVersion": { "type": "integer" },
+        "id": { "type": "string", "minLength": 1 },
+        "gesture": { "type": "string" },
+        "intent": { "type": "string" },
+        "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}" },
+        "endedBy": { "type": "string" },
+        "editedAfterRecording": { "type": "string", "description": "A recording that was changed after it was recorded says so here. Rare, and a reason to treat the recording as less than original evidence." }
+      }
+    },
+
+    "strokesBody": {
+      "description": "Version 2 onwards: the recording is a list of strokes, each with its own readings, and the counters the recorder kept.",
+      "type": "object",
+      "required": ["strokeCount", "strokes"],
+      "properties": {
+        "strokeCount": { "type": "integer", "minimum": 0 },
+        "strokes": { "type": "array", "items": { "$ref": "#/$defs/stroke" } },
+        "aloft": { "$ref": "#/$defs/rows" },
+        "aloftNote": { "type": "string" },
+        "keptEveryAirborneReading": { "type": "boolean" },
+        "readingsHandedToTheRecorder": { "type": "integer", "minimum": 0 },
+        "readingsDroppedForBeingOffThePad": { "type": "integer", "minimum": 0 },
+        "readingsAfterTheRecordingStopped": { "type": "integer", "minimum": 0 },
+        "readingsAirborneAndNotKept": { "type": "integer", "minimum": 0 },
+        "readingsAirborneKeptWithAStroke": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ledgerField": {
+      "properties": { "whatTheSessionCounted": { "$ref": "#/$defs/ledger" } }
+    },
+    "clocksField": {
+      "description": "Version 5 onwards: what the two clocks are.",
+      "properties": { "clocks": { "type": "string" } }
+    },
+    "whoField": {
+      "description": "Version 7 onwards, typed in by the person recording. Always present; an empty string means they were asked and wrote nothing.",
+      "required": ["username", "notes"],
+      "properties": { "username": { "type": "string" }, "notes": { "type": "string" } }
+    },
+
+    "version1": {
+      "description": "One take, one run of readings at the top level, and no record of where contact broke.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        {
+          "required": ["placement", "readings"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV1" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" },
+            "readings": { "$ref": "#/$defs/rows" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version2": {
+      "description": "Adds the strokes array, each stroke with its own approach and departure.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV1" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version3": {
+      "description": "Adds the height column, and the session ledger where the session kept one.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV3" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version4": {
+      "description": "Adds the raw status word.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV4" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version5": {
+      "description": "Adds the arrived column, the host's clock beside the pen's own.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        { "$ref": "#/$defs/clocksField" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV5" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version6": {
+      "description": "No schema change from version 5: the approach, departure and lastSeenInTheAirMs are decided on the host clock, which is what makes hover trustworthy.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        { "$ref": "#/$defs/clocksField" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV5" },
+            "device": { "$ref": "#/$defs/device" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version7": {
+      "description": "Adds username and notes at the top level and firmware inside device. No columns change.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        { "$ref": "#/$defs/clocksField" },
+        { "$ref": "#/$defs/whoField" },
+        {
+          "required": ["placement"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV5" },
+            "device": { "$ref": "#/$defs/deviceWithFirmware" },
+            "placement": { "$ref": "#/$defs/placement" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "version8": {
+      "description": "Adds coordinates, which says what x and y are. A file carries the columns it measured, so columns is no longer a fixed list. A desktop recording keeps its placement; a tablet recording has none, because there is no desktop to place.",
+      "allOf": [
+        { "$ref": "#/$defs/identity" },
+        { "$ref": "#/$defs/strokesBody" },
+        { "$ref": "#/$defs/ledgerField" },
+        { "$ref": "#/$defs/clocksField" },
+        { "$ref": "#/$defs/whoField" },
+        {
+          "required": ["coordinates"],
+          "properties": {
+            "columns": { "$ref": "#/$defs/columnsV8" },
+            "device": { "$ref": "#/$defs/deviceWithFirmware" },
+            "placement": { "$ref": "#/$defs/placement" },
+            "coordinates": { "$ref": "#/$defs/coordinates" }
+          },
+          "if": {
+            "required": ["coordinates"],
+            "properties": { "coordinates": { "required": ["space"], "properties": { "space": { "const": "tablet" } } } }
+          },
+          "then": { "properties": { "placement": { "not": {} } } },
+          "else": { "required": ["placement"] }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "coordinates": {
+      "description": "What x and y are. Absent before version 8, where they are desktop positions: a reader must treat an absent coordinates as desktop and not as unknown.",
+      "oneOf": [
+        {
+          "title": "desktop",
+          "description": "x and y are positions on the desktop, in the units placement describes.",
+          "type": "object",
+          "required": ["space", "units"],
+          "properties": {
+            "space": { "const": "desktop" },
+            "units": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "title": "tablet",
+          "description": "x and y are the device's own digitizer counts, before any mapping to a display. The origin and the direction of the axes are the device's own and are not normalized.",
+          "type": "object",
+          "required": ["space", "units", "maxX", "maxY", "widthMm", "heightMm"],
+          "properties": {
+            "space": { "const": "tablet" },
+            "units": { "type": "string", "minLength": 1 },
+            "maxX": { "type": "number", "exclusiveMinimum": 0 },
+            "maxY": { "type": "number", "exclusiveMinimum": 0 },
+            "widthMm": { "type": "number", "exclusiveMinimum": 0 },
+            "heightMm": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
