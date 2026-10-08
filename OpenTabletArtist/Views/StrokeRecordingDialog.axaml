@@ -2,11 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OpenTabletArtist.Views.StrokeRecordingDialog"
         Title="Save recording"
-        Width="640" Height="680" MinWidth="520" MinHeight="420"
+        Width="640" MinWidth="520" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BgBaseBrush}">
 
-    <!-- DataContext is the StrokeRecordingViewModel for the recording that was just stopped. The Scribble page keeps
+    <!-- The height is the content's, not a number: a fixed height taller than the screen's usable area opened with its
+         title bar above the top and its buttons below the taskbar. The code-behind caps it to the screen the window is
+         on, and the ScrollViewer takes over when the form is taller than that.
+
+         DataContext is the StrokeRecordingViewModel for the recording that was just stopped. The Scribble page keeps
          nothing of a finished recording: what it came to, who made it and where it went are all here, in two states.
          Review is the form; Saved is the closing screen, which is the only place the file name is shown. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">

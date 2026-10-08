@@ -134,6 +134,28 @@ public class StrokeRecordingDialogTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void ItIsSizedToItsContentAndNeverTallerThanTheScreenItOpenedOn()
+    {
+        // A fixed height of 680 opened with its title bar above the top of a smaller screen and its buttons below the
+        // taskbar. The height is the content's, capped to the usable area, and the form scrolls inside when it must.
+        var o = Record(agreeToDiscard: true, out _);
+        Dispatcher.UIThread.RunJobs();
+
+        // (Height itself is not NaN once laid out: sizing to content writes the result back into it.)
+        Assert.Equal(SizeToContent.Height, o.Dialog.SizeToContent);
+
+        var screen = o.Dialog.Screens.ScreenFromWindow(o.Dialog) ?? o.Dialog.Screens.Primary;
+        if (screen is not null)
+        {
+            var usable = screen.WorkingArea.Height / screen.Scaling;
+            Assert.True(o.Dialog.MaxHeight < usable, $"capped at {o.Dialog.MaxHeight}, which must leave room within {usable}");
+            Assert.True(o.Dialog.ClientSize.Height <= o.Dialog.MaxHeight);
+        }
+
+        Assert.NotNull(o.Dialog.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault());   // the overflow has somewhere to go
+    }
+
+    [AvaloniaFact]
     public void SavingSwitchesToTheSavedScreenWhichIsTheOnlyPlaceTheFileNameAppears()
     {
         using var errors = BindingErrors.Capture();

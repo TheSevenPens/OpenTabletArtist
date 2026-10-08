@@ -1,8 +1,10 @@
 using System;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using OpenTabletArtist.Helpers;
 using OpenTabletArtist.Services;
 using OpenTabletArtist.ViewModels;
@@ -45,6 +47,38 @@ public partial class StrokeRecordingDialog : Window
 
         Closing += OnClosing;
         KeyDown += OnKeyDown;
+        Opened += (_, _) => FitToScreen();
+    }
+
+    /// <summary>Room to leave for the title bar and the window frame, which MaxHeight (the client area) does not count.</summary>
+    private const double ChromeAllowance = 72;
+
+    /// <summary>
+    /// Keeps the whole window on the screen it opened on. The height follows the content, so on a small or heavily
+    /// scaled display the content can be taller than the usable area (the screen less the taskbar): the window is
+    /// capped at that area, and the form scrolls inside it. Centring on the owner can still put the top edge above
+    /// the screen, so it is moved back down.
+    /// </summary>
+    private void FitToScreen()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null) return;
+
+        var work = screen.WorkingArea;
+        var scale = screen.Scaling <= 0 ? 1 : screen.Scaling;
+
+        MaxHeight = Math.Max(240, work.Height / scale - ChromeAllowance);
+
+        // After the new maximum has been laid out, so the height used is the one that will be shown.
+        Dispatcher.UIThread.Post(() =>
+        {
+            var frame = FrameSize ?? ClientSize;
+            var heightPx = (int)Math.Ceiling(frame.Height * scale);
+            var y = Math.Clamp(Position.Y, work.Y, Math.Max(work.Y, work.Bottom - heightPx));
+            var x = Math.Clamp(Position.X, work.X, Math.Max(work.X, work.Right - (int)Math.Ceiling(frame.Width * scale)));
+
+            if (y != Position.Y || x != Position.X) Position = new PixelPoint(x, y);
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnDiscard(object? sender, RoutedEventArgs e) => Close();
