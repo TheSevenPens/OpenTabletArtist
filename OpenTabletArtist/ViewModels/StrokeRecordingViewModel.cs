@@ -61,6 +61,8 @@ public partial class StrokeRecordingViewModel : ObservableObject
     private readonly Func<string> _folder;
     private readonly Func<DateTimeOffset> _now;
     private readonly Action<string> _reveal;
+    private readonly Func<string, string?>? _rememberedFirmware;
+    private readonly Action<string, string?>? _rememberFirmware;
 
     private StrokeRecordingSession? _session;
     private StrokeReportAdmission? _admission;
@@ -72,6 +74,9 @@ public partial class StrokeRecordingViewModel : ObservableObject
     /// <param name="showReview">Shows the review-and-save dialog for this recording and completes when it is closed.
     /// Without it the recording simply waits at review.</param>
     /// <param name="showProblem">Tells the person why recording could not start, away from the Scribble page.</param>
+    /// <param name="rememberedFirmware">The firmware last saved for a tablet, by its name, or null if none. Without it (and
+    /// without <paramref name="rememberFirmware"/>) nothing is remembered between recordings beyond what is typed.</param>
+    /// <param name="rememberFirmware">Stores the firmware for a tablet after a recording of it is saved; null clears it.</param>
     public StrokeRecordingViewModel(
         Func<StrokeRecordingContext?> context,
         Action<Action<JObject, PenSample>?> setTap,
@@ -80,8 +85,12 @@ public partial class StrokeRecordingViewModel : ObservableObject
         Func<string>? folder = null,
         Func<DateTimeOffset>? now = null,
         Action<string>? reveal = null,
-        Func<string>? accountName = null)
+        Func<string>? accountName = null,
+        Func<string, string?>? rememberedFirmware = null,
+        Action<string, string?>? rememberFirmware = null)
     {
+        _rememberedFirmware = rememberedFirmware;
+        _rememberFirmware = rememberFirmware;
         _username = (accountName ?? AccountName)().Trim();
         _context = context;
         _setTap = setTap;
@@ -136,7 +145,9 @@ public partial class StrokeRecordingViewModel : ObservableObject
     // a recording says who made it. They stay filled between recordings; they are the same person on the same desk.
     // The name starts as the account name of whoever is signed in (the short name, not their full name) and is theirs
     // to change: the file is something they may publish, so what it says about them is their decision.
-    [ObservableProperty] private string _firmware = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirmwareNote), nameof(HasFirmwareNote))]
+    private string _firmware = "";
     [ObservableProperty] private string _username;
     [ObservableProperty] private string _notes = "";
 
@@ -146,6 +157,34 @@ public partial class StrokeRecordingViewModel : ObservableObject
         try { return Environment.UserName ?? ""; }
         catch (Exception) { return ""; }
     }
+
+    // The firmware the dialog opened with because it was remembered for this tablet, so the note can say where it came from
+    // for as long as it is still what is in the box.
+    private string _fromMemory = "";
+
+    /// <summary>
+    /// What to say under the firmware box. A recording is evidence about one firmware, and a remembered value can be
+    /// stale (flash the tablet and it is wrong) while looking exactly like a value typed just now. So the note says where it
+    /// came from, and says plainly when there is none.
+    /// </summary>
+    public string FirmwareNote
+    {
+        get
+        {
+            var typed = Firmware.Trim();
+
+            if (typed.Length == 0)
+            {
+                return "Not recorded. Say which firmware this tablet is running: recordings from different firmware can't be compared fairly without it.";
+            }
+
+            return typed == _fromMemory
+                ? "Remembered from your last recording of this tablet. Change it if the firmware has changed."
+                : "";
+        }
+    }
+
+    public bool HasFirmwareNote => FirmwareNote.Length > 0;
 
     partial void OnKeepAirborneChanged(bool value) => Summarize();
 
@@ -188,6 +227,7 @@ public partial class StrokeRecordingViewModel : ObservableObject
 
         _recordedOn = context;
         Tablet = context.Tablet;
+        LoadRememberedFirmware(context.Tablet);
         _session = new StrokeRecordingSession(context.FullScalePressure);
         _admission = new StrokeReportAdmission(context, _session);
         _startedAt = _now();
@@ -295,6 +335,8 @@ public partial class StrokeRecordingViewModel : ObservableObject
             var path = StrokeTakeWriter.Write(
                 take, description, _folder(), StrokeTakeWriter.Suggest(Gesture, on.Tablet, _startedAt));
 
+            RememberFirmwareFor(on.Tablet);
+
             Discard();
             SavedPath = path;
         }
@@ -304,6 +346,32 @@ public partial class StrokeRecordingViewModel : ObservableObject
             // Nothing is kept of a failed save (the writer cleans up after itself), and the recording is still here to try again.
             ErrorText = $"Couldn't save the recording: {ex.Message}";
         }
+    }
+
+    /// <summary>Opens the dialog with the firmware this tablet was last saved with, or empty, so it is never another
+    /// tablet's. With no memory configured the box is left as it was.</summary>
+    private void LoadRememberedFirmware(string tablet)
+    {
+        if (_rememberedFirmware is null) return;
+
+        string? remembered = null;
+        try { remembered = _rememberedFirmware(tablet); }
+        catch (Exception) { /* a settings file that cannot be read leaves the box empty to type in */ }
+
+        _fromMemory = remembered?.Trim() ?? "";
+        Firmware = _fromMemory;
+        OnPropertyChanged(nameof(FirmwareNote));
+        OnPropertyChanged(nameof(HasFirmwareNote));
+    }
+
+    /// <summary>Remembers what the recording was saved with, or forgets it if the box was cleared. Never stops a save.</summary>
+    private void RememberFirmwareFor(string tablet)
+    {
+        if (_rememberFirmware is null) return;
+
+        var typed = Firmware.Trim();
+        try { _rememberFirmware(tablet, typed.Length == 0 ? null : typed); }
+        catch (Exception) { /* the recording is saved; failing to remember is not worth losing the dialog over */ }
     }
 
     [RelayCommand]
