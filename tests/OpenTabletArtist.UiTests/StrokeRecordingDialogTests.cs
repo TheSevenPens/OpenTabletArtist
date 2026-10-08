@@ -239,15 +239,17 @@ public class StrokeRecordingDialogTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void DiscardAsksJustLikeClosingTheWindowDoes()
+    public void TheDiscardButtonDiscardsAtOnceWithoutAsking()
     {
-        var o = Record(agreeToDiscard: false, out var vm);
+        var o = Record(agreeToDiscard: false, out var vm);   // would refuse, if asked
 
         Click(ButtonNamed(o.Dialog, "Discard"));
 
-        Assert.Equal(1, o.Asked);
-        Assert.True(vm.IsReview);
-        Assert.False(o.Closed.IsCompleted);
+        Assert.Equal(0, o.Asked);
+        Assert.True(o.Closed.IsCompleted);
+        Assert.True(vm.IsIdle);
+        Assert.Equal("", vm.LedgerText);
+        Assert.False(Directory.Exists(_folder));   // nothing was written
     }
 
     [AvaloniaFact]

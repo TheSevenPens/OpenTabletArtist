@@ -17,10 +17,10 @@ namespace OpenTabletArtist.Views;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Closing it without saving asks first.</b> A recording is a few seconds of drawing that cannot be redone, and
-/// the window can be closed by a click on its edge, Esc, or the Discard button, none of which says "I mean it". All
-/// three take the same path and ask once. Closing after it has been saved, or because the application is shutting
-/// down, does not ask.
+/// <b>Closing it by accident asks first; Discard does not.</b> A recording is a few seconds of drawing that cannot be
+/// redone, and a click on the window's edge or a press of Esc does not say "I mean to throw it away", so those ask
+/// once. The Discard button does say that, so it discards at once. Closing after it has been saved, or because the
+/// application is shutting down, does not ask.
 /// </para>
 /// </remarks>
 public partial class StrokeRecordingDialog : Window
@@ -81,7 +81,13 @@ public partial class StrokeRecordingDialog : Window
         }, DispatcherPriority.Loaded);
     }
 
-    private void OnDiscard(object? sender, RoutedEventArgs e) => Close();
+    /// <summary>The Discard button says what the person means, so it does exactly that, without asking.</summary>
+    private void OnDiscard(object? sender, RoutedEventArgs e)
+    {
+        _agreedToDiscard = true;
+        _vm?.DiscardCommand.Execute(null);
+        Close();
+    }
 
     private void OnDone(object? sender, RoutedEventArgs e) => Close();
 
