@@ -210,4 +210,149 @@ public class TestViewModelTests
         Assert.Equal("XP-Pen Deco L", vm.TabletStatusText);
         Assert.True(vm.TabletDetected);
     }
+
+    // --- Readout refresh + out-of-range ---
+
+    private static PenSample Sample(long timestamp, int? hover = 12) =>
+        new(0.5, 0.5, 4200, 3100, 0.5, 20, -10, 0, IsDown: true, HoverDistance: hover, Timestamp: timestamp);
+
+    [Fact]
+    public void Readouts_OnlyChangeWhenPublished()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.UpdateReadout(Sample(1000));
+        Assert.Equal("—", vm.PressureText); // stashed, not yet on screen
+
+        vm.PublishReadouts();
+        Assert.Equal("0.500", vm.PressureText);
+        Assert.Equal("4200, 3100", vm.RawText);
+        Assert.Equal("12", vm.HoverText);
+        Assert.Equal("116.6°, 67.6°", vm.AzAltText); // tilt (20, -10): azimuth, altitude in one cell
+    }
+
+    [Fact]
+    public void AzAlt_ShowsADash_UntilThereIsAReading()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        Assert.Equal("—", vm.AzAltText);
+    }
+
+    [Fact]
+    public void PenLeavingRange_BlanksEveryReadout()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.UpdateCanvasPosition(10, 20);
+        vm.PublishReadouts();
+        vm.PublishRate();
+
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency); // a full second of silence
+
+        Assert.Equal("—", vm.CanvasText);
+        Assert.Equal("—", vm.RawText);
+        Assert.Equal("—", vm.TiltText);
+        Assert.Equal("—", vm.PressureText);
+        Assert.Equal("—", vm.AzimuthText);
+        Assert.Equal("—", vm.AltitudeText);
+        Assert.Equal("—", vm.TwistText);
+        Assert.Equal("—", vm.HoverText);
+        Assert.Equal("—", vm.RateText);
+    }
+
+    [Fact]
+    public void PenStillReporting_KeepsItsReadouts()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.PublishReadouts();
+
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency / 20); // 50 ms — still in range
+
+        Assert.Equal("0.500", vm.PressureText);
+    }
+
+    [Fact]
+    public void PenReturning_ShowsFreshValues_NotStaleOnes()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        var t = System.Diagnostics.Stopwatch.GetTimestamp();
+        vm.UpdateReadout(Sample(t));
+        vm.PublishReadouts();
+        vm.ClearIfOutOfRange(t + System.Diagnostics.Stopwatch.Frequency);
+
+        // Returns without a hover value: the old hover must not reappear.
+        vm.UpdateReadout(Sample(t + 2 * System.Diagnostics.Stopwatch.Frequency, hover: null));
+        vm.PublishReadouts();
+
+        Assert.Equal("0.500", vm.PressureText);
+        Assert.Equal("—", vm.HoverText);
+    }
+
+    // --- Pipeline counters ---
+
+    [Fact]
+    public void Counters_AreOffByDefault_AndCountNothing()
+    {
+        Assert.Null(Environment.GetEnvironmentVariable("OTA_SCRIBBLE_COUNTERS")); // the default under test
+        using var vm = NewVm(new FakeDeviceData());
+        Assert.False(vm.CountersEnabled);
+
+        vm.NoteHandled(Sample(1000), 2000);
+        vm.NoteOutcome(TestViewModel.SampleOutcome.Drawn);
+        vm.PublishCounters(newLagWindow: true);
+
+        Assert.Equal("no reports yet", vm.CountersText);
+
+        vm.CountersEnabled = true; // and switching on starts from zero
+        vm.PublishCounters();
+        Assert.Equal("no reports yet", vm.CountersText);
+    }
+
+    [Fact]
+    public void Counters_StartEmpty()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.PublishCounters();
+        Assert.Equal("no reports yet", vm.CountersText);
+    }
+
+    [Fact]
+    public void Counters_SplitHandledSamplesByOutcome()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.CountersEnabled = true;
+        var freq = System.Diagnostics.Stopwatch.Frequency;
+        for (var i = 0; i < 6; i++)
+        {
+            vm.NoteHandled(Sample(1000), 1000 + freq / 1000 * 2); // 2 ms lag each
+            vm.NoteOutcome(i < 3 ? TestViewModel.SampleOutcome.Drawn
+                         : i < 5 ? TestViewModel.SampleOutcome.Hover
+                         : TestViewModel.SampleOutcome.OffCanvas);
+        }
+
+        vm.PublishCounters(newLagWindow: true);
+
+        Assert.Contains("drawn 3", vm.CountersText);
+        Assert.Contains("hover 2", vm.CountersText);
+        Assert.Contains("off-canvas 1", vm.CountersText);
+        Assert.Contains("lag avg/max 2.0 / 2.0 ms", vm.CountersText);
+    }
+
+    [Fact]
+    public void Clear_ResetsTheCounters()
+    {
+        using var vm = NewVm(new FakeDeviceData());
+        vm.CountersEnabled = true;
+        vm.NoteHandled(Sample(1000), 2000);
+        vm.NoteOutcome(TestViewModel.SampleOutcome.Drawn);
+        vm.PublishCounters();
+        Assert.Contains("drawn 1", vm.CountersText);
+
+        vm.ClearCommand.Execute(null);
+        vm.PublishCounters();
+
+        Assert.Equal("no reports yet", vm.CountersText);
+    }
 }

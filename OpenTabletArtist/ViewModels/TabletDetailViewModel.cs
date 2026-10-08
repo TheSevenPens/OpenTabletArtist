@@ -1924,6 +1924,7 @@ public partial class TabletDetailViewModel : ObservableObject, IDisposable
     public Vector2? MapRawToDesktop(double rawX, double rawY) =>
         _previewMapping is { } m
             ? AbsolutePositionMapper.MapToDesktop(new Vector2((float)rawX, (float)rawY), m.Digi, m.Input, m.Output, m.Clip, m.Limit)
+                + DisplayMappingApplier.DesktopOrigin(Displays) // OTD's space is 0-based; the view wants screen coords
             : null;
 
     // DeviceReportSample normalizes to 0..1; feed both the pressure dot and the active-area map.

@@ -90,11 +90,17 @@
                         <Button Content="Copy" Click="OnCopy"
                                 Theme="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0"
                                 ToolTip.Tip="Copy the drawing to the clipboard as an image" />
+                        <!-- Marks every report that lands ink with a red dot, on a layer above the brush, so
+                             a stroke's individual reports are visible at high report rates. -->
+                        <CheckBox Content="Report dots" IsChecked="{Binding ShowReportDots}"
+                                  VerticalAlignment="Center" Margin="20,0,0,0"
+                                  ToolTip.Tip="Mark each pen report that lands ink with a red dot, to see where reports fall along a stroke" />
                     </WrapPanel>
 
-                    <!-- Live readouts. X/Y pairs share a cell ("x, y") so the panel is 4×2 instead of a
-                         taller 5-wide grid; left-aligned + content-sized columns keep it horizontally
-                         compact on smaller desktops. Monospace values keep the digits from jittering. -->
+                    <!-- Live readouts. Paired values share a cell (x/y, tilt x/y, az/al) so the panel is 4×2
+                         instead of a taller 5-wide grid; left-aligned + content-sized columns keep it
+                         horizontally compact on smaller desktops. Monospace values keep the digits from
+                         jittering. -->
                     <UniformGrid Columns="4" Margin="0,12,0,0" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
                             <TextBlock Text="Canvas:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
@@ -116,13 +122,11 @@
                             <TextBlock Text="Twist:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding TwistText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
-                            <TextBlock Text="Azimuth:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding AzimuthText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2">
-                            <TextBlock Text="Altitude:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding AltitudeText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                        <!-- Azimuth and altitude share a cell ("az, al"), like Tilt's x/y pair. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2"
+                                    ToolTip.Tip="Pen azimuth (direction it leans, 0–360°) and altitude (angle above the surface, 90° = upright).">
+                            <TextBlock Text="AZ/AL:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding AzAltText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
                         <!-- Hover distance (0–255) — driver-reported. Always shown so the grid layout is stable;
                              blank ("—") in App input, numeric only in Driver input (#hover-readout). -->
@@ -131,7 +135,27 @@
                             <TextBlock Text="Hover:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBlock Text="{Binding HoverText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
                         </StackPanel>
+                        <!-- Tablet reports per second, live while the pen draws or hovers. Held at the last
+                             value when the pen leaves range; restarts on its return. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,20,2"
+                                    ToolTip.Tip="How many reports per second the tablet is sending (its report rate), measured while the pen is drawing or hovering.">
+                            <TextBlock Text="Rate:" Width="58" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding RateText}" FontFamily="{DynamicResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" Classes="ReadoutValue" />
+                        </StackPanel>
                     </UniformGrid>
+
+                    <!-- Where every pen report ended up (counted since the page opened or Clear). Reads as
+                         parsed = handled + queued, and handled = drawn + hover + off-canvas — so any report
+                         that isn't drawn shows up in one of the other buckets, and "queued" growing means the
+                         UI thread is falling behind. Lag is arrival-at-the-app → handled (last second).
+                         Hidden, and not counted at all, unless TestViewModel.CountersEnabled is on (set the
+                         environment variable OTA_SCRIBBLE_COUNTERS=1). -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0" IsVisible="{Binding CountersEnabled}"
+                                ToolTip.Tip="parsed: pen reports received from the driver. queued: received but the UI hasn't handled them yet (should stay near 0). drawn: put ink down. hover: pen up, so no ink. off-canvas: mapped outside the canvas. lag: time from a report arriving to it being handled, average / worst over the last second.">
+                        <TextBlock Text="Reports:" Width="58" VerticalAlignment="Top" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding CountersText}" FontFamily="{DynamicResource MonoFontFamily}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
                 </StackPanel>
             </c:ControlPanel>
         </StackPanel>
@@ -140,7 +164,8 @@
         <c:Canvas CornerRadius="0" Padding="0" ClipToBounds="True" MinHeight="320">
             <Grid>
                 <c:PenTestCanvas x:Name="PaintCanvas"
-                                 BrushMode="{Binding BrushMode}" />
+                                 BrushMode="{Binding BrushMode}"
+                                 ShowReportDots="{Binding ShowReportDots}" />
                 <!-- Painting needs an Absolute output mode to map the pen's position; otherwise show why
                      the canvas is disabled (#95). -->
                 <Border IsVisible="{Binding DriverCanvasDisabled}"

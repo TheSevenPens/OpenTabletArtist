@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Threading;
 using Avalonia.Threading;
 using Newtonsoft.Json.Linq;
 using OpenTabletArtist.Domain;
@@ -28,6 +30,17 @@ public sealed class DaemonPenInputSource
 
     /// <summary>Raised on the UI thread for each parseable device report.</summary>
     public event Action<PenSample>? Sample;
+
+    private long _penSamples;
+
+    /// <summary>Whether <see cref="PenSampleCount"/> is being kept. Off by default so the per-report path
+    /// pays nothing for a counter nobody is looking at.</summary>
+    public volatile bool CountSamples;
+
+    /// <summary>How many pen samples have been parsed from the daemon's stream and queued to the UI thread
+    /// (counted at parse time, before the UI thread has handled them). Safe to read from any thread. The gap
+    /// between this and what the UI has handled is the backlog.</summary>
+    public long PenSampleCount => Interlocked.Read(ref _penSamples);
 
     /// <summary>Raised on the UI thread when a report carries auxiliary-button (express key) state,
     /// with the current pressed/released state of each button. Pen-only reports don't fire it.</summary>
@@ -88,12 +101,19 @@ public sealed class DaemonPenInputSource
 
     private void OnDeviceReport(JObject data)
     {
+        // Stamp on arrival, before any parsing or queueing, so rate measurement sees the daemon's cadence
+        // rather than the UI thread's.
+        var arrived = Stopwatch.GetTimestamp();
         if (_acceptReport != null && !_acceptReport(data)) return;
 
         // Reports arrive off the UI thread; marshal before raising (subscribers touch UI state).
         // Pen and aux state come on different report types, so parse/raise them independently.
         if (DeviceReportSample.TryParse(data, out var sample))
+        {
+            sample = sample with { Timestamp = arrived };
+            if (CountSamples) Interlocked.Increment(ref _penSamples);
             Dispatcher.UIThread.Post(() => Sample?.Invoke(sample));
+        }
         if (DeviceReportSample.TryParseAuxButtons(data, out var aux))
             Dispatcher.UIThread.Post(() => AuxButtons?.Invoke(aux));
         if (DeviceReportSample.TryParseWheelButtons(data, out var wheelButtons))
