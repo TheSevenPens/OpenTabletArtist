@@ -11,6 +11,45 @@ public class PenDynamicsProcessorTests
     // Smoothing settings are slider amounts; the EMA factor is the perceptual mapping of that amount.
     private static double F(double amount) => PenSmoothing.FactorFromAmount(amount);
 
+    // IsDrawing is the one definition of "a stroke" shared by the daemon's filter and the live preview.
+    [Theory]
+    [InlineData(0.0, false)]     // hover with no pressure
+    [InlineData(0.0013, false)]  // hover pressure under the dead zone: the curve maps it to 0
+    [InlineData(0.06, false)]    // exactly at the input minimum: still 0 out
+    [InlineData(0.07, true)]     // just past it
+    [InlineData(1.0, true)]
+    public void IsDrawing_RespectsTheDeadZone(double pressure, bool expected)
+    {
+        var curve = PressureCurveSettings.Default with { InputMinimum = 0.06 };
+        var p = Proc(PenDynamicsSettings.Default with { Curve = curve });
+        Assert.Equal(expected, p.IsDrawing(pressure));
+    }
+
+    [Fact]
+    public void IsDrawing_RaisedFloor_StillDrawsAtAnyPressure()
+    {
+        // Clamp with a non-zero output minimum emits pressure for every pressed sample, so none is a dead zone.
+        var curve = PressureCurveSettings.Default with { InputMinimum = 0.06, Minimum = 0.1 };
+        Assert.True(Proc(PenDynamicsSettings.Default with { Curve = curve }).IsDrawing(0.001));
+    }
+
+    // The regression behind the preview's "tail": smoothing leaves a decaying positive value after a stroke.
+    // The processor alone keeps emitting it for samples the curve maps to 0; IsDrawing is what lets a
+    // caller cut it (and Reset) instead, so the next press starts crisp.
+    [Fact]
+    public void SmoothingTail_IsPositiveWithoutTheGate_AndResetCutsIt()
+    {
+        var curve = PressureCurveSettings.Default with { InputMinimum = 0.06 };
+        var p = Proc(PenDynamicsSettings.Default with { Curve = curve, PressureSmoothing = 0.5 });
+        for (var i = 0; i < 60; i++) p.ProcessPressure(0.6);          // a stroke
+
+        Assert.False(p.IsDrawing(0.0013));                             // pen now hovering with pressure
+        Assert.True(p.ProcessPressure(0.0013) > 0);                    // ungated, the EMA tail is still > 0
+
+        p.Reset();                                                     // what a gated caller does instead
+        Assert.Equal(0.0, p.ProcessPressure(0.0013), 9);               // and no tail is carried over
+    }
+
     [Fact]
     public void NoSmoothing_IdentityCurve_IsPassthrough()
     {
