@@ -99,6 +99,53 @@ public class VMultiInspectorTests
         Assert.Same(hid, o.Details.Hid);
     }
 
+    // ── cross-check notes ──────────────────────────────────────────────────────────────────────────
+
+    private static VMultiHidObservation Hid(bool visible, string? error = null) =>
+        new(visible, visible, visible ? 5 : 0, error);
+
+    [Fact]
+    public void HealthyMachine_HasNoNotes()
+        => Assert.Empty(VMultiInspector.Build([Working()], 0, null, Hid(visible: true)).Details.Notes);
+
+    // This machine's bug as the report would have shown it: a real driver the probe did not recognise,
+    // while the HID view sees the virtual pen working.
+    [Fact]
+    public void UnrecognisedButWorking_FlagsBothNotes()
+    {
+        var odd = Node(@"ROOT\HIDCLASS\0001", [@"vendor\newname"], "vmulti");
+        var notes = VMultiInspector.Build([odd], 0, null, Hid(visible: true)).Details.Notes;
+        Assert.Equal([VMultiInspector.NearMissPresent, VMultiInspector.SignalsDisagree], notes);
+    }
+
+    [Fact]
+    public void NearMissWithoutHid_FlagsOnlyTheNearMiss()
+    {
+        var odd = Node(@"ROOT\HIDCLASS\0001", [@"vendor\newname"], "vmulti");
+        Assert.Equal([VMultiInspector.NearMissPresent], VMultiInspector.Build([odd], 0, null, Hid(visible: false)).Details.Notes);
+    }
+
+    [Fact]
+    public void WorkingNodeThatHidCannotSee_IsADisagreement()
+        => Assert.Equal([VMultiInspector.SignalsDisagree], VMultiInspector.Build([Working()], 0, null, Hid(visible: false)).Details.Notes);
+
+    // A disabled device is expected to be absent from HID: not a disagreement.
+    [Fact]
+    public void DisabledNodeAbsentFromHid_IsNotADisagreement()
+    {
+        var disabled = Node(@"ROOT\HIDCLASS\0000", [@"pentablet\hid"], "vmulti", problem: 0x16, enabled: false);
+        Assert.Empty(VMultiInspector.Build([disabled], 0, null, Hid(visible: false)).Details.Notes);
+    }
+
+    // If HID could not be read there is no second opinion to disagree with.
+    [Fact]
+    public void HidReadFailure_IsNotADisagreement()
+        => Assert.Empty(VMultiInspector.Build([Working()], 0, null, Hid(visible: false, error: "boom")).Details.Notes);
+
+    [Fact]
+    public void NoHidObservation_NoDisagreement()
+        => Assert.Empty(VMultiInspector.Build([Working()], 0, null, null).Details.Notes);
+
     // ── report plumbing ────────────────────────────────────────────────────────────────────────────
 
     [Fact]

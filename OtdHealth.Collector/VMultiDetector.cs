@@ -12,10 +12,11 @@ public class VMultiDetector
     {
         if (!OperatingSystem.IsWindows()) throw new ProbeUnavailableException("VMulti requires Windows.", true);
 
-        var present = ReadNodes(DIGCF_ALLCLASSES | DIGCF_PRESENT, present: true);
+        var present = ReadNodes(DIGCF_ALLCLASSES | DIGCF_PRESENT);
         var presentIds = present.Select(n => n.InstanceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var stale = ReadNodes(DIGCF_ALLCLASSES, present: false)
-            .Count(n => MatchHardwareId(n.HardwareIds) != null && !presentIds.Contains(n.InstanceId));
+        // Non-present nodes are mostly stale registry entries, and reading their properties is slow (the
+        // all-devices pass took ~300 ms reading three per device), so this pass reads hardware IDs only.
+        var stale = ReadMatchingInstanceIds(DIGCF_ALLCLASSES).Count(id => !presentIds.Contains(id));
 
         return VMultiInspector.Build(present, stale, ReadStagedPackage(), ObserveHid());
     }
@@ -160,10 +161,9 @@ public class VMultiDetector
         return results;
     }
 
-    /// <summary>Every device that is a VMulti node or merely looks like one (by hardware ID, name or
-    /// service), with the properties a reader needs to tell which. <paramref name="present"/> marks the rows
-    /// as coming from the present-devices pass.</summary>
-    private static List<VMultiNode> ReadNodes(uint flags, bool present)
+    /// <summary>Every present device that is a VMulti node or merely looks like one (by hardware ID, name
+    /// or service), with the properties a reader needs to tell which.</summary>
+    private static List<VMultiNode> ReadNodes(uint flags)
     {
         var results = new List<VMultiNode>();
         var guid = Guid.Empty;
@@ -187,7 +187,40 @@ public class VMultiDetector
                 var (enabled, problem) = GetDevNodeState(devInfoSet, ref devInfoData);
                 var driver = ReadDriverKey(TryGetProperty(devInfoSet, ref devInfoData, SPDRP_DRIVER));
                 results.Add(new VMultiNode(InstanceId(devInfoSet, ref devInfoData), ids, description, service,
-                    present, enabled, problem, driver.Inf, driver.Version, driver.Provider));
+                    Present: true, enabled, problem, driver.Inf, driver.Version, driver.Provider));
+            }
+            if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(devInfoSet);
+        }
+
+        return results;
+    }
+
+    /// <summary>The instance IDs of devices carrying a known VMulti hardware ID. Reads only the hardware
+    /// IDs, so it stays cheap over every device ever enumerated on the machine.</summary>
+    private static List<string> ReadMatchingInstanceIds(uint flags)
+    {
+        var results = new List<string>();
+        var guid = Guid.Empty;
+
+        var devInfoSet = SetupDiGetClassDevs(ref guid, null, nint.Zero, flags);
+        if (devInfoSet == INVALID_HANDLE) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+
+        try
+        {
+            var devInfoData = new SP_DEVINFO_DATA();
+            devInfoData.cbSize = (uint)Marshal.SizeOf(devInfoData);
+
+            for (uint i = 0; SetupDiEnumDeviceInfo(devInfoSet, i, ref devInfoData); i++)
+            {
+                string? hardwareIds = TryGetProperty(devInfoSet, ref devInfoData, SPDRP_HARDWAREID);
+                if (hardwareIds != null
+                    && MatchHardwareId(hardwareIds.Split('\0', StringSplitOptions.RemoveEmptyEntries)) != null)
+                    results.Add(InstanceId(devInfoSet, ref devInfoData));
             }
             if (Marshal.GetLastWin32Error() != 259) // ERROR_NO_MORE_ITEMS
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());

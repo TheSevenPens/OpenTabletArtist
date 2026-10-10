@@ -51,6 +51,10 @@ public static class VMultiInspector
     /// <summary>Keeps the report small: a machine can carry dozens of stale "PenTablet" HID entries.</summary>
     public const int MaxListed = 8;
 
+    /// <summary>Note codes. Informal and informational only: they never change a finding, and may change.</summary>
+    public const string NearMissPresent = "near-miss-present";
+    public const string SignalsDisagree = "signals-disagree";
+
     private static readonly string[] Keywords = ["vmulti", "pentablet"];
 
     /// <param name="present">Every present device, with its properties read.</param>
@@ -68,9 +72,21 @@ public static class VMultiInspector
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault() is { } id ? $"hardware-id:{id}" : null;
 
+        var notes = new List<string>();
+        // Something that looks like VMulti is present, yet nothing matched: the shape of the bug where a
+        // real install was missed because it carried an ID the probe did not know.
+        if (!verdict.Installed && nearMisses.Count > 0) notes.Add(NearMissPresent);
+        // Two independent views of the same driver disagree. Skipped when HID could not be read, and a
+        // disabled node is expected not to show in HID, so only a working node (no problem code) counts.
+        if (hid is { Error: null })
+        {
+            bool setupWorking = verdict.Installed && matched.Any(d => d.ProblemCode == 0);
+            if ((!verdict.Installed && hid.Visible) || (setupWorking && !hid.Visible)) notes.Add(SignalsDisagree);
+        }
+
         var details = new VMultiDetails(verdict.Message, matchedBy,
             matched.Take(MaxListed).ToList(), nearMisses.Take(MaxListed).ToList(), nearMisses.Count,
-            staleNodeCount, package, hid, Notes: []);
+            staleNodeCount, package, hid, notes);
         return new VMultiObservation(verdict.Installed, details);
     }
 
